@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Environment (patterns match at any depth, including apps/*)
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test & coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# Caches
+.cache/
+.npm/
+.eslintcache
+.vitest/
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal
+
+# Docker volumes
+docker/**/data/
+
+# Editors
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

@@ -8,7 +8,6 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "db:test:deploy": "DATABASE_URL=\"postgresql://postgres:postgres@localhost:5432/adpulse_test?schema=public\" prisma migrate deploy",
-    "pretest": "npm run db:test:deploy",
     "test": "vitest run",
     "test:watch": "vitest",
     "prisma:migrate": "prisma migrate dev",

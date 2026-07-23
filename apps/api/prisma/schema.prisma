@@ -8,11 +8,79 @@ datasource db {
 }
 
 model Client {
-  id            String   @id @default(uuid())
+  id            String     @id @default(uuid())
   name          String
   niche         String?
-  monthlyBudget Decimal? @db.Decimal(12, 2)
+  monthlyBudget Decimal?   @map("monthly_budget") @db.Decimal(12, 2)
   email         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+  campaigns     Campaign[]
+
+  @@map("client")
+}
+
+model Campaign {
+  id         String             @id @default(uuid())
+  clientId   String             @map("client_id")
+  client     Client             @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name       String
+  position   Int
+  createdAt  DateTime           @default(now()) @map("created_at")
+  updatedAt  DateTime           @updatedAt @map("updated_at")
+  properties CampaignProperty[]
+  records    CampaignRecord[]
+
+  @@index([clientId, position])
+  @@map("campaign")
+}
+
+enum PropertyType {
+  NUMBER
+  MONEY
+  PERCENT
+  TEXT
+
+  @@map("property_type")
+}
+
+model CampaignProperty {
+  id         String                  @id @default(uuid())
+  campaignId String                  @map("campaign_id")
+  campaign   Campaign                @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  name       String
+  key        String?
+  type       PropertyType
+  formula    Json?
+  position   Int
+  values     CampaignPropertyValue[]
+
+  @@index([campaignId, position])
+  @@map("campaign_property")
+}
+
+model CampaignRecord {
+  id         String                  @id @default(uuid())
+  campaignId String                  @map("campaign_id")
+  campaign   Campaign                @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  date       DateTime                @db.Date
+  values     CampaignPropertyValue[]
+
+  @@unique([campaignId, date])
+  @@map("campaign_record")
+}
+
+/// One value typed in by the user, at the intersection of a record (day) and a property.
+/// Exists only for properties without a formula — computed metrics are never stored here.
+model CampaignPropertyValue {
+  id          String           @id @default(uuid())
+  recordId    String           @map("record_id")
+  propertyId  String           @map("property_id")
+  record      CampaignRecord   @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  property    CampaignProperty @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  numberValue Decimal?         @map("number_value") @db.Decimal(18, 4)
+  textValue   String?          @map("text_value")
+
+  @@unique([recordId, propertyId])
+  @@map("campaign_property_value")
 }

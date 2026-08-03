@@ -12,12 +12,11 @@
 
 ## Global Constraints
 
-- **English only** — code, comments, docs, commit messages, API error messages.
-- **Conventional Commits** — `type(scope): subject`, imperative, lowercase, no trailing period.
-- **TDD** — the failing test comes first in every task, and must be observed failing before implementation.
-- Tests need Postgres: `docker compose up -d db`. Run them from the repository root; `pretest` applies migrations to `adpulse_test` automatically.
+Shared conventions (English-only, Conventional Commits, TDD, testing setup, error
+envelope, Decimal-as-strings) live in [conventions.md](../conventions.md).
+Phase-specific:
+
 - Run a single test file with `npm test -w apps/api -- <path>`; run everything with `npm test`.
-- Money and all numeric cell values are `Decimal`, never `float`. Numeric values cross the API as **strings** with 4 decimal places.
 - Do not touch `src/clients/*` — Phase 1 code stays as it is. The only pre-existing files this plan modifies are `prisma/schema.prisma`, `src/errors.ts`, `src/app.ts`, `test/helpers/db.ts`, `README.md`, and the test harness (`vitest.config.ts`, `test/setup.ts`, `package.json`) — the cascading foreign keys added in Task 1 require per-worker database isolation, decided during execution.
 
 ## File Structure

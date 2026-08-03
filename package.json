@@ -6,6 +6,18 @@
   "scripts": {
     "dev": "npm run dev -w apps/api",
     "test": "npm test -w apps/api",
-    "build": "npm run build -w apps/api"
+    "build": "npm run build -w apps/api",
+    "dev:web": "npm run dev -w @adpulse/web",
+    "build:web": "npm run build -w @adpulse/web",
+    "test:web": "npm run test -w @adpulse/web",
+    "db:up": "docker compose up -d db",
+    "predev:all": "npm run db:up",
+    "dev:all": "concurrently -k -n api,web -c blue,green \"npm run dev -w apps/api\" \"npm run dev:web\"",
+    "stack": "docker compose up",
+    "stack:bg": "docker compose up -d",
+    "stack:down": "docker compose down"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
   }
 }

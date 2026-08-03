@@ -3,6 +3,8 @@
 **Date:** 2026-07-21
 **Status:** implemented
 
+> Shared context and conventions: [conventions.md](../conventions.md).
+
 ## Context
 
 Phase 1 delivered client CRUD (see
@@ -319,11 +321,7 @@ Some transitions would silently destroy data, so they are rejected instead:
 
 ## Error handling
 
-The Phase 1 error middleware and JSON shape stay unchanged:
-
-```json
-{ "error": { "message": "...", "details": [ ... ] } }
-```
+The Phase 1 error middleware and [JSON envelope](../conventions.md) stay unchanged.
 
 | Situation | Code |
 |---|:--:|
@@ -356,9 +354,7 @@ The layering of Phase 1 is preserved: routes → controller (Zod) → service (P
 expression tree and a map of property values. It carries the densest logic in this
 phase and must be testable without a database.
 
-## Testing (TDD)
-
-Each slice starts with a failing test.
+## Testing
 
 - **formula (unit, no database):** nested expressions, null propagation, division by
   zero, references to computed properties, cycle detection, rejection of `TEXT`

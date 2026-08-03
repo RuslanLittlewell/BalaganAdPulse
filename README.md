@@ -19,18 +19,38 @@ cp apps/api/.env.example apps/api/.env
 docker compose up --build
 ```
 
-The API is available at `http://localhost:3000`. The `api` container runs
-`prisma migrate deploy` on startup, so the stack comes up fully migrated with no
-manual steps. Postgres data lives in the named volume `adpulse_pgdata` and survives
-container restarts.
+This runs the whole stack — Postgres, the API on `http://localhost:3000`, and the web
+app on `http://localhost:5173`. The `api` container runs `prisma migrate deploy` on
+startup, so the stack comes up fully migrated with no manual steps. Postgres data lives
+in the named volume `adpulse_pgdata` and survives container restarts.
 
-To run the API on the host instead (Postgres still from Compose):
+## Running the app
+
+The whole stack (Postgres + API + web) runs from one command. Pick the mode that fits:
+
+| Goal | Command |
+|------|---------|
+| Foreground, all logs (debug) | `npm run stack` |
+| Background (detached) | `npm run stack:bg` |
+| Follow background logs | `docker compose logs -f` |
+| Stop the background stack | `npm run stack:down` |
+
+These wrap `docker compose up` / `up -d` / `down`. The web container talks to the API
+over the Compose network (`API_PROXY_TARGET=http://api:3000`) and enables file-watch
+polling so hot reload works across the bind mount on macOS.
+
+For the fastest frontend loop, run the API and web natively (Postgres still from
+Compose) — this gives native Vite HMR:
 
 ```bash
-docker compose up -d db
-npm install
-npm run dev
+npm run dev:all
 ```
+
+`dev:all` starts Postgres (`docker compose up -d db`), then runs the API (`tsx watch`)
+and the web dev server side by side with colour-prefixed logs; `Ctrl-C` stops both.
+To run a single side on the host instead: `npm run dev` (API) or `npm run dev:web` (web).
+
+See [docs/running.md](docs/running.md) for when to use each runner and the trade-offs.
 
 ## Project structure
 
@@ -134,5 +154,7 @@ npm test
 ## Documentation
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) — commit conventions and development workflow
+- [docs/running.md](docs/running.md) — which runner to use when
+- [docs/superpowers/conventions.md](docs/superpowers/conventions.md) — shared context for specs and plans
 - [docs/superpowers/specs/](docs/superpowers/specs/) — design documents per phase
 - [docs/superpowers/plans/](docs/superpowers/plans/) — implementation plans per phase

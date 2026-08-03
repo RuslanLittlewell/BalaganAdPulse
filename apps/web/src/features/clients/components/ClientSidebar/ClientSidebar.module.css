@@ -1,0 +1,18 @@
+.state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+
+.stateText {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.skeleton {
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  opacity: 0.6;
+}

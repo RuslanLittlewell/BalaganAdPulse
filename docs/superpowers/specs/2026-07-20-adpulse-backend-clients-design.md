@@ -3,21 +3,13 @@
 **Date:** 2026-07-20
 **Status:** approved for implementation
 
+> Shared context and conventions: [conventions.md](../conventions.md).
+
 ## Context
 
-AdPulse is a media buyer's dashboard. The backend exposes a REST API; the UI is
-a separate React application.
-
-Full product vision (future, NOT in current scope):
-- SaaS with per-media-buyer data isolation, authentication
-- client management
-- automatic metric calculation (CTR, CPM, CPC, CPL)
-- CSV import
-- AI campaign analysis (Claude)
-- shareable public-link reports
-
-The current phase is deliberately minimal (YAGNI): start with client CRUD, then the
-metrics table (details later).
+Phase 1 is the first slice of AdPulse (see [conventions.md](../conventions.md) for the
+product and its wider vision). It is deliberately minimal (YAGNI): client CRUD first,
+the metrics table later.
 
 ## Phase 1 scope
 
@@ -26,17 +18,6 @@ metrics table (details later).
 **Out of scope for now:** authentication, multi-tenancy, AI, CSV, metrics, campaigns.
 The database schema is designed so that `Client → Campaign → Metric` can be added in
 Phase 2 without reworking the existing code.
-
-## Stack
-
-- **Language:** TypeScript
-- **Web framework:** Express
-- **Database:** PostgreSQL
-- **ORM:** Prisma (migrations + type-safe access)
-- **Validation:** Zod
-- **Tests:** Vitest + Supertest (TDD)
-- **Repository:** monorepo on npm workspaces (`apps/api`, placeholder for `apps/web`)
-- **Infrastructure:** Docker Compose (PostgreSQL + API); DB data in a named volume
 
 ## Repository layout (monorepo)
 
@@ -77,20 +58,12 @@ PostgreSQL, back to JSON. Errors propagate to the error-handler middleware.
 
 ## Docker and data persistence
 
-- **db** — the `postgres` image, data in a **named volume** (`adpulse_pgdata`) so it
-  survives system/container restarts. Port 5432 is published to the host for local
-  commands (Prisma, tests).
-- **api** — built from `apps/api/Dockerfile`, dev mode with hot reload (`tsx watch`),
-  sources mounted via bind mount. `DATABASE_URL` inside the container points at host `db`.
-- **Test database:** a separate `adpulse_test` database in the same Postgres instance
-  (created by `docker/postgres/init.sql`) so clearing data in tests does not touch dev data.
-- **Environment separation:** host commands (`prisma migrate`, `npm test`) use
-  `localhost:5432`; the `api` container uses `db:5432`.
-- **Auto-provisioning:** the `api` container applies migrations to `adpulse` on startup
-  (`prisma migrate deploy` in the CMD) — `docker compose up --build` yields a working
-  stack with no manual steps. On the host, `npm test` applies migrations to
-  `adpulse_test` via a `pretest` script, so tests restore the schema by themselves after
-  a volume is recreated.
+Standard project setup (see [conventions.md](../conventions.md) for volume, test
+database and host-vs-container environment split). The `api` container applies
+migrations on startup (`prisma migrate deploy` in the CMD), so `docker compose up
+--build` yields a working, migrated stack with no manual steps; on the host, `pretest`
+migrates `adpulse_test` so tests restore the schema by themselves after a volume is
+recreated.
 
 ## Data model
 
@@ -157,8 +130,6 @@ A central middleware normalizes everything to a single JSON shape:
 - **API:** integration tests via Supertest against `app` (all endpoints + error codes).
 - **Validation:** tests that reject invalid input (empty `name`, negative budget,
   invalid email).
-
-Tests are written before the implementation for each slice.
 
 ## Phase 2 groundwork (not implemented now)
 

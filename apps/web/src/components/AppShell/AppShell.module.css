@@ -1,0 +1,11 @@
+.shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.main {
+  overflow: auto;
+  padding: var(--space-6);
+}

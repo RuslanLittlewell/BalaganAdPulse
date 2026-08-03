@@ -10,15 +10,13 @@
 
 ## Global Constraints
 
+Shared conventions (API prefix, error envelope, Decimal, testing setup, Docker
+environment split) live in [conventions.md](../conventions.md). This phase predates the
+project's git workflow, plus its own specifics:
+
 - **Git is NOT used** (per the user's request). Instead of a "commit" step, run a **checkpoint**: `npm test -w apps/api`, all green.
 - **Monorepo:** root `package.json` with `workspaces: ["apps/*"]`. Backend in `apps/api`. `apps/web` is NOT created this phase, but the structure is in place.
-- **Docker:** Postgres data in a named volume `adpulse_pgdata` (survives restarts). The `adpulse_test` test database is a separate database in the same Postgres instance.
-- **Environment separation:** host commands → `localhost:5432`; the `api` container → `db:5432` (set in compose).
-- API prefix: `/api` (e.g. `POST /api/clients`).
-- Money is `Decimal` (not float). Prisma: `@db.Decimal(12, 2)`.
 - The only required client field is `name`; `niche`, `monthlyBudget`, `email` are optional. `email` is validated when present; `monthlyBudget` >= 0.
-- Error shape: `{ "error": { "message": string, "details"?: unknown } }`.
-- TDD: tests are written BEFORE the implementation. All commands run from the repository root.
 - Docker must be installed (Docker Desktop / Docker Engine + Compose v2).
 
 ---

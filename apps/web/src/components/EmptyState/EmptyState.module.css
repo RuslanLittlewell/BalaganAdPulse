@@ -22,3 +22,7 @@
   color: var(--color-text-muted);
   font-size: 14px;
 }
+
+.action {
+  margin-top: var(--space-3);
+}

@@ -2,9 +2,15 @@ import type { Client } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { NotFoundError } from "../errors.js";
 import type { CreateClientInput, UpdateClientInput } from "./client.schema.js";
+import { buildCampaignCreateData, DEFAULT_CAMPAIGN_NAME } from "../campaigns/defaults.js";
 
 export async function createClient(input: CreateClientInput): Promise<Client> {
-  return prisma.client.create({ data: input });
+  return prisma.client.create({
+    data: {
+      ...input,
+      campaigns: { create: buildCampaignCreateData(DEFAULT_CAMPAIGN_NAME, 0) },
+    },
+  });
 }
 
 export async function listClients(): Promise<Client[]> {

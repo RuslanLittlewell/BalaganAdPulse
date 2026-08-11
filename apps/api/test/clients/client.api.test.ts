@@ -42,4 +42,12 @@ describe("Clients API", () => {
     const res = await request(app).delete(`/api/clients/${c.body.id}`);
     expect(res.status).toBe(204);
   });
+  it("POST /api/clients seeds one Main campaign", async () => {
+    const created = await request(app).post("/api/clients").send({ name: "Acme" });
+    const res = await request(app).get(`/api/clients/${created.body.id}/campaigns`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].name).toBe("Main");
+  });
 });

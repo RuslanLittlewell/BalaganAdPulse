@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { PropertyType } from "@prisma/client";
 import type { Expression } from "../formula/expression.schema.js";
+import { toJson } from "../formula/expression.schema.js";
 
 export interface DefaultPropertySeed {
   id: string;
@@ -47,4 +48,29 @@ export function buildDefaultProperties(): DefaultPropertySeed[] {
       formula: div(prop(revenue), prop(spend)) },
     { id: randomUUID(), key: "comment", name: "COMMENT", type: "TEXT", position: 10, formula: null },
   ];
+}
+
+/** The sheet every client starts with. Not UI copy — the client names it. */
+export const DEFAULT_CAMPAIGN_NAME = "Main";
+
+/**
+ * Prisma create input for a campaign and its default properties, without `clientId`.
+ * The campaign service supplies it explicitly; the client service nests this under
+ * its own create, where Prisma fills it in.
+ */
+export function buildCampaignCreateData(name: string, position: number) {
+  return {
+    name,
+    position,
+    properties: {
+      create: buildDefaultProperties().map((property) => ({
+        id: property.id,
+        key: property.key,
+        name: property.name,
+        type: property.type,
+        position: property.position,
+        formula: toJson(property.formula),
+      })),
+    },
+  };
 }

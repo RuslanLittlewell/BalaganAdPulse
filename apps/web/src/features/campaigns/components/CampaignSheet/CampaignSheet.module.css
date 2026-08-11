@@ -1,0 +1,15 @@
+.sheet {
+  margin-top: var(--space-6);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 700;
+}

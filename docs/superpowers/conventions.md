@@ -22,6 +22,9 @@ analysis, and shareable public-link reports.
 | 1 | Client CRUD | [design](specs/2026-07-20-adpulse-backend-clients-design.md) | [plan](plans/2026-07-20-adpulse-backend-clients.md) |
 | 2 | Campaigns + daily stats grid | [design](specs/2026-07-21-adpulse-campaigns-design.md) | [plan](plans/2026-07-21-adpulse-campaigns.md) |
 | 3 | Frontend shell + clients | [design](specs/2026-07-24-adpulse-frontend-shell-design.md) | [plan](plans/2026-07-24-adpulse-frontend-shell.md) |
+| 4 | Campaign sheets | [design](specs/2026-08-03-adpulse-campaign-sheets-design.md) | [plan](plans/2026-08-03-adpulse-campaign-sheets.md) |
+| 5 | Sheet creation and renaming | — | [plan](plans/2026-08-05-adpulse-campaign-management.md) |
+| 6 | Sheet deletion and day entry | — | [plan](plans/2026-08-11-adpulse-sheet-management.md) |
 
 ## How we work
 

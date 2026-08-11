@@ -1,8 +1,8 @@
 import type { Campaign } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { NotFoundError } from "../errors.js";
-import { buildDefaultProperties } from "./defaults.js";
-import { fromJson, toJson } from "../formula/expression.schema.js";
+import { buildCampaignCreateData } from "./defaults.js";
+import { fromJson } from "../formula/expression.schema.js";
 import {
   computeTable, type ComputedRecord, type TableProperty, type TableRecord,
 } from "../formula/table.js";
@@ -29,21 +29,7 @@ export async function createCampaign(
   await assertClientExists(clientId);
   const position = await prisma.campaign.count({ where: { clientId } });
   return prisma.campaign.create({
-    data: {
-      clientId,
-      name: input.name,
-      position,
-      properties: {
-        create: buildDefaultProperties().map((property) => ({
-          id: property.id,
-          key: property.key,
-          name: property.name,
-          type: property.type,
-          position: property.position,
-          formula: toJson(property.formula),
-        })),
-      },
-    },
+    data: { clientId, ...buildCampaignCreateData(input.name, position) },
   });
 }
 

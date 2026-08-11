@@ -1,0 +1,86 @@
+.scroll {
+  /* Bounds this box to the space left over in its flex parent (see AppShell's
+     ".main") instead of growing to the table's full height, so this element —
+     not the page — owns the vertical scrollbar and the sticky header/footer
+     have an actual scroll range. Inert when the parent isn't a flex container. */
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  font-size: 14px;
+}
+
+.table th,
+.table td {
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+  white-space: nowrap;
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--color-surface);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.rowHeader,
+.corner {
+  position: sticky;
+  left: 0;
+  background: var(--color-surface);
+}
+
+/* Outrank ".table thead th" (0,1,2), whose own z-index would otherwise win over
+   ".corner" (0,1,0) and leave the corner cell level with the other header cells. */
+.table thead th.corner {
+  z-index: 3;
+}
+
+/* Outrank ".table th, .table td" (0,1,1) so the row header keeps its surface
+   background instead of the default cell background. */
+.table th.rowHeader {
+  background: var(--color-surface);
+}
+
+.table tfoot th,
+.table tfoot td {
+  position: sticky;
+  bottom: 0;
+  background: var(--color-surface);
+  font-weight: 700;
+  border-top: 1px solid var(--color-border);
+  border-bottom: none;
+}
+
+/* The footer's row header and data cells are both sticky with no declared
+   z-index, so paint order (DOM order) puts the data cells over the sticky-left
+   TOTAL label. Give the row header a higher z-index to keep it on top. */
+.table tfoot th.rowHeader {
+  z-index: 3;
+}
+
+/* Numeric columns are the right-aligned ones; tabular figures keep them in line. */
+.table [data-align="right"] {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.table [data-align="left"] {
+  text-align: left;
+}

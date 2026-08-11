@@ -16,6 +16,7 @@ export function App() {
           <Routes>
             <Route path="/" element={<EmptyRoute />} />
             <Route path="/clients/:clientId" element={<ClientPage />} />
+            <Route path="/clients/:clientId/campaigns/:campaignId" element={<ClientPage />} />
           </Routes>
         </AppShell>
       </BrowserRouter>

@@ -48,4 +48,21 @@ describe("client.service", () => {
     const fetched = await getClient(c.id);
     expect(String(fetched.monthlyBudget)).toBe("1234.56");
   });
+  it("seeds a Main campaign with the default properties", async () => {
+    const client = await createClient({ name: "Acme" });
+
+    const campaigns = await prisma.campaign.findMany({ where: { clientId: client.id } });
+    expect(campaigns).toHaveLength(1);
+    expect(campaigns[0].name).toBe("Main");
+    expect(campaigns[0].position).toBe(0);
+
+    const properties = await prisma.campaignProperty.findMany({
+      where: { campaignId: campaigns[0].id }, orderBy: { position: "asc" },
+    });
+    expect(properties).toHaveLength(11);
+    expect(properties.map((property) => property.key)).toEqual([
+      "spend", "impressions", "clicks", "ctr", "cpm", "cpc",
+      "leads", "cpl", "revenue", "roas", "comment",
+    ]);
+  });
 });

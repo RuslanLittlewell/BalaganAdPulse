@@ -113,7 +113,8 @@ Errors are normalized to a single shape:
 ```
 
 A campaign starts with eleven default properties (spend, impressions, clicks, CTR, CPM,
-CPC, leads, CPL, revenue, ROAS, comment). Derived properties carry a formula — an
+CPC, leads, CPL, revenue, ROAS, comment); creating a client seeds it with one such
+campaign, named `Main`, at position 0. Derived properties carry a formula — an
 expression tree — and are computed on read, so only hand-entered values are stored.
 Numeric values cross the API as strings with four decimals to preserve precision.
 

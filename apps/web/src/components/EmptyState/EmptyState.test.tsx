@@ -7,4 +7,10 @@ describe("EmptyState", () => {
     expect(screen.getByText("Select a client")).toBeInTheDocument();
     expect(screen.getByText("Add one from the sidebar")).toBeInTheDocument();
   });
+
+  it("renders an action below the description", () => {
+    render(<EmptyState title="Something went wrong" action={<button type="button">Retry</button>} />);
+
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
 });

@@ -19,5 +19,7 @@ export default defineConfig({
     globals: true,
     setupFiles: "./src/test/setup.ts",
     css: true,
+    // UTC+9, no daylight saving, always differs from UTC — pins timezone-sensitive tests.
+    env: { TZ: "Asia/Tokyo" },
   },
 });

@@ -6,6 +6,13 @@
 }
 
 .main {
+  /* A flex column (rather than plain block flow) so a bounded, scrollable
+     descendant — e.g. DataTable's ".scroll" — can claim the space left over
+     after this column's other children with "flex: 1; min-height: 0" and own
+     its own vertical scrollbar, instead of growing to its content height. */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   overflow: auto;
   padding: var(--space-6);
 }

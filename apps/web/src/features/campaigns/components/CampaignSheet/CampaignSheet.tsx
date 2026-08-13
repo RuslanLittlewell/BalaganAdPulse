@@ -1,13 +1,21 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { DataTable, type DataColumn, type DataRow } from "../../../../components/DataTable/DataTable.js";
+import { Dialog } from "../../../../components/Dialog/Dialog.js";
 import { EditableCell } from "../../../../components/EditableCell/EditableCell.js";
 import { EmptyState } from "../../../../components/EmptyState/EmptyState.js";
 import { Button } from "../../../../components/Button/Button.js";
+import { TrashIcon } from "../../../../components/TrashIcon/TrashIcon.js";
 import { formatDay, formatValue, nextDay, todayIso } from "../../../../lib/format.js";
 import { t } from "../../../../i18n/en.js";
-import { useCampaignTable, useCreateRecord, useSetValue } from "../../data/queries.js";
+import {
+  useCampaignTable,
+  useCreateRecord,
+  useDeleteRecord,
+  useSetValue,
+} from "../../data/queries.js";
 import type { CampaignProperty, CampaignRecord } from "../../data/api.js";
 import { normalizeInput, toInputValue } from "./sheetValue.js";
+import { SheetDateCell } from "./SheetDateCell.js";
 import { useSheetEditing } from "./useSheetEditing.js";
 import styles from "./CampaignSheet.module.css";
 
@@ -34,6 +42,8 @@ export function CampaignSheet({ campaignId }: CampaignSheetProps) {
   const table = useCampaignTable(campaignId);
   const addDay = useCreateRecord(campaignId);
   const setValue = useSetValue(campaignId);
+  const removeDay = useDeleteRecord(campaignId);
+  const [deletingId, setDeletingId] = useState<string | undefined>(undefined);
 
   // Read before the early returns below: hooks may not sit behind a conditional return.
   const properties = table.data?.properties ?? [];
@@ -100,7 +110,9 @@ export function CampaignSheet({ campaignId }: CampaignSheetProps) {
   const rows: DataRow[] = records.map((record) => ({
     id: record.id,
     cells: {
-      [DATE_COLUMN]: formatDay(record.date),
+      [DATE_COLUMN]: (
+        <SheetDateCell campaignId={campaignId} recordId={record.id} date={record.date} />
+      ),
       ...Object.fromEntries(properties.map((property) => [property.id, cell(record, property)])),
     },
   }));
@@ -109,6 +121,8 @@ export function CampaignSheet({ campaignId }: CampaignSheetProps) {
     id: "totals",
     cells: { [DATE_COLUMN]: t("sheet.total"), ...totalCells(properties, table.data.totals) },
   };
+
+  const deletingDate = records.find((record) => record.id === deletingId)?.date;
 
   const lastRecord = records[records.length - 1];
   const nextDate = lastRecord != null ? nextDay(lastRecord.date) : todayIso();
@@ -126,7 +140,44 @@ export function CampaignSheet({ campaignId }: CampaignSheetProps) {
           + {t("sheet.addDay")}
         </Button>
       </div>
-      <DataTable columns={columns} rows={rows} footer={footer} />
+      <DataTable
+        columns={columns}
+        rows={rows}
+        footer={footer}
+        rowAction={(row) => (
+          <button
+            type="button"
+            className={styles.rowAction}
+            aria-label={`${t("sheet.delete")}, ${formatDay(
+              records.find((record) => record.id === row.id)!.date,
+            )}`}
+            onClick={() => setDeletingId(row.id)}
+          >
+            <TrashIcon />
+          </button>
+        )}
+      />
+
+      {deletingDate != null && (
+        <Dialog open onClose={() => setDeletingId(undefined)} title={t("sheet.delete.title")}>
+          <p>{t("sheet.delete.body")}</p>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-3)" }}>
+            <Button variant="ghost" onClick={() => setDeletingId(undefined)}>
+              {t("action.cancel")}
+            </Button>
+            <Button
+              variant="danger"
+              disabled={removeDay.isPending}
+              onClick={async () => {
+                await removeDay.mutateAsync(deletingId!);
+                setDeletingId(undefined);
+              }}
+            >
+              {t("action.delete")}
+            </Button>
+          </div>
+        </Dialog>
+      )}
     </div>
   );
 }

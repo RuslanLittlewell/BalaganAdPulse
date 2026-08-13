@@ -233,4 +233,132 @@ describe("CampaignSheet", () => {
 
     expect(screen.getByRole("textbox", { name: "SPEND, 02 Aug" })).toBeInTheDocument();
   });
+
+  it("opens a date picker on the day cell and moves the day", async () => {
+    let received: unknown;
+    server.use(
+      mock.get("/api/campaigns/c1", () => HttpResponse.json(table)),
+      mock.patch("/api/records/r1", async ({ request }) => {
+        received = await request.json();
+        return HttpResponse.json({ id: "r1", campaignId: "c1", date: "2026-08-05" });
+      }),
+    );
+
+    renderWithProviders(<CampaignSheet campaignId="c1" />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "01 Aug" }));
+    await userEvent.click(screen.getByRole("button", { name: "05 August 2026" }));
+
+    await waitFor(() => expect(received).toEqual({ date: "2026-08-05" }));
+  });
+
+  it("closes the picker on a click outside it", async () => {
+    server.use(mock.get("/api/campaigns/c1", () => HttpResponse.json(table)));
+
+    renderWithProviders(<CampaignSheet campaignId="c1" />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "01 Aug" }));
+    expect(screen.getByRole("dialog", { name: "Choose a date" })).toBeInTheDocument();
+
+    await userEvent.click(document.body);
+
+    expect(screen.queryByRole("dialog", { name: "Choose a date" })).not.toBeInTheDocument();
+  });
+
+  it("sends nothing when the same day is picked again", async () => {
+    let patches = 0;
+    server.use(
+      mock.get("/api/campaigns/c1", () => HttpResponse.json(table)),
+      mock.patch("/api/records/r1", () => {
+        patches += 1;
+        return HttpResponse.json({ id: "r1", campaignId: "c1", date: "2026-08-01" });
+      }),
+    );
+
+    renderWithProviders(<CampaignSheet campaignId="c1" />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "01 Aug" }));
+    await userEvent.click(screen.getByRole("button", { name: "01 August 2026" }));
+
+    expect(screen.queryByRole("dialog", { name: "Choose a date" })).not.toBeInTheDocument();
+    expect(patches).toBe(0);
+  });
+
+  it("shows the server's message when the date is taken", async () => {
+    server.use(
+      mock.get("/api/campaigns/c1", () => HttpResponse.json(table)),
+      mock.patch("/api/records/r1", () =>
+        HttpResponse.json(
+          { error: { message: "The campaign already has a record for 2026-08-02" } },
+          { status: 409 },
+        ),
+      ),
+    );
+
+    renderWithProviders(<CampaignSheet campaignId="c1" />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "01 Aug" }));
+    await userEvent.click(screen.getByRole("button", { name: "02 August 2026" }));
+
+    const trigger = await screen.findByRole("button", { name: "01 Aug" });
+    await waitFor(() =>
+      expect(trigger).toHaveAttribute("title", "The campaign already has a record for 2026-08-02"),
+    );
+    expect(trigger).toHaveAttribute("data-state", "error");
+  });
+
+  it("asks before deleting a day and then deletes it", async () => {
+    let method = "";
+    let gets = 0;
+    server.use(
+      mock.get("/api/campaigns/c1", () => {
+        gets += 1;
+        return HttpResponse.json(gets === 1 ? table : { ...table, records: [table.records[1]] });
+      }),
+      mock.delete("/api/records/r1", ({ request }) => {
+        method = request.method;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    renderWithProviders(<CampaignSheet campaignId="c1" />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Delete day, 01 Aug" }));
+    expect(screen.getByText("Delete day?")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(method).toBe("DELETE");
+    await waitFor(() =>
+      expect(screen.queryByRole("rowheader", { name: "01 Aug" })).not.toBeInTheDocument(),
+    );
+  });
+
+  it("keeps the day when the confirmation is cancelled", async () => {
+    let deletes = 0;
+    server.use(
+      mock.get("/api/campaigns/c1", () => HttpResponse.json(table)),
+      mock.delete("/api/records/r1", () => {
+        deletes += 1;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    renderWithProviders(<CampaignSheet campaignId="c1" />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Delete day, 01 Aug" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(deletes).toBe(0);
+    expect(screen.getByRole("rowheader", { name: "01 Aug" })).toBeInTheDocument();
+  });
+
+  it("renders no delete control on the totals row", async () => {
+    server.use(mock.get("/api/campaigns/c1", () => HttpResponse.json(table)));
+
+    renderWithProviders(<CampaignSheet campaignId="c1" />);
+
+    await screen.findByRole("columnheader", { name: "SPEND" });
+    const footer = screen.getAllByRole("rowgroup").at(-1)!;
+    expect(within(footer).queryByRole("button")).not.toBeInTheDocument();
+  });
 });

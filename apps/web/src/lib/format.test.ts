@@ -1,4 +1,4 @@
-import { formatValue, formatDay, nextDay, todayIso } from "./format.js";
+import { formatValue, formatDay, nextDay, shiftDays, todayIso } from "./format.js";
 
 describe("formatValue", () => {
   it("renders money with two decimals and grouped thousands", () => {
@@ -65,5 +65,19 @@ describe("todayIso", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("shiftDays", () => {
+  it("moves a day forwards and backwards", () => {
+    expect(shiftDays("2026-08-12", 1)).toBe("2026-08-13");
+    expect(shiftDays("2026-08-12", -1)).toBe("2026-08-11");
+    expect(shiftDays("2026-08-12", 7)).toBe("2026-08-19");
+  });
+
+  it("crosses month and year boundaries", () => {
+    expect(shiftDays("2026-08-31", 1)).toBe("2026-09-01");
+    expect(shiftDays("2026-01-01", -1)).toBe("2025-12-31");
+    expect(shiftDays("2024-02-28", 1)).toBe("2024-02-29");
   });
 });

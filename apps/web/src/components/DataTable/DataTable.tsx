@@ -18,6 +18,8 @@ export interface DataTableProps {
   columns: DataColumn[];
   rows: DataRow[];
   footer?: DataRow;
+  /** Rendered in a trailing column, once per body row. Never called for the footer. */
+  rowAction?: (row: DataRow) => ReactNode;
 }
 
 /** The first column is a row header, so it can stick to the left edge while scrolling. */
@@ -40,7 +42,7 @@ function Cells({ columns, row }: { columns: DataColumn[]; row: DataRow }) {
   );
 }
 
-export function DataTable({ columns, rows, footer }: DataTableProps) {
+export function DataTable({ columns, rows, footer, rowAction }: DataTableProps) {
   return (
     <div className={styles.scroll}>
       <table className={styles.table}>
@@ -56,12 +58,14 @@ export function DataTable({ columns, rows, footer }: DataTableProps) {
                 {column.label}
               </th>
             ))}
+            {rowAction != null && <th scope="col" className={styles.action} />}
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
             <tr key={row.id}>
               <Cells columns={columns} row={row} />
+              {rowAction != null && <td className={styles.action}>{rowAction(row)}</td>}
             </tr>
           ))}
         </tbody>
@@ -69,6 +73,7 @@ export function DataTable({ columns, rows, footer }: DataTableProps) {
           <tfoot>
             <tr>
               <Cells columns={columns} row={footer} />
+              {rowAction != null && <td className={styles.action} />}
             </tr>
           </tfoot>
         )}

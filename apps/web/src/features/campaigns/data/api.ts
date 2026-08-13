@@ -64,6 +64,9 @@ export interface CampaignRecordSummary {
 export const recordsApi = {
   create: (campaignId: string, body: RecordInput) =>
     http.post<CampaignRecordSummary>(`/campaigns/${campaignId}/records`, body),
+  update: (recordId: string, body: RecordInput) =>
+    http.patch<CampaignRecordSummary>(`/records/${recordId}`, body),
+  remove: (recordId: string) => http.del(`/records/${recordId}`),
 };
 
 /** What the value endpoint answers with: the recomputed row and the recomputed totals. */

@@ -88,3 +88,11 @@
 .table [data-align="left"] {
   text-align: left;
 }
+
+/* Shrinks to the control it holds, so the data columns keep the remaining width. */
+.table .action {
+  width: 1%;
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+  text-align: right;
+}

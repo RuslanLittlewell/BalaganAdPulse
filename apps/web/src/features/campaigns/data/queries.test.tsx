@@ -9,6 +9,8 @@ import {
   useUpdateCampaign,
   useDeleteCampaign,
   useCreateRecord,
+  useUpdateRecord,
+  useDeleteRecord,
   useSetValue,
 } from "./queries.js";
 
@@ -272,5 +274,65 @@ describe("useSetValue", () => {
     await waitFor(() => expect(result.current.table.data?.records[0].values.p1).toBe("200.0000"));
     expect(result.current.table.data?.records[1].values.p1).toBe("300.0000");
     expect(result.current.table.data?.totals.p1).toBe("300.0000");
+  });
+});
+
+describe("useUpdateRecord", () => {
+  it("patches the date and refetches the table, because the rows reorder", async () => {
+    let method = "";
+    let received: unknown;
+    let gets = 0;
+    const table = {
+      id: "c1",
+      clientId: "1",
+      name: "Search ads",
+      position: 0,
+      properties: [
+        { id: "p1", key: "spend", name: "SPEND", type: "MONEY", position: 0, formula: null },
+      ],
+      records: [{ id: "r1", date: "2026-08-01", values: { p1: "120.0000" } }],
+      totals: { p1: "120.0000" },
+    };
+    server.use(
+      mock.get("/api/campaigns/c1", () => {
+        gets += 1;
+        return HttpResponse.json(table);
+      }),
+      mock.patch("/api/records/r1", async ({ request }) => {
+        method = request.method;
+        received = await request.json();
+        return HttpResponse.json({ id: "r1", campaignId: "c1", date: "2026-08-05" });
+      }),
+    );
+
+    const wrapper = hookWrapper();
+    const { result } = renderHook(
+      () => ({ table: useCampaignTable("c1"), update: useUpdateRecord("c1") }),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.table.isSuccess).toBe(true));
+
+    await result.current.update.mutateAsync({ id: "r1", body: { date: "2026-08-05" } });
+
+    expect(method).toBe("PATCH");
+    expect(received).toEqual({ date: "2026-08-05" });
+    await waitFor(() => expect(gets).toBe(2));
+  });
+});
+
+describe("useDeleteRecord", () => {
+  it("sends DELETE for one day", async () => {
+    let method = "";
+    server.use(
+      mock.delete("/api/records/r1", ({ request }) => {
+        method = request.method;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    const { result } = renderHook(() => useDeleteRecord("c1"), { wrapper: hookWrapper() });
+    await result.current.mutateAsync("r1");
+
+    expect(method).toBe("DELETE");
   });
 });

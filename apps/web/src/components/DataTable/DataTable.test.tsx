@@ -45,4 +45,38 @@ describe("DataTable", () => {
     expect(screen.getByRole("columnheader", { name: "SPEND" })).toHaveAttribute("data-align", "right");
     expect(screen.getByRole("columnheader", { name: "DATE" })).toHaveAttribute("data-align", "left");
   });
+
+  it("renders a row action in a trailing cell of every body row", () => {
+    render(
+      <DataTable
+        columns={columns}
+        rows={rows}
+        rowAction={(row) => <button type="button">Delete {row.id}</button>}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Delete r1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete r2" })).toBeInTheDocument();
+  });
+
+  it("leaves the footer's action cell empty", () => {
+    render(
+      <DataTable
+        columns={columns}
+        rows={rows}
+        footer={{ id: "totals", cells: { date: "TOTAL", spend: "255.50" } }}
+        rowAction={(row) => <button type="button">Delete {row.id}</button>}
+      />,
+    );
+
+    const footer = screen.getAllByRole("rowgroup").at(-1)!;
+    expect(within(footer).queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete totals" })).not.toBeInTheDocument();
+  });
+
+  it("adds no trailing column when no row action is given", () => {
+    render(<DataTable columns={columns} rows={rows} />);
+
+    expect(screen.getAllByRole("columnheader")).toHaveLength(2);
+  });
 });

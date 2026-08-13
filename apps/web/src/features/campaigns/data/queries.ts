@@ -120,3 +120,24 @@ export function useSetValue(campaignId: string) {
     },
   });
 }
+
+/**
+ * A new date reorders the rows and the answer carries only the record, so the table is
+ * refetched rather than patched — one extra GET on a rare operation is the cheaper trade.
+ */
+export function useUpdateRecord(campaignId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: RecordInput }) => recordsApi.update(id, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["campaigns", campaignId] }),
+  });
+}
+
+export function useDeleteRecord(campaignId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (recordId: string) => recordsApi.remove(recordId),
+    // The rows and the totals both change when a day goes.
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["campaigns", campaignId] }),
+  });
+}

@@ -25,6 +25,8 @@ analysis, and shareable public-link reports.
 | 4 | Campaign sheets | [design](specs/2026-08-03-adpulse-campaign-sheets-design.md) | [plan](plans/2026-08-03-adpulse-campaign-sheets.md) |
 | 5 | Sheet creation and renaming | — | [plan](plans/2026-08-05-adpulse-campaign-management.md) |
 | 6 | Sheet deletion and day entry | — | [plan](plans/2026-08-11-adpulse-sheet-management.md) |
+| 7 | Cell editing | [design](specs/2026-08-12-adpulse-sheet-editing-design.md) | [plan](plans/2026-08-12-adpulse-cell-editing.md) |
+| 8 | Sheet row management | [design](specs/2026-08-12-adpulse-sheet-editing-design.md) | [plan](plans/2026-08-12-adpulse-sheet-row-management.md) |
 
 ## How we work
 

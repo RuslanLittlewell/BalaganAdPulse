@@ -14,6 +14,7 @@ export const en = {
   "sheet.total": "TOTAL",
   "sheet.title": "Daily statistics",
   "sheet.addDay": "Add day",
+  "sheet.value.invalid": "Enter a number",
   "campaigns.empty.title": "No sheets yet",
   "campaigns.empty.description": "This client has no campaigns",
   "campaigns.new": "New sheet",

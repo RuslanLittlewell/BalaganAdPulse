@@ -1,0 +1,64 @@
+/* The resting button and the open cell's wrapper occupy the whole cell rather than
+   sitting inside its padding: each takes the padding over and pulls itself out across it
+   with matching negative margins. The row keeps its height, the text stays where it was,
+   and the focus ring frames the cell being edited instead of floating in the middle of
+   it. The fallbacks keep the component usable outside a DataTable, which is where the
+   padding is published from. */
+.cell,
+.box {
+  width: calc(100% + 2 * var(--cell-padding-x, var(--space-4)));
+  padding: var(--cell-padding-y, var(--space-2)) var(--cell-padding-x, var(--space-4));
+  margin: calc(-1 * var(--cell-padding-y, var(--space-2)))
+    calc(-1 * var(--cell-padding-x, var(--space-4)));
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+}
+
+.cell {
+  cursor: text;
+}
+
+.cell:hover,
+.cell:focus-visible {
+  border-color: var(--color-border);
+}
+
+.cell[data-state="saving"] {
+  color: var(--color-text-muted);
+}
+
+.cell[data-state="error"] {
+  border-color: var(--color-danger);
+}
+
+/* The anchor for the input laid over it. */
+.box {
+  position: relative;
+  display: block;
+}
+
+/* Invisible, but in flow: this is what the column measures while the cell is open. */
+.ghost {
+  visibility: hidden;
+  white-space: nowrap;
+}
+
+/* Out of flow, so the column never measures the input, and covering the cell exactly.
+   Its padding repeats the wrapper's to land the text on the same baseline as every
+   other row. */
+.input {
+  position: absolute;
+  inset: 0;
+  padding: var(--cell-padding-y, var(--space-2)) var(--cell-padding-x, var(--space-4));
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  outline: none;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+}

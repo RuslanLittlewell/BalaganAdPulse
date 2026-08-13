@@ -65,3 +65,14 @@ export const recordsApi = {
   create: (campaignId: string, body: RecordInput) =>
     http.post<CampaignRecordSummary>(`/campaigns/${campaignId}/records`, body),
 };
+
+/** What the value endpoint answers with: the recomputed row and the recomputed totals. */
+export interface ValueWriteResult {
+  record: CampaignRecord;
+  totals: Record<string, string | null>;
+}
+
+export const valuesApi = {
+  set: (recordId: string, propertyId: string, value: string | null) =>
+    http.put<ValueWriteResult>(`/records/${recordId}/values/${propertyId}`, { value }),
+};

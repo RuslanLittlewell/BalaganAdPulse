@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { CampaignProperty, PropertyType } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { ConflictError, NotFoundError, ValidationError } from "../errors.js";
+import { ownedCampaign, ownedProperty } from "../auth/scope.js";
 import {
   assertFormulaIsValid, findDependents, type PropertyRef,
 } from "../formula/dependencies.js";
@@ -25,8 +26,10 @@ function toPropertyRef(property: CampaignProperty): PropertyRef {
   return { id: property.id, type: property.type, formula: fromJson(property.formula) };
 }
 
-async function getProperty(id: string): Promise<CampaignProperty> {
-  const property = await prisma.campaignProperty.findUnique({ where: { id } });
+async function getProperty(ownerId: string, id: string): Promise<CampaignProperty> {
+  const property = await prisma.campaignProperty.findFirst({
+    where: ownedProperty(ownerId, id),
+  });
   if (!property) throw new NotFoundError("Property not found");
   return property;
 }
@@ -55,10 +58,11 @@ async function countValues(propertyId: string): Promise<number> {
 }
 
 export async function createProperty(
+  ownerId: string,
   campaignId: string,
   input: CreatePropertyInput,
 ): Promise<CampaignProperty> {
-  const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
+  const campaign = await prisma.campaign.findFirst({ where: ownedCampaign(ownerId, campaignId) });
   if (!campaign) throw new NotFoundError("Campaign not found");
 
   const existing = await siblings(campaignId);
@@ -82,14 +86,15 @@ export async function createProperty(
       },
     }),
   ]);
-  return getProperty(id);
+  return getProperty(ownerId, id);
 }
 
 export async function updateProperty(
+  ownerId: string,
   id: string,
   input: UpdatePropertyInput,
 ): Promise<CampaignProperty> {
-  const property = await getProperty(id);
+  const property = await getProperty(ownerId, id);
   const existing = await siblings(property.campaignId);
   const nextType = input.type ?? property.type;
 
@@ -124,11 +129,11 @@ export async function updateProperty(
   if (input.position !== undefined) {
     await reorder(property.campaignId, id, input.position);
   }
-  return getProperty(id);
+  return getProperty(ownerId, id);
 }
 
-export async function deleteProperty(id: string): Promise<void> {
-  const property = await getProperty(id);
+export async function deleteProperty(ownerId: string, id: string): Promise<void> {
+  const property = await getProperty(ownerId, id);
   const existing = await siblings(property.campaignId);
   const dependents = findDependents(id, existing.map(toPropertyRef));
   if (dependents.length > 0) {

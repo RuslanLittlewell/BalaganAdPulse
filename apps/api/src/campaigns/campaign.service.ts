@@ -1,6 +1,7 @@
 import type { Campaign } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { NotFoundError } from "../errors.js";
+import { ownedCampaign, ownedClient } from "../auth/scope.js";
 import { buildCampaignCreateData } from "./defaults.js";
 import { fromJson } from "../formula/expression.schema.js";
 import {
@@ -17,36 +18,37 @@ export interface CampaignPayload {
   totals: Record<string, string | null>;
 }
 
-async function assertClientExists(clientId: string): Promise<void> {
-  const client = await prisma.client.findUnique({ where: { id: clientId } });
+async function assertClientOwned(ownerId: string, clientId: string): Promise<void> {
+  const client = await prisma.client.findFirst({ where: ownedClient(ownerId, clientId) });
   if (!client) throw new NotFoundError("Client not found");
 }
 
 export async function createCampaign(
+  ownerId: string,
   clientId: string,
   input: { name: string },
 ): Promise<Campaign> {
-  await assertClientExists(clientId);
+  await assertClientOwned(ownerId, clientId);
   const position = await prisma.campaign.count({ where: { clientId } });
   return prisma.campaign.create({
     data: { clientId, ...buildCampaignCreateData(input.name, position) },
   });
 }
 
-export async function listCampaigns(clientId: string): Promise<Campaign[]> {
-  await assertClientExists(clientId);
+export async function listCampaigns(ownerId: string, clientId: string): Promise<Campaign[]> {
+  await assertClientOwned(ownerId, clientId);
   return prisma.campaign.findMany({ where: { clientId }, orderBy: { position: "asc" } });
 }
 
-export async function getCampaign(id: string): Promise<Campaign> {
-  const campaign = await prisma.campaign.findUnique({ where: { id } });
+export async function getCampaign(ownerId: string, id: string): Promise<Campaign> {
+  const campaign = await prisma.campaign.findFirst({ where: ownedCampaign(ownerId, id) });
   if (!campaign) throw new NotFoundError("Campaign not found");
   return campaign;
 }
 
-export async function getCampaignTable(id: string): Promise<CampaignPayload> {
-  const campaign = await prisma.campaign.findUnique({
-    where: { id },
+export async function getCampaignTable(ownerId: string, id: string): Promise<CampaignPayload> {
+  const campaign = await prisma.campaign.findFirst({
+    where: ownedCampaign(ownerId, id),
     include: {
       properties: { orderBy: { position: "asc" } },
       records: { orderBy: { date: "asc" }, include: { values: true } },
@@ -101,21 +103,22 @@ export async function normalizePositions(
 }
 
 export async function updateCampaign(
+  ownerId: string,
   id: string,
   input: { name?: string; position?: number },
 ): Promise<Campaign> {
-  const campaign = await getCampaign(id);
+  const campaign = await getCampaign(ownerId, id);
   if (input.name !== undefined) {
     await prisma.campaign.update({ where: { id }, data: { name: input.name } });
   }
   if (input.position !== undefined) {
     await normalizePositions(campaign.clientId, id, input.position);
   }
-  return getCampaign(id);
+  return getCampaign(ownerId, id);
 }
 
-export async function deleteCampaign(id: string): Promise<void> {
-  const campaign = await getCampaign(id);
+export async function deleteCampaign(ownerId: string, id: string): Promise<void> {
+  const campaign = await getCampaign(ownerId, id);
   await prisma.campaign.delete({ where: { id } });
   await normalizePositions(campaign.clientId);
 }

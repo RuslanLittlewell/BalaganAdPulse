@@ -1,6 +1,7 @@
 import { prisma } from "../lib/prisma.js";
 import { NotFoundError, ValidationError } from "../errors.js";
 import { getCampaignTable } from "../campaigns/campaign.service.js";
+import { ownedRecord } from "../auth/scope.js";
 import type { ComputedRecord } from "../formula/table.js";
 
 export interface ValueWriteResult {
@@ -11,11 +12,12 @@ export interface ValueWriteResult {
 const DECIMAL = /^-?\d+(\.\d+)?$/;
 
 export async function setPropertyValue(
+  ownerId: string,
   recordId: string,
   propertyId: string,
   value: string | null,
 ): Promise<ValueWriteResult> {
-  const record = await prisma.campaignRecord.findUnique({ where: { id: recordId } });
+  const record = await prisma.campaignRecord.findFirst({ where: ownedRecord(ownerId, recordId) });
   if (!record) throw new NotFoundError("Record not found");
 
   const property = await prisma.campaignProperty.findUnique({ where: { id: propertyId } });
@@ -44,7 +46,7 @@ export async function setPropertyValue(
     });
   }
 
-  const table = await getCampaignTable(record.campaignId);
+  const table = await getCampaignTable(ownerId, record.campaignId);
   const computed = table.records.find((candidate) => candidate.id === recordId);
   if (!computed) throw new NotFoundError("Record not found");
   return { record: computed, totals: table.totals };

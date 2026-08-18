@@ -28,6 +28,8 @@ services:
     environment:
       DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public"
       PORT: 3000
+      JWT_SECRET: "${JWT_SECRET}"
+      INVITE_CODE: "${INVITE_CODE}"
     ports:
       - "3000:3000"
     volumes:

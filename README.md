@@ -3,8 +3,29 @@
 A media buyer's dashboard. This repository hosts the backend REST API; the React
 frontend will live alongside it in the same monorepo.
 
-**Current phase:** Phase 2 — campaigns and the daily stats table. Authentication,
-multi-tenancy, CSV import and AI analysis are deliberately out of scope for now.
+**Current phase:** Phase 9 — authentication and per-user data isolation. Every client
+now belongs to a user, and every `/api` route requires a bearer token. CSV import and
+AI analysis are deliberately out of scope for now.
+
+## Upgrading an existing checkout
+
+This release adds authentication, and it is **not** a drop-in upgrade for a checkout
+that already has data:
+
+- **Wipe the development database.** `Client` gains a non-null `owner_id` with no
+  backfill, so the migration fails against a database that already holds clients —
+  and the `api` container, which runs `prisma migrate deploy` on startup, then
+  crash-loops. Run `docker compose down -v` (this drops the `adpulse_pgdata` volume),
+  or `npx prisma migrate reset` inside `apps/api`.
+- **Add the two new variables** to an existing `apps/api/.env` (and to the root `.env`
+  if you run the stack from Compose): `JWT_SECRET` and `INVITE_CODE`. The API refuses
+  to start without them, by design — see [Authentication](#authentication).
+- **Rebuild the api image _and_ renew its anonymous volumes.** This release adds the
+  `jose` dependency, and Compose mounts `/app/node_modules` as an anonymous volume that
+  survives recreation — so a rebuilt image alone stays masked by the old volume and the
+  container exits with `Cannot find package 'jose'`. Run
+  `docker compose up -d --build --renew-anon-volumes api`; the named `adpulse_pgdata`
+  volume is left untouched.
 
 ## Stack
 
@@ -87,6 +108,10 @@ Base prefix `/api`. Requests and responses are JSON.
 
 | Method | Path | Description | Success |
 |--------|------|-------------|:---:|
+| POST | `/auth/register` | Register behind an invite code, returns both tokens | 201 |
+| POST | `/auth/login` | Sign in, returns both tokens | 200 |
+| POST | `/auth/refresh` | Exchange a refresh token for a new access token | 200 |
+| POST | `/auth/logout` | Delete the refresh token | 204 |
 | POST | `/clients` | Create a client | 201 |
 | GET | `/clients` | List clients | 200 |
 | GET | `/clients/:id` | Single client | 200 |
@@ -127,6 +152,31 @@ Validation failures return 400, a missing record returns 404, conflicts return 4
 (a duplicate date; deleting a property referenced by another property's formula;
 attaching a formula to a property that already has values; changing a property's type
 between text and numeric while it has values), and anything unexpected returns 500.
+
+## Authentication
+
+The four `/api/auth/*` endpoints above are open. **Everything else under `/api` requires
+an `Authorization: Bearer <accessToken>` header** — the guard is mounted on the whole
+prefix, so a route added later is protected by default.
+
+An access token is a JWT valid for 15 minutes; a refresh token is an opaque 30-day value
+stored server-side as a `sha256` digest. `POST /auth/refresh` renews the access token,
+and `POST /auth/logout` deletes the refresh token so it stops working.
+
+Two environment variables are required, and the API refuses to start without them:
+
+| Variable | Purpose |
+|----------|---------|
+| `JWT_SECRET` | Signs and verifies access tokens (HS256) |
+| `INVITE_CODE` | The code `POST /auth/register` demands; registration is invite-only |
+
+In production, startup additionally rejects the `.env.example` placeholders and a
+`JWT_SECRET` shorter than 32 characters.
+
+**401 versus 404.** A missing, malformed or expired token gives **401** — the request
+never reaches a service. A resource that exists but belongs to another user gives
+**404**, never 403: every lookup filters by owner, so someone else's id is
+indistinguishable from an id that does not exist, and ids cannot be probed.
 
 ## Commands
 

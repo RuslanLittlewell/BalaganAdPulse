@@ -27,6 +27,8 @@ analysis, and shareable public-link reports.
 | 6 | Sheet deletion and day entry | — | [plan](plans/2026-08-11-adpulse-sheet-management.md) |
 | 7 | Cell editing | [design](specs/2026-08-12-adpulse-sheet-editing-design.md) | [plan](plans/2026-08-12-adpulse-cell-editing.md) |
 | 8 | Sheet row management | [design](specs/2026-08-12-adpulse-sheet-editing-design.md) | [plan](plans/2026-08-12-adpulse-sheet-row-management.md) |
+| 9 | Authentication — backend | [design](specs/2026-08-13-adpulse-auth-design.md) | [plan](plans/2026-08-13-adpulse-auth-backend.md) |
+| 10 | Authentication — frontend | [design](specs/2026-08-13-adpulse-auth-design.md) | [plan](plans/2026-08-14-adpulse-auth-frontend.md) |
 
 ## How we work
 

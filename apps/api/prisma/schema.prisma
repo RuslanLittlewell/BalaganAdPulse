@@ -16,7 +16,10 @@ model Client {
   createdAt     DateTime   @default(now()) @map("created_at")
   updatedAt     DateTime   @updatedAt @map("updated_at")
   campaigns     Campaign[]
+  ownerId       String     @map("owner_id")
+  owner         User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
+  @@index([ownerId, createdAt])
   @@map("client")
 }
 
@@ -83,4 +86,28 @@ model CampaignPropertyValue {
 
   @@unique([recordId, propertyId])
   @@map("campaign_property_value")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  name          String
+  passwordHash  String         @map("password_hash")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  refreshTokens RefreshToken[]
+  clients       Client[]
+
+  @@map("app_user")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("refresh_token")
 }

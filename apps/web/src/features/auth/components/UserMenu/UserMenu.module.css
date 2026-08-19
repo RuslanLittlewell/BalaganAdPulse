@@ -1,0 +1,21 @@
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.name {
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.logout {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-accent);
+  font-size: 14px;
+  font-weight: 600;
+}

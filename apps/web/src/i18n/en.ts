@@ -44,7 +44,23 @@ export const en = {
   "action.save": "Save",
   "action.delete": "Delete",
   "state.error.title": "Something went wrong",
+  "state.loading": "Loading…",
   "state.retry": "Retry",
+  "auth.login.title": "Sign in",
+  "auth.signup.title": "Create your account",
+  "auth.name.label": "Name",
+  "auth.email.label": "Email",
+  "auth.password.label": "Password",
+  "auth.inviteCode.label": "Invite code",
+  "auth.login.submit": "Sign in",
+  "auth.signup.submit": "Create account",
+  "auth.login.link": "Already have an account? Sign in",
+  "auth.signup.link": "No account? Create one",
+  "auth.logout": "Log out",
+  "auth.email.invalid": "Enter a valid email",
+  "auth.password.tooShort": "At least 8 characters",
+  "auth.name.required": "Enter your name",
+  "auth.inviteCode.required": "Enter your invite code",
 } as const;
 
 export type MessageKey = keyof typeof en;

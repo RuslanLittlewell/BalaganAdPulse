@@ -5,8 +5,10 @@ import { SectionLabel } from "../../../../components/SectionLabel/SectionLabel.j
 import { ListItem } from "../../../../components/ListItem/ListItem.js";
 import { Avatar } from "../../../../components/Avatar/Avatar.js";
 import { Button } from "../../../../components/Button/Button.js";
+import { Loader } from "../../../../components/Loader/Loader.js";
 import { t } from "../../../../i18n/en.js";
 import { useClients } from "../../data/queries.js";
+import { UserMenu } from "../../../auth/components/UserMenu/UserMenu.js";
 import { BrandHeader } from "../BrandHeader/BrandHeader.js";
 import { ClientFormDialog } from "../ClientFormDialog/ClientFormDialog.js";
 import styles from "./ClientSidebar.module.css";
@@ -26,13 +28,13 @@ export function ClientSidebar() {
             + {t("clients.new")}
           </Button>
         }
+        footer={<UserMenu />}
       >
         <SectionLabel>{t("clients.section")}</SectionLabel>
 
         {clients.isPending && (
           <div className={styles.state}>
-            <span className={styles.skeleton} />
-            <span className={styles.skeleton} />
+            <Loader size="sm" />
           </div>
         )}
 

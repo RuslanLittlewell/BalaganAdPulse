@@ -1,0 +1,16 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.failure {
+  color: var(--color-danger);
+  font-size: 14px;
+}
+
+.link {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  text-align: center;
+}

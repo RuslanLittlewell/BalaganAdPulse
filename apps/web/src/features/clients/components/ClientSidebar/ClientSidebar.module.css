@@ -9,10 +9,3 @@
   font-size: 13px;
   color: var(--color-text-muted);
 }
-
-.skeleton {
-  height: 44px;
-  border-radius: var(--radius-md);
-  background: var(--color-bg);
-  opacity: 0.6;
-}

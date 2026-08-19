@@ -46,4 +46,15 @@ describe("ClientSidebar", () => {
     await userEvent.click(await screen.findByRole("button", { name: /New client/ }));
     await waitFor(() => expect(screen.getByLabelText("Name")).toBeInTheDocument());
   });
+
+  it("shows the signed-in user below the new-client button", () => {
+    setup();
+    expect(screen.getByText("Buyer")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
+  });
+
+  it("uses the shared loader while the clients load", () => {
+    setup();
+    expect(screen.getByRole("status")).toHaveTextContent("Loading…");
+  });
 });

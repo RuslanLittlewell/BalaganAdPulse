@@ -1,5 +1,5 @@
 import { config } from "dotenv";
-import { TEST_WORKERS, databaseUrlForWorker } from "./workers.js";
+import { TEST_WORKERS, currentRunId, databaseUrlForWorker } from "./workers.js";
 
 config({ path: ".env.test", quiet: true });
 
@@ -29,4 +29,8 @@ if (!Number.isInteger(workerId) || workerId < 1 || workerId > TEST_WORKERS) {
   );
 }
 
-process.env.DATABASE_URL = databaseUrlForWorker(workerId);
+// Confirmed empirically for vitest@4.1.10: process.env[TEST_RUN_ID_ENV], set
+// in global-setup.ts's main process before any worker is forked, is inherited
+// here as-is. currentRunId() reads it straight from process.env; no need for
+// vitest's provide()/inject() indirection.
+process.env.DATABASE_URL = databaseUrlForWorker(workerId, currentRunId());

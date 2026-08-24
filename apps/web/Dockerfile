@@ -1,4 +1,4 @@
-FROM node:24-alpine
+FROM node:26-slim
 WORKDIR /app
 
 # Monorepo manifests for dependency install

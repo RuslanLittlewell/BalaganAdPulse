@@ -1,13 +1,29 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { Request, Response, NextFunction } from "express";
 import { errorHandler } from "../../src/middleware/error-handler.js";
-import { NotFoundError } from "../../src/errors.js";
+import { NotFoundError, ServiceUnavailableError } from "../../src/errors.js";
 
-function mockRes(): Response {
-  const res = {} as Response;
-  res.status = vi.fn().mockReturnValue(res);
-  res.json = vi.fn().mockReturnValue(res);
+function mockRes(): Response & { headers: Record<string, string>; body?: unknown } {
+  const res = {} as Response & { headers: Record<string, string>; body?: unknown };
+  res.statusCode = 200;
+  res.headers = {} as Record<string, string>;
+  res.status = vi.fn((code: number) => {
+    res.statusCode = code;
+    return res;
+  });
+  res.setHeader = vi.fn((name: string, value: string) => {
+    res.headers[name] = value;
+    return res;
+  });
+  res.json = vi.fn((data: unknown) => {
+    res.body = data;
+    return res;
+  });
   return res;
+}
+
+function mockRequest(): Request {
+  return {} as Request;
 }
 
 describe("errorHandler", () => {
@@ -74,5 +90,36 @@ describe("errorHandler", () => {
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith({ error: { message: "Client not found" } });
     expect(consoleError).not.toHaveBeenCalled();
+  });
+});
+
+describe("errorHandler and deliberate 5xx errors", () => {
+  let consoleError: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    consoleError.mockRestore();
+  });
+
+  it("keeps the message of an error marked expose", () => {
+    const res = mockRes();
+    errorHandler(new ServiceUnavailableError("Server is busy"), mockRequest(), res, () => {});
+    expect(res.statusCode).toBe(503);
+    expect(res.body).toEqual({ error: { message: "Server is busy" } });
+  });
+
+  it("sets Retry-After when the error carries one", () => {
+    const res = mockRes();
+    errorHandler(new ServiceUnavailableError("Server is busy", 3), mockRequest(), res, () => {});
+    expect(res.headers["Retry-After"]).toBe("3");
+  });
+
+  it("still hides the message of an unplanned 500", () => {
+    const res = mockRes();
+    errorHandler(new Error("Prisma leaked /Users/someone/secret.ts"), mockRequest(), res, () => {});
+    expect(res.statusCode).toBe(500);
+    expect(res.body).toEqual({ error: { message: "Internal error" } });
   });
 });

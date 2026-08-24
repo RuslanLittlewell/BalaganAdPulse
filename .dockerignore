@@ -1,8 +1,11 @@
 node_modules
-apps/*/node_modules
+**/node_modules
 dist
-apps/*/dist
-.env
-.env.test
+**/dist
+# Patterns here are not recursive: a bare `.env` excludes only the one at the
+# root of the build context, so `apps/api/.env` was reaching the build stage.
+**/.env
+**/.env.*
 .git
 docs
+.superpowers

@@ -37,3 +37,21 @@ export class ForbiddenError extends Error {
     this.name = "ForbiddenError";
   }
 }
+
+/** A 5xx whose message was written to be read by the caller.
+ *
+ * `errorHandler` replaces the message of every unplanned 5xx with a fixed
+ * string, because errors that were never meant for a stranger leak detail —
+ * Prisma's carry absolute source paths. Backpressure is different: the caller
+ * needs to be told to come back later, and `retryAfter` tells them when. */
+export class ServiceUnavailableError extends Error {
+  status = 503;
+  expose = true;
+  retryAfter?: number;
+
+  constructor(message = "Service unavailable", retryAfter?: number) {
+    super(message);
+    this.name = "ServiceUnavailableError";
+    this.retryAfter = retryAfter;
+  }
+}

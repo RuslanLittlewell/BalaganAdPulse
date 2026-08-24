@@ -1,0 +1,61 @@
+# syntax=docker/dockerfile:1
+
+# Debian, not Alpine. Prisma's engine resolution on musl needs an explicit
+# binaryTargets, and would need two of them here: the development machine is
+# arm64 and the build host is amd64. With one Debian base shared by the build
+# and runtime stages, `prisma generate` resolves `native` correctly and no
+# binaryTargets entry is needed at all.
+
+FROM node:26-slim AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+RUN npm ci
+
+FROM node:26-slim AS build
+# node:*-slim ships libssl but not the openssl CLI, which Prisma's engine
+# version detection shells out to.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+# The whole deps stage, not just the root node_modules: npm's workspace
+# install also nests per-workspace node_modules (apps/api/node_modules,
+# apps/web/node_modules) wherever a workspace's own dependency version
+# differs from the hoisted root one - here that's apps/web's pinned
+# typescript and vitest. .dockerignore excludes apps/*/node_modules from the
+# build context, so without this the web build would silently resolve tsc
+# and vitest/config from the root instead of the workspace's own pins. The
+# deps stage holds nothing but manifests and node_modules, so the source
+# COPYs below overwrite the manifests harmlessly.
+COPY --from=deps /app/ ./
+COPY apps/api ./apps/api
+COPY apps/web ./apps/web
+RUN npx prisma generate --schema apps/api/prisma/schema.prisma
+RUN npm run build -w apps/api
+RUN npm run build -w @adpulse/web
+
+FROM node:26-slim AS runtime
+# node:*-slim ships libssl but not the openssl CLI, which Prisma's engine
+# version detection shells out to.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+ENV NODE_ENV=production
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+# Production dependencies first: `npm ci` empties node_modules, so a client
+# copied before this step would be deleted by it.
+RUN npm ci --omit=dev
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=build /app/node_modules/@prisma/client ./node_modules/@prisma/client
+COPY --from=build /app/apps/api/dist ./apps/api/dist
+COPY --from=build /app/apps/web/dist ./apps/web/dist
+COPY apps/api/prisma ./apps/api/prisma
+USER node
+WORKDIR /app/apps/api
+EXPOSE 3000
+CMD ["node", "dist/server.js"]

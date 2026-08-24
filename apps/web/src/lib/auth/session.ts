@@ -8,6 +8,17 @@ export class SessionExpiredError extends Error {
   }
 }
 
+/** Thrown when a refresh attempt fails for a reason that does not mean the
+ * session is dead — a rate limit, a transient 5xx during a deploy, and so
+ * on. The refresh token is left in place so a caller can retry; unlike
+ * SessionExpiredError, this must never clear tokens or notify listeners. */
+export class RefreshUnavailableError extends Error {
+  constructor(status: number) {
+    super(`Refresh failed with status ${status}`);
+    this.name = "RefreshUnavailableError";
+  }
+}
+
 const listeners = new Set<() => void>();
 const renewalListeners = new Set<(accessToken: string) => void>();
 
@@ -56,7 +67,13 @@ async function runRefresh(): Promise<string> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refreshToken }),
   });
-  if (!res.ok) endSessionAndFail();
+  // Only 401/403 mean the session itself is dead. Before the per-address
+  // rate limiter this phase added, refresh could only answer 200 or 401, so
+  // "not ok" and "session is dead" were the same thing — they no longer
+  // are. A 429 (or a transient 502/503 during a deploy) is not a verdict on
+  // this refresh token, and must not destroy it.
+  if (res.status === 401 || res.status === 403) endSessionAndFail();
+  if (!res.ok) throw new RefreshUnavailableError(res.status);
   const { accessToken } = (await res.json()) as { accessToken: string };
   writeAccessToken(accessToken);
   renewalListeners.forEach((listener) => listener(accessToken));

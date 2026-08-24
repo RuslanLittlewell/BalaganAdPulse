@@ -3,7 +3,14 @@ import { http, HttpResponse } from "msw";
 import { server } from "../../test/server.js";
 import { makeAccessToken, makeExpiredAccessToken } from "../../test/token.js";
 import { writeTokens, readTokens } from "./tokenStore.js";
-import { ensureFreshToken, forceRefresh, onSessionExpired, onTokenRenewed, endSession } from "./session.js";
+import {
+  ensureFreshToken,
+  forceRefresh,
+  onSessionExpired,
+  onTokenRenewed,
+  endSession,
+  RefreshUnavailableError,
+} from "./session.js";
 
 beforeEach(() => localStorage.clear());
 
@@ -113,6 +120,25 @@ describe("forceRefresh", () => {
     onTokenRenewed(listener);
 
     await expect(forceRefresh()).rejects.toThrow();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("leaves the stored tokens in place and does not notify listeners when the refresh endpoint answers 429", async () => {
+    // The per-address rate limiter added this phase can answer 429 on
+    // /api/auth/refresh. That must not be treated as "the session is dead":
+    // the refresh token is still good, so it must survive, and nobody
+    // should be signed out over it.
+    server.use(http.post("/api/auth/refresh", () =>
+      HttpResponse.json({ error: { message: "Too many requests, try again later" } }, { status: 429 })));
+    const accessToken = makeExpiredAccessToken();
+    writeTokens({ accessToken, refreshToken: "r" });
+
+    const listener = vi.fn();
+    onSessionExpired(listener);
+
+    await expect(forceRefresh()).rejects.toThrow(RefreshUnavailableError);
+
+    expect(readTokens()).toEqual({ accessToken, refreshToken: "r" });
     expect(listener).not.toHaveBeenCalled();
   });
 

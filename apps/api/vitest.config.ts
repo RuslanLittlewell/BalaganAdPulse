@@ -16,5 +16,9 @@ export default defineConfig({
     // count to exactly TEST_WORKERS so a worker can never be assigned an id
     // beyond the set of schemas global setup actually migrated.
     maxWorkers: TEST_WORKERS,
+    // Pins the suite's timezone so date-boundary behavior does not depend on
+    // the host's local timezone. Matches the intent of apps/web/vite.config.ts's
+    // TZ pin (though not its value: UTC is what the server actually runs as).
+    env: { TZ: "UTC" },
   },
 });

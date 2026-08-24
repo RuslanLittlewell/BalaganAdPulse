@@ -15,11 +15,15 @@ export function errorHandler(
     ? (err as { status: number }).status
     : 500;
 
+  const expose = (err as { expose?: boolean }).expose === true;
+  const retryAfter = (err as { retryAfter?: number }).retryAfter;
+  if (typeof retryAfter === "number") res.setHeader("Retry-After", String(retryAfter));
+
   // Anything 500 and above was not planned for, so its message was never
   // written to be read by a stranger: Prisma's own errors, for one, carry the
   // absolute source path and a snippet of the failing call. Log it where the
   // operator can see it and answer with a fixed string.
-  if (status >= 500) {
+  if (status >= 500 && !expose) {
     console.error("Unhandled error while serving a request:", err);
     res.status(status).json({ error: { message: "Internal error" } });
     return;

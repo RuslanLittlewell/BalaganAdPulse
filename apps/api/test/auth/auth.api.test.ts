@@ -4,6 +4,7 @@ import { createApp } from "../../src/app.js";
 import { prisma } from "../../src/lib/prisma.js";
 import { resetDb } from "../helpers/db.js";
 import { config } from "../../src/config.js";
+import { resetAuthRateLimits } from "../../src/auth/auth.routes.js";
 
 const app = createApp();
 const body = {
@@ -11,7 +12,7 @@ const body = {
   inviteCode: config.inviteCode,
 };
 
-beforeEach(async () => { await resetDb(); });
+beforeEach(async () => { await resetDb(); resetAuthRateLimits(); });
 afterAll(async () => { await prisma.$disconnect(); });
 
 describe("Auth API", () => {

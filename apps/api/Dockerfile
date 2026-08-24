@@ -1,4 +1,9 @@
-FROM node:24-alpine
+FROM node:26-slim
+# node:*-slim ships libssl but not the openssl CLI, which Prisma's engine
+# version detection shells out to.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Monorepo manifests for dependency install

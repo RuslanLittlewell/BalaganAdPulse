@@ -73,6 +73,25 @@ To run a single side on the host instead: `npm run dev` (API) or `npm run dev:we
 
 See [docs/running.md](docs/running.md) for when to use each runner and the trade-offs.
 
+## Production build
+
+The API serves both `/api` and the built SPA from one process, so a production
+build has no separate frontend host and no CORS layer.
+
+```bash
+docker build -f apps/api/Dockerfile.prod -t adpulse-api .
+docker run --rm -p 3000:3000 \
+  -e DATABASE_URL=... -e JWT_SECRET=... -e INVITE_CODE=... -e NODE_ENV=production \
+  adpulse-api
+```
+
+`NODE_ENV=production` makes the server refuse to start on the placeholder secrets
+from `.env.example`. Migrations are **not** applied on boot — they run as a
+pre-deploy step, so that a rolling deploy cannot mutate the schema underneath the
+instance still serving traffic.
+
+The health endpoint is `GET /healthz`.
+
 ## Project structure
 
 ```

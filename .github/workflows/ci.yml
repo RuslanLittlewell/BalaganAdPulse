@@ -89,3 +89,121 @@ jobs:
       - run: npx prisma generate --schema apps/api/prisma/schema.prisma
       - run: npm run build -w apps/api
       - run: npm run build -w @adpulse/web
+
+  image:
+    name: Production image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: adpulse
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the production image
+        run: docker build -f apps/api/Dockerfile.prod -t adpulse-api:ci .
+
+      # --network host throughout: a container started with `docker run` has its
+      # own loopback and cannot reach the service container via localhost.
+      - name: Apply migrations from inside the image
+        run: |
+          docker run --rm --network host \
+            -e DATABASE_URL="postgresql://postgres:postgres@localhost:5432/adpulse?schema=public" \
+            adpulse-api:ci npx --no-install prisma migrate deploy
+
+      - name: Start the image
+        run: |
+          docker run -d --name adpulse-ci --network host \
+            -e DATABASE_URL="postgresql://postgres:postgres@localhost:5432/adpulse?schema=public" \
+            -e JWT_SECRET="ci-image-check-secret-at-least-32-chars" \
+            -e INVITE_CODE="ci-image-check-invite" \
+            -e NODE_ENV=production \
+            -e PORT=3000 \
+            adpulse-api:ci
+          for i in $(seq 1 30); do
+            curl -fsS localhost:3000/healthz >/dev/null 2>&1 && break
+            sleep 1
+          done
+
+      - name: The process serves
+        run: |
+          test "$(curl -fsS localhost:3000/healthz)" = '{"status":"ok"}'
+
+      - name: The SPA fallback works from inside the image
+        run: |
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:3000/login)" = "200"
+
+      - name: An unmatched API path returns the json envelope, not html
+        run: |
+          # Unauthenticated, so requireAuth (mounted on the whole /api prefix)
+          # closes the request before the catch-all 404 handler ever runs — the
+          # correct status here is 401, not 404 (see
+          # apps/api/test/spa.test.ts). Asserting the status, not just the
+          # body, matters because errorHandler emits the same `{"error":...}`
+          # envelope for a 500, so a broken app would otherwise still pass.
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:3000/api/does-not-exist)" = "401"
+          curl -s localhost:3000/api/does-not-exist | grep -q '"error"'
+
+      # None of the checks above touch Prisma's query engine: /healthz is
+      # deliberately database-free, /login is a static file, and the unmatched
+      # path short-circuits before any router. `prisma migrate deploy` above
+      # only exercises the schema engine. The query engine (libquery_engine)
+      # reaches the runtime stage solely via the hand-written
+      # `COPY --from=build /app/node_modules/.prisma` in Dockerfile.prod, and
+      # nothing else asserts that copy worked. A login attempt is the cheapest
+      # request that must run a real Prisma query: a 401 proves
+      # prisma.user.findUnique executed and returned, while a 500 would mean
+      # the query engine is missing or broken — a breakage that would
+      # otherwise deploy green and 500 on the first real request.
+      - name: The database is reachable from the running image
+        run: |
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:3000/api/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"nobody@example.com","password":"hunter2hunter2"}')" = "401"
+
+      - name: Container logs on failure
+        if: failure()
+        run: docker logs adpulse-ci
+
+      - name: Clean up
+        if: always()
+        run: docker rm -f adpulse-ci || true
+
+  deploy:
+    # "Trigger" is literal: the hook returns as soon as Render accepts the
+    # request, while the build and release take minutes. A green job here means
+    # Render was asked, not that the new version is serving. Verifying the
+    # outcome needs the account-scoped Render API key and belongs with the
+    # rollback policy in a later phase.
+    name: Trigger deploy
+    needs: [api, web, build, image]
+    # Never on a pull request. The repository is public, so anyone can open one;
+    # GitHub withholds secrets from fork pull requests, but this makes the
+    # deploy structurally unreachable rather than dependent on that default.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Job-level, not step-level: a step's own `env` is not reliably visible to
+    # that same step's `if`, and the guard below needs to read HOOK there.
+    env:
+      HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+    steps:
+      # Before the operator creates RENDER_DEPLOY_HOOK_URL (see README's "First
+      # deploy"), HOOK is empty and this step is meant to skip, not fail — a
+      # failing job here would put a red X on main for a step nobody can act on
+      # yet. `ref` pins the deploy to the commit CI just checked, so a second
+      # push landing before Render dequeues this one can't get built instead.
+      - name: POST the Render deploy hook
+        if: env.HOOK != ''
+        run: curl -fsS -X POST "$HOOK&ref=$GITHUB_SHA"

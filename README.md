@@ -1,11 +1,12 @@
 # AdPulse
 
-A media buyer's dashboard. This repository hosts the backend REST API; the React
-frontend will live alongside it in the same monorepo.
+A media buyer's dashboard. This repository hosts the backend REST API and, alongside
+it in the same monorepo, the React frontend.
 
-**Current phase:** Phase 9 — authentication and per-user data isolation. Every client
-now belongs to a user, and every `/api` route requires a bearer token. CSV import and
-AI analysis are deliberately out of scope for now.
+**Current phase:** Phase 12 — deployment to Render. Phase 11 made the repository
+deployable: a single production image serving both the API and the built SPA, with CI
+gating every push to `main`. CSV import and AI analysis are deliberately out of scope
+for now.
 
 ## Upgrading an existing checkout
 
@@ -91,6 +92,66 @@ pre-deploy step, so that a rolling deploy cannot mutate the schema underneath th
 instance still serving traffic.
 
 The health endpoint is `GET /healthz`.
+
+## Deployment
+
+AdPulse runs on Render, in Frankfurt: one web service (Starter) serving both the
+API and the built SPA, and one Basic-256mb Postgres. Both are declared in
+[render.yaml](render.yaml).
+
+### Credentials
+
+| Credential | Where it lives | Who sets it |
+|---|---|---|
+| `JWT_SECRET` | Render environment variable, `sync: false` | Operator, at Blueprint creation |
+| `INVITE_CODE` | Render environment variable, `sync: false` | Operator, at Blueprint creation |
+| `RENDER_DEPLOY_HOOK_URL` | GitHub Actions repository secret | Operator, after the service exists |
+| `DATABASE_URL` | Injected by Render from the database | Nobody |
+
+`JWT_SECRET` must be at least 32 characters, and the server refuses to start on the
+placeholder from `.env.example` when `NODE_ENV=production`. Generate one with:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+```
+
+Deliberately **not** required: no Render API key, no container registry credentials,
+no database password handled by a person, and no production `DATABASE_URL` in GitHub.
+The deploy hook is the only credential this repository holds, and it reaches exactly
+one service.
+
+### First deploy
+
+The deploy hook does not exist until the service does, so the order is fixed:
+
+1. Merge `render.yaml` to `main`.
+2. Create the Blueprint in Render. It prompts for `JWT_SECRET` and `INVITE_CODE`,
+   creates the database and the service, and runs an initial deploy. This one is not
+   gated by CI, by construction.
+3. Copy the service's deploy hook URL into a GitHub Actions secret named
+   `RENDER_DEPLOY_HOOK_URL`.
+4. Every push to `main` from then on deploys through CI.
+
+### Deploys after the first
+
+Auto-deploy is off. The `Trigger deploy` job in
+[ci.yml](.github/workflows/ci.yml) POSTs the hook after the checks pass, on pushes
+to `main` only. If a job fails spuriously, re-running it in the Actions UI also re-runs
+the deploy job. To ship when CI itself is broken, use Render's Manual Deploy button.
+
+Migrations run as Render's pre-deploy command, `npx --no-install prisma migrate deploy`,
+inside the production image. A failure aborts the deploy and leaves the previous version
+serving. `--no-install` matters: without it, an image somehow missing the Prisma CLI would
+silently fetch a floating latest version from the network mid-deploy instead of failing.
+Because rolling deploys briefly run old and new code together, migrations must be
+backward-compatible with the version already running.
+
+### Rotating a secret
+
+Change it in the Render dashboard; Render redeploys. Rotating `JWT_SECRET` invalidates
+every access token but not the refresh tokens, which are opaque and stored in the
+database, so clients recover on their next refresh without signing in again. Rotating
+`INVITE_CODE` affects only registration.
 
 ## Project structure
 

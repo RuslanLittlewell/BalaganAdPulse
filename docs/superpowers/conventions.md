@@ -30,6 +30,7 @@ analysis, and shareable public-link reports.
 | 9 | Authentication — backend | [design](specs/2026-08-13-adpulse-auth-design.md) | [plan](plans/2026-08-13-adpulse-auth-backend.md) |
 | 10 | Authentication — frontend | [design](specs/2026-08-13-adpulse-auth-design.md) | [plan](plans/2026-08-14-adpulse-auth-frontend.md) |
 | 11 | Production readiness + CI | [design](specs/2026-08-19-adpulse-production-readiness-design.md) | [plan](plans/2026-08-19-adpulse-production-readiness.md) |
+| 12 | Deployment to Render | [design](specs/2026-08-25-adpulse-render-deployment-design.md) | [plan](plans/2026-08-25-adpulse-render-deployment.md) |
 
 ## How we work
 

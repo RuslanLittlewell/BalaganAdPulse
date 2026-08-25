@@ -1,0 +1,49 @@
+# The Blueprint Render syncs to create and update this project's resources.
+#
+# Auto-deploy is off on purpose: a job in .github/workflows/ci.yml POSTs the
+# service's deploy hook after the checks pass. Render's own `checksPass`
+# trigger counts a skipped check as a pass, and a flaky red can strand a commit
+# with no way to re-trigger from CI.
+services:
+  - type: web
+    name: adpulse
+    runtime: docker
+    # The Dockerfile lives under apps/api but builds both workspaces, so the
+    # build context has to be the monorepo root.
+    dockerfilePath: ./apps/api/Dockerfile.prod
+    dockerContext: .
+    region: frankfurt
+    plan: starter
+    healthCheckPath: /healthz
+    autoDeployTrigger: "off"
+    # Runs after the build and before any new instance starts, on a separate
+    # instance. Rolling deploys keep the old instance serving until the new one
+    # is healthy, so a migration on boot would alter the schema underneath code
+    # that is still running. A failure here aborts the deploy and leaves the
+    # old version serving.
+    preDeployCommand: npx --no-install prisma migrate deploy
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: adpulse-db
+          property: connectionString
+      # sync: false means Render prompts once at Blueprint creation and then
+      # ignores these on later syncs, so re-syncing cannot clobber a rotated
+      # secret. The values never appear in this file.
+      - key: JWT_SECRET
+        sync: false
+      - key: INVITE_CODE
+        sync: false
+
+databases:
+  - name: adpulse-db
+    plan: basic-256mb
+    region: frankfurt
+    postgresMajorVersion: "16"
+    databaseName: adpulse
+    # Internal-only: the web service and preDeployCommand both reach this over
+    # Render's private network, so nothing needs a public route in. Phase 13 may
+    # open this deliberately if offsite backups end up running from GitHub Actions.
+    ipAllowList: []

@@ -98,12 +98,23 @@ docker compose up -d db
 npm test
 ```
 
-Tests must be green. Tests are written before the implementation for each slice —
-see the plan documents in [docs/superpowers/plans/](docs/superpowers/plans/).
+Tests must be green. Tests are written before the implementation for each slice — see
+the `tasks.md` of the change being implemented under [openspec/changes/](openspec/changes/).
 
 ## Specs and plans
 
-Every phase gets its own design document in
-[docs/superpowers/specs/](docs/superpowers/specs/) and an implementation plan in
-[docs/superpowers/plans/](docs/superpowers/plans/), named `YYYY-MM-DD-<topic>.md`.
-Write and approve the spec before touching code.
+Planning runs through [OpenSpec](openspec/). Every change gets its own directory under
+`openspec/changes/<change-name>/`, holding a proposal, one spec per affected capability,
+a design document and a task list:
+
+```bash
+openspec new change "<change-name>"     # scaffold — never create the directory by hand
+openspec status --change "<name>" --json
+openspec instructions proposal --change "<name>" --json
+openspec validate "<name>" --strict
+```
+
+Write and approve the artifacts before touching code, and archive the change once its
+tasks are done. `openspec/specs/` then holds the current behaviour contract per
+capability. The specs and plans of phases 1-12 predate this workflow and are kept as
+history in [docs/archive/phases-1-12/](docs/archive/phases-1-12/).

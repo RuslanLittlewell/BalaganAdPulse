@@ -176,7 +176,8 @@ AdPulse/
         formula/            # expression tree: schema, evaluator, table rendering
       test/                 # Vitest + Supertest
     web/                    # frontend (React) — not created yet
-  docs/superpowers/         # specs and plans per phase
+  openspec/                 # change proposals, specs, designs and tasks
+  docs/archive/             # superseded plans from phases 1-12
 ```
 
 Request flow: HTTP → routes → controller (Zod validation) → service (Prisma) →
@@ -286,6 +287,8 @@ npm test
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) — commit conventions and development workflow
 - [docs/running.md](docs/running.md) — which runner to use when
-- [docs/superpowers/conventions.md](docs/superpowers/conventions.md) — shared context for specs and plans
-- [docs/superpowers/specs/](docs/superpowers/specs/) — design documents per phase
-- [docs/superpowers/plans/](docs/superpowers/plans/) — implementation plans per phase
+- [openspec/](openspec/) — the planning workflow: one directory per change, holding its
+  proposal, capability specs, design and tasks
+- [openspec/specs/](openspec/specs/) — the current behaviour contract, per capability
+- [docs/archive/phases-1-12/](docs/archive/phases-1-12/) — the specs and plans of phases
+  1-12, kept as history and no longer the workflow

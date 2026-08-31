@@ -1,10 +1,10 @@
 import { Router } from "express";
 import * as controller from "./campaign.controller.js";
 
-/** Mounted at /api/clients/:clientId/campaigns */
-export const clientCampaignRouter = Router({ mergeParams: true });
-clientCampaignRouter.post("/", controller.create);
-clientCampaignRouter.get("/", controller.list);
+/** Mounted at /api/projects/:projectId/campaigns */
+export const projectCampaignRouter = Router({ mergeParams: true });
+projectCampaignRouter.post("/", controller.create);
+projectCampaignRouter.get("/", controller.list);
 
 /** Mounted at /api/campaigns */
 export const campaignRouter = Router();

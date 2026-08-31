@@ -22,5 +22,15 @@ export const refreshSchema = z.object({
 
 export const logoutSchema = refreshSchema;
 
+export const updateProfileSchema = z.object({
+  name: z.string().trim().min(1, "name is required"),
+  currentPassword: z.string().optional(),
+  newPassword: z.string().min(8, "newPassword must be at least 8 characters").optional(),
+}).refine((value) => !value.newPassword || Boolean(value.currentPassword), {
+  message: "currentPassword is required",
+  path: ["currentPassword"],
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

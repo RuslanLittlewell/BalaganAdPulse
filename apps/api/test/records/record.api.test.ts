@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import request from "supertest";
 import { createApp } from "../../src/app.js";
 import { prisma } from "../../src/lib/prisma.js";
-import { resetDb } from "../helpers/db.js";
+import { resetDb, seedProject } from "../helpers/db.js";
 import { createCampaign } from "../../src/campaigns/campaign.service.js";
 import { deleteRecord } from "../../src/records/record.service.js";
 import { NotFoundError } from "../../src/errors.js";
@@ -18,8 +18,8 @@ beforeEach(async () => {
   await resetDb();
   const signedIn = await signInAs();
   ({ auth } = signedIn);
-  const client = await prisma.client.create({ data: { name: "Acme", ownerId: signedIn.user.id } });
-  campaignId = (await createCampaign(signedIn.user.id, client.id, { name: "A" })).id;
+  const { projectId } = await seedProject(signedIn.user.id);
+  campaignId = (await createCampaign(signedIn.user.id, projectId, { name: "A" })).id;
 });
 afterAll(async () => { await prisma.$disconnect(); });
 
@@ -93,8 +93,10 @@ describe("Records API", () => {
     const other = await signInAs("Other");
     const theirClient = await request(app).post("/api/clients").set(other.auth)
       .send({ name: "Theirs" });
+    const theirProject = await request(app).post("/api/projects").set(other.auth)
+      .send({ clientId: theirClient.body.id, name: "Theirs" });
     const theirCampaigns = await request(app)
-      .get(`/api/clients/${theirClient.body.id}/campaigns`).set(other.auth);
+      .get(`/api/projects/${theirProject.body.id}/campaigns`).set(other.auth);
 
     const res = await request(app)
       .post(`/api/campaigns/${theirCampaigns.body[0].id}/records`).set(auth)
@@ -106,8 +108,10 @@ describe("Records API", () => {
     const other = await signInAs("Other");
     const theirClient = await request(app).post("/api/clients").set(other.auth)
       .send({ name: "Theirs" });
+    const theirProject = await request(app).post("/api/projects").set(other.auth)
+      .send({ clientId: theirClient.body.id, name: "Theirs" });
     const theirCampaigns = await request(app)
-      .get(`/api/clients/${theirClient.body.id}/campaigns`).set(other.auth);
+      .get(`/api/projects/${theirProject.body.id}/campaigns`).set(other.auth);
     const theirRecord = await request(app)
       .post(`/api/campaigns/${theirCampaigns.body[0].id}/records`).set(other.auth)
       .send({ date: "2026-08-13" });

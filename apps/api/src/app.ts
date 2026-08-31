@@ -5,11 +5,13 @@ import express from "express";
 import { authRouter } from "./auth/auth.routes.js";
 import { requireAuth } from "./middleware/require-auth.js";
 import { clientRouter } from "./clients/client.routes.js";
-import { campaignRouter, clientCampaignRouter } from "./campaigns/campaign.routes.js";
+import { campaignRouter, projectCampaignRouter } from "./campaigns/campaign.routes.js";
+import { projectRouter } from "./projects/project.routes.js";
 import { campaignPropertyRouter, propertyRouter } from "./properties/property.routes.js";
 import { campaignRecordRouter, recordRouter } from "./records/record.routes.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { NotFoundError } from "./errors.js";
+import { userRouter } from "./users/user.routes.js";
 
 /** Resolves to `apps/web/dist` from both `apps/api/src/app.ts` and the compiled
  * `apps/api/dist/app.js`, since each sits one directory below `apps/api`. */
@@ -43,7 +45,9 @@ export function createApp(options: AppOptions = {}) {
   // by default rather than open until somebody remembers to guard it.
   app.use("/api", requireAuth);
 
-  app.use("/api/clients/:clientId/campaigns", clientCampaignRouter);
+  app.use("/api/user", userRouter);
+  app.use("/api/projects/:projectId/campaigns", projectCampaignRouter);
+  app.use("/api/projects", projectRouter);
   app.use("/api/clients", clientRouter);
   app.use("/api/campaigns/:campaignId/properties", campaignPropertyRouter);
   app.use("/api/campaigns/:campaignId/records", campaignRecordRouter);

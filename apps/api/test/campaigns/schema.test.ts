@@ -13,10 +13,13 @@ afterAll(async () => { await prisma.$disconnect(); });
 
 async function seedCampaign() {
   const client = await prisma.client.create({ data: { name: "Acme", ownerId } });
-  const campaign = await prisma.campaign.create({
-    data: { clientId: client.id, name: "Facebook — July", position: 0 },
+  const project = await prisma.project.create({
+    data: { clientId: client.id, name: "Acme", position: 0 },
   });
-  return { client, campaign };
+  const campaign = await prisma.campaign.create({
+    data: { projectId: project.id, name: "Facebook — July", position: 0 },
+  });
+  return { client, project, campaign };
 }
 
 describe("campaign schema", () => {
@@ -55,7 +58,7 @@ describe("campaign schema", () => {
     ).rejects.toThrow();
   });
 
-  it("cascades deletion from the client down to property values", async () => {
+  it("cascades deletion from the client through the project down to property values", async () => {
     const { client, campaign } = await seedCampaign();
     const property = await prisma.campaignProperty.create({
       data: { campaignId: campaign.id, key: "spend", name: "SPEND", type: "MONEY", position: 0 },

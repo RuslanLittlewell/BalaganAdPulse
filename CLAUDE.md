@@ -6,13 +6,21 @@ the stack, layout and commands.
 
 ## Conventions
 
-- **English only** — code, comments, docs, commit messages, API error messages.
+- **English in the codebase, Russian in the interface** — code, comments, docs,
+  commit messages and API error messages are English. Everything a user reads in
+  the web app is Russian and lives in `apps/web/src/shared/config/ru.ts`; reach it
+  through `t("key")` rather than writing copy inline.
 - **Commit messages follow Conventional Commits** — `type(scope): subject`, imperative
   mood, lowercase, no trailing period. Full type table and examples in
   [CONTRIBUTING.md](CONTRIBUTING.md). Do not commit without an explicit request.
 - **TDD** — write the failing test first, then the implementation, for each slice.
-- **Specs first** — each phase gets a design doc in `docs/superpowers/specs/` and a
-  plan in `docs/superpowers/plans/`, named `YYYY-MM-DD-<topic>.md`.
+- **Specs first, through OpenSpec** — planning artifacts live in `openspec/`. Scaffold
+  a change with `openspec new change "<name>"`, then write its `proposal.md`,
+  `specs/<capability>/spec.md`, `design.md` and `tasks.md`, guided by
+  `openspec instructions <artifact> --change "<name>" --json`. Never create a change
+  directory by hand. `openspec validate <name> --strict` must pass before implementation
+  starts, and the change is archived once its tasks are done. Phases 1–12 predate this
+  and are kept as history in `docs/archive/phases-1-12/`.
 
 ## Testing
 

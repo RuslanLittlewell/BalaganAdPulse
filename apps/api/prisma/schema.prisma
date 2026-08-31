@@ -10,12 +10,20 @@ datasource db {
 model Client {
   id            String     @id @default(uuid())
   name          String
-  niche         String?
-  monthlyBudget Decimal?   @map("monthly_budget") @db.Decimal(12, 2)
+  /// Contact-book details. All optional: a client is usable long before anyone
+  /// has collected its paperwork.
+  fullName      String?    @map("full_name")
+  organization  String?
+  unp           String?
+  phone         String?
+  telegram      String?
   email         String?
+  website       String?
+  image         String?
+  avatarPath    String?    @map("avatar_path")
   createdAt     DateTime   @default(now()) @map("created_at")
   updatedAt     DateTime   @updatedAt @map("updated_at")
-  campaigns     Campaign[]
+  projects      Project[]
   ownerId       String     @map("owner_id")
   owner         User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
@@ -23,10 +31,44 @@ model Client {
   @@map("client")
 }
 
+/// How much attention a project needs. Named by what it means rather than by
+/// the colour it is drawn in — the palette belongs to the interface.
+enum ProjectPriority {
+  CRITICAL /// очень важно
+  URGENT /// есть срочные задачи
+  WAITING /// в работе, ждём результата
+  IDLE /// нет задач
+  NEW /// новый
+
+  @@map("project_priority")
+}
+
+/// The unit of work: what the agency runs for a client. Niche, budget and the
+/// logo describe the project, not the company behind it — one client can run
+/// several projects that share nothing but the contact details.
+model Project {
+  id            String     @id @default(uuid())
+  clientId      String     @map("client_id")
+  client        Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name          String
+  niche         String?
+  monthlyBudget Decimal?   @map("monthly_budget") @db.Decimal(12, 2)
+  priority      ProjectPriority @default(NEW)
+  image         String?
+  avatarPath    String?    @map("avatar_path")
+  position      Int
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+  campaigns     Campaign[]
+
+  @@index([clientId, position])
+  @@map("project")
+}
+
 model Campaign {
   id         String             @id @default(uuid())
-  clientId   String             @map("client_id")
-  client     Client             @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  projectId  String             @map("project_id")
+  project    Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
   name       String
   position   Int
   createdAt  DateTime           @default(now()) @map("created_at")
@@ -34,7 +76,7 @@ model Campaign {
   properties CampaignProperty[]
   records    CampaignRecord[]
 
-  @@index([clientId, position])
+  @@index([projectId, position])
   @@map("campaign")
 }
 
@@ -93,6 +135,8 @@ model User {
   email         String         @unique
   name          String
   passwordHash  String         @map("password_hash")
+  image         String?
+  avatarPath    String?        @map("avatar_path")
   createdAt     DateTime       @default(now()) @map("created_at")
   refreshTokens RefreshToken[]
   clients       Client[]

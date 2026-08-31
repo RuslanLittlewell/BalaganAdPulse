@@ -1,0 +1,1 @@
+ALTER TABLE "app_user" ADD COLUMN "avatar_revision" INTEGER NOT NULL DEFAULT 0;

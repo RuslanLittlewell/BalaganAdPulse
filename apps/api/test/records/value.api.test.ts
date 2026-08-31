@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import request from "supertest";
 import { createApp } from "../../src/app.js";
 import { prisma } from "../../src/lib/prisma.js";
-import { resetDb } from "../helpers/db.js";
+import { resetDb, seedProject } from "../helpers/db.js";
 import { createCampaign } from "../../src/campaigns/campaign.service.js";
 import { setPropertyValue } from "../../src/records/value.service.js";
 import { NotFoundError } from "../../src/errors.js";
@@ -22,8 +22,8 @@ beforeEach(async () => {
   const signedIn = await signInAs();
   ({ auth } = signedIn);
   ownerId = signedIn.user.id;
-  const client = await prisma.client.create({ data: { name: "Acme", ownerId } });
-  campaignId = (await createCampaign(ownerId, client.id, { name: "A" })).id;
+  const { projectId } = await seedProject(ownerId);
+  campaignId = (await createCampaign(ownerId, projectId, { name: "A" })).id;
   const properties = await prisma.campaignProperty.findMany({ where: { campaignId } });
   propertyIdByKey = new Map(properties.map((property) => [property.key, property.id]));
   const record = await request(app)
@@ -100,8 +100,8 @@ describe("Property values API", () => {
   });
 
   it("returns 404 for a property of another campaign", async () => {
-    const client = await prisma.client.create({ data: { name: "Other", ownerId } });
-    const other = await createCampaign(ownerId, client.id, { name: "B" });
+    const { projectId: otherProjectId } = await seedProject(ownerId, "Other");
+    const other = await createCampaign(ownerId, otherProjectId, { name: "B" });
     const foreign = await prisma.campaignProperty.findFirstOrThrow({
       where: { campaignId: other.id, key: "clicks" },
     });
@@ -114,8 +114,10 @@ describe("Property values API", () => {
     const other = await signInAs("Other");
     const theirClient = await request(app).post("/api/clients").set(other.auth)
       .send({ name: "Theirs" });
+    const theirProject = await request(app).post("/api/projects").set(other.auth)
+      .send({ clientId: theirClient.body.id, name: "Theirs" });
     const theirCampaigns = await request(app)
-      .get(`/api/clients/${theirClient.body.id}/campaigns`).set(other.auth);
+      .get(`/api/projects/${theirProject.body.id}/campaigns`).set(other.auth);
     const theirTable = await request(app)
       .get(`/api/campaigns/${theirCampaigns.body[0].id}`).set(other.auth);
     const theirRecord = await request(app)

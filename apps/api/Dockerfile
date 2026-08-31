@@ -9,6 +9,7 @@ WORKDIR /app
 # Monorepo manifests for dependency install
 COPY package.json ./
 COPY apps/api/package.json apps/api/
+COPY scripts/patch-avataaars-react.cjs scripts/
 RUN npm install
 
 # Sources (overridden by the compose bind-mount in dev)

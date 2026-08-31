@@ -22,7 +22,6 @@ describe("client.service", () => {
     const c = await createClient(ownerId, { name: "Acme" });
     expect(c.id).toBeTruthy();
     expect(c.name).toBe("Acme");
-    expect(c.niche).toBeNull();
   });
   it("returns the list", async () => {
     await createClient(ownerId, { name: "A" });
@@ -39,8 +38,8 @@ describe("client.service", () => {
   });
   it("updates a client", async () => {
     const c = await createClient(ownerId, { name: "A" });
-    const u = await updateClient(ownerId, c.id, { niche: "fitness" });
-    expect(u.niche).toBe("fitness");
+    const u = await updateClient(ownerId, c.id, { phone: "+375 29 000-00-00" });
+    expect(u.phone).toBe("+375 29 000-00-00");
   });
   it("updateClient throws NotFoundError", async () => {
     await expect(updateClient(ownerId, MISSING, { name: "X" })).rejects.toBeInstanceOf(NotFoundError);
@@ -52,28 +51,5 @@ describe("client.service", () => {
   });
   it("deleteClient throws NotFoundError", async () => {
     await expect(deleteClient(ownerId, MISSING)).rejects.toBeInstanceOf(NotFoundError);
-  });
-  it("stores monthlyBudget as Decimal without precision loss", async () => {
-    const c = await createClient(ownerId, { name: "Acme", monthlyBudget: 1234.56 });
-    expect(String(c.monthlyBudget)).toBe("1234.56");
-    const fetched = await getClient(ownerId, c.id);
-    expect(String(fetched.monthlyBudget)).toBe("1234.56");
-  });
-  it("seeds a Main campaign with the default properties", async () => {
-    const client = await createClient(ownerId, { name: "Acme" });
-
-    const campaigns = await prisma.campaign.findMany({ where: { clientId: client.id } });
-    expect(campaigns).toHaveLength(1);
-    expect(campaigns[0].name).toBe("Main");
-    expect(campaigns[0].position).toBe(0);
-
-    const properties = await prisma.campaignProperty.findMany({
-      where: { campaignId: campaigns[0].id }, orderBy: { position: "asc" },
-    });
-    expect(properties).toHaveLength(11);
-    expect(properties.map((property) => property.key)).toEqual([
-      "spend", "impressions", "clicks", "ctr", "cpm", "cpc",
-      "leads", "cpl", "revenue", "roas", "comment",
-    ]);
   });
 });

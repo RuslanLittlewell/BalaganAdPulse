@@ -4,7 +4,8 @@ WORKDIR /app
 # Monorepo manifests for dependency install
 COPY package.json ./
 COPY apps/web/package.json apps/web/
-RUN npm install
+COPY scripts/patch-avataaars-react.cjs scripts/
+RUN npm install --legacy-peer-deps
 
 # Sources (overridden by the compose bind-mount in dev)
 COPY . .

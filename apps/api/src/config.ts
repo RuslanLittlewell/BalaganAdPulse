@@ -1,6 +1,13 @@
 export interface Config {
   jwtSecret: string;
   inviteCode: string;
+  storage: {
+    endpoint: string;
+    region: string;
+    accessKey: string;
+    secretKey: string;
+    bucket: string;
+  };
 }
 
 /** The values shipped in `apps/api/.env.example`. The documented setup copies
@@ -40,7 +47,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     }
   }
 
-  return { jwtSecret, inviteCode };
+  return {
+    jwtSecret,
+    inviteCode,
+    storage: {
+      endpoint: env.S3_ENDPOINT ?? "http://localhost:9000",
+      region: env.S3_REGION ?? "us-east-1",
+      accessKey: env.S3_ACCESS_KEY ?? "adpulse",
+      secretKey: env.S3_SECRET_KEY ?? "adpulse-local-secret",
+      bucket: env.S3_BUCKET ?? "adpulse-avatars",
+    },
+  };
 }
 
 /** Evaluated at import time: a server that starts with an empty signing secret

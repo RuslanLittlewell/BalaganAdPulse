@@ -1,7 +1,7 @@
 import type { Campaign } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { NotFoundError } from "../errors.js";
-import { ownedCampaign, ownedClient } from "../auth/scope.js";
+import { ownedCampaign, ownedProject } from "../auth/scope.js";
 import { buildCampaignCreateData } from "./defaults.js";
 import { fromJson } from "../formula/expression.schema.js";
 import {
@@ -10,7 +10,7 @@ import {
 
 export interface CampaignPayload {
   id: string;
-  clientId: string;
+  projectId: string;
   name: string;
   position: number;
   properties: TableProperty[];
@@ -18,26 +18,26 @@ export interface CampaignPayload {
   totals: Record<string, string | null>;
 }
 
-async function assertClientOwned(ownerId: string, clientId: string): Promise<void> {
-  const client = await prisma.client.findFirst({ where: ownedClient(ownerId, clientId) });
-  if (!client) throw new NotFoundError("Client not found");
+async function assertProjectOwned(ownerId: string, projectId: string): Promise<void> {
+  const project = await prisma.project.findFirst({ where: ownedProject(ownerId, projectId) });
+  if (!project) throw new NotFoundError("Project not found");
 }
 
 export async function createCampaign(
   ownerId: string,
-  clientId: string,
+  projectId: string,
   input: { name: string },
 ): Promise<Campaign> {
-  await assertClientOwned(ownerId, clientId);
-  const position = await prisma.campaign.count({ where: { clientId } });
+  await assertProjectOwned(ownerId, projectId);
+  const position = await prisma.campaign.count({ where: { projectId } });
   return prisma.campaign.create({
-    data: { clientId, ...buildCampaignCreateData(input.name, position) },
+    data: { projectId, ...buildCampaignCreateData(input.name, position) },
   });
 }
 
-export async function listCampaigns(ownerId: string, clientId: string): Promise<Campaign[]> {
-  await assertClientOwned(ownerId, clientId);
-  return prisma.campaign.findMany({ where: { clientId }, orderBy: { position: "asc" } });
+export async function listCampaigns(ownerId: string, projectId: string): Promise<Campaign[]> {
+  await assertProjectOwned(ownerId, projectId);
+  return prisma.campaign.findMany({ where: { projectId }, orderBy: { position: "asc" } });
 }
 
 export async function getCampaign(ownerId: string, id: string): Promise<Campaign> {
@@ -73,7 +73,7 @@ export async function getCampaignTable(ownerId: string, id: string): Promise<Cam
 
   return {
     id: campaign.id,
-    clientId: campaign.clientId,
+    projectId: campaign.projectId,
     name: campaign.name,
     position: campaign.position,
     properties,
@@ -84,12 +84,12 @@ export async function getCampaignTable(ownerId: string, id: string): Promise<Cam
 
 /** Rewrites positions to a dense 0..n-1 sequence, optionally moving one campaign. */
 export async function normalizePositions(
-  clientId: string,
+  projectId: string,
   movedId?: string,
   position?: number,
 ): Promise<void> {
   const siblings = await prisma.campaign.findMany({
-    where: { clientId }, orderBy: { position: "asc" }, select: { id: true },
+    where: { projectId }, orderBy: { position: "asc" }, select: { id: true },
   });
   let ids = siblings.map((sibling) => sibling.id);
   if (movedId !== undefined && position !== undefined) {
@@ -112,7 +112,7 @@ export async function updateCampaign(
     await prisma.campaign.update({ where: { id }, data: { name: input.name } });
   }
   if (input.position !== undefined) {
-    await normalizePositions(campaign.clientId, id, input.position);
+    await normalizePositions(campaign.projectId, id, input.position);
   }
   return getCampaign(ownerId, id);
 }
@@ -120,5 +120,5 @@ export async function updateCampaign(
 export async function deleteCampaign(ownerId: string, id: string): Promise<void> {
   const campaign = await getCampaign(ownerId, id);
   await prisma.campaign.delete({ where: { id } });
-  await normalizePositions(campaign.clientId);
+  await normalizePositions(campaign.projectId);
 }

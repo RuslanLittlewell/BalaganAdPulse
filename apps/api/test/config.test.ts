@@ -4,7 +4,8 @@ import { loadConfig } from "../src/config.js";
 describe("loadConfig", () => {
   it("reads both required variables", () => {
     const config = loadConfig({ JWT_SECRET: "s", INVITE_CODE: "c" });
-    expect(config).toEqual({ jwtSecret: "s", inviteCode: "c" });
+    expect(config).toMatchObject({ jwtSecret: "s", inviteCode: "c" });
+    expect(config.storage.bucket).toBe("adpulse-avatars");
   });
 
   it("throws when JWT_SECRET is missing", () => {
@@ -47,6 +48,25 @@ describe("loadConfig", () => {
     const config = loadConfig({
       NODE_ENV: "production", JWT_SECRET: "a".repeat(32), INVITE_CODE: "real-code",
     });
-    expect(config).toEqual({ jwtSecret: "a".repeat(32), inviteCode: "real-code" });
+    expect(config).toMatchObject({ jwtSecret: "a".repeat(32), inviteCode: "real-code" });
+  });
+
+  it("reads S3-compatible storage settings", () => {
+    const config = loadConfig({
+      JWT_SECRET: "s",
+      INVITE_CODE: "c",
+      S3_ENDPOINT: "https://storage.example.com",
+      S3_REGION: "eu-central-1",
+      S3_ACCESS_KEY: "key",
+      S3_SECRET_KEY: "secret",
+      S3_BUCKET: "avatars",
+    });
+    expect(config.storage).toEqual({
+      endpoint: "https://storage.example.com",
+      region: "eu-central-1",
+      accessKey: "key",
+      secretKey: "secret",
+      bucket: "avatars",
+    });
   });
 });

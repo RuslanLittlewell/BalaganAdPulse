@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { prisma } from "../../src/lib/prisma.js";
-import { resetDb } from "../helpers/db.js";
+import { resetDb, seedProject } from "../helpers/db.js";
 import { ConflictError, NotFoundError, ValidationError } from "../../src/errors.js";
 import { createCampaign } from "../../src/campaigns/campaign.service.js";
 import { createProperty, updateProperty, deleteProperty } from "../../src/properties/property.service.js";
@@ -16,8 +16,8 @@ let propertyIdByKey: Map<string | null, string>;
 beforeEach(async () => {
   await resetDb();
   ({ user: { id: ownerId } } = await signInAs());
-  const client = await prisma.client.create({ data: { name: "Acme", ownerId } });
-  const campaign = await createCampaign(ownerId, client.id, { name: "A" });
+  const { projectId } = await seedProject(ownerId);
+  const campaign = await createCampaign(ownerId, projectId, { name: "A" });
   campaignId = campaign.id;
   const properties = await prisma.campaignProperty.findMany({ where: { campaignId } });
   propertyIdByKey = new Map(properties.map((property) => [property.key, property.id]));

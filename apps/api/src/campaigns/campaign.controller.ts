@@ -6,19 +6,19 @@ import {
 import { userId } from "../auth/current-user.js";
 
 export async function create(
-  req: Request<{ clientId: string }>, res: Response, next: NextFunction,
+  req: Request<{ projectId: string }>, res: Response, next: NextFunction,
 ) {
   try {
     const data = createCampaignSchema.parse(req.body);
-    res.status(201).json(await createCampaign(userId(req), req.params.clientId, data));
+    res.status(201).json(await createCampaign(userId(req), req.params.projectId, data));
   } catch (e) { next(e); }
 }
 
 export async function list(
-  req: Request<{ clientId: string }>, res: Response, next: NextFunction,
+  req: Request<{ projectId: string }>, res: Response, next: NextFunction,
 ) {
   try {
-    res.json(await listCampaigns(userId(req), req.params.clientId));
+    res.json(await listCampaigns(userId(req), req.params.projectId));
   } catch (e) { next(e); }
 }
 

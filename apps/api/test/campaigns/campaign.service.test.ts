@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { prisma } from "../../src/lib/prisma.js";
-import { resetDb } from "../helpers/db.js";
+import { resetDb, seedProject } from "../helpers/db.js";
 import { NotFoundError } from "../../src/errors.js";
 import {
   createCampaign, listCampaigns, getCampaign, getCampaignTable,
@@ -11,20 +11,19 @@ import { signInAs } from "../helpers/auth.js";
 const MISSING = "00000000-0000-0000-0000-000000000000";
 
 let ownerId: string;
-let clientId: string;
+let projectId: string;
 
 beforeEach(async () => {
   await resetDb();
   const { user } = await signInAs();
   ownerId = user.id;
-  const client = await prisma.client.create({ data: { name: "Acme", ownerId: user.id } });
-  clientId = client.id;
+  ({ projectId } = await seedProject(user.id));
 });
 afterAll(async () => { await prisma.$disconnect(); });
 
 describe("campaign.service", () => {
   it("creates a campaign with the default properties", async () => {
-    const campaign = await createCampaign(ownerId, clientId, { name: "Facebook — July" });
+    const campaign = await createCampaign(ownerId, projectId, { name: "Facebook — July" });
     const properties = await prisma.campaignProperty.findMany({
       where: { campaignId: campaign.id }, orderBy: { position: "asc" },
     });
@@ -37,31 +36,31 @@ describe("campaign.service", () => {
     expect(properties[3].formula).toBeTruthy();
   });
 
-  it("throws NotFoundError for a missing client", async () => {
+  it("throws NotFoundError for a missing project", async () => {
     await expect(createCampaign(ownerId, MISSING, { name: "X" })).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it("appends new campaigns at the end and lists them by position", async () => {
-    await createCampaign(ownerId, clientId, { name: "A" });
-    await createCampaign(ownerId, clientId, { name: "B" });
-    expect((await listCampaigns(ownerId, clientId)).map((c) => c.name)).toEqual(["A", "B"]);
+    await createCampaign(ownerId, projectId, { name: "A" });
+    await createCampaign(ownerId, projectId, { name: "B" });
+    expect((await listCampaigns(ownerId, projectId)).map((c) => c.name)).toEqual(["A", "B"]);
   });
 
   it("moves a campaign and renumbers its siblings", async () => {
-    const a = await createCampaign(ownerId, clientId, { name: "A" });
-    await createCampaign(ownerId, clientId, { name: "B" });
-    await createCampaign(ownerId, clientId, { name: "C" });
+    const a = await createCampaign(ownerId, projectId, { name: "A" });
+    await createCampaign(ownerId, projectId, { name: "B" });
+    await createCampaign(ownerId, projectId, { name: "C" });
     await updateCampaign(ownerId, a.id, { position: 2 });
-    const listed = await listCampaigns(ownerId, clientId);
+    const listed = await listCampaigns(ownerId, projectId);
     expect(listed.map((c) => c.name)).toEqual(["B", "C", "A"]);
     expect(listed.map((c) => c.position)).toEqual([0, 1, 2]);
   });
 
   it("renumbers the remaining campaigns after a delete", async () => {
-    const a = await createCampaign(ownerId, clientId, { name: "A" });
-    await createCampaign(ownerId, clientId, { name: "B" });
+    const a = await createCampaign(ownerId, projectId, { name: "A" });
+    await createCampaign(ownerId, projectId, { name: "B" });
     await deleteCampaign(ownerId, a.id);
-    expect((await listCampaigns(ownerId, clientId)).map((c) => c.position)).toEqual([0]);
+    expect((await listCampaigns(ownerId, projectId)).map((c) => c.position)).toEqual([0]);
   });
 
   it("getCampaign throws NotFoundError", async () => {
@@ -69,18 +68,18 @@ describe("campaign.service", () => {
   });
 
   it("hides another owner's campaign behind the same NotFoundError", async () => {
-    const campaign = await createCampaign(ownerId, clientId, { name: "A" });
+    const campaign = await createCampaign(ownerId, projectId, { name: "A" });
     const { user: other } = await signInAs("Other");
     await expect(getCampaign(other.id, campaign.id)).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it("renames a campaign", async () => {
-    const campaign = await createCampaign(ownerId, clientId, { name: "A" });
+    const campaign = await createCampaign(ownerId, projectId, { name: "A" });
     expect((await updateCampaign(ownerId, campaign.id, { name: "B" })).name).toBe("B");
   });
 
   it("returns a table payload with properties, records and totals", async () => {
-    const campaign = await createCampaign(ownerId, clientId, { name: "A" });
+    const campaign = await createCampaign(ownerId, projectId, { name: "A" });
     const properties = await prisma.campaignProperty.findMany({ where: { campaignId: campaign.id } });
     const byKey = new Map(properties.map((property) => [property.key, property]));
     const record = await prisma.campaignRecord.create({

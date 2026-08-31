@@ -36,6 +36,16 @@ services:
         sync: false
       - key: INVITE_CODE
         sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: S3_BUCKET
+        sync: false
 
 databases:
   - name: adpulse-db

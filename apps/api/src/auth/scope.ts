@@ -5,11 +5,14 @@
  */
 export const ownedClient = (ownerId: string, id: string) => ({ id, ownerId });
 
-export const ownedCampaign = (ownerId: string, id: string) =>
+export const ownedProject = (ownerId: string, id: string) =>
   ({ id, client: { ownerId } });
 
+export const ownedCampaign = (ownerId: string, id: string) =>
+  ({ id, project: { client: { ownerId } } });
+
 export const ownedProperty = (ownerId: string, id: string) =>
-  ({ id, campaign: { client: { ownerId } } });
+  ({ id, campaign: { project: { client: { ownerId } } } });
 
 export const ownedRecord = (ownerId: string, id: string) =>
-  ({ id, campaign: { client: { ownerId } } });
+  ({ id, campaign: { project: { client: { ownerId } } } });

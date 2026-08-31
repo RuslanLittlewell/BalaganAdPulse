@@ -1,0 +1,51 @@
+import { screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { Route, Routes } from "react-router-dom";
+import { renderWithProviders } from "@test/shared/index.js";
+import { MainNav } from "@/widgets/main-nav/MainNav.js";
+
+const MODULES = ["Дашборд", "Проекты", "Задачи", "Отчёты", "Архив"];
+
+function setup(route = "/") {
+  return renderWithProviders(
+    <Routes>
+      <Route path="*" element={<MainNav />} />
+    </Routes>,
+    { route },
+  );
+}
+
+describe("MainNav", () => {
+  it("lists the five modules, in order", () => {
+    setup();
+    const nav = screen.getByRole("navigation", { name: "Разделы" });
+    expect(within(nav).getAllByRole("link").map((link) => link.textContent)).toEqual(MODULES);
+  });
+
+  it("marks the module the visitor is in", () => {
+    setup("/projects/1/campaigns/2");
+    expect(screen.getByRole("link", { name: "Проекты" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Задачи" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("does not mark the dashboard on every route, though it sits at the root", () => {
+    setup("/projects");
+    expect(screen.getByRole("link", { name: "Дашборд" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("marks the dashboard at the root", () => {
+    setup("/");
+    expect(screen.getByRole("link", { name: "Дашборд" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("navigates to a module", async () => {
+    setup();
+    await userEvent.click(screen.getByRole("link", { name: "Отчёты" }));
+    expect(screen.getByRole("link", { name: "Отчёты" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("no longer lists clients", () => {
+    setup();
+    expect(screen.queryByText("Клиенты")).not.toBeInTheDocument();
+  });
+});

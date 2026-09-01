@@ -7,6 +7,8 @@ import { decodeAccessToken } from "@/shared/lib/index.js";
 import { readTokens, writeAccessToken, writeTokens } from "@/shared/lib/index.js";
 import { endSession, onSessionExpired, onTokenRenewed } from "@/shared/lib/index.js";
 import { authApi, type LoginBody, type RegisterBody, type UpdateProfileBody, type UserProfile } from "../api.js";
+import type { OrganizationSummary } from "../api.js";
+import type { Role } from "@adpulse/access-policy";
 
 export interface AuthUser {
   id: string;
@@ -16,6 +18,9 @@ export interface AuthUser {
 
 interface AuthValue {
   user: AuthUser | null;
+  organization: OrganizationSummary | null;
+  role: Role | null;
+  clientIds: string[];
   login: (body: LoginBody) => Promise<void>;
   register: (body: RegisterBody) => Promise<void>;
   logout: () => Promise<void>;
@@ -41,9 +46,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [user, setUser] = useState<AuthUser | null>(currentUser);
+  const [organization, setOrganization] = useState<OrganizationSummary | null>(null);
+  const [role, setRole] = useState<Role | null>(null);
+  const [clientIds, setClientIds] = useState<string[]>([]);
+
+  const loadSession = useCallback(async () => {
+    const session = await authApi.session();
+    setUser(session.user);
+    setOrganization(session.organization);
+    setRole(session.role);
+    setClientIds(session.clientIds);
+  }, []);
 
   const leave = useCallback(() => {
     setUser(null);
+    setOrganization(null);
+    setRole(null);
+    setClientIds([]);
     // Without this the next person to sign in on this laptop sees the previous
     // user's clients until React Query refetches.
     queryClient.clear();
@@ -52,13 +71,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => onSessionExpired(leave), [leave]);
 
+  useEffect(() => {
+    if (currentUser()) void loadSession().catch(() => {});
+  }, [loadSession]);
+
   // A silent renewal (see lib/auth/session.ts) writes a new access token
   // without anyone telling React; without this, `user` stays stale for the
   // rest of the session even though a perfectly good token now exists.
-  useEffect(() => onTokenRenewed(() => setUser(currentUser())), []);
+  useEffect(() => onTokenRenewed(() => {
+    setUser(currentUser());
+    void loadSession().catch(() => {});
+  }), [loadSession]);
 
   const value = useMemo<AuthValue>(() => ({
     user,
+    organization,
+    role,
+    clientIds,
     login: async (body) => {
       writeTokens(await authApi.login(body));
       setUser(currentUser());
@@ -66,11 +95,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // this laptop sees the previous user's clients until React Query
       // refetches.
       queryClient.clear();
+      await loadSession();
     },
     register: async (body) => {
       writeTokens(await authApi.register(body));
       setUser(currentUser());
       queryClient.clear();
+      await loadSession();
     },
     logout: async () => {
       const { refreshToken } = readTokens();
@@ -96,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     loadProfile: authApi.profile,
     saveAvatar: async (png, avatarPath) => { await authApi.saveAvatar(png, avatarPath); },
-  }), [user, leave]);
+  }), [user, organization, role, clientIds, loadSession, queryClient]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { createShutdown } from "../src/shutdown.js";
+import { createShutdown } from "../src/composition/shutdown.js";
 
 function deps(closeError?: Error) {
   return {

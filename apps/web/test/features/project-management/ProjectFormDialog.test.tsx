@@ -98,7 +98,7 @@ describe("ProjectFormDialog", () => {
   it("offers deletion while editing, behind a confirmation", async () => {
     setup(<ProjectFormDialog project={aProject({ id: "p1", clientId: "1" })} onClose={() => {}} />);
 
-    await userEvent.click(screen.getByRole("button", { name: "Удалить" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Удалить" }));
 
     expect(await screen.findByRole("alertdialog", { name: "Удалить проект?" })).toBeInTheDocument();
   });
@@ -121,7 +121,7 @@ describe("ProjectFormDialog", () => {
       />,
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "Удалить" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Удалить" }));
     expect(deleted).toBe(false);
 
     const confirmation = await screen.findByRole("alertdialog");

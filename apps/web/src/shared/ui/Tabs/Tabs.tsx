@@ -19,7 +19,7 @@ export interface TabsProps {
   activeId?: string;
   onSelect: (id: string) => void;
   itemActions?: TabItemAction[];
-  onNew: () => void;
+  onNew?: () => void;
 }
 
 /**
@@ -75,9 +75,11 @@ export const Tabs = memo(function Tabs({
           })}
         </TabsList>
       </TabsRoot>
-      <Button variant="outline" size="sm" onClick={onNew} className="my-2">
-        + {t("campaigns.new")}
-      </Button>
+      {onNew && (
+        <Button variant="outline" size="sm" onClick={onNew} className="my-2">
+          + {t("campaigns.new")}
+        </Button>
+      )}
     </div>
   );
 });

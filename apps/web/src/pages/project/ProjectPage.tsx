@@ -13,6 +13,10 @@ import {
 import { useCampaigns, type CampaignSummary } from "@/entities/campaign/index.js";
 import { CampaignFormDialog, CampaignTabs } from "@/features/campaign-management/index.js";
 import { CampaignSheet } from "@/widgets/campaign-sheet/index.js";
+import { Can } from "@/features/permissions/index.js";
+import { HistoryIcon } from "lucide-react";
+import { ActivityLogModal } from "@/widgets/activity-log-modal/index.js";
+import type { AuditEventFilters } from "@/entities/audit-event/index.js";
 
 export function ProjectPage() {
   const projectId = useActiveProjectId();
@@ -23,6 +27,7 @@ export function ProjectPage() {
   const campaigns = useCampaigns(projectId);
   const [creatingSheet, setCreatingSheet] = useState(false);
   const [editingSheetId, setEditingSheetId] = useState<string | undefined>(undefined);
+  const [activityFilters, setActivityFilters] = useState<AuditEventFilters | null>(null);
 
   const firstCampaignId = campaigns.data?.[0]?.id;
   /* The address catches up through the redirect below, but the interface does
@@ -57,7 +62,13 @@ export function ProjectPage() {
 
   return (
     <>
-      <ProjectHeader project={project} clientName={clientName} />
+      <ProjectHeader project={project} clientName={clientName} actions={
+        <Can action="read" resource="audit">
+          <Button variant="outline" size="sm" onClick={() => setActivityFilters({ projectId: project.id })}>
+            <HistoryIcon /> {t("activity.title")}
+          </Button>
+        </Can>
+      } />
 
       {campaigns.isError && (
         <EmptyState
@@ -75,9 +86,11 @@ export function ProjectPage() {
           title={t("campaigns.empty.title")}
           description={t("campaigns.empty.description")}
           action={
+            <Can action="create" resource="campaign">
             <Button size="sm" onClick={() => setCreatingSheet(true)}>
               {t("campaigns.empty.action")}
             </Button>
+            </Can>
           }
         />
       )}
@@ -91,7 +104,16 @@ export function ProjectPage() {
             onNew={() => setCreatingSheet(true)}
             onRename={(id) => setEditingSheetId(id)}
           />
-          {activeCampaignId != null && <CampaignSheet campaignId={activeCampaignId} />}
+          {activeCampaignId != null && (
+            <CampaignSheet
+              campaignId={activeCampaignId}
+              onOpenActivity={(recordId) => setActivityFilters({
+                campaignId: activeCampaignId,
+                entityType: "record",
+                entityId: recordId,
+              })}
+            />
+          )}
         </>
       )}
 
@@ -112,6 +134,12 @@ export function ProjectPage() {
           onClose={() => setEditingSheetId(undefined)}
         />
       )}
+
+      <ActivityLogModal
+        open={activityFilters != null}
+        filters={activityFilters ?? {}}
+        onOpenChange={(open) => { if (!open) setActivityFilters(null); }}
+      />
 
     </>
   );

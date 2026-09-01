@@ -1,18 +1,22 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
-import { createApp } from "../../src/app.js";
-import { config } from "../../src/config.js";
-import { prisma } from "../../src/lib/prisma.js";
-import { resetAuthRateLimits } from "../../src/auth/auth.routes.js";
+import { createApp } from "../../src/composition/app.js";
+import { createInvite } from "../helpers/auth.js";
+import { prisma } from "../../src/shared/infrastructure/prisma.js";
+import { resetIdentityRateLimits } from "../../src/modules/identity/presentation/http/identity-http.js";
 import { resetDb } from "../helpers/db.js";
 
 const app = createApp();
 const account = {
   name: "Buyer", email: "profile@acme.com", password: "hunter2hunter2",
-  inviteCode: config.inviteCode,
+  inviteCode: "invite-first",
 };
 
-beforeEach(async () => { await resetDb(); resetAuthRateLimits(); });
+beforeEach(async () => {
+  await resetDb();
+  resetIdentityRateLimits();
+  await createInvite("invite-first");
+});
 afterAll(async () => { await prisma.$disconnect(); });
 
 async function register() {
@@ -20,6 +24,12 @@ async function register() {
 }
 
 describe("User API", () => {
+  it("requires authentication for profile reads", async () => {
+    const response = await request(app).get("/api/user/profile");
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ error: { message: "Authentication required" } });
+  });
+
   it("GET /api/user/profile returns the persisted avatar configuration", async () => {
     const created = await register();
     const user = await prisma.user.findUniqueOrThrow({ where: { email: account.email } });
@@ -92,5 +102,23 @@ describe("User API", () => {
     const login = await request(app).post("/api/auth/login")
       .send({ email: account.email, password: "new-password-123" });
     expect(login.status).toBe(200);
+  });
+
+  it("requires the current password when a new password is requested", async () => {
+    const created = await register();
+    const response = await request(app).patch("/api/user/profile")
+      .set("Authorization", `Bearer ${created.body.accessToken}`)
+      .send({ name: account.name, newPassword: "new-password-123" });
+    expect(response.status).toBe(400);
+    expect(response.body.error.message).toBe("Validation error");
+  });
+
+  it("rejects an avatar request without a PNG", async () => {
+    const created = await register();
+    const response = await request(app).put("/api/user/avatar")
+      .set("Authorization", `Bearer ${created.body.accessToken}`)
+      .field("avatarPath", JSON.stringify({ topType: "NoHair" }));
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: { message: "Avatar PNG is required" } });
   });
 });

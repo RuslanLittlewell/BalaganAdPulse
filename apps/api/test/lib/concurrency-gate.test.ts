@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { createGate } from "../../src/lib/concurrency-gate.js";
-import { ServiceUnavailableError } from "../../src/errors.js";
+import { createGate } from "../../src/shared/infrastructure/concurrency-gate.js";
+import { ServiceUnavailableError } from "../../src/shared/presentation/http-errors.js";
 
 function deferred() {
   let resolve!: () => void;

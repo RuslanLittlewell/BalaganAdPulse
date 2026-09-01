@@ -24,6 +24,16 @@ const table = {
 };
 
 describe("CampaignSheet", () => {
+  it("opens entity-scoped activity from a row", async () => {
+    const onOpenActivity = vi.fn();
+    server.use(mock.get("/api/campaigns/c1", () => HttpResponse.json(table)));
+
+    renderWithProviders(<CampaignSheet campaignId="c1" onOpenActivity={onOpenActivity} />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "История действий, 01 авг." }));
+    expect(onOpenActivity).toHaveBeenCalledWith("r1");
+  });
+
   it("renders a column per property, a row per record and the totals row", async () => {
     server.use(mock.get("/api/campaigns/c1", () => HttpResponse.json(table)));
 

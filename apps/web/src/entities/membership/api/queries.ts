@@ -1,0 +1,38 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  membersApi,
+  type ClientAccessGrant,
+  type UpdateMemberInput,
+} from "./api.js";
+
+export const MEMBERS_KEY = ["members"] as const;
+
+export function useMembers() {
+  return useQuery({ queryKey: MEMBERS_KEY, queryFn: membersApi.list });
+}
+
+export function useUpdateMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: UpdateMemberInput }) =>
+      membersApi.update(id, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: MEMBERS_KEY }),
+  });
+}
+
+export function useDeleteMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: membersApi.remove,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: MEMBERS_KEY }),
+  });
+}
+
+export function useSetMemberAccess() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, grants }: { id: string; grants: ClientAccessGrant[] }) =>
+      membersApi.setAccess(id, grants),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: MEMBERS_KEY }),
+  });
+}

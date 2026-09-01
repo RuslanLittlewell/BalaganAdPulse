@@ -5,6 +5,7 @@ import { PencilIcon } from "lucide-react";
 import { t } from "@/shared/config/index.js";
 import { projectPath } from "@/shared/lib/index.js";
 import type { CampaignSummary } from "@/entities/campaign/index.js";
+import { useCan } from "@/features/permissions/index.js";
 
 export interface CampaignTabsProps {
   projectId: string;
@@ -22,16 +23,18 @@ export function CampaignTabs({
   onRename,
 }: CampaignTabsProps) {
   const navigate = useNavigate();
+  const mayCreate = useCan("create", "campaign");
+  const mayUpdate = useCan("update", "campaign");
 
   const itemActions: TabItemAction[] = useMemo(
-    () => [
+    () => mayUpdate ? [
       {
         icon: <PencilIcon className="size-3.5" />,
         label: t("campaigns.rename"),
         onSelect: onRename,
       },
-    ],
-    [onRename],
+    ] : [],
+    [mayUpdate, onRename],
   );
 
   const items = useMemo(
@@ -51,7 +54,7 @@ export function CampaignTabs({
       activeId={activeCampaignId}
       onSelect={onSelect}
       itemActions={itemActions}
-      onNew={onNew}
+      onNew={mayCreate ? onNew : undefined}
     />
   );
 }

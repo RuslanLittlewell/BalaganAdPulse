@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
-import { prisma } from "../../src/lib/prisma.js";
+import { prisma } from "../../src/shared/infrastructure/prisma.js";
+import { currentOrg } from "../helpers/auth.js";
 import { resetDb } from "../helpers/db.js";
 import { signInAs } from "../helpers/auth.js";
 
@@ -12,7 +13,9 @@ beforeEach(async () => {
 afterAll(async () => { await prisma.$disconnect(); });
 
 async function seedCampaign() {
-  const client = await prisma.client.create({ data: { name: "Acme", ownerId } });
+  const client = await prisma.client.create({
+    data: { name: "Acme", orgId: (await currentOrg()).id },
+  });
   const project = await prisma.project.create({
     data: { clientId: client.id, name: "Acme", position: 0 },
   });

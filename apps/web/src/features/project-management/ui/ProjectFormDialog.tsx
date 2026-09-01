@@ -28,6 +28,7 @@ import {
   type Project,
   type ProjectInput,
 } from "@/entities/project/index.js";
+import { Can } from "@/features/permissions/index.js";
 
 /** Marks a picture the user supplied, as opposed to one the avatar editor made. */
 const UPLOADED = JSON.stringify({ source: "upload" });
@@ -233,6 +234,7 @@ export function ProjectFormDialog({
 
           <DialogFooter className="sm:justify-between">
             {isEdit ? (
+              <Can action="delete" resource="project">
               <Button
                 type="button"
                 variant="destructive"
@@ -240,6 +242,7 @@ export function ProjectFormDialog({
               >
                 {t("project.delete")}
               </Button>
+              </Can>
             ) : (
               <span />
             )}

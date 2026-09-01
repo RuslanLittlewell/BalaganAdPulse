@@ -1,5 +1,6 @@
 import { http } from "@/shared/lib/index.js";
 import type { TokenPair } from "@/shared/lib/index.js";
+import type { Role } from "@adpulse/access-policy";
 
 export interface RegisterBody {
   name: string;
@@ -27,6 +28,19 @@ export interface UserProfile {
   avatarPath: string | null;
 }
 
+export interface OrganizationSummary {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export interface AuthSession {
+  user: { id: string; name: string; email: string; image: string | null };
+  organization: OrganizationSummary;
+  role: Role;
+  clientIds: string[];
+}
+
 // These three calls opt out of both renewal behaviours in lib/http.ts: they
 // must reach the server before any token check, and their own 401 (a wrong
 // password) must be answered once, not repeated as if it were a stale token.
@@ -37,6 +51,7 @@ export const authApi = {
   register: (body: RegisterBody) => http.post<TokenPair>("/auth/register", body, UNAUTHENTICATED),
   logout: (refreshToken: string) =>
     http.post<void>("/auth/logout", { refreshToken }, UNAUTHENTICATED),
+  session: () => http.get<AuthSession>("/auth/me"),
   profile: () => http.get<UserProfile>("/user/profile"),
   saveAvatar: (png: Blob, avatarPath: string) => {
     const form = new FormData();

@@ -1,7 +1,20 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 import { TEST_WORKERS } from "./test/workers";
 
 export default defineConfig({
+  // The API imports @adpulse/access-policy as built JS, which means a test run
+  // could otherwise exercise a dist/ compiled from source that has since
+  // changed — a stale permission matrix denying something the source allows.
+  // Tests read the TypeScript directly; the build still produces the dist that
+  // production runs on, and `npm run build` verifies it compiles.
+  resolve: {
+    alias: {
+      "@adpulse/access-policy": fileURLToPath(
+        new URL("../../packages/access-policy/src/index.ts", import.meta.url),
+      ),
+    },
+  },
   test: {
     environment: "node",
     globals: true,

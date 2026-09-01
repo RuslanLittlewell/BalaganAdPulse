@@ -15,6 +15,7 @@ import {
 import { ContactAvatar } from "./ContactAvatar.js";
 import { ContactDetails } from "./ContactDetails.js";
 import { ContactForm } from "./ContactForm.js";
+import { Can } from "@/features/permissions/index.js";
 
 export interface ContactBookProps {
   open: boolean;
@@ -84,7 +85,7 @@ export function ContactBook({ open, onClose }: ContactBookProps) {
                 <div className="flex min-w-0 items-center gap-3">
                   {/* Only a saved client has a picture to change. */}
                   {mode.kind !== "create" && selected != null && (
-                    <ContactAvatar client={selected} />
+                    <Can action="update" resource="client"><ContactAvatar client={selected} /></Can>
                   )}
                   <h3 className="min-w-0 truncate text-lg font-semibold">
                     {mode.kind === "create" ? t("contacts.new") : selected?.name}
@@ -93,6 +94,7 @@ export function ContactBook({ open, onClose }: ContactBookProps) {
                 {!editing && (
                   <div className="flex shrink-0 items-center gap-1">
                     {selected != null && (
+                      <Can action="update" resource="client">
                       <Button
                         variant="ghost"
                         size="icon-sm"
@@ -101,7 +103,9 @@ export function ContactBook({ open, onClose }: ContactBookProps) {
                       >
                         <PencilIcon />
                       </Button>
+                      </Can>
                     )}
+                    <Can action="create" resource="client">
                     <Button
                       variant="ghost"
                       size="icon-sm"
@@ -110,6 +114,7 @@ export function ContactBook({ open, onClose }: ContactBookProps) {
                     >
                       <PlusIcon />
                     </Button>
+                    </Can>
                   </div>
                 )}
               </div>

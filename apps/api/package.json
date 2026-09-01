@@ -4,18 +4,21 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch src/composition/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "node dist/composition/server.js",
     "db:test:deploy": "DATABASE_URL=\"postgresql://postgres:postgres@localhost:5432/adpulse_test?schema=public\" prisma migrate deploy",
     "test": "vitest run",
     "test:watch": "vitest",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:generate": "prisma generate"
+    "prisma:generate": "prisma generate",
+    "seed": "tsx src/composition/seed-cli.ts"
   },
   "dependencies": {
+    "@adpulse/access-policy": "^0.1.0",
     "@aws-sdk/client-s3": "^3.1121.0",
     "@prisma/client": "^6.19.3",
+    "decimal.js": "^10.6.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jose": "^6.2.8",

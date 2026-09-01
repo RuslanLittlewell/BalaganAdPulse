@@ -34,7 +34,11 @@ services:
       # secret. The values never appear in this file.
       - key: JWT_SECRET
         sync: false
-      - key: INVITE_CODE
+      - key: SEED_ADMIN_NAME
+        sync: false
+      - key: SEED_ADMIN_EMAIL
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
         sync: false
       - key: S3_ENDPOINT
         sync: false

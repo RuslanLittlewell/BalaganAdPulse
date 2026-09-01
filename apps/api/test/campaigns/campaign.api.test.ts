@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import request from "supertest";
-import { createApp } from "../../src/app.js";
-import { prisma } from "../../src/lib/prisma.js";
+import { createApp } from "../../src/composition/app.js";
+import { prisma } from "../../src/shared/infrastructure/prisma.js";
 import { resetDb, seedProject } from "../helpers/db.js";
 import { signInAs } from "../helpers/auth.js";
+import { expectAudit } from "../helpers/audit.js";
 
 const app = createApp();
 const MISSING = "00000000-0000-0000-0000-000000000000";
@@ -26,6 +27,7 @@ describe("Campaigns API", () => {
     expect(res.status).toBe(201);
     expect(res.body.name).toBe("Facebook — July");
     expect(res.body.position).toBe(0);
+    await expectAudit({ action: "CREATE", entityType: "campaign", entityId: res.body.id, projectId, campaignId: res.body.id });
   });
 
   it("POST with an empty name -> 400", async () => {
@@ -66,6 +68,7 @@ describe("Campaigns API", () => {
     const res = await request(app).patch(`/api/campaigns/${created.body.id}`).set(auth).send({ name: "B" });
     expect(res.status).toBe(200);
     expect(res.body.name).toBe("B");
+    await expectAudit({ action: "UPDATE", entityType: "campaign", entityId: created.body.id, projectId, campaignId: created.body.id });
   });
 
   it("DELETE /api/campaigns/:id deletes (204)", async () => {
@@ -73,10 +76,12 @@ describe("Campaigns API", () => {
       .post(`/api/projects/${projectId}/campaigns`).set(auth).send({ name: "A" });
     expect((await request(app).delete(`/api/campaigns/${created.body.id}`).set(auth)).status).toBe(204);
     expect(await prisma.campaign.count()).toBe(0);
+    await expectAudit({ action: "DELETE", entityType: "campaign", entityId: created.body.id, projectId, campaignId: created.body.id });
   });
 
-  it("GET /api/campaigns/:id for another user's campaign -> 404", async () => {
-    const other = await signInAs("Other");
+  it("GET /api/campaigns/:id for an unreachable campaign -> 404", async () => {
+    const other = await signInAs("Other", { role: "MANAGER" });
+    const stranger = await signInAs("Stranger", { role: "MANAGER" });
     const theirClient = await request(app).post("/api/clients").set(other.auth)
       .send({ name: "Theirs" });
     const theirProject = await request(app).post("/api/projects").set(other.auth)
@@ -85,17 +90,18 @@ describe("Campaigns API", () => {
       .get(`/api/projects/${theirProject.body.id}/campaigns`).set(other.auth);
 
     const res = await request(app)
-      .get(`/api/campaigns/${theirCampaigns.body[0].id}`).set(auth);
+      .get(`/api/campaigns/${theirCampaigns.body[0].id}`).set(stranger.auth);
     expect(res.status).toBe(404);
   });
 
-  it("GET /api/projects/:projectId/campaigns for another user's client -> 404", async () => {
-    const other = await signInAs("Other");
+  it("GET /api/projects/:projectId/campaigns for an unreachable client -> 404", async () => {
+    const other = await signInAs("Other", { role: "MANAGER" });
+    const stranger = await signInAs("Stranger", { role: "MANAGER" });
     const theirClient = await request(app).post("/api/clients").set(other.auth)
       .send({ name: "Theirs" });
 
     const res = await request(app)
-      .get(`/api/clients/${theirClient.body.id}/campaigns`).set(auth);
+      .get(`/api/clients/${theirClient.body.id}/campaigns`).set(stranger.auth);
     expect(res.status).toBe(404);
   });
 });

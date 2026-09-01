@@ -1,7 +1,7 @@
 export const ru = {
   "brand.title": "AdPulse",
   "nav.dashboard": "Дашборд", "nav.projects": "Проекты", "nav.tasks": "Задачи",
-  "nav.reports": "Отчёты", "nav.archive": "Архив", "nav.sections": "Разделы",
+  "nav.reports": "Отчёты", "nav.archive": "Архив", "nav.team": "Команда", "nav.sections": "Разделы",
   "nav.collapse": "Свернуть меню", "nav.expand": "Развернуть меню",
   "module.soon.title": "Модуль в разработке", "module.soon.description": "Этот раздел ещё не реализован.",
   "projects.pick": "Выберите проект слева",
@@ -49,6 +49,19 @@ export const ru = {
   "contacts.avatar.generate": "Создать аватар", "contacts.avatar.failed": "Не удалось сохранить изображение",
   "contacts.edit": "Редактировать контакт", "contacts.new": "Новый контакт", "contacts.name": "Клиент", "contacts.name.required": "Введите имя",
   "theme.toDark": "Включить тёмную тему", "theme.toLight": "Включить светлую тему",
+  "team.title": "Команда", "team.description": "Участники организации и их роли", "team.role": "Роль",
+  "team.suspend": "Приостановить", "team.activate": "Активировать", "team.empty": "Участников пока нет",
+  "team.loadFailed": "Не удалось загрузить участников", "team.remove.title": "Удалить участника?",
+  "team.remove.description": "Участник потеряет доступ к организации. История его действий сохранится.",
+  "team.remove.confirm": "Удалить участника", "permission.denied": "Недостаточно прав",
+  "role.ADMIN": "Администратор", "role.MANAGER": "Менеджер", "role.GUEST": "Гость", "role.CLIENT": "Клиент",
+  "membership.status.ACTIVE": "Активен", "membership.status.SUSPENDED": "Приостановлен",
+  "invites.title": "Приглашения", "invites.role": "Роль приглашения", "invites.create": "Создать приглашение",
+  "invites.copy": "Скопировать код", "invites.revoke": "Отозвать", "invites.empty": "Нет активных приглашений",
+  "invites.loadFailed": "Не удалось загрузить приглашения",
+  "activity.title": "История действий", "activity.empty": "Действий пока нет",
+  "activity.loadFailed": "Не удалось загрузить историю", "activity.more": "Показать ещё",
+  "activity.action.CREATE": "Создание", "activity.action.UPDATE": "Изменение", "activity.action.DELETE": "Удаление",
   "auth.email.invalid": "Введите корректный email", "auth.password.tooShort": "Минимум 8 символов", "auth.name.required": "Введите имя", "auth.inviteCode.required": "Введите код приглашения",
 } as const;
 

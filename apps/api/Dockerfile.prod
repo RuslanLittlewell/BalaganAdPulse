@@ -11,6 +11,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
+COPY packages/access-policy/package.json packages/access-policy/
+COPY scripts/patch-avataaars-react.cjs scripts/
 RUN npm ci
 
 FROM node:26-slim AS build
@@ -32,7 +34,10 @@ WORKDIR /app
 COPY --from=deps /app/ ./
 COPY apps/api ./apps/api
 COPY apps/web ./apps/web
+COPY packages ./packages
 RUN npx prisma generate --schema apps/api/prisma/schema.prisma
+# Both apps import the permission matrix, so it is built before either.
+RUN npm run build -w @adpulse/access-policy
 RUN npm run build -w apps/api
 RUN npm run build -w @adpulse/web
 
@@ -47,15 +52,18 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
+COPY packages/access-policy/package.json packages/access-policy/
+COPY scripts/patch-avataaars-react.cjs scripts/
 # Production dependencies first: `npm ci` empties node_modules, so a client
 # copied before this step would be deleted by it.
 RUN npm ci --omit=dev
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/node_modules/@prisma/client ./node_modules/@prisma/client
+COPY --from=build /app/packages/access-policy/dist ./packages/access-policy/dist
 COPY --from=build /app/apps/api/dist ./apps/api/dist
 COPY --from=build /app/apps/web/dist ./apps/web/dist
 COPY apps/api/prisma ./apps/api/prisma
 USER node
 WORKDIR /app/apps/api
 EXPOSE 3000
-CMD ["node", "dist/server.js"]
+CMD ["node", "dist/composition/server.js"]

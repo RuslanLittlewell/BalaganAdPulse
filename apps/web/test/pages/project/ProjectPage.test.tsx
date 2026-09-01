@@ -22,6 +22,23 @@ function setup(route: string) {
 }
 
 describe("ProjectPage", () => {
+  it("opens project-scoped activity from the header", async () => {
+    let projectFilter: string | null = null;
+    server.use(
+      mock.get("/api/clients", () => HttpResponse.json([client])),
+      mock.get("/api/projects", () => HttpResponse.json([project])),
+      mock.get("/api/audit", ({ request }) => {
+        projectFilter = new URL(request.url).searchParams.get("projectId");
+        return HttpResponse.json({ items: [], nextCursor: null });
+      }),
+    );
+    setup("/projects/1");
+
+    await userEvent.click(await screen.findByRole("button", { name: "История действий" }));
+    expect(await screen.findByRole("dialog", { name: "История действий" })).toBeInTheDocument();
+    await waitFor(() => expect(projectFilter).toBe("1"));
+  });
+
   it("shows the selected client's header", async () => {
     server.use(mock.get("/api/clients", () => HttpResponse.json([client])),
       mock.get("/api/projects", () => HttpResponse.json([project])));

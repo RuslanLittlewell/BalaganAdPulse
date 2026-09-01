@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Trash2Icon } from "lucide-react";
+import { HistoryIcon, Trash2Icon } from "lucide-react";
 import { DataTable, type DataColumn, type DataRow } from "@/shared/ui/index.js";
 import { ConfirmDialog } from "@/shared/ui/index.js";
 import { EditableCell } from "@/shared/ui/index.js";
@@ -18,12 +18,14 @@ import {
 import { normalizeInput, toInputValue } from "./sheetValue.js";
 import { SheetDateCell } from "./SheetDateCell.js";
 import { useSheetEditing } from "./useSheetEditing.js";
+import { Can, useCan } from "@/features/permissions/index.js";
 
 /** Column id of the leading date column; property ids are uuids, so it cannot collide. */
 const DATE_COLUMN = "date";
 
 export interface CampaignSheetProps {
   campaignId: string;
+  onOpenActivity?: (recordId: string) => void;
 }
 
 /** The footer holds aggregates, which are computed and never editable. */
@@ -38,12 +40,15 @@ function totalCells(
   return cells;
 }
 
-export function CampaignSheet({ campaignId }: CampaignSheetProps) {
+export function CampaignSheet({ campaignId, onOpenActivity }: CampaignSheetProps) {
   const table = useCampaignTable(campaignId);
   const addDay = useCreateRecord(campaignId);
   const setValue = useSetValue(campaignId);
   const removeDay = useDeleteRecord(campaignId);
   const [deletingId, setDeletingId] = useState<string | undefined>(undefined);
+  const mayUpdateRecord = useCan("update", "record");
+  const mayUpdateValue = useCan("update", "value");
+  const mayReadAudit = useCan("read", "audit");
 
   // Read before the early returns below: hooks may not sit behind a conditional return.
   const properties = table.data?.properties ?? [];
@@ -57,7 +62,7 @@ export function CampaignSheet({ campaignId }: CampaignSheetProps) {
   function cell(record: CampaignRecord, property: CampaignProperty): ReactNode {
     const stored = record.values[property.id] ?? null;
     const display = formatValue(stored, property.type);
-    if (property.formula !== null) return display;
+    if (property.formula !== null || !mayUpdateValue) return display;
 
     return (
       <EditableCell
@@ -111,7 +116,9 @@ export function CampaignSheet({ campaignId }: CampaignSheetProps) {
     id: record.id,
     cells: {
       [DATE_COLUMN]: (
-        <SheetDateCell campaignId={campaignId} recordId={record.id} date={record.date} />
+        mayUpdateRecord
+          ? <SheetDateCell campaignId={campaignId} recordId={record.id} date={record.date} />
+          : formatDay(record.date)
       ),
       ...Object.fromEntries(properties.map((property) => [property.id, cell(record, property)])),
     },
@@ -131,21 +138,30 @@ export function CampaignSheet({ campaignId }: CampaignSheetProps) {
     <div className={"grid gap-4"}>
       <div className={"flex min-h-16 items-center justify-between gap-4 border-b border-border px-5"}>
         <h2 className={"text-xl font-bold"}>{t("sheet.title")}</h2>
-        <Button
+        <Can action="create" resource="record"><Button
           variant="outline"
           size="sm"
           onClick={() => addDay.mutate({ date: nextDate })}
           disabled={addDay.isPending}
         >
           + {t("sheet.addDay")}
-        </Button>
+        </Button></Can>
       </div>
       <DataTable
         columns={columns}
         rows={rows}
         footer={footer}
-        rowAction={(row) => (
-          <button
+        rowAction={(mayUpdateRecord || (mayReadAudit && onOpenActivity != null)) ? (row) => (
+          <div className="flex justify-end gap-1">
+          {mayReadAudit && onOpenActivity != null && <button
+            type="button"
+            className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+            aria-label={`${t("activity.title")}, ${formatDay(records.find((record) => record.id === row.id)!.date)}`}
+            onClick={() => onOpenActivity(row.id)}
+          >
+            <HistoryIcon className="size-3.5" />
+          </button>}
+          {mayUpdateRecord && <button
             type="button"
             className={"grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"}
             aria-label={`${t("sheet.delete")}, ${formatDay(
@@ -154,8 +170,9 @@ export function CampaignSheet({ campaignId }: CampaignSheetProps) {
             onClick={() => setDeletingId(row.id)}
           >
             <Trash2Icon className="size-3.5" />
-          </button>
-        )}
+          </button>}
+          </div>
+        ) : undefined}
       />
 
       <ConfirmDialog

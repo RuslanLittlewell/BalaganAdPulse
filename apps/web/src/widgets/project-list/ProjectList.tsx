@@ -26,6 +26,7 @@ import {
   type ProjectPriority,
 } from "@/entities/project/index.js";
 import { ProjectFormDialog } from "@/features/project-management/index.js";
+import { Can, useCan } from "@/features/permissions/index.js";
 
 /** The projects of the Projects module, each labelled with the company it is for. */
 export function ProjectList() {
@@ -36,6 +37,7 @@ export function ProjectList() {
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | undefined>(undefined);
   const update = useUpdateProject();
+  const mayUpdate = useCan("update", "project");
 
   const editing = projects.data?.find((project) => project.id === editingId);
   const clientName = (id: string) =>
@@ -44,13 +46,13 @@ export function ProjectList() {
   return (
     <>
       <div className="flex min-h-0 flex-col gap-2">
-        <Button
+        <Can action="create" resource="project"><Button
           variant="outline"
           className="w-full border-dashed border-primary text-primary"
           onClick={() => setCreating(true)}
         >
           + {t("projects.new")}
-        </Button>
+        </Button></Can>
 
         <div className="flex min-h-0 flex-col gap-1 overflow-auto">
           {projects.isPending && (
@@ -82,7 +84,7 @@ export function ProjectList() {
                     leading={<ProjectAvatar project={project} size="sm" />}
                     marker={priorityColour(project.priority)}
                     markerLabel={`${t("priority.title")}: ${priorityLabel(project.priority)}`}
-                    onEdit={() => setEditingId(project.id)}
+                    onEdit={mayUpdate ? () => setEditingId(project.id) : undefined}
                     editLabel={`${t("project.edit")}: ${project.name}`}
                     onClick={() => {
                       if (project.id !== projectId) navigate(projectPath(project.id));
@@ -96,7 +98,7 @@ export function ProjectList() {
                     </span>
                   </ListItem>
                 </ContextMenuTrigger>
-                <ContextMenuContent>
+                {mayUpdate && <ContextMenuContent>
                   <ContextMenuLabel>{t("priority.title")}</ContextMenuLabel>
                   <ContextMenuRadioGroup
                     value={project.priority}
@@ -118,7 +120,7 @@ export function ProjectList() {
                       </ContextMenuRadioItem>
                     ))}
                   </ContextMenuRadioGroup>
-                </ContextMenuContent>
+                </ContextMenuContent>}
               </ContextMenu>
             ))}
         </div>

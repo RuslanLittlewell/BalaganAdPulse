@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import request from "supertest";
-import { createApp } from "../../src/app.js";
-import { resetDb } from "../helpers/db.js";
-import { prisma } from "../../src/lib/prisma.js";
-import { signInAs } from "../helpers/auth.js";
+import { createApp } from "../../src/composition/app.js";
+import { resetDb, seedProject } from "../helpers/db.js";
+import { prisma } from "../../src/shared/infrastructure/prisma.js";
+import { grantAccess, signInAs } from "../helpers/auth.js";
+import { expectAudit } from "../helpers/audit.js";
 
 const app = createApp();
 const MISSING = "00000000-0000-0000-0000-000000000000";
@@ -31,6 +32,7 @@ describe("Projects API", () => {
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({ clientId, name: "Летний запуск", niche: "fitness" });
     expect(res.body.monthlyBudget).toBe("1500");
+    await expectAudit({ action: "CREATE", entityType: "project", entityId: res.body.id, clientId, projectId: res.body.id });
   });
 
   it("keeps the budget exact, as a decimal rather than a float", async () => {
@@ -93,6 +95,7 @@ describe("Projects API", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ name: "Осенний запуск", niche: "beauty" });
+    await expectAudit({ action: "UPDATE", entityType: "project", entityId: created.body.id, clientId, projectId: created.body.id });
   });
 
   it("deletes a project and its sheets", async () => {
@@ -101,15 +104,17 @@ describe("Projects API", () => {
 
     expect(res.status).toBe(204);
     expect(await prisma.campaign.count({ where: { projectId: created.body.id } })).toBe(0);
+    await expectAudit({ action: "DELETE", entityType: "project", entityId: created.body.id, clientId, projectId: created.body.id });
   });
 
   it("hides another owner's project behind the same 404", async () => {
-    const other = await signInAs("Other");
+    const other = await signInAs("Other", { role: "MANAGER" });
+    const stranger = await signInAs("Stranger", { role: "MANAGER" });
     const theirClient = await request(app).post("/api/clients").set(other.auth).send({ name: "T" });
     const theirs = await request(app).post("/api/projects").set(other.auth)
       .send({ clientId: theirClient.body.id, name: "Theirs" });
 
-    const res = await request(app).get(`/api/projects/${theirs.body.id}`).set(auth);
+    const res = await request(app).get(`/api/projects/${theirs.body.id}`).set(stranger.auth);
     expect(res.status).toBe(404);
   });
 
@@ -125,6 +130,7 @@ describe("Projects API", () => {
 
     expect(put.status).toBe(200);
     expect(put.body.image).toMatch(/^data:image\/png;base64,/);
+    await expectAudit({ action: "UPDATE", entityType: "project", entityId: created.body.id, clientId, projectId: created.body.id });
 
     const one = await request(app).get(`/api/projects/${created.body.id}`).set(auth);
     const list = await request(app).get("/api/projects").set(auth);
@@ -180,5 +186,52 @@ describe("Projects API", () => {
     await project({ priority: "WAITING" });
     const res = await request(app).get("/api/projects").set(auth);
     expect(res.body[0].priority).toBe("WAITING");
+  });
+
+  describe("role permissions and grant scoping", () => {
+    it("lets a guest read but never write", async () => {
+      const admin = await signInAs("Admin", { role: "ADMIN" });
+      const { clientId, projectId } = await seedProject(admin.user.id, "Acme");
+      const guest = await signInAs("Guest", { role: "GUEST" });
+      await grantAccess(guest.membership!.id, clientId);
+
+      expect((await request(app).get(`/api/projects/${projectId}`).set(guest.auth)).status).toBe(200);
+      expect((await request(app).post("/api/projects").set(guest.auth).send({ clientId, name: "No" })).status).toBe(403);
+      expect((await request(app).patch(`/api/projects/${projectId}`).set(guest.auth).send({ name: "No" })).status).toBe(403);
+      expect((await request(app).delete(`/api/projects/${projectId}`).set(guest.auth)).status).toBe(403);
+    });
+
+    it("lets a manager create and edit but never delete", async () => {
+      const admin = await signInAs("Admin", { role: "ADMIN" });
+      const { clientId, projectId } = await seedProject(admin.user.id, "Acme");
+      const manager = await signInAs("Manager", { role: "MANAGER" });
+      await grantAccess(manager.membership!.id, clientId);
+
+      expect((await request(app).patch(`/api/projects/${projectId}`).set(manager.auth).send({ name: "Renamed" })).status).toBe(200);
+      expect((await request(app).delete(`/api/projects/${projectId}`).set(manager.auth)).status).toBe(403);
+    });
+
+    it("narrows a project-scoped grant to that project alone", async () => {
+      const admin = await signInAs("Admin", { role: "ADMIN" });
+      const { clientId, projectId } = await seedProject(admin.user.id, "Acme");
+      const second = await prisma.project.create({
+        data: { clientId, name: "Second", position: 1 },
+      });
+      const manager = await signInAs("Manager", { role: "MANAGER" });
+      await grantAccess(manager.membership!.id, clientId, projectId);
+
+      const listed = await request(app).get("/api/projects").set(manager.auth);
+      expect(listed.body.map((p: { id: string }) => p.id)).toEqual([projectId]);
+      expect((await request(app).get(`/api/projects/${second.id}`).set(manager.auth)).status).toBe(404);
+    });
+
+    it("refuses creating a project under a client out of reach -> 404", async () => {
+      const admin = await signInAs("Admin", { role: "ADMIN" });
+      const { clientId } = await seedProject(admin.user.id, "Acme");
+      const manager = await signInAs("Manager", { role: "MANAGER" });
+
+      const res = await request(app).post("/api/projects").set(manager.auth).send({ clientId, name: "Mine" });
+      expect(res.status).toBe(404);
+    });
   });
 });

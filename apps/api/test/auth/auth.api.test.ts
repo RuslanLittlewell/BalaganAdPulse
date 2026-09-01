@@ -1,18 +1,26 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import request from "supertest";
-import { createApp } from "../../src/app.js";
-import { prisma } from "../../src/lib/prisma.js";
+import { createApp } from "../../src/composition/app.js";
+import { prisma } from "../../src/shared/infrastructure/prisma.js";
 import { resetDb } from "../helpers/db.js";
-import { config } from "../../src/config.js";
-import { resetAuthRateLimits } from "../../src/auth/auth.routes.js";
+import { createInvite } from "../helpers/auth.js";
+import { resetIdentityRateLimits } from "../../src/modules/identity/presentation/http/identity-http.js";
+import { TokenAdapter } from "../../src/modules/identity/infrastructure/token-adapter.js";
 
 const app = createApp();
 const body = {
   name: "Buyer", email: "buyer@acme.com", password: "hunter2hunter2",
-  inviteCode: config.inviteCode,
+  inviteCode: "invite-first",
 };
 
-beforeEach(async () => { await resetDb(); resetAuthRateLimits(); });
+// Two invitations, because an invitation is single use: the tests that register
+// a second time need a second one to reach the behaviour they are about.
+beforeEach(async () => {
+  await resetDb();
+  resetIdentityRateLimits();
+  await createInvite("invite-first");
+  await createInvite("invite-second");
+});
 afterAll(async () => { await prisma.$disconnect(); });
 
 describe("Auth API", () => {
@@ -38,7 +46,10 @@ describe("Auth API", () => {
 
   it("POST /api/auth/register twice -> 409", async () => {
     await request(app).post("/api/auth/register").send(body);
-    const res = await request(app).post("/api/auth/register").send(body);
+    // A fresh invitation, so this is the duplicate address being refused rather
+    // than the spent code.
+    const res = await request(app).post("/api/auth/register")
+      .send({ ...body, inviteCode: "invite-second" });
     expect(res.status).toBe(409);
   });
 
@@ -58,6 +69,13 @@ describe("Auth API", () => {
     expect(res.body.error.message).toBe("Invalid email or password");
   });
 
+  it("POST /api/auth/login does not reveal an unknown email", async () => {
+    const res = await request(app).post("/api/auth/login")
+      .send({ email: "missing@acme.com", password: "wrongwrongwrong" });
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: { message: "Invalid email or password" } });
+  });
+
   it("POST /api/auth/refresh returns only an access token (200)", async () => {
     const created = await request(app).post("/api/auth/register").send(body);
     const res = await request(app).post("/api/auth/refresh")
@@ -73,6 +91,18 @@ describe("Auth API", () => {
     expect(res.status).toBe(401);
   });
 
+  it("POST /api/auth/refresh rejects an expired persisted token", async () => {
+    const created = await request(app).post("/api/auth/register").send(body);
+    await prisma.refreshToken.update({
+      where: { tokenHash: new TokenAdapter().hashRefresh(created.body.refreshToken) },
+      data: { expiresAt: new Date(0) },
+    });
+    const res = await request(app).post("/api/auth/refresh")
+      .send({ refreshToken: created.body.refreshToken });
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: { message: "Session expired" } });
+  });
+
   it("POST /api/auth/logout revokes the token (204)", async () => {
     const created = await request(app).post("/api/auth/register").send(body);
     const res = await request(app).post("/api/auth/logout")
@@ -82,5 +112,12 @@ describe("Auth API", () => {
     const after = await request(app).post("/api/auth/refresh")
       .send({ refreshToken: created.body.refreshToken });
     expect(after.status).toBe(401);
+  });
+
+  it("POST /api/auth/logout is idempotent for an unknown token", async () => {
+    const res = await request(app).post("/api/auth/logout")
+      .send({ refreshToken: "already-revoked" });
+    expect(res.status).toBe(204);
+    expect(res.text).toBe("");
   });
 });

@@ -61,7 +61,7 @@ describe("CampaignTabs", () => {
       />,
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "+ Новый лист" }));
+    await userEvent.click(await screen.findByRole("button", { name: "+ Новый лист" }));
 
     expect(onNew).toHaveBeenCalled();
   });
@@ -78,7 +78,7 @@ describe("CampaignTabs", () => {
       />,
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "Переименовать лист" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Переименовать лист" }));
 
     expect(onRename).toHaveBeenCalledWith("c2");
   });
@@ -94,11 +94,11 @@ describe("CampaignTabs", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Переименовать лист" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Переименовать лист" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Удалить лист" })).not.toBeInTheDocument();
   });
 
-  it("offers no delete control when the client has a single sheet", () => {
+  it("offers no delete control when the client has a single sheet", async () => {
     renderWithProviders(
       <CampaignTabs
         projectId="1"
@@ -109,7 +109,7 @@ describe("CampaignTabs", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Переименовать лист" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Переименовать лист" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Удалить лист" })).not.toBeInTheDocument();
   });
 });

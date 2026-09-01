@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createClientSchema, updateClientSchema } from "../../src/clients/client.schema.js";
+import { createClientSchema, updateClientSchema } from "../../src/modules/clients/presentation/http/client-schemas.js";
 
 describe("createClientSchema", () => {
   it("accepts name only", () => {

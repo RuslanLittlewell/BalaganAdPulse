@@ -13,10 +13,13 @@ import { endSession, forceRefresh, onSessionExpired } from "@/shared/lib/index.j
 import { AuthProvider, useAuth } from "@/features/auth/model/AuthProvider.js";
 
 function Probe() {
-  const { user, logout, login, register } = useAuth();
+  const { user, organization, role, clientIds, logout, login, register } = useAuth();
   return (
     <div>
       <span data-testid="name">{user?.name ?? "anonymous"}</span>
+      <span data-testid="organization">{organization?.name ?? "none"}</span>
+      <span data-testid="role">{role ?? "none"}</span>
+      <span data-testid="clients">{clientIds.join(",")}</span>
       <button onClick={() => void logout()}>out</button>
       <button onClick={() => void login({ email: "buyer@acme.com", password: "hunter2hunter2" })}>
         in
@@ -62,6 +65,22 @@ describe("AuthProvider", () => {
     writeTokens({ accessToken: makeAccessToken({ name: "Alexey" }), refreshToken: "r" });
     renderProvider();
     expect(screen.getByTestId("name")).toHaveTextContent("Alexey");
+  });
+
+  it("loads the organization, current role and reachable clients from /auth/me", async () => {
+    writeTokens({ accessToken: makeAccessToken(), refreshToken: "r" });
+    server.use(http.get("/api/auth/me", () => HttpResponse.json({
+      user: { id: "user-1", name: "Buyer", email: "buyer@acme.com", image: null },
+      organization: { id: "org-7", name: "North Agency", slug: "north" },
+      role: "MANAGER",
+      clientIds: ["client-a", "client-b"],
+    })));
+
+    renderProvider();
+
+    expect(await screen.findByTestId("organization")).toHaveTextContent("North Agency");
+    expect(screen.getByTestId("role")).toHaveTextContent("MANAGER");
+    expect(screen.getByTestId("clients")).toHaveTextContent("client-a,client-b");
   });
 
   it("has no user when nothing is stored", () => {
@@ -172,11 +191,19 @@ describe("AuthProvider", () => {
 
   it("re-derives the user after a silent renewal elsewhere", async () => {
     writeTokens({ accessToken: makeAccessToken({ name: "Alexey" }), refreshToken: "r" });
+    let sessionName = "Alexey";
     server.use(http.post("/api/auth/refresh", () =>
-      HttpResponse.json({ accessToken: makeAccessToken({ name: "Renewed" }) })));
+      HttpResponse.json({ accessToken: makeAccessToken({ name: "Renewed" }) })),
+    http.get("/api/auth/me", () => HttpResponse.json({
+      user: { id: "user-1", name: sessionName, email: "buyer@acme.com", image: null },
+      organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
+      role: "ADMIN",
+      clientIds: [],
+    })));
     renderProvider();
     expect(screen.getByTestId("name")).toHaveTextContent("Alexey");
 
+    sessionName = "Renewed";
     await act(() => forceRefresh());
 
     expect(screen.getByTestId("name")).toHaveTextContent("Renewed");

@@ -1,47 +1,21 @@
 import { z } from "zod";
-import { PROPERTY_TYPES } from "../../domain/property.js";
-import type { Expression } from "../../domain/expression.js";
 
-export const createCampaignSchema = z.object({
-  name: z.string().min(1, "name is required"),
-});
+const CALENDAR_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
-export const updateCampaignSchema = z.object({
-  name: z.string().min(1, "name is required").optional(),
-  position: z.number().int().min(0, "position must be >= 0").optional(),
-});
+/**
+ * A calendar day, read as UTC midnight.
+ *
+ * The buyer picked a day, not an instant, and the measured rows are stored at
+ * UTC midnight for exactly that reason. Letting `new Date("2026-08-01")` be
+ * interpreted in the server's zone would shift every boundary by the offset and
+ * quietly drop a day from one end of the range.
+ */
+const day = z.string().regex(CALENDAR_DAY, "Expected a YYYY-MM-DD date")
+  .transform((value) => new Date(`${value}T00:00:00.000Z`))
+  .refine((date) => !Number.isNaN(date.getTime()), "Expected a real calendar date");
 
-export const expressionSchema: z.ZodType<Expression> = z.lazy(() =>
-  z.union([
-    z.object({
-      kind: z.literal("binary"),
-      op: z.enum(["+", "-", "*", "/"]),
-      left: expressionSchema,
-      right: expressionSchema,
-    }),
-    z.object({
-      kind: z.literal("property"),
-      propertyId: z.uuid("propertyId must be a uuid"),
-    }),
-    z.object({
-      kind: z.literal("const"),
-      value: z.string().regex(/^-?\d+(\.\d+)?$/, "const value must be a decimal string"),
-    }),
-  ]),
-);
+/** Both endpoints are required. A default range would make an unlabelled figure
+ * look authoritative while answering a question nobody asked. */
+export const rangeSchema = z.object({ from: day, to: day });
 
-export const columnTypeSchema = z.enum(PROPERTY_TYPES);
-
-export const createPropertySchema = z.object({
-  name: z.string().min(1, "name is required"),
-  type: columnTypeSchema,
-  formula: expressionSchema.nullable().optional(),
-  position: z.number().int().min(0, "position must be >= 0").optional(),
-});
-
-export const updatePropertySchema = z.object({
-  name: z.string().min(1, "name is required").optional(),
-  type: columnTypeSchema.optional(),
-  formula: expressionSchema.nullable().optional(),
-  position: z.number().int().min(0, "position must be >= 0").optional(),
-});
+export type RangeInput = z.infer<typeof rangeSchema>;

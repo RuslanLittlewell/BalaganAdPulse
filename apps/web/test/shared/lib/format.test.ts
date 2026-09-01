@@ -1,34 +1,4 @@
-import { formatValue, formatDay, nextDay, shiftDays, todayIso } from "@/shared/lib/format.js";
-
-describe("formatValue", () => {
-  it("renders money with two decimals and grouped thousands", () => {
-    expect(formatValue("120.0000", "MONEY")).toBe("120.00");
-    expect(formatValue("1234567.8900", "MONEY")).toBe("1,234,567.89");
-  });
-
-  it("renders zero, not a dash, since it checks for null/empty rather than truthiness", () => {
-    expect(formatValue("0.0000", "MONEY")).toBe("0.00");
-  });
-
-  it("renders numbers without trailing zeros", () => {
-    expect(formatValue("4500.0000", "NUMBER")).toBe("4,500");
-    expect(formatValue("1234.5000", "NUMBER")).toBe("1,234.5");
-  });
-
-  it("renders percents with a suffix", () => {
-    expect(formatValue("2.0000", "PERCENT")).toBe("2.00%");
-  });
-
-  it("passes text through untouched", () => {
-    expect(formatValue("good day", "TEXT")).toBe("good day");
-  });
-
-  it("renders a dash for missing values", () => {
-    expect(formatValue(null, "MONEY")).toBe("—");
-    expect(formatValue(null, "TEXT")).toBe("—");
-    expect(formatValue("", "NUMBER")).toBe("—");
-  });
-});
+import { formatDay, nextDay, shiftDays, todayIso } from "@/shared/lib/format.js";
 
 describe("formatDay", () => {
   it("renders an ISO date as day and short month", () => {

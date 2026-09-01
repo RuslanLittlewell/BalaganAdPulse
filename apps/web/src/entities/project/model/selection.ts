@@ -20,7 +20,7 @@ interface SelectionStore extends Selection {
 }
 
 /**
- * What the user is looking at: the open project and the open sheet.
+ * What the user is looking at: the open project and the open campaign.
  *
  * The address stays the way in — a link opened cold seeds the store below, and
  * `SelectionSync` keeps it aligned afterwards, which is what makes the back
@@ -31,7 +31,7 @@ interface SelectionStore extends Selection {
  */
 export const useSelectionStore = create<SelectionStore>((set) => ({
   ...parseSelection(typeof window === "undefined" ? "" : window.location.pathname),
-  // Both keys every time: a merge would leave a stale sheet behind when the
+  // Both keys every time: a merge would leave a stale campaign behind when the
   // new address carries only a project.
   select: ({ projectId, campaignId }) => set({ projectId, campaignId }),
 }));

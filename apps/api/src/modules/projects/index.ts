@@ -2,7 +2,6 @@ export { createProjectUseCases } from "./application/project-use-cases.js";
 export type { ProjectUseCases } from "./application/project-use-cases.js";
 export type {
   ClientReach,
-  DefaultCampaignSeeding,
   ProjectDependencies,
   ProjectPictureStorage,
   ProjectRepository,

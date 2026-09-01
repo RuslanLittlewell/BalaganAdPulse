@@ -97,23 +97,20 @@ describe("can", () => {
     });
   });
 
-  describe("campaigns, columns and rows", () => {
-    for (const resource of ["campaign", "property", "record"] as const) {
-      it(`lets admins and managers write a ${resource}, and everyone else only read`, () => {
-        expectRow("read", resource, ["ADMIN", "MANAGER", "GUEST", "CLIENT"]);
-        expectRow("create", resource, ["ADMIN", "MANAGER"]);
-        expectRow("update", resource, ["ADMIN", "MANAGER"]);
-        expectRow("delete", resource, ["ADMIN", "MANAGER"]);
-      });
-    }
-  });
+  describe("the campaign hierarchy", () => {
+    // One resource covers the campaign, its ad sets, its ads and their measured
+    // figures: a role has an opinion about the hierarchy, not about its levels.
+    it("lets admins and managers write it, and everyone else only read", () => {
+      expectRow("read", "campaign", ["ADMIN", "MANAGER", "GUEST", "CLIENT"]);
+      expectRow("create", "campaign", ["ADMIN", "MANAGER"]);
+      expectRow("update", "campaign", ["ADMIN", "MANAGER"]);
+      expectRow("delete", "campaign", ["ADMIN", "MANAGER"]);
+    });
 
-  describe("cell values", () => {
-    it("are written by admins and managers, and read by everyone", () => {
-      expectRow("read", "value", ["ADMIN", "MANAGER", "GUEST", "CLIENT"]);
-      expectRow("create", "value", ["ADMIN", "MANAGER"]);
-      expectRow("update", "value", ["ADMIN", "MANAGER"]);
-      expectRow("delete", "value", ["ADMIN", "MANAGER"]);
+    it("names no resource for the sheet it replaced", () => {
+      expect(RESOURCES).not.toContain("property");
+      expect(RESOURCES).not.toContain("record");
+      expect(RESOURCES).not.toContain("value");
     });
   });
 

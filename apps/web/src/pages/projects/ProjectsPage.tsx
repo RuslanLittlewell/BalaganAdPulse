@@ -1,12 +1,13 @@
 import { Route, Routes } from "react-router-dom";
 import { ProjectList } from "@/widgets/project-list/index.js";
 import { ProjectPage } from "@/pages/project/index.js";
+import { CampaignPage } from "@/pages/campaign/index.js";
 import { EmptyState } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
 
 /**
  * The Projects module: the project list on the left, the selected project's
- * sheets on the right. A project belongs to a client, but the client itself
+ * figures on the right. A project belongs to a client, but the client itself
  * lives in the contact book — this module is about the work.
  */
 export function ProjectsPage() {
@@ -25,7 +26,7 @@ export function ProjectsPage() {
             }
           />
           <Route path=":projectId" element={<ProjectPage />} />
-          <Route path=":projectId/campaigns/:campaignId" element={<ProjectPage />} />
+          <Route path=":projectId/campaigns/:campaignId" element={<CampaignPage />} />
         </Routes>
       </div>
     </div>

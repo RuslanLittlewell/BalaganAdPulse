@@ -86,7 +86,7 @@ describe("Prisma project repository", () => {
     const { unitOfWork, projects } = repository();
     const admin = await signInAs("Admin", { role: "ADMIN" });
     const { projectId } = await seedProject(admin.user.id, "Acme");
-    await prisma.campaign.create({ data: { projectId, name: "Main", position: 0 } });
+    await prisma.campaign.create({ data: { projectId, name: "Поиск", channel: "YANDEX", position: 0 } });
 
     await unitOfWork.run((context) => projects.delete(context, projectId));
     expect(await prisma.project.findUnique({ where: { id: projectId } })).toBeNull();

@@ -1,143 +1,77 @@
-import { useRef } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  campaignsApi,
-  recordsApi,
-  valuesApi,
-  type CampaignInput,
-  type CampaignTable,
-  type RecordInput,
-} from "./api.js";
+import { useQuery } from "@tanstack/react-query";
+import { campaignsApi, type DateRange } from "./api.js";
 
-export function useCampaigns(projectId: string | undefined) {
+/** The range is part of the key, not just the request: two ranges are two
+ * different answers and must never share a cache entry. */
+const keyed = (parts: readonly unknown[], range: DateRange) =>
+  [...parts, { from: range.from, to: range.to }] as const;
+
+export function useProjectCampaigns(projectId: string | undefined, range: DateRange) {
   return useQuery({
-    queryKey: ["projects", projectId, "campaigns"],
-    queryFn: () => campaignsApi.list(projectId as string),
+    queryKey: keyed(["projects", projectId, "campaigns"], range),
+    queryFn: () => campaignsApi.listByProject(projectId as string, range),
     enabled: projectId != null,
   });
 }
 
-export function useCampaignTable(campaignId: string | undefined) {
+export function useCampaign(campaignId: string | undefined, range: DateRange) {
   return useQuery({
-    queryKey: ["campaigns", campaignId],
-    queryFn: () => campaignsApi.get(campaignId as string),
+    queryKey: keyed(["campaigns", campaignId], range),
+    queryFn: () => campaignsApi.get(campaignId as string, range),
     enabled: campaignId != null,
   });
 }
 
-export function useCreateCampaign(projectId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (body: CampaignInput) => campaignsApi.create(projectId, body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["projects", projectId, "campaigns"] }),
+export function useCampaignDaily(campaignId: string | undefined, range: DateRange) {
+  return useQuery({
+    queryKey: keyed(["campaigns", campaignId, "daily"], range),
+    queryFn: () => campaignsApi.daily(campaignId as string, range),
+    enabled: campaignId != null,
   });
 }
 
-export function useUpdateCampaign(projectId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: CampaignInput }) =>
-      campaignsApi.update(id, body),
-    onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ["projects", projectId, "campaigns"] });
-      // the open sheet carries the campaign name too
-      qc.invalidateQueries({ queryKey: ["campaigns", variables.id] });
-    },
+export function useAdSets(campaignId: string | undefined, range: DateRange) {
+  return useQuery({
+    queryKey: keyed(["campaigns", campaignId, "ad-sets"], range),
+    queryFn: () => campaignsApi.adSets(campaignId as string, range),
+    enabled: campaignId != null,
   });
 }
 
-export function useCreateRecord(campaignId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (body: RecordInput) => recordsApi.create(campaignId, body),
-    // The table query carries the rows and the totals; both change when a day is added.
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["campaigns", campaignId] }),
+export function useAds(adSetId: string | undefined, range: DateRange) {
+  return useQuery({
+    queryKey: keyed(["ad-sets", adSetId, "ads"], range),
+    queryFn: () => campaignsApi.ads(adSetId as string, range),
+    enabled: adSetId != null,
   });
 }
 
-export function useDeleteCampaign(projectId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (campaignId: string) => campaignsApi.remove(campaignId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["projects", projectId, "campaigns"] }),
+export function useProjectDaily(projectId: string | undefined, range: DateRange) {
+  return useQuery({
+    queryKey: keyed(["projects", projectId, "daily"], range),
+    queryFn: () => campaignsApi.projectDaily(projectId as string, range),
+    enabled: projectId != null,
   });
 }
 
-export interface SetValueInput {
-  recordId: string;
-  propertyId: string;
-  value: string | null;
-}
-
-/**
- * The answer carries the recomputed row and totals, so one request repaints the entered
- * cell, every column derived from it and the footer — no refetch, no stale flash.
- *
- * Tabbing quickly can leave two writes in flight, and their answers may arrive out of
- * order. `totals` reflects the whole table after whichever write landed last on the
- * server, so it is genuinely global: a single counter picks the highest-sequence answer
- * and every earlier one is superseded. A record's own row is different — two answers
- * only compete over the same record, since each write only touches its own row. Tabbing
- * across a row edge puts two *different* records' writes in flight together, and an
- * older-sequence answer for one record is not superseded by a newer answer for the
- * other. So the row patch uses a per-record high-water mark: an answer lands on its
- * record unless a later answer for that same record already applied.
- */
-export function useSetValue(campaignId: string) {
-  const qc = useQueryClient();
-  const issued = useRef(0);
-  const appliedTotals = useRef(0);
-  const appliedRecords = useRef(new Map<string, number>());
-
-  return useMutation({
-    mutationFn: async (input: SetValueInput) => {
-      const seq = ++issued.current;
-      const result = await valuesApi.set(input.recordId, input.propertyId, input.value);
-      return { seq, result };
-    },
-    onSuccess: ({ seq, result }) => {
-      const recordId = result.record.id;
-      const lastForRecord = appliedRecords.current.get(recordId) ?? 0;
-      const patchRecord = seq > lastForRecord;
-      const patchTotals = seq > appliedTotals.current;
-      if (!patchRecord && !patchTotals) return;
-      if (patchRecord) appliedRecords.current.set(recordId, seq);
-      if (patchTotals) appliedTotals.current = seq;
-
-      qc.setQueryData<CampaignTable>(["campaigns", campaignId], (previous) =>
-        previous == null
-          ? previous
-          : {
-              ...previous,
-              records: patchRecord
-                ? previous.records.map((record) =>
-                    record.id === recordId ? result.record : record,
-                  )
-                : previous.records,
-              totals: patchTotals ? result.totals : previous.totals,
-            },
-      );
-    },
+export function useProjectSummary(projectId: string | undefined, range: DateRange) {
+  return useQuery({
+    queryKey: keyed(["projects", projectId, "summary"], range),
+    queryFn: () => campaignsApi.projectSummary(projectId as string, range),
+    enabled: projectId != null,
   });
 }
 
-/**
- * A new date reorders the rows and the answer carries only the record, so the table is
- * refetched rather than patched — one extra GET on a rare operation is the cheaper trade.
- */
-export function useUpdateRecord(campaignId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: RecordInput }) => recordsApi.update(id, body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["campaigns", campaignId] }),
+export function useAgencySummary(range: DateRange) {
+  return useQuery({
+    queryKey: keyed(["summary"], range),
+    queryFn: () => campaignsApi.agencySummary(range),
   });
 }
 
-export function useDeleteRecord(campaignId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (recordId: string) => recordsApi.remove(recordId),
-    // The rows and the totals both change when a day goes.
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["campaigns", campaignId] }),
+export function useChannelShares(range: DateRange) {
+  return useQuery({
+    queryKey: keyed(["summary", "channels"], range),
+    queryFn: () => campaignsApi.channels(range),
   });
 }

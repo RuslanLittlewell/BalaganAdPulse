@@ -30,9 +30,17 @@ describe("Tabs", () => {
     render(<Tabs items={items} activeId="a" onSelect={() => {}} onNew={onNew} />);
 
     expect(screen.getAllByRole("tab")).toHaveLength(2);
-    const add = screen.getByRole("button", { name: /Новый лист/ });
+    const add = screen.getByRole("button", { name: /Добавить/ });
     await userEvent.click(add);
     expect(onNew).toHaveBeenCalledOnce();
+  });
+
+  // What is being added is the caller's word: a shared tab strip has no
+  // opinion about what its tabs hold.
+  it("lets the caller name what the add control adds", () => {
+    render(<Tabs items={items} activeId="a" onSelect={() => {}} onNew={() => {}} addLabel="Новая группа" />);
+
+    expect(screen.getByRole("button", { name: /Новая группа/ })).toBeInTheDocument();
   });
 
   it("renders every item action on the active tab, in order, each reporting its id", async () => {

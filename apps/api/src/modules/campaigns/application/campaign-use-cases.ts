@@ -1,264 +1,204 @@
 import { can } from "@adpulse/access-policy";
 import { AppError } from "../../../shared/domain/index.js";
 import type { ActorContext } from "../../../shared/application/index.js";
-import type { Expression } from "../domain/expression.js";
-import { assertFormulaIsValid, findDependents, type PropertyType } from "../domain/property.js";
-import { computeTable, type ComputedTable } from "../domain/table.js";
-import type {
-  CampaignDependencies,
-  CampaignRecord,
-  PropertyRecord,
-} from "./ports.js";
+import { isOrderedRange, type Ad, type AdSet, type Campaign, type Channel, type DateRange } from "../domain/hierarchy.js";
+import { performanceOf, sumByDay, type MeasuredDay, type Performance } from "../domain/metrics.js";
+import type { AdRepository, AdSetRepository, CampaignRepository, ProjectReach } from "./ports.js";
+import type { MetricRepository } from "./metric-ports.js";
 
-const VERB = { CREATE: "Created", UPDATE: "Updated", DELETE: "Deleted" } as const;
-
-export interface CreatePropertyInput {
-  readonly name: string;
-  readonly type: PropertyType;
-  readonly position?: number;
-  readonly formula?: Expression | null;
+export interface CampaignDependencies {
+  readonly campaigns: CampaignRepository;
+  readonly adSets: AdSetRepository;
+  readonly ads: AdRepository;
+  readonly projects: ProjectReach;
+  readonly metrics: MetricRepository;
 }
 
-export interface UpdatePropertyInput {
-  readonly name?: string;
-  readonly type?: PropertyType;
-  readonly position?: number;
-  readonly formula?: Expression | null;
+export interface WithPerformance<T> {
+  readonly performance: Performance;
 }
 
-export interface CampaignTable extends ComputedTable {
-  readonly id: string;
-  readonly projectId: string;
-  readonly name: string;
-  readonly position: number;
-  readonly properties: readonly PropertyRecord[];
+/** One channel's share of the agency, for the source panel. */
+export interface ChannelView {
+  readonly channel: Channel;
+  readonly campaigns: number;
+  readonly performance: Performance;
 }
+
+export type CampaignView = Campaign & WithPerformance<Campaign>;
+export type AdSetView = AdSet & WithPerformance<AdSet>;
+export type AdView = Ad & WithPerformance<Ad>;
+
+const NOT_FOUND = "Campaign not found";
 
 export function createCampaignUseCases(dependencies: CampaignDependencies) {
-  const assertCan = (
-    actor: ActorContext,
-    action: "create" | "update" | "delete",
-    resource: "campaign" | "property",
-  ) => {
-    if (!can(actor, action, resource)) {
-      throw new AppError("forbidden", `Your role may not ${action} a ${resource}`);
+  /**
+   * Read is a matrix question like any other, asked before the range is even
+   * validated: a role that may not look at campaigns learns nothing about the
+   * shape of the request it sent.
+   */
+  const assertCanRead = (actor: ActorContext) => {
+    if (!can(actor, "read", "campaign")) {
+      throw new AppError("forbidden", "Your role may not read a campaign");
     }
   };
 
-  const reachCampaign = async (actor: ActorContext, id: string): Promise<CampaignRecord> => {
+  const assertRange = (range: DateRange) => {
+    if (!isOrderedRange(range)) {
+      throw new AppError("validation", "The range ends before it starts");
+    }
+  };
+
+  /** Reach first, then the lookup: a refusal must never confirm that a
+   * campaign the caller cannot see exists. */
+  const reachCampaign = async (actor: ActorContext, id: string): Promise<Campaign> => {
     const campaign = await dependencies.campaigns.findReachable(actor, id);
-    if (!campaign) throw new AppError("not-found", "Campaign not found");
+    if (!campaign) throw new AppError("not-found", NOT_FOUND);
+    if (!(await dependencies.projects.isReachable(actor, campaign.projectId))) {
+      throw new AppError("not-found", NOT_FOUND);
+    }
     return campaign;
   };
 
-  const reachProject = async (actor: ActorContext, projectId: string) => {
-    const project = await dependencies.projects.contextFor(actor, projectId);
-    if (!project) throw new AppError("not-found", "Project not found");
-    return project;
+  /** An ad set is reachable exactly when its campaign is — reach is inherited
+   * downward, never granted at a level of its own. */
+  const reachAdSet = async (actor: ActorContext, id: string): Promise<AdSet> => {
+    const adSet = await dependencies.adSets.findById(id);
+    if (!adSet) throw new AppError("not-found", NOT_FOUND);
+    await reachCampaign(actor, adSet.campaignId);
+    return adSet;
   };
 
-  const reachProperty = async (actor: ActorContext, id: string): Promise<PropertyRecord> => {
-    const property = await dependencies.properties.findReachable(actor, id);
-    if (!property) throw new AppError("not-found", "Property not found");
-    return property;
-  };
+  const campaignPerformance = async (id: string, range: DateRange): Promise<Performance> =>
+    performanceOf(await dependencies.metrics.readCampaignRange(id, range.from, range.to));
 
   return {
-    create: async (actor: ActorContext, projectId: string, input: { name: string }) => {
-      const project = await reachProject(actor, projectId);
-      assertCan(actor, "create", "campaign");
-      return dependencies.unitOfWork.run(async (context) => {
-        const campaign = await dependencies.campaigns.create(context, {
-          id: dependencies.ids.generate(),
-          projectId,
-          name: input.name,
-          position: await dependencies.campaigns.countForProject(projectId),
-        });
-        await dependencies.audit.append(context, {
-          action: "CREATE", entityType: "campaign", entityId: campaign.id,
-          clientId: project.clientId, projectId, campaignId: campaign.id,
-          summary: `${VERB.CREATE} campaign “${campaign.name}”`,
-        }, actor);
-        return campaign;
-      });
-    },
-
-    list: async (actor: ActorContext, projectId: string) => {
-      await reachProject(actor, projectId);
-      return dependencies.campaigns.listForProject(projectId);
-    },
-
-    read: (actor: ActorContext, id: string) => reachCampaign(actor, id),
-
-    readTable: async (actor: ActorContext, id: string): Promise<CampaignTable> => {
-      const data = await dependencies.campaigns.readTable(actor, id);
-      if (!data) throw new AppError("not-found", "Campaign not found");
-      const { records, totals } = computeTable(data.properties, data.records);
-      return {
-        id: data.campaign.id,
-        projectId: data.campaign.projectId,
-        name: data.campaign.name,
-        position: data.campaign.position,
-        properties: data.properties,
-        records,
-        totals,
-      };
-    },
-
-    update: async (
-      actor: ActorContext,
-      id: string,
-      input: { name?: string; position?: number },
-    ) => {
+    readCampaign: async (actor: ActorContext, id: string, range: DateRange): Promise<CampaignView> => {
+      assertCanRead(actor);
+      assertRange(range);
       const campaign = await reachCampaign(actor, id);
-      assertCan(actor, "update", "campaign");
-      const context = await dependencies.auditContext.forCampaign(id);
-      await dependencies.unitOfWork.run(async (transaction) => {
-        if (input.name !== undefined) {
-          await dependencies.campaigns.rename(transaction, id, input.name);
-        }
-        if (input.position !== undefined) {
-          await dependencies.campaigns.renumber(transaction, campaign.projectId, id, input.position);
-        }
-        await dependencies.audit.append(transaction, {
-          action: "UPDATE", entityType: "campaign", entityId: id, ...context,
-          summary: `${VERB.UPDATE} campaign “${input.name ?? campaign.name}”`,
-        }, actor);
-      });
-      return reachCampaign(actor, id);
+      return { ...campaign, performance: await campaignPerformance(id, range) };
     },
 
-    delete: async (actor: ActorContext, id: string) => {
-      const campaign = await reachCampaign(actor, id);
-      assertCan(actor, "delete", "campaign");
-      const context = await dependencies.auditContext.forCampaign(id);
-      await dependencies.unitOfWork.run(async (transaction) => {
-        await dependencies.campaigns.delete(transaction, id);
-        await dependencies.campaigns.renumber(transaction, campaign.projectId);
-        await dependencies.audit.append(transaction, {
-          action: "DELETE", entityType: "campaign", entityId: id, ...context,
-          summary: `${VERB.DELETE} campaign “${campaign.name}”`,
-        }, actor);
-      });
+    listCampaigns: async (
+      actor: ActorContext, projectId: string, range: DateRange,
+    ): Promise<CampaignView[]> => {
+      assertCanRead(actor);
+      assertRange(range);
+      if (!(await dependencies.projects.isReachable(actor, projectId))) {
+        throw new AppError("not-found", "Project not found");
+      }
+      const campaigns = await dependencies.campaigns.listReachableByProject(actor, projectId);
+      return Promise.all(campaigns.map(async (campaign) => ({
+        ...campaign,
+        performance: await campaignPerformance(campaign.id, range),
+      })));
     },
 
-    createProperty: async (
-      actor: ActorContext,
-      campaignId: string,
-      input: CreatePropertyInput,
-    ): Promise<PropertyRecord> => {
-      const campaign = await dependencies.campaigns.findReachable(actor, campaignId);
-      assertCan(actor, "create", "property");
-      if (!campaign) throw new AppError("not-found", "Campaign not found");
-
-      const existing = await dependencies.properties.siblings(campaignId);
-      const id = dependencies.ids.generate();
-      const formula = input.formula ?? null;
-      if (formula) {
-        if (input.type === "TEXT") {
-          throw new AppError("validation", "A text property cannot have a formula");
-        }
-        assertFormulaIsValid(id, formula, existing);
-      }
-
-      const position = Math.max(0, Math.min(input.position ?? existing.length, existing.length));
-      const auditContext = await dependencies.auditContext.forCampaign(campaignId);
-      return dependencies.unitOfWork.run(async (transaction) => {
-        await dependencies.properties.shiftFrom(transaction, campaignId, position);
-        const property = await dependencies.properties.create(transaction, {
-          // Only the seeded columns carry a key; one added by hand has none.
-          id, campaignId, key: null, name: input.name, type: input.type, position, formula,
-        });
-        await dependencies.audit.append(transaction, {
-          action: "CREATE", entityType: "property", entityId: id, ...auditContext,
-          summary: `${VERB.CREATE} column “${property.name}”`,
-        }, actor);
-        return property;
-      });
+    listAdSets: async (
+      actor: ActorContext, campaignId: string, range: DateRange,
+    ): Promise<AdSetView[]> => {
+      assertCanRead(actor);
+      assertRange(range);
+      await reachCampaign(actor, campaignId);
+      const adSets = await dependencies.adSets.listByCampaign(campaignId);
+      return Promise.all(adSets.map(async (adSet) => ({
+        ...adSet,
+        performance: performanceOf(
+          await dependencies.metrics.readAdSetRange(adSet.id, range.from, range.to),
+        ),
+      })));
     },
 
-    updateProperty: async (
-      actor: ActorContext,
-      id: string,
-      input: UpdatePropertyInput,
-    ): Promise<PropertyRecord> => {
-      const property = await reachProperty(actor, id);
-      assertCan(actor, "update", "property");
-      const existing = await dependencies.properties.siblings(property.campaignId);
-      const nextType = input.type ?? property.type;
-
-      if (input.type !== undefined && input.type !== property.type) {
-        const crossesTextBoundary = (input.type === "TEXT") !== (property.type === "TEXT");
-        if (crossesTextBoundary && (await dependencies.properties.countValues(id)) > 0) {
-          throw new AppError(
-            "conflict",
-            "Property has entered values; clear them before changing its type",
-          );
-        }
-      }
-
-      if (input.formula !== undefined && input.formula !== null) {
-        if (nextType === "TEXT") {
-          throw new AppError("validation", "A text property cannot have a formula");
-        }
-        if ((await dependencies.properties.countValues(id)) > 0) {
-          throw new AppError(
-            "conflict",
-            "Property has entered values; clear them before adding a formula",
-          );
-        }
-        assertFormulaIsValid(id, input.formula, existing);
-      }
-      // `formula: null` turns a computed property back into an entered one —
-      // always allowed.
-
-      const nextFormula = input.formula !== undefined ? input.formula : property.formula;
-      if (nextType === "TEXT" && nextFormula !== null) {
-        throw new AppError("validation", "A text property cannot have a formula");
-      }
-
-      const data: { name?: string; type?: PropertyType; formula?: Expression | null } = {};
-      if (input.name !== undefined) data.name = input.name;
-      if (input.type !== undefined) data.type = input.type;
-      if (input.formula !== undefined) data.formula = input.formula;
-
-      const auditContext = await dependencies.auditContext.forCampaign(property.campaignId);
-      await dependencies.unitOfWork.run(async (transaction) => {
-        if (Object.keys(data).length > 0) {
-          await dependencies.properties.update(transaction, id, data);
-        }
-        if (input.position !== undefined) {
-          await dependencies.properties.renumber(transaction, property.campaignId, id, input.position);
-        }
-        await dependencies.audit.append(transaction, {
-          action: "UPDATE", entityType: "property", entityId: id, ...auditContext,
-          summary: `${VERB.UPDATE} column “${input.name ?? property.name}”`,
-        }, actor);
-      });
-      return reachProperty(actor, id);
+    listAds: async (actor: ActorContext, adSetId: string, range: DateRange): Promise<AdView[]> => {
+      assertCanRead(actor);
+      assertRange(range);
+      await reachAdSet(actor, adSetId);
+      const ads = await dependencies.ads.listByAdSet(adSetId);
+      return Promise.all(ads.map(async (ad) => ({
+        ...ad,
+        performance: performanceOf(await dependencies.metrics.readAdRange(ad.id, range.from, range.to)),
+      })));
     },
 
-    deleteProperty: async (actor: ActorContext, id: string): Promise<void> => {
-      const property = await reachProperty(actor, id);
-      assertCan(actor, "delete", "property");
-      const existing = await dependencies.properties.siblings(property.campaignId);
-      const dependents = findDependents(id, existing);
-      if (dependents.length > 0) {
-        const names = existing
-          .filter((sibling) => dependents.some((dependent) => dependent.id === sibling.id))
-          .map((sibling) => sibling.name)
-          .join(", ");
-        throw new AppError("conflict", `Property is used by the formula of: ${names}`);
+    /** The measured days themselves, for the chart. Not summed: the shape over
+     * time is the whole point of it. */
+    dailySeries: async (actor: ActorContext, campaignId: string, range: DateRange) => {
+      assertCanRead(actor);
+      assertRange(range);
+      await reachCampaign(actor, campaignId);
+      return dependencies.metrics.readCampaignRange(campaignId, range.from, range.to);
+    },
+
+    /** A project measures nothing itself, so its shape over time is its
+     * campaigns' days added up per date. */
+    projectDailySeries: async (
+      actor: ActorContext, projectId: string, range: DateRange,
+    ): Promise<MeasuredDay[]> => {
+      assertCanRead(actor);
+      assertRange(range);
+      if (!(await dependencies.projects.isReachable(actor, projectId))) {
+        throw new AppError("not-found", "Project not found");
       }
-      const auditContext = await dependencies.auditContext.forCampaign(property.campaignId);
-      await dependencies.unitOfWork.run(async (transaction) => {
-        await dependencies.properties.delete(transaction, id);
-        await dependencies.properties.renumber(transaction, property.campaignId);
-        await dependencies.audit.append(transaction, {
-          action: "DELETE", entityType: "property", entityId: id, ...auditContext,
-          summary: `${VERB.DELETE} column “${property.name}”`,
-        }, actor);
-      });
+      const campaigns = await dependencies.campaigns.listReachableByProject(actor, projectId);
+      const days = await Promise.all(campaigns.map((campaign) =>
+        dependencies.metrics.readCampaignRange(campaign.id, range.from, range.to)));
+      return sumByDay(days.flat());
+    },
+
+    /**
+     * A project is the sum of its campaigns. It measures nothing itself — the
+     * platforms have no opinion about our groupings.
+     */
+    projectSummary: async (
+      actor: ActorContext, projectId: string, range: DateRange,
+    ): Promise<Performance> => {
+      assertCanRead(actor);
+      assertRange(range);
+      if (!(await dependencies.projects.isReachable(actor, projectId))) {
+        throw new AppError("not-found", "Project not found");
+      }
+      const campaigns = await dependencies.campaigns.listReachableByProject(actor, projectId);
+      const days = await Promise.all(campaigns.map((campaign) =>
+        dependencies.metrics.readCampaignRange(campaign.id, range.from, range.to)));
+      return performanceOf(days.flat());
+    },
+
+    /**
+     * The agency split by channel, biggest spend first.
+     *
+     * Only channels the member actually reaches a campaign on: an empty row for
+     * every platform we support would suggest we run there and got nothing.
+     */
+    channelSummary: async (actor: ActorContext, range: DateRange): Promise<ChannelView[]> => {
+      assertCanRead(actor);
+      assertRange(range);
+      const campaigns = await dependencies.campaigns.listReachable(actor);
+      const byChannel = new Map<Channel, MeasuredDay[]>();
+      const counts = new Map<Channel, number>();
+      for (const campaign of campaigns) {
+        const days = await dependencies.metrics.readCampaignRange(campaign.id, range.from, range.to);
+        byChannel.set(campaign.channel, [...(byChannel.get(campaign.channel) ?? []), ...days]);
+        counts.set(campaign.channel, (counts.get(campaign.channel) ?? 0) + 1);
+      }
+      return [...byChannel.entries()]
+        .map(([channel, days]) => ({
+          channel,
+          campaigns: counts.get(channel) ?? 0,
+          performance: performanceOf(days),
+        }))
+        .sort((a, b) => b.performance.spend - a.performance.spend);
+    },
+
+    /** This member's view of the agency, not the agency's total: a project they
+     * hold no grant over contributes nothing. */
+    agencySummary: async (actor: ActorContext, range: DateRange): Promise<Performance> => {
+      assertCanRead(actor);
+      assertRange(range);
+      const campaigns = await dependencies.campaigns.listReachable(actor);
+      const days = await Promise.all(campaigns.map((campaign) =>
+        dependencies.metrics.readCampaignRange(campaign.id, range.from, range.to)));
+      return performanceOf(days.flat());
     },
   };
 }

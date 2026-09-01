@@ -158,21 +158,25 @@ describe("reach carries down the hierarchy", () => {
   it("a granted manager reaches the campaigns under the project", async () => {
     const { clientId, projectId } = await someoneElsesClient();
     const campaign = await prisma.campaign.create({
-      data: { projectId, name: "Main", position: 0 },
+      data: { projectId, name: "Поиск", channel: "YANDEX", position: 0 },
     });
     const manager = await signInAs("Manager", { role: "MANAGER" });
     await grantAccess(manager.membership!.id, clientId);
 
-    expect((await request(app).get(`/api/campaigns/${campaign.id}`).set(manager.auth)).status).toBe(200);
+    const res = await request(app)
+      .get(`/api/campaigns/${campaign.id}?from=2026-08-01&to=2026-08-31`).set(manager.auth);
+    expect(res.status).toBe(200);
   });
 
   it("an ungranted manager answers 404 for the same campaign", async () => {
     const { projectId } = await someoneElsesClient();
     const campaign = await prisma.campaign.create({
-      data: { projectId, name: "Main", position: 0 },
+      data: { projectId, name: "Поиск", channel: "YANDEX", position: 0 },
     });
     const manager = await signInAs("Manager", { role: "MANAGER" });
 
-    expect((await request(app).get(`/api/campaigns/${campaign.id}`).set(manager.auth)).status).toBe(404);
+    const res = await request(app)
+      .get(`/api/campaigns/${campaign.id}?from=2026-08-01&to=2026-08-31`).set(manager.auth);
+    expect(res.status).toBe(404);
   });
 });

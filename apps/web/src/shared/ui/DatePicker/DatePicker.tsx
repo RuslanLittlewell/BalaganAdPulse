@@ -23,7 +23,7 @@ export interface DatePickerProps {
 
 /**
  * shadcn's Calendar in a Popover. The popover is what makes this work inside the
- * sheet: it renders through a portal and is placed by collision detection, so a
+ * table: it renders through a portal and is placed by collision detection, so a
  * scrolling table cannot clip it and a sticky cell cannot stack over it — the two
  * problems the previous hand-placed version existed to solve.
  */

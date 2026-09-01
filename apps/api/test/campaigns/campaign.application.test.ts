@@ -1,260 +1,269 @@
 import { describe, expect, it } from "vitest";
-import { Decimal } from "decimal.js";
 import type { ActorContext } from "../../src/shared/application/index.js";
-import type { TransactionContext } from "../../src/shared/application/unit-of-work.js";
-import { DeterministicIdGenerator } from "../../src/shared/infrastructure/id-generator.js";
-import {
-  createCampaignUseCases,
-  type CampaignRecord,
-  type PropertyRecord,
-} from "../../src/modules/campaigns/index.js";
+import { createCampaignUseCases } from "../../src/modules/campaigns/application/campaign-use-cases.js";
+import type { MeasuredDay } from "../../src/modules/campaigns/domain/metrics.js";
+import type { Ad, AdSet, Campaign } from "../../src/modules/campaigns/domain/hierarchy.js";
 
 const admin: ActorContext = { userId: "u1", membershipId: "m1", orgId: "org1", role: "ADMIN" };
-const guest: ActorContext = { ...admin, membershipId: "m3", role: "GUEST" };
+const customer: ActorContext = { ...admin, membershipId: "m4", role: "CLIENT" };
 
-const div = (a: string, b: string) => ({
-  kind: "binary" as const, op: "/" as const,
-  left: { kind: "property" as const, propertyId: a },
-  right: { kind: "property" as const, propertyId: b },
+const day = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
+const range = { from: day("2026-08-01"), to: day("2026-08-03") };
+
+const measured = (partial: Partial<MeasuredDay> = {}): MeasuredDay => ({
+  date: day("2026-08-02"),
+  spend: 0, impressions: 0, reach: 0, clicks: 0, conversions: 0, revenue: 0, ...partial,
+});
+
+const campaign = (partial: Partial<Campaign> = {}): Campaign => ({
+  id: "c1", projectId: "p1", name: "Поиск / Москва", channel: "YANDEX",
+  status: "ACTIVE", objective: null, externalId: null, position: 0, ...partial,
 });
 
 function fixture(options: {
-  campaigns?: CampaignRecord[];
-  properties?: PropertyRecord[];
-  valueCounts?: Record<string, number>;
+  campaigns?: Campaign[];
+  adSets?: AdSet[];
+  ads?: Ad[];
   reachableProjects?: string[];
+  campaignDays?: Record<string, MeasuredDay[]>;
+  adSetDays?: Record<string, MeasuredDay[]>;
+  adDays?: Record<string, MeasuredDay[]>;
 } = {}) {
-  const context = {} as TransactionContext;
-  const campaigns = new Map((options.campaigns ?? []).map((c) => [c.id, c]));
-  const properties = new Map((options.properties ?? []).map((p) => [p.id, p]));
-  const valueCounts = options.valueCounts ?? {};
-  const reachableProjects = options.reachableProjects ?? ["proj1"];
-  const audit: Array<Record<string, unknown>> = [];
-  const renumbered: Array<{ campaignId: string; movedId?: string; position?: number }> = [];
+  const campaigns = options.campaigns ?? [campaign()];
+  const reachable = options.reachableProjects ?? ["p1"];
+  const visible = campaigns.filter((c) => reachable.includes(c.projectId));
 
-  const useCases = createCampaignUseCases({
+  return createCampaignUseCases({
     campaigns: {
-      create: async (_tx, input) => {
-        const created: CampaignRecord = { ...input };
-        campaigns.set(created.id, created);
-        return created;
-      },
-      countForProject: async (projectId) =>
-        [...campaigns.values()].filter((c) => c.projectId === projectId).length,
-      listForProject: async (projectId) =>
-        [...campaigns.values()].filter((c) => c.projectId === projectId)
-          .sort((a, b) => a.position - b.position),
-      findReachable: async (_actor, id) => campaigns.get(id) ?? null,
-      rename: async (_tx, id, name) => { campaigns.set(id, { ...campaigns.get(id)!, name }); },
-      delete: async (_tx, id) => { campaigns.delete(id); },
-      renumber: async (_tx, projectId, movedId, position) => {
-        renumbered.push({ campaignId: projectId, movedId, position });
-      },
-      readTable: async (_actor, id) => {
-        const campaign = campaigns.get(id);
-        if (!campaign) return null;
-        return {
-          campaign,
-          properties: [...properties.values()].filter((p) => p.campaignId === id),
-          records: [{
-            id: "r1", date: "2026-09-01",
-            storedValues: [{ propertyId: "spend", numberValue: new Decimal("100"), textValue: null }],
-          }],
-        };
-      },
+      findReachable: async (_actor, id) => visible.find((c) => c.id === id) ?? null,
+      listReachableByProject: async (_actor, projectId) =>
+        visible.filter((c) => c.projectId === projectId),
+      listReachable: async () => visible,
     },
-    properties: {
-      siblings: async (campaignId) =>
-        [...properties.values()].filter((p) => p.campaignId === campaignId)
-          .sort((a, b) => a.position - b.position),
-      findReachable: async (_actor, id) => properties.get(id) ?? null,
-      create: async (_tx, input) => {
-        const created: PropertyRecord = { ...input };
-        properties.set(created.id, created);
-        return created;
-      },
-      shiftFrom: async () => undefined,
-      update: async (_tx, id, data) => { properties.set(id, { ...properties.get(id)!, ...data }); },
-      delete: async (_tx, id) => { properties.delete(id); },
-      renumber: async () => undefined,
-      countValues: async (propertyId) => valueCounts[propertyId] ?? 0,
+    adSets: {
+      listByCampaign: async (campaignId) =>
+        (options.adSets ?? []).filter((s) => s.campaignId === campaignId),
+      findById: async (id) => (options.adSets ?? []).find((s) => s.id === id) ?? null,
     },
-    projects: {
-      contextFor: async (_actor, projectId) =>
-        reachableProjects.includes(projectId) ? { clientId: "c1" } : null,
+    ads: {
+      listByAdSet: async (adSetId) => (options.ads ?? []).filter((a) => a.adSetId === adSetId),
     },
-    auditContext: {
-      forCampaign: async (campaignId) => ({ clientId: "c1", projectId: "proj1", campaignId }),
+    projects: { isReachable: async (_actor, projectId) => reachable.includes(projectId) },
+    metrics: {
+      recordCampaignDay: async () => undefined,
+      recordAdSetDay: async () => undefined,
+      recordAdDay: async () => undefined,
+      readCampaignRange: async (id) => options.campaignDays?.[id] ?? [],
+      readAdSetRange: async (id) => options.adSetDays?.[id] ?? [],
+      readAdRange: async (id) => options.adDays?.[id] ?? [],
     },
-    audit: { append: async (_tx, event) => { audit.push(event as never); } },
-    ids: new DeterministicIdGenerator(["id-1", "id-2", "id-3"]),
-    unitOfWork: { run: (work) => work(context) },
   });
-  return { useCases, campaigns, properties, audit, renumbered };
 }
 
-const campaign = (partial: Partial<CampaignRecord> = {}): CampaignRecord => ({
-  id: "cam1", projectId: "proj1", name: "Main", position: 0, ...partial,
-});
-const property = (partial: Partial<PropertyRecord> = {}): PropertyRecord => ({
-  id: "spend", campaignId: "cam1", key: "spend", name: "SPEND", type: "MONEY",
-  position: 0, formula: null, ...partial,
-});
+describe("reading the hierarchy", () => {
+  it("returns a campaign with the figures of the range beside it", async () => {
+    const useCases = fixture({
+      campaignDays: { c1: [measured({ spend: 100, clicks: 20, impressions: 2000 })] },
+    });
 
-describe("creating a campaign", () => {
-  it("appends it to the project and seeds its default columns", async () => {
-    const { useCases, campaigns } = fixture({ campaigns: [campaign()] });
-    const created = await useCases.create(admin, "proj1", { name: "Second" });
-    expect(created.position).toBe(1);
-    expect(campaigns.get(created.id)?.name).toBe("Second");
+    const read = await useCases.readCampaign(admin, "c1", range);
+
+    expect(read).toMatchObject({ id: "c1", channel: "YANDEX" });
+    expect(read.performance).toMatchObject({ spend: 100, clicks: 20, ctr: 1 });
   });
 
-  it("answers not-found when the project is out of reach", async () => {
-    const { useCases } = fixture({ reachableProjects: [] });
-    await expect(useCases.create(admin, "proj1", { name: "No" }))
+  it("lists a campaign's ad sets, each with its own figures", async () => {
+    const useCases = fixture({
+      adSets: [{ id: "s1", campaignId: "c1", name: "Москва", audience: null, status: "ACTIVE", externalId: null, position: 0 }],
+      adSetDays: { s1: [measured({ spend: 60, conversions: 3 })] },
+    });
+
+    const sets = await useCases.listAdSets(admin, "c1", range);
+
+    expect(sets).toHaveLength(1);
+    expect(sets[0]!.performance).toMatchObject({ spend: 60, cpa: 20 });
+  });
+
+  it("lists an ad set's ads", async () => {
+    const useCases = fixture({
+      adSets: [{ id: "s1", campaignId: "c1", name: "Москва", audience: null, status: "ACTIVE", externalId: null, position: 0 }],
+      ads: [{ id: "a1", adSetId: "s1", name: "Приём сегодня", format: null, headline: null, status: "ACTIVE", externalId: null, position: 0 }],
+      adDays: { a1: [measured({ spend: 25 })] },
+    });
+
+    const ads = await useCases.listAds(admin, "s1", range);
+
+    expect(ads[0]).toMatchObject({ id: "a1", performance: { spend: 25 } });
+  });
+});
+
+describe("reach, checked before anything is looked up", () => {
+  it("hides a campaign under a project the actor holds no grant over", async () => {
+    const useCases = fixture({ reachableProjects: [] });
+    await expect(useCases.readCampaign(admin, "c1", range))
       .rejects.toMatchObject({ category: "not-found" });
   });
 
-  it("refuses a guest", async () => {
-    const { useCases } = fixture();
-    await expect(useCases.create(guest, "proj1", { name: "No" }))
-      .rejects.toMatchObject({ category: "forbidden" });
-  });
-
-  it("audits against the client, project and campaign", async () => {
-    const { useCases, audit } = fixture();
-    const created = await useCases.create(admin, "proj1", { name: "Main" });
-    expect(audit[0]).toMatchObject({
-      action: "CREATE", entityType: "campaign", entityId: created.id,
-      clientId: "c1", projectId: "proj1", campaignId: created.id,
+  /** 404, not 403: a refusal must never confirm that the thing exists. */
+  it("answers not-found rather than forbidden for an unreachable ad set", async () => {
+    const useCases = fixture({
+      adSets: [{ id: "s1", campaignId: "c1", name: "Москва", audience: null, status: "ACTIVE", externalId: null, position: 0 }],
+      reachableProjects: [],
     });
-  });
-});
 
-describe("reading a campaign table", () => {
-  it("returns the computed table with its totals", async () => {
-    const { useCases } = fixture({
-      campaigns: [campaign()],
-      properties: [property()],
-    });
-    const table = await useCases.readTable(admin, "cam1");
-    expect(table.records[0].values.spend).toBe("100.0000");
-    expect(table.totals.spend).toBe("100.0000");
+    await expect(useCases.listAds(admin, "s1", range))
+      .rejects.toMatchObject({ category: "not-found" });
   });
 
-  it("answers not-found for a campaign out of reach", async () => {
-    const { useCases } = fixture();
-    await expect(useCases.readTable(admin, "missing"))
+  /**
+   * A customer reads campaigns — the matrix grants `read` to every role,
+   * deliberately, because the client portal shows them their own results. What
+   * limits them is reach, not the verb.
+   */
+  it("lets a customer read a campaign they reach", async () => {
+    const useCases = fixture();
+    await expect(useCases.readCampaign(customer, "c1", range)).resolves.toMatchObject({ id: "c1" });
+  });
+
+  it("still hides one they do not reach from that customer", async () => {
+    const useCases = fixture({ reachableProjects: [] });
+    await expect(useCases.readCampaign(customer, "c1", range))
       .rejects.toMatchObject({ category: "not-found" });
   });
 });
 
-describe("moving and renaming a campaign", () => {
-  it("renames it", async () => {
-    const { useCases, campaigns } = fixture({ campaigns: [campaign()] });
-    await useCases.update(admin, "cam1", { name: "Renamed" });
-    expect(campaigns.get("cam1")!.name).toBe("Renamed");
+describe("summarising a parent", () => {
+  it("sums a project from its campaigns", async () => {
+    const useCases = fixture({
+      campaigns: [campaign({ id: "c1" }), campaign({ id: "c2" })],
+      campaignDays: {
+        c1: [measured({ spend: 100, conversions: 4 })],
+        c2: [measured({ spend: 60, conversions: 2 })],
+      },
+    });
+
+    const summary = await useCases.projectSummary(admin, "p1", range);
+
+    expect(summary).toMatchObject({ spend: 160, conversions: 6, cpa: 160 / 6 });
   });
 
-  it("renumbers its siblings when it is moved", async () => {
-    const { useCases, renumbered } = fixture({ campaigns: [campaign()] });
-    await useCases.update(admin, "cam1", { position: 2 });
-    expect(renumbered).toEqual([{ campaignId: "proj1", movedId: "cam1", position: 2 }]);
+  it("sums the agency from every project the member reaches", async () => {
+    const useCases = fixture({
+      campaigns: [campaign({ id: "c1", projectId: "p1" }), campaign({ id: "c2", projectId: "p2" })],
+      reachableProjects: ["p1", "p2"],
+      campaignDays: { c1: [measured({ spend: 100 })], c2: [measured({ spend: 40 })] },
+    });
+
+    expect(await useCases.agencySummary(admin, range)).toMatchObject({ spend: 140 });
   });
 
-  it("closes the gap when one is deleted", async () => {
-    const { useCases, renumbered, campaigns } = fixture({ campaigns: [campaign()] });
-    await useCases.delete(admin, "cam1");
-    expect(campaigns.has("cam1")).toBe(false);
-    expect(renumbered).toEqual([{ campaignId: "proj1", movedId: undefined, position: undefined }]);
+  // The summary is not the agency's total, it is this member's view of it.
+  it("leaves out a project the member holds no grant over", async () => {
+    const useCases = fixture({
+      campaigns: [campaign({ id: "c1", projectId: "p1" }), campaign({ id: "c2", projectId: "p2" })],
+      reachableProjects: ["p1"],
+      campaignDays: { c1: [measured({ spend: 100 })], c2: [measured({ spend: 40 })] },
+    });
+
+    expect(await useCases.agencySummary(admin, range)).toMatchObject({ spend: 100 });
   });
 
-  it("refuses a guest either operation", async () => {
-    const { useCases } = fixture({ campaigns: [campaign()] });
-    await expect(useCases.update(guest, "cam1", { name: "x" }))
+  it("summarises an empty project to zero rather than to nothing", async () => {
+    const useCases = fixture({ campaigns: [] });
+    expect(await useCases.projectSummary(admin, "p1", range)).toMatchObject({ spend: 0, cpa: null });
+  });
+});
+
+describe("validating the range", () => {
+  it("refuses a range that ends before it starts", async () => {
+    const useCases = fixture();
+    await expect(useCases.readCampaign(admin, "c1", { from: day("2026-08-05"), to: day("2026-08-01") }))
+      .rejects.toMatchObject({ category: "validation" });
+  });
+});
+
+describe("the days themselves", () => {
+  it("returns a campaign's measured days with their dates, unsummed", async () => {
+    const useCases = fixture({ campaignDays: { c1: [
+      measured({ date: day("2026-08-01"), spend: 400 }),
+      measured({ date: day("2026-08-02"), spend: 600 }),
+    ] } });
+
+    const series = await useCases.dailySeries(admin, "c1", range);
+
+    expect(series.map((entry) => entry.spend)).toEqual([400, 600]);
+    expect(series[0].date).toEqual(day("2026-08-01"));
+  });
+
+  // The dashboard draws a project's shape over time, and a project measures
+  // nothing itself: its series is its campaigns' days added up per date.
+  it("adds a project's campaigns together per date", async () => {
+    const useCases = fixture({
+      campaigns: [campaign(), campaign({ id: "c2", name: "Второй" })],
+      campaignDays: {
+        c1: [measured({ date: day("2026-08-01"), spend: 400 }),
+             measured({ date: day("2026-08-02"), spend: 600 })],
+        c2: [measured({ date: day("2026-08-02"), spend: 100 })],
+      },
+    });
+
+    const series = await useCases.projectDailySeries(admin, "p1", range);
+
+    expect(series.map((entry) => entry.spend)).toEqual([400, 700]);
+  });
+
+  it("404s a project series the member cannot reach", async () => {
+    const useCases = fixture({ reachableProjects: [] });
+
+    await expect(useCases.projectDailySeries(admin, "p1", range))
+      .rejects.toMatchObject({ category: "not-found" });
+  });
+
+  it("refuses a role that may not read campaigns at all", async () => {
+    const useCases = fixture();
+    await expect(useCases.projectDailySeries({ ...customer, role: "NOBODY" as never }, "p1", range))
       .rejects.toMatchObject({ category: "forbidden" });
-    await expect(useCases.delete(guest, "cam1")).rejects.toMatchObject({ category: "forbidden" });
   });
 });
 
-describe("creating a column", () => {
-  it("appends it with no key, because only seeded columns have one", async () => {
-    const { useCases } = fixture({ campaigns: [campaign()], properties: [property()] });
-    const created = await useCases.createProperty(admin, "cam1", { name: "CLICKS", type: "NUMBER" });
-    expect(created).toMatchObject({ key: null, position: 1, formula: null });
-  });
-
-  it("clamps a position beyond the end", async () => {
-    const { useCases } = fixture({ campaigns: [campaign()], properties: [property()] });
-    const created = await useCases.createProperty(admin, "cam1", { name: "X", type: "NUMBER", position: 99 });
-    expect(created.position).toBe(1);
-  });
-
-  it("refuses a formula on a text column", async () => {
-    const { useCases } = fixture({ campaigns: [campaign()], properties: [property()] });
-    await expect(useCases.createProperty(admin, "cam1", {
-      name: "X", type: "TEXT", formula: { kind: "const", value: "1" },
-    })).rejects.toMatchObject({ category: "validation" });
-  });
-
-  it("refuses a formula referencing a column of another campaign", async () => {
-    const { useCases } = fixture({ campaigns: [campaign()], properties: [property()] });
-    await expect(useCases.createProperty(admin, "cam1", {
-      name: "X", type: "NUMBER", formula: { kind: "property", propertyId: "elsewhere" },
-    })).rejects.toMatchObject({ category: "validation" });
-  });
-});
-
-describe("changing a column", () => {
-  it("refuses adding a formula to a column that already holds values", async () => {
-    const { useCases } = fixture({
-      campaigns: [campaign()],
-      properties: [property(), property({ id: "clicks", name: "CLICKS", type: "NUMBER", position: 1 })],
-      valueCounts: { clicks: 3 },
+describe("the agency's channels", () => {
+  it("groups the member's campaigns by channel", async () => {
+    const useCases = fixture({
+      campaigns: [
+        campaign({ id: "c1", channel: "YANDEX" }),
+        campaign({ id: "c2", channel: "META" }),
+        campaign({ id: "c3", channel: "YANDEX" }),
+      ],
+      campaignDays: {
+        c1: [measured({ spend: 400, clicks: 100 })],
+        c2: [measured({ spend: 250, clicks: 50 })],
+        c3: [measured({ spend: 100, clicks: 25 })],
+      },
     });
-    await expect(useCases.updateProperty(admin, "clicks", { formula: div("spend", "spend") }))
-      .rejects.toMatchObject({ category: "conflict" });
+
+    const channels = await useCases.channelSummary(admin, range);
+
+    expect(channels).toEqual([
+      { channel: "YANDEX", campaigns: 2, performance: expect.objectContaining({ spend: 500, cpc: 4 }) },
+      { channel: "META", campaigns: 1, performance: expect.objectContaining({ spend: 250, cpc: 5 }) },
+    ]);
   });
 
-  it("refuses crossing the text boundary while values exist", async () => {
-    const { useCases } = fixture({
-      campaigns: [campaign()], properties: [property()], valueCounts: { spend: 2 },
+  // Biggest spend first: the panel is read to see where the money goes.
+  it("orders the channels by spend, largest first", async () => {
+    const useCases = fixture({
+      campaigns: [campaign({ id: "c1", channel: "VK" }), campaign({ id: "c2", channel: "META" })],
+      campaignDays: { c1: [measured({ spend: 10 })], c2: [measured({ spend: 90 })] },
     });
-    await expect(useCases.updateProperty(admin, "spend", { type: "TEXT" }))
-      .rejects.toMatchObject({ category: "conflict" });
+
+    expect((await useCases.channelSummary(admin, range)).map((entry) => entry.channel))
+      .toEqual(["META", "VK"]);
   });
 
-  it("allows a type change that stays numeric even with values", async () => {
-    const { useCases, properties } = fixture({
-      campaigns: [campaign()], properties: [property()], valueCounts: { spend: 2 },
-    });
-    await useCases.updateProperty(admin, "spend", { type: "NUMBER" });
-    expect(properties.get("spend")!.type).toBe("NUMBER");
-  });
+  it("leaves out a channel the member reaches no campaign on", async () => {
+    const useCases = fixture({ campaigns: [campaign({ channel: "TELEGRAM" })] });
 
-  it("turns a computed column back into an entered one", async () => {
-    const { useCases, properties } = fixture({
-      campaigns: [campaign()],
-      properties: [property(), property({ id: "cpc", name: "CPC", position: 1, formula: div("spend", "spend") })],
-    });
-    await useCases.updateProperty(admin, "cpc", { formula: null });
-    expect(properties.get("cpc")!.formula).toBeNull();
-  });
-});
-
-describe("deleting a column", () => {
-  it("refuses while another column's formula depends on it, and names it", async () => {
-    const { useCases } = fixture({
-      campaigns: [campaign()],
-      properties: [property(), property({ id: "cpc", name: "CPC", position: 1, formula: div("spend", "spend") })],
-    });
-    await expect(useCases.deleteProperty(admin, "spend"))
-      .rejects.toMatchObject({ category: "conflict", message: expect.stringContaining("CPC") });
-  });
-
-  it("removes an unreferenced column", async () => {
-    const { useCases, properties } = fixture({ campaigns: [campaign()], properties: [property()] });
-    await useCases.deleteProperty(admin, "spend");
-    expect(properties.has("spend")).toBe(false);
+    expect((await useCases.channelSummary(admin, range)).map((entry) => entry.channel))
+      .toEqual(["TELEGRAM"]);
   });
 });

@@ -1,231 +1,156 @@
 import { http as mock, HttpResponse } from "msw";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Routes, Route } from "react-router-dom";
-import { aClient, aProject, server } from "@test/shared/index.js";
-import { renderWithProviders } from "@test/shared/index.js";
-import { ProjectPage } from "@/pages/project/ProjectPage.js";
-import { EmptyState } from "@/shared/ui/index.js";
+import { Route, Routes } from "react-router-dom";
+import { renderWithProviders, server } from "@test/shared/index.js";
+import { ProjectPage } from "@/pages/project/index.js";
 
-const client = aClient({ name: "Acme" });
-const project = aProject({ id: "1", clientId: "1", name: "Летний запуск" });
+const performance = (spend: number, extra = {}) => ({
+  spend, impressions: 100000, reach: 40000, clicks: 2000, conversions: 50, revenue: 4000,
+  ctr: 2, cpc: 0.5, cpm: 10, cpa: 20, roas: 4, frequency: 2.5, ...extra,
+});
 
-function setup(route: string) {
-  return renderWithProviders(
+const campaign = (id: string, name: string, channel: string, spend: number) => ({
+  id, projectId: "p1", name, channel, status: "ACTIVE", objective: null,
+  externalId: null, position: 0, performance: performance(spend),
+});
+
+function App() {
+  return (
     <Routes>
-      <Route path="/projects" element={<EmptyState title="root" />} />
       <Route path="/projects/:projectId" element={<ProjectPage />} />
-      <Route path="/projects/:projectId/campaigns/:campaignId" element={<ProjectPage />} />
-    </Routes>,
-    { route },
+      <Route path="/projects/:projectId/campaigns/:campaignId" element={<h2>Экран кампании</h2>} />
+    </Routes>
   );
 }
 
+function api(options: { campaigns?: unknown[] } = {}) {
+  server.use(
+    mock.get("/api/projects", () => HttpResponse.json([{
+      id: "p1", clientId: "cl1", name: "Клиника", niche: "Медицина", monthlyBudget: "300000.0000",
+      priority: "HIGH", image: null, avatarPath: null, position: 0, createdAt: "", updatedAt: "",
+    }])),
+    mock.get("/api/clients", () => HttpResponse.json([{ id: "cl1", name: "Acme", orgId: "o1" }])),
+    mock.get("/api/projects/:projectId/summary", () => HttpResponse.json(performance(4200, { roas: 3 }))),
+    mock.get("/api/projects/:projectId/campaigns", () => HttpResponse.json(options.campaigns ?? [
+      campaign("c1", "Поиск / Москва", "YANDEX", 3000),
+      campaign("c2", "Лента / Россия", "META", 1200),
+    ])),
+  );
+}
+
+const route = { route: "/projects/p1" };
+
 describe("ProjectPage", () => {
-  it("opens project-scoped activity from the header", async () => {
-    let projectFilter: string | null = null;
-    server.use(
-      mock.get("/api/clients", () => HttpResponse.json([client])),
-      mock.get("/api/projects", () => HttpResponse.json([project])),
-      mock.get("/api/audit", ({ request }) => {
-        projectFilter = new URL(request.url).searchParams.get("projectId");
-        return HttpResponse.json({ items: [], nextCursor: null });
-      }),
-    );
-    setup("/projects/1");
+  it("shows the project's figures for the period", async () => {
+    api();
+    renderWithProviders(<App />, route);
 
-    await userEvent.click(await screen.findByRole("button", { name: "История действий" }));
-    expect(await screen.findByRole("dialog", { name: "История действий" })).toBeInTheDocument();
-    await waitFor(() => expect(projectFilter).toBe("1"));
+    const summary = await screen.findByRole("group", { name: "Показатели за период" });
+    expect(within(summary).getByText("4 200 ₽")).toBeInTheDocument();
   });
 
-  it("shows the selected client's header", async () => {
-    server.use(mock.get("/api/clients", () => HttpResponse.json([client])),
-      mock.get("/api/projects", () => HttpResponse.json([project])));
-    setup("/projects/1");
-    expect(await screen.findByRole("heading", { name: "Летний запуск" })).toBeInTheDocument();
+  it("lists the project's campaigns with their channel", async () => {
+    api();
+    renderWithProviders(<App />, route);
+
+    const row = await screen.findByRole("row", { name: /Поиск \/ Москва/ });
+    // Channel and delivery status share one line under the name.
+    expect(within(row).getByText("Яндекс Директ · Активна")).toBeInTheDocument();
+    expect(within(row).getByText("3 000 ₽")).toBeInTheDocument();
   });
 
-  it("shows a not-found state for an unknown id", async () => {
-    server.use(mock.get("/api/clients", () => HttpResponse.json([client])),
-      mock.get("/api/projects", () => HttpResponse.json([project])));
-    setup("/projects/999");
-    expect(await screen.findByText("Проект не найден")).toBeInTheDocument();
+  it("marks bad, stable and profitable campaign names with red, blue and green borders", async () => {
+    api({ campaigns: [
+      { ...campaign("bad", "Плохая", "META", 1000), performance: performance(1000, { roas: 0.7 }) },
+      { ...campaign("stable", "Стабильная", "GOOGLE", 1000), performance: performance(1000, { roas: 1 }) },
+      { ...campaign("good", "Прибыльная", "YANDEX", 1000), performance: performance(1000, { roas: 2 }) },
+    ] });
+    renderWithProviders(<App />, route);
+
+    expect(await screen.findByRole("button", { name: /Плохая/ })).toHaveClass("border-red-500");
+    expect(screen.getByRole("button", { name: /Стабильная/ })).toHaveClass("border-blue-500");
+    expect(screen.getByRole("button", { name: /Прибыльная/ })).toHaveClass("border-emerald-500");
   });
 
-  it("carries no edit or delete control: those moved into the list", async () => {
-    server.use(
-      mock.get("/api/clients", () => HttpResponse.json([client])),
-      mock.get("/api/projects", () => HttpResponse.json([project])),
-    );
-    setup("/projects/1");
-    await screen.findByRole("heading", { name: "Летний запуск" });
+  // The totals row is the project's own summed range, not the rows added up:
+  // a ROAS of 3 cannot be recovered by averaging two campaigns' 4s.
+  it("shows the project's own total under the campaigns", async () => {
+    api();
+    renderWithProviders(<App />, route);
+
+    const footer = await screen.findByRole("row", { name: /Итого/ });
+    expect(within(footer).getByText("4 200 ₽")).toBeInTheDocument();
+    expect(within(footer).getByText("3,00x")).toBeInTheDocument();
+  });
+
+  it("opens a campaign when its row is chosen", async () => {
+    const user = userEvent.setup();
+    api();
+    renderWithProviders(<App />, route);
+
+    await user.click(await screen.findByRole("button", { name: /Поиск \/ Москва/ }));
+
+    expect(await screen.findByRole("heading", { name: "Экран кампании" })).toBeInTheDocument();
+  });
+
+  // Campaigns arrive from the connected accounts, so an empty project is the
+  // ordinary state before ingestion — not an error and not a prompt to create one.
+  it("says so when the project has no campaigns yet", async () => {
+    api({ campaigns: [] });
+    renderWithProviders(<App />, route);
+
+    expect(await screen.findByText("Кампаний пока нет")).toBeInTheDocument();
+  });
+
+  it("shows the project under its client", async () => {
+    api();
+    renderWithProviders(<App />, route);
+
+    expect(await screen.findByRole("heading", { name: "Клиника" })).toBeInTheDocument();
+    expect(screen.getByText(/Acme/)).toBeInTheDocument();
+  });
+
+  // Editing and deleting a project live in the project list, not here.
+  it("carries no edit or delete control", async () => {
+    api();
+    renderWithProviders(<App />, route);
+    await screen.findByRole("heading", { name: "Клиника" });
 
     expect(screen.queryByRole("button", { name: "Редактировать" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Удалить" })).not.toBeInTheDocument();
   });
 
-  it("redirects to the first campaign when the URL has none", async () => {
-    server.use(
-      mock.get("/api/clients", () => HttpResponse.json([client])),
-      mock.get("/api/projects", () => HttpResponse.json([project])),
-      mock.get("/api/projects/1/campaigns", () =>
-        HttpResponse.json([
-          { id: "c1", clientId: "1", name: "Search ads", position: 0, createdAt: "", updatedAt: "" },
-        ]),
-      ),
-      mock.get("/api/campaigns/c1", () =>
-        HttpResponse.json({
-          id: "c1", clientId: "1", name: "Search ads", position: 0,
-          properties: [], records: [], totals: {},
-        }),
-      ),
-    );
+  it("opens project-scoped activity from the header", async () => {
+    const user = userEvent.setup();
+    let projectFilter: string | null = null;
+    api();
+    server.use(mock.get("/api/audit", ({ request }) => {
+      projectFilter = new URL(request.url).searchParams.get("projectId");
+      return HttpResponse.json({ items: [], nextCursor: null });
+    }));
+    renderWithProviders(<App />, route);
 
-    setup("/projects/1");
+    await user.click(await screen.findByRole("button", { name: "История действий" }));
 
-    expect(await screen.findByRole("tab", { name: "Search ads" })).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByRole("dialog", { name: "История действий" })).toBeInTheDocument();
+    await waitFor(() => expect(projectFilter).toBe("p1"));
   });
 
-  it("shows an empty state when the client has no campaigns", async () => {
-    server.use(
-      mock.get("/api/clients", () => HttpResponse.json([client])),
-      mock.get("/api/projects", () => HttpResponse.json([project])),
-      mock.get("/api/projects/1/campaigns", () => HttpResponse.json([])),
-    );
-
-    setup("/projects/1");
-
-    expect(await screen.findByText("Листов пока нет")).toBeInTheDocument();
-    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
-  });
-
-  it("shows an error state with retry when campaigns fail to load", async () => {
-    server.use(
-      mock.get("/api/clients", () => HttpResponse.json([client])),
-      mock.get("/api/projects", () => HttpResponse.json([project])),
-      mock.get("/api/projects/1/campaigns", () => new HttpResponse(null, { status: 500 })),
-    );
-
-    setup("/projects/1");
+  it("shows an error state with retry when the campaigns fail to load", async () => {
+    api();
+    server.use(mock.get("/api/projects/:projectId/campaigns", () =>
+      new HttpResponse(null, { status: 500 })));
+    renderWithProviders(<App />, route);
 
     expect(await screen.findByText("Что-то пошло не так")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Повторить" })).toBeInTheDocument();
   });
 
-  it("creates a sheet from the empty state and opens it", async () => {
-    const created = {
-      id: "c9", clientId: "1", name: "Main", position: 0, createdAt: "", updatedAt: "",
-    };
-    let listed: unknown[] = [];
-    server.use(
-      mock.get("/api/clients", () => HttpResponse.json([client])),
-      mock.get("/api/projects", () => HttpResponse.json([project])),
-      mock.get("/api/projects/1/campaigns", () => HttpResponse.json(listed)),
-      mock.post("/api/projects/1/campaigns", () => {
-        listed = [created];
-        return HttpResponse.json(created, { status: 201 });
-      }),
-      mock.get("/api/campaigns/c9", () =>
-        HttpResponse.json({ ...created, properties: [], records: [], totals: {} }),
-      ),
-    );
+  it("says so when the project does not exist", async () => {
+    api();
+    renderWithProviders(<App />, { route: "/projects/missing" });
 
-    setup("/projects/1");
-
-    await userEvent.click(await screen.findByRole("button", { name: "Создать лист" }));
-    await userEvent.type(screen.getByLabelText("Имя"), "Main");
-    await userEvent.click(screen.getByRole("button", { name: "Создать" }));
-
-    expect(await screen.findByRole("tab", { name: "Main" })).toHaveAttribute("aria-selected", "true");
-  });
-
-  it("opens the rename dialog prefilled from the pencil, and saving renames the tab", async () => {
-    let listed: unknown[] = [
-      { id: "c1", clientId: "1", name: "Search ads", position: 0, createdAt: "", updatedAt: "" },
-    ];
-    server.use(
-      mock.get("/api/clients", () => HttpResponse.json([client])),
-      mock.get("/api/projects", () => HttpResponse.json([project])),
-      mock.get("/api/projects/1/campaigns", () => HttpResponse.json(listed)),
-      mock.get("/api/campaigns/c1", () =>
-        HttpResponse.json({
-          id: "c1", clientId: "1", name: "Search ads", position: 0,
-          properties: [], records: [], totals: {},
-        }),
-      ),
-      mock.patch("/api/campaigns/c1", () => {
-        const renamed = { id: "c1", clientId: "1", name: "Renamed", position: 0, createdAt: "", updatedAt: "" };
-        listed = [renamed];
-        return HttpResponse.json(renamed);
-      }),
-    );
-
-    setup("/projects/1");
-
-    await userEvent.click(await screen.findByRole("button", { name: "Переименовать лист" }));
-
-    const nameField = screen.getByLabelText("Имя");
-    expect(nameField).toHaveValue("Search ads");
-    expect(screen.getByRole("button", { name: "Сохранить" })).toBeInTheDocument();
-
-    await userEvent.clear(nameField);
-    await userEvent.type(nameField, "Renamed");
-    await userEvent.click(screen.getByRole("button", { name: "Сохранить" }));
-
-    expect(await screen.findByRole("tab", { name: "Renamed" })).toBeInTheDocument();
-  });
-
-  it("deletes a sheet from its dialog and opens the neighbouring one", async () => {
-    let listed = [
-      { id: "c1", projectId: "1", name: "Search ads", position: 0, createdAt: "", updatedAt: "" },
-      { id: "c2", projectId: "1", name: "Display", position: 1, createdAt: "", updatedAt: "" },
-    ];
-    const table = (id: string, name: string) => ({
-      id, projectId: "1", name, position: 0, properties: [], records: [], totals: {},
-    });
-    server.use(
-      mock.get("/api/clients", () => HttpResponse.json([client])),
-      mock.get("/api/projects", () => HttpResponse.json([project])),
-      mock.get("/api/projects/1/campaigns", () => HttpResponse.json(listed)),
-      mock.get("/api/campaigns/c1", () => HttpResponse.json(table("c1", "Search ads"))),
-      mock.get("/api/campaigns/c2", () => HttpResponse.json(table("c2", "Display"))),
-      mock.delete("/api/campaigns/c2", () => {
-        listed = [listed[0]];
-        return new HttpResponse(null, { status: 204 });
-      }),
-    );
-
-    setup("/projects/1/campaigns/c2");
-
-    await userEvent.click(await screen.findByRole("button", { name: "Переименовать лист" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Удалить лист" }));
-    const confirmation = await screen.findByRole("alertdialog");
-    await userEvent.click(within(confirmation).getByRole("button", { name: "Удалить" }));
-
-    expect(await screen.findByRole("tab", { name: "Search ads" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.queryByRole("tab", { name: "Display" })).not.toBeInTheDocument();
-  });
-
-  it("selects the first sheet without waiting for the address to catch up", async () => {
-    const listed = [
-      { id: "c1", projectId: "1", name: "Search ads", position: 0, createdAt: "", updatedAt: "" },
-      { id: "c2", projectId: "1", name: "Display", position: 1, createdAt: "", updatedAt: "" },
-    ];
-    server.use(
-      mock.get("/api/clients", () => HttpResponse.json([client])),
-      mock.get("/api/projects", () => HttpResponse.json([project])),
-      mock.get("/api/projects/1/campaigns", () => HttpResponse.json(listed)),
-      mock.get("/api/campaigns/c1", () =>
-        HttpResponse.json({ id: "c1", projectId: "1", name: "Search ads", position: 0, properties: [], records: [], totals: {} })),
-    );
-
-    // No sheet in the address: the tab and the sheet come from the list, not
-    // from the redirect that follows.
-    setup("/projects/1");
-
-    expect(await screen.findByRole("tab", { name: "Search ads" }))
-      .toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tab", { name: "Display" })).toHaveAttribute("aria-selected", "false");
+    expect(await screen.findByText("Проект не найден")).toBeInTheDocument();
   });
 });

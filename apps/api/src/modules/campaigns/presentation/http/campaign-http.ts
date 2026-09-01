@@ -1,17 +1,22 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { AppError } from "../../../../shared/domain/index.js";
 import type { CampaignUseCases } from "../../application/campaign-use-cases.js";
-import {
-  createCampaignSchema,
-  createPropertySchema,
-  updateCampaignSchema,
-  updatePropertySchema,
-} from "./campaign-schemas.js";
+import type { MeasuredDay } from "../../domain/metrics.js";
+import { rangeSchema } from "./campaign-schemas.js";
 
 function actorOf(req: Request) {
   if (!req.actor) throw new AppError("unauthorized", "Authentication required");
   return req.actor;
 }
+
+/** Every read here is scoped to a range, so parsing it is part of reading the
+ * request rather than something each handler remembers to do. */
+const rangeOf = (req: Request) => rangeSchema.parse(req.query);
+
+/** A calendar day on the wire, not a UTC instant. The buyer picked a day and
+ * the chart labels one; a timestamp only invites a zone to shift it. */
+const asDays = (days: readonly MeasuredDay[]) =>
+  days.map(({ date, ...measured }) => ({ date: date.toISOString().slice(0, 10), ...measured }));
 
 function handle<TRequest extends Request>(
   action: (req: TRequest, res: Response) => Promise<void>,
@@ -19,48 +24,49 @@ function handle<TRequest extends Request>(
   return (req: TRequest, res: Response, next: NextFunction) => { action(req, res).catch(next); };
 }
 
-export function createCampaignHttpRouters(useCases: CampaignUseCases) {
-  /** Mounted at /api/projects/:projectId/campaigns */
-  const projectCampaignRouter = Router({ mergeParams: true });
-  projectCampaignRouter.post("/", handle(async (req: Request<{ projectId: string }>, res) => {
-    const input = createCampaignSchema.parse(req.body);
-    res.status(201).json(await useCases.create(actorOf(req), req.params.projectId, input));
-  }));
-  projectCampaignRouter.get("/", handle(async (req: Request<{ projectId: string }>, res) => {
-    res.json(await useCases.list(actorOf(req), req.params.projectId));
-  }));
+export interface CampaignHttpRouters {
+  readonly campaignRouter: Router;
+  readonly adSetRouter: Router;
+  /** Mounted under `/api/projects/:projectId`, so it needs the parent's params. */
+  readonly projectMetricRouter: Router;
+  readonly summaryRouter: Router;
+}
 
-  /** Mounted at /api/campaigns */
+export function createCampaignHttpRouters(useCases: CampaignUseCases): CampaignHttpRouters {
   const campaignRouter = Router();
   campaignRouter.get("/:id", handle(async (req: Request<{ id: string }>, res) => {
-    res.json(await useCases.readTable(actorOf(req), req.params.id));
+    res.json(await useCases.readCampaign(actorOf(req), req.params.id, rangeOf(req)));
   }));
-  campaignRouter.patch("/:id", handle(async (req: Request<{ id: string }>, res) => {
-    const input = updateCampaignSchema.parse(req.body);
-    res.json(await useCases.update(actorOf(req), req.params.id, input));
+  campaignRouter.get("/:id/ad-sets", handle(async (req: Request<{ id: string }>, res) => {
+    res.json(await useCases.listAdSets(actorOf(req), req.params.id, rangeOf(req)));
   }));
-  campaignRouter.delete("/:id", handle(async (req: Request<{ id: string }>, res) => {
-    await useCases.delete(actorOf(req), req.params.id);
-    res.status(204).send();
+  campaignRouter.get("/:id/daily", handle(async (req: Request<{ id: string }>, res) => {
+    res.json(asDays(await useCases.dailySeries(actorOf(req), req.params.id, rangeOf(req))));
   }));
 
-  /** Mounted at /api/campaigns/:campaignId/properties */
-  const campaignPropertyRouter = Router({ mergeParams: true });
-  campaignPropertyRouter.post("/", handle(async (req: Request<{ campaignId: string }>, res) => {
-    const input = createPropertySchema.parse(req.body);
-    res.status(201).json(await useCases.createProperty(actorOf(req), req.params.campaignId, input));
+  const adSetRouter = Router();
+  adSetRouter.get("/:id/ads", handle(async (req: Request<{ id: string }>, res) => {
+    res.json(await useCases.listAds(actorOf(req), req.params.id, rangeOf(req)));
   }));
 
-  /** Mounted at /api/properties */
-  const propertyRouter = Router();
-  propertyRouter.patch("/:id", handle(async (req: Request<{ id: string }>, res) => {
-    const input = updatePropertySchema.parse(req.body);
-    res.json(await useCases.updateProperty(actorOf(req), req.params.id, input));
+  const projectMetricRouter = Router({ mergeParams: true });
+  projectMetricRouter.get("/campaigns", handle(async (req: Request<{ projectId: string }>, res) => {
+    res.json(await useCases.listCampaigns(actorOf(req), req.params.projectId, rangeOf(req)));
   }));
-  propertyRouter.delete("/:id", handle(async (req: Request<{ id: string }>, res) => {
-    await useCases.deleteProperty(actorOf(req), req.params.id);
-    res.status(204).send();
+  projectMetricRouter.get("/daily", handle(async (req: Request<{ projectId: string }>, res) => {
+    res.json(asDays(await useCases.projectDailySeries(actorOf(req), req.params.projectId, rangeOf(req))));
+  }));
+  projectMetricRouter.get("/summary", handle(async (req: Request<{ projectId: string }>, res) => {
+    res.json(await useCases.projectSummary(actorOf(req), req.params.projectId, rangeOf(req)));
   }));
 
-  return { projectCampaignRouter, campaignRouter, campaignPropertyRouter, propertyRouter };
+  const summaryRouter = Router();
+  summaryRouter.get("/channels", handle(async (req, res) => {
+    res.json(await useCases.channelSummary(actorOf(req), rangeOf(req)));
+  }));
+  summaryRouter.get("/", handle(async (req, res) => {
+    res.json(await useCases.agencySummary(actorOf(req), rangeOf(req)));
+  }));
+
+  return { campaignRouter, adSetRouter, projectMetricRouter, summaryRouter };
 }

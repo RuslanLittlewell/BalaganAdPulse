@@ -1,25 +1,16 @@
 export { createCampaignUseCases } from "./application/campaign-use-cases.js";
 export type {
-  CampaignTable,
-  CampaignUseCases,
-  CreatePropertyInput,
-  UpdatePropertyInput,
+  AdSetView, AdView, CampaignDependencies, CampaignUseCases, CampaignView,
 } from "./application/campaign-use-cases.js";
 export type {
-  CampaignDependencies,
-  CampaignRecord,
-  CampaignRepository,
-  PropertyRecord,
-  PropertyRepository,
-  ProjectReach,
-  TableData,
+  AdRepository, AdSetRepository, CampaignRepository, ProjectReach,
 } from "./application/ports.js";
-export type { BinaryOperator, Expression } from "./domain/expression.js";
-export { collectPropertyRefs, evaluate } from "./domain/expression.js";
-export { PROPERTY_TYPES, assertFormulaIsValid, assertWritable, findDependents } from "./domain/property.js";
-export type { PropertyType } from "./domain/property.js";
-export { computeTable } from "./domain/table.js";
-export type { ComputedRecord, ComputedTable, StoredValue, TableProperty, TableRecord } from "./domain/table.js";
+export type { MetricRepository } from "./application/metric-ports.js";
+export {
+  CHANNELS, DELIVERY_STATUSES, isChannel, isDeliveryStatus, isOrderedRange,
+} from "./domain/hierarchy.js";
+export type { Ad, AdSet, Campaign, Channel, DateRange, DeliveryStatus } from "./domain/hierarchy.js";
+export { EMPTY_MEASURED, derive, performanceOf, sumMeasured } from "./domain/metrics.js";
+export type { Derived, Measured, Performance } from "./domain/metrics.js";
 export { createCampaignHttpRouters } from "./presentation/http/campaign-http.js";
-export { DEFAULT_CAMPAIGN_NAME, buildDefaultProperties } from "./domain/defaults.js";
-export type { DefaultProperty } from "./domain/defaults.js";
+export type { CampaignHttpRouters } from "./presentation/http/campaign-http.js";

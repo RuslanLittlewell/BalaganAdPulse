@@ -183,8 +183,7 @@ AdPulse/
           invites/          # role-bearing invitations
           clients/          # clients and the contact book
           projects/         # projects under a client
-          campaigns/        # campaigns, columns and the formula engine
-          records/          # days and the values written into them
+          campaigns/        # the campaign hierarchy and its measured figures
           audit/            # append-only event writes and scoped activity reads
         shared/             # the deliberately small kernel
           domain/           # AppError
@@ -203,8 +202,9 @@ Request flow: HTTP → a module's presentation adapter (Zod validation) → a us
 ports → an infrastructure adapter (Prisma, S3) → PostgreSQL. Errors surface as a
 transport-independent `AppError` and are mapped to the HTTP envelope in one place.
 
-Every client belongs to an organization. The existing business hierarchy remains
-`Client → Project → Campaign → (properties, records, values)`. An active membership
+Every client belongs to an organization. The business hierarchy is
+`Client → Project → Campaign → Ad set → Ad`, with measured figures stored per day at
+each of the last three levels. An active membership
 provides the caller's role; `ClientAccess` grants narrow non-admin members to clients or
 individual projects. Role permission and row reach are evaluated separately.
 
@@ -327,18 +327,18 @@ ports, fixed clocks and deterministic identifiers.
 | DELETE | `/tasks/:id` | Delete, with its images | 204 |
 | POST | `/task-images` | Upload one image pasted or dropped into a description | 201 |
 | GET | `/task-images/:id` | The bytes, to whoever may read the task | 200 |
-| POST | `/clients/:clientId/campaigns` | Create a campaign | 201 |
-| GET | `/clients/:clientId/campaigns` | List a client's campaigns | 200 |
-| GET | `/campaigns/:id` | Campaign with properties, records and totals | 200 |
-| PATCH | `/campaigns/:id` | Rename or reorder | 200 |
-| DELETE | `/campaigns/:id` | Delete | 204 |
-| POST | `/campaigns/:id/properties` | Add a property | 201 |
-| PATCH | `/properties/:id` | Rename, retype, reorder, set a formula | 200 |
-| DELETE | `/properties/:id` | Delete a property | 204 |
-| POST | `/campaigns/:id/records` | Add a day | 201 |
-| PATCH | `/records/:id` | Move a day to another date | 200 |
-| DELETE | `/records/:id` | Delete a day | 204 |
-| PUT | `/records/:recordId/values/:propertyId` | Write a property value | 200 |
+| GET | `/projects/:id/campaigns` | A project's campaigns, each with its figures | 200 |
+| GET | `/projects/:id/summary` | The project's figures, summed | 200 |
+| GET | `/projects/:id/daily` | The project's measured days | 200 |
+| GET | `/campaigns/:id` | One campaign with its figures | 200 |
+| GET | `/campaigns/:id/ad-sets` | Its ad sets, each with its figures | 200 |
+| GET | `/campaigns/:id/daily` | Its measured days, unsummed | 200 |
+| GET | `/ad-sets/:id/ads` | An ad set's ads, each with its figures | 200 |
+| GET | `/summary` | Every project the caller reaches, summed | 200 |
+| GET | `/summary/channels` | The same, split by channel | 200 |
+
+Every reading above is scoped to a range: `?from=YYYY-MM-DD&to=YYYY-MM-DD`, both
+endpoints included and both required.
 
 `name` is required on create; `niche`, `monthlyBudget` and `email` are optional.
 Errors are normalized to a single shape:
@@ -347,21 +347,29 @@ Errors are normalized to a single shape:
 { "error": { "message": "...", "details": [] } }
 ```
 
-A campaign starts with eleven default properties (spend, impressions, clicks, CTR, CPM,
-CPC, leads, CPL, revenue, ROAS, comment); creating a client seeds it with one such
-campaign, named `Main`, at position 0. Derived properties carry a formula — an
-expression tree — and are computed on read, so only hand-entered values are stored.
-Numeric values cross the API as strings with four decimals to preserve precision.
+### Figures
 
-The data model follows the Notion/Airtable shape rather than a spreadsheet: a campaign
-has **properties** (the metric columns), **records** (the days), and a
-**property value** for each hand-entered cell. Postgres tables use snake_case
-(`campaign_property`, `campaign_record`, `campaign_property_value`).
+Six figures are **measured** and stored, one row per entity per day: spend, impressions,
+reach, clicks, conversions and revenue. Six ratios are **derived** on read and never
+stored: CTR, CPC, CPM, CPA, ROAS and frequency.
 
-Validation failures return 400, a missing record returns 404, conflicts return 409
-(a duplicate date; deleting a property referenced by another property's formula;
-attaching a formula to a property that already has values; changing a property's type
-between text and numeric while it has values), and anything unexpected returns 500.
+A stored ratio would be a second source of truth for something already recorded, and the
+two drift the moment a figure is corrected. It also cannot be re-summed: a week's CTR is
+the week's clicks over the week's impressions, not the average of seven daily CTRs. A
+ratio whose divisor is zero is reported as `null` — a campaign that spent money and got
+no clicks has no cost per click, and `0` would read as free.
+
+Ad platforms restate a day as attribution settles, so the key is `(entity, date)` and a
+repeat replaces rather than appends. Each level stores what the platform reports *for that
+level*: a campaign is never summed from its ads, because reach is deduplicated across the
+campaign's audience. A project and the organization **are** summed from campaigns —
+those are our own groupings and the platform has no opinion about them.
+
+Nothing writes these figures yet. This change defines the shape they land in and reads
+what is there; a later change connects the platforms.
+
+Validation failures return 400 (including a range that ends before it starts), anything
+the caller cannot reach returns 404, and anything unexpected returns 500.
 
 ## Authentication
 

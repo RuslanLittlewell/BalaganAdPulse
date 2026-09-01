@@ -51,13 +51,14 @@ describe("Projects API", () => {
     expect(res.status).toBe(404);
   });
 
-  it("seeds one Main sheet, so the project is usable straight away", async () => {
+  it("starts with no campaigns: they come from the connected accounts", async () => {
     const created = await project();
-    const res = await request(app).get(`/api/projects/${created.body.id}/campaigns`).set(auth);
+    const res = await request(app)
+      .get(`/api/projects/${created.body.id}/campaigns?from=2026-08-01&to=2026-08-31`)
+      .set(auth);
 
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(1);
-    expect(res.body[0].name).toBe("Main");
+    expect(res.body).toEqual([]);
   });
 
   it("creating a client alone seeds nothing: work starts with a project", async () => {

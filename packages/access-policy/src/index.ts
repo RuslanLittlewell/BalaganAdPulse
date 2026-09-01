@@ -27,9 +27,6 @@ export const RESOURCES = [
   "client",
   "project",
   "campaign",
-  "property",
-  "record",
-  "value",
   "task",
   "audit",
 ] as const;
@@ -63,10 +60,10 @@ const MATRIX: Readonly<Record<Resource, ResourcePolicy>> = {
   invite: { read: ADMINS, create: ADMINS, update: ADMINS, delete: ADMINS },
   client: { read: EVERYONE, create: STAFF, update: STAFF, delete: ADMINS },
   project: { read: EVERYONE, create: STAFF, update: STAFF, delete: ADMINS },
+  // One resource for the whole hierarchy — the campaign, its ad sets, its ads
+  // and their measured figures. Splitting it described the old sheet's
+  // internals rather than anything a role has an opinion about.
   campaign: { read: EVERYONE, create: STAFF, update: STAFF, delete: STAFF },
-  property: { read: EVERYONE, create: STAFF, update: STAFF, delete: STAFF },
-  record: { read: EVERYONE, create: STAFF, update: STAFF, delete: STAFF },
-  value: { read: EVERYONE, create: STAFF, update: STAFF, delete: STAFF },
   // The board is the agency's internal work: a customer does not reach it at
   // all, rather than seeing an empty one. The client portal is a later change
   // and will decide what they should see; closed is the safe default.

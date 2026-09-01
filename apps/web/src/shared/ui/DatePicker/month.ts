@@ -1,7 +1,7 @@
 /**
  * "03 августа 2026 г." — a day's accessible name inside the calendar grid. Tighter
  * than react-day-picker's default, which prefixes the weekday, and stable enough to
- * be worth owning: it is what the sheet's tests point at.
+ * be worth owning: it is what the picker's tests point at.
  */
 export function dayLabel(iso: string): string {
   return new Date(`${iso}T00:00:00Z`).toLocaleDateString("ru-RU", {

@@ -1,5 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
+import { DashboardPage } from "@/pages/dashboard/index.js";
 import { ModulePage } from "@/pages/module/index.js";
 import { ProjectsPage } from "@/pages/projects/index.js";
 import { LoginPage } from "@/pages/login/index.js";
@@ -26,7 +27,7 @@ function Dashboard() {
         <SelectionSync />
         <AppShell sidebar={<MainNav />} header={<AppHeader />}>
           <Routes>
-            <Route path={ROUTES.dashboard} element={<ModulePage title={t("nav.dashboard")} />} />
+            <Route path={ROUTES.dashboard} element={<DashboardPage />} />
             <Route path={`${ROUTES.projects}/*`} element={<ProjectsPage />} />
             <Route path={ROUTES.tasks} element={<TasksPage />} />
             <Route path={ROUTES.reports} element={<ModulePage title={t("nav.reports")} />} />

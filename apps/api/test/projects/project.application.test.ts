@@ -21,7 +21,6 @@ function fixture(seed: ProjectRecord[] = [], reachableClients = ["c1"]) {
   const context = {} as TransactionContext;
   const projects = new Map(seed.map((value) => [value.id, value]));
   const audit: Array<Record<string, unknown>> = [];
-  const seeded: string[] = [];
   const pictures = new Map<string, Uint8Array>();
 
   const useCases = createProjectUseCases({
@@ -44,7 +43,6 @@ function fixture(seed: ProjectRecord[] = [], reachableClients = ["c1"]) {
       delete: async (_tx, id) => { projects.delete(id); },
     },
     clients: { isReachable: async (_actor, clientId) => reachableClients.includes(clientId) },
-    campaigns: { seedDefault: async (_tx, projectId) => { seeded.push(projectId); } },
     pictures: {
       read: async (id) => pictures.get(id) ?? null,
       write: async (id, bytes) => { pictures.set(id, bytes); },
@@ -53,15 +51,16 @@ function fixture(seed: ProjectRecord[] = [], reachableClients = ["c1"]) {
     ids: new DeterministicIdGenerator(["new-1", "new-2"]),
     unitOfWork: { run: (work) => work(context) },
   });
-  return { useCases, projects, audit, seeded, pictures };
+  return { useCases, projects, audit, pictures };
 }
 
 describe("creating a project", () => {
-  it("stores it under the client and seeds its first sheet", async () => {
-    const { useCases, seeded } = fixture();
+  // Campaigns arrive from the platforms, not from us: a project starts empty
+  // and fills as its accounts are connected.
+  it("stores it under the client and creates nothing beneath it", async () => {
+    const { useCases } = fixture();
     const created = await useCases.create(admin, { clientId: "c1", name: "Acme Ads" });
     expect(created.clientId).toBe("c1");
-    expect(seeded).toEqual([created.id]);
   });
 
   it("appends it after the client's existing projects", async () => {

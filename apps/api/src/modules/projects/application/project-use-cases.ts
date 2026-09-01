@@ -54,7 +54,6 @@ export function createProjectUseCases(dependencies: ProjectDependencies) {
           id: dependencies.ids.generate(),
           position: await dependencies.projects.countForClient(input.clientId),
         });
-        await dependencies.campaigns.seedDefault(context, project.id);
         await dependencies.audit.append(context, audit("CREATE", project), actor);
         return project;
       });

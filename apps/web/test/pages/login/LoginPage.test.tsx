@@ -7,7 +7,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { server } from "@test/shared/index.js";
 import { makeAccessToken } from "@test/shared/index.js";
 import { createQueryClient } from "@/shared/lib/index.js";
-import { readTokens } from "@/shared/lib/index.js";
+import { hasSession, readTokens } from "@/shared/lib/index.js";
 import { AuthProvider } from "@/features/auth/index.js";
 import { LoginPage } from "@/pages/login/LoginPage.js";
 
@@ -39,7 +39,7 @@ describe("LoginPage", () => {
     expect(screen.getByText("Введите корректный email")).toBeInTheDocument();
   });
 
-  it("stores both tokens and lands on the dashboard", async () => {
+  it("keeps tokens out of browser storage and lands on the dashboard", async () => {
     server.use(http.post("/api/auth/login", () =>
       HttpResponse.json({ accessToken: makeAccessToken(), refreshToken: "r" })));
     renderPage();
@@ -49,7 +49,8 @@ describe("LoginPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Войти" }));
 
     expect(await screen.findByText("dashboard")).toBeInTheDocument();
-    expect(readTokens().refreshToken).toBe("r");
+    expect(readTokens()).toEqual({});
+    expect(hasSession()).toBe(true);
   });
 
   it("returns to where the visitor was going", async () => {

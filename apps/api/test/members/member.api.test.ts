@@ -203,6 +203,29 @@ describe("DELETE /api/members/:id", () => {
     expect(await prisma.membership.findUnique({ where: { id: membership!.id } })).toBeNull();
   });
 
+  // Even with another admin standing, so this is not the last-admin rule: an
+  // administrator who removes themselves loses the organization in one click.
+  it("refuses an admin removing their own membership (409)", async () => {
+    const self = await signInAs("Owner", { role: "ADMIN" });
+    await signInAs("Second", { role: "ADMIN" });
+
+    const res = await request(app).delete(`/api/members/${self.membership!.id}`).set(self.auth);
+
+    expect(res.status).toBe(409);
+    expect(await prisma.membership.findUnique({ where: { id: self.membership!.id } }))
+      .not.toBeNull();
+  });
+
+  it("still lets that admin remove somebody else", async () => {
+    const self = await signInAs("Owner", { role: "ADMIN" });
+    const other = await signInAs("Manager", { role: "MANAGER" });
+
+    const res = await request(app).delete(`/api/members/${other.membership!.id}`).set(self.auth);
+
+    expect(res.status).toBe(204);
+    expect(await prisma.membership.findUnique({ where: { id: other.membership!.id } })).toBeNull();
+  });
+
   it("leaves the removed member's clients and projects standing", async () => {
     const manager = await signInAs("Manager", { role: "MANAGER" });
     const { clientId, projectId } = await seedProject(manager.user.id, "Acme");

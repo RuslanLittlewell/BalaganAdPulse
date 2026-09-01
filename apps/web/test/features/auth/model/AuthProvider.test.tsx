@@ -61,10 +61,16 @@ function renderProvider(queryClient: ReturnType<typeof createQueryClient> = crea
 beforeEach(() => localStorage.clear());
 
 describe("AuthProvider", () => {
-  it("reads the current user out of the stored token", () => {
+  it("loads the current user from the server without reading the token", async () => {
     writeTokens({ accessToken: makeAccessToken({ name: "Alexey" }), refreshToken: "r" });
+    server.use(http.get("/api/auth/me", () => HttpResponse.json({
+      user: { id: "user-1", name: "Alexey", email: "buyer@acme.com", image: null },
+      organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
+      role: "ADMIN",
+      clientIds: [],
+    })));
     renderProvider();
-    expect(screen.getByTestId("name")).toHaveTextContent("Alexey");
+    expect(await screen.findByText("Alexey")).toBeInTheDocument();
   });
 
   it("loads the organization, current role and reachable clients from /auth/me", async () => {
@@ -168,8 +174,12 @@ describe("AuthProvider", () => {
     // calls endSession(), which AuthProvider turns into navigation and a
     // cache clear — rather than testing any one file in isolation.
     writeTokens({ accessToken: makeExpiredAccessToken(), refreshToken: "r" });
-    server.use(http.post("/api/auth/refresh", () =>
-      HttpResponse.json({ error: { message: "Session expired" } }, { status: 401 })));
+    server.use(
+      http.get("/api/clients", () =>
+        HttpResponse.json({ error: { message: "Authentication required" } }, { status: 401 })),
+      http.post("/api/auth/refresh", () =>
+        HttpResponse.json({ error: { message: "Session expired" } }, { status: 401 })),
+    );
 
     const queryClient = createQueryClient();
     render(
@@ -201,7 +211,7 @@ describe("AuthProvider", () => {
       clientIds: [],
     })));
     renderProvider();
-    expect(screen.getByTestId("name")).toHaveTextContent("Alexey");
+    expect(await screen.findByText("Alexey")).toBeInTheDocument();
 
     sessionName = "Renewed";
     await act(() => forceRefresh());

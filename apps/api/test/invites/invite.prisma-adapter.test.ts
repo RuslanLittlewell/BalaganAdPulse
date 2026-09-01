@@ -17,6 +17,44 @@ function repository() {
 const NOW = new Date("2026-09-01T12:00:00.000Z");
 
 describe("Prisma invite repository", () => {
+  it("stores invitation type and selected projects", async () => {
+    const { unitOfWork, invites } = repository();
+    const org = await currentOrg();
+    const client = await prisma.client.create({ data: { orgId: org.id, name: "Acme" } });
+    const projects = await Promise.all(["Search", "Social"].map((name, position) =>
+      prisma.project.create({ data: { clientId: client.id, name, position } })));
+
+    const created = await unitOfWork.run((context) => invites.create(context, {
+      id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      orgId: org.id,
+      code: "EMPLOYEE",
+      registrationType: "EMPLOYEE",
+      role: "MANAGER",
+      projectIds: projects.map(({ id }) => id),
+      email: null,
+      expiresAt: null,
+      createdById: null,
+    }));
+
+    expect(created.registrationType).toBe("EMPLOYEE");
+    expect(created.projectIds).toEqual(projects.map(({ id }) => id));
+  });
+
+  it("lists only pending invitations and optionally filters their type", async () => {
+    const { invites } = repository();
+    const org = await currentOrg();
+    await prisma.invite.createMany({ data: [
+      { orgId: org.id, code: "client", registrationType: "CLIENT", role: null },
+      { orgId: org.id, code: "revoked", registrationType: "CLIENT", role: null, revokedAt: NOW },
+      { orgId: org.id, code: "used", registrationType: "CLIENT", role: null, usedAt: NOW },
+      { orgId: org.id, code: "expired", registrationType: "CLIENT", role: null, expiresAt: new Date(NOW.getTime() - 1) },
+    ] });
+
+    const listed = await invites.listPendingByOrg(org.id, NOW, "CLIENT");
+    expect(listed.map(({ code }) => code)).toEqual(["client"]);
+    expect(await prisma.invite.count({ where: { orgId: org.id } })).toBe(4);
+  });
+
   it("stores an invitation and reads it back whole", async () => {
     const { unitOfWork, invites } = repository();
     const org = await currentOrg();

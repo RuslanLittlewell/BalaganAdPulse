@@ -154,6 +154,35 @@ describe("removing a member", () => {
     const { useCases } = fixture([member({ id: "m1" })]);
     await expect(useCases.remove(manager, "m1")).rejects.toMatchObject({ category: "forbidden" });
   });
+
+  /**
+   * Independent of the last-admin rule: even with other admins standing, an
+   * administrator removing themselves loses the organization in one click with
+   * nothing to undo it. Compared against the actor context, which is resolved
+   * fresh on every request, rather than against anything the caller sent.
+   */
+  it("refuses an admin removing their own membership", async () => {
+    const { useCases, members } = fixture([
+      member({ id: admin.membershipId, role: "ADMIN" }),
+      member({ id: "other-admin", role: "ADMIN" }),
+    ]);
+
+    await expect(useCases.remove(admin, admin.membershipId))
+      .rejects.toMatchObject({ category: "conflict" });
+    expect(members.has(admin.membershipId)).toBe(true);
+  });
+
+  it("still removes a different member", async () => {
+    const { useCases, members } = fixture([
+      member({ id: admin.membershipId, role: "ADMIN" }),
+      member({ id: "m1" }),
+    ]);
+
+    await useCases.remove(admin, "m1");
+
+    expect(members.has("m1")).toBe(false);
+    expect(members.has(admin.membershipId)).toBe(true);
+  });
 });
 
 describe("replacing a member's access", () => {

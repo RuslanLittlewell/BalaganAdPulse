@@ -25,6 +25,7 @@ export * from "./DataTable/DataTable.js";
 export * from "./DatePicker/DatePicker.js";
 export * from "./EditableCell/EditableCell.js";
 export * from "./EmptyState/EmptyState.js";
+export * from "./CopyButton/CopyButton.js";
 export * from "./ListItem/ListItem.js";
 export * from "./Loader/Loader.js";
 export * from "./SectionLabel/SectionLabel.js";

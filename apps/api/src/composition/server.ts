@@ -1,17 +1,29 @@
 import "dotenv/config";
 import { createApp } from "./app.js";
+import { createContainer } from "./create-container.js";
 import { prisma } from "../shared/infrastructure/prisma.js";
+import { attachRealtime } from "../modules/realtime/infrastructure/websocket-transport.js";
 import { createShutdown } from "./shutdown.js";
 
 const port = Number(process.env.PORT ?? 3000);
-const app = createApp();
+const container = createContainer();
+const app = createApp({ container });
 
 const server = app.listen(port, () => {
   console.log(`AdPulse API listening on http://localhost:${port}`);
 });
 
+// The board's live feed shares the HTTP server, so it needs no second port and
+// travels through whatever route already reaches the API.
+const realtime = attachRealtime({
+  server,
+  registry: container.connections,
+  authenticate: container.authenticate,
+});
+
 const shutdown = createShutdown({
   server,
+  closeRealtime: () => realtime.close(),
   disconnect: () => prisma.$disconnect(),
   exit: (code) => process.exit(code),
 });

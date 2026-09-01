@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ActorContext } from "../../src/shared/application/index.js";
 import type { TransactionContext } from "../../src/shared/application/unit-of-work.js";
 import { DeterministicIdGenerator } from "../../src/shared/infrastructure/id-generator.js";
-import { TASK_COLUMNS, createTaskUseCases, type TaskRecord } from "../../src/modules/tasks/index.js";
+import { TASK_COLUMNS, createTaskUseCases, type TaskEvent, type TaskRecord } from "../../src/modules/tasks/index.js";
 
 const admin: ActorContext = { userId: "u1", membershipId: "m1", orgId: "org1", role: "ADMIN" };
 const manager: ActorContext = { ...admin, membershipId: "m2", role: "MANAGER" };
@@ -20,6 +20,9 @@ function fixture(options: {
   tasks?: TaskRecord[];
   reachableProjects?: string[];
   assignable?: string[];
+  /** Makes the transaction fail after the work has run, so a caller can prove
+   * what does and does not survive a rollback. */
+  failCommit?: boolean;
 } = {}) {
   const context = {} as TransactionContext;
   const tasks = new Map((options.tasks ?? []).map((t) => [t.id, t]));
@@ -29,6 +32,10 @@ function fixture(options: {
   const orders: Array<{ column: string; ids: string[] }> = [];
   const claimed: Array<{ taskId: string; imageIds: string[] }> = [];
   const removedObjects: string[] = [];
+  const published: TaskEvent[] = [];
+  // One ordered log of both, so a test can prove the event follows the commit
+  // rather than merely that both happened.
+  const journal: string[] = [];
 
   const useCases = createTaskUseCases({
     tasks: {
@@ -78,10 +85,20 @@ function fixture(options: {
     },
     members: { isAssignable: async (_actor, membershipId) => assignable.includes(membershipId) },
     audit: { append: async (_tx, event) => { audit.push(event as never); } },
+    events: {
+      publish: (event: TaskEvent) => { published.push(event); journal.push(`publish:${event.kind}`); },
+    },
     ids: new DeterministicIdGenerator(["new-1", "new-2", "new-3"]),
-    unitOfWork: { run: (work) => work(context) },
+    unitOfWork: {
+      run: async (work) => {
+        const result = await work(context);
+        if (options.failCommit) throw new Error("commit failed");
+        journal.push("commit");
+        return result;
+      },
+    },
   });
-  return { useCases, tasks, audit, orders, claimed, removedObjects };
+  return { useCases, tasks, audit, orders, claimed, removedObjects, published, journal };
 }
 
 describe("reading the board", () => {
@@ -314,5 +331,65 @@ describe("images referenced by a description", () => {
     const { useCases, claimed } = fixture({ tasks: [task()] });
     await useCases.update(admin, "t1", { title: "Renamed" });
     expect(claimed).toEqual([]);
+  });
+});
+
+
+describe("telling other members what happened", () => {
+  it("publishes one event per committed change, naming what happened", async () => {
+    const { useCases, published } = fixture({ tasks: [task({ id: "t1" })] });
+
+    await useCases.create(admin, { projectId: "p1", title: "New", priority: "LOW" });
+    await useCases.update(admin, "t1", { title: "Renamed" });
+    await useCases.move(admin, "t1", { column: "DONE", position: 0 });
+    await useCases.delete(admin, "t1");
+
+    expect(published.map((event) => event.kind)).toEqual([
+      "task.created", "task.updated", "task.moved", "task.deleted",
+    ]);
+  });
+
+  // The order is the whole point. Publishing inside the transaction would tell
+  // every recipient about work that can still roll back, and nothing would
+  // correct them until they reconnected.
+  it("publishes only after the transaction has committed", async () => {
+    const { useCases, journal } = fixture();
+    await useCases.create(admin, { projectId: "p1", title: "New", priority: "LOW" });
+    expect(journal).toEqual(["commit", "publish:task.created"]);
+  });
+
+  it("publishes nothing when the change is rolled back", async () => {
+    const { useCases, published } = fixture({
+      tasks: [task({ id: "t1" })], failCommit: true,
+    });
+
+    await expect(useCases.create(admin, { projectId: "p1", title: "New", priority: "LOW" }))
+      .rejects.toThrow();
+    await expect(useCases.update(admin, "t1", { title: "Renamed" })).rejects.toThrow();
+    await expect(useCases.move(admin, "t1", { column: "DONE", position: 0 })).rejects.toThrow();
+    await expect(useCases.delete(admin, "t1")).rejects.toThrow();
+
+    expect(published).toEqual([]);
+  });
+
+  it("publishes the move's own placement, not a re-read", async () => {
+    const { useCases, published } = fixture({ tasks: [
+      task({ id: "t1", column: "IDEA", position: 0 }),
+      task({ id: "t2", column: "DONE", position: 0 }),
+    ] });
+
+    await useCases.move(admin, "t1", { column: "DONE", position: 0 });
+
+    const event = published[0]!;
+    expect(event.kind).toBe("task.moved");
+    // The repository reads run outside the transaction and would still report
+    // the card in IDEA; the event must carry where the move actually put it.
+    expect(event).toMatchObject({ task: { id: "t1", column: "DONE", position: 0 } });
+  });
+
+  it("carries the project a task was moved under, so delivery can be filtered", async () => {
+    const { useCases, published } = fixture({ tasks: [task({ id: "t1", projectId: "p1" })] });
+    await useCases.update(admin, "t1", { title: "Renamed" });
+    expect(published[0]).toMatchObject({ orgId: "org1", projectId: "p1" });
   });
 });

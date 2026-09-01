@@ -63,6 +63,7 @@ describe("hexagonal architecture boundaries", () => {
         ["zod", /from\s+["']zod["']/],
         ["@prisma/client", /from\s+["']@prisma\/client["']/],
         ["@aws-sdk", /from\s+["']@aws-sdk\//],
+        ["ws", /from\s+["']ws["']/],
         ["a process global", /\bprocess\.(env|argv|exit)\b/],
       ] as const) {
         if (pattern.test(source)) offenders.push(`${file}: imports ${label}`);

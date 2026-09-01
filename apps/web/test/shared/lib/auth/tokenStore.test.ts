@@ -6,15 +6,17 @@ import {
 beforeEach(() => localStorage.clear());
 
 describe("tokenStore", () => {
-  it("round-trips a pair", () => {
+  it("never persists a token pair", () => {
     writeTokens({ accessToken: "a", refreshToken: "r" });
-    expect(readTokens()).toEqual({ accessToken: "a", refreshToken: "r" });
+    expect(readTokens()).toEqual({});
+    expect(localStorage.getItem("adpulse.accessToken")).toBeNull();
+    expect(localStorage.getItem("adpulse.refreshToken")).toBeNull();
   });
 
-  it("replaces only the access token", () => {
+  it("does not persist a replacement access token", () => {
     writeTokens({ accessToken: "a", refreshToken: "r" });
     writeAccessToken("a2");
-    expect(readTokens()).toEqual({ accessToken: "a2", refreshToken: "r" });
+    expect(readTokens()).toEqual({});
   });
 
   it("returns an empty object when nothing is stored", () => {
@@ -31,5 +33,11 @@ describe("tokenStore", () => {
     expect(hasSession()).toBe(false);
     writeTokens({ accessToken: "a", refreshToken: "r" });
     expect(hasSession()).toBe(true);
+  });
+
+  it("removes legacy admin credentials", () => {
+    localStorage.setItem("admin_credentials", "secret");
+    readTokens();
+    expect(localStorage.getItem("admin_credentials")).toBeNull();
   });
 });

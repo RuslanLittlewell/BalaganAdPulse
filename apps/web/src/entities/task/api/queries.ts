@@ -1,7 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TASK_COLUMNS, tasksApi, type Task, type TaskColumn, type TaskInput, type TaskMove } from "./api.js";
 
-const TASKS_KEY = ["tasks"] as const;
+export const TASKS_KEY = ["tasks"] as const;
+
+/** What the server publishes over the socket. Mirrors the API's own union. */
+export type TaskEvent =
+  | { kind: "task.created"; orgId: string; projectId: string; task: Task }
+  | { kind: "task.updated"; orgId: string; projectId: string; task: Task }
+  | { kind: "task.moved"; orgId: string; projectId: string; task: Task }
+  | { kind: "task.deleted"; orgId: string; projectId: string; taskId: string };
 
 export function useTasks(projectId?: string) {
   return useQuery({
@@ -64,7 +71,69 @@ export function useMoveTask() {
     onError: (_error, _variables, context) => {
       for (const [key, tasks] of context?.snapshots ?? []) qc.setQueryData(key, tasks);
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: TASKS_KEY }),
+    // The server's own row, folded in through the same reducer a socket event
+    // uses — so the optimistic guess is replaced by what was actually stored.
+    //
+    // Deliberately not an invalidation. A refetch here tells the mover nothing
+    // they do not already have, and costs one request per drop per person on
+    // the board, which is worst exactly when the board is busiest. Everyone
+    // else learns about this move over the socket; a member whose socket was
+    // down catches up on the refetch that follows a reconnect.
+    onSuccess: (moved) => {
+      for (const [key, tasks] of qc.getQueriesData<Task[]>({ queryKey: TASKS_KEY })) {
+        if (!tasks) continue;
+        qc.setQueryData<Task[]>(key, applyTaskEvent(tasks, {
+          kind: "task.moved", orgId: moved.orgId, projectId: moved.projectId, task: moved,
+        }));
+      }
+    },
+  });
+}
+
+/**
+ * A change another member made, folded into the board this one is holding.
+ *
+ * The event is authoritative about the card it names; the cards around it are
+ * renumbered here with the same arithmetic the optimistic path uses, so a move
+ * that arrives over the socket and a move made locally leave the board in the
+ * same state. That also makes it idempotent: the mover receives their own
+ * event, and applying it must confirm the board rather than shuffle it again.
+ */
+export function applyTaskEvent(tasks: Task[], event: TaskEvent): Task[] {
+  if (event.kind === "task.deleted") {
+    const removed = tasks.find((task) => task.id === event.taskId);
+    if (!removed) return tasks;
+    // Close the gap, or the next drop computes against a column numbered 1,2
+    // with no 0 and lands somewhere nobody aimed at.
+    return renumber(tasks.filter((task) => task.id !== event.taskId), removed.column);
+  }
+
+  const known = tasks.some((task) => task.id === event.task.id);
+  // A card can arrive by being moved into a column this board is showing, not
+  // only by being created — treat an unknown id as an addition either way.
+  if (!known) return renumber([...tasks, event.task], event.task.column);
+
+  const before = tasks.find((task) => task.id === event.task.id)!;
+  const withTask = tasks.map((task) => (task.id === event.task.id ? event.task : task));
+  if (event.kind === "task.updated" && before.column === event.task.column) return withTask;
+
+  // Renumber the column it left as well as the one it joined.
+  return renumber(renumber(withTask, before.column, event.task.id), event.task.column);
+}
+
+/**
+ * Rewrites one column as a dense 0..n-1 sequence, honouring the position the
+ * event asked for. `pinned` is excluded, so the column a card left closes up
+ * without the card being counted back into it.
+ */
+function renumber(tasks: Task[], column: TaskColumn, pinned?: string): Task[] {
+  const ordered = tasks
+    .filter((task) => task.column === column && task.id !== pinned)
+    .sort((a, b) => a.position - b.position);
+  const positions = new Map(ordered.map((task, index) => [task.id, index]));
+  return tasks.map((task) => {
+    const position = positions.get(task.id);
+    return position === undefined || task.position === position ? task : { ...task, position };
   });
 }
 

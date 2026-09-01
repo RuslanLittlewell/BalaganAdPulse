@@ -1,10 +1,14 @@
 import type { Role } from "@adpulse/access-policy";
 
+export type RegistrationType = "CLIENT" | "EMPLOYEE";
+
 export interface Invite {
   readonly id: string;
   readonly orgId: string;
   readonly code: string;
-  readonly role: Role;
+  readonly registrationType: RegistrationType;
+  readonly role: Role | null;
+  readonly projectIds: readonly string[];
   /** When set, only a registration using this address may redeem it. */
   readonly email: string | null;
   readonly expiresAt: Date | null;

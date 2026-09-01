@@ -49,8 +49,7 @@ const UNAUTHENTICATED = { authenticated: false };
 export const authApi = {
   login: (body: LoginBody) => http.post<TokenPair>("/auth/login", body, UNAUTHENTICATED),
   register: (body: RegisterBody) => http.post<TokenPair>("/auth/register", body, UNAUTHENTICATED),
-  logout: (refreshToken: string) =>
-    http.post<void>("/auth/logout", { refreshToken }, UNAUTHENTICATED),
+  logout: () => http.post<void>("/auth/logout", {}, UNAUTHENTICATED),
   session: () => http.get<AuthSession>("/auth/me"),
   profile: () => http.get<UserProfile>("/user/profile"),
   saveAvatar: (png: Blob, avatarPath: string) => {

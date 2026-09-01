@@ -67,9 +67,21 @@ export interface AccessRepository {
   listFor(membershipId: string): Promise<Array<AccessGrant & { membershipId: string }>>;
 }
 
+/**
+ * A member's picture, by the account behind the membership.
+ *
+ * Raw bytes rather than a data URL: this is served as an image, and a member
+ * list carries a marker only — the pictures themselves would make listing the
+ * team as heavy as the number of people in it.
+ */
+export interface MemberAvatarStorage {
+  readAvatar(userId: string): Promise<Uint8Array | null>;
+}
+
 export interface MemberManagementDependencies {
   readonly directory: MemberDirectory;
   readonly access: AccessRepository;
+  readonly avatars: MemberAvatarStorage;
   readonly unitOfWork: UnitOfWork;
 }
 

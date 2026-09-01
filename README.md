@@ -232,6 +232,27 @@ token and renders them from object URLs, because an `<img src>` pointing at the 
 carry no credentials. An upload whose dialog was cancelled stays recorded with no task, so
 it can be found and reclaimed later.
 
+The board is shared work, so it updates live. A committed task change is published to
+`/api/realtime`, a WebSocket sharing the HTTP server and authenticated by the same HttpOnly
+session cookie as the REST API — the browser attaches it to the upgrade request, so no token
+is sent by the page or written into a URL. Delivery is decided per event and per connection,
+in the order the REST path uses: organization, then the `task.read` verb, then project reach.
+A member who cannot reach a task receives nothing about it, which is the socket's equivalent
+of the 404 the REST path gives instead of a 403. Entitlement is re-resolved for every event
+rather than captured at connect time, so a revoked grant takes effect on the next event
+instead of whenever the socket happens to reconnect.
+
+Because other members' changes arrive on their own, the board does not refetch after a move;
+the mutation's response is authoritative. A dropped connection is retried with a widening
+delay and refetches the board once on reconnecting, which is what covers events published
+while it was down — they are not replayed.
+
+The connection registry is in-process, so this is correct for a single API instance. Running
+more than one would leave a member connected to instance A unaware of a change committed
+through instance B; a shared broker (Postgres `LISTEN/NOTIFY` is the smallest step) is needed
+before the board can be trusted across instances. Until then the board still converges on
+reconnect and on reload.
+
 Business mutations append an `AuditEvent` in the same database transaction as the
 change. Events retain the actor's name, email and role as they were at write time and are
 read through a scoped, cursor-paginated endpoint. The web app opens that history for the

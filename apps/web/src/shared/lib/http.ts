@@ -16,15 +16,14 @@ interface ErrorEnvelope {
   error?: { message?: string; details?: unknown[] };
 }
 
-async function send(path: string, init: RequestInit | undefined, token: string | null) {
+async function send(path: string, init: RequestInit | undefined, _token: string | null) {
   const isForm = init?.body instanceof FormData;
   return fetch(`/api${path}`, {
     ...init,
+    credentials: "include",
     headers: {
       ...(!isForm ? { "Content-Type": "application/json" } : {}),
       ...init?.headers,
-      // Last, so a caller-supplied header can never unset the token.
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });
 }

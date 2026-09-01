@@ -110,6 +110,10 @@ export async function signInAs(
 
 export interface InviteOptions {
   role?: Role;
+  /** The projects an employee invitation grants. An employee invitation with
+   * none is historical — it predates project scoping — so the ordinary list
+   * leaves it out; pass at least one to create an actionable invitation. */
+  projectIds?: string[];
   email?: string;
   expiresAt?: Date | null;
   revokedAt?: Date | null;
@@ -123,7 +127,9 @@ export async function createInvite(
   code: string,
   options: InviteOptions = {},
 ): Promise<{ id: string; code: string; role: Role }> {
-  const { role = "MANAGER", email, expiresAt, revokedAt, usedAt, createdById } = options;
+  const {
+    role = "MANAGER", projectIds, email, expiresAt, revokedAt, usedAt, createdById,
+  } = options;
   const invite = await prisma.invite.create({
     data: {
       orgId: (await currentOrg()).id,
@@ -134,6 +140,9 @@ export async function createInvite(
       revokedAt: revokedAt ?? null,
       usedAt: usedAt ?? null,
       createdById,
+      ...(projectIds?.length
+        ? { projects: { create: projectIds.map((projectId) => ({ projectId })) } }
+        : {}),
     },
   });
   return { id: invite.id, code: invite.code, role: invite.role };

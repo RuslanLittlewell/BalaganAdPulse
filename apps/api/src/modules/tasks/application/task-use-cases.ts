@@ -11,6 +11,7 @@ import {
 } from "../domain/board.js";
 import { collectImageIds } from "../domain/description.js";
 import type { TaskChange, TaskDependencies, TaskDescription, TaskRecord } from "./ports.js";
+import { taskCreated, taskDeleted, taskMoved, taskUpdated } from "./task-events.js";
 
 export interface CreateTaskInput {
   readonly projectId: string;
@@ -95,7 +96,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
       await assertAssignable(actor, input.assigneeId);
 
       const column = input.column ?? DEFAULT_TASK_COLUMN;
-      return dependencies.unitOfWork.run(async (transaction) => {
+      const created = await dependencies.unitOfWork.run(async (transaction) => {
         const task = await dependencies.tasks.create(transaction, {
           id: dependencies.ids.generate(),
           projectId: input.projectId,
@@ -121,6 +122,10 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
         }, actor);
         return { ...task, imageIds };
       });
+      // After the commit, never inside it: an event for work that then rolled
+      // back would leave every recipient holding a task that never existed.
+      dependencies.events.publish(taskCreated(created));
+      return created;
     },
 
     update: async (actor: ActorContext, id: string, input: TaskChange): Promise<TaskRecord> => {
@@ -130,23 +135,25 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
       const context = await projectContext(actor, input.projectId ?? task.projectId);
       await assertAssignable(actor, input.assigneeId);
 
-      return dependencies.unitOfWork.run(async (transaction) => {
-        const updated = await dependencies.tasks.update(transaction, id, {
+      const updated = await dependencies.unitOfWork.run(async (transaction) => {
+        const changed = await dependencies.tasks.update(transaction, id, {
           ...input,
           ...(input.title === undefined ? {} : { title: input.title.trim() }),
         });
         const imageIds = input.description === undefined
-          ? updated.imageIds
+          ? changed.imageIds
           : await dependencies.images.claim(
-              transaction, id, actor.membershipId, collectImageIds(updated.description),
+              transaction, id, actor.membershipId, collectImageIds(changed.description),
             );
         await dependencies.audit.append(transaction, {
           action: "UPDATE", entityType: "task", entityId: id,
-          clientId: context.clientId, projectId: updated.projectId,
-          summary: `Updated task “${updated.title}”`,
+          clientId: context.clientId, projectId: changed.projectId,
+          summary: `Updated task “${changed.title}”`,
         }, actor);
-        return { ...updated, imageIds };
+        return { ...changed, imageIds };
       });
+      dependencies.events.publish(taskUpdated(updated));
+      return updated;
     },
 
     delete: async (actor: ActorContext, id: string): Promise<void> => {
@@ -175,6 +182,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
       // After the commit: an object removed for a delete that then rolled back
       // would leave a saved task pointing at nothing.
       await dependencies.imageStorage.remove(images.map((image) => image.storageKey));
+      dependencies.events.publish(taskDeleted(task));
     },
 
     /**
@@ -189,7 +197,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
       assertColumn(input.column);
       const context = await projectContext(actor, task.projectId);
 
-      return dependencies.unitOfWork.run(async (transaction) => {
+      const moved = await dependencies.unitOfWork.run(async (transaction) => {
         if (task.column !== input.column) {
           const source = reorderAfterRemoval(
             await dependencies.tasks.columnIds(actor.orgId, task.column), id,
@@ -212,6 +220,10 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
         // the card where it started.
         return { ...task, column: input.column, position: target.indexOf(id) };
       });
+      // The same value the caller is handed, so the event and the response
+      // cannot disagree about where the card ended up.
+      dependencies.events.publish(taskMoved(moved));
+      return moved;
     },
   };
 }

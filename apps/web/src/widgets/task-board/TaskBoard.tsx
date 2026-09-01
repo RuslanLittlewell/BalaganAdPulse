@@ -18,6 +18,7 @@ import {
   placementFor,
   resolveDrop,
   useMoveTask,
+  useTaskEvents,
   useTasks,
   type Task,
   type TaskColumn,
@@ -34,12 +35,19 @@ import { TaskColumnPanel } from "./TaskColumn.js";
 export interface TaskBoardProps {
   projectId?: string;
   onOpen?: (task: Task) => void;
+  /** Opens the create dialog for one column. Supplied by the page, which owns
+   * the dialog; the button appears only when the member may create. */
+  onCreate?: (column: TaskColumn) => void;
 }
 
-export function TaskBoard({ projectId, onOpen }: TaskBoardProps) {
+export function TaskBoard({ projectId, onOpen, onCreate }: TaskBoardProps) {
   const { data: tasks, isLoading, isError } = useTasks(projectId);
+  // Other people are dragging the same cards. Without this the board only ever
+  // shows this member's own changes until the page is reloaded.
+  useTaskEvents();
   const move = useMoveTask();
   const draggable = useCan("update", "task");
+  const creatable = useCan("create", "task");
   const { data: projects } = useProjects();
   const { data: members } = useMembers();
   const [moveError, setMoveError] = useState<string | null>(null);
@@ -139,6 +147,7 @@ export function TaskBoard({ projectId, onOpen }: TaskBoardProps) {
             projects={projectById}
             members={memberById}
             onOpen={onOpen}
+            onCreate={creatable && onCreate ? onCreate : undefined}
           />
         ))}
       </div>

@@ -1,5 +1,4 @@
-import { decodeAccessToken, isExpired } from "./jwt.js";
-import { clearTokens, hasSession, readTokens, writeAccessToken } from "./tokenStore.js";
+import { clearTokens, hasSession } from "./tokenStore.js";
 
 export class SessionExpiredError extends Error {
   constructor() {
@@ -52,20 +51,19 @@ function endSessionAndFail(): never {
   throw new SessionExpiredError();
 }
 
-/** Renewal in progress, shared by every caller. A page load with an expired
- * token fires several requests at once, and without this each of them would
- * open its own renewal. */
+/** Renewal in progress, shared by every caller. Several simultaneous 401s
+ * must produce one refresh-cookie request. */
 let inFlight: Promise<string> | null = null;
 
 async function runRefresh(): Promise<string> {
-  const { refreshToken } = readTokens();
-  if (!refreshToken) endSessionAndFail();
+  if (!hasSession()) endSessionAndFail();
   // A bare fetch on purpose: going through lib/http.ts would make this call's
   // own 401 trigger a renewal, which would trigger a renewal.
   const res = await fetch("/api/auth/refresh", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refreshToken }),
+    credentials: "include",
+    body: "{}",
   });
   // Only 401/403 mean the session itself is dead. Before the per-address
   // rate limiter this phase added, refresh could only answer 200 or 401, so
@@ -74,10 +72,9 @@ async function runRefresh(): Promise<string> {
   // this refresh token, and must not destroy it.
   if (res.status === 401 || res.status === 403) endSessionAndFail();
   if (!res.ok) throw new RefreshUnavailableError(res.status);
-  const { accessToken } = (await res.json()) as { accessToken: string };
-  writeAccessToken(accessToken);
-  renewalListeners.forEach((listener) => listener(accessToken));
-  return accessToken;
+  await res.json();
+  renewalListeners.forEach((listener) => listener("cookie-session"));
+  return "cookie-session";
 }
 
 export function forceRefresh(): Promise<string> {
@@ -89,15 +86,8 @@ export function forceRefresh(): Promise<string> {
   return inFlight;
 }
 
-/** The token to send with the next request, renewing first if the stored one
- * is stale. `null` means there is no session and the request goes out bare —
- * which is exactly what sign-in and sign-up need. */
+/** Returns only an opaque session signal. The actual token never enters
+ * JavaScript and is attached by the browser as an HttpOnly cookie. */
 export async function ensureFreshToken(): Promise<string | null> {
-  const { accessToken, refreshToken } = readTokens();
-  if (accessToken) {
-    const payload = decodeAccessToken(accessToken);
-    if (payload && !isExpired(payload)) return accessToken;
-  }
-  if (!refreshToken) return null;
-  return forceRefresh();
+  return hasSession() ? "cookie-session" : null;
 }

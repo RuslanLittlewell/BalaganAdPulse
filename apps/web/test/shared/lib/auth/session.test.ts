@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { http, HttpResponse } from "msw";
 import { server } from "@test/shared/index.js";
 import { makeAccessToken, makeExpiredAccessToken } from "@test/shared/index.js";
-import { writeTokens, readTokens } from "@/shared/lib/auth/tokenStore.js";
+import { writeTokens, readTokens, hasSession } from "@/shared/lib/auth/tokenStore.js";
 import {
   ensureFreshToken,
   forceRefresh,
@@ -15,31 +15,32 @@ import {
 beforeEach(() => localStorage.clear());
 
 describe("ensureFreshToken", () => {
-  it("returns the stored token when it is still fresh", async () => {
+  it("reports an opaque cookie session without exposing its token", async () => {
     const accessToken = makeAccessToken();
     writeTokens({ accessToken, refreshToken: "r" });
-    expect(await ensureFreshToken()).toBe(accessToken);
+    expect(await ensureFreshToken()).toBe("cookie-session");
+    expect(readTokens()).toEqual({});
   });
 
   it("returns null when there is no session at all", async () => {
     expect(await ensureFreshToken()).toBeNull();
   });
 
-  it("renews an expired token and stores the new one", async () => {
+  it("does not decode or renew tokens in JavaScript", async () => {
     server.use(http.post("/api/auth/refresh", () =>
       HttpResponse.json({ accessToken: makeAccessToken({ name: "Renewed" }) })));
     writeTokens({ accessToken: makeExpiredAccessToken(), refreshToken: "r" });
 
     const token = await ensureFreshToken();
-    expect(token).toBe(readTokens().accessToken);
-    expect(token).not.toBeNull();
+    expect(token).toBe("cookie-session");
+    expect(readTokens()).toEqual({});
   });
 
   it("renews when the access token is missing but a refresh token is not", async () => {
     server.use(http.post("/api/auth/refresh", () =>
       HttpResponse.json({ accessToken: makeAccessToken() })));
-    localStorage.setItem("adpulse.refreshToken", "r");
-    await expect(ensureFreshToken()).resolves.toBeTruthy();
+    localStorage.setItem("adpulse.hasSession", "1");
+    await expect(ensureFreshToken()).resolves.toBe("cookie-session");
   });
 });
 
@@ -94,7 +95,7 @@ describe("forceRefresh", () => {
     await forceRefresh();
 
     expect(listener).toHaveBeenCalledOnce();
-    expect(listener).toHaveBeenCalledWith(renewed);
+    expect(listener).toHaveBeenCalledWith("cookie-session");
   });
 
   it("stops notifying an onTokenRenewed listener after it unsubscribes", async () => {
@@ -138,7 +139,8 @@ describe("forceRefresh", () => {
 
     await expect(forceRefresh()).rejects.toThrow(RefreshUnavailableError);
 
-    expect(readTokens()).toEqual({ accessToken, refreshToken: "r" });
+    expect(readTokens()).toEqual({});
+    expect(hasSession()).toBe(true);
     expect(listener).not.toHaveBeenCalled();
   });
 

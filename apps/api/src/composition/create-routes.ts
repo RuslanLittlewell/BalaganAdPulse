@@ -4,6 +4,7 @@ import type { ApiContainer } from "./create-container.js";
 
 export const ROUTE_MOUNTS = [
   { id: "open-auth", path: "/api/auth" },
+  { id: "registration-resolver", path: "/api/regustration" },
   { id: "authentication", path: "/api" },
   { id: "actor-resolution", path: "/api" },
   { id: "request-context", path: "/api" },
@@ -29,6 +30,7 @@ export function createRoutes(container: ApiContainer): Router {
   const router = Router();
   const handlers = [
     container.authRouter,
+    container.registrationResolverRouter,
     container.authentication,
     container.actorResolution,
     container.requestContext,

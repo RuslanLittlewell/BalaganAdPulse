@@ -49,7 +49,7 @@ describe("http", () => {
 describe("authenticated requests", () => {
   beforeEach(() => localStorage.clear());
 
-  it("sends the stored token", async () => {
+  it("sends no readable bearer token for a cookie session", async () => {
     const accessToken = makeAccessToken();
     writeTokens({ accessToken, refreshToken: "r" });
     let seen: string | null = null;
@@ -59,7 +59,7 @@ describe("authenticated requests", () => {
     }));
 
     await http.get("/clients");
-    expect(seen).toBe(`Bearer ${accessToken}`);
+    expect(seen).toBeNull();
   });
 
   it("sends no header when there is no session", async () => {
@@ -73,13 +73,11 @@ describe("authenticated requests", () => {
     expect(seen).toBeNull();
   });
 
-  it("renews before the request when the token is stale", async () => {
-    const renewed = makeAccessToken({ name: "Renewed" });
+  it("uses the cookie session without decoding a token in JavaScript", async () => {
     writeTokens({ accessToken: makeExpiredAccessToken(), refreshToken: "r" });
     server.use(
-      mock.post("/api/auth/refresh", () => HttpResponse.json({ accessToken: renewed })),
       mock.get("/api/clients", ({ request }) => {
-        expect(request.headers.get("authorization")).toBe(`Bearer ${renewed}`);
+        expect(request.headers.get("authorization")).toBeNull();
         return HttpResponse.json([]);
       }),
     );

@@ -7,7 +7,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { server } from "@test/shared/index.js";
 import { makeAccessToken } from "@test/shared/index.js";
 import { createQueryClient } from "@/shared/lib/index.js";
-import { readTokens } from "@/shared/lib/index.js";
+import { hasSession, readTokens } from "@/shared/lib/index.js";
 import { AuthProvider } from "@/features/auth/index.js";
 import { SignupPage } from "@/pages/signup/SignupPage.js";
 
@@ -66,7 +66,8 @@ describe("SignupPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Создать аккаунт" }));
 
     expect(await screen.findByText("dashboard")).toBeInTheDocument();
-    expect(readTokens().refreshToken).toBe("r");
+    expect(readTokens()).toEqual({});
+    expect(hasSession()).toBe(true);
   });
 
   it("shows the invite-code rejection above the form", async () => {

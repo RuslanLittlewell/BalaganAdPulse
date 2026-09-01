@@ -7,22 +7,22 @@ import { MemoryRouter } from "react-router-dom";
 import { server } from "@test/shared/index.js";
 import { renderWithProviders } from "@test/shared/index.js";
 import { createQueryClient } from "@/shared/lib/index.js";
-import { readTokens, clearTokens } from "@/shared/lib/index.js";
+import { readTokens, clearTokens, writeTokens } from "@/shared/lib/index.js";
 import { AuthProvider } from "@/features/auth/model/AuthProvider.js";
 import { UserMenu } from "@/features/auth/ui/user-menu/UserMenu.js";
 
 beforeEach(() => localStorage.clear());
 
 describe("UserMenu", () => {
-  it("shows the signed-in name", () => {
+  it("shows the signed-in name", async () => {
     renderWithProviders(<UserMenu />);
-    expect(screen.getByText("Buyer")).toBeInTheDocument();
+    expect(await screen.findByText("Buyer")).toBeInTheDocument();
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
   it("opens the account actions", async () => {
     renderWithProviders(<UserMenu />);
-    await userEvent.click(screen.getByRole("button", { name: /Buyer/ }));
+    await userEvent.click(await screen.findByRole("button", { name: /Buyer/ }));
 
     expect(screen.getByRole("menuitem", { name: "Настройки" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Выйти" })).toBeInTheDocument();
@@ -32,16 +32,15 @@ describe("UserMenu", () => {
     server.use(http.post("/api/auth/logout", () => new HttpResponse(null, { status: 204 })));
     renderWithProviders(<UserMenu />);
 
-    await userEvent.click(screen.getByRole("button", { name: /Buyer/ }));
+    await userEvent.click(await screen.findByRole("button", { name: /Buyer/ }));
     await userEvent.click(screen.getByRole("menuitem", { name: "Выйти" }));
     expect(readTokens()).toEqual({});
   });
 
-  it("shows a loader when a session exists but the access token is not yet readable", () => {
-    // A refresh token with no access token: the rare start-up pause the
-    // design doc calls out, before the first silent renewal completes.
+  it("shows a loader while a cookie-backed session is being resolved", () => {
     clearTokens();
-    localStorage.setItem("adpulse.refreshToken", "r");
+    writeTokens({ accessToken: "server-cookie", refreshToken: "server-cookie" });
+    server.use(http.get("/api/auth/me", () => new Promise(() => {})));
 
     render(
       <QueryClientProvider client={createQueryClient()}>

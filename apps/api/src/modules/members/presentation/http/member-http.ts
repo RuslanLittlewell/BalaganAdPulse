@@ -19,6 +19,15 @@ export function createMemberRouter(useCases: MemberUseCases): Router {
   router.get("/", handle(async (req, res) => {
     res.json(await useCases.list(actorOf(req)));
   }));
+  router.get("/:id/avatar", handle(async (req: Request<{ id: string }>, res) => {
+    const png = await useCases.avatar(actorOf(req), req.params.id);
+    // Private: it is one organization's picture, and a shared cache must not
+    // hand it to anyone else. Still worth a browser cache — a board redraws
+    // these constantly.
+    res.set("Content-Type", "image/png");
+    res.set("Cache-Control", "private, max-age=300");
+    res.send(Buffer.from(png));
+  }));
   router.patch("/:id", handle(async (req: Request<{ id: string }>, res) => {
     const change = updateMemberSchema.parse(req.body);
     res.json(await useCases.update(actorOf(req), req.params.id, change));

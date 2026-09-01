@@ -3,8 +3,7 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { decodeAccessToken } from "@/shared/lib/index.js";
-import { readTokens, writeAccessToken, writeTokens } from "@/shared/lib/index.js";
+import { hasSession, writeTokens } from "@/shared/lib/index.js";
 import { endSession, onSessionExpired, onTokenRenewed } from "@/shared/lib/index.js";
 import { authApi, type LoginBody, type RegisterBody, type UpdateProfileBody, type UserProfile } from "../api.js";
 import type { OrganizationSummary } from "../api.js";
@@ -31,15 +30,10 @@ interface AuthValue {
 
 const AuthContext = createContext<AuthValue | null>(null);
 
-/** The signed-in user according to the stored access token. The payload of an
- * expired token still parses, which is why a name is on screen before the
- * first renewal rather than after it. */
+/** User identity is loaded from /auth/me; HttpOnly tokens are intentionally
+ * unavailable to React. */
 function currentUser(): AuthUser | null {
-  const { accessToken } = readTokens();
-  if (!accessToken) return null;
-  const payload = decodeAccessToken(accessToken);
-  if (!payload) return null;
-  return { id: payload.sub, name: payload.name, email: payload.email };
+  return null;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -72,14 +66,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => onSessionExpired(leave), [leave]);
 
   useEffect(() => {
-    if (currentUser()) void loadSession().catch(() => {});
+    if (hasSession()) void loadSession().catch(() => endSession());
   }, [loadSession]);
 
-  // A silent renewal (see lib/auth/session.ts) writes a new access token
-  // without anyone telling React; without this, `user` stays stale for the
-  // rest of the session even though a perfectly good token now exists.
+  // Profile data may change together with a renewed access cookie.
   useEffect(() => onTokenRenewed(() => {
-    setUser(currentUser());
     void loadSession().catch(() => {});
   }), [loadSession]);
 
@@ -90,7 +81,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clientIds,
     login: async (body) => {
       writeTokens(await authApi.login(body));
-      setUser(currentUser());
       // Identity just changed. Without this, the next person to sign in on
       // this laptop sees the previous user's clients until React Query
       // refetches.
@@ -99,17 +89,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     register: async (body) => {
       writeTokens(await authApi.register(body));
-      setUser(currentUser());
       queryClient.clear();
       await loadSession();
     },
     logout: async () => {
-      const { refreshToken } = readTokens();
-      if (refreshToken) {
+      if (hasSession()) {
         // A network failure must not trap someone in a session they asked to
         // leave; the local half below runs either way.
         try {
-          await authApi.logout(refreshToken);
+          await authApi.logout();
         } catch {
           // ignored on purpose
         }
@@ -121,9 +109,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       endSession();
     },
     updateProfile: async (body) => {
-      const { accessToken } = await authApi.updateProfile(body);
-      writeAccessToken(accessToken);
-      setUser(currentUser());
+      await authApi.updateProfile(body);
+      await loadSession();
     },
     loadProfile: authApi.profile,
     saveAvatar: async (png, avatarPath) => { await authApi.saveAvatar(png, avatarPath); },

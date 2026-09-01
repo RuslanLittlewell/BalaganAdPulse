@@ -8,9 +8,11 @@ import { PrismaRefreshSessionRepository, PrismaUserRepository } from "../modules
 import { ProfileStorageAdapter } from "../modules/identity/infrastructure/profile-storage-adapter.js";
 import { TokenAdapter } from "../modules/identity/infrastructure/token-adapter.js";
 import { createAuthentication } from "../modules/identity/presentation/http/authentication.js";
+import type { SessionPrincipal } from "../modules/identity/index.js";
 import { createIdentityHttpRouters } from "../modules/identity/presentation/http/identity-http.js";
 import {
   PrismaMembershipEnrolment,
+  PrismaInvitationProjectAccess,
   createActorResolution,
   createMemberRouter,
   createMemberUseCases,
@@ -45,6 +47,7 @@ import {
   createTaskRouter,
   createTaskUseCases,
 } from "../modules/tasks/index.js";
+import type { TaskEvent } from "../modules/tasks/index.js";
 import {
   PrismaTaskImageRepository,
   S3TaskImageStorage,
@@ -55,6 +58,9 @@ import {
   PrismaTaskProjectReach,
   PrismaTaskRepository,
 } from "../modules/tasks/infrastructure/prisma-task-repository.js";
+import { S3MemberAvatarStorage } from "../modules/members/infrastructure/member-avatar-storage.js";
+import { createConnectionRegistry, createTaskEventDelivery } from "../modules/realtime/index.js";
+import type { ConnectionRegistry } from "../modules/realtime/index.js";
 import {
   PrismaRecordRepository,
   PrismaValueRepository,
@@ -65,8 +71,14 @@ import {
   PrismaProjectReach,
   PrismaPropertyRepository,
 } from "../modules/campaigns/infrastructure/prisma-campaign-repositories.js";
-import { createInviteRouter, createInviteUseCases } from "../modules/invites/index.js";
+import {
+  CryptoInvitationCodeGenerator,
+  createInviteRouter,
+  createRegistrationResolverRouter,
+  createInviteUseCases,
+} from "../modules/invites/index.js";
 import { PrismaInviteRepository } from "../modules/invites/infrastructure/prisma-invite-repository.js";
+import { PrismaInvitationProjectReach } from "../modules/invites/infrastructure/prisma-invitation-project-reach.js";
 import { RandomIdGenerator } from "../shared/infrastructure/id-generator.js";
 import { SystemClock } from "../shared/infrastructure/clock.js";
 import { PrismaUnitOfWork } from "../shared/infrastructure/prisma-unit-of-work.js";
@@ -79,6 +91,7 @@ export interface ApiContainer {
   readonly sessionRouter: Router;
   readonly userRouter: Router;
   readonly inviteRouter: Router;
+  readonly registrationResolverRouter: Router;
   readonly memberRouter: Router;
   readonly auditRouter: Router;
   readonly projectCampaignRouter: Router;
@@ -91,6 +104,9 @@ export interface ApiContainer {
   readonly recordRouter: Router;
   readonly taskRouter: Router;
   readonly taskImageRouter: Router;
+  /** Not a route: the WebSocket transport attaches to these at startup. */
+  readonly connections: ConnectionRegistry;
+  readonly authenticate: (accessToken: string) => Promise<SessionPrincipal>;
 }
 
 /** Compatibility composition while legacy vertical slices are migrated. */
@@ -116,8 +132,11 @@ export function createContainer(): ApiContainer {
   const invites = createInviteUseCases({
     invites: new PrismaInviteRepository(prisma, unitOfWork),
     memberships: new PrismaMembershipEnrolment(unitOfWork),
+    projects: new PrismaInvitationProjectReach(prisma),
+    projectAccess: new PrismaInvitationProjectAccess(unitOfWork),
     clock,
     ids,
+    codes: new CryptoInvitationCodeGenerator(),
     unitOfWork,
   });
   const identity = createIdentityUseCases({
@@ -147,6 +166,7 @@ export function createContainer(): ApiContainer {
     clients: { reachableClientIds: clients.reachableIds },
     directory: new PrismaMemberDirectory(prisma, unitOfWork),
     access: new PrismaAccessRepository(prisma, unitOfWork),
+    avatars: new S3MemberAvatarStorage(),
     unitOfWork,
   });
   const campaignRepository = new PrismaCampaignRepository(prisma, unitOfWork, ids);
@@ -182,13 +202,30 @@ export function createContainer(): ApiContainer {
     unitOfWork,
   });
   const recordHttp = createRecordHttpRouters(records);
+  const taskProjectReach = new PrismaTaskProjectReach(prisma);
+  const connections = createConnectionRegistry();
+  const taskEventDelivery = createTaskEventDelivery({
+    registry: connections,
+    members,
+    projects: taskProjectReach,
+  });
   const taskDependencies = {
     tasks: new PrismaTaskRepository(prisma, unitOfWork),
     images: new PrismaTaskImageRepository(prisma, unitOfWork),
     imageStorage: new S3TaskImageStorage(),
-    projects: new PrismaTaskProjectReach(prisma),
+    projects: taskProjectReach,
     members: new PrismaTaskMemberReach(prisma),
     audit,
+    events: {
+      // Fire-and-forget on purpose: the write has already committed, and a
+      // delivery failure must not turn a successful change into an error.
+      // Delivery swallows its own failures, so this rejects only on a bug.
+      publish: (event: TaskEvent) => {
+        void taskEventDelivery.deliver(event).catch((error: unknown) => {
+          console.error("Failed to deliver task event:", error);
+        });
+      },
+    },
     ids,
     unitOfWork,
   };
@@ -220,6 +257,7 @@ export function createContainer(): ApiContainer {
     sessionRouter: createSessionRouter(members),
     userRouter: identityHttp.userRouter,
     inviteRouter: createInviteRouter(invites),
+    registrationResolverRouter: createRegistrationResolverRouter(invites),
     memberRouter: createMemberRouter(members),
     auditRouter: createAuditRouter(auditReader),
     projectCampaignRouter: campaignHttp.projectCampaignRouter,
@@ -232,5 +270,7 @@ export function createContainer(): ApiContainer {
     recordRouter: recordHttp.recordRouter,
     taskRouter: createTaskRouter(tasks),
     taskImageRouter: createTaskImageRouter(taskImages, taskImageUpload.single("image")),
+    connections,
+    authenticate: (token: string) => identity.authenticate(token),
   };
 }

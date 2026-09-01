@@ -18,6 +18,7 @@ function fixture(seed: readonly Partial<Invite>[] = []) {
   for (const [index, partial] of seed.entries()) {
     const invite: Invite = {
       id: `i${index}`, orgId: "org1", code: `code${index}`, role: "MANAGER", email: null,
+      registrationType: "EMPLOYEE", projectIds: ["project-1"],
       expiresAt: null, revokedAt: null, usedAt: null, usedById: null,
       createdById: "m-admin", createdAt: new Date(NOW.getTime() - index * 1000),
       ...partial,
@@ -38,6 +39,14 @@ function fixture(seed: readonly Partial<Invite>[] = []) {
       listByOrg: async (orgId) =>
         [...invites.values()].filter((invite) => invite.orgId === orgId)
           .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
+      listPendingByOrg: async (orgId, now, registrationType) =>
+        [...invites.values()].filter((invite) =>
+          invite.orgId === orgId
+          && invite.usedAt === null
+          && invite.revokedAt === null
+          && (invite.expiresAt === null || invite.expiresAt > now)
+          && (!registrationType || invite.registrationType === registrationType))
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
       findInOrg: async (orgId, id) => {
         const invite = invites.get(id);
         return invite && invite.orgId === orgId ? invite : null;
@@ -52,9 +61,12 @@ function fixture(seed: readonly Partial<Invite>[] = []) {
         return true;
       },
     },
-    memberships: { enrol: async (_tx, value) => { enrolled.push(value); } },
+    memberships: { enrol: async (_tx, value) => { enrolled.push(value); return "membership-new"; } },
+    projects: { allBelongToOrg: async () => true },
+    projectAccess: { grant: async () => undefined },
     clock: new FixedClock(NOW),
     ids: new DeterministicIdGenerator(["id-1", "id-2", "id-3", "code-1", "code-2", "code-3"]),
+    codes: new DeterministicIdGenerator(["code-1", "code-2", "code-3"]),
     unitOfWork: { run: (work) => work(context) },
   });
   return { useCases, invites, enrolled, context, createdCount: () => created };
@@ -63,7 +75,7 @@ function fixture(seed: readonly Partial<Invite>[] = []) {
 describe("creating an invitation", () => {
   it("stores the role it was asked for, pending and unclaimed", async () => {
     const { useCases } = fixture();
-    const invite = await useCases.create(admin, { role: "GUEST" });
+    const invite = await useCases.create(admin, { registrationType: "EMPLOYEE", role: "GUEST", projectIds: ["project-1"] });
     expect(invite).toMatchObject({
       orgId: "org1", role: "GUEST", email: null, expiresAt: null,
       usedAt: null, revokedAt: null, status: "PENDING", createdById: "m-admin",
@@ -72,39 +84,39 @@ describe("creating an invitation", () => {
 
   it("takes its id and code from the generator, so both are deterministic under test", async () => {
     const { useCases } = fixture();
-    const invite = await useCases.create(admin, { role: "MANAGER" });
+    const invite = await useCases.create(admin, { registrationType: "EMPLOYEE", role: "MANAGER", projectIds: ["project-1"] });
     expect(invite.id).toBe("id-1");
-    expect(invite.code).toBe("id-2");
+    expect(invite.code).toBe("code-1");
   });
 
   it("turns a day count into an expiry measured from the clock", async () => {
     const { useCases } = fixture();
-    const invite = await useCases.create(admin, { role: "MANAGER", expiresInDays: 7 });
+    const invite = await useCases.create(admin, { registrationType: "EMPLOYEE", role: "MANAGER", projectIds: ["project-1"], expiresInDays: 7 });
     expect(invite.expiresAt?.toISOString()).toBe("2026-09-08T12:00:00.000Z");
   });
 
   it("refuses a role that may not invite", async () => {
     const { useCases, createdCount } = fixture();
-    await expect(useCases.create(manager, { role: "GUEST" }))
+    await expect(useCases.create(manager, { registrationType: "EMPLOYEE", role: "GUEST", projectIds: ["project-1"] }))
       .rejects.toMatchObject({ category: "forbidden" });
     expect(createdCount()).toBe(0);
   });
 });
 
 describe("listing invitations", () => {
-  it("returns the organization's invitations newest first, with their status", async () => {
+  it("returns the organization's pending invitations newest first", async () => {
     const { useCases } = fixture([
       { id: "a", code: "older", createdAt: new Date(NOW.getTime() - 5000) },
       { id: "b", code: "newer", createdAt: NOW, usedAt: NOW },
     ]);
     const listed = await useCases.list(admin);
-    expect(listed.map((invite) => invite.code)).toEqual(["newer", "older"]);
-    expect(listed.map((invite) => invite.status)).toEqual(["USED", "PENDING"]);
+    expect(listed.map((invite) => invite.code)).toEqual(["older"]);
+    expect(listed.map((invite) => invite.status)).toEqual(["PENDING"]);
   });
 
-  it("reports an expiry that has passed as expired", async () => {
+  it("excludes an expiry that has passed", async () => {
     const { useCases } = fixture([{ id: "a", expiresAt: new Date(NOW.getTime() - 1) }]);
-    expect((await useCases.list(admin))[0].status).toBe("EXPIRED");
+    expect(await useCases.list(admin)).toEqual([]);
   });
 
   it("refuses a role that may not read invitations", async () => {

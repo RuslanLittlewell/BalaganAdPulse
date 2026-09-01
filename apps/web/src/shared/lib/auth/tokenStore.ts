@@ -1,38 +1,47 @@
-const ACCESS_KEY = "adpulse.accessToken";
-const REFRESH_KEY = "adpulse.refreshToken";
+const LEGACY_KEYS = ["admin_credentials", "adpulse.accessToken", "adpulse.refreshToken"];
+const SESSION_MARKER_KEY = "adpulse.hasSession";
 
 export interface TokenPair {
   accessToken: string;
   refreshToken: string;
 }
 
-/** Always read at the moment of use rather than cached at module load, so a
- * sign-in in this tab is visible to every later call. */
+function removeLegacyStorage(): void {
+  if (typeof localStorage === "undefined") return;
+  LEGACY_KEYS.forEach((key) => localStorage.removeItem(key));
+}
+
+// Run once on application startup as well as on every public operation, so an
+// old deployment's credentials disappear even before the user signs in again.
+removeLegacyStorage();
+
+/** Tokens are deliberately unreadable to the browser; this compatibility
+ * function remains temporarily while callers migrate away from TokenPair. */
 export function readTokens(): Partial<TokenPair> {
-  const accessToken = localStorage.getItem(ACCESS_KEY);
-  const refreshToken = localStorage.getItem(REFRESH_KEY);
-  return {
-    ...(accessToken ? { accessToken } : {}),
-    ...(refreshToken ? { refreshToken } : {}),
-  };
+  removeLegacyStorage();
+  return {};
 }
 
 export function writeTokens(pair: TokenPair): void {
-  localStorage.setItem(ACCESS_KEY, pair.accessToken);
-  localStorage.setItem(REFRESH_KEY, pair.refreshToken);
+  void pair;
+  removeLegacyStorage();
+  localStorage.setItem(SESSION_MARKER_KEY, "1");
 }
 
 export function writeAccessToken(token: string): void {
-  localStorage.setItem(ACCESS_KEY, token);
+  void token;
+  removeLegacyStorage();
 }
 
 export function clearTokens(): void {
-  localStorage.removeItem(ACCESS_KEY);
-  localStorage.removeItem(REFRESH_KEY);
+  removeLegacyStorage();
+  localStorage.removeItem(SESSION_MARKER_KEY);
 }
 
-/** The refresh token is what decides this, not the access token: an expired
- * access token is renewable, a missing refresh token is not. */
+/** A non-sensitive marker lets routing avoid a flash of the login page. The
+ * API still validates the HttpOnly cookie on every protected request. */
 export function hasSession(): boolean {
-  return localStorage.getItem(REFRESH_KEY) !== null;
+  removeLegacyStorage();
+  return localStorage.getItem(SESSION_MARKER_KEY) === "1"
+    || (typeof document !== "undefined" && /(?:^|;\s*)adpulse_session=1(?:;|$)/.test(document.cookie));
 }

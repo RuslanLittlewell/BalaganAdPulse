@@ -11,7 +11,7 @@ function setup() {
   );
 }
 
-const COLUMNS = ["Идея", "Архив", "В работе", "На исправление", "На проверке", "Готово"];
+const COLUMNS = ["Идея", "В работе", "На исправление", "На проверке", "Готово", "Архив"];
 
 describe("TaskBoard", () => {
   it("draws the six columns in the order the product asked for", async () => {

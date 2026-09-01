@@ -1,18 +1,24 @@
-import type { Invite as InviteRow, Prisma, PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import type { TransactionContext } from "../../../shared/application/index.js";
 import type { PrismaUnitOfWork } from "../../../shared/infrastructure/prisma-unit-of-work.js";
-import type { Invite } from "../domain/invite.js";
-import type { InviteRepository, NewInvite } from "../application/ports.js";
+import type { Invite, RegistrationType } from "../domain/invite.js";
+import { InvitationCodeConflictError, type InviteRepository, type NewInvite } from "../application/ports.js";
 
 /** The row and the domain type happen to line up field for field today. The
  * mapping is written out anyway so a column added to the schema does not leak
  * into the domain by accident. */
+type InviteRow = Prisma.InviteGetPayload<{ include: { projects: true } }>;
+
+const withProjects = { projects: true } as const;
+
 function toDomain(row: InviteRow): Invite {
   return {
     id: row.id,
     orgId: row.orgId,
     code: row.code,
+    registrationType: row.registrationType,
     role: row.role,
+    projectIds: row.projects.map(({ projectId }) => projectId),
     email: row.email,
     expiresAt: row.expiresAt,
     revokedAt: row.revokedAt,
@@ -34,13 +40,51 @@ export class PrismaInviteRepository implements InviteRepository {
   }
 
   async create(context: TransactionContext, input: NewInvite): Promise<Invite> {
-    return toDomain(await this.client(context).invite.create({ data: { ...input } }));
+    const { projectIds = [], registrationType = "EMPLOYEE", ...data } = input;
+    try {
+      return toDomain(await this.client(context).invite.create({
+        data: {
+          ...data,
+          registrationType,
+          projects: { create: projectIds.map((projectId) => ({ projectId })) },
+        },
+        include: withProjects,
+      }));
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError
+        && error.code === "P2002"
+        && Array.isArray(error.meta?.target)
+        && error.meta.target.includes("code")) {
+        throw new InvitationCodeConflictError();
+      }
+      throw error;
+    }
   }
 
   async listByOrg(orgId: string): Promise<Invite[]> {
     const rows = await this.prisma.invite.findMany({
       where: { orgId },
       orderBy: { createdAt: "desc" },
+      include: withProjects,
+    });
+    return rows.map(toDomain);
+  }
+
+  async listPendingByOrg(orgId: string, now: Date, type?: RegistrationType): Promise<Invite[]> {
+    const rows = await this.prisma.invite.findMany({
+      where: {
+        orgId,
+        usedAt: null,
+        revokedAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        ...(type ? { registrationType: type } : {}),
+        AND: [{ OR: [
+          { registrationType: "CLIENT" },
+          { registrationType: "EMPLOYEE", projects: { some: {} } },
+        ] }],
+      },
+      orderBy: { createdAt: "desc" },
+      include: withProjects,
     });
     return rows.map(toDomain);
   }
@@ -48,12 +92,12 @@ export class PrismaInviteRepository implements InviteRepository {
   /** Scoped to the organization, so an invitation belonging to another agency
    * is indistinguishable from one that does not exist. */
   async findInOrg(orgId: string, id: string): Promise<Invite | null> {
-    const row = await this.prisma.invite.findFirst({ where: { id, orgId } });
+    const row = await this.prisma.invite.findFirst({ where: { id, orgId }, include: withProjects });
     return row && toDomain(row);
   }
 
   async findByCode(context: TransactionContext, code: string): Promise<Invite | null> {
-    const row = await this.client(context).invite.findUnique({ where: { code } });
+    const row = await this.client(context).invite.findUnique({ where: { code }, include: withProjects });
     return row && toDomain(row);
   }
 

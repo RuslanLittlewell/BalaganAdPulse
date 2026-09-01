@@ -6,6 +6,7 @@ import { assertAvatarPath, assertAvatarPng } from "../../../../shared/presentati
 import { createRateLimit } from "../../../../shared/presentation/rate-limit.js";
 import type { IdentityUseCases } from "../../application/identity-use-cases.js";
 import { loginSchema, refreshSchema, registerSchema, updateProfileSchema } from "./identity-schemas.js";
+import { clearAuthCookies, readCookie, REFRESH_COOKIE, setAuthCookies } from "./auth-cookies.js";
 
 const resets = new Set<() => void>();
 export function resetIdentityRateLimits(): void { resets.forEach((reset) => reset()); }
@@ -25,13 +26,29 @@ export function createIdentityHttpRouters(useCases: IdentityUseCases) {
   const sessionLimit = createRateLimit({ windowMs: 900_000, limit: 60 });
   resets.add(() => { credentialLimit.reset(); sessionLimit.reset(); });
   const authRouter = Router();
-  authRouter.post("/register", credentialLimit, handle(async (req, res) => { res.status(201).json(await useCases.register(registerSchema.parse(req.body))); }));
-  authRouter.post("/login", credentialLimit, handle(async (req, res) => { res.json(await useCases.login(loginSchema.parse(req.body))); }));
-  authRouter.post("/refresh", sessionLimit, handle(async (req, res) => { const value = refreshSchema.parse(req.body); res.json(await useCases.refresh(value.refreshToken)); }));
-  authRouter.post("/logout", sessionLimit, handle(async (req, res) => { const value = refreshSchema.parse(req.body); await useCases.logout(value.refreshToken); res.status(204).send(); }));
+  authRouter.post("/register", credentialLimit, handle(async (req, res) => {
+    const tokens = await useCases.register(registerSchema.parse(req.body));
+    setAuthCookies(res, tokens); res.status(201).json(tokens);
+  }));
+  authRouter.post("/login", credentialLimit, handle(async (req, res) => {
+    const tokens = await useCases.login(loginSchema.parse(req.body));
+    setAuthCookies(res, tokens); res.json(tokens);
+  }));
+  authRouter.post("/refresh", sessionLimit, handle(async (req, res) => {
+    const refreshToken = readCookie(req, REFRESH_COOKIE) ?? refreshSchema.parse(req.body).refreshToken;
+    const tokens = await useCases.refresh(refreshToken);
+    setAuthCookies(res, tokens); res.json(tokens);
+  }));
+  authRouter.post("/logout", sessionLimit, handle(async (req, res) => {
+    const refreshToken = readCookie(req, REFRESH_COOKIE) ?? refreshSchema.parse(req.body).refreshToken;
+    await useCases.logout(refreshToken); clearAuthCookies(res); res.status(204).send();
+  }));
   const userRouter = Router();
   userRouter.get("/profile", handle(async (req, res) => { res.json(await useCases.profile(userId(req))); }));
-  userRouter.patch("/profile", handle(async (req, res) => { res.json(await useCases.updateProfile(userId(req), updateProfileSchema.parse(req.body))); }));
+  userRouter.patch("/profile", handle(async (req, res) => {
+    const tokens = await useCases.updateProfile(userId(req), updateProfileSchema.parse(req.body));
+    setAuthCookies(res, tokens); res.json(tokens);
+  }));
   userRouter.put("/avatar", avatarUpload.single("image"), handle(async (req, res) => {
     if (!req.file) throw new ValidationError("Avatar PNG is required");
     const avatarPath = String(req.body.avatarPath ?? "");

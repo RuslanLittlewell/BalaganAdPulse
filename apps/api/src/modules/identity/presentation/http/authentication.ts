@@ -1,6 +1,7 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { AppError } from "../../../../shared/domain/app-error.js";
 import type { SessionPrincipal } from "../../domain/identity-user.js";
+import { ACCESS_COOKIE, readCookie } from "./auth-cookies.js";
 
 const SCHEME = "Bearer ";
 
@@ -24,12 +25,15 @@ export interface AuthenticationPort {
 export function createAuthentication(identity: AuthenticationPort): RequestHandler {
   return function authenticate(req: Request, _res: Response, next: NextFunction): void {
     const header = req.header("authorization");
-    if (!header?.startsWith(SCHEME)) {
+    const accessToken = header?.startsWith(SCHEME)
+      ? header.slice(SCHEME.length)
+      : readCookie(req, ACCESS_COOKIE);
+    if (!accessToken) {
       next(new AppError("unauthorized", "Authentication required"));
       return;
     }
     identity
-      .authenticate(header.slice(SCHEME.length))
+      .authenticate(accessToken)
       .then((principal) => {
         req.principal = principal;
         next();

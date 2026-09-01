@@ -29,6 +29,9 @@ describe("Auth API", () => {
     expect(res.status).toBe(201);
     expect(res.body.accessToken).toBeTruthy();
     expect(res.body.refreshToken).toBeTruthy();
+    const cookies = res.headers["set-cookie"] as unknown as string[];
+    expect(cookies.some((cookie) => cookie.startsWith("adpulse_access=") && cookie.includes("HttpOnly"))).toBe(true);
+    expect(cookies.some((cookie) => cookie.startsWith("adpulse_refresh=") && cookie.includes("HttpOnly"))).toBe(true);
   });
 
   it("POST /api/auth/register with a wrong code -> 403", async () => {
@@ -119,5 +122,19 @@ describe("Auth API", () => {
       .send({ refreshToken: "already-revoked" });
     expect(res.status).toBe(204);
     expect(res.text).toBe("");
+  });
+
+  it("authenticates, refreshes and logs out through cookies", async () => {
+    const browser = request.agent(app);
+    await browser.post("/api/auth/register").send(body).expect(201);
+
+    await browser.get("/api/auth/me").expect(200);
+    await browser.post("/api/auth/refresh").send({}).expect(200);
+
+    const logout = await browser.post("/api/auth/logout").send({});
+    expect(logout.status).toBe(204);
+    const cookies = logout.headers["set-cookie"] as unknown as string[];
+    expect(cookies.every((cookie) => cookie.includes("Max-Age=0"))).toBe(true);
+    await browser.get("/api/auth/me").expect(401);
   });
 });

@@ -5,6 +5,7 @@ import type {
   UnitOfWork,
 } from "../../../shared/application/index.js";
 import type { AuditWriter } from "../../audit/index.js";
+import type { TaskEventPublisher } from "./task-events.js";
 import type { TaskColumn, TaskPriority } from "../domain/board.js";
 
 /** A ProseMirror document. Opaque here: the domain does not interpret it, and
@@ -83,6 +84,7 @@ export interface TaskDependencies {
   readonly projects: ProjectReach;
   readonly members: MemberReach;
   readonly audit: AuditWriter;
+  readonly events: TaskEventPublisher;
   readonly ids: IdGenerator;
   readonly unitOfWork: UnitOfWork;
 }

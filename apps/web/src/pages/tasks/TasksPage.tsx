@@ -4,9 +4,12 @@ import { TaskFormDialog } from "@/features/task-management/index.js";
 import { Can } from "@/features/permissions/index.js";
 import { Button, ConfirmDialog } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
-import { useDeleteTask, type Task } from "@/entities/task/index.js";
+import { useDeleteTask, type Task, type TaskColumn } from "@/entities/task/index.js";
 
-type Editing = { mode: "closed" } | { mode: "create" } | { mode: "edit"; task: Task };
+type Editing =
+  | { mode: "closed" }
+  | { mode: "create"; column?: TaskColumn }
+  | { mode: "edit"; task: Task };
 
 export function TasksPage() {
   const [editing, setEditing] = useState<Editing>({ mode: "closed" });
@@ -23,12 +26,16 @@ export function TasksPage() {
       </header>
 
       <div className="min-h-0 flex-1">
-        <TaskBoard onOpen={(task) => setEditing({ mode: "edit", task })} />
+        <TaskBoard
+          onOpen={(task) => setEditing({ mode: "edit", task })}
+          onCreate={(column) => setEditing({ mode: "create", column })}
+        />
       </div>
 
       {editing.mode !== "closed" ? (
         <TaskFormDialog
           task={editing.mode === "edit" ? editing.task : undefined}
+          column={editing.mode === "create" ? editing.column : undefined}
           onClose={() => setEditing({ mode: "closed" })}
           onDelete={(task) => { setEditing({ mode: "closed" }); setPendingDelete(task); }}
         />

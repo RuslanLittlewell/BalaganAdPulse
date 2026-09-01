@@ -1,5 +1,6 @@
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useDroppable } from "@dnd-kit/core";
+import { Plus } from "lucide-react";
 import type { Task, TaskColumn as Column } from "@/entities/task/index.js";
 import type { Membership } from "@/entities/membership/index.js";
 import type { Project } from "@/entities/project/index.js";
@@ -15,6 +16,9 @@ export interface TaskColumnProps {
   projects?: Map<string, Project>;
   members?: Map<string, Membership>;
   onOpen?: (task: Task) => void;
+  /** Offered only when the member may create a task. The column is named so
+   * the new task lands here rather than in the default one. */
+  onCreate?: (column: Column) => void;
 }
 
 const ACCENT: Record<Column, string> = {
@@ -27,7 +31,7 @@ const ACCENT: Record<Column, string> = {
 };
 
 export function TaskColumnPanel({
-  column, tasks, draggable, draggingId, projects, members, onOpen,
+  column, tasks, draggable, draggingId, projects, members, onOpen, onCreate,
 }: TaskColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column });
 
@@ -50,6 +54,22 @@ export function TaskColumnPanel({
         <span className="shrink-0 rounded-full bg-background px-2 py-0.5 text-xs font-medium text-muted-foreground ring-1 ring-inset ring-border">
           {tasks.length}
         </span>
+        {onCreate ? (
+          <button
+            type="button"
+            data-testid={`task-add-${column}`}
+            aria-label={`${t("tasks.create")}: ${t(`tasks.column.${column}`)}`}
+            title={t("tasks.create")}
+            className={cn(
+              "shrink-0 rounded-md p-1 text-muted-foreground transition-colors",
+              "hover:bg-background hover:text-foreground",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            )}
+            onClick={() => onCreate(column)}
+          >
+            <Plus aria-hidden className="size-4" />
+          </button>
+        ) : null}
       </header>
 
       <SortableContext items={tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>

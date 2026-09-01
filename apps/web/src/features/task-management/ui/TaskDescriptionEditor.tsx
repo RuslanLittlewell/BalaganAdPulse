@@ -1,5 +1,5 @@
 import type React from "react";
-import { useState } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { TaskImage } from "./TaskImageNode.js";
@@ -10,6 +10,11 @@ import { ApiError } from "@/shared/lib/index.js";
 export interface TaskDescriptionEditorProps {
   value: unknown | null;
   onChange: (value: unknown) => void;
+}
+
+export interface TaskDescriptionEditorHandle {
+  /** Drops every reference to one image from the text. */
+  removeImage(imageId: string): void;
 }
 
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -23,17 +28,62 @@ const ACCEPTED = ["image/png", "image/jpeg", "image/webp", "image/gif"];
  * member's token and shows them from an object URL, because an `<img src>`
  * pointing at the API would carry no credentials.
  */
-export function TaskDescriptionEditor({ value, onChange }: TaskDescriptionEditorProps) {
+export const TaskDescriptionEditor = forwardRef<
+  TaskDescriptionEditorHandle,
+  TaskDescriptionEditorProps
+>(function TaskDescriptionEditor({ value, onChange }, ref) {
   const [status, setStatus] = useState<string | null>(null);
+  // Captured on the first render and never updated. Rebuilding the editor when
+  // the value changes would tear down the DOM node holding the caret — which is
+  // exactly what made the first keystroke lose focus, since it is the keystroke
+  // that turns an empty description into a document.
+  const [initialContent] = useState(value);
+
+  // The editor reads these through a ref rather than through the closure it was
+  // built with, so the instance never has to be rebuilt to see a new one.
+  const report = useRef(onChange);
+  report.current = onChange;
+
   const editor = useEditor({
     extensions: [StarterKit, TaskImage],
-    content: (value as never) ?? "",
-    onUpdate: ({ editor: instance }) => onChange(instance.getJSON()),
+    // Read once, at mount. The dialog mounts a fresh editor per task, so this
+    // is always the description being opened.
+    content: (initialContent as never) ?? "",
+    onUpdate: ({ editor: instance }) => report.current(instance.getJSON()),
     editorProps: {
-      attributes: { "aria-label": t("tasks.form.description"), class: "min-h-32 p-3 outline-none" },
+      attributes: {
+        "aria-label": t("tasks.form.description"),
+        // Grows with the text, then scrolls: past this a long description
+        // pushes the dialog's own buttons out of reach.
+        class: "min-h-32 max-h-[400px] overflow-y-auto p-3 outline-none",
+      },
       handlePaste: (_view, event) => insertFrom(event.clipboardData?.files),
     },
-  }, [value === null]);
+  });
+
+  /**
+   * A command rather than a prop, because the editor is uncontrolled: it reads
+   * its content once so that the first keystroke cannot rebuild it and steal
+   * focus. Deleting an attachment therefore has to be pushed in, or the link
+   * stays on screen and saving writes the dead reference straight back.
+   */
+  useImperativeHandle(ref, () => ({
+    removeImage(imageId: string) {
+      if (!editor) return;
+      const positions: number[] = [];
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === "taskImage" && node.attrs.imageId === imageId) positions.push(pos);
+        return true;
+      });
+      if (positions.length === 0) return;
+      const transaction = editor.state.tr;
+      // Back to front: deleting shifts every position after it.
+      for (const pos of positions.reverse()) {
+        transaction.delete(transaction.mapping.map(pos), transaction.mapping.map(pos + 1));
+      }
+      editor.view.dispatch(transaction);
+    },
+  }), [editor]);
 
   function insertFrom(files: FileList | undefined | null): boolean {
     const file = files?.[0];
@@ -82,4 +132,4 @@ export function TaskDescriptionEditor({ value, onChange }: TaskDescriptionEditor
       {status ? <p role="status" className="border-t p-2 text-xs text-muted-foreground">{status}</p> : null}
     </div>
   );
-}
+});

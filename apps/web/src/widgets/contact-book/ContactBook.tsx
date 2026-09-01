@@ -6,13 +6,17 @@ import {
   Button,
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   EmptyState,
   ListItem,
   Loader,
+  Tabs,
 } from "@/shared/ui/index.js";
+import { InvitationDialog, InvitationList } from "@/features/invitations/index.js";
 import { ContactAvatar } from "./ContactAvatar.js";
+import { EmployeeDirectory } from "./EmployeeDirectory.js";
 import { ContactDetails } from "./ContactDetails.js";
 import { ContactForm } from "./ContactForm.js";
 import { Can } from "@/features/permissions/index.js";
@@ -24,6 +28,8 @@ export interface ContactBookProps {
 
 type Mode = { kind: "view" } | { kind: "edit" } | { kind: "create" };
 
+type Directory = "CLIENT" | "EMPLOYEE";
+
 /**
  * The client list and one client's details, side by side. The list is the
  * navigation and the right pane is the only thing that changes, so selection
@@ -32,6 +38,10 @@ type Mode = { kind: "view" } | { kind: "edit" } | { kind: "create" };
  * the plus opens the same form with nothing in it.
  */
 export function ContactBook({ open, onClose }: ContactBookProps) {
+  // Clients first, because that is what the contact book has always opened on
+  // and what most visits are for.
+  const [directory, setDirectory] = useState<Directory>("CLIENT");
+  const [inviting, setInviting] = useState(false);
   const clients = useClients();
   const [selectedId, setSelectedId] = useState<string>();
   const [mode, setMode] = useState<Mode>({ kind: "view" });
@@ -59,13 +69,29 @@ export function ContactBook({ open, onClose }: ContactBookProps) {
           <DialogTitle>{t("contacts.title")}</DialogTitle>
         </DialogHeader>
 
-        {clients.isPending && (
+        <Tabs
+          items={[
+            { id: "CLIENT", label: t("contacts.directory.clients") },
+            { id: "EMPLOYEE", label: t("contacts.directory.employees") },
+          ]}
+          activeId={directory}
+          onSelect={(id) => {
+            setDirectory(id as Directory);
+            // Switching directory abandons an edit rather than carrying it into
+            // a pane that has nothing to do with it.
+            setMode({ kind: "view" });
+          }}
+        />
+
+        {directory === "EMPLOYEE" && <EmployeeDirectory />}
+
+        {directory === "CLIENT" && clients.isPending && (
           <div className="grid place-items-center py-10">
             <Loader />
           </div>
         )}
 
-        {clients.isSuccess && (
+        {directory === "CLIENT" && clients.isSuccess && (
           <div className="grid min-h-[22rem] gap-4 sm:grid-cols-[20%_minmax(0,1fr)]">
             <div className="flex max-h-[60vh] flex-col gap-1 overflow-auto sm:pr-4">
               {list.map((client) => (
@@ -123,6 +149,11 @@ export function ContactBook({ open, onClose }: ContactBookProps) {
               {mode.kind === "view" && selected == null && (
                 <EmptyState title={t("contacts.empty")} />
               )}
+              {mode.kind === "view" && (
+                <div className="mt-4 border-t border-border pt-4">
+                  <InvitationList registrationType="CLIENT" />
+                </div>
+              )}
               {editing && (
                 <ContactForm
                   client={mode.kind === "edit" ? selected : undefined}
@@ -136,6 +167,24 @@ export function ContactBook({ open, onClose }: ContactBookProps) {
             </div>
           </div>
         )}
+        <DialogFooter data-testid="contact-book-footer">
+          <Can action="create" resource="invite">
+            <Button onClick={() => setInviting(true)}>
+              {directory === "EMPLOYEE"
+                ? t("invites.createEmployee")
+                : t("invites.createClient")}
+            </Button>
+          </Can>
+        </DialogFooter>
+
+        {/* Over the contact book rather than inside a pane: the form has a role,
+            a project list and its own validation, and what is behind it is the
+            list of who is already here. */}
+        <InvitationDialog
+          registrationType={directory}
+          open={inviting}
+          onClose={() => setInviting(false)}
+        />
       </DialogContent>
     </Dialog>
   );

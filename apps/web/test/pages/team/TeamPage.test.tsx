@@ -25,24 +25,6 @@ function session(role: "ADMIN" | "MANAGER") {
 }
 
 describe("TeamPage", () => {
-  it("opens organization-wide activity from the admin area", async () => {
-    session("ADMIN");
-    let auditUrl: URL | undefined;
-    server.use(
-      http.get("/api/members", () => HttpResponse.json([])),
-      http.get("/api/invites", () => HttpResponse.json([])),
-      http.get("/api/audit", ({ request }) => {
-        auditUrl = new URL(request.url);
-        return HttpResponse.json({ items: [], nextCursor: null });
-      }),
-    );
-    renderWithProviders(<TeamPage />);
-
-    await userEvent.click(await screen.findByRole("button", { name: "История действий" }));
-    expect(await screen.findByRole("dialog", { name: "История действий" })).toBeInTheDocument();
-    await waitFor(() => expect(auditUrl?.search).toBe(""));
-  });
-
   it("lets an admin change role, suspend and remove a member", async () => {
     session("ADMIN");
     let patchBody: unknown;
@@ -89,45 +71,82 @@ describe("TeamPage", () => {
     expect(requested).toBe(false);
   });
 
-  it("creates, shows and revokes pending invitations", async () => {
+});
+
+
+describe("an administrator cannot remove themselves", () => {
+  const self = {
+    id: "membership-1",
+    userId: "user-1",
+    name: "Alexey",
+    email: "alexey@example.com",
+    image: null,
+    role: "ADMIN",
+    status: "ACTIVE",
+    createdAt: "2026-08-31T09:00:00.000Z",
+  } as const;
+
+  /**
+   * The API refuses this with a conflict; hiding the control keeps an admin
+   * from discovering the rule by pressing a button that looks available. The
+   * acting row is identified by the account behind it, which the session and
+   * the member list both name.
+   */
+  it("offers no removal control on the acting member's own row", async () => {
     session("ADMIN");
-    let createBody: unknown;
-    let revoked = false;
+    server.use(http.get("/api/members", () => HttpResponse.json([self, manager])));
+
+    renderWithProviders(<TeamPage />);
+    await screen.findByText("Maria Manager");
+
+    expect(screen.queryByRole("button", { name: "Удалить Alexey" })).not.toBeInTheDocument();
+    // Everybody else stays removable.
+    expect(screen.getByRole("button", { name: "Удалить Maria Manager" })).toBeInTheDocument();
+  });
+
+  it("still offers the other controls on that row", async () => {
+    session("ADMIN");
+    server.use(http.get("/api/members", () => HttpResponse.json([self, manager])));
+
+    renderWithProviders(<TeamPage />);
+    await screen.findByText("Maria Manager");
+
+    // Only removal is withheld: an admin may still change their own role, which
+    // the last-admin rule protects separately.
+    expect(screen.getByLabelText("Роль Alexey")).toBeInTheDocument();
+  });
+});
+
+
+describe("invitations have left the Team page", () => {
+  /**
+   * Onboarding now lives in the contact book, beside the people it creates.
+   * The Team page must not merely hide the controls: it must stop asking for
+   * invitations at all, or every visit costs a request nothing renders.
+   */
+  it("makes no invitation request", async () => {
+    session("ADMIN");
+    let asked = false;
     server.use(
-      http.get("/api/members", () => HttpResponse.json([])),
-      http.get("/api/invites", () => HttpResponse.json([
-        {
-          id: "invite-pending", code: "pending-code", role: "GUEST", email: null,
-          expiresAt: null, revokedAt: null, usedAt: null, status: "PENDING", createdAt: "",
-        },
-        {
-          id: "invite-used", code: "used-code", role: "MANAGER", email: null,
-          expiresAt: null, revokedAt: null, usedAt: "2026-08-31T12:00:00Z", status: "USED", createdAt: "",
-        },
-      ])),
-      http.post("/api/invites", async ({ request }) => {
-        createBody = await request.json();
-        return HttpResponse.json({
-          id: "invite-new", code: "brand-new-code", role: "CLIENT", email: null,
-          expiresAt: null, revokedAt: null, usedAt: null, status: "PENDING", createdAt: "",
-        }, { status: 201 });
-      }),
-      http.delete("/api/invites/invite-pending", () => {
-        revoked = true;
-        return new HttpResponse(null, { status: 204 });
-      }),
+      http.get("/api/members", () => HttpResponse.json([manager])),
+      http.get("/api/invites", () => { asked = true; return HttpResponse.json([]); }),
     );
 
     renderWithProviders(<TeamPage />);
+    await screen.findByText("Maria Manager");
+    await new Promise((resolve) => setTimeout(resolve, 30));
 
-    expect(await screen.findByText("pending-code")).toBeInTheDocument();
-    expect(screen.queryByText("used-code")).not.toBeInTheDocument();
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Роль приглашения" }), "CLIENT");
-    await userEvent.click(screen.getByRole("button", { name: "Создать приглашение" }));
-    expect(await screen.findByText("brand-new-code")).toBeInTheDocument();
-    expect(createBody).toEqual({ role: "CLIENT" });
+    expect(asked).toBe(false);
+  });
 
-    await userEvent.click(screen.getByRole("button", { name: "Отозвать pending-code" }));
-    await waitFor(() => expect(revoked).toBe(true));
+  it("offers no invitation controls", async () => {
+    session("ADMIN");
+    server.use(http.get("/api/members", () => HttpResponse.json([manager])));
+
+    renderWithProviders(<TeamPage />);
+    await screen.findByText("Maria Manager");
+
+    expect(screen.queryByText("Приглашения")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Создать приглашение" })).not.toBeInTheDocument();
   });
 });

@@ -1,5 +1,6 @@
 import { http as mock, HttpResponse } from "msw";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Routes, Route } from "react-router-dom";
 import { aTask, renderWithProviders, server } from "@test/shared/index.js";
 import { TaskBoard } from "@/widgets/task-board/index.js";
@@ -195,5 +196,101 @@ describe("what a card shows without being opened", () => {
     expect(await screen.findByTestId("task-project-task-1")).toHaveTextContent("Летний запуск");
     expect(await screen.findByTestId("task-assignee-task-1")).toHaveAttribute("title", "Пётр");
     expect(await screen.findByTestId("task-attachments-task-1")).toBeInTheDocument();
+  });
+});
+
+
+describe("the card's anatomy", () => {
+  it("shows the priority in the card's top corner, beside the title", () => {
+    renderWithProviders(
+      <TaskCard task={aTask({ priority: "URGENT" })} draggable={false} />,
+      { route: "/tasks" },
+    );
+
+    const badge = screen.getByTestId("task-priority-task-1");
+    const header = screen.getByTestId("task-header-task-1");
+    // Beside the title rather than below it: the corner is where the eye goes
+    // when scanning a column of cards.
+    expect(header).toContainElement(badge);
+    expect(badge).toHaveTextContent("Срочный");
+  });
+
+  it("marks the priority so it can be told apart at a glance", () => {
+    renderWithProviders(
+      <TaskCard task={aTask({ priority: "URGENT" })} draggable={false} />,
+      { route: "/tasks" },
+    );
+    expect(screen.getByTestId("task-priority-task-1")).toHaveAttribute("data-priority", "URGENT");
+  });
+
+  it("keeps the title readable when it is long", () => {
+    renderWithProviders(
+      <TaskCard task={aTask({ title: "Очень длинное название ".repeat(10) })} draggable={false} />,
+      { route: "/tasks" },
+    );
+    const header = screen.getByTestId("task-header-task-1");
+    const title = header.querySelector("h3")!;
+    // Clamped rather than allowed to push the card to any height it likes.
+    expect(title.className).toMatch(/line-clamp/);
+  });
+
+  it("reserves the drag gutter whether or not the card can be dragged", () => {
+    const { rerender } = renderWithProviders(
+      <TaskCard task={aTask()} draggable={false} />, { route: "/tasks" },
+    );
+    const still = screen.getByTestId("task-card-task-1").className;
+
+    rerender(<TaskCard task={aTask()} draggable />);
+
+    // The same padding either way: a card that gains a handle on hover must not
+    // reflow its own text as the pointer crosses it.
+    expect(screen.getByTestId("task-card-task-1").className).toBe(still);
+  });
+});
+
+
+describe("creating into a column", () => {
+  it("offers an add button on every column", async () => {
+    server.use(mock.get("/api/tasks", () => HttpResponse.json([])));
+    renderWithProviders(<TaskBoard onCreate={() => {}} />, { route: "/tasks" });
+
+    await waitFor(() => expect(screen.getByTestId("task-column-IDEA")).toBeInTheDocument());
+    for (const column of ["IDEA", "IN_PROGRESS", "DONE"]) {
+      expect(screen.getByTestId(`task-add-${column}`)).toBeInTheDocument();
+    }
+  });
+
+  // The point of a per-column button: the task lands where it was asked for,
+  // not in the default column with a move to follow.
+  it("names the column it was pressed on", async () => {
+    const user = userEvent.setup();
+    const onCreate = vi.fn();
+    server.use(mock.get("/api/tasks", () => HttpResponse.json([])));
+    renderWithProviders(<TaskBoard onCreate={onCreate} />, { route: "/tasks" });
+
+    await waitFor(() => expect(screen.getByTestId("task-column-IN_REVIEW")).toBeInTheDocument());
+    await user.click(screen.getByTestId("task-add-IN_REVIEW"));
+
+    expect(onCreate).toHaveBeenCalledWith("IN_REVIEW");
+  });
+
+  it("offers no add button when the board is read-only", async () => {
+    server.use(mock.get("/api/tasks", () => HttpResponse.json([])));
+    renderWithProviders(<TaskBoard />, { route: "/tasks" });
+
+    await waitFor(() => expect(screen.getByTestId("task-column-IDEA")).toBeInTheDocument());
+    expect(screen.queryByTestId("task-add-IDEA")).not.toBeInTheDocument();
+  });
+
+  it("does not open a card when the add button is pressed", async () => {
+    const user = userEvent.setup();
+    const onOpen = vi.fn();
+    server.use(mock.get("/api/tasks", () => HttpResponse.json([])));
+    renderWithProviders(<TaskBoard onCreate={() => {}} onOpen={onOpen} />, { route: "/tasks" });
+
+    await waitFor(() => expect(screen.getByTestId("task-column-IDEA")).toBeInTheDocument());
+    await user.click(screen.getByTestId("task-add-IDEA"));
+
+    expect(onOpen).not.toHaveBeenCalled();
   });
 });

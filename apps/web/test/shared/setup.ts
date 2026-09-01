@@ -58,6 +58,22 @@ if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = function scrollIntoView() {};
 }
 
+// ProseMirror asks the browser for caret geometry. jsdom has no layout engine,
+// so deterministic empty geometry is sufficient for keyboard/focus tests.
+if (!document.elementFromPoint) {
+  document.elementFromPoint = () => null;
+}
+if (!Range.prototype.getClientRects) {
+  Range.prototype.getClientRects = () => ({
+    length: 0,
+    item: () => null,
+    [Symbol.iterator]: function* iterator() {},
+  }) as DOMRectList;
+}
+if (!Range.prototype.getBoundingClientRect) {
+  Range.prototype.getBoundingClientRect = () => new DOMRect();
+}
+
 import { server } from "./server.js";
 
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));

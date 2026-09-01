@@ -66,5 +66,10 @@ export function createTaskImageRouter(
     res.send(Buffer.from(image.body));
   }));
 
+  router.delete("/:id", handle(async (req: Request<{ id: string }>, res) => {
+    await useCases.remove(actorOf(req), req.params.id);
+    res.status(204).end();
+  }));
+
   return router;
 }

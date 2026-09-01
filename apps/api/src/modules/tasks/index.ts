@@ -24,4 +24,6 @@ export type { TaskImageUseCases } from "./application/task-image-use-cases.js";
 export type { TaskImageRecord, TaskImageRepository, TaskImageStorage } from "./application/ports.js";
 export { MAX_TASK_IMAGE_BYTES, assertUploadableImage, detectImageType } from "./domain/image.js";
 export { collectImageIds } from "./domain/description.js";
+export { taskCreated, taskDeleted, taskMoved, taskUpdated } from "./application/task-events.js";
+export type { TaskEvent, TaskEventKind, TaskEventPublisher } from "./application/task-events.js";
 export { createTaskRouter, createTaskImageRouter } from "./presentation/http/task-http.js";

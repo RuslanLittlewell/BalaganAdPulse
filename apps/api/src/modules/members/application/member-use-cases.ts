@@ -69,6 +69,18 @@ export function createMemberUseCases(
       return dependencies.directory.listByOrg(actor.orgId);
     },
 
+    /** The picture behind a membership. Reach first, so a membership in
+     * another organization is not confirmed to exist by a different answer. */
+    avatar: async (actor: ActorContext, id: string): Promise<Uint8Array> => {
+      assertCan(actor, "read");
+      const member = await reachable(actor, id);
+      const bytes = await dependencies.avatars.readAvatar(member.userId);
+      // Having no picture is not distinguishable from not being reachable, and
+      // does not need to be: both mean "draw the initials instead".
+      if (!bytes) throw new AppError("not-found", "Member has no picture");
+      return bytes;
+    },
+
     update: async (actor: ActorContext, id: string, change: MemberChange) => {
       assertCan(actor, "update");
       const member = await reachable(actor, id);
@@ -84,6 +96,14 @@ export function createMemberUseCases(
      * them. */
     remove: async (actor: ActorContext, id: string) => {
       assertCan(actor, "delete");
+      // Compared against the actor context, which the middleware resolves fresh
+      // on every request — not against anything the caller sent, and not left
+      // to the interface to hide. Independent of the last-admin rule: even with
+      // other admins standing, removing yourself ends your own access to the
+      // organization in one click, with nothing left to undo it with.
+      if (id === actor.membershipId) {
+        throw new AppError("conflict", "You cannot remove your own membership");
+      }
       const member = await reachable(actor, id);
       await assertNotTheLastAdmin(member, { status: "SUSPENDED" });
       await dependencies.unitOfWork.run((context) =>

@@ -20,4 +20,5 @@ export type { MemberChange, MemberRecord, MembershipStatus } from "./domain/memb
 export { createActorResolution } from "./presentation/http/actor-resolution.js";
 export { createSessionRouter } from "./presentation/http/session-http.js";
 export { PrismaMembershipEnrolment } from "./infrastructure/prisma-membership-enrolment.js";
+export { PrismaInvitationProjectAccess } from "./infrastructure/prisma-invitation-project-access.js";
 export { createMemberRouter } from "./presentation/http/member-http.js";

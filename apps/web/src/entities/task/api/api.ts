@@ -5,11 +5,11 @@ import { http } from "@/shared/lib/index.js";
  * half-changed across the board, the dialog and the filters. */
 export const TASK_COLUMNS = [
   "IDEA",
-  "ARCHIVED",
   "IN_PROGRESS",
   "NEEDS_FIX",
   "IN_REVIEW",
   "DONE",
+  "ARCHIVED",
 ] as const;
 
 export type TaskColumn = (typeof TASK_COLUMNS)[number];
@@ -79,6 +79,14 @@ export const taskImagesApi = {
    * The address cannot go straight into an `<img src>`: it needs the bearer
    * token, which the browser will not attach. The editor renders from an
    * object URL made here and revokes it when the node unmounts.
+   */
+  remove: (id: string) => http.del(`/task-images/${id}`),
+  /**
+   * The bytes, fetched with the member's credentials.
+   *
+   * The address cannot go straight into an `<img src>` for the editor's own
+   * rendering, which needs the bytes before it draws; the preview renders from
+   * an object URL made here and revokes it when it closes.
    */
   blobUrl: async (id: string): Promise<string> => {
     const blob = await http.getBlob(`/task-images/${id}`);

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
-import { prisma } from "../../src/lib/prisma.js";
+import { prisma } from "../../src/shared/infrastructure/prisma.js";
+import { currentOrg } from "../helpers/auth.js";
 import { resetDb } from "../helpers/db.js";
 import { signInAs } from "../helpers/auth.js";
 
@@ -12,11 +13,16 @@ beforeEach(async () => {
 afterAll(async () => { await prisma.$disconnect(); });
 
 async function seedCampaign() {
-  const client = await prisma.client.create({ data: { name: "Acme", ownerId } });
-  const campaign = await prisma.campaign.create({
-    data: { clientId: client.id, name: "Facebook — July", position: 0 },
+  const client = await prisma.client.create({
+    data: { name: "Acme", orgId: (await currentOrg()).id },
   });
-  return { client, campaign };
+  const project = await prisma.project.create({
+    data: { clientId: client.id, name: "Acme", position: 0 },
+  });
+  const campaign = await prisma.campaign.create({
+    data: { projectId: project.id, name: "Facebook — July", position: 0 },
+  });
+  return { client, project, campaign };
 }
 
 describe("campaign schema", () => {
@@ -55,7 +61,7 @@ describe("campaign schema", () => {
     ).rejects.toThrow();
   });
 
-  it("cascades deletion from the client down to property values", async () => {
+  it("cascades deletion from the client through the project down to property values", async () => {
     const { client, campaign } = await seedCampaign();
     const property = await prisma.campaignProperty.create({
       data: { campaignId: campaign.id, key: "spend", name: "SPEND", type: "MONEY", position: 0 },

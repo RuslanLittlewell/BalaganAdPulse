@@ -1,16 +1,16 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import request from "supertest";
-import { createApp } from "../../src/app.js";
-import { prisma } from "../../src/lib/prisma.js";
+import { createApp } from "../../src/composition/app.js";
+import { prisma } from "../../src/shared/infrastructure/prisma.js";
 import { resetDb } from "../helpers/db.js";
-import { resetAuthRateLimits } from "../../src/auth/auth.routes.js";
+import { resetIdentityRateLimits } from "../../src/modules/identity/presentation/http/identity-http.js";
 
 const app = createApp();
 const credentials = { email: "buyer@acme.com", password: "hunter2hunter2" };
 
 beforeEach(async () => {
   await resetDb();
-  resetAuthRateLimits();
+  resetIdentityRateLimits();
 });
 afterAll(async () => { await prisma.$disconnect(); });
 

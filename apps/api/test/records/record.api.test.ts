@@ -1,25 +1,26 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import request from "supertest";
-import { createApp } from "../../src/app.js";
-import { prisma } from "../../src/lib/prisma.js";
-import { resetDb } from "../helpers/db.js";
-import { createCampaign } from "../../src/campaigns/campaign.service.js";
-import { deleteRecord } from "../../src/records/record.service.js";
-import { NotFoundError } from "../../src/errors.js";
+import { createApp } from "../../src/composition/app.js";
+import { prisma } from "../../src/shared/infrastructure/prisma.js";
+import { resetDb, seedCampaign, seedProject } from "../helpers/db.js";
+import type { Actor } from "@adpulse/access-policy";
 import { signInAs } from "../helpers/auth.js";
+import { expectAudit } from "../helpers/audit.js";
 
 const app = createApp();
 const MISSING = "00000000-0000-0000-0000-000000000000";
 
 let campaignId: string;
 let auth: { Authorization: string };
+let actor: Actor;
 
 beforeEach(async () => {
   await resetDb();
   const signedIn = await signInAs();
   ({ auth } = signedIn);
-  const client = await prisma.client.create({ data: { name: "Acme", ownerId: signedIn.user.id } });
-  campaignId = (await createCampaign(signedIn.user.id, client.id, { name: "A" })).id;
+  actor = signedIn.actor!;
+  const { projectId } = await seedProject(signedIn.user.id);
+  campaignId = (await seedCampaign(projectId, "A")).id;
 });
 afterAll(async () => { await prisma.$disconnect(); });
 
@@ -32,6 +33,7 @@ describe("Records API", () => {
     const res = await addDay("2026-07-21");
     expect(res.status).toBe(201);
     expect(res.body.date).toBe("2026-07-21");
+    await expectAudit({ action: "CREATE", entityType: "record", entityId: res.body.id, campaignId });
   });
 
   it("POST with a duplicate date -> 409", async () => {
@@ -56,6 +58,7 @@ describe("Records API", () => {
     const res = await request(app).patch(`/api/records/${created.body.id}`).set(auth).send({ date: "2026-07-22" });
     expect(res.status).toBe(200);
     expect(res.body.date).toBe("2026-07-22");
+    await expectAudit({ action: "UPDATE", entityType: "record", entityId: created.body.id, campaignId });
   });
 
   it("PATCH onto an occupied date -> 409", async () => {
@@ -75,6 +78,7 @@ describe("Records API", () => {
     });
     expect((await request(app).delete(`/api/records/${created.body.id}`).set(auth)).status).toBe(204);
     expect(await prisma.campaignPropertyValue.count()).toBe(0);
+    await expectAudit({ action: "DELETE", entityType: "record", entityId: created.body.id, campaignId });
   });
 
   it("DELETE /api/records/:id for a missing id -> 404", async () => {
@@ -89,39 +93,46 @@ describe("Records API", () => {
       .toEqual(["2026-07-21", "2026-07-22"]);
   });
 
-  it("POST /api/campaigns/:campaignId/records on another user's campaign -> 404", async () => {
-    const other = await signInAs("Other");
+  it("POST /api/campaigns/:campaignId/records on an unreachable campaign -> 404", async () => {
+    const other = await signInAs("Other", { role: "MANAGER" });
+    const stranger = await signInAs("Stranger", { role: "MANAGER" });
     const theirClient = await request(app).post("/api/clients").set(other.auth)
       .send({ name: "Theirs" });
+    const theirProject = await request(app).post("/api/projects").set(other.auth)
+      .send({ clientId: theirClient.body.id, name: "Theirs" });
     const theirCampaigns = await request(app)
-      .get(`/api/clients/${theirClient.body.id}/campaigns`).set(other.auth);
+      .get(`/api/projects/${theirProject.body.id}/campaigns`).set(other.auth);
 
     const res = await request(app)
-      .post(`/api/campaigns/${theirCampaigns.body[0].id}/records`).set(auth)
+      .post(`/api/campaigns/${theirCampaigns.body[0].id}/records`).set(stranger.auth)
       .send({ date: "2026-08-13" });
     expect(res.status).toBe(404);
   });
 
-  it("DELETE /api/records/:id for another user's record -> 404 and keeps it", async () => {
-    const other = await signInAs("Other");
+  it("DELETE /api/records/:id for an unreachable record -> 404 and keeps it", async () => {
+    const other = await signInAs("Other", { role: "MANAGER" });
+    const stranger = await signInAs("Stranger", { role: "MANAGER" });
     const theirClient = await request(app).post("/api/clients").set(other.auth)
       .send({ name: "Theirs" });
+    const theirProject = await request(app).post("/api/projects").set(other.auth)
+      .send({ clientId: theirClient.body.id, name: "Theirs" });
     const theirCampaigns = await request(app)
-      .get(`/api/clients/${theirClient.body.id}/campaigns`).set(other.auth);
+      .get(`/api/projects/${theirProject.body.id}/campaigns`).set(other.auth);
     const theirRecord = await request(app)
       .post(`/api/campaigns/${theirCampaigns.body[0].id}/records`).set(other.auth)
       .send({ date: "2026-08-13" });
 
-    const res = await request(app).delete(`/api/records/${theirRecord.body.id}`).set(auth);
+    const res = await request(app).delete(`/api/records/${theirRecord.body.id}`).set(stranger.auth);
     expect(res.status).toBe(404);
     expect(await prisma.campaignRecord.count()).toBe(1);
   });
 
   // The service, not the route: the ownership filter lives here, and an HTTP
   // test alone would stay green if it were moved somewhere else.
-  it("record.service hides another owner's record behind NotFoundError", async () => {
+  it("hides a record the caller holds no grant for behind the same 404", async () => {
     const created = await addDay("2026-07-21");
-    const { user: other } = await signInAs("Other");
-    await expect(deleteRecord(other.id, created.body.id)).rejects.toBeInstanceOf(NotFoundError);
+    const other = await signInAs("Other", { role: "MANAGER" });
+    const res = await request(app).delete(`/api/records/${created.body.id}`).set(other.auth);
+    expect(res.status).toBe(404);
   });
 });

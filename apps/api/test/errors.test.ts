@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ConflictError, NotFoundError, ValidationError } from "../src/errors.js";
+import { ConflictError, NotFoundError, ValidationError } from "../src/shared/presentation/http-errors.js";
 
 describe("domain errors", () => {
   it("NotFoundError carries status 404", () => {

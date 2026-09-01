@@ -9,10 +9,15 @@ WORKDIR /app
 # Monorepo manifests for dependency install
 COPY package.json ./
 COPY apps/api/package.json apps/api/
+COPY packages/access-policy/package.json packages/access-policy/
+COPY scripts/patch-avataaars-react.cjs scripts/
 RUN npm install
 
 # Sources (overridden by the compose bind-mount in dev)
 COPY . .
+# The shared permission matrix ships as built JS, and .dockerignore keeps
+# every dist/ out of the build context, so the image builds its own.
+RUN npm run build -w @adpulse/access-policy
 RUN npx prisma generate --schema apps/api/prisma/schema.prisma
 
 WORKDIR /app/apps/api

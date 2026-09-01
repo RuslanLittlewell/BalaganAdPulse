@@ -1,0 +1,209 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.141 0.005 285.823);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.141 0.005 285.823);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.141 0.005 285.823);
+  --primary: oklch(0.491 0.27 292.581);
+  --primary-foreground: oklch(0.969 0.016 293.756);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.967 0.001 286.375);
+  --muted-foreground: oklch(0.552 0.016 285.938);
+  --accent: oklch(0.967 0.001 286.375);
+  --accent-foreground: oklch(0.21 0.006 285.885);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.92 0.004 286.32);
+  --input: oklch(0.92 0.004 286.32);
+  --ring: oklch(0.705 0.015 286.067);
+  --chart-1: oklch(0.811 0.111 293.571);
+  --chart-2: oklch(0.606 0.25 292.717);
+  --chart-3: oklch(0.541 0.281 293.009);
+  --chart-4: oklch(0.491 0.27 292.581);
+  --chart-5: oklch(0.432 0.232 292.759);
+  --radius: 0.875rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.141 0.005 285.823);
+  --sidebar-primary: oklch(0.541 0.281 293.009);
+  --sidebar-primary-foreground: oklch(0.969 0.016 293.756);
+  --sidebar-accent: oklch(0.967 0.001 286.375);
+  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
+  --sidebar-border: oklch(0.92 0.004 286.32);
+  --sidebar-ring: oklch(0.705 0.015 286.067);
+
+  /* Compatibility tokens used by the existing CSS Modules. */
+  --color-bg: var(--background);
+  --color-surface: var(--card);
+  --color-accent: var(--primary);
+  --color-accent-contrast: var(--primary-foreground);
+  --color-danger: var(--destructive);
+  --color-text: var(--foreground);
+  --color-text-muted: var(--muted-foreground);
+
+  /* The ink drawn on an avatar swatch. Light theme keeps the muted text colour. */
+  --color-avatar-ink: var(--muted-foreground);
+  /* Priority markers. Signals, so they stay legible rather than joining the
+     palette: only the shade shifts between themes. */
+  --priority-critical: #dc2626;
+  --priority-urgent: #ea580c;
+  --priority-waiting: #2563eb;
+  --priority-idle: #16a34a;
+  /* "White" in spirit: on a light ground pure white would be no marker at all. */
+  --priority-new: #cbd5e1;
+
+  --color-avatar-1: #e8703a;
+  --color-avatar-2: #4a8fe7;
+  --color-avatar-3: #46b58a;
+  --color-avatar-4: #b968d9;
+  --color-avatar-5: #d9a441;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+  --sidebar-width: 280px;
+}
+
+.dark {
+  /* Palette "MP072", applied as-is:
+       Palladian                #EEE9DF   the text
+       Oatmeal                  #C9C1B1   secondary text
+       Blue Fantastic           #2C3B4D   raised surfaces
+       Burning Flame            #FFB162   the accent
+       Truffle Trouble          #A35139   destructive
+       Abyssal Anchorfish Blue  #1B2632   the ground
+     Two navies between Abyssal and Blue Fantastic are interpolated, because six
+     colours cannot carry ground / card / border / input on their own without the
+     surfaces collapsing into each other. */
+  --background: #1b2632;
+  --foreground: #eee9df;
+  --card: #212d3b;
+  --card-foreground: #eee9df;
+  --popover: #212d3b;
+  --popover-foreground: #eee9df;
+  --primary: #ffb162;
+  /* Dark ink on the flame: white on #FFB162 is 1.5:1 and unreadable. */
+  --primary-foreground: #1b2632;
+  --secondary: #2c3b4d;
+  --secondary-foreground: #eee9df;
+  --muted: #2c3b4d;
+  --muted-foreground: #c9c1b1;
+  --accent: #35465c;
+  --accent-foreground: #eee9df;
+  --destructive: #a35139;
+  --border: #35465c;
+  --input: #3f536c;
+  --ring: #ffb162;
+  /* Series colours: the two brand hues first, then neutrals and the blues, so
+     adjacent series stay apart on the dark ground. */
+  --chart-1: #ffb162;
+  --chart-2: #7fa6c8;
+  --chart-3: #c9c1b1;
+  --chart-4: #a35139;
+  --chart-5: #4e6b87;
+  --sidebar: #212d3b;
+  --sidebar-foreground: #eee9df;
+  --sidebar-primary: #ffb162;
+  --sidebar-primary-foreground: #1b2632;
+  --sidebar-accent: #2c3b4d;
+  --sidebar-accent-foreground: #eee9df;
+  --sidebar-border: #35465c;
+  --sidebar-ring: #ffb162;
+
+  --priority-critical: #f87171;
+  --priority-urgent: #fb923c;
+  --priority-waiting: #7fa6c8;
+  --priority-idle: #6ec48f;
+  --priority-new: #eee9df;
+
+  /* Client swatches, pulled into the palette's temperature. All five are light
+     enough to carry the ground colour as ink, and far enough apart in hue that
+     two clients never read as the same circle. */
+  --color-avatar-1: #ffb162;
+  --color-avatar-2: #7fa6c8;
+  --color-avatar-3: #c9c1b1;
+  --color-avatar-4: #e0876a;
+  --color-avatar-5: #8fb3a0;
+  --color-avatar-ink: #1b2632;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  /* Everything below used to live in an unlayered reset.css. Unlayered rules beat
+     every @layer, so `* { padding: 0 }` there was overriding all of Tailwind's
+     padding utilities. Preflight already covers the box-sizing/margin/padding
+     reset; only these app-specific rules were worth keeping, and they belong in
+     `base` so utilities can still win. */
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Preflight in v4 stopped setting this, and the app's buttons want it. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}

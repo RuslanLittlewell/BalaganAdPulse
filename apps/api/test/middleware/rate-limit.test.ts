@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { NextFunction, Request, Response } from "express";
-import { createRateLimit } from "../../src/middleware/rate-limit.js";
+import { createRateLimit } from "../../src/shared/presentation/rate-limit.js";
 
 function mockRequest(ip = "1.2.3.4"): Request {
   return { ip } as Request;

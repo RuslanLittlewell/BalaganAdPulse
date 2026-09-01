@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { registerSchema, loginSchema } from "../../src/auth/auth.schema.js";
+import { registerSchema, loginSchema } from "../../src/modules/identity/presentation/http/identity-schemas.js";
 
 describe("registerSchema", () => {
   const valid = {

@@ -49,6 +49,11 @@ jobs:
       # config.ts is evaluated at import time and throws without these.
       JWT_SECRET: ci-secret-not-used-outside-tests
       INVITE_CODE: ci-invite-not-used-outside-tests
+      S3_ENDPOINT: http://localhost:9000
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY: adpulse
+      S3_SECRET_KEY: adpulse-local-secret
+      S3_BUCKET: adpulse-avatars
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -56,6 +61,21 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - name: Build shared access policy
+        run: npm run build:policy
+      - name: Start S3-compatible storage
+        run: |
+          docker run -d --name adpulse-minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=adpulse \
+            -e MINIO_ROOT_PASSWORD=adpulse-local-secret \
+            minio/minio server /data
+          for i in $(seq 1 30); do
+            curl -fsS localhost:9000/minio/health/live >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS localhost:9000/minio/health/live >/dev/null
+          docker run --rm --network host --entrypoint /bin/sh minio/mc -c \
+            'mc alias set local http://localhost:9000 adpulse adpulse-local-secret && mc mb --ignore-existing local/adpulse-avatars'
       # npm ci does not generate the Prisma client, and there is deliberately no
       # postinstall hook: it would break `npm ci --omit=dev` in the production
       # image, where the Prisma CLI is absent.
@@ -86,6 +106,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - name: Build shared access policy
+        run: npm run build:policy
       - run: npx prisma generate --schema apps/api/prisma/schema.prisma
       - run: npm run build -w apps/api
       - run: npm run build -w @adpulse/web

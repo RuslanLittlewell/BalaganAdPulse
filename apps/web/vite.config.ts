@@ -1,15 +1,43 @@
 /// <reference types="vitest/config" />
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const avataaarsReact17 = {
+  name: "avataaars-react-17",
+  enforce: "pre" as const,
+  resolveId(source: string, importer?: string) {
+    if (source !== "react" || !importer) return null;
+    if (importer.includes("/avataaars/") || importer.includes("/react-dom17/")) {
+      return this.resolve("react17", importer, { skipSelf: true });
+    }
+    return null;
+  },
+};
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [avataaarsReact17, react(), tailwindcss()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+      "@test": path.resolve(__dirname, "./test"),
+    },
+  },
   server: {
     host: true,
     port: 5173,
     proxy: {
       // Native dev talks to the API on localhost; inside Compose it is http://api:3000.
-      "/api": process.env.API_PROXY_TARGET ?? "http://localhost:3000",
+      "/api": {
+        target: process.env.API_PROXY_TARGET ?? "http://localhost:3000",
+        // The board's live feed upgrades under /api; without this the proxy
+        // answers the upgrade itself and the socket never reaches the API.
+        ws: true,
+      },
     },
     // Bind-mounted file events don't always propagate into containers on macOS.
     watch: process.env.CHOKIDAR_USEPOLLING === "true" ? { usePolling: true } : undefined,
@@ -17,7 +45,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
-    setupFiles: "./src/test/setup.ts",
+    setupFiles: "./test/shared/setup.ts",
     css: true,
     // UTC+9, no daylight saving, always differs from UTC — pins timezone-sensitive tests.
     env: { TZ: "Asia/Tokyo" },

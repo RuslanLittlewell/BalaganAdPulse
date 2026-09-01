@@ -1,0 +1,44 @@
+schema: spec-driven
+
+context: |
+  AdPulse — a CRM for a marketing agency, grown out of a media buyer's dashboard.
+
+  Layout: npm workspaces monorepo. `apps/api` is the backend REST API (TypeScript,
+  Express 5, PostgreSQL 16, Prisma, Zod, Vitest + Supertest). `apps/web` is the React
+  frontend (Vite, React Query, CSS Modules, Vitest + Testing Library + MSW), organised
+  by Feature-Sliced Design with dependencies flowing app -> pages -> widgets ->
+  features -> entities -> shared. In production one Express process serves both `/api`
+  and the built SPA; it runs on Render with a managed Postgres.
+
+  Domain: an organization (the agency) holds clients; a client holds projects; a
+  project holds sheets of daily advertising metrics. A sheet's columns are either
+  entered (SPEND, IMPRESSIONS, CLICKS, LEADS, REVENUE, COMMENT) or computed from a
+  stored formula expression (CTR, CPM, CPC, CPL, ROAS); computed columns are never
+  stored. Four roles: ADMIN, MANAGER, GUEST and CLIENT.
+
+  Conventions:
+  - English only — code, comments, docs, commit messages, API error messages.
+  - Conventional Commits: `type(scope): subject`, imperative, lowercase, no period.
+  - TDD: the failing test comes first for every slice, and is observed failing.
+  - API prefix `/api`, JSON in and out. Layering: routes -> controller (Zod) ->
+    service (Prisma) -> PostgreSQL.
+  - Error envelope `{ "error": { "message": string, "details"?: unknown } }`.
+    Validation 400, missing record 404, conflict 409, unexpected 500. An unreachable
+    record answers 404, never 403, so a response never confirms that it exists.
+  - Money and numeric values are Prisma `Decimal`, never float, and cross the API as
+    strings with four decimals.
+  - Backend tests need Postgres (`docker compose up -d db`) and the separate
+    `adpulse_test` database; run `npm test` from the repository root. Frontend tests
+    need neither: `npm run test:web`.
+  - Docs read as finished reference: no changelog, draft or "updated" notes.
+
+rules:
+  proposal:
+    - State breaking changes explicitly, marked **BREAKING**.
+  design:
+    - Include the migration plan whenever the change touches the Prisma schema, and say
+      whether existing data survives.
+  tasks:
+    - Order tasks so each numbered group ends with a green `npm test` and
+      `npm run test:web`.
+    - Write the failing test as its own task before the implementation task it covers.

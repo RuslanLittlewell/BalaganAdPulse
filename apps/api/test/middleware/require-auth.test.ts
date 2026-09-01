@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import request from "supertest";
 import { SignJWT } from "jose";
-import { createApp } from "../../src/app.js";
-import { prisma } from "../../src/lib/prisma.js";
+import { createApp } from "../../src/composition/app.js";
+import { prisma } from "../../src/shared/infrastructure/prisma.js";
 import { resetDb } from "../helpers/db.js";
 import { signInAs } from "../helpers/auth.js";
-import { config } from "../../src/config.js";
+import { config } from "../../src/shared/infrastructure/config.js";
 
 const app = createApp();
 

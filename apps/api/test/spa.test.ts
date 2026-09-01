@@ -1,24 +1,25 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { fileURLToPath } from "node:url";
 import request from "supertest";
-import { createApp } from "../src/app.js";
-import { signAccessToken } from "../src/auth/token.js";
+import { createApp } from "../src/composition/app.js";
+import { prisma } from "../src/shared/infrastructure/prisma.js";
+import { resetDb } from "./helpers/db.js";
+import { signInAs } from "./helpers/auth.js";
 
 const webDistPath = fileURLToPath(new URL("./fixtures/web-dist/", import.meta.url));
 const app = createApp({ webDistPath });
 
-// requireAuth verifies the signature only — no database lookup — so a signed
-// token is enough here and this file stays database-free like the rest of it.
+// A signed token used to be enough here, because requireAuth only verifies the
+// signature. loadActor reads the membership from the database on every request,
+// so the one authenticated case below needs a real member: a token belonging to
+// nobody is refused before it can reach the /api 404 handler this file is
+// about. The unauthenticated cases still touch nothing.
 let auth: { Authorization: string };
 beforeAll(async () => {
-  auth = {
-    Authorization: `Bearer ${await signAccessToken({
-      sub: "00000000-0000-0000-0000-000000000000",
-      name: "Test",
-      email: "test@example.com",
-    })}`,
-  };
+  await resetDb();
+  ({ auth } = await signInAs());
 });
+afterAll(async () => { await prisma.$disconnect(); });
 
 describe("SPA serving", () => {
   it("serves index.html at the root", async () => {

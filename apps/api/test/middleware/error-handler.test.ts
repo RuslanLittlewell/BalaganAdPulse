@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { Request, Response, NextFunction } from "express";
-import { errorHandler } from "../../src/middleware/error-handler.js";
-import { NotFoundError, ServiceUnavailableError } from "../../src/errors.js";
+import { errorHandler } from "../../src/shared/presentation/error-handler.js";
+import { NotFoundError, ServiceUnavailableError } from "../../src/shared/presentation/http-errors.js";
 
 function mockRes(): Response & { headers: Record<string, string>; body?: unknown } {
   const res = {} as Response & { headers: Record<string, string>; body?: unknown };

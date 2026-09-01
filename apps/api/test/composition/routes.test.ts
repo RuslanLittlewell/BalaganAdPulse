@@ -20,6 +20,8 @@ const expectedMounts = [
   "/api/campaigns",
   "/api/properties",
   "/api/records",
+  "/api/tasks",
+  "/api/task-images",
   "/api",
 ];
 

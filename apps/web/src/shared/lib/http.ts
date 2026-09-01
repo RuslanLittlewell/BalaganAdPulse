@@ -72,6 +72,21 @@ async function request<T>(
   return (await res.json()) as T;
 }
 
+/** Bytes rather than JSON, through the same authentication and renewal path.
+ * Used for images the browser cannot fetch itself, because an `<img src>`
+ * carries no bearer token. */
+async function requestBlob(path: string): Promise<Blob> {
+  const token = await ensureFreshToken();
+  let res = await send(path, undefined, token);
+  if (res.status === 401 && token !== null) {
+    res = await send(path, undefined, await forceRefresh());
+  }
+  if (!res.ok) {
+    throw new ApiError(res.statusText || "Request failed", res.status);
+  }
+  return res.blob();
+}
+
 export const http = {
   get: <T>(path: string, options?: RequestOptions) => request<T>(path, undefined, options),
   post: <T>(path: string, body: unknown, options?: RequestOptions) =>
@@ -81,5 +96,7 @@ export const http = {
   patch: <T>(path: string, body: unknown, options?: RequestOptions) =>
     request<T>(path, { method: "PATCH", body: JSON.stringify(body) }, options),
   putForm: <T>(path: string, body: FormData) => request<T>(path, { method: "PUT", body }),
+  postForm: <T>(path: string, body: FormData) => request<T>(path, { method: "POST", body }),
+  getBlob: requestBlob,
   del: (path: string, options?: RequestOptions) => request<void>(path, { method: "DELETE" }, options),
 };

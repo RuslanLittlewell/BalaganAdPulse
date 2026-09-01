@@ -45,7 +45,11 @@ export function renderWithProviders(ui: ReactElement, options?: RenderOptions) {
 
 export function hookWrapper() {
   const client = createQueryClient();
-  return function Wrapper({ children }: { children: ReactNode }) {
-    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-  };
+  const Wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  // Exposed so a test can read the cache the hook writes into — an optimistic
+  // update is only worth anything if it has landed by the time React renders.
+  Wrapper.client = client;
+  return Wrapper;
 }

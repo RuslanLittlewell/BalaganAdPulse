@@ -117,6 +117,18 @@ describe("can", () => {
     });
   });
 
+  describe("the task board", () => {
+    it("is read by staff and guests, and never by a customer", () => {
+      expectRow("read", "task", ["ADMIN", "MANAGER", "GUEST"]);
+    });
+
+    it("is written only by admins and managers", () => {
+      expectRow("create", "task", ["ADMIN", "MANAGER"]);
+      expectRow("update", "task", ["ADMIN", "MANAGER"]);
+      expectRow("delete", "task", ["ADMIN", "MANAGER"]);
+    });
+  });
+
   describe("the audit trail", () => {
     it("is readable by every role, with scope deciding how much", () => {
       expectRow("read", "audit", ["ADMIN", "MANAGER", "GUEST", "CLIENT"]);

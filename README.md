@@ -208,6 +208,30 @@ Every client belongs to an organization. The existing business hierarchy remains
 provides the caller's role; `ClientAccess` grants narrow non-admin members to clients or
 individual projects. Role permission and row reach are evaluated separately.
 
+### The task board
+
+`/tasks` is a Kanban board of work under a project. Six fixed columns, drawn left to right:
+**Идея, Архив, В работе, На исправление, На проверке, Готово**. Cards are dragged between
+columns and reordered within one; the move is applied to the board before the server
+answers and rolled back if it is refused. Both affected columns are renumbered densely
+inside one transaction, so a position is never duplicated or left with a gap.
+
+A task belongs to exactly one project and carries a title, a rich-text description, a
+priority of its own (`LOW`, `MEDIUM`, `HIGH`, `URGENT` — distinct from `ProjectPriority`,
+which describes a project by counting its tasks) and optionally a responsible member.
+
+Reading the board follows the same grants as the projects it draws from. Admins and
+managers write; guests read; a `CLIENT` member is refused the board entirely, because it
+carries the agency's internal notes about a customer's own work.
+
+**Images in a description** are pasted with Ctrl+V or dropped onto the editor. They are
+uploaded as they land — PNG, JPEG, WebP or GIF, up to 10 MB, recognised by their own bytes
+rather than by a file name — and stored as objects; the description keeps only a reference,
+so listing a board never carries image data. The editor fetches them with the member's
+token and renders them from object URLs, because an `<img src>` pointing at the API would
+carry no credentials. An upload whose dialog was cancelled stays recorded with no task, so
+it can be found and reclaimed later.
+
 Business mutations append an `AuditEvent` in the same database transaction as the
 change. Events retain the actor's name, email and role as they were at write time and are
 read through a scoped, cursor-paginated endpoint. The web app opens that history for the
@@ -274,6 +298,14 @@ ports, fixed clocks and deterministic identifiers.
 | GET | `/clients/:id` | Single client | 200 |
 | PATCH | `/clients/:id` | Partial update | 200 |
 | DELETE | `/clients/:id` | Delete | 204 |
+| GET | `/tasks` | The board, ordered by column then position; `?projectId=` narrows it | 200 |
+| POST | `/tasks` | Create a task | 201 |
+| GET | `/tasks/:id` | Single task | 200 |
+| PATCH | `/tasks/:id` | Partial update | 200 |
+| POST | `/tasks/:id/move` | Where a drag landed: `{ column, position }` | 200 |
+| DELETE | `/tasks/:id` | Delete, with its images | 204 |
+| POST | `/task-images` | Upload one image pasted or dropped into a description | 201 |
+| GET | `/task-images/:id` | The bytes, to whoever may read the task | 200 |
 | POST | `/clients/:clientId/campaigns` | Create a campaign | 201 |
 | GET | `/clients/:clientId/campaigns` | List a client's campaigns | 200 |
 | GET | `/campaigns/:id` | Campaign with properties, records and totals | 200 |

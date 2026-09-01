@@ -40,6 +40,22 @@ import {
 } from "../modules/campaigns/index.js";
 import { createRecordHttpRouters, createRecordUseCases } from "../modules/records/index.js";
 import {
+  createTaskImageRouter,
+  createTaskImageUseCases,
+  createTaskRouter,
+  createTaskUseCases,
+} from "../modules/tasks/index.js";
+import {
+  PrismaTaskImageRepository,
+  S3TaskImageStorage,
+} from "../modules/tasks/infrastructure/prisma-task-image-repository.js";
+import { taskImageUpload } from "../modules/tasks/presentation/http/task-image-upload.js";
+import {
+  PrismaTaskMemberReach,
+  PrismaTaskProjectReach,
+  PrismaTaskRepository,
+} from "../modules/tasks/infrastructure/prisma-task-repository.js";
+import {
   PrismaRecordRepository,
   PrismaValueRepository,
 } from "../modules/records/infrastructure/prisma-record-repositories.js";
@@ -73,6 +89,8 @@ export interface ApiContainer {
   readonly campaignRouter: Router;
   readonly propertyRouter: Router;
   readonly recordRouter: Router;
+  readonly taskRouter: Router;
+  readonly taskImageRouter: Router;
 }
 
 /** Compatibility composition while legacy vertical slices are migrated. */
@@ -164,6 +182,18 @@ export function createContainer(): ApiContainer {
     unitOfWork,
   });
   const recordHttp = createRecordHttpRouters(records);
+  const taskDependencies = {
+    tasks: new PrismaTaskRepository(prisma, unitOfWork),
+    images: new PrismaTaskImageRepository(prisma, unitOfWork),
+    imageStorage: new S3TaskImageStorage(),
+    projects: new PrismaTaskProjectReach(prisma),
+    members: new PrismaTaskMemberReach(prisma),
+    audit,
+    ids,
+    unitOfWork,
+  };
+  const tasks = createTaskUseCases(taskDependencies);
+  const taskImages = createTaskImageUseCases(taskDependencies);
   const projects = createProjectUseCases({
     projects: new PrismaProjectRepository(prisma, unitOfWork),
     clients: {
@@ -200,5 +230,7 @@ export function createContainer(): ApiContainer {
     campaignRouter: campaignHttp.campaignRouter,
     propertyRouter: campaignHttp.propertyRouter,
     recordRouter: recordHttp.recordRouter,
+    taskRouter: createTaskRouter(tasks),
+    taskImageRouter: createTaskImageRouter(taskImages, taskImageUpload.single("image")),
   };
 }

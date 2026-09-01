@@ -4,6 +4,7 @@ import { ModulePage } from "@/pages/module/index.js";
 import { ProjectsPage } from "@/pages/projects/index.js";
 import { LoginPage } from "@/pages/login/index.js";
 import { SignupPage } from "@/pages/signup/index.js";
+import { TasksPage } from "@/pages/tasks/index.js";
 import { TeamPage } from "@/pages/team/index.js";
 import { AuthProvider, RequireAuth } from "@/features/auth/index.js";
 import { NavCollapseProvider } from "@/features/nav-collapse/index.js";
@@ -27,7 +28,7 @@ function Dashboard() {
           <Routes>
             <Route path={ROUTES.dashboard} element={<ModulePage title={t("nav.dashboard")} />} />
             <Route path={`${ROUTES.projects}/*`} element={<ProjectsPage />} />
-            <Route path={ROUTES.tasks} element={<ModulePage title={t("nav.tasks")} />} />
+            <Route path={ROUTES.tasks} element={<TasksPage />} />
             <Route path={ROUTES.reports} element={<ModulePage title={t("nav.reports")} />} />
             <Route path={ROUTES.archive} element={<ModulePage title={t("nav.archive")} />} />
             <Route path={ROUTES.team} element={<TeamPage />} />

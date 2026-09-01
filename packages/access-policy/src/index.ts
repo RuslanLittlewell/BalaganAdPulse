@@ -30,6 +30,7 @@ export const RESOURCES = [
   "property",
   "record",
   "value",
+  "task",
   "audit",
 ] as const;
 export type Resource = (typeof RESOURCES)[number];
@@ -45,6 +46,7 @@ export interface Actor {
 
 const EVERYONE: readonly Role[] = ROLES;
 const STAFF: readonly Role[] = ["ADMIN", "MANAGER"];
+const STAFF_AND_GUEST: readonly Role[] = ["ADMIN", "MANAGER", "GUEST"];
 const ADMINS: readonly Role[] = ["ADMIN"];
 const NOBODY: readonly Role[] = [];
 
@@ -65,6 +67,10 @@ const MATRIX: Readonly<Record<Resource, ResourcePolicy>> = {
   property: { read: EVERYONE, create: STAFF, update: STAFF, delete: STAFF },
   record: { read: EVERYONE, create: STAFF, update: STAFF, delete: STAFF },
   value: { read: EVERYONE, create: STAFF, update: STAFF, delete: STAFF },
+  // The board is the agency's internal work: a customer does not reach it at
+  // all, rather than seeing an empty one. The client portal is a later change
+  // and will decide what they should see; closed is the safe default.
+  task: { read: STAFF_AND_GUEST, create: STAFF, update: STAFF, delete: STAFF },
   // Append-only: the trail is read through the API and written only by the
   // services, inside the transaction of the mutation being recorded.
   audit: { read: EVERYONE, create: NOBODY, update: NOBODY, delete: NOBODY },

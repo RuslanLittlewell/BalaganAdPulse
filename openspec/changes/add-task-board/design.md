@@ -1,24 +1,33 @@
 ## Context
 
-See proposal.md — Why. What shapes the approach here is the state of the codebase rather
-than the motivation:
+See proposal.md — Why. What shapes the approach is the state of the codebase:
 
-- **The foundation this design assumes does not exist yet.** `add-agency-crm-foundation`
-  is archived, but `openspec/specs/` is empty and no migration ever built it: the schema
-  still carries `Client.ownerId` and `Campaign`, not `Client.orgId` and `Sheet`, and there
-  is no `Organization`, `Membership` or `AuditEvent`. Everything below refers to those
-  tables, so this change cannot start until that one is implemented.
+- **The foundation this design needs now exists.** `add-org-roles-audit` delivered
+  `Organization`, `Membership`, `ClientAccess`, `AuditEvent` and the four roles, so a task
+  can name a responsible member and be reached through the same grants as its project.
+- **The API is hexagonal.** `adopt-hexagonal-api-architecture` moved every slice into
+  `apps/api/src/modules/<module>/{domain,application,infrastructure,presentation}`, wired
+  only in `apps/api/src/composition`. Tasks become one more module and follow that
+  template; there is no service/controller/route layout left to add to, and an
+  architecture test rejects one.
+- **Reach is translated in each module's Prisma adapter**, from the actor's role and
+  grants into a query filter, and the verb comes from `packages/access-policy`. Reach is
+  checked first, so an unreachable record answers 404 rather than 403.
+- **Audit is a port.** Mutating use cases append through `AuditWriter` inside the same
+  `unitOfWork.run` as the change, so the trail cannot disagree with the data.
 - **`/tasks` is already routed.** `ROUTES.tasks` renders `ModulePage` with the
   "module not implemented" copy. There is a slot to fill, not a route to add.
-- **Ordering has a precedent.** `Project.position` is a plain integer, assigned from a
-  `count()` at creation and read back with `orderBy: { position: "asc" }`. Nothing
-  reorders projects yet, so a board is the first place that needs a real move operation.
-- **Storage is avatar-shaped.** `lib/storage.ts` exposes only `putPng`/`getPng`, hardcoding
-  `ContentType: "image/png"`, and `lib/avatar.ts` caps uploads at 1 MB against a PNG magic
-  number. Avatar bytes reach the browser as data URLs because `<img src>` cannot carry the
-  bearer token — the same obstacle applies to task images, at a different scale.
+- **Ordering has a precedent.** `Project.position` is a plain integer, and the campaigns
+  module already renumbers a column densely inside a transaction — the board's move is the
+  same shape.
+- **Storage is avatar-shaped.** `shared/infrastructure/storage.ts` exposes only
+  `putPng`/`getPng`, hardcoding `ContentType: "image/png"`, and `shared/presentation/avatar.ts`
+  caps uploads at 1 MB against a PNG magic number. Avatar bytes reach the browser as data
+  URLs because `<img src>` cannot carry the bearer token — the same obstacle applies to task
+  images, at a different scale.
 - **The web app has neither a drag-and-drop library nor a rich-text editor**, and runs
-  React 19.
+  React 19. `ProjectPriority` still exists and still describes a project by counting its
+  tasks, so a task priority of its own is still the right call.
 
 The board's column order is taken literally from the request — Идея, Архив, В работе, На
 исправление, На проверке, Готово — including `ARCHIVED` sitting second rather than last.
@@ -46,6 +55,14 @@ Order lives in one exported constant, so moving it is a one-line change if that 
   acts on it is a follow-on.
 
 ## Decisions
+
+### The board is a module like any other
+
+`modules/tasks` holds the domain (columns, priorities, position rules), the use cases and
+their ports, a Prisma adapter that translates reach, and an HTTP adapter with the Zod
+schemas. Composition wires it. Images are a second concern inside the same module rather
+than a module of their own: they exist only as part of a task's description, and splitting
+them would put a cross-module port between a task and its own attachment.
 
 ### Positions are dense integers, renumbered per column inside the move transaction
 
@@ -127,11 +144,12 @@ interval` is the sweep query, left for a follow-on to run.
 
 ### Storage grows a content-type-agnostic pair, and avatars keep their path
 
-`putObject(key, body, contentType)` and `getObject(key)` join `lib/storage.ts`, and
-`putPng`/`getPng` are re-expressed as thin wrappers over them. Avatar call sites, the avatar
-size cap and the PNG magic-number check are untouched — task images get their own limit
-(10 MB) and their own accepted-type list, validated by magic number in a new
-`lib/task-image.ts` rather than by widening `assertAvatarPng`.
+`putObject(key, body, contentType)` and `getObject(key)` join
+`shared/infrastructure/storage.ts`, and `putPng`/`getPng` are re-expressed as thin wrappers
+over them. Avatar call sites, the avatar size cap and the PNG magic-number check are
+untouched — task images get their own limit (10 MB) and their own accepted-type list,
+validated by magic number inside the tasks module rather than by widening
+`assertAvatarPng`.
 
 Widening the avatar validator was the alternative; it would let a 10 MB GIF through as a
 profile picture.
@@ -161,10 +179,6 @@ client should see. Defaulting to closed keeps the decision open.
 
 ## Risks / Trade-offs
 
-- **The foundation is archived but not implemented, so this change is blocked on it** →
-  Sequence it: implement `add-agency-crm-foundation` first. Its specs also need syncing into
-  `openspec/specs/`, which is empty; until then this change's spec deltas have no
-  `organization-membership` or `project-management` to sit beside.
 - **Two members dragging the same card race, and the loser sees a card they did not place**
   → The transaction keeps the board internally consistent; a reload is the correction. Live
   sync is an explicit non-goal.
@@ -198,7 +212,8 @@ untouched** — this change needs no wipe and no backfill.
    `(taskId IS NULL, created_at)` for the sweep.
 
 Rollback is `DROP TABLE task_image, task` and the two enums; nothing outside this change
-references them. Render already runs migrations as a pre-deploy step, so a failure there
+references them. `membership`, `project` and `organization` are only referenced, never
+altered. Render already runs migrations as a pre-deploy step, so a failure there
 stops the deploy with the old code still serving.
 
 Storage needs no migration: task images go to the existing bucket under a `tasks/` prefix,

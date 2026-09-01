@@ -63,3 +63,21 @@ import { server } from "./server.js";
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
+
+/**
+ * jsdom implements no object URLs, and the app leans on them: images fetched
+ * with the member's token are shown from one, because an `<img src>` pointing
+ * at the API would carry no credentials. Without this every such image renders
+ * as its failure state and the tests would be asserting the wrong thing.
+ */
+let objectUrlCount = 0;
+const objectUrls = new Map<string, Blob>();
+
+if (!URL.createObjectURL) {
+  URL.createObjectURL = (blob: Blob) => {
+    const url = `blob:test/${(objectUrlCount += 1)}`;
+    objectUrls.set(url, blob);
+    return url;
+  };
+  URL.revokeObjectURL = (url: string) => { objectUrls.delete(url); };
+}

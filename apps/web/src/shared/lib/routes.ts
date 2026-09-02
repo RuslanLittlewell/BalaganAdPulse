@@ -6,7 +6,6 @@ export const ROUTES = {
   tasks: "/tasks",
   reports: "/reports",
   archive: "/archive",
-  team: "/team",
 } as const;
 
 export function projectPath(clientId: string, campaignId?: string): string {

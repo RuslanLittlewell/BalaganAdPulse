@@ -25,6 +25,13 @@ export interface ChannelView {
   readonly performance: Performance;
 }
 
+/** What identifies a campaign, with none of what it measured. */
+export interface CampaignReference {
+  readonly id: string;
+  readonly name: string;
+  readonly channel: Channel;
+}
+
 export type CampaignView = Campaign & WithPerformance<Campaign>;
 export type AdSetView = AdSet & WithPerformance<AdSet>;
 export type AdView = Ad & WithPerformance<Ad>;
@@ -93,6 +100,24 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
         ...campaign,
         performance: await campaignPerformance(campaign.id, range),
       })));
+    },
+
+    /**
+     * A project's campaigns as references, for choosing one.
+     *
+     * Deliberately not the listing above with the figures dropped: computing
+     * every campaign's sums to render a picker would read what nobody looks at,
+     * and would make the list depend on a period the chooser never named.
+     */
+    listCampaignReferences: async (
+      actor: ActorContext, projectId: string,
+    ): Promise<CampaignReference[]> => {
+      assertCanRead(actor);
+      if (!(await dependencies.projects.isReachable(actor, projectId))) {
+        throw new AppError("not-found", "Project not found");
+      }
+      const campaigns = await dependencies.campaigns.listReachableByProject(actor, projectId);
+      return campaigns.map(({ id, name, channel }) => ({ id, name, channel }));
     },
 
     listAdSets: async (

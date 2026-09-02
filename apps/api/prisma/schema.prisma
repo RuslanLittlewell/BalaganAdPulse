@@ -128,6 +128,9 @@ model Task {
   priority    TaskPriority
   assigneeId  String?      @map("assignee_id")
   createdById String?      @map("created_by_id")
+  /// The campaign this work is about. Null means the project as a whole — a
+  /// statement, not a gap, so nothing here defaults it to a campaign.
+  campaignId  String?      @map("campaign_id")
   position    Int
   createdAt   DateTime     @default(now()) @map("created_at")
   updatedAt   DateTime     @updatedAt @map("updated_at")
@@ -135,11 +138,15 @@ model Task {
   project  Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   assignee Membership?  @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  // SetNull, never Cascade: a task is work somebody owns, and it outlives the
+  // campaign it was about. Deleting the campaign leaves the task, unattached.
+  campaign Campaign?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   creator  Membership?  @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
   images   TaskImage[]
 
   @@index([orgId, column, position])
   @@index([projectId])
+  @@index([campaignId])
   @@map("task")
 }
 
@@ -315,6 +322,7 @@ model Campaign {
   updatedAt  DateTime              @updatedAt @map("updated_at")
   adSets     AdSet[]
   metrics    CampaignDailyMetric[]
+  tasks      Task[]
 
   @@unique([channel, externalId])
   @@index([projectId, position])

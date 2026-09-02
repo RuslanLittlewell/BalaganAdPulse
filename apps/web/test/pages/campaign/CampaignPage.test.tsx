@@ -2,7 +2,7 @@ import { http as mock, HttpResponse } from "msw";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
-import { renderWithProviders, server } from "@test/shared/index.js";
+import { aTask, renderWithProviders, server } from "@test/shared/index.js";
 import { CampaignPage } from "@/pages/campaign/index.js";
 
 const performance = (spend: number, extra = {}) => ({
@@ -23,8 +23,11 @@ function App() {
   );
 }
 
-function api(options: { adSets?: unknown[]; days?: unknown[] } = {}) {
+function api(options: { adSets?: unknown[]; days?: unknown[]; tasks?: unknown[] } = {}) {
   server.use(
+    mock.get("/api/members", () => HttpResponse.json([])),
+    mock.get("/api/projects", () => HttpResponse.json([])),
+    mock.get("/api/tasks", () => HttpResponse.json(options.tasks ?? [])),
     mock.get("/api/campaigns/:campaignId/daily", () =>
       HttpResponse.json(options.days ?? [day("2026-08-01", 400), day("2026-08-02", 900)])),
     mock.get("/api/campaigns/:campaignId/ad-sets", () => HttpResponse.json(options.adSets ?? [
@@ -110,5 +113,65 @@ describe("CampaignPage", () => {
     renderWithProviders(<App />, route);
 
     expect(await screen.findByText("Групп объявлений пока нет")).toBeInTheDocument();
+  });
+});
+
+describe("the work about a campaign", () => {
+  it("lists the tasks that name it", async () => {
+    api({ tasks: [
+      aTask({ id: "t1", projectId: "p1", campaignId: "c1", title: "Переписать объявления" }),
+    ] });
+    renderWithProviders(<App />, route);
+
+    expect(await screen.findByText("Переписать объявления")).toBeInTheDocument();
+  });
+
+  // Narrowed by the server, so the screen never has to know which of the
+  // project's tasks are somebody else's.
+  it("asks the server for this campaign's tasks alone", async () => {
+    const seen: URL[] = [];
+    api();
+    server.use(mock.get("/api/tasks", ({ request }) => {
+      seen.push(new URL(request.url));
+      return HttpResponse.json([]);
+    }));
+    renderWithProviders(<App />, route);
+
+    await screen.findByText("К этой кампании нет задач");
+    expect(seen).toHaveLength(1);
+    expect(seen[0].searchParams.get("campaignId")).toBe("c1");
+  });
+
+  // Unlike a project's list, a campaign's is not narrowed to the stages still
+  // in flight: its finished work is part of what the campaign is.
+  it("lists finished work too", async () => {
+    api({ tasks: [
+      aTask({ id: "t1", projectId: "p1", campaignId: "c1", title: "Старый отчёт", column: "DONE" }),
+    ] });
+    renderWithProviders(<App />, route);
+
+    expect(await screen.findByText("Старый отчёт")).toBeInTheDocument();
+  });
+
+  it("says so when the campaign has no tasks", async () => {
+    api({ tasks: [] });
+    renderWithProviders(<App />, route);
+
+    expect(await screen.findByText("К этой кампании нет задач")).toBeInTheDocument();
+  });
+
+  it("opens a task read-only when its row is chosen", async () => {
+    const user = userEvent.setup();
+    api({ tasks: [
+      aTask({ id: "t1", projectId: "p1", campaignId: "c1", title: "Переписать объявления" }),
+    ] });
+    renderWithProviders(<App />, route);
+
+    await user.click(await screen.findByRole("button", { name: /Переписать объявления/ }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("heading", { name: "Переписать объявления" }))
+      .toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Сохранить" })).not.toBeInTheDocument();
   });
 });

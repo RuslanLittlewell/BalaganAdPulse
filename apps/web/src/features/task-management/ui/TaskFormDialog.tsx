@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { ApiError } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
@@ -20,6 +20,7 @@ import {
 import { Can } from "@/features/permissions/index.js";
 import { ProjectAvatar, useProjects } from "@/entities/project/index.js";
 import { MemberAvatar, useMembers } from "@/entities/membership/index.js";
+import { channelLabel, useCampaignReferences } from "@/entities/campaign/index.js";
 import {
   TASK_PRIORITIES,
   collectImageIds,
@@ -48,11 +49,21 @@ interface FormValues {
   title: string;
   priority: Task["priority"];
   assigneeId: string;
+  campaignId: string;
 }
 
 /** The select's "nobody" option. An empty string is what a Radix select uses
  * for no choice, and it maps to the API's null. */
 const UNASSIGNED = "";
+
+/**
+ * The campaign select's "the project as a whole" option.
+ *
+ * A Radix item cannot carry an empty value, so the absence needs a token of its
+ * own — and it deserves one anyway: choosing Общий is a statement about the
+ * work, not a refusal to answer. It maps to the API's null.
+ */
+const WHOLE_PROJECT = "__whole_project__";
 
 export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDialogProps) {
   const { data: projects } = useProjects();
@@ -78,14 +89,32 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
   const [failure, setFailure] = useState<string | null>(null);
   const editor = useRef<TaskDescriptionEditorHandle>(null);
 
-  const { control, handleSubmit, register, formState: { errors } } = useForm<FormValues>({
-    defaultValues: {
-      projectId: task?.projectId ?? "",
-      title: task?.title ?? "",
-      priority: task?.priority ?? "MEDIUM",
-      assigneeId: task?.assigneeId ?? UNASSIGNED,
-    },
-  });
+  const { control, handleSubmit, register, setValue, watch, formState: { errors } } =
+    useForm<FormValues>({
+      defaultValues: {
+        projectId: task?.projectId ?? "",
+        title: task?.title ?? "",
+        priority: task?.priority ?? "MEDIUM",
+        assigneeId: task?.assigneeId ?? UNASSIGNED,
+        campaignId: task?.campaignId ?? WHOLE_PROJECT,
+      },
+    });
+
+  /* The campaigns to choose between belong to the chosen project, so there is
+     nothing to offer until one is chosen. */
+  const projectId = watch("projectId");
+  const { data: campaigns } = useCampaignReferences(projectId || undefined);
+
+  /* Moving to another project releases the campaign: the old one is not under
+     the new project, and the API would refuse it. Clearing it here makes the
+     release visible before saving rather than discovered afterwards. The task's
+     own project is exempt, so opening an existing task keeps its campaign. */
+  const chosenProject = useRef(projectId);
+  useEffect(() => {
+    if (chosenProject.current === projectId) return;
+    chosenProject.current = projectId;
+    setValue("campaignId", WHOLE_PROJECT);
+  }, [projectId, setValue]);
 
   const onSubmit = handleSubmit(async (values) => {
     const body: TaskInput = {
@@ -93,6 +122,7 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
       title: values.title,
       priority: values.priority,
       assigneeId: values.assigneeId === UNASSIGNED ? null : values.assigneeId,
+      campaignId: values.campaignId === WHOLE_PROJECT ? null : values.campaignId,
       description,
       // Only when the dialog was opened from a column. An edit never carries
       // one: moving a card is the board's job, not the form's.
@@ -137,10 +167,10 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
             <TaskDescriptionEditor ref={editor} value={description} onChange={setDescription} />
           </div>
 
-          {/* max-content, not 1fr: the three fields take the width their own
-              contents need instead of splitting the row into equal thirds. */}
+          {/* max-content, not 1fr: each field takes the width its own contents
+              need instead of splitting the row into equal shares. */}
           <div
-            className="grid gap-3 sm:grid-cols-[repeat(3,minmax(0,max-content))]"
+            className="grid gap-3 sm:grid-cols-[repeat(auto-fit,minmax(0,max-content))]"
             data-testid="task-form-selects"
           >
           <div className="flex min-w-0 flex-col gap-2">
@@ -171,6 +201,37 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
               <p role="alert" className="text-sm text-destructive">{errors.projectId.message}</p>
             ) : null}
           </div>
+
+          {projectId ? (
+            <div className="flex min-w-0 flex-col gap-2">
+              <Label htmlFor="task-campaign">{t("tasks.form.campaign")}</Label>
+              <Controller
+                control={control}
+                name="campaignId"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="task-campaign"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {/* First, and the default: most work is about one
+                          campaign, but the whole-project case must never be
+                          the one you have to hunt for. */}
+                      <SelectItem value={WHOLE_PROJECT}>{t("tasks.form.wholeProject")}</SelectItem>
+                      {(campaigns ?? []).map((campaign) => (
+                        <SelectItem key={campaign.id} value={campaign.id}>
+                          <span className="flex min-w-0 flex-col">
+                            <span className="truncate">{campaign.name}</span>
+                            <span className="truncate text-xs text-muted-foreground">
+                              {channelLabel(campaign.channel)}
+                            </span>
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
+          ) : null}
 
           <div className="flex min-w-0 flex-col gap-2">
             <Label htmlFor="task-assignee">{t("tasks.form.assignee")}</Label>

@@ -14,6 +14,16 @@ export function useProjectCampaigns(projectId: string | undefined, range: DateRa
   });
 }
 
+/** The campaigns of one project, for choosing between them. No range: the
+ * choice is about which campaign exists, not about what it spent. */
+export function useCampaignReferences(projectId: string | undefined) {
+  return useQuery({
+    queryKey: ["projects", projectId, "campaigns", "names"],
+    queryFn: () => campaignsApi.namesByProject(projectId as string),
+    enabled: projectId != null,
+  });
+}
+
 export function useCampaign(campaignId: string | undefined, range: DateRange) {
   return useQuery({
     queryKey: keyed(["campaigns", campaignId], range),

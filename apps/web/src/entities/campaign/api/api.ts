@@ -84,6 +84,14 @@ export interface Ad {
 const scoped = (path: string, range: DateRange) =>
   `${path}?from=${range.from}&to=${range.to}`;
 
+/** What identifies a campaign, with none of what it measured — enough to
+ * choose one, and no range to choose it over. */
+export interface CampaignReference {
+  id: string;
+  name: string;
+  channel: Channel;
+}
+
 /** One channel's share of the agency, for the dashboard's source panel. */
 export interface ChannelShare {
   channel: Channel;
@@ -94,6 +102,8 @@ export interface ChannelShare {
 export const campaignsApi = {
   listByProject: (projectId: string, range: DateRange) =>
     http.get<Campaign[]>(scoped(`/projects/${projectId}/campaigns`, range)),
+  namesByProject: (projectId: string) =>
+    http.get<CampaignReference[]>(`/projects/${projectId}/campaigns/names`),
   get: (campaignId: string, range: DateRange) =>
     http.get<Campaign>(scoped(`/campaigns/${campaignId}`, range)),
   daily: (campaignId: string, range: DateRange) =>

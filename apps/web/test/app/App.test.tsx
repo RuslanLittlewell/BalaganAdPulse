@@ -32,6 +32,17 @@ describe("App", () => {
     expect(screen.queryByText("Проекты")).not.toBeInTheDocument();
   });
 
+  // The section is gone; a bookmark for it must land somewhere useful rather
+  // than on the shell with an empty pane.
+  it("sends a bookmark for the removed Team section to the dashboard", async () => {
+    writeTokens({ accessToken: makeAccessToken(), refreshToken: "r" });
+
+    renderAppAt("/team");
+
+    await screen.findByRole("link", { name: "Проекты" });
+    expect(window.location.pathname).toBe("/");
+  });
+
   it("renders the dashboard shell for a signed-in visitor at a dashboard route", async () => {
     writeTokens({ accessToken: makeAccessToken(), refreshToken: "r" });
 

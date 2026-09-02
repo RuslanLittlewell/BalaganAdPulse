@@ -10,6 +10,15 @@ import { ApiError } from "@/shared/lib/index.js";
 export interface TaskDescriptionEditorProps {
   value: unknown | null;
   onChange: (value: unknown) => void;
+  /**
+   * False renders the description without accepting any input.
+   *
+   * The same component rather than a second renderer: a separate one would have
+   * to re-implement the image node, and the two would drift the first time
+   * either changed — showing up as a description that reads differently
+   * depending on which dialog opened it.
+   */
+  editable?: boolean;
 }
 
 export interface TaskDescriptionEditorHandle {
@@ -31,7 +40,7 @@ const ACCEPTED = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 export const TaskDescriptionEditor = forwardRef<
   TaskDescriptionEditorHandle,
   TaskDescriptionEditorProps
->(function TaskDescriptionEditor({ value, onChange }, ref) {
+>(function TaskDescriptionEditor({ value, onChange, editable = true }, ref) {
   const [status, setStatus] = useState<string | null>(null);
   // Captured on the first render and never updated. Rebuilding the editor when
   // the value changes would tear down the DOM node holding the caret — which is
@@ -46,6 +55,7 @@ export const TaskDescriptionEditor = forwardRef<
 
   const editor = useEditor({
     extensions: [StarterKit, TaskImage],
+    editable,
     // Read once, at mount. The dialog mounts a fresh editor per task, so this
     // is always the description being opened.
     content: (initialContent as never) ?? "",
@@ -57,7 +67,8 @@ export const TaskDescriptionEditor = forwardRef<
         // pushes the dialog's own buttons out of reach.
         class: "min-h-32 max-h-[400px] overflow-y-auto p-3 outline-none",
       },
-      handlePaste: (_view, event) => insertFrom(event.clipboardData?.files),
+      handlePaste: (_view, event) =>
+        editable ? insertFrom(event.clipboardData?.files) : false,
     },
   });
 
@@ -117,6 +128,8 @@ export const TaskDescriptionEditor = forwardRef<
    * hook needs a resolved drop position, and a file dropped anywhere on the
    * editor should land in the description wherever the cursor happens to be. */
   function handleDrop(event: React.DragEvent<HTMLDivElement>) {
+    // Nothing dropped here could be saved, so nothing is uploaded.
+    if (!editable) return;
     if (!event.dataTransfer?.files?.length) return;
     event.preventDefault();
     insertFrom(event.dataTransfer.files);

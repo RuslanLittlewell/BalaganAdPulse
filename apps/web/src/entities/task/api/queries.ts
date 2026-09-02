@@ -10,10 +10,27 @@ export type TaskEvent =
   | { kind: "task.moved"; orgId: string; projectId: string; task: Task }
   | { kind: "task.deleted"; orgId: string; projectId: string; taskId: string };
 
-export function useTasks(projectId?: string) {
+export interface UseTasksOptions {
+  projectId?: string;
+  campaignId?: string;
+  /**
+   * False holds the query back.
+   *
+   * A screen scoped to one project reads its id from the address, which lands a
+   * tick after the first render. Without this it would ask for every task in
+   * the organization first and the project's second — one wasted listing, and
+   * the wide answer left in the cache.
+   */
+  enabled?: boolean;
+}
+
+/** Both filters are part of the key, not just the request: each combination is
+ * a different answer and must never share a cache entry. */
+export function useTasks({ projectId, campaignId, enabled = true }: UseTasksOptions = {}) {
   return useQuery({
-    queryKey: [...TASKS_KEY, projectId ?? null],
-    queryFn: () => tasksApi.list(projectId),
+    queryKey: [...TASKS_KEY, projectId ?? null, campaignId ?? null],
+    queryFn: () => tasksApi.list(projectId, campaignId),
+    enabled,
   });
 }
 
@@ -84,10 +101,32 @@ export function useMoveTask() {
         if (!tasks) continue;
         qc.setQueryData<Task[]>(key, applyTaskEvent(tasks, {
           kind: "task.moved", orgId: moved.orgId, projectId: moved.projectId, task: moved,
-        }));
+        }, filterOfKey(key)));
       }
     },
   });
+}
+
+/** What a cached listing was narrowed by. `null` means "not narrowed by this". */
+export interface TaskListFilter {
+  readonly projectId: string | null;
+  readonly campaignId: string | null;
+}
+
+function matchesFilter(filter: TaskListFilter, task: Task): boolean {
+  if (filter.projectId !== null && task.projectId !== filter.projectId) return false;
+  if (filter.campaignId !== null && task.campaignId !== filter.campaignId) return false;
+  return true;
+}
+
+/** The filter a cache key names. The key is `["tasks", projectId, campaignId]`,
+ * built by `useTasks`; anything shorter is an unfiltered listing. */
+export function filterOfKey(key: readonly unknown[]): TaskListFilter {
+  const [, projectId, campaignId] = key;
+  return {
+    projectId: typeof projectId === "string" ? projectId : null,
+    campaignId: typeof campaignId === "string" ? campaignId : null,
+  };
 }
 
 /**
@@ -99,14 +138,31 @@ export function useMoveTask() {
  * same state. That also makes it idempotent: the mover receives their own
  * event, and applying it must confirm the board rather than shuffle it again.
  */
-export function applyTaskEvent(tasks: Task[], event: TaskEvent): Task[] {
-  if (event.kind === "task.deleted") {
-    const removed = tasks.find((task) => task.id === event.taskId);
+export function applyTaskEvent(
+  tasks: Task[],
+  event: TaskEvent,
+  filter?: TaskListFilter,
+): Task[] {
+  /** Takes a card out and closes the gap behind it — or the next drop computes
+   * against a column numbered 1,2 with no 0 and lands somewhere nobody aimed at. */
+  const without = (id: string): Task[] => {
+    const removed = tasks.find((task) => task.id === id);
     if (!removed) return tasks;
-    // Close the gap, or the next drop computes against a column numbered 1,2
-    // with no 0 and lands somewhere nobody aimed at.
-    return renumber(tasks.filter((task) => task.id !== event.taskId), removed.column);
-  }
+    return renumber(tasks.filter((task) => task.id !== id), removed.column);
+  };
+
+  if (event.kind === "task.deleted") return without(event.taskId);
+
+  /**
+   * A listing narrowed to one project or campaign stays narrowed.
+   *
+   * Events arrive for every task in the organization and every cached listing
+   * is asked to fold them in, so without this a campaign's list gains other
+   * campaigns' tasks the moment anyone creates one. A task that no longer
+   * matches leaves rather than being ignored: it did not go away, it is
+   * somebody else's row now.
+   */
+  if (filter && !matchesFilter(filter, event.task)) return without(event.task.id);
 
   const known = tasks.some((task) => task.id === event.task.id);
   // A card can arrive by being moved into a column this board is showing, not
@@ -155,10 +211,24 @@ export function applyMove(tasks: Task[], id: string, move: TaskMove): Task[] {
   source.forEach((task, index) => positions.set(task.id, { column: moved.column, position: index }));
   placed.forEach((task, index) => positions.set(task.id, { column: move.column, position: index }));
 
-  return tasks.map((task) => {
-    const next = positions.get(task.id);
-    return next ? { ...task, ...next } : task;
+  /**
+   * Identity is part of the contract, not an optimisation.
+   *
+   * The board writes this into state on every drag-over, and dnd-kit
+   * re-measures its droppables on every render while a drag is in flight —
+   * which fires the next drag-over. A fresh array each time closes that circle
+   * into an infinite loop. So a card that did not move stays the same object,
+   * and a move that changes nothing answers the array it was given.
+   */
+  let changed = false;
+  const next = tasks.map((task) => {
+    const placement = positions.get(task.id);
+    if (!placement
+      || (task.column === placement.column && task.position === placement.position)) return task;
+    changed = true;
+    return { ...task, ...placement };
   });
+  return changed ? next : tasks;
 }
 
 function isColumn(value: string): value is TaskColumn {

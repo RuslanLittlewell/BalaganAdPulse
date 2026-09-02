@@ -5,7 +5,7 @@ import { useMoveTask, useTasks, type Task } from "@/entities/task/index.js";
 
 const task = (id: string, column: Task["column"], position: number): Task => ({
   id, projectId: "p1", orgId: "org1", title: id, description: null,
-  column, priority: "LOW", assigneeId: null, createdById: null, position, imageIds: [],
+  column, priority: "LOW", assigneeId: null, createdById: null, campaignId: null, position, imageIds: [],
   createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
 });
 
@@ -29,7 +29,7 @@ function setupWithBoard() {
   const wrapper = hookWrapper();
   wrapper.client.setQueryData(["tasks", null], board);
   const { result } = renderHook(
-    () => ({ move: useMoveTask(), board: useTasks() }),
+    () => ({ move: useMoveTask(), board: useTasks({}) }),
     { wrapper },
   );
   return { wrapper, result };

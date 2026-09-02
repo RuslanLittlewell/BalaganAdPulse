@@ -47,6 +47,52 @@ describe("ProjectList", () => {
     await waitFor(() => expect(screen.getByLabelText("Название проекта")).toBeInTheDocument());
   });
 
+  it("sorts projects by priority from critical to new", async () => {
+    server.use(mock.get("/api/projects", () => HttpResponse.json([
+      aProject({ id: "new", name: "Новый", priority: "NEW" }),
+      aProject({ id: "waiting", name: "Ожидает", priority: "WAITING" }),
+      aProject({ id: "critical", name: "Критичный", priority: "CRITICAL" }),
+      aProject({ id: "urgent", name: "Срочный", priority: "URGENT" }),
+      aProject({ id: "idle", name: "Без задач", priority: "IDLE" }),
+    ])));
+    setup();
+
+    await screen.findByText("Критичный");
+    const names = ["Критичный", "Срочный", "Ожидает", "Без задач", "Новый"]
+      .map((name) => screen.getAllByText(name).at(-1)!);
+    for (let index = 0; index < names.length - 1; index += 1) {
+      expect(names[index].compareDocumentPosition(names[index + 1]) & Node.DOCUMENT_POSITION_FOLLOWING)
+        .toBeTruthy();
+    }
+  });
+
+  it("filters projects with the priority select", async () => {
+    server.use(mock.get("/api/projects", () => HttpResponse.json([
+      aProject({ id: "critical", name: "Критичный проект", priority: "CRITICAL" }),
+      aProject({ id: "idle", name: "Проект без задач", priority: "IDLE" }),
+    ])));
+    setup();
+
+    const filter = await screen.findByRole("combobox", { name: "Фильтр по приоритету" });
+    await userEvent.click(filter);
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "Все приоритеты", "Очень важно", "Есть срочные задачи",
+      "В работе, ждём результата", "Нет задач", "Новый",
+    ]);
+    await userEvent.click(screen.getByRole("option", { name: "Нет задач" }));
+    expect(screen.queryByText("Критичный проект")).not.toBeInTheDocument();
+    expect(screen.getByText("Проект без задач")).toBeInTheDocument();
+  });
+
+  it("uses an icon-only new-project button at the bottom right", async () => {
+    server.use(mock.get("/api/projects", () => HttpResponse.json([])));
+    setup();
+
+    const button = await screen.findByRole("button", { name: "Новый проект" });
+    expect(button).toHaveClass("absolute", "right-2", "bottom-2", "rounded-full");
+    expect(button).toHaveTextContent("");
+  });
+
   it("uses the shared loader while the projects load", () => {
     setup();
     expect(screen.getByRole("status")).toHaveTextContent("Загрузка…");

@@ -13,6 +13,9 @@ export interface TaskCardProps {
   draggable: boolean;
   placeholder?: boolean;
   project?: Project;
+  /** The name of the campaign the task names. Absent means the task names none,
+   * which the card states as Общий rather than leaving blank. */
+  campaignName?: string;
   assignee?: Membership;
   onOpen?: (task: Task) => void;
 }
@@ -36,7 +39,7 @@ const PRIORITY_BAR: Record<Task["priority"], string> = {
 };
 
 export function TaskCard({
-  task, draggable, placeholder = false, project, assignee, onOpen,
+  task, draggable, placeholder = false, project, campaignName, assignee, onOpen,
 }: TaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: task.id,
@@ -136,10 +139,18 @@ export function TaskCard({
       ) : null}
 
       <footer className="mt-3 flex items-center justify-between gap-2 border-t border-border/60 pt-2.5">
-        <span className="flex min-w-0 items-center gap-1.5" data-testid={`task-project-${task.id}`}>
-          {project ? <ProjectAvatar project={project} size="sm" /> : null}
-          <span className="truncate text-xs text-muted-foreground">
-            {project?.name ?? t("tasks.noProject")}
+        <span className="flex min-w-0 flex-col">
+          <span className="flex min-w-0 items-center gap-1.5" data-testid={`task-project-${task.id}`}>
+            {project ? <ProjectAvatar project={project} size="sm" /> : null}
+            <span className="truncate text-xs text-muted-foreground">
+              {project?.name ?? t("tasks.noProject")}
+            </span>
+          </span>
+          <span
+            className="truncate pt-1 pl-0.5 text-[11px] text-muted-foreground/80"
+            data-testid={`task-campaign-${task.id}`}
+          >
+            {campaignName ?? t("tasks.form.wholeProject")}
           </span>
         </span>
 

@@ -10,7 +10,9 @@ import {
   type TaskPriority,
 } from "../domain/board.js";
 import { collectImageIds } from "../domain/description.js";
-import type { TaskChange, TaskDependencies, TaskDescription, TaskRecord } from "./ports.js";
+import type {
+  TaskChange, TaskDependencies, TaskDescription, TaskFilter, TaskRecord,
+} from "./ports.js";
 import { taskCreated, taskDeleted, taskMoved, taskUpdated } from "./task-events.js";
 
 export interface CreateTaskInput {
@@ -20,6 +22,8 @@ export interface CreateTaskInput {
   readonly column?: TaskColumn;
   readonly priority: TaskPriority;
   readonly assigneeId?: string | null;
+  /** Absent or null means the task is about the project as a whole. */
+  readonly campaignId?: string | null;
 }
 
 export interface MoveTaskInput {
@@ -67,6 +71,25 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
     }
   };
 
+  /**
+   * The campaign must belong to the project the task will have — not the one it
+   * had, and not the one the request happened to mention.
+   *
+   * An unreachable campaign and an absent one are refused identically: the
+   * project is already known to be reachable, so an answer that told them apart
+   * would leak what exists outside the caller's grants. It is a 400 rather than
+   * a 404 because what failed is a field of the request, not the address.
+   */
+  const assertCampaignInProject = async (
+    campaignId: string | null | undefined,
+    projectId: string,
+  ) => {
+    if (!campaignId) return;
+    if (!(await dependencies.campaigns.isInProject(campaignId, projectId))) {
+      throw new AppError("validation", "That campaign does not belong to this project");
+    }
+  };
+
   const assertTitle = (title: string | undefined) => {
     if (title !== undefined && title.trim().length === 0) {
       throw new AppError("validation", "title is required");
@@ -80,9 +103,9 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
   };
 
   return {
-    list: async (actor: ActorContext, projectId?: string): Promise<TaskRecord[]> => {
+    list: async (actor: ActorContext, filter?: TaskFilter): Promise<TaskRecord[]> => {
       assertCanRead(actor);
-      return dependencies.tasks.listReachable(actor, projectId);
+      return dependencies.tasks.listReachable(actor, filter);
     },
 
     read: (actor: ActorContext, id: string): Promise<TaskRecord> => reach(actor, id),
@@ -94,6 +117,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
       assertColumn(input.column);
       const context = await projectContext(actor, input.projectId);
       await assertAssignable(actor, input.assigneeId);
+      await assertCampaignInProject(input.campaignId, input.projectId);
 
       const column = input.column ?? DEFAULT_TASK_COLUMN;
       const created = await dependencies.unitOfWork.run(async (transaction) => {
@@ -107,6 +131,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
           priority: input.priority,
           assigneeId: input.assigneeId ?? null,
           createdById: actor.membershipId,
+          campaignId: input.campaignId ?? null,
           // Appended: a new task joins the end of its column.
           position: await dependencies.tasks.countInColumn(actor.orgId, column),
         });
@@ -132,13 +157,26 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
       const task = await reach(actor, id);
       assertCan(actor, "update");
       assertTitle(input.title);
-      const context = await projectContext(actor, input.projectId ?? task.projectId);
+      const projectId = input.projectId ?? task.projectId;
+      const context = await projectContext(actor, projectId);
       await assertAssignable(actor, input.assigneeId);
+      await assertCampaignInProject(input.campaignId, projectId);
+
+      /**
+       * Moving to another project releases a campaign the request did not
+       * re-state. The old campaign is not under the new project, and leaving it
+       * would store a pairing the model forbids — while refusing the edit would
+       * fail it for a reason the member never asked about.
+       */
+      const releasesCampaign = input.campaignId === undefined
+        && projectId !== task.projectId
+        && task.campaignId !== null;
 
       const updated = await dependencies.unitOfWork.run(async (transaction) => {
         const changed = await dependencies.tasks.update(transaction, id, {
           ...input,
           ...(input.title === undefined ? {} : { title: input.title.trim() }),
+          ...(releasesCampaign ? { campaignId: null } : {}),
         });
         const imageIds = input.description === undefined
           ? changed.imageIds

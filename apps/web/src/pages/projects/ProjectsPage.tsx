@@ -16,13 +16,23 @@ export function ProjectsPage() {
       <ProjectList />
       <div className="min-w-0">
         <Routes>
+          {/* Centred in the pane rather than parked under the top edge: with
+              nothing selected the pane is empty, and a prompt hugging the top
+              of all that space reads as a page that failed to load. The
+              centring lives on this route alone — the screens below fill the
+              same pane, and would be squeezed to their content width by it. */}
           <Route
             path="/"
             element={
-              <EmptyState
-                title={t("projects.empty.title")}
-                description={t("projects.empty.description")}
-              />
+              <div
+                className="flex h-full min-h-0 items-center justify-center"
+                data-testid="projects-unselected"
+              >
+                <EmptyState
+                  title={t("projects.unselected.title")}
+                  description={t("projects.unselected.description")}
+                />
+              </div>
             }
           />
           <Route path=":projectId" element={<ProjectPage />} />

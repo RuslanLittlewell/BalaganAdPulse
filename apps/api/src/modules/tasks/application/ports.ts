@@ -22,6 +22,9 @@ export interface TaskRecord {
   readonly priority: TaskPriority;
   readonly assigneeId: string | null;
   readonly createdById: string | null;
+  /** The campaign this work is about. Null is a statement, not a gap: the task
+   * is about the project as a whole. */
+  readonly campaignId: string | null;
   readonly position: number;
   /** The images this task's description claims, so the board can show that a
    * card has attachments without fetching any of them. */
@@ -40,6 +43,7 @@ export interface NewTask {
   readonly priority: TaskPriority;
   readonly assigneeId: string | null;
   readonly createdById: string | null;
+  readonly campaignId: string | null;
   readonly position: number;
 }
 
@@ -49,13 +53,21 @@ export interface TaskChange {
   readonly description?: TaskDescription | null;
   readonly priority?: TaskPriority;
   readonly assigneeId?: string | null;
+  readonly campaignId?: string | null;
+}
+
+/** What narrows a listing. Every field is optional and every one narrows: none
+ * of them can widen what the actor's reach already decided. */
+export interface TaskFilter {
+  readonly projectId?: string;
+  readonly campaignId?: string;
 }
 
 export interface TaskRepository {
   create(context: TransactionContext, input: NewTask): Promise<TaskRecord>;
   /** Reach is translated here, from the actor's role and grants into a filter. */
   findReachable(actor: ActorContext, id: string): Promise<TaskRecord | null>;
-  listReachable(actor: ActorContext, projectId?: string): Promise<TaskRecord[]>;
+  listReachable(actor: ActorContext, filter?: TaskFilter): Promise<TaskRecord[]>;
   update(context: TransactionContext, id: string, input: TaskChange): Promise<TaskRecord>;
   delete(context: TransactionContext, id: string): Promise<void>;
   countInColumn(orgId: string, column: TaskColumn): Promise<number>;
@@ -71,6 +83,17 @@ export interface ProjectReach {
   contextFor(actor: ActorContext, projectId: string): Promise<{ clientId: string } | null>;
 }
 
+/**
+ * Whether a campaign may be named by a task under this project.
+ *
+ * Stated as a question rather than a lookup: the tasks module needs to know
+ * whether the pairing is allowed, and nothing else about what a campaign is.
+ * The campaigns module answers it.
+ */
+export interface CampaignReach {
+  isInProject(campaignId: string, projectId: string): Promise<boolean>;
+}
+
 /** Whether a membership may be made responsible for a task: active, and in the
  * same organization as the actor. */
 export interface MemberReach {
@@ -82,6 +105,7 @@ export interface TaskDependencies {
   readonly images: TaskImageRepository;
   readonly imageStorage: TaskImageStorage;
   readonly projects: ProjectReach;
+  readonly campaigns: CampaignReach;
   readonly members: MemberReach;
   readonly audit: AuditWriter;
   readonly events: TaskEventPublisher;

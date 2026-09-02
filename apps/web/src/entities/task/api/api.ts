@@ -14,6 +14,22 @@ export const TASK_COLUMNS = [
 
 export type TaskColumn = (typeof TASK_COLUMNS)[number];
 
+/** Where work stops. Everything else is in flight. */
+const TERMINAL_COLUMNS: readonly TaskColumn[] = ["DONE", "ARCHIVED"];
+
+export function isActiveColumn(column: TaskColumn): boolean {
+  return !TERMINAL_COLUMNS.includes(column);
+}
+
+/**
+ * The stages work is still in flight at, in the order the board draws them.
+ *
+ * Derived as the complement of the terminal two rather than listed: a stage
+ * added later counts as in flight until someone says otherwise, and a new stage
+ * appearing in a list is noticed where one silently missing from it is not.
+ */
+export const ACTIVE_TASK_COLUMNS: readonly TaskColumn[] = TASK_COLUMNS.filter(isActiveColumn);
+
 export const TASK_PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"] as const;
 
 export type TaskPriority = (typeof TASK_PRIORITIES)[number];
@@ -29,6 +45,9 @@ export interface Task {
   priority: TaskPriority;
   assigneeId: string | null;
   createdById: string | null;
+  /** The campaign this work is about. Null is a statement, not a gap: the task
+   * is about the project as a whole, which the interface calls "Общий". */
+  campaignId: string | null;
   position: number;
   /** The images this task's description claims. Ids only — the board shows
    * that a card has attachments without fetching any of them. */
@@ -44,6 +63,7 @@ export interface TaskInput {
   column?: TaskColumn;
   priority?: TaskPriority;
   assigneeId?: string | null;
+  campaignId?: string | null;
 }
 
 export interface TaskMove {
@@ -59,8 +79,13 @@ export interface TaskImage {
 }
 
 export const tasksApi = {
-  list: (projectId?: string) =>
-    http.get<Task[]>(`/tasks${projectId ? `?projectId=${projectId}` : ""}`),
+  list: (projectId?: string, campaignId?: string) => {
+    const query = new URLSearchParams();
+    if (projectId) query.set("projectId", projectId);
+    if (campaignId) query.set("campaignId", campaignId);
+    const suffix = query.size === 0 ? "" : `?${query}`;
+    return http.get<Task[]>(`/tasks${suffix}`);
+  },
   create: (body: TaskInput) => http.post<Task>("/tasks", body),
   update: (id: string, body: TaskInput) => http.patch<Task>(`/tasks/${id}`, body),
   remove: (id: string) => http.del(`/tasks/${id}`),

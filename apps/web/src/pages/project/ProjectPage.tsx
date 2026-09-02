@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { HistoryIcon } from "lucide-react";
-import { Button, EmptyState } from "@/shared/ui/index.js";
+import { Button, EmptyState, Skeleton } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
 import { projectPath } from "@/shared/lib/index.js";
 import { useClients } from "@/entities/client/index.js";
@@ -9,12 +9,30 @@ import { ProjectHeader, useActiveProjectId, useProjects } from "@/entities/proje
 import {
   channelLabel, performanceTone, statusLabel, useProjectCampaigns, useProjectSummary,
 } from "@/entities/campaign/index.js";
+import { ACTIVE_TASK_COLUMNS, useTasks, type Task } from "@/entities/task/index.js";
 import { PeriodControl, usePeriod } from "@/features/period/index.js";
+import { TaskPreviewDialog } from "@/features/task-management/index.js";
 import { Can } from "@/features/permissions/index.js";
+import { TaskList } from "@/widgets/task-list/index.js";
 import { PerformanceSummary } from "@/widgets/agency-overview/index.js";
 import { PerformanceTable, type PerformanceRow } from "@/widgets/performance-table/index.js";
 import { ActivityLogModal } from "@/widgets/activity-log-modal/index.js";
 import type { AuditEventFilters } from "@/entities/audit-event/index.js";
+
+function CampaignTablePlaceholder() {
+  return (
+    <div
+      role="status"
+      aria-label={t("campaigns.loading")}
+      className="space-y-3 rounded-lg border border-border p-4"
+    >
+      <Skeleton className="h-8 w-full" />
+      {Array.from({ length: 5 }, (_, index) => (
+        <Skeleton key={index} className="h-11 w-full" />
+      ))}
+    </div>
+  );
+}
 
 /** One project: what it spent over the period, and the campaigns it spent it on. */
 export function ProjectPage() {
@@ -26,6 +44,16 @@ export function ProjectPage() {
   const summary = useProjectSummary(projectId, range);
   const campaigns = useProjectCampaigns(projectId, range);
   const [activityFilters, setActivityFilters] = useState<AuditEventFilters | null>(null);
+  const [reading, setReading] = useState<Task | null>(null);
+  // Held back until the address has been read: an unscoped listing here
+  // would fetch every task in the organization.
+  const tasks = useTasks({ projectId, enabled: projectId != null });
+
+  /* Filtered here rather than asked for: this is the listing the board already
+     fetches, so reusing it costs a cache hit, and a stage parameter would split
+     one answer into two that differ by a predicate the client can apply. */
+  const inFlight = (tasks.data ?? [])
+    .filter((task) => ACTIVE_TASK_COLUMNS.includes(task.column));
 
   if (projects.isPending) return null;
 
@@ -59,7 +87,9 @@ export function ProjectPage() {
 
       <PerformanceSummary performance={summary.data} />
 
-      {campaigns.isError ? (
+      {campaigns.isPending ? (
+        <CampaignTablePlaceholder />
+      ) : campaigns.isError ? (
         <EmptyState
           title={t("state.error.title")}
           action={
@@ -77,6 +107,17 @@ export function ProjectPage() {
           onOpen={(campaignId) => navigate(projectPath(project.id, campaignId))}
         />
       )}
+
+      <TaskList
+        title={t("tasks.inFlight.title")}
+        tasks={inFlight}
+        empty={t("tasks.inFlight.empty")}
+        onOpen={setReading}
+      />
+
+      {reading ? (
+        <TaskPreviewDialog task={reading} onClose={() => setReading(null)} />
+      ) : null}
 
       <ActivityLogModal
         open={activityFilters != null}

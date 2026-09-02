@@ -50,6 +50,11 @@ export function createCampaignHttpRouters(useCases: CampaignUseCases): CampaignH
   }));
 
   const projectMetricRouter = Router({ mergeParams: true });
+  // Before `/campaigns`: a reference listing carries no range, so it must not
+  // fall through to the reading that requires one.
+  projectMetricRouter.get("/campaigns/names", handle(async (req: Request<{ projectId: string }>, res) => {
+    res.json(await useCases.listCampaignReferences(actorOf(req), req.params.projectId));
+  }));
   projectMetricRouter.get("/campaigns", handle(async (req: Request<{ projectId: string }>, res) => {
     res.json(await useCases.listCampaigns(actorOf(req), req.params.projectId, rangeOf(req)));
   }));

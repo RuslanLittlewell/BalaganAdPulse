@@ -13,6 +13,8 @@ export const createTaskSchema = z.object({
   column: z.enum(TASK_COLUMNS).optional(),
   priority: z.enum(TASK_PRIORITIES),
   assigneeId: z.uuid().nullable().optional(),
+  /** Absent or null means the task is about the project as a whole. */
+  campaignId: z.uuid().nullable().optional(),
 });
 
 export const updateTaskSchema = z.object({
@@ -21,6 +23,7 @@ export const updateTaskSchema = z.object({
   description,
   priority: z.enum(TASK_PRIORITIES).optional(),
   assigneeId: z.uuid().nullable().optional(),
+  campaignId: z.uuid().nullable().optional(),
 });
 
 export const moveTaskSchema = z.object({

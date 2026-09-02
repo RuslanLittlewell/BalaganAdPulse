@@ -1,7 +1,8 @@
-import { screen, within } from "@testing-library/react";
+import { http as mock, HttpResponse } from "msw";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
-import { renderWithProviders } from "@test/shared/index.js";
+import { renderWithProviders, server } from "@test/shared/index.js";
 import { MainNav } from "@/widgets/main-nav/MainNav.js";
 
 const MODULES = ["Дашборд", "Проекты", "Задачи", "Отчёты", "Архив"];
@@ -15,7 +16,30 @@ function setup(route = "/") {
   );
 }
 
+/** An admin sees every gated control there is, so it is the role that would
+ * still be offered a Team entry if one were left behind. */
+function asAdmin() {
+  server.use(mock.get("/api/auth/me", () => HttpResponse.json({
+    user: { id: "u1", name: "Админ", email: "a@acme.com", image: null },
+    organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
+    role: "ADMIN",
+    clientIds: [],
+  })));
+}
+
 describe("MainNav", () => {
+  // Members are looked at in the contact book; a second entry for the same
+  // question is what this section was.
+  it("offers no Team entry, even to an admin", async () => {
+    asAdmin();
+    setup();
+
+    const nav = screen.getByRole("navigation", { name: "Разделы" });
+    await waitFor(() =>
+      expect(within(nav).getAllByRole("link")).toHaveLength(MODULES.length));
+    expect(screen.queryByRole("link", { name: "Команда" })).not.toBeInTheDocument();
+  });
+
   it("lists the five modules, in order", () => {
     setup();
     const nav = screen.getByRole("navigation", { name: "Разделы" });

@@ -11,7 +11,10 @@ import {
   type Ad, type DateRange,
 } from "@/entities/campaign/index.js";
 import { useActiveCampaignId, useActiveProjectId } from "@/entities/project/index.js";
+import { useTasks, type Task } from "@/entities/task/index.js";
 import { PeriodControl, usePeriod } from "@/features/period/index.js";
+import { TaskPreviewDialog } from "@/features/task-management/index.js";
+import { TaskList } from "@/widgets/task-list/index.js";
 import { PerformanceSummary } from "@/widgets/agency-overview/index.js";
 import { DailyChart } from "@/widgets/campaign-overview/index.js";
 import { PerformanceTable, type PerformanceRow } from "@/widgets/performance-table/index.js";
@@ -38,6 +41,11 @@ export function CampaignPage() {
   const days = useCampaignDaily(campaignId, range);
   const adSets = useAdSets(campaignId, range);
   const [openSets, setOpenSets] = useState<ReadonlySet<string>>(new Set());
+  const [reading, setReading] = useState<Task | null>(null);
+  /* Narrowed by the server, not here: a campaign's tasks are a listing whose
+     size does not grow with the project's history. Every stage is listed —
+     unlike a project's, a campaign's finished work is part of what it is. */
+  const tasks = useTasks({ campaignId, enabled: campaignId != null });
   const adsBySet = useAdsOfOpenSets(openSets, range);
 
   if (campaign.isError) return <EmptyState title={t("campaign.notFound.title")} />;
@@ -98,6 +106,17 @@ export function CampaignPage() {
           empty={adSets.isSuccess ? t("adSets.empty") : undefined}
         />
       </div>
+
+      <TaskList
+        title={t("tasks.ofCampaign.title")}
+        tasks={tasks.data ?? []}
+        empty={t("tasks.ofCampaign.empty")}
+        onOpen={setReading}
+      />
+
+      {reading ? (
+        <TaskPreviewDialog task={reading} onClose={() => setReading(null)} />
+      ) : null}
     </div>
   );
 }

@@ -6,7 +6,6 @@ import { ProjectsPage } from "@/pages/projects/index.js";
 import { LoginPage } from "@/pages/login/index.js";
 import { SignupPage } from "@/pages/signup/index.js";
 import { TasksPage } from "@/pages/tasks/index.js";
-import { TeamPage } from "@/pages/team/index.js";
 import { AuthProvider, RequireAuth } from "@/features/auth/index.js";
 import { NavCollapseProvider } from "@/features/nav-collapse/index.js";
 import { SelectionSync } from "@/entities/project/index.js";
@@ -32,9 +31,12 @@ function Dashboard() {
             <Route path={ROUTES.tasks} element={<TasksPage />} />
             <Route path={ROUTES.reports} element={<ModulePage title={t("nav.reports")} />} />
             <Route path={ROUTES.archive} element={<ModulePage title={t("nav.archive")} />} />
-            <Route path={ROUTES.team} element={<TeamPage />} />
             {/* The client screens moved under Projects; old links still land. */}
             <Route path="/clients/*" element={<Navigate to={ROUTES.projects} replace />} />
+            {/* The Team section is gone — members are read in the contact book.
+                A bookmark for it lands on the dashboard rather than on the
+                shell with an empty pane. */}
+            <Route path="/team" element={<Navigate to={ROUTES.dashboard} replace />} />
           </Routes>
         </AppShell>
       </NavCollapseProvider>

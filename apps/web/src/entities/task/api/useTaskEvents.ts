@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { applyTaskEvent, TASKS_KEY, type TaskEvent } from "./queries.js";
+import { applyTaskEvent, filterOfKey, TASKS_KEY, type TaskEvent } from "./queries.js";
 import type { Task } from "./api.js";
 
 /** Under `/api`, so the same proxy rule and platform route that reach the REST
@@ -55,7 +55,9 @@ export function useTaskEvents(options: TaskEventsOptions = {}): void {
     const apply = (event: TaskEvent) => {
       for (const [key, tasks] of queryClient.getQueriesData<Task[]>({ queryKey: TASKS_KEY })) {
         if (!tasks) continue;
-        queryClient.setQueryData<Task[]>(key, applyTaskEvent(tasks, event));
+        // Each listing folds the event in under its own filter, so a
+        // narrowed one never takes in a task it was not asking for.
+        queryClient.setQueryData<Task[]>(key, applyTaskEvent(tasks, event, filterOfKey(key)));
       }
     };
 

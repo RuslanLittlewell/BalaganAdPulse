@@ -183,6 +183,67 @@ describe("what a card shows without being opened", () => {
     expect(screen.getByText("Без проекта")).toBeInTheDocument();
   });
 
+  it("names the campaign the work is about", () => {
+    renderWithProviders(
+      <TaskCard
+        task={aTask({ campaignId: "camp-1" })}
+        draggable={false}
+        project={project}
+        campaignName="Поиск / Москва"
+      />,
+      { route: "/tasks" },
+    );
+
+    expect(screen.getByTestId("task-campaign-task-1")).toHaveTextContent("Поиск / Москва");
+  });
+
+  // Not a blank space: a task about the project as a whole says so.
+  it("says Общий when the task names no campaign", () => {
+    renderWithProviders(
+      <TaskCard task={aTask()} draggable={false} project={project} />,
+      { route: "/tasks" },
+    );
+
+    expect(screen.getByTestId("task-campaign-task-1")).toHaveTextContent("Общий");
+  });
+
+  it("carries the campaign through from the board", async () => {
+    server.use(
+      mock.get("/api/tasks", () => HttpResponse.json([
+        aTask({ projectId: "project-1", campaignId: "camp-1" }),
+      ])),
+      mock.get("/api/projects", () => HttpResponse.json([project])),
+      mock.get("/api/projects/project-1/campaigns/names", () => HttpResponse.json([
+        { id: "camp-1", name: "Поиск / Москва", channel: "YANDEX" },
+      ])),
+    );
+    board();
+
+    // The card renders before the names arrive, so the label is what it settles
+    // on, not what it shows first.
+    await waitFor(() => expect(screen.getByTestId("task-campaign-task-1"))
+      .toHaveTextContent("Поиск / Москва"));
+  });
+
+  // The cost of the decoration follows its use: a board where nobody has named
+  // a campaign asks for no campaign names at all.
+  it("asks for no campaign names when no task names one", async () => {
+    const asked: string[] = [];
+    server.use(
+      mock.get("/api/tasks", () => HttpResponse.json([aTask({ projectId: "project-1" })])),
+      mock.get("/api/projects", () => HttpResponse.json([project])),
+      mock.get("/api/projects/:projectId/campaigns/names", ({ params }) => {
+        asked.push(String(params.projectId));
+        return HttpResponse.json([]);
+      }),
+    );
+    board();
+
+    await screen.findByTestId("task-project-task-1");
+    await waitFor(() => expect(screen.getByTestId("task-campaign-task-1")).toBeInTheDocument());
+    expect(asked).toEqual([]);
+  });
+
   it("carries the project and the assignee through from the board", async () => {
     server.use(
       mock.get("/api/tasks", () => HttpResponse.json([

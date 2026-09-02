@@ -220,6 +220,14 @@ A task belongs to exactly one project and carries a title, a rich-text descripti
 priority of its own (`LOW`, `MEDIUM`, `HIGH`, `URGENT` — distinct from `ProjectPriority`,
 which describes a project by counting its tasks) and optionally a responsible member.
 
+It may also name **one campaign of its own project**. Naming none means the work is about
+the project as a whole, shown as **Общий** — a statement rather than a gap, so nothing
+defaults a task onto a campaign. A campaign under another project is refused with 400,
+the same answer an unknown campaign gets, so a refusal never confirms what exists outside
+the caller's grants. Moving a task to another project releases a campaign the request did
+not re-state, and deleting a campaign leaves its tasks standing as Общий: work outlives
+the campaign it was about.
+
 Reading the board follows the same grants as the projects it draws from. Admins and
 managers write; guests read; a `CLIENT` member is refused the board entirely, because it
 carries the agency's internal notes about a customer's own work.
@@ -231,6 +239,17 @@ so listing a board never carries image data. The editor fetches them with the me
 token and renders them from object URLs, because an `<img src>` pointing at the API would
 carry no credentials. An upload whose dialog was cancelled stays recorded with no task, so
 it can be found and reclaimed later.
+
+The board is not the only place work is visible. A **project** lists the tasks under it
+that are still in flight — `IDEA`, `IN_PROGRESS`, `NEEDS_FIX`, `IN_REVIEW`, everything
+but the two terminal stages — below its campaigns. A **campaign** lists the tasks naming
+it, at every stage, because its finished work is part of its history. Opening one from
+either list shows it read-only: the same description renderer the editor uses, with input
+turned off, and no control that writes. Those screens are for reading; the board is where
+work is managed.
+
+The task listing accepts `projectId` and `campaignId`; both narrow what the caller's
+grants already allow and neither can widen it.
 
 The board is shared work, so it updates live. A committed task change is published to
 `/api/realtime`, a WebSocket sharing the HTTP server and authenticated by the same HttpOnly
@@ -410,6 +429,13 @@ by the API and the web app so the interface cannot offer what the API refuses.
 - `CLIENT` has read-only access to the client named by their grant.
 
 All four roles may read audit history, but the same grants constrain which events they see.
+
+The web app has no screen for member administration. The contact book's employee pane
+lists the organization's members with their name, email and role, read-only, and is where
+invitations are issued; changing a role, suspending a member or removing one is done
+through the member endpoints. The rules are unchanged and enforced server-side either
+way — only an admin may make those changes, no admin may remove their own membership, and
+the last admin cannot be removed.
 
 ### Seeding the first admin
 

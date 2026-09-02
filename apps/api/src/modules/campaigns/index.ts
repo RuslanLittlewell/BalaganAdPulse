@@ -1,6 +1,6 @@
 export { createCampaignUseCases } from "./application/campaign-use-cases.js";
 export type {
-  AdSetView, AdView, CampaignDependencies, CampaignUseCases, CampaignView,
+  AdSetView, AdView, CampaignDependencies, CampaignReference, CampaignUseCases, CampaignView,
 } from "./application/campaign-use-cases.js";
 export type {
   AdRepository, AdSetRepository, CampaignRepository, ProjectReach,

@@ -19,8 +19,11 @@ export function createTaskRouter(useCases: TaskUseCases): Router {
   const router = Router();
 
   router.get("/", handle(async (req, res) => {
-    const projectId = typeof req.query.projectId === "string" ? req.query.projectId : undefined;
-    res.json(await useCases.list(actorOf(req), projectId));
+    const only = (value: unknown) => (typeof value === "string" && value ? value : undefined);
+    res.json(await useCases.list(actorOf(req), {
+      projectId: only(req.query.projectId),
+      campaignId: only(req.query.campaignId),
+    }));
   }));
   router.post("/", handle(async (req, res) => {
     res.status(201).json(await useCases.create(actorOf(req), createTaskSchema.parse(req.body)));

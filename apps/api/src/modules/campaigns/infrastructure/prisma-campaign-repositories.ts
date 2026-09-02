@@ -1,7 +1,9 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import type { ActorContext } from "../../../shared/application/index.js";
 import type { Ad, AdSet, Campaign } from "../domain/hierarchy.js";
-import type { AdRepository, AdSetRepository, CampaignRepository, ProjectReach } from "../application/ports.js";
+import type {
+  AdRepository, AdSetRepository, CampaignRepository, ProjectReach,
+} from "../application/ports.js";
 
 /**
  * Which projects this actor reaches, as a query filter.
@@ -99,5 +101,24 @@ export class PrismaProjectReach implements ProjectReach {
       where: { id: projectId, ...reachableProjects(actor) }, select: { id: true },
     });
     return project !== null;
+  }
+}
+
+/**
+ * Whether a campaign sits under a given project.
+ *
+ * No reach filter of its own: the caller has already established that the actor
+ * reaches the project, and a campaign is reachable exactly when its project is.
+ * Asking about a campaign of some other project answers false, which is the same
+ * answer an unknown id gets — deliberately, so neither confirms the other exists.
+ */
+export class PrismaCampaignInProject {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async isInProject(campaignId: string, projectId: string): Promise<boolean> {
+    const campaign = await this.prisma.campaign.findFirst({
+      where: { id: campaignId, projectId }, select: { id: true },
+    });
+    return campaign !== null;
   }
 }

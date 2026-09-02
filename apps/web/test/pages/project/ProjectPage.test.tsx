@@ -2,7 +2,7 @@ import { http as mock, HttpResponse } from "msw";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
-import { renderWithProviders, server } from "@test/shared/index.js";
+import { aTask, renderWithProviders, server } from "@test/shared/index.js";
 import { ProjectPage } from "@/pages/project/index.js";
 
 const performance = (spend: number, extra = {}) => ({
@@ -24,8 +24,10 @@ function App() {
   );
 }
 
-function api(options: { campaigns?: unknown[] } = {}) {
+function api(options: { campaigns?: unknown[]; tasks?: unknown[] } = {}) {
   server.use(
+    mock.get("/api/members", () => HttpResponse.json([])),
+    mock.get("/api/tasks", () => HttpResponse.json(options.tasks ?? [])),
     mock.get("/api/projects", () => HttpResponse.json([{
       id: "p1", clientId: "cl1", name: "Клиника", niche: "Медицина", monthlyBudget: "300000.0000",
       priority: "HIGH", image: null, avatarPath: null, position: 0, createdAt: "", updatedAt: "",
@@ -103,6 +105,21 @@ describe("ProjectPage", () => {
     expect(await screen.findByText("Кампаний пока нет")).toBeInTheDocument();
   });
 
+  it("shows a placeholder instead of an empty table while campaigns load", async () => {
+    let resolveCampaigns: ((response: Response) => void) | undefined;
+    api();
+    server.use(mock.get("/api/projects/:projectId/campaigns", () =>
+      new Promise<Response>((resolve) => { resolveCampaigns = resolve; })));
+    renderWithProviders(<App />, route);
+
+    expect(await screen.findByRole("status", { name: "Загрузка кампаний" })).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.queryByText("Кампаний пока нет")).not.toBeInTheDocument();
+
+    resolveCampaigns?.(HttpResponse.json([]));
+    expect(await screen.findByText("Кампаний пока нет")).toBeInTheDocument();
+  });
+
   it("shows the project under its client", async () => {
     api();
     renderWithProviders(<App />, route);
@@ -152,5 +169,68 @@ describe("ProjectPage", () => {
     renderWithProviders(<App />, { route: "/projects/missing" });
 
     expect(await screen.findByText("Проект не найден")).toBeInTheDocument();
+  });
+});
+
+describe("the work in flight under a project", () => {
+  const board = [
+    aTask({ id: "t1", projectId: "p1", title: "Переписать объявления", column: "IN_PROGRESS" }),
+    aTask({ id: "t2", projectId: "p1", title: "Собрать семантику", column: "IDEA" }),
+    aTask({ id: "t3", projectId: "p1", title: "Проверить пиксель", column: "IN_REVIEW" }),
+    aTask({ id: "t4", projectId: "p1", title: "Поправить оффер", column: "NEEDS_FIX" }),
+    aTask({ id: "t5", projectId: "p1", title: "Старый отчёт", column: "DONE" }),
+    aTask({ id: "t6", projectId: "p1", title: "Отложенное", column: "ARCHIVED" }),
+  ];
+
+  it("lists the tasks that are still in flight, below the campaigns", async () => {
+    api({ tasks: board });
+    renderWithProviders(<App />, route);
+
+    for (const title of ["Переписать объявления", "Собрать семантику", "Проверить пиксель", "Поправить оффер"]) {
+      expect(await screen.findByText(title)).toBeInTheDocument();
+    }
+  });
+
+  // The list answers "what is being worked on", not "what has ever existed".
+  it("leaves out what is done or archived", async () => {
+    api({ tasks: board });
+    renderWithProviders(<App />, route);
+
+    await screen.findByText("Переписать объявления");
+    expect(screen.queryByText("Старый отчёт")).not.toBeInTheDocument();
+    expect(screen.queryByText("Отложенное")).not.toBeInTheDocument();
+  });
+
+  it("says so when nothing is in flight", async () => {
+    api({ tasks: [aTask({ id: "t5", projectId: "p1", title: "Старый отчёт", column: "DONE" })] });
+    renderWithProviders(<App />, route);
+
+    expect(await screen.findByText("Нет задач в работе")).toBeInTheDocument();
+  });
+
+  it("opens a task read-only when its row is chosen", async () => {
+    const user = userEvent.setup();
+    api({ tasks: board });
+    renderWithProviders(<App />, route);
+
+    await user.click(await screen.findByRole("button", { name: /Переписать объявления/ }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("heading", { name: "Переписать объявления" }))
+      .toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Сохранить" })).not.toBeInTheDocument();
+  });
+
+  it("asks only for this project's tasks", async () => {
+    const seen: URL[] = [];
+    api();
+    server.use(mock.get("/api/tasks", ({ request }) => {
+      seen.push(new URL(request.url));
+      return HttpResponse.json([]);
+    }));
+    renderWithProviders(<App />, route);
+
+    await screen.findByText("Нет задач в работе");
+    expect(seen[0].searchParams.get("projectId")).toBe("p1");
   });
 });

@@ -59,6 +59,7 @@ import type { ConnectionRegistry } from "../modules/realtime/index.js";
 import {
   PrismaAdRepository,
   PrismaAdSetRepository,
+  PrismaCampaignInProject,
   PrismaCampaignRepository,
   PrismaProjectReach,
 } from "../modules/campaigns/infrastructure/prisma-campaign-repositories.js";
@@ -179,6 +180,9 @@ export function createContainer(): ApiContainer {
     images: new PrismaTaskImageRepository(prisma, unitOfWork),
     imageStorage: new S3TaskImageStorage(),
     projects: taskProjectReach,
+    // The tasks module asks whether a campaign may be named; the campaigns
+    // module answers. Neither imports the other.
+    campaigns: new PrismaCampaignInProject(prisma),
     members: new PrismaTaskMemberReach(prisma),
     audit,
     events: {

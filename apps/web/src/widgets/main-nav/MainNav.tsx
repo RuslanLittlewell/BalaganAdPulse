@@ -5,13 +5,11 @@ import {
   FolderKanbanIcon,
   LayoutDashboardIcon,
   ListTodoIcon,
-  UsersIcon,
   type LucideIcon,
 } from "lucide-react";
 import { t } from "@/shared/config/index.js";
 import { ROUTES } from "@/shared/lib/index.js";
 import { useNavCollapse } from "@/features/nav-collapse/index.js";
-import { Can } from "@/features/permissions/index.js";
 import {
   SectionLabel,
   Sidebar,
@@ -103,12 +101,6 @@ export function MainNav() {
         {MODULES.map((module) => (
           <ModuleLink key={module.to} module={module} collapsed={collapsed} />
         ))}
-        <Can action="read" resource="member">
-          <ModuleLink
-            module={{ to: ROUTES.team, label: t("nav.team"), icon: UsersIcon }}
-            collapsed={collapsed}
-          />
-        </Can>
         </nav>
       </TooltipProvider>
     </Sidebar>

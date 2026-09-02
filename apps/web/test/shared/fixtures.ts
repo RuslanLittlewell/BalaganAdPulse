@@ -52,6 +52,7 @@ export function aTask(overrides: Partial<Task> = {}): Task {
     priority: "MEDIUM",
     assigneeId: null,
     createdById: "member-1",
+    campaignId: null,
     position: 0,
     imageIds: [],
     createdAt: "2026-09-01T00:00:00.000Z",

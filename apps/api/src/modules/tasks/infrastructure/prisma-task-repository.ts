@@ -8,6 +8,7 @@ import type {
   NewTask,
   ProjectReach,
   TaskChange,
+  TaskFilter,
   TaskRecord,
   TaskRepository,
 } from "../application/ports.js";
@@ -18,7 +19,8 @@ function toDomain(row: RowWithImages): TaskRecord {
   return {
     id: row.id, projectId: row.projectId, orgId: row.orgId, title: row.title,
     description: row.description ?? null, column: row.column, priority: row.priority,
-    assigneeId: row.assigneeId, createdById: row.createdById, position: row.position,
+    assigneeId: row.assigneeId, createdById: row.createdById,
+    campaignId: row.campaignId, position: row.position,
     imageIds: (row.images ?? []).map((image) => image.id),
     createdAt: row.createdAt, updatedAt: row.updatedAt,
   };
@@ -82,9 +84,15 @@ export class PrismaTaskRepository implements TaskRepository {
     return row && toDomain(row);
   }
 
-  async listReachable(actor: ActorContext, projectId?: string): Promise<TaskRecord[]> {
+  async listReachable(actor: ActorContext, filter?: TaskFilter): Promise<TaskRecord[]> {
     const rows = await this.prisma.task.findMany({
-      where: { ...reachFilter(actor), ...(projectId ? { projectId } : {}) },
+      // Reach first, then the narrowing: a filter can only take rows away from
+      // what the actor already reaches.
+      where: {
+        ...reachFilter(actor),
+        ...(filter?.projectId ? { projectId: filter.projectId } : {}),
+        ...(filter?.campaignId ? { campaignId: filter.campaignId } : {}),
+      },
       orderBy: BOARD_ORDER,
       include: WITH_IMAGES,
     });
@@ -104,6 +112,7 @@ export class PrismaTaskRepository implements TaskRepository {
         ...(input.title === undefined ? {} : { title: input.title }),
         ...(input.priority === undefined ? {} : { priority: input.priority }),
         ...(input.assigneeId === undefined ? {} : { assigneeId: input.assigneeId }),
+        ...(input.campaignId === undefined ? {} : { campaignId: input.campaignId }),
         ...(input.description === undefined
           ? {}
           : { description: input.description === null

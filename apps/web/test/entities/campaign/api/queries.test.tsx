@@ -8,6 +8,7 @@ import {
   useChannelShares,
   useCampaign,
   useCampaignDaily,
+  useCampaignReferences,
   useProjectCampaigns,
   useProjectDaily,
   useProjectSummary,
@@ -79,6 +80,30 @@ describe("useProjectCampaigns", () => {
 
     expect(july.result.current.data?.[0].name).toBe("2026-07-01");
     expect(august.result.current.data?.[0].name).toBe("2026-08-01");
+  });
+});
+
+// Choosing a campaign is not a metrics reading: the picker asks for names and
+// carries no range at all.
+describe("useCampaignReferences", () => {
+  it("loads a project's campaigns with no range in the request", async () => {
+    const seen = capturing("/api/projects/p1/campaigns/names", [
+      { id: "c1", name: "Поиск / Москва", channel: "YANDEX" },
+    ]);
+
+    const { result } = renderHook(() => useCampaignReferences("p1"), { wrapper: hookWrapper() });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.[0].name).toBe("Поиск / Москва");
+    expect(seen[0].searchParams.get("from")).toBeNull();
+    expect(seen[0].searchParams.get("to")).toBeNull();
+  });
+
+  it("stays idle without a project id", () => {
+    const { result } = renderHook(() => useCampaignReferences(undefined), {
+      wrapper: hookWrapper(),
+    });
+    expect(result.current.fetchStatus).toBe("idle");
   });
 });
 

@@ -1,7 +1,7 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
-import { AppError } from "../../../../shared/domain/index.js";
-import { avatarUpload } from "../../../../shared/presentation/avatar-upload.js";
-import { assertAvatarPath, assertAvatarPng } from "../../../../shared/presentation/avatar.js";
+import { AppError } from "#shared/domain/index.js";
+import { avatarUpload } from "#shared/presentation/avatar-upload.js";
+import { assertAvatarPath, assertAvatarPng } from "#shared/presentation/avatar.js";
 import type { ClientUseCases } from "../../application/client-use-cases.js";
 import { createClientSchema, updateClientSchema } from "./client-schemas.js";
 

@@ -1,6 +1,6 @@
 import { can } from "@adpulse/access-policy";
-import { AppError } from "../../../shared/domain/index.js";
-import type { ActorContext } from "../../../shared/application/index.js";
+import { AppError } from "#shared/domain/index.js";
+import type { ActorContext } from "#shared/application/index.js";
 import { isOrderedRange, type Ad, type AdSet, type Campaign, type Channel, type DateRange } from "../domain/hierarchy.js";
 import { performanceOf, sumByDay, type MeasuredDay, type Performance } from "../domain/metrics.js";
 import type { AdRepository, AdSetRepository, CampaignRepository, ProjectReach } from "./ports.js";

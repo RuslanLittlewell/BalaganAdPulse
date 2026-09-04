@@ -1,6 +1,6 @@
 import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
-import { createGate } from "../../../shared/infrastructure/concurrency-gate.js";
+import { createGate } from "#shared/infrastructure/concurrency-gate.js";
 import type { PasswordPort } from "../application/ports.js";
 
 const scryptAsync = promisify(scrypt) as (

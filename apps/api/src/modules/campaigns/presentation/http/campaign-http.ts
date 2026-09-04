@@ -1,5 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
-import { AppError } from "../../../../shared/domain/index.js";
+import { AppError } from "#shared/domain/index.js";
 import type { CampaignUseCases } from "../../application/campaign-use-cases.js";
 import type { MeasuredDay } from "../../domain/metrics.js";
 import { rangeSchema } from "./campaign-schemas.js";

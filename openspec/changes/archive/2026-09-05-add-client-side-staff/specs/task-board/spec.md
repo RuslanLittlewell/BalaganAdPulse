@@ -9,7 +9,9 @@ projects they reach:
 - A `MANAGER` or `GUEST` SHALL see only the tasks they are responsible for. There is no
   exception: a task nobody is responsible for is seen by admins alone until one of them
   makes somebody responsible for it.
-- A `CLIENT` SHALL see only the tasks marked visible to the client.
+- A `CLIENT` or `CLIENT_ADMIN` SHALL see only the tasks marked visible to the client, on
+  the projects they reach. The two customer roles see the same work: the second
+  administers people, not tasks.
 
 Reach still applies first and independently: a task in a project a member cannot reach is
 never shown, whoever it belongs to. This rule narrows what remains; it can never widen it.
@@ -42,6 +44,17 @@ board cannot be used to learn that somebody else's work exists.
 - **WHEN** an admin opens the board
 - **THEN** every task in the organization is shown, whoever is responsible
 
+#### Scenario: A client's employee sees what the client sees
+
+- **WHEN** a `CLIENT` and the `CLIENT_ADMIN` of the same client each open the task module
+- **THEN** both see every task marked visible to the client on their projects, including
+  the ones the other raised
+
+#### Scenario: Neither sees the agency's own work
+
+- **WHEN** either opens the address of an unmarked task on their own project
+- **THEN** the answer is 404
+
 #### Scenario: Opening somebody else's task directly
 
 - **WHEN** a manager opens the address of a task a colleague is responsible for
@@ -51,48 +64,3 @@ board cannot be used to learn that somebody else's work exists.
 
 - **WHEN** a member opens a project or a campaign screen
 - **THEN** the tasks listed there are the ones their board would show, on the same rule
-
-## ADDED Requirements
-
-### Requirement: A task is either the agency's own or shared with the client
-
-Every task SHALL record whether it is visible to the client. A task is the agency's own
-by default: work the agency does about a customer is not addressed to them.
-
-- A task raised by a `CLIENT` SHALL be marked visible to the client when it is created.
-  They raised it; it is theirs to see.
-- A task raised by anybody else SHALL be marked as the agency's own.
-- Only an `ADMIN` SHALL change that mark. A `MANAGER` may create, edit and complete a
-  task, but deciding what a customer is shown is the agency's to make in one place.
-
-Marking a task visible SHALL NOT change who is responsible for it or which stage it is at.
-
-#### Scenario: A client raises a task
-
-- **WHEN** a client creates a task on a project they reach
-- **THEN** it is stored as visible to the client and appears on their board
-
-#### Scenario: The agency's own work
-
-- **WHEN** a manager or an admin creates a task
-- **THEN** it is stored as the agency's own, and no client sees it
-
-#### Scenario: An admin shares a task with the client
-
-- **WHEN** an admin marks one of the agency's tasks visible to the client
-- **THEN** the client sees it on their board, and the agency still does
-
-#### Scenario: An admin takes a task back
-
-- **WHEN** an admin unmarks a task that was visible to the client
-- **THEN** the client no longer sees it, and the task itself is otherwise unchanged
-
-#### Scenario: A manager tries to share a task
-
-- **WHEN** a manager tries to change whether a task is visible to the client
-- **THEN** the API refuses with 403 and the mark is unchanged
-
-#### Scenario: A client tries to hide their own task
-
-- **WHEN** a client tries to change the mark on a task they raised
-- **THEN** the API refuses with 403

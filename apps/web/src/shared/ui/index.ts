@@ -11,6 +11,7 @@ export * from "./ui/popover.js";
 export * from "./ui/select.js";
 export * from "./ui/separator.js";
 export * from "./ui/skeleton.js";
+export * from "./ui/switch.js";
 export * from "./ui/table.js";
 export * from "./ui/tooltip.js";
 

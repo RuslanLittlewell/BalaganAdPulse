@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
-import { errorHandler } from "../shared/presentation/error-handler.js";
+import { errorHandler } from "#shared/presentation/error-handler.js";
 import { createContainer, type ApiContainer } from "./create-container.js";
 import { createRoutes } from "./create-routes.js";
 

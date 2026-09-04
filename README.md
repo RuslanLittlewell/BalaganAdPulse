@@ -290,6 +290,13 @@ organization, a project or a campaign row.
 
 Base prefix `/api`. Requests and responses are JSON.
 
+The surface below is published by the API itself. **`GET /api/docs`** renders it for
+reading and for trying requests against the running server, and `GET /api/openapi.json`
+is the same description as an OpenAPI 3.1 document. Both answer without a session. Request
+bodies and query parameters in it are converted from the Zod schemas the endpoints
+validate with, and a test compares the description against the routers Express actually
+mounts, so neither can drift from the other. `API_DOCS=off` withdraws both.
+
 ### API architecture
 
 The API uses a module-first Clean/Hexagonal Architecture. Business modules live under
@@ -298,6 +305,12 @@ through the module's `index.ts`. Each module may contain `domain`, `application`
 `infrastructure`, and `presentation` layers. Runtime assembly belongs exclusively to
 `apps/api/src/composition`; reusable cross-module concepts belong in the deliberately
 small `apps/api/src/shared` kernel.
+
+The kernel is reached through the `#shared/*` subpath import rather than a chain of
+`../`: it maps to `src/shared/` for `tsx` and Vitest, and the `compiled` condition points
+the built server at `dist/shared/`, which is why `npm start` and the production image run
+`node --conditions=compiled`. Everything else stays relative on purpose — the architecture
+test reads those specifiers to enforce the rules below.
 
 Dependencies point inward: presentation and infrastructure may depend on application,
 and application may depend on domain. Domain and application code do not import Express,

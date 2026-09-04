@@ -1,4 +1,4 @@
-import { applyMove, placementFor, resolveDrop, type Task } from "@/entities/task/index.js";
+import { applyMove, placementFor, previewFor, resolveDrop, type Task } from "@/entities/task/index.js";
 
 const task = (id: string, column: Task["column"], position: number): Task => ({
   id, projectId: "p1", orgId: "org1", title: id, description: null,
@@ -171,5 +171,47 @@ describe("what applyMove leaves alone", () => {
 
   it("answers the array it was given for a card it does not know", () => {
     expect(applyMove(board, "missing", { column: "DONE", position: 0 })).toBe(board);
+  });
+});
+
+describe("previewFor", () => {
+  const column = [task("a", "IDEA", 0), task("b", "IDEA", 1), task("c", "IDEA", 2)];
+
+  it("settles instead of swapping two cards forever while the pointer rests on one", () => {
+    let board: Task[] = column;
+    for (let pass = 0; pass < 8; pass += 1) {
+      const next = previewFor(board, "a", "b");
+      if (next === board) break;
+      board = next;
+    }
+    expect(previewFor(board, "a", "b")).toBe(board);
+  });
+
+  it("shows no preview while a card is dragged over its own column", () => {
+    expect(previewFor(column, "a", "b")).toBe(column);
+    expect(previewFor(column, "c", "a")).toBe(column);
+    expect(previewFor(column, "a", "IDEA")).toBe(column);
+  });
+
+  it("moves the card once as it crosses into another column, then settles there", () => {
+    const board = [...column, task("x", "DONE", 0), task("y", "DONE", 1)];
+
+    const entered = previewFor(board, "a", "x");
+    expect(entered).not.toBe(board);
+    expect(entered.find((t) => t.id === "a")).toMatchObject({ column: "DONE", position: 0 });
+
+    expect(previewFor(entered, "a", "x")).toBe(entered);
+    expect(previewFor(entered, "a", "y")).toBe(entered);
+  });
+
+  it("previews the way back to the column the card came from", () => {
+    const board = [...column, task("x", "DONE", 0)];
+    const away = previewFor(board, "a", "x");
+    expect(previewFor(away, "a", "b").find((t) => t.id === "a")).toMatchObject({ column: "IDEA" });
+  });
+
+  it("leaves the board alone when either card is unknown", () => {
+    expect(previewFor(column, "missing", "b")).toBe(column);
+    expect(previewFor(column, "a", "missing")).toBe(column);
   });
 });

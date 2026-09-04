@@ -1,4 +1,4 @@
-import type { ActorContext, TransactionContext } from "../../../shared/application/index.js";
+import type { ActorContext, TransactionContext } from "#shared/application/index.js";
 
 import type { AuditAction, JsonValue } from "../domain/audit-event.js";
 

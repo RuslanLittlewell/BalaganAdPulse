@@ -1,4 +1,4 @@
-import { getOptionalRequestContext } from "../../../shared/presentation/request-context.js";
+import { getOptionalRequestContext } from "#shared/presentation/request-context.js";
 import type { RequestMetadata, RequestMetadataSource } from "../application/ports.js";
 
 export class AmbientRequestMetadata implements RequestMetadataSource {

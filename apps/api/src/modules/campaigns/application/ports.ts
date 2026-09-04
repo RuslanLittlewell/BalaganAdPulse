@@ -1,4 +1,4 @@
-import type { ActorContext } from "../../../shared/application/index.js";
+import type { ActorContext } from "#shared/application/index.js";
 import type { Ad, AdSet, Campaign } from "../domain/hierarchy.js";
 
 export interface CampaignRepository {

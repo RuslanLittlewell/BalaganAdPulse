@@ -1,8 +1,9 @@
 import { Router } from "express";
-import { NotFoundError } from "../shared/presentation/http-errors.js";
+import { NotFoundError } from "#shared/presentation/http-errors.js";
 import type { ApiContainer } from "./create-container.js";
 
 export const ROUTE_MOUNTS = [
+  { id: "docs", path: "/api" },
   { id: "open-auth", path: "/api/auth" },
   { id: "registration-resolver", path: "/api/regustration" },
   { id: "authentication", path: "/api" },
@@ -24,9 +25,18 @@ export const ROUTE_MOUNTS = [
   { id: "api-not-found", path: "/api" },
 ] as const;
 
+export type RouteMountId = (typeof ROUTE_MOUNTS)[number]["id"];
+
+export function mountPath(id: RouteMountId): string {
+  const mount = ROUTE_MOUNTS.find((candidate) => candidate.id === id);
+  if (!mount) throw new Error(`No route is mounted as ${id}`);
+  return mount.path;
+}
+
 export function createRoutes(container: ApiContainer): Router {
   const router = Router();
   const handlers = [
+    container.documentationRouter,
     container.authRouter,
     container.registrationResolverRouter,
     container.authentication,

@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
-import type { ActorContext } from "../../../shared/application/index.js";
+import type { ActorContext } from "#shared/application/index.js";
 import type { Ad, AdSet, Campaign } from "../domain/hierarchy.js";
 import type {
   AdRepository, AdSetRepository, CampaignRepository, ProjectReach,

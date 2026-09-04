@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
-import type { TransactionContext } from "../../../shared/application/index.js";
-import type { PrismaUnitOfWork } from "../../../shared/infrastructure/prisma-unit-of-work.js";
+import type { TransactionContext } from "#shared/application/index.js";
+import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
 import type { InvitationProjectAccess } from "../../invites/index.js";
 
 export class PrismaInvitationProjectAccess implements InvitationProjectAccess {

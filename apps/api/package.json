@@ -3,10 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "imports": {
+    "#shared/*": {
+      "compiled": "./dist/shared/*",
+      "default": "./src/shared/*"
+    }
+  },
   "scripts": {
     "dev": "tsx watch src/composition/server.ts",
     "build": "tsc",
-    "start": "node dist/composition/server.js",
+    "start": "node --conditions=compiled dist/composition/server.js",
     "db:test:deploy": "DATABASE_URL=\"postgresql://postgres:postgres@localhost:5432/adpulse_test?schema=public\" prisma migrate deploy",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -24,6 +30,7 @@
     "jose": "^6.2.8",
     "multer": "^2.3.0",
     "prisma": "^6.19.3",
+    "swagger-ui-dist": "^5.32.15",
     "ws": "^8.21.3",
     "zod": "^4.4.3"
   },

@@ -3,7 +3,7 @@ import type {
   ActorContext,
   TransactionContext,
   UnitOfWork,
-} from "../../../shared/application/index.js";
+} from "#shared/application/index.js";
 import type { MemberChange, MemberRecord } from "../domain/member.js";
 
 export interface MembershipDirectory {

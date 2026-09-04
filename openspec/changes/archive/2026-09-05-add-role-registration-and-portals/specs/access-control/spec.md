@@ -32,7 +32,7 @@ members stay read-only to them.
 - **WHEN** a client tries to change or delete a task
 - **THEN** the API refuses with 403 and the task is unchanged
 
-#### Scenario: A client reaching for another client's project
+#### Scenario: Client requests another client's project
 
 - **WHEN** a client opens the address of a project belonging to another client
 - **THEN** the answer is 404

@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import type { AuditEvent, PrismaClient } from "@prisma/client";
-import type { ActorContext, TransactionContext } from "../../../shared/application/index.js";
-import type { PrismaUnitOfWork } from "../../../shared/infrastructure/prisma-unit-of-work.js";
+import type { ActorContext, TransactionContext } from "#shared/application/index.js";
+import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
 import type { AuditScope, StoredAuditEvent } from "../domain/audit-event.js";
 import type { ActorSnapshots, AuditQuery, AuditReach, AuditRepository } from "../application/ports.js";
 

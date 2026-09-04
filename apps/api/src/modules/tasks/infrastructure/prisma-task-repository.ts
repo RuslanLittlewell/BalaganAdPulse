@@ -1,8 +1,8 @@
 import { isCustomer } from "@adpulse/access-policy";
 import { Prisma } from "@prisma/client";
 import type { PrismaClient, Task as TaskRow } from "@prisma/client";
-import type { ActorContext, TransactionContext } from "../../../shared/application/index.js";
-import type { PrismaUnitOfWork } from "../../../shared/infrastructure/prisma-unit-of-work.js";
+import type { ActorContext, TransactionContext } from "#shared/application/index.js";
+import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
 import { TASK_COLUMNS, type TaskColumn } from "../domain/board.js";
 import type {
   MemberReach,

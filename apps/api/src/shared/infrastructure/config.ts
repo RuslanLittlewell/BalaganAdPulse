@@ -1,5 +1,6 @@
 export interface Config {
   jwtSecret: string;
+  documentation: boolean;
   storage: {
     endpoint: string;
     region: string;
@@ -30,6 +31,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
 
   return {
     jwtSecret,
+    documentation: env.API_DOCS !== "off",
     storage: {
       endpoint: env.S3_ENDPOINT ?? "http://localhost:9000",
       region: env.S3_REGION ?? "us-east-1",

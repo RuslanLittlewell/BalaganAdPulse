@@ -3,7 +3,7 @@ import type {
   IdGenerator,
   TransactionContext,
   UnitOfWork,
-} from "../../../shared/application/index.js";
+} from "#shared/application/index.js";
 import type { AuditWriter } from "../../audit/index.js";
 import type { ClientContact, ClientRecord, NewClient } from "../domain/client.js";
 

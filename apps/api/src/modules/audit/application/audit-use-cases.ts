@@ -1,4 +1,4 @@
-import type { ActorContext, TransactionContext } from "../../../shared/application/index.js";
+import type { ActorContext, TransactionContext } from "#shared/application/index.js";
 import type { AuditEventInput, AuditWriter } from "./audit-writer.js";
 import type { AuditDependencies, AuditFilters, AuditPage } from "./ports.js";
 

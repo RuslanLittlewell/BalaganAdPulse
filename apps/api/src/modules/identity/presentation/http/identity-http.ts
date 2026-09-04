@@ -1,9 +1,9 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
-import { ValidationError } from "../../../../shared/presentation/http-errors.js";
-import { AppError } from "../../../../shared/domain/index.js";
-import { avatarUpload } from "../../../../shared/presentation/avatar-upload.js";
-import { assertAvatarPath, assertAvatarPng } from "../../../../shared/presentation/avatar.js";
-import { createRateLimit } from "../../../../shared/presentation/rate-limit.js";
+import { ValidationError } from "#shared/presentation/http-errors.js";
+import { AppError } from "#shared/domain/index.js";
+import { avatarUpload } from "#shared/presentation/avatar-upload.js";
+import { assertAvatarPath, assertAvatarPng } from "#shared/presentation/avatar.js";
+import { createRateLimit } from "#shared/presentation/rate-limit.js";
 import type { IdentityUseCases } from "../../application/identity-use-cases.js";
 import { loginSchema, refreshSchema, registerSchema, updateProfileSchema } from "./identity-schemas.js";
 import { clearAuthCookies, readCookie, REFRESH_COOKIE, setAuthCookies } from "./auth-cookies.js";

@@ -319,10 +319,17 @@ describe("the attachment link sits in the text", () => {
 });
 
 describe("the description's height", () => {
-  it("scrolls inside 400px instead of growing without limit", async () => {
+  it("scrolls inside the room it is given rather than pushing the page down", async () => {
+    setup();
+    const wrapper = await screen.findByTestId("task-description-editor");
+    expect(wrapper.className).toContain("overflow-y-auto");
+    expect(wrapper.className).toMatch(/\bflex-1\b/);
+    expect(wrapper.className).toMatch(/\bmin-h-0\b/);
+  });
+
+  it("stays a target worth clicking when the description is empty", async () => {
     setup();
     const surface = await editorSurface();
-    expect(surface.className).toContain("max-h-[400px]");
-    expect(surface.className).toContain("overflow-y-auto");
+    expect(surface.className).toContain("min-h-32");
   });
 });

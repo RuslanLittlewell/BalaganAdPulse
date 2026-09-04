@@ -8,9 +8,6 @@ import { grantAccess, signInAs } from "../helpers/auth.js";
 const app = createApp();
 const RANGE = "?from=2026-07-01&to=2026-07-31";
 
-/** A guest who *is* granted the client, so every refusal below is the role
- * talking and not the grant: an ungranted guest would answer 404 and prove
- * nothing about whether guests may write. */
 let guest: { Authorization: string };
 let clientId: string;
 let projectId: string;
@@ -26,8 +23,6 @@ beforeEach(async () => {
   guest = signedIn.auth;
   await grantAccess(signedIn.membership!.id, clientId);
 
-  // Responsible for it, so every refusal below is the role talking rather than
-  // the guest simply not being able to see the task at all.
   const task = await request(app).post("/api/tasks").set(admin.auth)
     .send({
       title: "Написать отчёт", projectId, priority: "MEDIUM",

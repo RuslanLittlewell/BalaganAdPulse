@@ -5,7 +5,6 @@ import {
 } from "@/widgets/agency-overview/index.js";
 import { t } from "@/shared/config/index.js";
 
-/** The agency at a glance: its totals, its projects, and where the money went. */
 export function DashboardPage() {
   const { range } = usePeriod();
   const agency = useAgencySummary(range);

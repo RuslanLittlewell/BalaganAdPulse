@@ -5,13 +5,6 @@ import type {
   AdRepository, AdSetRepository, CampaignRepository, ProjectReach,
 } from "../application/ports.js";
 
-/**
- * Which projects this actor reaches, as a query filter.
- *
- * An admin reaches their whole organization. Anyone else reaches a project
- * either through a grant over its client — every project of that client — or
- * through a grant over the project itself.
- */
 function reachableProjects(actor: ActorContext): Prisma.ProjectWhereInput {
   if (actor.role === "ADMIN") return { client: { orgId: actor.orgId } };
   return {
@@ -64,8 +57,6 @@ export class PrismaCampaignRepository implements CampaignRepository {
   }
 }
 
-/** No reach filter of its own: an ad set is reachable exactly when its campaign
- * is, and the use case checks that before it asks for one. */
 export class PrismaAdSetRepository implements AdSetRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -104,14 +95,6 @@ export class PrismaProjectReach implements ProjectReach {
   }
 }
 
-/**
- * Whether a campaign sits under a given project.
- *
- * No reach filter of its own: the caller has already established that the actor
- * reaches the project, and a campaign is reachable exactly when its project is.
- * Asking about a campaign of some other project answers false, which is the same
- * answer an unknown id gets — deliberately, so neither confirms the other exists.
- */
 export class PrismaCampaignInProject {
   constructor(private readonly prisma: PrismaClient) {}
 

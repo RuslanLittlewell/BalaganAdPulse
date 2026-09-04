@@ -144,7 +144,6 @@ describe("Clients API", () => {
 });
 
 describe("Client avatars", () => {
-  // The smallest thing that is genuinely a PNG: signature plus a 1x1 image.
   const PNG = Buffer.from(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
     "base64",

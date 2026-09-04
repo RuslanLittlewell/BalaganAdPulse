@@ -9,21 +9,13 @@ import {
 } from "@/features/avatar-editor/index.js";
 
 export interface ChosenAvatar {
-  /** The generated figure's options, stored as the account's `avatarPath`. */
   options: AvatarOptions | null;
-  /** An uploaded picture, which wins over a generated one when both exist. */
   file: File | null;
   preview: string | null;
 }
 
 export const NO_AVATAR: ChosenAvatar = { options: null, file: null, preview: null };
 
-/**
- * A picture for the account, generated or uploaded.
- *
- * Chosen before the account exists, so nothing is sent yet: the choice is held
- * here and saved once registration has produced somebody to save it against.
- */
 export function AvatarStep({
   value, onChange,
 }: { value: ChosenAvatar; onChange: (next: ChosenAvatar) => void }) {
@@ -69,9 +61,6 @@ export function AvatarStep({
         )}
       </div>
 
-      {/* The same editor the profile and the contact book open, so an avatar is
-          made one way everywhere. It saves into this component's state rather
-          than to the API: there is no account to save it against yet. */}
       <AvatarEditorDialog
         open={editing}
         initial={value.options ?? randomAvatarOptions()}

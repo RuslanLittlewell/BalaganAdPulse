@@ -9,8 +9,6 @@ const task = (id: string, column: Task["column"], position: number): Task => ({
   createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
 });
 
-/** Stands in for the browser's WebSocket, so the tests drive the connection
- * rather than a server. */
 class FakeSocket {
   static opened: FakeSocket[] = [];
   onopen: (() => void) | null = null;
@@ -51,9 +49,6 @@ beforeEach(() => { FakeSocket.opened = []; });
 afterEach(() => { vi.useRealTimers(); });
 
 describe("subscribing to the board", () => {
-  // The browser attaches the HttpOnly session cookie to the upgrade itself,
-  // and the page cannot read it — so the client sends nothing to authenticate
-  // and there is no token here to put in a URL.
   it("opens one socket and sends nothing to authenticate", async () => {
     setup();
     await waitFor(() => expect(FakeSocket.opened).toHaveLength(1));
@@ -125,8 +120,6 @@ describe("recovering a dropped connection", () => {
     expect(FakeSocket.opened).toHaveLength(2);
   });
 
-  // Events published while the socket was down were never delivered and are
-  // not replayed; the refetch is the only thing that closes that gap.
   it("refetches the board once on reconnecting, but not on the first connect", async () => {
     vi.useFakeTimers();
     const { wrapper } = setup();
@@ -155,8 +148,6 @@ describe("recovering a dropped connection", () => {
       const before = FakeSocket.opened.length;
       latest().drop();
       let waited = 0;
-      // Step until the retry fires, so the recorded delay is what the hook
-      // actually waited rather than what the test assumed.
       while (FakeSocket.opened.length === before && waited <= TASK_EVENTS_MAX_DELAY_MS) {
         await act(async () => { await vi.advanceTimersByTimeAsync(100); });
         waited += 100;
@@ -166,8 +157,6 @@ describe("recovering a dropped connection", () => {
 
     expect(delays[0]).toBeLessThan(delays[3]!);
     expect(Math.max(...delays)).toBeLessThanOrEqual(TASK_EVENTS_MAX_DELAY_MS);
-    // A successful connection resets the wait, so a brief blip does not leave
-    // the board on a fifteen-second cadence for the rest of the session.
     latest().accept();
     latest().ready();
     const before = FakeSocket.opened.length;

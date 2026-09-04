@@ -11,8 +11,6 @@ export function useMembers() {
   return useQuery({ queryKey: MEMBERS_KEY, queryFn: membersApi.list });
 }
 
-/** The people on one client. Idle without a client, since there is nothing to
- * ask about until one is chosen. */
 export function useClientMembers(clientId: string | undefined) {
   return useQuery({
     queryKey: [...MEMBERS_KEY, "client", clientId ?? null],
@@ -21,7 +19,6 @@ export function useClientMembers(clientId: string | undefined) {
   });
 }
 
-/** The grants one membership holds. Idle without one. */
 export function useMemberAccess(membershipId: string | undefined) {
   return useQuery({
     queryKey: [...MEMBERS_KEY, "access", membershipId ?? null],

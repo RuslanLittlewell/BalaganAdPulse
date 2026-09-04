@@ -17,12 +17,6 @@ beforeEach(() => {
     HttpResponse.arrayBuffer(new ArrayBuffer(8), { headers: { "Content-Type": "image/png" } })));
 });
 
-/**
- * The same component the form uses, with input turned off — rather than a
- * second renderer walking the document. Two renderers would drift the first
- * time either changed, and the symptom would be a description that reads
- * differently depending on which dialog opened it.
- */
 describe("a description that cannot be edited", () => {
   it("renders the document it is given", async () => {
     renderWithProviders(
@@ -58,7 +52,6 @@ describe("a description that cannot be edited", () => {
     expect(changes).toEqual([]);
   });
 
-  // A dropped file must not be uploaded from a view that cannot save it.
   it("ignores a dropped image", async () => {
     let uploaded = false;
     server.use(mock.post("/api/task-images", () => {

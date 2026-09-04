@@ -3,8 +3,6 @@ import { t } from "@/shared/config/index.js";
 import { PERIODS, periodLabel } from "../model/period.js";
 import { usePeriod } from "../model/usePeriod.js";
 
-/** One control, wherever figures are shown. It writes to the address, so every
- * screen reading `usePeriod` follows it without being wired to it. */
 export function PeriodControl() {
   const { period, setPeriod } = usePeriod();
 

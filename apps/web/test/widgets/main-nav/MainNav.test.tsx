@@ -16,8 +16,6 @@ function setup(route = "/") {
   );
 }
 
-/** An admin sees every gated control there is, so it is the role that would
- * still be offered a Team entry if one were left behind. */
 function asAdmin() {
   server.use(mock.get("/api/auth/me", () => HttpResponse.json({
     user: { id: "u1", name: "Админ", email: "a@acme.com", image: null },
@@ -28,8 +26,6 @@ function asAdmin() {
 }
 
 describe("MainNav", () => {
-  // Members are looked at in the contact book; a second entry for the same
-  // question is what this section was.
   it("offers no Team entry, even to an admin", async () => {
     asAdmin();
     setup();

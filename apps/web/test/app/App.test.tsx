@@ -4,10 +4,6 @@ import { clearTokens, writeTokens } from "@/shared/lib/index.js";
 import { makeAccessToken } from "@test/shared/index.js";
 import { App } from "@/app/App.js";
 
-// App brings its own providers (QueryClientProvider, BrowserRouter,
-// AuthProvider), so renderWithProviders — which supplies its own — is not
-// usable here. The URL is set with window.history.pushState because App
-// uses BrowserRouter rather than MemoryRouter.
 function renderAppAt(path: string) {
   window.history.pushState({}, "", path);
   return render(<App />);
@@ -32,8 +28,6 @@ describe("App", () => {
     expect(screen.queryByText("Проекты")).not.toBeInTheDocument();
   });
 
-  // The section is gone; a bookmark for it must land somewhere useful rather
-  // than on the shell with an empty pane.
   it("sends a bookmark for the removed Team section to the dashboard", async () => {
     writeTokens({ accessToken: makeAccessToken(), refreshToken: "r" });
 
@@ -43,7 +37,6 @@ describe("App", () => {
     expect(window.location.pathname).toBe("/");
   });
 
-  // The screen that asked for a hand-typed code is gone; the link is the way in.
   it("sends a bookmark for the removed sign-up screen to the sign-in form", () => {
     renderAppAt("/signup");
 

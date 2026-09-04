@@ -87,8 +87,6 @@ describe("TaskFormDialog", () => {
   });
 
   it("reopens a saved task with its description and its images", async () => {
-    // The document stores ids, not object URLs: a `blob:` URL dies with the
-    // page, which is why reopening a task used to show broken pictures.
     const description = {
       type: "doc",
       content: [
@@ -114,19 +112,13 @@ describe("TaskFormDialog", () => {
     const editor = await screen.findByTestId("task-description-editor");
     await waitFor(() => expect(editor.textContent).toContain("Смотри скриншоты"));
 
-    // Both images are still in the document by id.
     await waitFor(() =>
       expect(editor.querySelectorAll("[data-task-image]")).toHaveLength(2));
 
-    // Shown as references, not as pictures: the file belongs in the attachments
-    // block, and the description points at it.
     expect(editor.querySelectorAll("img")).toHaveLength(0);
     expect(within(editor).getByRole("button", { name: "Вложение 1" })).toBeInTheDocument();
     expect(within(editor).getByRole("button", { name: "Вложение 2" })).toBeInTheDocument();
 
-    // The bytes are fetched by the attachments block, which draws thumbnails.
-    // The description fetches nothing until a preview is opened — a task with a
-    // dozen attachments would otherwise pull every one of them on open.
     await waitFor(() =>
       expect([...new Set(fetchedImages)].sort()).toEqual(["image-1", "image-2"]));
   });
@@ -190,7 +182,6 @@ describe("TaskFormDialog", () => {
   });
 });
 
-
 describe("pictures in the selects", () => {
   const withPictures = () => {
     server.use(
@@ -211,7 +202,6 @@ describe("pictures in the selects", () => {
     await userEvent.click(await screen.findByLabelText("Проект"));
 
     const option = await screen.findByRole("option", { name: /Летний запуск/ });
-    // The logo travels inside the project, so the option can draw it directly.
     expect(within(option).getByRole("img", { name: "Летний запуск" })).toBeInTheDocument();
   });
 
@@ -222,8 +212,6 @@ describe("pictures in the selects", () => {
     await userEvent.click(await screen.findByLabelText("Ответственный"));
 
     const option = await screen.findByRole("option", { name: /Пётр/ });
-    // Fetched from its own endpoint: the value on the membership is only a
-    // marker that a picture exists, never an address.
     expect(within(option).getByRole("img", { name: "Пётр" }))
       .toHaveAttribute("src", "/api/members/member-1/avatar");
   });
@@ -240,7 +228,6 @@ describe("pictures in the selects", () => {
   });
 });
 
-
 describe("the dialog's shape", () => {
   it("puts the selects on one row", async () => {
     const user = userEvent.setup();
@@ -248,9 +235,6 @@ describe("the dialog's shape", () => {
     await screen.findByLabelText("Проект");
 
     const row = screen.getByTestId("task-form-selects");
-    // One row: the dialog is wide enough that stacking them wasted the width
-    // and pushed the description off screen. auto-fit rather than a fixed
-    // count, because the campaign field only appears once a project is chosen.
     expect(row.className).toContain("grid-cols-[repeat(auto-fit,minmax(0,max-content))]");
     for (const label of ["Проект", "Ответственный", "Приоритет"]) {
       expect(row).toContainElement(screen.getByLabelText(label));
@@ -262,12 +246,6 @@ describe("the dialog's shape", () => {
     expect(row).toContainElement(await screen.findByLabelText("Кампания"));
   });
 
-  /**
-   * The dialog primitive sets an explicit `w-[min(440px,…)]`, so a `max-w-*`
-   * class is inert here — a max-width cannot widen a fixed width. The override
-   * has to replace the width itself, and the proof is that the base 440px is
-   * gone from the merged class list rather than merely accompanied.
-   */
   it("overrides the primitive's own width rather than capping it", async () => {
     setup();
     await screen.findByLabelText("Проект");
@@ -280,8 +258,6 @@ describe("the dialog's shape", () => {
   it("stays inside a narrow viewport instead of forcing a horizontal scroll", async () => {
     setup();
     await screen.findByLabelText("Проект");
-    // 800px is the floor asked for, but only where there is room: below that
-    // the dialog tracks the viewport rather than overflowing it.
     expect(screen.getByRole("dialog").className).toContain("min-w-[min(800px,calc(100vw-2rem))]");
   });
 });
@@ -307,8 +283,6 @@ describe("creating into a chosen column", () => {
     expect(body).toMatchObject({ column: "IN_REVIEW", title: "Проверить креативы" });
   });
 
-  // Without a column the API applies its own default, and sending one the user
-  // never chose would quietly override it.
   it("sends no column when it was opened from the page header", async () => {
     const user = userEvent.setup();
     let body: Record<string, unknown> | null = null;
@@ -328,7 +302,6 @@ describe("creating into a chosen column", () => {
   });
 });
 
-
 describe("the dialog's controls", () => {
   it("offers a cancel button that closes without saving", async () => {
     const user = userEvent.setup();
@@ -344,8 +317,6 @@ describe("the dialog's controls", () => {
     expect(posted).toBe(false);
   });
 
-  // Inside a form, a button with no type is a submit button — cancelling would
-  // save the very task the member is abandoning.
   it("does not submit the form when cancelling", async () => {
     const user = userEvent.setup();
     let posted = false;
@@ -361,8 +332,6 @@ describe("the dialog's controls", () => {
 
   it("says the project is not chosen yet", async () => {
     setup();
-    // Empty until chosen, which reads as a broken control rather than an
-    // unanswered question.
     expect(await screen.findByLabelText("Проект")).toHaveTextContent("Не выбран");
   });
 
@@ -382,7 +351,6 @@ describe("the dialog's controls", () => {
     expect(screen.getByTestId("task-form-selects").className).toMatch(/\bgap-3\b/);
   });
 });
-
 
 describe("attachments", () => {
   const withFiles = (imageIds: string[]) => renderWithProviders(
@@ -430,8 +398,6 @@ describe("attachments", () => {
     expect(screen.getByTestId("task-attachment-image-2")).toBeInTheDocument();
   });
 
-  // Removing is destructive and the control only appears on hover, so a stray
-  // click must not silently take a file off the task.
   it("puts the attachment back when the server refuses", async () => {
     const user = userEvent.setup();
     server.use(mock.delete("/api/task-images/:id", () =>
@@ -455,8 +421,6 @@ describe("attachments", () => {
   });
 });
 
-
-/** jsdom builds no clipboard payloads of its own, so the event carries one. */
 function pasteImage(target: Element) {
   const file = new File([Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])],
     "shot.png", { type: "image/png" });
@@ -483,11 +447,6 @@ describe("a freshly pasted image", () => {
     )));
   });
 
-  /**
-   * The block used to list the saved task's images, and an upload is not
-   * attached to the task until the task is saved — so a file pasted into the
-   * description only turned up after closing and reopening.
-   */
   it("appears in the attachments block before the task is saved", async () => {
     renderWithProviders(
       <TaskFormDialog
@@ -505,7 +464,6 @@ describe("a freshly pasted image", () => {
     pasteImage(await editorSurface());
 
     expect(await screen.findByTestId("task-attachment-image-9")).toBeInTheDocument();
-    // The one already saved stays listed beside it.
     expect(screen.getByTestId("task-attachment-image-1")).toBeInTheDocument();
   });
 
@@ -524,7 +482,6 @@ describe("a freshly pasted image", () => {
   });
 });
 
-
 describe("removing an attachment reaches the description", () => {
   beforeEach(() => {
     server.use(mock.delete("/api/task-images/:id", () => new HttpResponse(null, { status: 204 })));
@@ -542,12 +499,6 @@ describe("removing an attachment reaches the description", () => {
     }],
   });
 
-  /**
-   * The editor is uncontrolled — it reads its content once, so that typing the
-   * first character cannot rebuild it and steal focus. A removal therefore has
-   * to be pushed into it as a command; otherwise the link stays on screen and
-   * saving writes the dead reference straight back.
-   */
   it("takes the link out of the editor as well", async () => {
     const user = userEvent.setup();
     renderWithProviders(
@@ -571,7 +522,6 @@ describe("removing an attachment reaches the description", () => {
 
     await waitFor(() =>
       expect(within(editor).queryByRole("button", { name: "Вложение 1" })).not.toBeInTheDocument());
-    // The words either side of it stay put.
     expect(editor.textContent).toContain("до");
     expect(editor.textContent).toContain("после");
   });
@@ -613,8 +563,6 @@ describe("the campaign a task is about", () => {
     await user.click(await screen.findByRole("option", { name }));
   };
 
-  // The campaigns belong to a project, so there is nothing to choose between
-  // until one is picked.
   it("offers no campaign select until a project is chosen", async () => {
     const user = userEvent.setup();
     setup();
@@ -668,7 +616,6 @@ describe("the campaign a task is about", () => {
     expect(body).toMatchObject({ campaignId: "camp-1" });
   });
 
-  // Null, not an empty string: the API's "the project as a whole".
   it("sends no campaign when Общий is left in place", async () => {
     const user = userEvent.setup();
     let body: Record<string, unknown> | null = null;
@@ -686,8 +633,6 @@ describe("the campaign a task is about", () => {
     expect(body!.campaignId).toBeNull();
   });
 
-  // The old campaign is not under the new project. Clearing it here makes the
-  // release visible before saving rather than discovered afterwards.
   it("returns to Общий when the project changes", async () => {
     const user = userEvent.setup();
     server.use(mock.get("/api/projects", () => HttpResponse.json([
@@ -718,11 +663,6 @@ describe("the campaign a task is about", () => {
   });
 });
 
-/**
- * Deciding what a customer is shown is one decision, made in one place, by the
- * role that answers for the relationship. A manager may edit everything else
- * about the task.
- */
 describe("showing a task to the client", () => {
   const asRole = (role: string) => server.use(mock.get("/api/auth/me", () => HttpResponse.json({
     user: { id: "u1", name: "Кто-то", email: "s@acme.com", image: null },
@@ -766,8 +706,6 @@ describe("showing a task to the client", () => {
     expect(body).toMatchObject({ visibleToClient: true });
   });
 
-  // A manager's ordinary edit must not carry the field at all, or the API would
-  // refuse the whole edit for a change they never made.
   it("leaves the field out of a manager's edit entirely", async () => {
     const user = userEvent.setup();
     let body: Record<string, unknown> | null = null;

@@ -55,8 +55,6 @@ function fixture(seed: ProjectRecord[] = [], reachableClients = ["c1"]) {
 }
 
 describe("creating a project", () => {
-  // Campaigns arrive from the platforms, not from us: a project starts empty
-  // and fills as its accounts are connected.
   it("stores it under the client and creates nothing beneath it", async () => {
     const { useCases } = fixture();
     const created = await useCases.create(admin, { clientId: "c1", name: "Acme Ads" });

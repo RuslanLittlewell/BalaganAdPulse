@@ -20,16 +20,9 @@ export interface TabsProps {
   onSelect: (id: string) => void;
   itemActions?: TabItemAction[];
   onNew?: () => void;
-  /** What the add control says. A tab strip is a shared shape; what is being
-   * added is the caller's word, not this component's. */
   addLabel?: string;
 }
 
-/**
- * Memoised: a tab strip re-renders on every parent render otherwise, and the
- * parent renders on every route change — including one that lands on the tab
- * already open. Callers must hand over stable props for this to bite.
- */
 export const Tabs = memo(function Tabs({
   items,
   activeId,

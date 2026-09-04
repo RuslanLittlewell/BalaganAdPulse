@@ -55,8 +55,6 @@ describe("Prisma audit repository", () => {
     expect((await prisma.auditEvent.findFirstOrThrow()).changes).toEqual(changes);
   });
 
-  /** The whole reason the writer takes a transaction: a log written after the
-   * fact records changes that later rolled back. */
   it("rolls the event back with the mutation it describes", async () => {
     const { unitOfWork, events } = adapters();
     await expect(unitOfWork.run(async (context) => {

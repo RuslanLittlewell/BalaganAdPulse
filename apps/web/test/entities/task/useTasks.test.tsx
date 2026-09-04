@@ -32,7 +32,6 @@ describe("useTasks", () => {
     expect(seen[0].searchParams.get("campaignId")).toBeNull();
   });
 
-  // Two filters are two answers, so they cannot share one cache entry.
   it("keeps each campaign's answer apart", async () => {
     server.use(mock.get("/api/tasks", ({ request }) => {
       const campaignId = new URL(request.url).searchParams.get("campaignId") as string;

@@ -96,9 +96,6 @@ describe("GET /api/regustration/:code", () => {
     expect(response.body).toEqual({ error: { message: "Invalid invite code" } });
   });
 
-  // Its own case, so the lifecycle rows above keep testing lifecycle: a code
-  // outside the alphabet can never exist, and saying so would separate it from
-  // a code that merely does not exist.
   it.each([
     ["the wrong length", "SHORT"],
     ["a character outside the alphabet", "REVOKEDA"],

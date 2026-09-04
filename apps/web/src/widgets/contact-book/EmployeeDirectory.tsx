@@ -5,21 +5,10 @@ import { useAuth } from "@/features/auth/index.js";
 import { t } from "@/shared/config/index.js";
 import { EmptyState, ListItem, Loader } from "@/shared/ui/index.js";
 
-/**
- * The organization's people, and the invitations that will add more.
- *
- * Read-only on purpose: roles, suspension and removal stay on the Team page,
- * which is about administering members. This pane is the contact book's other
- * half — who they are, and how to invite the next one.
- */
 export function EmployeeDirectory() {
   const members = useMembers();
   const { user } = useAuth();
   const [selectedId, setSelectedId] = useState<string>();
-  /* Nobody opens a directory to find themselves, and their own row is the one
-     whose grants an admin should not change in passing. Filtered here rather
-     than in the listing: the same answer feeds the control that makes somebody
-     responsible for a task, and taking one yourself is the ordinary case. */
   const list = (members.data ?? []).filter((member) => member.userId !== user?.id);
   const selected = list.find((member) => member.id === selectedId) ?? list[0];
 
@@ -51,8 +40,6 @@ export function EmployeeDirectory() {
   );
 }
 
-/** One label and value to a row, separated — the same shape the client pane
- * uses, so the two halves of the book read alike. */
 function EmployeeDetails({ member }: { member: Membership }) {
   const rows = [
     ["fullName", t("contacts.fullName"), member.name],

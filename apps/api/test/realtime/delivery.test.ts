@@ -18,8 +18,6 @@ const task: TaskRecord = {
   updatedAt: new Date("2026-09-01T00:00:00.000Z"),
 };
 
-/** `actors` and `reach` are read at delivery time, so a test can change them
- * mid-flight to model a revocation. */
 function harness(options: {
   actors?: Record<string, ActorContext | null>;
   reach?: Record<string, string[]>;
@@ -73,12 +71,6 @@ describe("who receives a task event", () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  /**
-   * Whose work it is, decided the same way the REST path decides it. A socket
-   * that delivered more than a listing would return is a hole in exactly the
-   * rule the listing exists to enforce — and a noisier one, because it arrives
-   * without anybody asking.
-   */
   it("withholds the agency's own work from a customer", async () => {
     const { delivery, connect } = harness({ actors: { u1: actor({ role: "CLIENT" }) } });
     const send = connect("u1");
@@ -139,9 +131,6 @@ describe("who receives a task event", () => {
     expect(send).toHaveBeenCalledOnce();
   });
 
-  // A deletion carries the same facts, so it can be withheld from the same
-  // people. Announcing an id to somebody who never held the task would say that
-  // work they cannot see exists.
   it("withholds a deletion from someone who could not see the task", async () => {
     const { delivery, connect } = harness({
       actors: { u1: actor({ role: "MANAGER", membershipId: "m1" }) },
@@ -175,15 +164,11 @@ describe("who receives a task event", () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  // The reason the actor is not sealed into the connection. A socket outlives
-  // several token lifetimes, so a revocation must bite on the next event, not
-  // whenever the member happens to reconnect.
   it("re-checks entitlement per event, so a revocation takes effect at once", async () => {
     const { state, delivery, connect } = harness({
       actors: { u1: actor({ role: "MANAGER" }) }, reach: { m1: ["p1"] },
     });
     const send = connect("u1");
-    // Responsible for it, so the grant is the only thing that changes here.
     const theirs = taskMoved({ ...task, assigneeId: "m1" });
 
     await delivery.deliver(theirs);
@@ -216,14 +201,11 @@ describe("who receives a task event", () => {
     });
     const sends = [connect("admin"), connect("granted"), connect("ungranted")];
 
-    // Responsible for it is the granted manager; the admin sees it regardless,
-    // and the ungranted one is stopped by reach before ownership is asked.
     await delivery.deliver(taskMoved({ ...task, assigneeId: "m2" }));
 
     expect(sends.map((send) => send.mock.calls.length)).toEqual([1, 1, 0]);
   });
 
-  // One failing socket must not silence the rest.
   it("keeps delivering when one connection throws", async () => {
     const { delivery, registry, connect } = harness({
       actors: { u1: actor(), u2: actor({ userId: "u2" }) },

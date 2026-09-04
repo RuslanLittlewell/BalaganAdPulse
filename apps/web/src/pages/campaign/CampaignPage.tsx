@@ -19,8 +19,6 @@ import { PerformanceSummary } from "@/widgets/agency-overview/index.js";
 import { DailyChart } from "@/widgets/campaign-overview/index.js";
 import { PerformanceTable, type PerformanceRow } from "@/widgets/performance-table/index.js";
 
-/** The ads of the ad sets someone has actually opened. A request per set, for
- * rows that have been asked for — never for every set on the screen. */
 function useAdsOfOpenSets(openIds: ReadonlySet<string>, range: DateRange) {
   const ids = [...openIds];
   const results = useQueries({
@@ -42,9 +40,6 @@ export function CampaignPage() {
   const adSets = useAdSets(campaignId, range);
   const [openSets, setOpenSets] = useState<ReadonlySet<string>>(new Set());
   const [reading, setReading] = useState<Task | null>(null);
-  /* Narrowed by the server, not here: a campaign's tasks are a listing whose
-     size does not grow with the project's history. Every stage is listed —
-     unlike a project's, a campaign's finished work is part of what it is. */
   const tasks = useTasks({ campaignId, enabled: campaignId != null });
   const adsBySet = useAdsOfOpenSets(openSets, range);
 

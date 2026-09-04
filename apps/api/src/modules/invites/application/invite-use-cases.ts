@@ -18,21 +18,14 @@ import {
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MAX_CODE_ATTEMPTS = 5;
 
-/** Every rejected invitation answers with this, whatever was actually wrong
- * with it. Unknown, expired, revoked, already redeemed and addressed-to-someone
- * -else are indistinguishable from outside on purpose: registration is a public
- * endpoint, and a response that explained itself would let a stranger discover
- * which codes exist and which addresses were invited. */
 export const INVALID_INVITE = "Invalid invite code";
 
 export interface CreateInviteInput {
   readonly registrationType: RegistrationType;
   readonly role?: Role | null;
   readonly projectIds?: readonly string[];
-  /** Required for `CLIENT_STAFF`, and refused on the other two. */
   readonly clientId?: string;
   readonly email?: string | null;
-  /** Absent means the invitation does not expire on its own. */
   readonly expiresInDays?: number;
 }
 
@@ -54,13 +47,6 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
     }
   };
 
-  /**
-   * Whether this actor may see the invitation at all.
-   *
-   * An agency admin reaches every invitation in the organization. A principal
-   * reaches the ones for its own client and nothing else — not another
-   * customer's, and not the agency's own, which name no client at all.
-   */
   const reaches = async (actor: ActorContext, invite: Invite): Promise<boolean> => {
     if (actor.role === "ADMIN") return true;
     if (!invite.clientId) return false;
@@ -86,9 +72,6 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
         if (!input.clientId) {
           throw new AppError("validation", "An invitation to join a client must name one");
         }
-        /* Existence and authority answered together: a principal naming another
-           customer's client is told the same thing an unknown id is told, so it
-           cannot count what else the agency has. */
         if (!(await dependencies.clients.isReachable(actor, input.clientId))) {
           throw new AppError("not-found", "Client not found");
         }
@@ -121,8 +104,6 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
               orgId: actor.orgId,
               code: dependencies.codes.generate(),
               registrationType: input.registrationType,
-              // Only an employee invitation carries either: the two customer
-              // kinds are decided by the client, not by a role or a project.
               role: input.registrationType === "EMPLOYEE" ? input.role! : null,
               projectIds: input.registrationType === "EMPLOYEE" ? projectIds : [],
               clientId: input.clientId ?? null,
@@ -160,10 +141,6 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
         return { registrationType: invite.registrationType };
       }),
 
-    /** Revoking is a timestamp rather than a delete: an invitation is the
-     * record of how somebody was let in, and one already redeemed is history
-     * that must not be rewritten — hence the conflict rather than a silent
-     * no-op. */
     revoke: async (actor: ActorContext, id: string): Promise<void> => {
       assertCan(actor, "delete");
       const invite = await dependencies.invites.findInOrg(actor.orgId, id);
@@ -176,26 +153,6 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
       );
     },
 
-    /**
-     * Redeeming happens inside the registration's transaction, so the account,
-     * the membership and the claim commit together or not at all.
-     *
-     * The read and the claim are separate on purpose: two registrations can
-     * both pass the read with the same code, and only the one whose conditional
-     * claim still matches an unspent row may go on.
-     */
-    /**
-     * Spends an invitation and puts the account where it belongs.
-     *
-     * Everything here runs inside the caller's transaction, which is the whole
-     * point: an account with no client, or a client with no project, would need
-     * an operator to clean up by hand. Either all of it lands or none of it does
-     * and the link still works.
-     *
-     * `details` is required for a client invitation and refused for an employee
-     * one — the invitation's own type decides which, so a code cannot be
-     * redeemed as the other kind by asking differently.
-     */
     redeem: async (
       context: TransactionContext,
       code: string,
@@ -214,8 +171,6 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
           );
         }
         if (!invite.clientId) throw new AppError("forbidden", INVALID_INVITE);
-        // An ordinary member of it: who administers a client's people is decided
-        // once, when the client registers.
         const membershipId = await dependencies.memberships.enrol(context, {
           userId, orgId: invite.orgId, role: "CLIENT",
         });
@@ -240,7 +195,6 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
         const membershipId = await dependencies.memberships.enrol(context, {
           userId, orgId: invite.orgId, role: "CLIENT",
         });
-        // The project they just made, and nothing else in the organization.
         await dependencies.projectAccess.grant(context, membershipId, [projectId]);
         const spent = await dependencies.invites.claim(context, invite.id, userId, now);
         if (!spent) throw new AppError("forbidden", INVALID_INVITE);

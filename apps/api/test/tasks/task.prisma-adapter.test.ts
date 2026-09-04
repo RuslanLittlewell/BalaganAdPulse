@@ -32,8 +32,6 @@ async function scenario() {
   return { admin, clientId, projectId, orgId: org.id };
 }
 
-/** A task somebody is responsible for, so a test about reach is not silently
- * also a test about whose work it is. */
 async function assigned(orgId: string, projectId: string, id: string, assigneeId: string) {
   return prisma.task.create({
     data: { id, orgId, projectId, title: id, priority: "LOW", column: "IDEA", position: 0, assigneeId },
@@ -76,8 +74,6 @@ describe("Prisma task repository", () => {
       expect(await tasks.findReachable(admin.actor!, uuid(3))).toBeNull();
     });
 
-    /* The manager is responsible for every task below, so the grant is the only
-       thing that varies. Whose work it is has its own tests further down. */
     it("gives a whole-client grant every task of that client's projects", async () => {
       const { tasks } = adapters();
       const { clientId, orgId, projectId } = await scenario();
@@ -206,7 +202,6 @@ describe("a task's campaign", () => {
     expect(created.campaignId).toBe(campaign.id);
   });
 
-  // No campaign is the ordinary case: the work is about the project as a whole.
   it("stores a task with no campaign", async () => {
     const { unitOfWork, tasks } = adapters();
     const { orgId, projectId } = await scenario();
@@ -250,8 +245,6 @@ describe("a task's campaign", () => {
     expect(renamed.campaignId).toBe(campaign.id);
   });
 
-  // Work outlives the campaign it was about: deleting a campaign must not
-  // delete somebody's outstanding task along with it.
   it("leaves tasks standing when their campaign is deleted", async () => {
     const { orgId, projectId } = await scenario();
     const campaign = await seedCampaign(projectId, "Лента");
@@ -309,7 +302,6 @@ describe("whether a task is shown to the client", () => {
     expect(taken.visibleToClient).toBe(false);
   });
 
-  // Sharing says who is shown the task, not who does it or where it stands.
   it("leaves the responsible member and the stage untouched when sharing", async () => {
     const { unitOfWork, tasks } = adapters();
     const { admin, orgId, projectId } = await scenario();
@@ -341,10 +333,6 @@ describe("whether a task is shown to the client", () => {
   });
 });
 
-/**
- * Whose work is this, asked after reach has already answered which projects the
- * member may look at. It only ever takes rows away from what reach allowed.
- */
 describe("whose tasks a member sees", () => {
   async function board() {
     const admin = await signInAs("Admin", { role: "ADMIN" });
@@ -385,8 +373,6 @@ describe("whose tasks a member sees", () => {
     expect((await tasks.listReachable(manager.actor!)).map((t) => t.id)).toEqual([uuid(1)]);
   });
 
-  // The intended workflow: a request waits on the admin's board until an admin
-  // makes somebody responsible for it.
   it("hides a task nobody is responsible for from a manager", async () => {
     const { tasks } = adapters();
     const { manager, admin } = await board();
@@ -428,8 +414,6 @@ describe("whose tasks a member sees", () => {
     expect(await tasks.findReachable(customer.actor!, uuid(4))).not.toBeNull();
   });
 
-  // Narrowing, never widening: a grant the member does not hold is not made up
-  // for by being responsible for the task.
   it("never shows a task in a project the member cannot reach", async () => {
     const { tasks } = adapters();
     const { manager } = await board();

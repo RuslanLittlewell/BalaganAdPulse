@@ -5,12 +5,9 @@ import { Label } from "../ui/label.js";
 export interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   error?: string;
-  /** A tighter row for dense forms: shorter input, less air around it. */
   compact?: boolean;
 }
 
-/** shadcn's Label and Input wired together: one id, and an error that the input
- * points at through `aria-describedby` rather than one that only reads visually. */
 export function TextField({ label, error, id, compact = false, ...rest }: TextFieldProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;

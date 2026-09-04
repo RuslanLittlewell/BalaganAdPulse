@@ -112,7 +112,6 @@ describe("GET /api/tasks", () => {
 
   it("shows a manager only the tasks their grants reach", async () => {
     const manager = await signInAs("Manager", { role: "MANAGER" });
-    // Responsible for it, so the grant is the only thing that varies here.
     await create({ title: "Ungranted", assigneeId: manager.membership!.id });
 
     expect((await request(app).get("/api/tasks").set(manager.auth)).body).toEqual([]);
@@ -120,8 +119,6 @@ describe("GET /api/tasks", () => {
     expect((await request(app).get("/api/tasks").set(manager.auth)).body).toHaveLength(1);
   });
 
-  // Reach says which projects; this says whose work. A colleague's task on a
-  // project the manager is granted is still not theirs to see.
   it("shows a manager nothing of a colleague's, however wide the grant", async () => {
     const colleague = await signInAs("Colleague", { role: "MANAGER" });
     const manager = await signInAs("Manager", { role: "MANAGER" });
@@ -139,8 +136,6 @@ describe("GET /api/tasks", () => {
     expect((await request(app).get("/api/tasks").set(guest.auth)).status).toBe(200);
   });
 
-  // A customer reads the board now, and finds on it what is marked as shown to
-  // them — the agency's own work is simply not there.
   it("shows a client only what is marked as shown to them", async () => {
     const customer = await signInAs("Customer", { role: "CLIENT" });
     await grantAccess(customer.membership!.id, clientId);
@@ -199,8 +194,6 @@ describe("PATCH /api/tasks/:id", () => {
     expect((await request(app).patch(`/api/tasks/${created.body.id}`).set(guest.auth).send({ title: "No" })).status).toBe(403);
   });
 
-  // Only an admin decides what a customer is shown, so a manager's ordinary
-  // edit is untouched but this one field is not theirs.
   it("refuses a manager who tries to share a task with the client -> 403", async () => {
     const manager = await signInAs("Manager", { role: "MANAGER" });
     await grantAccess(manager.membership!.id, clientId);
@@ -383,7 +376,6 @@ describe("attachments on a task", () => {
   });
 });
 
-
 describe("the campaign a task is about", () => {
   it("creates a task on a campaign of its project and reads it back", async () => {
     const campaign = await seedCampaign(projectId, "Поиск / Москва");
@@ -523,7 +515,6 @@ describe("GET /api/tasks?campaignId=", () => {
     expect(res.body.map((task: { title: string }) => task.title)).toEqual(["На поиске"]);
   });
 
-  // The filter narrows what reach already decided; it never widens it.
   it("returns nothing for a campaign under a project the caller cannot reach", async () => {
     const manager = await signInAs("Manager", { role: "MANAGER" });
     const campaign = await seedCampaign(projectId, "Поиск");
@@ -554,10 +545,6 @@ describe("GET /api/tasks?campaignId=", () => {
   });
 });
 
-/**
- * The two customer roles see the same work. The second administers people, not
- * tasks, so it has no more claim on the agency's internal notes than the first.
- */
 describe("what a client's principal sees on the board", () => {
   it("sees what is marked as shown to the client, and nothing else", async () => {
     const principal = await signInAs("Главный", { role: "CLIENT_ADMIN" });
@@ -596,7 +583,6 @@ describe("what a client's principal sees on the board", () => {
     expect(refused.status).toBe(403);
   });
 
-  // Both roles are the same customer as far as the agency's work is concerned.
   it("sees the same board an ordinary customer sees", async () => {
     const principal = await signInAs("Главный", { role: "CLIENT_ADMIN" });
     await grantAccess(principal.membership!.id, clientId);

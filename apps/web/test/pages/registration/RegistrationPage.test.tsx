@@ -31,8 +31,6 @@ describe("RegistrationPage", () => {
       .toBeInTheDocument();
   });
 
-  // Unknown, revoked, used and expired are one answer: a stranger must not be
-  // able to discover which codes exist by reading the difference.
   it("shows the joining form for an invitation to an existing client", async () => {
     resolves("CLIENT_STAFF");
     open();

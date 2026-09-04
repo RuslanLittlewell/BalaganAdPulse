@@ -24,8 +24,6 @@ describe("summing what was measured", () => {
     });
   });
 
-  // A range with nothing in it is a real answer — the entity spent nothing —
-  // rather than an absence the caller has to special-case.
   it("sums an empty range to zero, not to nothing", () => {
     expect(sumMeasured([])).toEqual(EMPTY_MEASURED);
   });
@@ -44,19 +42,14 @@ describe("deriving the ratios", () => {
   it("derives each ratio from the figures", () => {
     const d = derive(measured);
 
-    expect(d.ctr).toBeCloseTo(2, 10);            // 2000 / 100000
-    expect(d.cpc).toBeCloseTo(0.5, 10);          // 1000 / 2000
-    expect(d.cpm).toBeCloseTo(10, 10);           // 1000 / 100000 * 1000
-    expect(d.cpa).toBeCloseTo(20, 10);           // 1000 / 50
-    expect(d.roas).toBeCloseTo(4, 10);           // 4000 / 1000
-    expect(d.frequency).toBeCloseTo(2.5, 10);    // 100000 / 40000
+    expect(d.ctr).toBeCloseTo(2, 10);
+    expect(d.cpc).toBeCloseTo(0.5, 10);
+    expect(d.cpm).toBeCloseTo(10, 10);
+    expect(d.cpa).toBeCloseTo(20, 10);
+    expect(d.roas).toBeCloseTo(4, 10);
+    expect(d.frequency).toBeCloseTo(2.5, 10);
   });
 
-  /**
-   * Absent, not zero. A campaign that spent money and got no clicks has no
-   * cost per click; reporting `0` would read as free, which is the opposite
-   * of what happened.
-   */
   it.each([
     ["ctr", day({ spend: 100 })],
     ["cpc", day({ spend: 100 })],
@@ -74,11 +67,6 @@ describe("deriving the ratios", () => {
     expect(d.cpc).toBeNull();
   });
 
-  /**
-   * The load-bearing one. A week's CTR is the week's clicks over the week's
-   * impressions — not the average of its daily CTRs. The two differ whenever
-   * the days carry different weight, which is nearly always.
-   */
   it("derives a range's ratio from the summed figures, not by averaging days", () => {
     const days = [
       day({ impressions: 1000, clicks: 100 }),   // 10%
@@ -87,7 +75,7 @@ describe("deriving the ratios", () => {
 
     const derived = derive(sumMeasured(days)).ctr;
 
-    expect(derived).toBeCloseTo(1.9, 10);        // 190 / 10000
+    expect(derived).toBeCloseTo(1.9, 10);
     const averaged = (10 + 1) / 2;
     expect(derived).not.toBeCloseTo(averaged, 5);
   });
@@ -98,8 +86,6 @@ describe("summing days by date", () => {
     ...EMPTY_MEASURED, date: new Date(`${date}T00:00:00.000Z`), spend, clicks,
   });
 
-  // A project's shape over time is its campaigns' days added up per date, not
-  // interleaved: two campaigns running on the same day are one point.
   it("adds the same date from several sources into one day", () => {
     const summed = sumByDay([day("2026-08-01", 100, 5), day("2026-08-01", 40, 3)]);
 

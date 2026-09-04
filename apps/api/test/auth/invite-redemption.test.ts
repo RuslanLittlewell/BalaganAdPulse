@@ -10,8 +10,6 @@ const app = createApp();
 
 const account = { name: "Newcomer", email: "newcomer@acme.com", password: "hunter2hunter2" };
 
-/** Every refusal is supposed to look the same, so the assertions compare
- * against one constant rather than against whatever each branch happens to say. */
 const REFUSED = { status: 403, message: "Invalid invite code" };
 
 function register(body: Record<string, unknown>) {
@@ -134,9 +132,6 @@ describe("redeeming an invitation", () => {
     expect(res.status).toBe(201);
   });
 
-  /** The account and the membership are created together or not at all: a user
-   * row with no membership is refused by loadActor on every request, so a
-   * half-finished registration would produce an account that can never be used. */
   it("leaves the invitation unredeemed when the registration fails", async () => {
     await createInvite("code-manager");
     await register({ ...account, inviteCode: "code-manager" });

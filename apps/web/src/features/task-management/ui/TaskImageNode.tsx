@@ -5,14 +5,6 @@ import { Paperclip } from "lucide-react";
 import { t } from "@/shared/config/index.js";
 import { TaskImagePreview } from "./TaskImagePreview.js";
 
-/**
- * Where this node sits among the description's images.
- *
- * Counted from the document rather than stored on the node, so deleting the
- * second of three renumbers the rest by itself. A stored ordinal would have to
- * be rewritten across every later node on each edit, and would drift the first
- * time that failed.
- */
 function attachmentNumber(editor: NodeViewProps["editor"], pos: number | undefined): number {
   if (pos === undefined) return 1;
   let seen = 0;
@@ -24,18 +16,6 @@ function attachmentNumber(editor: NodeViewProps["editor"], pos: number | undefin
   return seen + 1;
 }
 
-/**
- * An image in the description, shown as a reference to the attachment rather
- * than as the picture itself.
- *
- * The file belongs in the attachments block; the description points at it. Full
- * pictures inline are unreadable at the width a task dialog gives them, and
- * draw the same bytes twice on a task with several of them.
- *
- * The bytes are still fetched here, and only when the preview is opened: an
- * object URL is valid for exactly one page load, so a description that stored
- * one would come back to a broken picture the next time the task was opened.
- */
 function TaskImageView({ node, editor, getPos }: NodeViewProps) {
   const imageId = node.attrs.imageId as string | null;
   const [open, setOpen] = useState(false);
@@ -62,13 +42,6 @@ function TaskImageView({ node, editor, getPos }: NodeViewProps) {
   );
 }
 
-/**
- * The document keeps the id; everything else is drawn from it.
- *
- * Inline, so the reference sits in the sentence that mentions it rather than
- * interrupting it — a block node is lifted out of the paragraph by the schema
- * and breaks the text either side of it onto separate lines.
- */
 export const TaskImage = Node.create({
   name: "taskImage",
   group: "inline",
@@ -81,8 +54,6 @@ export const TaskImage = Node.create({
   },
 
   parseHTML() {
-    // Both shapes: descriptions written before the node became inline were
-    // serialised as a div.
     return [{ tag: "span[data-task-image]" }, { tag: "div[data-task-image]" }];
   },
 

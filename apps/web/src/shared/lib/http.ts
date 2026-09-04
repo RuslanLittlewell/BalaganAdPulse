@@ -29,10 +29,6 @@ async function send(path: string, init: RequestInit | undefined, _token: string 
 }
 
 export interface RequestOptions {
-  /** False for the open auth endpoints (login, register, logout): they must
-   * not trigger a renewal ahead of the request, and their own 401 is a
-   * real answer (wrong credentials) rather than a stale-token signal, so it
-   * must not be repeated. Defaults to true. */
   authenticated?: boolean;
 }
 
@@ -45,10 +41,6 @@ async function request<T>(
   const token = authenticated ? await ensureFreshToken() : null;
   let res = await send(path, init, token);
 
-  // The check above trusts the browser's clock; a clock off by minutes makes an
-  // expired token look fresh. Repeating is safe because a 401 comes from the
-  // guard, before the request reaches any service, so nothing happened that a
-  // repeat would happen twice. The body is a string, so it can be sent again.
   if (authenticated && res.status === 401 && token !== null) {
     const renewed = await forceRefresh();
     res = await send(path, init, renewed);
@@ -62,7 +54,6 @@ async function request<T>(
       if (body.error?.message) message = body.error.message;
       if (Array.isArray(body.error?.details)) details = body.error.details;
     } catch {
-      // non-JSON error body; keep the status-based message
     }
     throw new ApiError(message, res.status, details);
   }
@@ -71,9 +62,6 @@ async function request<T>(
   return (await res.json()) as T;
 }
 
-/** Bytes rather than JSON, through the same authentication and renewal path.
- * Used for images the browser cannot fetch itself, because an `<img src>`
- * carries no bearer token. */
 async function requestBlob(path: string): Promise<Blob> {
   const token = await ensureFreshToken();
   let res = await send(path, undefined, token);

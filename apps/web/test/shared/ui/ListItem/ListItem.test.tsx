@@ -43,7 +43,6 @@ describe("ListItem", () => {
     await userEvent.click(screen.getByRole("button", { name: "Редактировать: Acme" }));
 
     expect(onEdit).toHaveBeenCalledOnce();
-    // The two are siblings, not nested, so the click does not bubble into the row.
     expect(onClick).not.toHaveBeenCalled();
   });
 
@@ -65,8 +64,6 @@ describe("ListItem", () => {
       </ListItem>,
     );
 
-    // Hidden from assistive tech, so it has no role to query by — reach for the
-    // element itself, which is what a pointer would hit.
     await userEvent.click(container.querySelector("img")!);
     expect(onClick).toHaveBeenCalledOnce();
   });
@@ -78,8 +75,6 @@ describe("ListItem", () => {
       </ListItem>,
     );
 
-    // The picture is hidden from assistive tech: it shows the very thing the
-    // text names, and would otherwise be read twice.
     expect(screen.getByRole("button", { name: "Acme" })).toBeInTheDocument();
     expect(screen.queryByRole("img", { name: "Acme" })).not.toBeInTheDocument();
   });
@@ -106,7 +101,6 @@ describe("ListItem", () => {
     const { container } = render(<ListItem>Acme</ListItem>);
     const row = container.firstElementChild!;
 
-    // Same box either way — only the colour is missing.
     expect(row).toHaveClass("border-b");
     expect(row).toHaveClass("border-l-4");
     expect(row).toHaveClass("border-transparent");
@@ -141,7 +135,6 @@ describe("ListItem", () => {
     const edit = screen.getByRole("button", { name: "Редактировать: Acme" });
     expect(edit).toHaveClass("focus-visible:opacity-100");
 
-    // Second stop: the row itself, then the pencil.
     await userEvent.tab();
     await userEvent.tab();
     expect(edit).toHaveFocus();

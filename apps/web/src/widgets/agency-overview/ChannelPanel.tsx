@@ -2,8 +2,6 @@ import { formatCount, formatCurrency, formatMultiple } from "@/shared/lib/index.
 import { channelLabel, useChannelShares, type DateRange } from "@/entities/campaign/index.js";
 import { t } from "@/shared/config/index.js";
 
-/** Where the money went. Only channels something actually ran on: a row per
- * platform we support would suggest we run there and got nothing. */
 export function ChannelPanel({ range }: { range: DateRange }) {
   const channels = useChannelShares(range);
   const total = (channels.data ?? []).reduce((sum, share) => sum + share.performance.spend, 0);

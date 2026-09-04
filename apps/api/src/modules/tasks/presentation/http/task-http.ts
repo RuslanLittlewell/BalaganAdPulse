@@ -38,7 +38,6 @@ export function createTaskRouter(useCases: TaskUseCases): Router {
     await useCases.delete(actorOf(req), req.params.id);
     res.status(204).send();
   }));
-  /** Where a drag lands: the target column and the position within it. */
   router.post("/:id/move", handle(async (req: Request<{ id: string }>, res) => {
     res.json(await useCases.move(actorOf(req), req.params.id, moveTaskSchema.parse(req.body)));
   }));
@@ -46,11 +45,6 @@ export function createTaskRouter(useCases: TaskUseCases): Router {
   return router;
 }
 
-/**
- * Task images. The read requires the same authentication as every other `/api`
- * route: the editor fetches with the member's token and renders from an object
- * URL, so an address opened without credentials serves nothing.
- */
 export function createTaskImageRouter(
   useCases: TaskImageUseCases,
   upload: RequestHandler,

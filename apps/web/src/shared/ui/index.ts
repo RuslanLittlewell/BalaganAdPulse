@@ -1,4 +1,3 @@
-// Canonical shadcn/ui primitives.
 export * from "./ui/alert-dialog.js";
 export * from "./ui/button.js";
 export * from "./ui/calendar.js";
@@ -15,9 +14,6 @@ export * from "./ui/skeleton.js";
 export * from "./ui/table.js";
 export * from "./ui/tooltip.js";
 
-// App compositions built on those primitives. `Avatar` and `Tabs` deliberately
-// shadow the shadcn exports of the same name: every call site wants the wrapper,
-// and re-exporting both names from one barrel would be ambiguous.
 export * from "./Avatar/Avatar.js";
 export * from "./CenteredPanel/CenteredPanel.js";
 export * from "./ConfirmDialog/ConfirmDialog.js";

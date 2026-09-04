@@ -104,7 +104,6 @@ describe("reach, checked before anything is looked up", () => {
       .rejects.toMatchObject({ category: "not-found" });
   });
 
-  /** 404, not 403: a refusal must never confirm that the thing exists. */
   it("answers not-found rather than forbidden for an unreachable ad set", async () => {
     const useCases = fixture({
       adSets: [{ id: "s1", campaignId: "c1", name: "Москва", audience: null, status: "ACTIVE", externalId: null, position: 0 }],
@@ -115,11 +114,6 @@ describe("reach, checked before anything is looked up", () => {
       .rejects.toMatchObject({ category: "not-found" });
   });
 
-  /**
-   * A customer reads campaigns — the matrix grants `read` to every role,
-   * deliberately, because the client portal shows them their own results. What
-   * limits them is reach, not the verb.
-   */
   it("lets a customer read a campaign they reach", async () => {
     const useCases = fixture();
     await expect(useCases.readCampaign(customer, "c1", range)).resolves.toMatchObject({ id: "c1" });
@@ -157,7 +151,6 @@ describe("summarising a parent", () => {
     expect(await useCases.agencySummary(admin, range)).toMatchObject({ spend: 140 });
   });
 
-  // The summary is not the agency's total, it is this member's view of it.
   it("leaves out a project the member holds no grant over", async () => {
     const useCases = fixture({
       campaigns: [campaign({ id: "c1", projectId: "p1" }), campaign({ id: "c2", projectId: "p2" })],
@@ -195,8 +188,6 @@ describe("the days themselves", () => {
     expect(series[0].date).toEqual(day("2026-08-01"));
   });
 
-  // The dashboard draws a project's shape over time, and a project measures
-  // nothing itself: its series is its campaigns' days added up per date.
   it("adds a project's campaigns together per date", async () => {
     const useCases = fixture({
       campaigns: [campaign(), campaign({ id: "c2", name: "Второй" })],
@@ -249,7 +240,6 @@ describe("the agency's channels", () => {
     ]);
   });
 
-  // Biggest spend first: the panel is read to see where the money goes.
   it("orders the channels by spend, largest first", async () => {
     const useCases = fixture({
       campaigns: [campaign({ id: "c1", channel: "VK" }), campaign({ id: "c2", channel: "META" })],

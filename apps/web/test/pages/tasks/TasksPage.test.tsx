@@ -64,7 +64,6 @@ describe("TasksPage", () => {
     ])));
     setup();
 
-    // The priority badge is not the title, and clicking it must still open.
     await userEvent.click(await screen.findByText("Срочный"));
     expect(await screen.findByLabelText("Название")).toHaveValue("Написать бриф");
   });

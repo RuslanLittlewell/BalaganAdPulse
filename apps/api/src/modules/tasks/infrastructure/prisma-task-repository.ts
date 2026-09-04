@@ -28,14 +28,8 @@ function toDomain(row: RowWithImages): TaskRecord {
   };
 }
 
-/** Ids only: the board shows that a card has attachments, never their bytes. */
 const WITH_IMAGES = { images: { select: { id: true }, orderBy: { createdAt: "asc" } } } as const;
 
-/**
- * Which tasks an actor can reach: exactly those whose project they reach, which
- * is why this mirrors the projects module's filter rather than inventing one.
- * A grant naming a single project narrows to that project's tasks alone.
- */
 function reachFilter(actor: ActorContext): Prisma.TaskWhereInput {
   if (actor.role === "ADMIN") return { orgId: actor.orgId };
   return {
@@ -49,24 +43,12 @@ function reachFilter(actor: ActorContext): Prisma.TaskWhereInput {
   };
 }
 
-/**
- * Whose work the actor sees, asked after reach has decided which projects they
- * may look at. It only ever takes rows away from what reach allowed.
- *
- * An admin sees the organization's work. A customer — either role — sees what is
- * marked as shown to them. A manager or guest sees the work they are responsible
- * for and nothing else — including nothing that is nobody's yet,
- * which is the point: a request waits on the admin's board until an admin makes
- * somebody responsible for it. A customer sees the tasks marked as shown to them.
- */
 function ownershipFilter(actor: ActorContext): Prisma.TaskWhereInput {
   if (actor.role === "ADMIN") return {};
   if (isCustomer(actor.role)) return { visibleToClient: true };
   return { assigneeId: actor.membershipId };
 }
 
-/** The board reads column-major, in the order the columns are drawn. Postgres
- * orders an enum by its declared order, which is the same order. */
 const BOARD_ORDER: Prisma.TaskOrderByWithRelationInput[] = [
   { column: "asc" },
   { position: "asc" },
@@ -104,8 +86,6 @@ export class PrismaTaskRepository implements TaskRepository {
 
   async listReachable(actor: ActorContext, filter?: TaskFilter): Promise<TaskRecord[]> {
     const rows = await this.prisma.task.findMany({
-      // Reach first, then the narrowing: a filter can only take rows away from
-      // what the actor already reaches.
       where: {
         ...reachFilter(actor),
         ...ownershipFilter(actor),
@@ -160,8 +140,6 @@ export class PrismaTaskRepository implements TaskRepository {
     return rows.map((row) => row.id);
   }
 
-  /** Writes the whole column back as 0..n-1. Bounded by the size of a column,
-   * which is the trade the design makes for never leaving a gap or a duplicate. */
   async applyOrder(
     context: TransactionContext,
     column: TaskColumn,
@@ -193,7 +171,6 @@ export class PrismaTaskProjectReach implements ProjectReach {
   }
 }
 
-/** A task may only be given to an active member of the actor's own organization. */
 export class PrismaTaskMemberReach implements MemberReach {
   constructor(private readonly prisma: PrismaClient) {}
 

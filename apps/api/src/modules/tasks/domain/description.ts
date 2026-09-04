@@ -1,11 +1,3 @@
-/**
- * The image ids a description references.
- *
- * The description is a ProseMirror document, and an image node carries the id
- * of the stored object rather than its bytes. Walking it is how saving a task
- * claims the uploads its text points at, and how deleting one knows which
- * objects to take with it.
- */
 export function collectImageIds(description: unknown): string[] {
   const found = new Set<string>();
   const walk = (node: unknown): void => {
@@ -28,18 +20,6 @@ export function collectImageIds(description: unknown): string[] {
   return [...found];
 }
 
-/**
- * The same description with every reference to one image taken out.
- *
- * Deleting an attachment has to reach the text as well as the row: a
- * description left pointing at an object that no longer exists shows a link
- * that can never open. Structural rather than positional — the node is dropped
- * wherever it sits, however deeply it is nested — so a quote or a list holding
- * the image is handled like any other place.
- *
- * Returns the original value untouched when nothing referenced the image, so a
- * caller can tell a real edit from a no-op by identity.
- */
 export function removeImage(description: unknown, imageId: string): unknown {
   if (!collectImageIds(description).includes(imageId)) return description;
 

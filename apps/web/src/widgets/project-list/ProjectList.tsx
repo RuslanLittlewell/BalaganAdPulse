@@ -34,7 +34,6 @@ import {
 import { ProjectFormDialog } from "@/features/project-management/index.js";
 import { Can, useCan } from "@/features/permissions/index.js";
 
-/** The projects of the Projects module, each labelled with the company it is for. */
 export function ProjectList() {
   const projectId = useActiveProjectId();
   const navigate = useNavigate();
@@ -99,7 +98,6 @@ export function ProjectList() {
 
           {projects.isSuccess &&
             visibleProjects.map((project) => (
-              // Right-click anywhere on the row picks its priority.
               <ContextMenu key={project.id}>
                 <ContextMenuTrigger>
                   <ListItem
@@ -173,7 +171,6 @@ export function ProjectList() {
           project={editing}
           onClose={() => setEditingId(undefined)}
           onDeleted={() => {
-            // Leaving the open project deleted would strand the route on it.
             if (editing.id === projectId) navigate(ROUTES.projects, { replace: true });
           }}
         />

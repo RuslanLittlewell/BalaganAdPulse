@@ -12,14 +12,6 @@ import {
 } from "@/entities/membership/index.js";
 import { useCan } from "@/features/permissions/index.js";
 
-/**
- * What one colleague can reach, and — for an admin — a way to change it.
- *
- * The endpoint replaces the whole set, which is the right shape for editing one:
- * this reads what is there, applies a single change and sends all of it back. Two
- * admins editing at once therefore do not merge into a state neither chose; the
- * later write wins entirely, which is at least one somebody picked.
- */
 export function EmployeeAccess({ membershipId }: { membershipId: string }) {
   const grants = useMemberAccess(membershipId);
   const projects = useProjects();
@@ -32,7 +24,6 @@ export function EmployeeAccess({ membershipId }: { membershipId: string }) {
   const projectOf = (id: string) => projects.data?.find((project) => project.id === id);
   const clientOf = (id: string) => clients.data?.find((client) => client.id === id);
 
-  /** What the endpoint stores: the grant without its own identity. */
   const stated = (grant: ClientAccessGrant) => ({
     clientId: grant.clientId,
     projectId: grant.projectId ?? null,
@@ -83,8 +74,6 @@ export function EmployeeAccess({ membershipId }: { membershipId: string }) {
         <ul className="mt-3 flex flex-col gap-1.5">
           {held.map((grant) => {
             const project = grant.projectId ? projectOf(grant.projectId) : undefined;
-            // A grant naming a client and no project covers every project of it,
-            // and is decided where clients are — not from a row about one.
             const wholeClient = grant.projectId == null;
             const label = wholeClient
               ? `${clientOf(grant.clientId)?.name ?? ""} — ${t("employee.access.wholeClient")}`
@@ -101,9 +90,6 @@ export function EmployeeAccess({ membershipId }: { membershipId: string }) {
                     <button
                       type="button"
                       aria-label={`${t("employee.access.remove")} ${label}`}
-                      // Always reachable by keyboard and always there for a
-                      // pointer; only the paint waits for hover, so it is not
-                      // hidden from anyone navigating without a mouse.
                       className={cn(
                         "absolute -right-1.5 -top-1.5 grid size-4 place-items-center rounded-full",
                         "bg-destructive text-white shadow-sm transition-opacity",
@@ -123,10 +109,6 @@ export function EmployeeAccess({ membershipId }: { membershipId: string }) {
         </ul>
       )}
 
-      {/* Asked before it acts. Granting shows somebody more than they saw;
-          removing takes away work they may be in the middle of, from a row that
-          looks like every other, and the result is invisible until somebody
-          complains. */}
       <ConfirmDialog
         open={removing != null}
         title={t("employee.access.remove.title")}

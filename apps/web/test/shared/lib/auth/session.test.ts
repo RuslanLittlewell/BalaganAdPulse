@@ -125,10 +125,6 @@ describe("forceRefresh", () => {
   });
 
   it("leaves the stored tokens in place and does not notify listeners when the refresh endpoint answers 429", async () => {
-    // The per-address rate limiter added this phase can answer 429 on
-    // /api/auth/refresh. That must not be treated as "the session is dead":
-    // the refresh token is still good, so it must survive, and nobody
-    // should be signed out over it.
     server.use(http.post("/api/auth/refresh", () =>
       HttpResponse.json({ error: { message: "Too many requests, try again later" } }, { status: 429 })));
     const accessToken = makeExpiredAccessToken();
@@ -145,10 +141,6 @@ describe("forceRefresh", () => {
   });
 
   it("does not call endSession a second time when two requests 401 back to back after the session already ended", async () => {
-    // Simulates the case from the finding: the first forceRefresh() fails,
-    // clears storage and settles; a second, later forceRefresh() call (its
-    // inFlight promise already reset to null) finds no refresh token and
-    // must not fire the listeners a second time.
     server.use(http.post("/api/auth/refresh", () =>
       HttpResponse.json({ error: { message: "Session expired" } }, { status: 401 })));
     writeTokens({ accessToken: makeExpiredAccessToken(), refreshToken: "r" });
@@ -178,22 +170,11 @@ describe("endSession", () => {
   });
 });
 
-/**
- * `endSession` used to skip its work when `hasSession()` was already false.
- * That reads the very markers signing out removes: a successful sign-out clears
- * the session cookie server-side, so on a browser whose localStorage had been
- * cleared — Safari does this by itself after a week idle — the guard saw no
- * session and returned before telling anyone. The listener that clears the
- * screen and sends the visitor to the sign-in form never ran.
- */
 describe("ending a session that has already lost its markers", () => {
   it("still notifies when forced, with no marker left to find", () => {
     let notified = 0;
     const stop = onSessionExpired(() => { notified += 1; });
 
-    // What a successful sign-out leaves behind on a browser that had already
-    // lost its localStorage: the server expired the cookie in its own response,
-    // so by the time the teardown runs there is no marker left to find.
     localStorage.clear();
     document.cookie = "adpulse_session=; Max-Age=0; path=/";
     expect(hasSession()).toBe(false);
@@ -204,7 +185,6 @@ describe("ending a session that has already lost its markers", () => {
     stop();
   });
 
-  // Unforced is the reactive path: something else already ended this session.
   it("stays quiet when unforced and no session is left", () => {
     let notified = 0;
     const stop = onSessionExpired(() => { notified += 1; });

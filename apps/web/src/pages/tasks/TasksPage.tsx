@@ -14,8 +14,6 @@ type Editing =
 
 export function TasksPage() {
   const [editing, setEditing] = useState<Editing>({ mode: "closed" });
-  /* A customer raises a request and then leaves it alone — the API refuses an
-     edit, so offering the form that makes one would only produce a 403. */
   const mayEdit = useCan("update", "task");
   const [pendingDelete, setPendingDelete] = useState<Task | null>(null);
   const remove = useDeleteTask();

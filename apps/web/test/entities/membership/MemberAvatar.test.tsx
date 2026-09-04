@@ -10,8 +10,6 @@ describe("MemberAvatar", () => {
     expect(screen.getByText("B")).toBeInTheDocument();
   });
 
-  // The marker is an upload timestamp, not an address. Putting it in `src` is
-  // what left every card with a broken image.
   it("never renders the marker as an address", () => {
     render(<MemberAvatar member={member("2026-08-31T12:00:00.000Z")} />);
     expect(screen.getByRole("img", { name: "Buyer" }))

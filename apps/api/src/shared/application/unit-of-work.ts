@@ -1,6 +1,5 @@
 declare const transactionContextBrand: unique symbol;
 
-/** Opaque capability passed to ports participating in one atomic operation. */
 export interface TransactionContext {
   readonly [transactionContextBrand]: true;
 }

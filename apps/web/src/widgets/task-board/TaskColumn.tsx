@@ -14,12 +14,9 @@ export interface TaskColumnProps {
   draggable: boolean;
   draggingId?: string | null;
   projects?: Map<string, Project>;
-  /** Campaign names by id, for the cards that name one. */
   campaigns?: Map<string, string>;
   members?: Map<string, Membership>;
   onOpen?: (task: Task) => void;
-  /** Offered only when the member may create a task. The column is named so
-   * the new task lands here rather than in the default one. */
   onCreate?: (column: Column) => void;
 }
 

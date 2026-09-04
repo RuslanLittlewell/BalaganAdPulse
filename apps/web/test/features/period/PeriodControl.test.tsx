@@ -5,8 +5,6 @@ import { renderWithProviders, server } from "@test/shared/index.js";
 import { PeriodControl, usePeriod } from "@/features/period/index.js";
 import { useAgencySummary } from "@/entities/campaign/index.js";
 
-/** A stand-in for any screen: it reads the range the same way the real ones do
- * and fetches with it, so the assertion is about what the server was asked. */
 function Screen() {
   const { range } = usePeriod();
   return <output>{`${range.from}..${range.to}`}</output>;
@@ -36,8 +34,6 @@ describe("PeriodControl", () => {
     expect(screen.getByRole("button", { name: "7 дней" })).toHaveAttribute("aria-pressed", "true");
   });
 
-  // The range is part of what a link means: a colleague sent last month's
-  // figures must open last month's figures.
   it("reads the period out of the address", () => {
     renderWithProviders(<Screen />, { route: "/?period=prevMonth" });
 
@@ -67,7 +63,6 @@ describe("PeriodControl", () => {
     expect(seen[1].searchParams.get("from")).toBe("2026-08-01");
   });
 });
-
 
 function Fetching() {
   const { range } = usePeriod();

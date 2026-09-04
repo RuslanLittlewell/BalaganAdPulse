@@ -37,15 +37,11 @@ import { TaskColumnPanel } from "./TaskColumn.js";
 export interface TaskBoardProps {
   projectId?: string;
   onOpen?: (task: Task) => void;
-  /** Opens the create dialog for one column. Supplied by the page, which owns
-   * the dialog; the button appears only when the member may create. */
   onCreate?: (column: TaskColumn) => void;
 }
 
 export function TaskBoard({ projectId, onOpen, onCreate }: TaskBoardProps) {
   const { data: tasks, isLoading, isError } = useTasks({ projectId });
-  // Other people are dragging the same cards. Without this the board only ever
-  // shows this member's own changes until the page is reloaded.
   useTaskEvents();
   const move = useMoveTask();
   const draggable = useCan("update", "task");
@@ -82,31 +78,12 @@ export function TaskBoard({ projectId, onOpen, onCreate }: TaskBoardProps) {
     [members],
   );
 
-  /**
-   * Campaign names for the cards that name one.
-   *
-   * Only the projects whose tasks actually name a campaign are asked about, so
-   * the cost of the label follows its use: a board where nobody has named a
-   * campaign fetches nothing at all.
-   *
-   * Read from `tasks`, never from `board`. The preview reorders cards during a
-   * drag but never changes which campaigns exist, and deriving this from it
-   * would rebuild the list on every drag-over — re-rendering every column, which
-   * makes dnd-kit measure again and fire the next drag-over.
-   */
   const projectsWithCampaigns = useMemo(
     () => [...new Set(
       (tasks ?? []).filter((task) => task.campaignId).map((task) => task.projectId),
     )].sort(),
     [tasks],
   );
-  /* Two steps, because each fixes a different unstable reference. `useQueries`
-     hands back a fresh results array on every render, so `combine` flattens it
-     to a plain array — which React Query shares structurally, keeping its
-     identity while the data is unchanged. A Map would not survive that sharing,
-     so it is built in a memo keyed on the stable array. Skip either step and
-     every column gets a new prop on every render, which makes dnd-kit measure
-     again mid-drag and fire the next drag-over. */
   const campaignList = useQueries({
     queries: projectsWithCampaigns.map((id) => ({
       queryKey: ["projects", id, "campaigns", "names"],
@@ -146,9 +123,6 @@ export function TaskBoard({ projectId, onOpen, onCreate }: TaskBoardProps) {
     setDraggingId(null);
     if (!placement) { setPreview(null); return; }
 
-    // Mutate first: its optimistic write lands synchronously, so clearing the
-    // preview afterwards hands over to a cache that already shows the card in
-    // its new column. The other order renders the old layout for a frame.
     move.mutate(
       { id: activeId, body: placement },
       { onError: () => setMoveError(t("tasks.moveFailed")) },

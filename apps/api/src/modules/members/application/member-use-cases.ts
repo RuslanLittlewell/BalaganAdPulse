@@ -25,8 +25,6 @@ export function createMemberUseCases(
     }
   };
 
-  /** Scoped to the actor's organization, so a membership elsewhere answers
-   * not-found rather than confirming that it exists. */
   const reachable = async (actor: ActorContext, id: string) => {
     const member = await dependencies.directory.findInOrg(actor.orgId, id);
     if (!member) throw new AppError("not-found", "Member not found");
@@ -45,15 +43,6 @@ export function createMemberUseCases(
   };
 
   return {
-    /**
-     * Turns an authenticated identity into the role and tenancy it is acting
-     * under. Read fresh every time rather than cached against the token: a
-     * demotion or a suspension has to take effect on the very next request.
-     *
-     * A user with no membership and one that is suspended are refused
-     * identically — both are simply not a member right now, and distinguishing
-     * them would tell a stranger whether an account exists here.
-     */
     resolveActor: async (principal: SessionPrincipal): Promise<ActorContext> => {
       const actor = await dependencies.memberships.findActiveByUserId(principal.id);
       if (!actor) {
@@ -70,13 +59,6 @@ export function createMemberUseCases(
       return dependencies.directory.listByOrg(actor.orgId, kind);
     },
 
-    /**
-     * A client's own people.
-     *
-     * Reach before the listing: an admin reaches every client, a principal only
-     * its own, and a client it does not reach is answered as missing rather than
-     * as forbidden — so it cannot count the agency's other customers.
-     */
     listOfClient: async (actor: ActorContext, clientId: string) => {
       assertCan(actor, "read");
       if (!(await dependencies.clients.reachableClientIds(actor)).includes(clientId)) {
@@ -85,14 +67,10 @@ export function createMemberUseCases(
       return dependencies.directory.listByClient(actor.orgId, clientId);
     },
 
-    /** The picture behind a membership. Reach first, so a membership in
-     * another organization is not confirmed to exist by a different answer. */
     avatar: async (actor: ActorContext, id: string): Promise<Uint8Array> => {
       assertCan(actor, "read");
       const member = await reachable(actor, id);
       const bytes = await dependencies.avatars.readAvatar(member.userId);
-      // Having no picture is not distinguishable from not being reachable, and
-      // does not need to be: both mean "draw the initials instead".
       if (!bytes) throw new AppError("not-found", "Member has no picture");
       return bytes;
     },
@@ -106,17 +84,8 @@ export function createMemberUseCases(
       );
     },
 
-    /** Removes the membership, not the account. The person keeps their login
-     * and loses this organization; their clients, projects and campaigns stay
-     * where they are, because they belong to the organization rather than to
-     * them. */
     remove: async (actor: ActorContext, id: string) => {
       assertCan(actor, "delete");
-      // Compared against the actor context, which the middleware resolves fresh
-      // on every request — not against anything the caller sent, and not left
-      // to the interface to hide. Independent of the last-admin rule: even with
-      // other admins standing, removing yourself ends your own access to the
-      // organization in one click, with nothing left to undo it with.
       if (id === actor.membershipId) {
         throw new AppError("conflict", "You cannot remove your own membership");
       }
@@ -127,22 +96,6 @@ export function createMemberUseCases(
       );
     },
 
-    /**
-     * Replaces a member's grants wholesale rather than adding to them, so the
-     * request describes the state the admin wants rather than a diff — two
-     * admins editing the same member cannot then interleave into a set neither
-     * chose.
-     *
-     * Validated before anything is written, so a rejected set leaves the
-     * member's existing reach exactly as it was.
-     */
-    /**
-     * What a membership reaches now.
-     *
-     * Reach before the read, as the write does: a membership in another
-     * organization is reported missing rather than refused, so an admin here
-     * learns nothing about who else exists.
-     */
     accessOf: async (actor: ActorContext, id: string) => {
       assertCan(actor, "update");
       const member = await reachable(actor, id);
@@ -160,9 +113,6 @@ export function createMemberUseCases(
       const grants: AccessGrant[] = [];
       for (const grant of input.grants) {
         const clientProjects = projects.get(grant.clientId);
-        // A client outside the organization is reported the same way as one
-        // that does not exist: an admin here has no business learning that an
-        // id belongs to another agency.
         if (!clientProjects) throw new AppError("validation", "Unknown client in grants");
         if (grant.projectId && !clientProjects.includes(grant.projectId)) {
           throw new AppError("validation", "Project does not belong to that client");
@@ -179,12 +129,6 @@ export function createMemberUseCases(
       return dependencies.access.listFor(member.id);
     },
 
-    /**
-     * Everything the web app needs to decide what to render, in one call: who
-     * the caller is, which organization they are in, the role they hold right
-     * now, and which clients they can reach. The role comes from the actor
-     * resolved this request, so a demotion shows up here immediately.
-     */
     describeSession: async (actor: ActorContext) => {
       const [user, organization, clientIds] = await Promise.all([
         dependencies.users.findById(actor.userId),

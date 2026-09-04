@@ -16,14 +16,6 @@ interface Values {
   telegram: string;
 }
 
-/**
- * Somebody joining a company that already exists.
- *
- * The same fields the agency's own form asks for, and deliberately no more: the
- * invitation already named the client, so asking about a company here would be
- * asking a question whose answer is already known — and letting them contradict
- * it.
- */
 export function JoinClientForm({ code }: { code: string }) {
   const { register: join, saveAvatar, logout } = useAuth();
   const [avatar, setAvatar] = useState<ChosenAvatar>(NO_AVATAR);
@@ -44,16 +36,10 @@ export function JoinClientForm({ code }: { code: string }) {
         email: values.email.trim(),
         password: values.password,
         inviteCode: code,
-        // Optional: an account is not worth refusing over a missing number.
         phone: optional(values.phone),
         telegram: optional(values.telegram),
       });
-      // After the account exists, because there was nobody to save it against
-      // before. A picture that fails to store must not undo a registration that
-      // succeeded, so it is saved separately and its failure is not fatal.
       await saveChosenAvatar(avatar, saveAvatar);
-      /* The account is made; signing into it is the next thing they do — the
-         same ending the client's own registration has. */
       await logout();
     } catch (error) {
       setFailure(error instanceof ApiError ? error.message : t("state.error.title"));
@@ -95,9 +81,6 @@ export function JoinClientForm({ code }: { code: string }) {
           minLength: { value: MIN_PASSWORD, message: t("auth.password.tooShort") },
         })}
       />
-      {/* Required as well as compared: two empty boxes are equal, so a check
-          that only compared them would let an account through with no password
-          at all. */}
       <TextField
         label={t("registration.password.confirm")}
         type="password"

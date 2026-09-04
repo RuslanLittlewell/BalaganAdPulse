@@ -35,9 +35,6 @@ function Probe() {
   );
 }
 
-/** Issues a real query through the app's data layer (lib/http.ts), the way a
- * page component would — this is what exercises the seam between http.ts,
- * session.ts and AuthProvider, rather than any one of them in isolation. */
 function DataProbe() {
   const query = useQuery({ queryKey: ["clients"], queryFn: () => httpClient.get("/clients") });
   return <span data-testid="query-status">{query.status}</span>;
@@ -121,22 +118,13 @@ describe("AuthProvider", () => {
     expect(screen.getByText("login screen")).toBeInTheDocument();
   });
 
-  /**
-   * In a browser the session marker exists twice: in localStorage and in a
-   * readable `adpulse_session` cookie. These two cases are the ones jsdom never
-   * reproduced on its own, and between them they are why signing out could
-   * leave somebody inside the session they had just left.
-   */
   it("signs out when the cookie is the only marker left", async () => {
     server.use(http.post("/api/auth/logout", () =>
-      // The server expires the marker in its own response, which is what makes
-      // this the state the teardown actually runs in.
       new HttpResponse(null, {
         status: 204,
         headers: { "Set-Cookie": "adpulse_session=; Max-Age=0; Path=/" },
       })));
     document.cookie = "adpulse_session=1; path=/";
-    // Cleared by the browser: Safari does this by itself after a week idle.
     localStorage.clear();
     renderProvider();
 
@@ -153,8 +141,6 @@ describe("AuthProvider", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "out" }));
 
-    // Nothing left for the guard to admit on: walking back to a protected
-    // address asks for credentials instead of restoring the session.
     expect(hasSession()).toBe(false);
     expect(screen.getByText("login screen")).toBeInTheDocument();
   });
@@ -206,11 +192,6 @@ describe("AuthProvider", () => {
   });
 
   it("drops the visitor at /login with an empty cache when a stale token's silent renewal is refused", async () => {
-    // The plan's "Done when": a dead refresh token drops the visitor at
-    // /login with an empty cache. This exercises the full seam — a query
-    // through lib/http.ts triggers session.ts's renewal, which fails and
-    // calls endSession(), which AuthProvider turns into navigation and a
-    // cache clear — rather than testing any one file in isolation.
     writeTokens({ accessToken: makeExpiredAccessToken(), refreshToken: "r" });
     server.use(
       http.get("/api/clients", () =>

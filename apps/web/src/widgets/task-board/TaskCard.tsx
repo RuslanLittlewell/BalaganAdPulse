@@ -13,15 +13,11 @@ export interface TaskCardProps {
   draggable: boolean;
   placeholder?: boolean;
   project?: Project;
-  /** The name of the campaign the task names. Absent means the task names none,
-   * which the card states as Общий rather than leaving blank. */
   campaignName?: string;
   assignee?: Membership;
   onOpen?: (task: Task) => void;
 }
 
-/** The badge in the corner. Muted for the ordinary levels so that URGENT is the
- * only thing that pulls the eye across a full column. */
 const PRIORITY_TONE: Record<Task["priority"], string> = {
   LOW: "bg-muted text-muted-foreground",
   MEDIUM: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200",
@@ -29,8 +25,6 @@ const PRIORITY_TONE: Record<Task["priority"], string> = {
   URGENT: "bg-red-600 text-white dark:bg-red-700",
 };
 
-/** The same four levels down the card's left edge, so priority is legible even
- * where the badge is clipped by a narrow column. */
 const PRIORITY_BAR: Record<Task["priority"], string> = {
   LOW: "bg-border",
   MEDIUM: "bg-sky-400",
@@ -60,9 +54,6 @@ export function TaskCard({
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn(
         "group relative shrink-0 overflow-hidden rounded-xl border border-border bg-card",
-        // The left padding is the gutter: it holds the priority bar, and the
-        // drag handle appears over it. Reserved on every card, dragged or not,
-        // so text never reflows as the pointer crosses.
         "py-3 pl-5 pr-3 text-left",
         "shadow-sm transition-all hover:border-border hover:shadow-md",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",

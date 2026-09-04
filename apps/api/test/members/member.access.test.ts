@@ -108,10 +108,6 @@ describe("PUT /api/members/:id/access", () => {
   });
 });
 
-/**
- * Reading what a membership reaches, not only replacing it. The screen that
- * changes access has to show what it is changing.
- */
 describe("GET /api/members/:id/access", () => {
   it("returns every grant the membership holds", async () => {
     const manager = await signInAs("Менеджер", { role: "MANAGER" });
@@ -134,7 +130,6 @@ describe("GET /api/members/:id/access", () => {
     expect(res.body).toEqual([]);
   });
 
-  // A grant naming a client and no project covers every project of it.
   it("returns a client-wide grant as such", async () => {
     const manager = await signInAs("Менеджер", { role: "MANAGER" });
     const { clientId } = await seedProject("unused", "Acme");

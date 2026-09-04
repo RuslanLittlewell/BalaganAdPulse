@@ -5,8 +5,6 @@ import { prisma } from "../../src/shared/infrastructure/prisma.js";
 
 afterAll(() => prisma.$disconnect());
 
-/** A one-pixel JPEG: enough bytes to prove the content type survives a round
- * trip without the object being a PNG. */
 const JPEG = Buffer.from(
   "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==",
   "base64",

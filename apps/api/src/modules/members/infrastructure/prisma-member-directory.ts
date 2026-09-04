@@ -5,8 +5,6 @@ import type { PrismaUnitOfWork } from "../../../shared/infrastructure/prisma-uni
 import type { MemberChange, MemberRecord } from "../domain/member.js";
 import type { MemberDirectory , MemberKind } from "../application/ports.js";
 
-/** The password hash is excluded by selection rather than by deletion, so a
- * column added to the user table later is not exposed by default. */
 const SELECT = {
   id: true,
   userId: true,
@@ -26,8 +24,6 @@ type Row = {
   };
 };
 
-/** Flattened for the caller: the team screen lists people, and a nested `user`
- * object would make every consumer reach through it. */
 function toDomain(row: Row): MemberRecord {
   return {
     id: row.id,
@@ -58,9 +54,6 @@ export class PrismaMemberDirectory implements MemberDirectory {
 
   async listByOrg(orgId: string, kind?: MemberKind): Promise<MemberRecord[]> {
     const rows = await this.prisma.membership.findMany({
-      // Staff is everyone but the customers, stated as the exclusion it is and
-      // derived from the one predicate that answers which side a role is on. A
-      // customer role added later is excluded without anybody remembering to.
       where: { orgId, ...(kind === "staff" ? { role: { notIn: CUSTOMER_ROLES } } : {}) },
       select: SELECT,
       orderBy: { createdAt: "asc" },
@@ -70,8 +63,6 @@ export class PrismaMemberDirectory implements MemberDirectory {
 
   async listByClient(orgId: string, clientId: string): Promise<MemberRecord[]> {
     const rows = await this.prisma.membership.findMany({
-      // Granted the client, whether the grant names the client itself or one of
-      // its projects — both mean this person belongs to it.
       where: { orgId, access: { some: { OR: [{ clientId }, { project: { clientId } }] } } },
       select: SELECT,
       orderBy: { createdAt: "asc" },
@@ -97,8 +88,6 @@ export class PrismaMemberDirectory implements MemberDirectory {
     return toDomain(row);
   }
 
-  /** Removes the membership only. The account and everything the person entered
-   * belong to the organization and stay exactly where they are. */
   async remove(context: TransactionContext, id: string): Promise<void> {
     await this.client(context).membership.delete({ where: { id } });
   }

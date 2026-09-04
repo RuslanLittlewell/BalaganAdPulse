@@ -57,7 +57,6 @@ describe("ProjectPage", () => {
     renderWithProviders(<App />, route);
 
     const row = await screen.findByRole("row", { name: /Поиск \/ Москва/ });
-    // Channel and delivery status share one line under the name.
     expect(within(row).getByText("Яндекс Директ · Активна")).toBeInTheDocument();
     expect(within(row).getByText("3 000 ₽")).toBeInTheDocument();
   });
@@ -75,8 +74,6 @@ describe("ProjectPage", () => {
     expect(screen.getByRole("button", { name: /Прибыльная/ })).toHaveClass("border-emerald-500");
   });
 
-  // The totals row is the project's own summed range, not the rows added up:
-  // a ROAS of 3 cannot be recovered by averaging two campaigns' 4s.
   it("shows the project's own total under the campaigns", async () => {
     api();
     renderWithProviders(<App />, route);
@@ -96,8 +93,6 @@ describe("ProjectPage", () => {
     expect(await screen.findByRole("heading", { name: "Экран кампании" })).toBeInTheDocument();
   });
 
-  // Campaigns arrive from the connected accounts, so an empty project is the
-  // ordinary state before ingestion — not an error and not a prompt to create one.
   it("says so when the project has no campaigns yet", async () => {
     api({ campaigns: [] });
     renderWithProviders(<App />, route);
@@ -128,7 +123,6 @@ describe("ProjectPage", () => {
     expect(screen.getByText(/Acme/)).toBeInTheDocument();
   });
 
-  // Editing and deleting a project live in the project list, not here.
   it("carries no edit or delete control", async () => {
     api();
     renderWithProviders(<App />, route);
@@ -191,7 +185,6 @@ describe("the work in flight under a project", () => {
     }
   });
 
-  // The list answers "what is being worked on", not "what has ever existed".
   it("leaves out what is done or archived", async () => {
     api({ tasks: board });
     renderWithProviders(<App />, route);

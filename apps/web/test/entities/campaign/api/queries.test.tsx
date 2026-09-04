@@ -22,9 +22,6 @@ const performance = {
   ctr: 2, cpc: 0.5, cpm: 10, cpa: 20, roas: 4, frequency: 2.5,
 };
 
-/** Every reading is scoped to a range, so every request must carry both ends.
- * A hook that forgot one would still render — with figures for a period the
- * viewer never asked for. */
 function capturing(path: string, body: object) {
   const seen: URL[] = [];
   server.use(mock.get(path, ({ request }) => {
@@ -57,9 +54,6 @@ describe("useProjectCampaigns", () => {
     expect(result.current.fetchStatus).toBe("idle");
   });
 
-  // Two ranges are two answers. Sharing one cache entry would let July's
-  // figures land under August's label — the second fetch overwrites the first,
-  // and both observers read the overwritten entry.
   it("keeps each range's figures apart", async () => {
     server.use(mock.get("/api/projects/p1/campaigns", ({ request }) => {
       const from = new URL(request.url).searchParams.get("from") as string;
@@ -83,8 +77,6 @@ describe("useProjectCampaigns", () => {
   });
 });
 
-// Choosing a campaign is not a metrics reading: the picker asks for names and
-// carries no range at all.
 describe("useCampaignReferences", () => {
   it("loads a project's campaigns with no range in the request", async () => {
     const seen = capturing("/api/projects/p1/campaigns/names", [

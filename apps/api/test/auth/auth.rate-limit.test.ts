@@ -16,11 +16,6 @@ afterAll(async () => { await prisma.$disconnect(); });
 
 describe("Auth rate limiting", () => {
   it("answers 429 after ten login attempts from one address", async () => {
-    // Pinned via X-Forwarded-For rather than left to connect unqualified: an
-    // unqualified request keys off a `localhost` lookup, which resolves
-    // through the same libuv threadpool scrypt hashing uses and can come back
-    // as either address family under load, splitting the ten attempts across
-    // two rate-limit buckets instead of filling one.
     const address = "203.0.113.1";
     for (let i = 0; i < 10; i++) {
       const res = await request(app).post("/api/auth/login")
@@ -49,8 +44,6 @@ describe("Auth rate limiting", () => {
   });
 
   it("ignores a forged chain longer than one hop", async () => {
-    // trust proxy = 1 takes only the last entry, so prepending addresses
-    // cannot mint a fresh window per request.
     for (let i = 0; i < 10; i++) {
       await request(app).post("/api/auth/login")
         .set("X-Forwarded-For", `10.0.0.${i}, 203.0.113.20`).send(credentials);

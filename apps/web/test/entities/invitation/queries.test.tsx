@@ -43,7 +43,6 @@ describe("listing invitations", () => {
     expect(seen).toBe("CLIENT");
   });
 
-  // Two panes can be on screen at once; one must not serve the other's answer.
   it("keeps each type's list under its own cache key", async () => {
     server.use(mock.get("/api/invites", ({ request }) => {
       const type = new URL(request.url).searchParams.get("registrationType");
@@ -128,8 +127,6 @@ describe("creating an invitation", () => {
 });
 
 describe("revoking an invitation", () => {
-  // The backend keeps the row as history but drops it from the ordinary list,
-  // so the refetch is what makes it disappear rather than a local filter.
   it("refetches, and the revoked invitation is gone", async () => {
     let revoked = false;
     server.use(

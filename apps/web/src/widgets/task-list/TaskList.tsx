@@ -6,8 +6,6 @@ import type { Task } from "@/entities/task/index.js";
 export interface TaskListProps {
   title: string;
   tasks: Task[];
-  /** Left out where the list is only there to be read. A row that looks
-   * clickable and is not is worse than one that never offered. */
   onOpen?: (task: Task) => void;
   empty?: string;
 }
@@ -19,13 +17,6 @@ const PRIORITY_TONE: Record<Task["priority"], string> = {
   URGENT: "bg-red-600 text-white dark:bg-red-700",
 };
 
-/**
- * Work, listed beside the figures it is about.
- *
- * It knows only the tasks it is given — the project screen hands it the work in
- * flight, the campaign screen hands it that campaign's — so neither screen
- * learns how the other decides what belongs.
- */
 export function TaskList({ title, tasks, onOpen, empty }: TaskListProps) {
   const { data: members } = useMembers();
 

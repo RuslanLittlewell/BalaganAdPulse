@@ -5,7 +5,6 @@ import { UserAvatar } from "@/features/auth/ui/user-avatar/UserAvatar.js";
 
 const DATA_URL = "data:image/png;base64,iVBORw0KGgo=";
 
-/** Fails the test if anything asks for avatar bytes: nothing should. */
 function forbidAvatarRequests() {
   let asked = 0;
   server.use(

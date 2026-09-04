@@ -24,9 +24,6 @@ describe("nextDay", () => {
 
 describe("todayIso", () => {
   it("returns the local calendar day, not the UTC one, when they differ", () => {
-    // TZ is pinned to Asia/Tokyo (UTC+9) in vite.config.ts. This instant is
-    // 2026-08-01 in UTC but already 2026-08-02 05:00 local — a UTC-based
-    // implementation would answer with the wrong day.
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-01T20:00:00Z"));
 

@@ -10,8 +10,6 @@ function scopeToWhere(scope: AuditScope): Prisma.AuditEventWhereInput {
   return {
     orgId: scope.orgId,
     OR: [
-      // A project grant still exposes the client-level history for the client
-      // record itself, just as it makes that client visible elsewhere.
       { projectId: null, clientId: { in: [...scope.clientIds] } },
       { clientId: { in: [...scope.wholeClientIds] } },
       { projectId: { in: [...scope.projectIds] } },
@@ -37,8 +35,6 @@ export class PrismaAuditRepository implements AuditRepository<AuditEvent> {
     });
   }
 
-  /** Newest first, with the id breaking ties so the cursor is stable when two
-   * events share a millisecond. */
   async list(query: AuditQuery) {
     const filters: Prisma.AuditEventWhereInput = {
       clientId: query.filters.clientId,

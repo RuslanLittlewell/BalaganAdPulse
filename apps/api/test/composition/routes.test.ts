@@ -4,8 +4,6 @@ import { createRoutes, ROUTE_MOUNTS } from "../../src/composition/create-routes.
 
 const expectedMounts = [
   "/api/auth",
-  // Ahead of the authentication middleware on purpose: a visitor following an
-  // invitation link has no session yet.
   "/api/regustration",
   "/api",
   "/api",
@@ -15,8 +13,6 @@ const expectedMounts = [
   "/api/invites",
   "/api/members",
   "/api/audit",
-  // Ahead of the project router: `/api/projects/:projectId/summary` is a
-  // reading beneath the project, not a project called "summary".
   "/api/projects/:projectId",
   "/api/projects",
   "/api/clients",

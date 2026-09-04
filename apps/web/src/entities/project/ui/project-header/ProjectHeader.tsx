@@ -5,7 +5,6 @@ import type { Project } from "../../api/api.js";
 
 export interface ProjectHeaderProps {
   project: Project;
-  /** The company the work is for — a project is never shown without it. */
   clientName: string;
   actions?: ReactNode;
 }

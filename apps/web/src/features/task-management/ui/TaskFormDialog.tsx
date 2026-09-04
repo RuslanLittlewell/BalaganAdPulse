@@ -35,12 +35,8 @@ import { TaskDescriptionEditor, type TaskDescriptionEditorHandle } from "./TaskD
 
 export interface TaskFormDialogProps {
   task?: Task;
-  /** The column the task should land in, when the dialog was opened from one.
-   * Left out when opened from the page header, so the API applies its own
-   * default rather than being handed a column nobody chose. */
   column?: TaskColumn;
   onClose: () => void;
-  /** Only offered when editing; the page owns the confirmation. */
   onDelete?: (task: Task) => void;
 }
 
@@ -53,17 +49,8 @@ interface FormValues {
   visibleToClient: boolean;
 }
 
-/** The select's "nobody" option. An empty string is what a Radix select uses
- * for no choice, and it maps to the API's null. */
 const UNASSIGNED = "";
 
-/**
- * The campaign select's "the project as a whole" option.
- *
- * A Radix item cannot carry an empty value, so the absence needs a token of its
- * own — and it deserves one anyway: choosing Общий is a statement about the
- * work, not a refusal to answer. It maps to the API's null.
- */
 const WHOLE_PROJECT = "__whole_project__";
 
 export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDialogProps) {
@@ -73,16 +60,6 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
   const update = useUpdateTask();
   const [description, setDescription] = useState<unknown | null>(task?.description ?? null);
 
-  /**
-   * What the attachments block lists.
-   *
-   * Taken from the description as it stands, not from the saved task: an upload
-   * is not attached to a task until the task is saved, so listing only
-   * `task.imageIds` meant a file pasted into the description turned up in the
-   * block for the first time after closing and reopening. The saved ids are
-   * kept alongside, so a file already claimed stays listed while it is being
-   * edited.
-   */
   const attachmentIds = useMemo(
     () => [...new Set([...(task?.imageIds ?? []), ...collectImageIds(description)])],
     [task?.imageIds, description],
@@ -102,20 +79,11 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
       },
     });
 
-  /* Only an admin decides what a customer is shown. A manager may edit
-     everything else, so the field is left out of their request entirely rather
-     than sent unchanged — the API refuses the whole edit if it carries one. */
   const mayShareWithClient = useCan("update", "member");
 
-  /* The campaigns to choose between belong to the chosen project, so there is
-     nothing to offer until one is chosen. */
   const projectId = watch("projectId");
   const { data: campaigns } = useCampaignReferences(projectId || undefined);
 
-  /* Moving to another project releases the campaign: the old one is not under
-     the new project, and the API would refuse it. Clearing it here makes the
-     release visible before saving rather than discovered afterwards. The task's
-     own project is exempt, so opening an existing task keeps its campaign. */
   const chosenProject = useRef(projectId);
   useEffect(() => {
     if (chosenProject.current === projectId) return;
@@ -132,8 +100,6 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
       campaignId: values.campaignId === WHOLE_PROJECT ? null : values.campaignId,
       ...(mayShareWithClient ? { visibleToClient: values.visibleToClient } : {}),
       description,
-      // Only when the dialog was opened from a column. An edit never carries
-      // one: moving a card is the board's job, not the form's.
       ...(column && !task ? { column } : {}),
     };
     setFailure(null);
@@ -148,11 +114,6 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      {/* The width is set, not capped: the dialog primitive carries its own
-          `w-[min(440px,…)]`, and a `max-w-*` beside it would be inert. 880px on
-          a desktop, never wider than the viewport allows — the floor of 800px
-          applies only where there is room for it, so a narrow window shrinks
-          the dialog rather than growing a horizontal scrollbar. */}
       <DialogContent
         className={
           "flex max-h-[80vh] w-[min(880px,calc(100vw-2rem))] " +
@@ -175,8 +136,6 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
             <TaskDescriptionEditor ref={editor} value={description} onChange={setDescription} />
           </div>
 
-          {/* max-content, not 1fr: each field takes the width its own contents
-              need instead of splitting the row into equal shares. */}
           <div
             className="grid gap-3 sm:grid-cols-[repeat(auto-fit,minmax(0,max-content))]"
             data-testid="task-form-selects"
@@ -220,9 +179,6 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
                   <Select value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger id="task-campaign"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {/* First, and the default: most work is about one
-                          campaign, but the whole-project case must never be
-                          the one you have to hunt for. */}
                       <SelectItem value={WHOLE_PROJECT}>{t("tasks.form.wholeProject")}</SelectItem>
                       {(campaigns ?? []).map((campaign) => (
                         <SelectItem key={campaign.id} value={campaign.id}>
@@ -303,8 +259,6 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
             />
           ) : null}
 
-          {/* Shown while creating too: a file pasted into a task that does not
-              exist yet still has to be visible, and removable. */}
           <TaskAttachments
             imageIds={attachmentIds}
             onRemoved={(imageId) => editor.current?.removeImage(imageId)}
@@ -320,8 +274,6 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
                 </Button>
               </Can>
             ) : null}
-            {/* Explicitly type="button": inside a form an untyped button
-                submits, so cancelling would save the very task being abandoned. */}
             <Button type="button" variant="outline" onClick={onClose}>
               {t("action.cancel")}
             </Button>

@@ -81,8 +81,6 @@ describe("EmployeeRegistrationForm", () => {
     expect(screen.getByLabelText("Загрузить изображение")).toBeInTheDocument();
   });
 
-  // The same editor the profile and the contact book open, so an avatar is made
-  // the one way everywhere rather than being randomised here and drawn there.
   it("opens the avatar editor", async () => {
     const user = userEvent.setup();
     open();
@@ -92,13 +90,6 @@ describe("EmployeeRegistrationForm", () => {
     expect(await screen.findByRole("dialog", { name: "Редактор аватара" })).toBeInTheDocument();
   });
 
-  /**
-   * The picture is held until there is an account to save it against.
-   *
-   * Driven through the upload path rather than the editor: drawing one needs a
-   * canvas and `Image.decode`, neither of which jsdom has, so a test that went
-   * that way would be asserting the stub rather than the behaviour.
-   */
   it("sends the avatar only after the account exists", async () => {
     const user = userEvent.setup();
     const calls: string[] = [];
@@ -162,11 +153,6 @@ describe("EmployeeRegistrationForm", () => {
   });
 });
 
-/**
- * Both fields are required, and they are compared — including after the first
- * one changes. Two empty boxes compare equal, so a confirmation that only
- * checked equality would let an account through with no password at all.
- */
 describe("EmployeeRegistrationForm's password rules", () => {
   it("refuses an empty password", async () => {
     const u = userEvent.setup();
@@ -203,7 +189,6 @@ describe("EmployeeRegistrationForm's password rules", () => {
     expect(screen.getByText("Повторите пароль ещё раз")).toBeInTheDocument();
   });
 
-  // The comparison has to survive the first field changing after it was made.
   it("notices a password changed after the confirmation matched it", async () => {
     const u = userEvent.setup();
     let accepted = false;
@@ -227,10 +212,6 @@ describe("EmployeeRegistrationForm's password rules", () => {
   });
 });
 
-/**
- * How to reach somebody, asked once when they join. Optional: an account is not
- * worth refusing over a missing phone number.
- */
 describe("a person's contact details at registration", () => {
   it("offers a phone and a telegram", () => {
     open();

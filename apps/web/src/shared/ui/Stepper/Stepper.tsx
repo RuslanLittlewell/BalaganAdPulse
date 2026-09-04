@@ -1,21 +1,8 @@
 import React, { useState, Children, useRef, useLayoutEffect, type HTMLAttributes, type ReactNode } from 'react';
 import { motion, AnimatePresence, type Variants } from 'motion/react';
 
-/**
- * Vendored from React Bits (reactbits.dev/components/stepper), the Tailwind
- * TypeScript variant, which is distributed to be copied rather than installed.
- *
- * One addition: `onBeforeNext`. The original advances unconditionally, which
- * would let a form step forward carrying values it has not validated. A step
- * that answers false keeps the visitor where they are, so "Далее" can still be
- * the thing that shows what is wrong.
- */
 interface StepperProps extends HTMLAttributes<HTMLDivElement> {
-  /** Asked before each forward move, by the button and by the indicators alike.
-   * False keeps the current step. */
   onBeforeNext?: (fromStep: number) => boolean | Promise<boolean>;
-  /** Names each indicator for a screen reader. English in the original, which
-   * has no strings of its own. */
   stepAriaLabel?: (step: number) => string;
   children: ReactNode;
   initialStep?: number;
@@ -29,7 +16,6 @@ interface StepperProps extends HTMLAttributes<HTMLDivElement> {
   nextButtonProps?: React.ButtonHTMLAttributes<HTMLButtonElement>;
   backButtonText?: string;
   nextButtonText?: string;
-  /** What the last step's button says. English 'Complete' in the original. */
   completeButtonText?: string;
   disableStepIndicators?: boolean;
   renderStepIndicator?: (props: {
@@ -82,13 +68,6 @@ export default function Stepper({
     }
   };
 
-  /**
-   * Moving by clicking an indicator, which is a way forward like any other.
-   *
-   * Asked the same question the Next button asks, or the indicator would be a
-   * way around the validation that button exists to run. Backwards is free:
-   * nothing is being carried anywhere.
-   */
   const jumpTo = async (target: number) => {
     if (target === currentStep) return;
     if (target > currentStep && onBeforeNext && !(await onBeforeNext(currentStep))) return;
@@ -149,8 +128,6 @@ export default function Stepper({
         </StepContentWrapper>
 
         {!isCompleted && (
-          // A rule between the fields and what acts on them, so the buttons
-          // read as the end of the form rather than another field in it.
           <div
             data-testid="stepper-footer"
             className={`mt-8 border-t border-border pt-4 ${footerClassName}`}
@@ -283,14 +260,6 @@ interface StepIndicatorProps {
   disableStepIndicators?: boolean;
 }
 
-/**
- * A real button, not a clickable div: it moves the visitor, so it has to be
- * reachable by keyboard and to say what it is.
- *
- * The colours are the application's own tokens rather than the library's demo
- * palette, applied as classes instead of animated values — a token resolves
- * with the theme, and animating between two hex codes would not.
- */
 function StepIndicator({ step, currentStep, onClickStep, label, disableStepIndicators = false }: StepIndicatorProps) {
   const status = currentStep === step ? 'active' : currentStep < step ? 'inactive' : 'complete';
 
@@ -339,7 +308,6 @@ interface StepConnectorProps {
 }
 
 function StepConnector({ isComplete }: StepConnectorProps) {
-  // Width only: the colour is the application's token, applied as a class.
   const lineVariants: Variants = {
     incomplete: { width: 0 },
     complete: { width: '100%' }

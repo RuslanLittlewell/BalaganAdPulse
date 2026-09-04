@@ -1,9 +1,6 @@
 import { z } from "zod";
 import { TASK_COLUMNS, TASK_PRIORITIES } from "../../domain/board.js";
 
-/** The description is a ProseMirror document. It is accepted as opaque JSON:
- * what keeps it inert is the editor schema it is parsed against, not a shape
- * asserted here. */
 const description = z.unknown().nullable().optional();
 
 export const createTaskSchema = z.object({
@@ -13,7 +10,6 @@ export const createTaskSchema = z.object({
   column: z.enum(TASK_COLUMNS).optional(),
   priority: z.enum(TASK_PRIORITIES),
   assigneeId: z.uuid().nullable().optional(),
-  /** Absent or null means the task is about the project as a whole. */
   campaignId: z.uuid().nullable().optional(),
 });
 
@@ -24,8 +20,6 @@ export const updateTaskSchema = z.object({
   priority: z.enum(TASK_PRIORITIES).optional(),
   assigneeId: z.uuid().nullable().optional(),
   campaignId: z.uuid().nullable().optional(),
-  /** Whether the customer is shown this task. Only an admin may send it; the
-   * application refuses anybody else rather than ignoring it. */
   visibleToClient: z.boolean().optional(),
 });
 

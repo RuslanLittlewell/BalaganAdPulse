@@ -1,14 +1,3 @@
-/**
- * Bootstraps a fresh installation, as an explicit adapter rather than a service.
- *
- * Registration needs an invitation, an invitation needs an admin to issue it,
- * and a brand-new database has neither — so this is the first step on a fresh
- * install rather than a convenience. A database that already had accounts needs
- * nothing: the tenancy migration made its oldest account an admin.
- *
- * Safe to run repeatedly. It does nothing when an active admin already exists,
- * so a deploy pipeline can call it unconditionally.
- */
 import { prisma } from "../shared/infrastructure/prisma.js";
 import { hashPassword } from "../modules/identity/infrastructure/password-adapter.js";
 
@@ -45,8 +34,6 @@ export async function seedFirstAdmin(env: SeedEnv = process.env): Promise<SeedRe
     return { created: false, message: "An active admin already exists; nothing to do" };
   }
 
-  // Normalised the way a registration is normalised, so the seeded address and
-  // the one typed at the login screen are the same string.
   const email = required(env, "SEED_ADMIN_EMAIL").trim().toLowerCase();
   const password = required(env, "SEED_ADMIN_PASSWORD");
   const name = env.SEED_ADMIN_NAME?.trim() || "Admin";
@@ -61,9 +48,6 @@ export async function seedFirstAdmin(env: SeedEnv = process.env): Promise<SeedRe
         data: { name: env.ORG_NAME },
       });
     }
-    // An account may already exist without being an admin — the address was
-    // registered before, or an earlier seed set a different role. Promoting it
-    // is what the operator meant, and beats failing on the unique constraint.
     const user =
       (await tx.user.findUnique({ where: { email } })) ??
       (await tx.user.create({
@@ -80,10 +64,6 @@ export async function seedFirstAdmin(env: SeedEnv = process.env): Promise<SeedRe
   return { created: true, message: `Seeded ${email} as an admin` };
 }
 
-/** Run directly (`npm run seed`) rather than imported by a test. The
- * environment is loaded only on this branch: importing it at module scope would
- * pull the development `.env` into the test process, whose database URL is set
- * per worker before any of this is imported. */
 const isEntrypoint =
   process.argv[1]?.endsWith("seed-cli.ts") || process.argv[1]?.endsWith("seed-cli.js");
 if (isEntrypoint) {

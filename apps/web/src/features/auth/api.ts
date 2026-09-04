@@ -3,9 +3,6 @@ import type { Currency } from "@/shared/lib/index.js";
 import type { TokenPair } from "@/shared/lib/index.js";
 import type { Role } from "@adpulse/access-policy";
 
-/** The contact a client registration creates, and its first project. Both or
- * neither: the API refuses a request holding one, because the account, the
- * client and the project are written in a single transaction. */
 export interface ClientRegistrationBody {
   client: {
     name: string;
@@ -41,7 +38,6 @@ export interface LoginBody {
 
 export interface UpdateProfileBody {
   name: string;
-  /** Absent leaves what is stored alone; null clears it. */
   phone?: string | null;
   telegram?: string | null;
   currentPassword?: string;
@@ -51,7 +47,6 @@ export interface UpdateProfileBody {
 export interface UserProfile {
   name: string;
   email: string;
-  /** A `data:` URL, ready for an `<img src>` — or null when none is set. */
   image: string | null;
   avatarPath: string | null;
   phone: string | null;
@@ -71,9 +66,6 @@ export interface AuthSession {
   clientIds: string[];
 }
 
-// These three calls opt out of both renewal behaviours in lib/http.ts: they
-// must reach the server before any token check, and their own 401 (a wrong
-// password) must be answered once, not repeated as if it were a stale token.
 const UNAUTHENTICATED = { authenticated: false };
 
 export const authApi = {

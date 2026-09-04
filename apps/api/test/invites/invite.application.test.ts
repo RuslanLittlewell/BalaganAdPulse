@@ -191,7 +191,6 @@ describe("redeeming an invitation", () => {
 
   it("refuses when the claim loses a race, so a code is never spent twice", async () => {
     const { useCases, context } = fixture([{ id: "a", code: "good" }]);
-    // Simulate the loser of a race: the read passed, the conditional claim did not.
     await redeem(useCases, context, "good");
     await expect(redeem(useCases, context, "good")).rejects.toMatchObject({ category: "forbidden" });
   });

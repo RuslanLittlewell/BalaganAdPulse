@@ -42,7 +42,6 @@ describe("ClientFormDialog", () => {
     expect(await screen.findByText("name is required")).toBeInTheDocument();
   });
 
-
   it("rejects an invalid email inline without calling the API", async () => {
     let calls = 0;
     server.use(

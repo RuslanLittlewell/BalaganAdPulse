@@ -9,12 +9,8 @@ function actorOf(req: Request) {
   return req.actor;
 }
 
-/** Every read here is scoped to a range, so parsing it is part of reading the
- * request rather than something each handler remembers to do. */
 const rangeOf = (req: Request) => rangeSchema.parse(req.query);
 
-/** A calendar day on the wire, not a UTC instant. The buyer picked a day and
- * the chart labels one; a timestamp only invites a zone to shift it. */
 const asDays = (days: readonly MeasuredDay[]) =>
   days.map(({ date, ...measured }) => ({ date: date.toISOString().slice(0, 10), ...measured }));
 
@@ -27,7 +23,6 @@ function handle<TRequest extends Request>(
 export interface CampaignHttpRouters {
   readonly campaignRouter: Router;
   readonly adSetRouter: Router;
-  /** Mounted under `/api/projects/:projectId`, so it needs the parent's params. */
   readonly projectMetricRouter: Router;
   readonly summaryRouter: Router;
 }
@@ -50,8 +45,6 @@ export function createCampaignHttpRouters(useCases: CampaignUseCases): CampaignH
   }));
 
   const projectMetricRouter = Router({ mergeParams: true });
-  // Before `/campaigns`: a reference listing carries no range, so it must not
-  // fall through to the reading that requires one.
   projectMetricRouter.get("/campaigns/names", handle(async (req: Request<{ projectId: string }>, res) => {
     res.json(await useCases.listCampaignReferences(actorOf(req), req.params.projectId));
   }));

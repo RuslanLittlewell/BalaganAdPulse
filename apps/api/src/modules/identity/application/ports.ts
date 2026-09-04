@@ -33,8 +33,6 @@ export interface UserRepository {
   ): Promise<void>;
 }
 
-/** What a client registration creates alongside the account. Opaque here: the
- * invitations module owns the shape and decides when it is required. */
 export type ClientRegistration = {
   readonly client: Record<string, unknown> & { readonly name: string };
   readonly project: Record<string, unknown> & { readonly name: string };
@@ -59,8 +57,6 @@ export interface PasswordPort {
 
 export interface TokenPort {
   issueAccess(principal: SessionPrincipal): Promise<string>;
-  /** Throws for an expired, tampered or malformed token; the use case turns
-   * every rejection into one indistinguishable refusal. */
   verifyAccess(token: string): Promise<SessionPrincipal>;
   generateRefresh(): string;
   hashRefresh(token: string): string;

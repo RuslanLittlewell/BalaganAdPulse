@@ -28,8 +28,6 @@ beforeEach(async () => {
 });
 afterAll(async () => { await prisma.$disconnect(); });
 
-/** A campaign in a *different* organization. `seedProject` always builds inside
- * the migration's one, so the tenancy boundary needs its own fixture. */
 async function foreignCampaign() {
   const outsider = await signInAsOutsider();
   const project = await prisma.project.create({
@@ -51,7 +49,6 @@ describe("GET /api/campaigns/:id", () => {
     });
   });
 
-  // Absent, not zero: no click was measured, so there is no cost per click.
   it("reports a ratio with no divisor as null", async () => {
     const empty = await seedCampaign(projectId, "Без данных", "META");
     const res = await request(app).get(`/api/campaigns/${empty.id}${RANGE}`).set(auth);
@@ -149,8 +146,6 @@ describe("the daily series", () => {
     const res = await request(app).get(`/api/campaigns/${campaignId}/daily${RANGE}`).set(auth);
 
     expect(res.status).toBe(200);
-    // A calendar day, not a timestamp: the buyer picked a day and the chart
-    // labels one, so a UTC instant would only invite a zone to shift it.
     expect(res.body).toEqual([
       expect.objectContaining({ date: "2026-08-01", spend: 400, clicks: 800 }),
       expect.objectContaining({ date: "2026-08-02", spend: 1000 }),
@@ -227,9 +222,6 @@ describe("the sheet is gone", () => {
   ] as const;
   const roles = ["ADMIN", "MANAGER", "GUEST", "CLIENT"] as const;
 
-  // Every role, not only the one that used to be allowed: a removed address
-  // must be absent, not merely refused, so nothing can be inferred from the
-  // difference between 403 and 404.
   it.each(roles.flatMap((role) => addresses.map(([name, path]) => [role, name, path] as const)))(
     "answers 404 to a %s asking for %s",
     async (role, _name, path) => {

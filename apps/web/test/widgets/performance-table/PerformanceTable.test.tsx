@@ -30,8 +30,6 @@ describe("PerformanceTable", () => {
     }
   });
 
-  // The totals row is the summed range, handed in whole — never added up from
-  // the rows above, because a ratio cannot be summed.
   it("shows the totals it is given, not the sum of the rows on screen", () => {
     render(
       <PerformanceTable heading="Кампания" rows={rows} totals={performance(1500, { roas: 3 })} />,
@@ -84,8 +82,6 @@ describe("rows that contain rows", () => {
     expect(screen.getByText("Приём сегодня")).toBeInTheDocument();
   });
 
-  // A caller loads the level below only once someone has asked to see it, so
-  // the table has to say which rows are open.
   it("reports which rows are open", async () => {
     const user = userEvent.setup();
     const reported: string[][] = [];

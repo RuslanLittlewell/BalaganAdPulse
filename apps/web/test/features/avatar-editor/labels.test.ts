@@ -17,7 +17,6 @@ describe("avatar labels", () => {
         const label = optionLabel(field, option);
         expect(label, `${field}.${option}`).toMatch(/[а-яА-ЯёЁ]/);
         expect(label, `${field}.${option}`).not.toMatch(/^Вариант \d+$/);
-        // A missing translation falls through to the library's own value.
         expect(label, `${field}.${option}`).not.toBe(option);
       }
     }

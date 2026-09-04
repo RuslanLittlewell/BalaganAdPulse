@@ -4,13 +4,6 @@ import { t } from "@/shared/config/index.js";
 
 const BOX = { width: 720, height: 180 };
 
-/**
- * Spend and conversions over the period, on one pair of axes.
- *
- * Two series with different units share a picture because the question is
- * whether they move together, not what either equals — each is scaled to its
- * own extremes, and the figures themselves are read off the table below.
- */
 export function DailyChart({ days }: { days: MeasuredDay[] }) {
   if (days.length === 0) {
     return (

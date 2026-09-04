@@ -16,8 +16,6 @@ function handle<TRequest extends Request>(
   return (req: TRequest, res: Response, next: NextFunction) => { action(req, res).catch(next); };
 }
 
-/** The only narrowing the listing offers, and it must be spelled correctly:
- * an unknown value is a mistake in the caller, not a request for everyone. */
 const memberQuerySchema = z.object({
   kind: z.enum(MEMBER_KINDS).optional(),
   clientId: z.uuid().optional(),
@@ -27,17 +25,12 @@ export function createMemberRouter(useCases: MemberUseCases): Router {
   const router = Router();
   router.get("/", handle(async (req, res) => {
     const { kind, clientId } = memberQuerySchema.parse(req.query);
-    // Naming a client asks a different question — that client's own people —
-    // and answers it under that client's reach rather than the organization's.
     res.json(clientId
       ? await useCases.listOfClient(actorOf(req), clientId)
       : await useCases.list(actorOf(req), kind));
   }));
   router.get("/:id/avatar", handle(async (req: Request<{ id: string }>, res) => {
     const png = await useCases.avatar(actorOf(req), req.params.id);
-    // Private: it is one organization's picture, and a shared cache must not
-    // hand it to anyone else. Still worth a browser cache — a board redraws
-    // these constantly.
     res.set("Content-Type", "image/png");
     res.set("Cache-Control", "private, max-age=300");
     res.send(Buffer.from(png));

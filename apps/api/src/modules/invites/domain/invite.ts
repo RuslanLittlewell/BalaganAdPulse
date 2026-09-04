@@ -1,11 +1,5 @@
 import type { Role } from "@adpulse/access-policy";
 
-/**
- * What a link creates.
- *
- * `CLIENT` registers a company and its first project; `EMPLOYEE` joins the
- * agency; `CLIENT_STAFF` joins a company that already exists.
- */
 export type RegistrationType = "CLIENT" | "EMPLOYEE" | "CLIENT_STAFF";
 
 export interface Invite {
@@ -15,9 +9,7 @@ export interface Invite {
   readonly registrationType: RegistrationType;
   readonly role: Role | null;
   readonly projectIds: readonly string[];
-  /** The client this invitation joins. Set for `CLIENT_STAFF` alone. */
   readonly clientId: string | null;
-  /** When set, only a registration using this address may redeem it. */
   readonly email: string | null;
   readonly expiresAt: Date | null;
   readonly revokedAt: Date | null;
@@ -27,9 +19,6 @@ export interface Invite {
   readonly createdAt: Date;
 }
 
-/** What an invitation is doing right now, derived rather than stored so the
- * three timestamps stay the single source of truth. Redemption wins over
- * everything: it is the record of how somebody actually joined. */
 export type InviteStatus = "USED" | "REVOKED" | "EXPIRED" | "PENDING";
 
 export function inviteStatus(invite: Invite, now: Date): InviteStatus {
@@ -39,9 +28,6 @@ export function inviteStatus(invite: Invite, now: Date): InviteStatus {
   return "PENDING";
 }
 
-/** Whether this invitation may be redeemed right now, by this address. The
- * caller still has to claim it conditionally: this is a read, and two
- * registrations can pass it with the same code. */
 export function isRedeemable(invite: Invite | null, email: string, now: Date): invite is Invite {
   return (
     invite !== null &&

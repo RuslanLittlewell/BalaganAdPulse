@@ -2,15 +2,6 @@ import { Avatar as AvatarRoot, AvatarFallback } from "../ui/avatar.js";
 
 const PALETTE_SIZE = 5;
 
-/**
- * The box and the letter inside it, per size.
- *
- * Deliberately not shadcn's own `size` prop: it drives `data-[size=…]` variants
- * whose attribute selector outranks a plain `size-*` class, so passing both
- * left `lg` rendering at shadcn's 40px while the picture beside it — a plain
- * `<img>` — was 56. Setting the classes and leaving `data-size` alone keeps one
- * source for the number.
- */
 const SIZES = {
   sm: { box: "size-8", text: "text-xs" },
   md: { box: "size-10", text: "text-sm" },
@@ -28,9 +19,6 @@ function paletteIndex(name: string): number {
   return (sum % PALETTE_SIZE) + 1;
 }
 
-/** shadcn's Avatar as a rounded square, with the app's rule for what fills it:
- * the first letter of the name, on a colour derived from the name so the same
- * client always looks the same. */
 export function Avatar({ name, size = "md" }: AvatarProps) {
   const initial = name.trim() ? name.trim()[0].toUpperCase() : "?";
   const background = `var(--color-avatar-${paletteIndex(name)})`;

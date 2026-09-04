@@ -23,7 +23,6 @@ async function fill(u: ReturnType<typeof userEvent.setup>, password = "hunter2hu
 }
 
 describe("JoinClientForm", () => {
-  // The company already exists — this person is joining it, not creating one.
   it("asks about the person and nothing about a company", () => {
     open();
 

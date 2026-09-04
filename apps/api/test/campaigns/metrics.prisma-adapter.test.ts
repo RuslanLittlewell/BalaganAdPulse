@@ -32,19 +32,12 @@ describe("recording a day of measured figures", () => {
 
     const [stored] = await repository.readCampaignRange(campaignId, day("2026-08-01"), day("2026-08-01"));
 
-    // The date comes back with the figures: a summary drops it, but the chart
-    // cannot label an axis without it.
     expect(stored).toEqual({
       date: day("2026-08-01"),
       spend: 1200.5, impressions: 40000, reach: 15000, clicks: 800, conversions: 24, revenue: 4800,
     });
   });
 
-  /**
-   * Platforms restate a day as attribution settles, so the same date arrives
-   * again with different numbers. Appending would silently double that day's
-   * spend the first time a sync ran twice.
-   */
   it("replaces a day already recorded rather than adding to it", async () => {
     await repository.recordCampaignDay(campaignId, day("2026-08-01"), figures({ spend: 100, clicks: 10 }));
     await repository.recordCampaignDay(campaignId, day("2026-08-01"), figures({ spend: 140, clicks: 13 }));
@@ -105,8 +98,6 @@ describe("the hierarchy beneath a campaign", () => {
       .toMatchObject([{ spend: 25 }]);
   });
 
-  // The database enforces this, not the application: a measured figure cannot
-  // outlive the thing it measured.
   it("takes the ad sets, ads and their figures with a deleted campaign", async () => {
     const adSet = await prisma.adSet.create({ data: { campaignId, name: "Группа", position: 0 } });
     const ad = await prisma.ad.create({ data: { adSetId: adSet.id, name: "Объявление", position: 0 } });

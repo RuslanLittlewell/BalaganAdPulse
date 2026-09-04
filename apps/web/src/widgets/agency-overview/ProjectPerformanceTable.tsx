@@ -9,14 +9,6 @@ import {
 } from "@/entities/campaign/index.js";
 import { PerformanceTable, type PerformanceRow } from "@/widgets/performance-table/index.js";
 
-/**
- * One request per project, twice over: its total and its shape over time.
- *
- * A single endpoint answering for every project at once would be fewer
- * requests, but it would have to decide the member's reach for all of them in
- * one query — the same rule, written a second time. Asking per project keeps
- * one answer to "may they see this".
- */
 function useProjectFigures(projects: Project[], range: DateRange) {
   const summaries = useQueries({
     queries: projects.map((project) => ({

@@ -29,7 +29,6 @@ describe("an employee invitation end to end", () => {
     const listed = await request(app).get("/api/invites?registrationType=EMPLOYEE").set(admin);
     expect(listed.body.map((invite: { id: string }) => invite.id)).toEqual([id]);
 
-    // Unauthenticated: the visitor following the link has no session yet.
     const resolved = await request(app).get(`/api/regustration/${code}`);
     expect(resolved.status).toBe(200);
     expect(resolved.body).toEqual({ registrationType: "EMPLOYEE" });
@@ -37,14 +36,11 @@ describe("an employee invitation end to end", () => {
     expect((await request(app).delete(`/api/invites/${id}`).set(admin)).status).toBe(204);
 
     expect((await request(app).get("/api/invites").set(admin)).body).toEqual([]);
-    // Gone from the list, still in the database: revocation is how an
-    // invitation stops working, not how its record is erased.
     const stored = await prisma.invite.findUniqueOrThrow({ where: { id } });
     expect(stored.revokedAt).toBeInstanceOf(Date);
     expect(stored.role).toBe("GUEST");
     expect(await prisma.inviteProject.count({ where: { inviteId: id } })).toBe(1);
 
-    // And the link stops resolving, the same way an unknown one does not.
     const afterRevoke = await request(app).get(`/api/regustration/${code}`);
     expect(afterRevoke.status).toBe(404);
   });
@@ -81,8 +77,6 @@ describe("a client invitation end to end", () => {
     const resolved = await request(app).get(`/api/regustration/${created.body.code}`);
 
     expect(resolved.status).toBe(200);
-    // Only the form to show. Organization, creator, role, projects, address and
-    // status would each tell a stranger something about the agency.
     expect(resolved.body).toEqual({ registrationType: "CLIENT" });
   });
 
@@ -95,10 +89,7 @@ describe("a client invitation end to end", () => {
       inviteCode: created.body.code,
     });
 
-    // The code is fine; the request is not the shape this code calls for, and
-    // the resolver above already told the caller which shape that is.
     expect(registered.status).toBe(400);
-    // Not consumed: the link still works for the form it belongs to.
     const stored = await prisma.invite.findUniqueOrThrow({ where: { id: created.body.id } });
     expect(stored.usedAt).toBeNull();
     expect(await prisma.user.count({ where: { email: "customer@acme.com" } })).toBe(0);
@@ -187,7 +178,6 @@ describe("registering as a client", () => {
       .toBeNull();
   });
 
-  // The admin's own board and project list are where the agency picks this up.
   it("shows the admin the project the client made", async () => {
     const invite = await request(app).post("/api/invites").set(admin)
       .send({ registrationType: "CLIENT" });
@@ -231,8 +221,6 @@ describe("an invitation to join an existing client", () => {
     const resolved = await request(app).get(`/api/regustration/${created.body.code}`);
 
     expect(resolved.status).toBe(200);
-    // Only the form to show, as for the other two kinds: which client it joins
-    // would tell a stranger the agency has that customer.
     expect(resolved.body).toEqual({ registrationType: "CLIENT_STAFF" });
   });
 });

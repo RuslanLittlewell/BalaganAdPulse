@@ -122,8 +122,6 @@ describe("the currency a budget is stated in", () => {
     expect(created.budgetCurrency).toBe("USD");
   });
 
-  // A project with no amount still has a currency, so entering one later is a
-  // one-field decision rather than two.
   it("defaults to the agency's own currency when none is named", async () => {
     const { unitOfWork, projects } = repository();
     const { clientId } = await seedProject((await signInAs("Admin")).user.id, "Acme");

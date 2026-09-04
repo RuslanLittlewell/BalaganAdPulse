@@ -1,8 +1,5 @@
 import { z } from "zod";
 
-/** Matched to the account address it will be compared against at registration,
- * which the identity schemas also trim and lowercase — otherwise an invitation
- * addressed to `Invited@Acme.com` could never be redeemed. */
 const email = z.string().trim().toLowerCase().pipe(z.email("invalid email"));
 
 const common = {
@@ -12,8 +9,6 @@ const common = {
 
 export const createInviteSchema = z.discriminatedUnion("registrationType", [
   z.object({ registrationType: z.literal("CLIENT"), ...common }).strict(),
-  // Names the client it joins and nothing else: no role, no projects. Who
-  // administers a client's people is decided once, when the client registers.
   z.object({
     registrationType: z.literal("CLIENT_STAFF"),
     clientId: z.uuid(),

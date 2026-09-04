@@ -5,17 +5,6 @@ import { MemberAvatar, useClientMembers, type Membership } from "@/entities/memb
 import { InvitationDialog } from "@/features/invitations/index.js";
 import { Can } from "@/features/permissions/index.js";
 
-/**
- * A customer's own contact book: the people on their company.
- *
- * Not the agency's client directory narrowed to one entry. The contact card,
- * the list of client invitations and the control that invites a whole new
- * company all belong to the agency, and none of them mean anything on this side
- * — offering them here is what made the screen read as two invite buttons for
- * the same thing.
- */
-/** A dash rather than nothing: an absent detail is a fact, and an empty cell
- * reads as a gap in the layout. */
 function Reachable({ value }: { value: string | null }) {
   return (
     <span className="min-w-0 truncate text-sm text-muted-foreground">
@@ -38,9 +27,6 @@ export function CompanyTeam({ clientId }: { clientId: string }) {
     <div className="flex min-h-[22rem] flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-foreground">{t("company.team")}</h3>
-        {/* Only the principal administers the company's people; the API refuses
-            anybody else, and a button that answers 403 teaches the rule by
-            being pressed. */}
         <Can action="create" resource="invite">
           <Button size="sm" onClick={() => setInviting(true)}>
             {t("contacts.people.invite")}
@@ -73,8 +59,6 @@ export function CompanyTeam({ clientId }: { clientId: string }) {
         </ul>
       )}
 
-      {/* The same dialog the agency uses: it names what is being made, can be
-          cancelled, and shows the link with the control that copies it. */}
       <InvitationDialog
         registrationType="CLIENT_STAFF"
         clientId={clientId}

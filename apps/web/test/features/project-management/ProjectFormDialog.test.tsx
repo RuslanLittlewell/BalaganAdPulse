@@ -133,10 +133,6 @@ describe("ProjectFormDialog", () => {
   });
 });
 
-/**
- * A budget with no currency beside it means four different things depending on
- * whose project it is, and nothing on screen said which.
- */
 describe("the currency a budget is stated in", () => {
   it("offers the four currencies", async () => {
     const user = userEvent.setup();

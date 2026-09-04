@@ -4,19 +4,10 @@ import { CURRENCIES } from "../../../projects/index.js";
 const email = z.string().trim().toLowerCase().pipe(z.email("invalid email"));
 const optionalText = z.string().trim().min(1).nullable().optional();
 
-/**
- * A client registration carries the contact it creates and its first project.
- * Both or neither: the two are written in one transaction, so a request holding
- * half of it is refused before anything is stored. An employee registration
- * carries neither, and the invitation's own type decides which is expected.
- */
 export const registerSchema = z.object({
   name: z.string().trim().min(1, "name is required"), email,
   password: z.string().min(8, "password must be at least 8 characters"),
   inviteCode: z.string().min(1, "inviteCode is required"),
-  /* Unvalidated beyond being text: the agency works across several countries
-     and the formats differ, so a refusal would be wrong more often than a
-     badly-shaped string is harmful. Nothing dials it; a person reads it. */
   phone: optionalText,
   telegram: optionalText,
   client: z.object({

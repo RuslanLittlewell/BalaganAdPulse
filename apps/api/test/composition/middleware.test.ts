@@ -9,8 +9,6 @@ import { createActorResolution } from "../../src/modules/members/presentation/ht
 const PRINCIPAL: SessionPrincipal = { id: "u1", name: "Buyer", email: "buyer@acme.com" };
 const ACTOR: ActorContext = { userId: "u1", membershipId: "m1", orgId: "org1", role: "MANAGER" };
 
-/** A request carrying only what the middleware under test is allowed to read.
- * Express looks headers up case-insensitively, and so does this. */
 function requestWith(headers: Record<string, string> = {}, extra: Record<string, unknown> = {}) {
   const lower = Object.fromEntries(
     Object.entries(headers).map(([key, value]) => [key.toLowerCase(), value]),
@@ -21,8 +19,6 @@ function requestWith(headers: Record<string, string> = {}, extra: Record<string,
   } as unknown as Request & Record<string, unknown>;
 }
 
-/** Runs one middleware to completion and reports what it did: what it put on
- * the request, and what it handed to `next`. */
 async function invoke(handler: RequestHandler, request: Request) {
   const error = await new Promise<unknown>((resolve) => {
     void handler(request, {} as Response, ((value?: unknown) => resolve(value)) as NextFunction);
@@ -119,9 +115,6 @@ describe("actor resolution middleware", () => {
     expect(seen).toEqual([PRINCIPAL]);
   });
 
-  /** The whole reason the role is not sealed into the access token: a demotion
-   * has to bite on the very next call, so the membership is asked every time
-   * rather than remembered from the last one. */
   it("asks the membership port again on every request", async () => {
     const roles = ["ADMIN", "GUEST"] as const;
     let call = 0;

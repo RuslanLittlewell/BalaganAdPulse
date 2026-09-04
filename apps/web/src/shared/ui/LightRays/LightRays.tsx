@@ -1,15 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { Renderer, Program, Triangle, Mesh } from 'ogl';
 
-/**
- * Vendored from React Bits (reactbits.dev/backgrounds/light-rays), the Tailwind
- * TypeScript variant, which is distributed to be copied rather than installed.
- *
- * Two additions, both the same idea: the browser APIs this needs — WebGL and
- * IntersectionObserver — are checked before use, so an environment without them
- * gets a page with no background rather than no page. A decorative background is
- * never worth a blank sign-in screen, and headless runners have neither.
- */
 export type RaysOrigin =
   | 'top-center'
   | 'top-left'
@@ -65,7 +56,7 @@ const getAnchorAndDir = (
       return { anchor: [0.5 * w, (1 + outside) * h], dir: [0, -1] };
     case 'bottom-right':
       return { anchor: [w, (1 + outside) * h], dir: [0, -1] };
-    default: // "top-center"
+    default:
       return { anchor: [0.5 * w, -outside * h], dir: [0, 1] };
   }
 };
@@ -121,9 +112,6 @@ const LightRays: React.FC<LightRaysProps> = ({
 
   useEffect(() => {
     if (!containerRef.current) return;
-    // Absent in jsdom and in older browsers. Without it the rays simply never
-    // start, which is the same outcome as having no WebGL — and better than an
-    // exception taking the sign-in screen down with it.
     if (typeof IntersectionObserver === "undefined") return;
 
     observerRef.current = new IntersectionObserver(
@@ -216,13 +204,13 @@ float rayStrength(vec2 raySource, vec2 rayRefDirection, vec2 coord,
   float cosAngle = dot(dirNorm, rayRefDirection);
 
   float distortedAngle = cosAngle + distortion * sin(iTime * 2.0 + length(sourceToCoord) * 0.01) * 0.2;
-  
+
   float spreadFactor = pow(max(distortedAngle, 0.0), 1.0 / max(lightSpread, 0.001));
 
   float distance = length(sourceToCoord);
   float maxDistance = iResolution.x * rayLength;
   float lengthFalloff = clamp((maxDistance - distance) / maxDistance, 0.0, 1.0);
-  
+
   float fadeFalloff = clamp((iResolution.x * fadeDistance - distance) / (iResolution.x * fadeDistance), 0.5, 1.0);
   float pulse = pulsating > 0.5 ? (0.8 + 0.2 * sin(iTime * speed * 3.0)) : 1.0;
 
@@ -237,7 +225,7 @@ float rayStrength(vec2 raySource, vec2 rayRefDirection, vec2 coord,
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
   vec2 coord = vec2(fragCoord.x, iResolution.y - fragCoord.y);
-  
+
   vec2 finalRayDir = rayDir;
   if (mouseInfluence > 0.0) {
     vec2 mouseScreenPos = mousePos * iResolution.xy;
@@ -395,8 +383,6 @@ void main() {
       };
     };
 
-    // Decoration only: without WebGL the page renders unadorned rather than
-    // failing. jsdom has none, and neither do some browsers and drivers.
     void initializeWebGL().catch(() => undefined);
 
     return () => {

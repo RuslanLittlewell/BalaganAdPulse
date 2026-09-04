@@ -105,9 +105,6 @@ describe("GET /api/task-images/:id", () => {
       const stored = await prisma.taskImage.findUniqueOrThrow({ where: { id: imageId } });
       expect(stored.taskId).toBe(taskId);
 
-      // Reaching the task means seeing it: the manager has to be responsible
-      // for it, or there is no task for the image to belong to as far as they
-      // are concerned.
       const manager = await signInAs("Manager", { role: "MANAGER" });
       await grantAccess(manager.membership!.id, clientId);
       await prisma.task.update({

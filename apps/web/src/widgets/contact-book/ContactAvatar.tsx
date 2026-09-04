@@ -11,26 +11,18 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/index.js";
 
-/** Marks a picture the client supplied, as opposed to one the editor made. */
 const UPLOADED = JSON.stringify({ source: "upload" });
 
 export interface ContactAvatarProps {
   client: Client;
 }
 
-/**
- * The client's picture, and the two ways to change it. The pencil only appears
- * over the image on hover or keyboard focus, so the picture stays the subject
- * and the control stays discoverable.
- */
 export function ContactAvatar({ client }: ContactAvatarProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const save = useSaveClientAvatar();
 
-  // An uploaded logo has no generator settings, so the editor opens on a random
-  // face rather than on nothing.
   const initial = useMemo(() => parseAvatarPath(client.avatarPath), [client.avatarPath]);
 
   async function upload(file: File) {
@@ -86,7 +78,6 @@ export function ContactAvatar({ client }: ContactAvatarProps) {
         aria-label={t("contacts.avatar.upload")}
         onChange={(event) => {
           const file = event.target.files?.[0];
-          // Reset first: picking the same file twice must fire onChange again.
           event.target.value = "";
           if (file) void upload(file);
         }}

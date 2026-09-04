@@ -21,12 +21,7 @@ function fixture(options: {
   tasks?: TaskRecord[];
   reachableProjects?: string[];
   assignable?: string[];
-  /** Which campaign belongs to which project, as the campaigns module sees it.
-   * A campaign absent from here is either unknown or out of reach — the two are
-   * deliberately indistinguishable. */
   campaigns?: Record<string, string>;
-  /** Makes the transaction fail after the work has run, so a caller can prove
-   * what does and does not survive a rollback. */
   failCommit?: boolean;
 } = {}) {
   const context = {} as TransactionContext;
@@ -39,13 +34,8 @@ function fixture(options: {
   const claimed: Array<{ taskId: string; imageIds: string[] }> = [];
   const removedObjects: string[] = [];
   const published: TaskEvent[] = [];
-  // One ordered log of both, so a test can prove the event follows the commit
-  // rather than merely that both happened.
   const journal: string[] = [];
 
-  /** The repository decides this in SQL; the fixture mirrors it, the same way it
-   * already mirrors reach, so an application test is not quietly broader than
-   * the query it stands in for. */
   const owns = (actor: ActorContext, candidate: TaskRecord) => {
     if (actor.role === "ADMIN") return true;
     if (actor.role === "CLIENT") return candidate.visibleToClient;
@@ -63,15 +53,10 @@ function fixture(options: {
       },
       listReachable: async (actor, filter) =>
         [...tasks.values()]
-          // Reach first, as the real query does: a filter narrows what the
-          // member already reaches and can never widen it.
           .filter((t) => reachableProjects.includes(t.projectId))
-          // Then whose work it is, mirroring the repository's own filter.
           .filter((t) => owns(actor, t))
           .filter((t) => !filter?.projectId || t.projectId === filter.projectId)
           .filter((t) => !filter?.campaignId || t.campaignId === filter.campaignId)
-          // By the board's column order, not alphabetically — the same order
-          // the enum gives the real query.
           .sort((a, b) =>
             TASK_COLUMNS.indexOf(a.column) - TASK_COLUMNS.indexOf(b.column) || a.position - b.position),
       update: async (_tx, id, input) => {
@@ -153,9 +138,6 @@ describe("reading the board", () => {
     await expect(useCases.list(guest)).resolves.toHaveLength(1);
   });
 
-  // A customer reads the board now. What they find on it is reach's answer and
-  // the visibility rule's — not the matrix's — so an agency task on their own
-  // project is simply not there.
   it("lets a client-role member read the board, and shows them nothing of the agency's", async () => {
     const { useCases } = fixture({ tasks: [task()] });
 
@@ -370,7 +352,6 @@ describe("images referenced by a description", () => {
   });
 });
 
-
 describe("telling other members what happened", () => {
   it("publishes one event per committed change, naming what happened", async () => {
     const { useCases, published } = fixture({ tasks: [task({ id: "t1" })] });
@@ -385,9 +366,6 @@ describe("telling other members what happened", () => {
     ]);
   });
 
-  // The order is the whole point. Publishing inside the transaction would tell
-  // every recipient about work that can still roll back, and nothing would
-  // correct them until they reconnected.
   it("publishes only after the transaction has committed", async () => {
     const { useCases, journal } = fixture();
     await useCases.create(admin, { projectId: "p1", title: "New", priority: "LOW" });
@@ -418,8 +396,6 @@ describe("telling other members what happened", () => {
 
     const event = published[0]!;
     expect(event.kind).toBe("task.moved");
-    // The repository reads run outside the transaction and would still report
-    // the card in IDEA; the event must carry where the move actually put it.
     expect(event).toMatchObject({ task: { id: "t1", column: "DONE", position: 0 } });
   });
 
@@ -444,7 +420,6 @@ describe("the campaign a task is about", () => {
     expect(tasks.get(created().id)?.campaignId).toBe("camp-1");
   });
 
-  // The ordinary case: the work is about the project as a whole.
   it("stores no campaign when none is named", async () => {
     const { useCases } = fixture();
 
@@ -463,8 +438,6 @@ describe("the campaign a task is about", () => {
     })).rejects.toMatchObject({ category: "validation" });
   });
 
-  // A campaign that does not exist and one the caller cannot reach give the
-  // same answer, so the refusal never confirms that a campaign exists.
   it("refuses an unknown campaign the same way", async () => {
     const { useCases } = fixture();
 
@@ -511,9 +484,6 @@ describe("the campaign a task is about", () => {
 describe("moving a task to another project", () => {
   const across = { "camp-1": "p1", "camp-2": "p2" };
 
-  // Releasing rather than refusing: an ordinary edit must not fail for a reason
-  // the member did not ask about, and the old campaign genuinely is no longer
-  // under this task's project.
   it("releases the campaign when only the project changes", async () => {
     const { useCases } = fixture({
       tasks: [task({ campaignId: "camp-1" })],
@@ -539,8 +509,6 @@ describe("moving a task to another project", () => {
     expect(updated).toMatchObject({ projectId: "p2", campaignId: "camp-2" });
   });
 
-  // A contradiction the member actually wrote, so it is refused rather than
-  // quietly resolved.
   it("refuses the old project's campaign alongside the new project", async () => {
     const { useCases, tasks } = fixture({
       tasks: [task({ campaignId: "camp-1" })],
@@ -586,11 +554,9 @@ describe("listing one campaign's tasks", () => {
     expect(listed.map((t) => t.id)).toEqual(["a"]);
   });
 
-  // The filter narrows; it never widens. Reach is decided before it applies.
   it("returns nothing for a campaign under a project out of reach", async () => {
     const { useCases } = fixture({ tasks: board, reachableProjects: ["p1"] });
 
-    // "d" names camp-1 but sits under p2, which this member does not reach.
     expect((await useCases.list(admin, { campaignId: "camp-1" })).map((t) => t.id))
       .toEqual(["a"]);
   });
@@ -603,7 +569,6 @@ describe("listing one campaign's tasks", () => {
 });
 
 describe("whether a task is shown to the client", () => {
-  // The client raised it; it is theirs to see. Not a choice they make.
   it("marks a task raised by a client", async () => {
     const { useCases } = fixture({ reachableProjects: ["p1"] });
 
@@ -637,8 +602,6 @@ describe("whether a task is shown to the client", () => {
       .toBe(false);
   });
 
-  // Deciding what a customer is shown is one decision, made in one place, by the
-  // role that answers for the relationship.
   it("refuses a manager who tries to share one", async () => {
     const { useCases, tasks } = fixture({ tasks: [task({ assigneeId: "m2" })] });
 

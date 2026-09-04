@@ -52,7 +52,6 @@ describe("GET /api/auth/me", () => {
   it("lists every client of the organization for an admin", async () => {
     const { auth, user } = await signInAs("Admin", { role: "ADMIN" });
     const { clientId } = await seedProject(user.id, "Acme");
-    // Another member's client: an admin reaches it too.
     const other = await signInAs("Other", { role: "MANAGER" });
     const second = await seedProject(other.user.id, "Globex");
 

@@ -5,8 +5,6 @@ import { renderWithProviders, server } from "@test/shared/index.js";
 import { DashboardPage } from "@/pages/dashboard/index.js";
 import { Route, Routes } from "react-router-dom";
 
-/** The dashboard plus somewhere for it to navigate to, so following a project
- * is observable rather than assumed. */
 function App() {
   return (
     <Routes>
@@ -89,8 +87,6 @@ describe("DashboardPage", () => {
     expect(screen.getByText("Meta")).toBeInTheDocument();
   });
 
-  // Nothing connected yet is the ordinary state before ingestion lands, and it
-  // must read as "no sources", not as a broken panel.
   it("says so when no channel has been measured", async () => {
     api({ channels: [] });
     renderWithProviders(<DashboardPage />);

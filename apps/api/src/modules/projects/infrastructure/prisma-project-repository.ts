@@ -4,9 +4,6 @@ import type { PrismaUnitOfWork } from "../../../shared/infrastructure/prisma-uni
 import type { NewProject, ProjectChange, ProjectRecord } from "../domain/project.js";
 import type { ProjectRepository } from "../application/ports.js";
 
-/** Money crosses the boundary as a decimal string, never a float. `toString`
- * rather than a fixed scale: that is what the column has always serialised to,
- * and the characterization tests hold the API to `"1500"`, not `"1500.00"`. */
 function toDomain(row: ProjectRow): ProjectRecord {
   return {
     id: row.id, clientId: row.clientId, name: row.name, niche: row.niche,
@@ -17,13 +14,6 @@ function toDomain(row: ProjectRow): ProjectRecord {
   };
 }
 
-/**
- * Which projects an actor can reach.
- *
- * Not simply "a reachable client": a grant may name one project, and then the
- * client's other projects stay out of reach. The two branches are the two kinds
- * of grant — one over the whole client, one over this project.
- */
 function reachFilter(actor: ActorContext): Prisma.ProjectWhereInput {
   if (actor.role === "ADMIN") return { client: { orgId: actor.orgId } };
   return {

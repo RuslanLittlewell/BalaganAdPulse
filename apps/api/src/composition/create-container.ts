@@ -96,7 +96,6 @@ export interface ApiContainer {
   readonly summaryRouter: Router;
   readonly taskRouter: Router;
   readonly taskImageRouter: Router;
-  /** Not a route: the WebSocket transport attaches to these at startup. */
   readonly connections: ConnectionRegistry;
   readonly authenticate: (accessToken: string) => Promise<SessionPrincipal>;
 }
@@ -104,7 +103,6 @@ export interface ApiContainer {
 const isCurrency = (value: string | undefined): value is Currency =>
   value !== undefined && (CURRENCIES as readonly string[]).includes(value);
 
-/** Compatibility composition while legacy vertical slices are migrated. */
 export function createContainer(): ApiContainer {
   const unitOfWork = new PrismaUnitOfWork<Prisma.TransactionClient>(prisma);
   const clock = new SystemClock();
@@ -117,8 +115,6 @@ export function createContainer(): ApiContainer {
   };
   const audit = createAuditWriter(auditDependencies);
   const auditReader = createAuditReader(auditDependencies);
-  // Shared: the use cases below own them, and client registration writes a
-  // client and a project through them inside the redemption transaction.
   const clientRepository = new PrismaClientRepository(prisma, unitOfWork);
   const projectRepository = new PrismaProjectRepository(prisma, unitOfWork);
   const clients = createClientUseCases({
@@ -132,15 +128,10 @@ export function createContainer(): ApiContainer {
     invites: new PrismaInviteRepository(prisma, unitOfWork),
     memberships: new PrismaMembershipEnrolment(unitOfWork),
     projects: new PrismaInvitationProjectReach(prisma),
-    // Whether the issuer may invite somebody to this client, answered by the
-    // clients module's own reach — an admin reaches every client, anybody else
-    // only what their grants cover.
     clients: {
       isReachable: async (actor, clientId) =>
         (await clients.reachableIds(actor)).includes(clientId),
     },
-    // The work somebody joining a client should reach: the same projects its
-    // other people reach.
     clientProjects: {
       projectIdsOf: async (clientId) => {
         const rows = await prisma.project.findMany({ where: { clientId }, select: { id: true } });
@@ -148,13 +139,9 @@ export function createContainer(): ApiContainer {
       },
     },
     projectAccess: new PrismaInvitationProjectAccess(unitOfWork),
-    // The invitations module states what registration must produce; the modules
-    // that own a client and a project produce it, inside the same transaction.
     clientDirectory: {
       create: async (context, input) => {
         const { orgId, ...contact } = input;
-        // No grant here: the membership does not exist yet, and the client's
-        // reach is granted on the project a moment later.
         const created = await clientRepository.create(
           context, { ...contact, id: ids.generate(), orgId }, undefined,
         );
@@ -166,9 +153,6 @@ export function createContainer(): ApiContainer {
         const { clientId, budgetCurrency, ...details } = input;
         const created = await projectRepository.create(context, {
           ...details,
-          // Narrowed here, where the two modules meet: the registration schema
-          // has already checked it against the projects module's own list, and
-          // the invitations module deliberately does not know that list.
           ...(isCurrency(budgetCurrency) ? { budgetCurrency } : {}),
           clientId,
           id: ids.generate(),
@@ -184,7 +168,6 @@ export function createContainer(): ApiContainer {
   });
   const identity = createIdentityUseCases({
     users: new PrismaUserRepository(prisma, unitOfWork),
-    // Identity owns the port; the invitations module implements it.
     invitations: { redeem: invites.redeem },
     passwords: new PasswordAdapter(),
     tokens: new TokenAdapter(),
@@ -198,8 +181,6 @@ export function createContainer(): ApiContainer {
   const members = createMemberUseCases({
     memberships: new PrismaMembershipDirectory(prisma),
     organizations: new PrismaOrganizationDirectory(prisma),
-    // The session payload wants the stored picture marker, not the data URL the
-    // profile endpoint builds, so it reads the identity record directly.
     users: {
       findById: async (id) => {
         const user = await users.findById(id);
@@ -232,15 +213,10 @@ export function createContainer(): ApiContainer {
     images: new PrismaTaskImageRepository(prisma, unitOfWork),
     imageStorage: new S3TaskImageStorage(),
     projects: taskProjectReach,
-    // The tasks module asks whether a campaign may be named; the campaigns
-    // module answers. Neither imports the other.
     campaigns: new PrismaCampaignInProject(prisma),
     members: new PrismaTaskMemberReach(prisma),
     audit,
     events: {
-      // Fire-and-forget on purpose: the write has already committed, and a
-      // delivery failure must not turn a successful change into an error.
-      // Delivery swallows its own failures, so this rejects only on a bug.
       publish: (event: TaskEvent) => {
         void taskEventDelivery.deliver(event).catch((error: unknown) => {
           console.error("Failed to deliver task event:", error);

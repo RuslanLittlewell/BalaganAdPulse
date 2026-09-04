@@ -53,7 +53,6 @@ describe("CampaignPage", () => {
     renderWithProviders(<App />, route);
 
     expect(await screen.findByRole("heading", { name: "Поиск / Москва" })).toBeInTheDocument();
-    // Channel, delivery status and objective on one line under the name.
     expect(screen.getByText("Яндекс Директ · Активна · Заявки")).toBeInTheDocument();
   });
 
@@ -96,8 +95,6 @@ describe("CampaignPage", () => {
     expect(within(row).getByText("600 ₽")).toBeInTheDocument();
   });
 
-  // Ads live under their ad set. Loading them all up front would be a request
-  // per set for rows nobody has asked to see.
   it("reveals the ads inside an ad set when it is expanded", async () => {
     const user = userEvent.setup();
     api();
@@ -126,8 +123,6 @@ describe("the work about a campaign", () => {
     expect(await screen.findByText("Переписать объявления")).toBeInTheDocument();
   });
 
-  // Narrowed by the server, so the screen never has to know which of the
-  // project's tasks are somebody else's.
   it("asks the server for this campaign's tasks alone", async () => {
     const seen: URL[] = [];
     api();
@@ -142,8 +137,6 @@ describe("the work about a campaign", () => {
     expect(seen[0].searchParams.get("campaignId")).toBe("c1");
   });
 
-  // Unlike a project's list, a campaign's is not narrowed to the stages still
-  // in flight: its finished work is part of what the campaign is.
   it("lists finished work too", async () => {
     api({ tasks: [
       aTask({ id: "t1", projectId: "p1", campaignId: "c1", title: "Старый отчёт", column: "DONE" }),

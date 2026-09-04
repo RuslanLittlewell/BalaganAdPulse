@@ -13,8 +13,6 @@ export const ROUTE_MOUNTS = [
   { id: "invites", path: "/api/invites" },
   { id: "members", path: "/api/members" },
   { id: "audit", path: "/api/audit" },
-  // Ahead of the project router, which would otherwise answer
-  // `/api/projects/:id` for a path that names a reading beneath the project.
   { id: "project-metrics", path: "/api/projects/:projectId" },
   { id: "projects", path: "/api/projects" },
   { id: "clients", path: "/api/clients" },

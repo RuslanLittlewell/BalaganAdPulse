@@ -10,9 +10,6 @@ export interface RegisterIdentityInput {
   readonly phone?: string | null;
   readonly telegram?: string | null;
   readonly inviteCode: string;
-  /** Present for a client registration, which creates a contact and its first
-   * project alongside the account. Whether it belongs is the invitation's
-   * decision, made where the code is read. */
   readonly registration?: ClientRegistration;
 }
 
@@ -23,7 +20,6 @@ export interface LoginIdentityInput {
 
 export interface UpdateIdentityProfileInput {
   readonly name: string;
-  /** Absent leaves what is stored alone; null clears it. */
   readonly phone?: string | null;
   readonly telegram?: string | null;
   readonly currentPassword?: string;
@@ -45,10 +41,6 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
   };
 
   return {
-    /** Turns an access token back into the principal it stands for. Every
-     * rejection answers the same way: telling a caller whether a token was
-     * expired, forged or simply unknown tells them something about tokens they
-     * do not hold. */
     authenticate: async (accessToken: string) => {
       try {
         return await dependencies.tokens.verifyAccess(accessToken);
@@ -126,8 +118,6 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
       return dependencies.unitOfWork.run(async (context) => {
         const updated = await dependencies.users.update(context, userId, {
           name: input.name,
-          // Only what the request mentioned: an update that named neither must
-          // not clear what the person already gave.
           ...(input.phone === undefined ? {} : { phone: input.phone }),
           ...(input.telegram === undefined ? {} : { telegram: input.telegram }),
           ...(passwordHash ? { passwordHash } : {}),

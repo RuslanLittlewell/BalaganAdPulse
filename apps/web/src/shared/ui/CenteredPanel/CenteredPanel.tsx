@@ -5,18 +5,12 @@ import { LightRays } from "../LightRays/index.js";
 export interface CenteredPanelProps {
   title: string;
   children: ReactNode;
-  /** Room for a form that lays out in two columns. The default is the width one
-   * column of fields wants, which is what sign-in and sign-up are. */
   wide?: boolean;
 }
 
-/** A shadcn Card centred on an empty screen. Knows nothing about authentication —
- * a "not found" page will want the same frame. */
 export function CenteredPanel({ title, children, wide = false }: CenteredPanelProps) {
   return (
     <div className="relative grid min-h-screen place-items-center overflow-hidden bg-background p-4">
-      {/* Decoration, and nothing more: hidden from assistive technology, behind
-          everything, and absent where WebGL is. */}
       <div
         aria-hidden="true"
         data-testid="signed-out-rays"

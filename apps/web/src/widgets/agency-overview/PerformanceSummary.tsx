@@ -5,11 +5,6 @@ import {
 import { EMPTY_PERFORMANCE, type Performance } from "@/entities/campaign/index.js";
 import { t } from "@/shared/config/index.js";
 
-/**
- * The six figures a media buyer opens a screen to see, each with the ratio that
- * explains it underneath. The same row on all three screens — the level changes,
- * the questions do not.
- */
 export function PerformanceSummary({ performance }: { performance?: Performance }) {
   const figures = performance ?? EMPTY_PERFORMANCE;
 

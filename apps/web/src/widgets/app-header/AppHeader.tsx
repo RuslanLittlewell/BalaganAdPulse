@@ -27,8 +27,6 @@ export function AppHeader() {
   return (
     <>
       <header className="flex min-h-16 w-full items-center justify-between gap-2 border-b border-border px-5">
-        {/* The chevron does not swap icons, it turns: morphicons derives the
-            180 degrees from the two shapes rather than being told. */}
         <Button
           variant="ghost"
           size="icon"

@@ -11,8 +11,6 @@ import {
   type Role,
 } from "../src/index.js";
 
-/** The matrix answers on the role alone; the rest of an actor is carried for
- * the caller's convenience, so a fixture only has to vary the role. */
 function actor(role: Role): Actor {
   return {
     userId: "user-1",
@@ -22,9 +20,6 @@ function actor(role: Role): Actor {
   };
 }
 
-/** Asserts a whole matrix row at once: exactly `allowed` may act, and the
- * remaining roles may not. Writing it this way means a role added to the
- * matrix without a decision here fails the test rather than passing silently. */
 function expectRow(action: Action, resource: Resource, allowed: Role[]): void {
   for (const role of ROLES) {
     expect(
@@ -99,8 +94,6 @@ describe("can", () => {
   });
 
   describe("the campaign hierarchy", () => {
-    // One resource covers the campaign, its ad sets, its ads and their measured
-    // figures: a role has an opinion about the hierarchy, not about its levels.
     it("lets admins and managers write it, and everyone else only read", () => {
       expectRow("read", "campaign", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"]);
       expectRow("create", "campaign", ["ADMIN", "MANAGER"]);
@@ -116,9 +109,6 @@ describe("can", () => {
   });
 
   describe("the task board", () => {
-    // A customer reads it and may raise a request on it. Which rows either of
-    // them sees is reach's answer, not this table's — a client reaches only the
-    // tasks marked as shown to them.
     it("is read by every role, including a customer", () => {
       expectRow("read", "task", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"]);
     });
@@ -127,8 +117,6 @@ describe("can", () => {
       expectRow("create", "task", ["ADMIN", "MANAGER", "CLIENT", "CLIENT_ADMIN"]);
     });
 
-    // A customer raises a request and then leaves it alone: changing or
-    // withdrawing it is the agency's to do, and so is deciding what is shown.
     it("is changed and removed only by admins and managers", () => {
       expectRow("update", "task", ["ADMIN", "MANAGER"]);
       expectRow("delete", "task", ["ADMIN", "MANAGER"]);
@@ -159,9 +147,6 @@ describe("can", () => {
       }
     });
 
-    // One exception, and it is the point of the client portal: a customer may
-    // raise a task. They may not change or withdraw it afterwards, and they may
-    // write nothing else at all.
     it("is true for a client-role member everywhere but raising a task", () => {
       for (const resource of RESOURCES) {
         for (const action of ["create", "update", "delete"] as const) {
@@ -195,11 +180,6 @@ describe("can", () => {
   });
 });
 
-/**
- * A customer's own people. The principal administers them — invites, revokes,
- * removes — and reads exactly what an ordinary customer reads. Being the
- * principal is authority over people, not over anything the agency owns.
- */
 describe("the customer's principal", () => {
   it("is a role of its own", () => {
     expect(ROLES).toContain("CLIENT_ADMIN");
@@ -223,8 +203,6 @@ describe("the customer's principal", () => {
     expect(can(actor("CLIENT_ADMIN"), "delete", "member")).toBe(true);
   });
 
-  // Which people, and whose, is reach's answer — this table only says that the
-  // verb exists for the role.
   it("raises a task like any customer", () => {
     expect(can(actor("CLIENT_ADMIN"), "create", "task")).toBe(true);
     expect(can(actor("CLIENT_ADMIN"), "update", "task")).toBe(false);
@@ -250,12 +228,6 @@ describe("the customer's principal", () => {
   });
 });
 
-/**
- * Asked once rather than compared by name at each site. Every rule about the
- * customer side — what it reaches, which tasks it sees, that it is not the
- * agency's staff — is the same for both roles, and comparing names is how the
- * second one silently turned up among the employees.
- */
 describe("isCustomer", () => {
   it("is true for both roles on the customer's side", () => {
     expect(isCustomer("CLIENT")).toBe(true);

@@ -1,13 +1,3 @@
-// Vitest global setup: runs once, before any worker starts, in the main
-// process. Generates this run's id, publishes it to the worker processes
-// through the environment, applies migrations to each worker's schema, and
-// returns a teardown that drops them again.
-//
-// Migrations must run sequentially: Prisma's migrate engine takes a
-// database-wide advisory lock while it applies them, so firing deploys
-// concurrently against the same database just serializes them anyway (and can
-// time out).
-
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { config } from "dotenv";
@@ -23,26 +13,13 @@ import {
   schemaNameForWorker,
 } from "./workers.js";
 
-// override: true matters here specifically because this file, unlike the
-// old version, imports @prisma/client below. The generated client loads
-// apps/api/.env (the dev database, not .env.test) as a side effect of that
-// import, and since dotenv does not overwrite an already-set variable by
-// default, DATABASE_URL would otherwise be silently pinned to the dev
-// database for the rest of this process — and every worker forked from it.
 config({ path: ".env.test", quiet: true, override: true });
 
 const require = createRequire(import.meta.url);
 const prismaCli = require.resolve("prisma/build/index.js");
 
-/** Legacy prefix from before this phase's run-scoped naming
- * (test/workers.ts), fixed names with no embedded timestamp:
- * `test_worker_1` .. `test_worker_4`. Any of those still around are
- * unambiguously pre-phase leftovers, never a concurrent run's schemas, so
- * they are dropped unconditionally rather than age-checked. */
 const LEGACY_SCHEMA_PREFIX = "test_worker_";
 
-/** Best-effort drop: a schema another process is concurrently dropping (or
- * racing to create) must not fail setup for the whole run. */
 async function dropSchema(admin: PrismaClient, nspname: string): Promise<void> {
   try {
     await admin.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${nspname}" CASCADE`);
@@ -51,8 +28,6 @@ async function dropSchema(admin: PrismaClient, nspname: string): Promise<void> {
   }
 }
 
-/** Drops schemas left behind by runs that were killed before teardown. A
- * concurrent run's schemas are young, so the age check leaves them alone. */
 async function sweepOrphanedSchemas(admin: PrismaClient): Promise<void> {
   const rows = await admin.$queryRaw<Array<{ nspname: string }>>`
     SELECT nspname FROM pg_namespace
@@ -73,8 +48,6 @@ async function sweepOrphanedSchemas(admin: PrismaClient): Promise<void> {
 
 export default async function setup(): Promise<() => Promise<void>> {
   const runId = generateRunId();
-  // Set before any worker is forked: workers inherit process.env at fork time,
-  // which is how test/setup.ts sees this value.
   process.env[TEST_RUN_ID_ENV] = runId;
 
   const admin = new PrismaClient();
@@ -87,9 +60,6 @@ export default async function setup(): Promise<() => Promise<void>> {
   for (let workerId = 1; workerId <= TEST_WORKERS; workerId++) {
     try {
       execFileSync(process.execPath, [prismaCli, "migrate", "deploy"], {
-        // Explicit, fully-piped stdio: capture stdout/stderr instead of
-        // letting Prisma's CLI output reach the terminal, so a successful
-        // run stays silent and failures still surface via the catch below.
         stdio: ["ignore", "pipe", "pipe"],
         env: {
           ...process.env,

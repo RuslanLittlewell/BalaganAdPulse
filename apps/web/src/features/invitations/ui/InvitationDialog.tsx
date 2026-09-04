@@ -25,22 +25,11 @@ import { registrationLink } from "../lib/link.js";
 
 export interface InvitationDialogProps {
   registrationType: RegistrationType;
-  /** Required for `CLIENT_STAFF`: the company being joined. It is already known
-   * — whoever opened this is looking at it — so the dialog states what is being
-   * made and asks nothing. */
   clientId?: string;
   open: boolean;
   onClose: () => void;
 }
 
-/**
- * The invitation form, in a dialog of its own over the contact book.
- *
- * Two steps: what to invite, and then the link it produced. The link is the
- * whole point of creating an invitation and exists only once the server has
- * answered — closing on success would leave the person who asked for it hunting
- * through the list to find what they just made.
- */
 export function InvitationDialog({ registrationType, clientId, open, onClose }: InvitationDialogProps) {
   const projects = useProjects();
   const create = useCreateInvitation();
@@ -63,8 +52,6 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
   }
 
   function close() {
-    // Reset here rather than on open: reopening must offer a blank form, and
-    // the dialog is unmounted in between only by the parent's own state.
     setProjectIds([]);
     setFailure(null);
     setCreated(null);
@@ -72,8 +59,6 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
   }
 
   async function submit() {
-    // Checked here as well as on the server: without it the button appears to
-    // do nothing, and the round trip explains less than this does.
     if (isEmployee && projectIds.length === 0) {
       setFailure(t("invites.projects.required"));
       return;
@@ -146,8 +131,6 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
 
             {failure && <p role="alert" className="text-sm text-destructive">{failure}</p>}
 
-            {/* Beside the control that makes one, which is when somebody wants
-                to know what is already outstanding. */}
             <div className="mt-4 border-t border-border pt-4">
               <InvitationList registrationType={registrationType} />
             </div>
@@ -171,7 +154,6 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
   );
 }
 
-/** One project, as a card the whole of which is the control. */
 function ProjectChoice({
   project, checked, onToggle,
 }: { project: Project; checked: boolean; onToggle: () => void }) {
@@ -185,10 +167,6 @@ function ProjectChoice({
           : "border-border hover:border-primary/40 hover:bg-muted",
       )}
     >
-      {/* The native input carries the state and the label, and is drawn over by
-          the box beside it — a checkbox styled directly cannot show a tick
-          consistently across browsers, and hiding it outright would take the
-          control away from anyone navigating by keyboard. */}
       <span className="relative grid size-5 shrink-0 place-items-center">
         <input
           type="checkbox"
@@ -221,7 +199,6 @@ function ProjectChoice({
   );
 }
 
-/** The link the invitation produced, ready to be sent to somebody. */
 function CreatedStep({ invitation }: { invitation: Invitation }) {
   const link = registrationLink(invitation.registrationUrl);
 

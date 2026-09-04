@@ -9,7 +9,6 @@ describe("CenteredPanel", () => {
       .toContain("420px");
   });
 
-  // A form that lays out in two columns needs the room for both.
   it("widens on request", () => {
     render(<CenteredPanel title="Регистрация" wide><p>form</p></CenteredPanel>);
 

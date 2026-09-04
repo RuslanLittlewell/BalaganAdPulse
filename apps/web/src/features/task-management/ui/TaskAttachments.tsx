@@ -8,25 +8,13 @@ import { TaskImagePreview } from "./TaskImagePreview.js";
 
 export interface TaskAttachmentsProps {
   imageIds: readonly string[];
-  /** Called once the server has accepted the removal, so the description can
-   * drop its reference to a file that no longer exists. */
   onRemoved?: (imageId: string) => void;
 }
 
-/**
- * The files a task carries, listed in their own block.
- *
- * Each thumbnail is fetched with the member's credentials and shown from an
- * object URL, revoked when the block goes away — the same reason the
- * description's images cannot simply keep a `src`.
- */
 export function TaskAttachments({ imageIds, onRemoved }: TaskAttachmentsProps) {
   const queryClient = useQueryClient();
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [previewing, setPreviewing] = useState<{ id: string; label: string } | null>(null);
-  // Hidden the moment the member asks, and put back if the server refuses. The
-  // prop only catches up once the task is refetched, and a tile that lingers
-  // after a delete reads as the delete having failed.
   const [removed, setRemoved] = useState<string[]>([]);
   const [failure, setFailure] = useState<string | null>(null);
 
@@ -43,8 +31,6 @@ export function TaskAttachments({ imageIds, onRemoved }: TaskAttachmentsProps) {
         made.push(url);
         setUrls((current) => ({ ...current, [id]: url }));
       } catch {
-        // A file the storage will not serve is a missing file, not a broken
-        // task: the tile stays a placeholder.
       }
     }));
 
@@ -60,8 +46,6 @@ export function TaskAttachments({ imageIds, onRemoved }: TaskAttachmentsProps) {
     try {
       await taskImagesApi.remove(id);
       onRemoved?.(id);
-      // The board shows an attachment count on every card, and the description
-      // has just lost its link to this file.
       await queryClient.invalidateQueries({ queryKey: TASKS_KEY });
     } catch {
       setRemoved((current) => current.filter((candidate) => candidate !== id));
@@ -106,9 +90,6 @@ export function TaskAttachments({ imageIds, onRemoved }: TaskAttachmentsProps) {
                   type="button"
                   aria-label={`${t("tasks.attachments.remove")}: ${label}`}
                   data-testid={`task-attachment-remove-${id}`}
-                  // Always reachable by keyboard and always present for a
-                  // pointer; only the paint waits for hover, so the control is
-                  // not hidden from anyone navigating without a mouse.
                   className={cn(
                     "absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full",
                     "bg-destructive text-white shadow-sm transition-opacity",
@@ -116,8 +97,6 @@ export function TaskAttachments({ imageIds, onRemoved }: TaskAttachmentsProps) {
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   )}
                   onClick={(event) => {
-                    // The tile underneath opens the preview; removing must not
-                    // also open the thing being removed.
                     event.stopPropagation();
                     void remove(id);
                   }}

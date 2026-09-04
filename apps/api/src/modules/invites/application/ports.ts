@@ -23,8 +23,6 @@ export interface InviteRepository {
   findInOrg(orgId: string, id: string): Promise<Invite | null>;
   findByCode(context: TransactionContext, code: string): Promise<Invite | null>;
   revoke(context: TransactionContext, id: string, at: Date): Promise<void>;
-  /** Conditional single-use claim. Answers false when the invitation was
-   * already spent, which is how a race between two registrations is settled. */
   claim(context: TransactionContext, id: string, userId: string, at: Date): Promise<boolean>;
 }
 
@@ -39,9 +37,6 @@ export class InvitationCodeConflictError extends Error {
   }
 }
 
-/** Adding somebody to an organization. Owned here because redemption needs it,
- * implemented by the members module — invitations do not write memberships
- * themselves. */
 export interface MembershipEnrolment {
   enrol(
     context: TransactionContext,
@@ -49,19 +44,10 @@ export interface MembershipEnrolment {
   ): Promise<string>;
 }
 
-/**
- * Whether the issuer may invite somebody to this client.
- *
- * One question rather than two — "does it exist" and "may they" are answered
- * together on purpose, so a principal naming another customer's client gets the
- * same answer an unknown id gets and cannot count what else is there.
- */
 export interface InvitationClientReach {
   isReachable(actor: ActorContext, clientId: string): Promise<boolean>;
 }
 
-/** The projects a client has, so somebody joining it reaches the same work its
- * other people reach. Owned here, implemented by the projects module. */
 export interface InvitationClientProjects {
   projectIdsOf(clientId: string): Promise<string[]>;
 }
@@ -78,9 +64,6 @@ export interface InvitationProjectAccess {
   ): Promise<void>;
 }
 
-/** The contact the client registers as, and the first project they create. Both
- * are written through the modules that own them; the invitation only knows that
- * redemption is not finished until they exist. */
 export interface ClientRegistrationDetails {
   readonly client: {
     readonly name: string;
@@ -96,14 +79,10 @@ export interface ClientRegistrationDetails {
     readonly name: string;
     readonly niche?: string | null;
     readonly monthlyBudget?: number | null;
-    /** Loose on purpose: the invitations module has no opinion about which
-     * currencies exist. The registration schema checks it against the list the
-     * projects module owns, and the composition root narrows it there. */
     readonly budgetCurrency?: string;
   };
 }
 
-/** Owned here, implemented by the clients module. */
 export interface ClientDirectory {
   create(
     context: TransactionContext,
@@ -111,7 +90,6 @@ export interface ClientDirectory {
   ): Promise<string>;
 }
 
-/** Owned here, implemented by the projects module. */
 export interface ProjectDirectory {
   create(
     context: TransactionContext,

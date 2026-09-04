@@ -11,14 +11,6 @@ interface Resolved {
   registrationType: "CLIENT" | "EMPLOYEE" | "CLIENT_STAFF";
 }
 
-/**
- * The form an invitation calls for.
- *
- * Which one is the invitation's answer, not the visitor's: the code decides, and
- * the endpoint that resolves it says nothing else about the agency. Unknown,
- * revoked, used and expired come back identically, so this shows one message for
- * all four rather than explaining which.
- */
 export function RegistrationPage() {
   const { code = "" } = useParams<{ code: string }>();
   const resolved = useQuery<Resolved, ApiError>({
@@ -39,7 +31,6 @@ export function RegistrationPage() {
   }
 
   const type = resolved.data.registrationType;
-  // Only the client's own registration is two columns; the other two are one.
   const wide = type === "CLIENT";
   const title = type === "CLIENT"
     ? t("registration.client.title")

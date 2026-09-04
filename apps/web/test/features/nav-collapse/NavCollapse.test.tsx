@@ -5,8 +5,6 @@ import { renderWithProviders } from "@test/shared/index.js";
 import { AppHeader } from "@/widgets/app-header/AppHeader.js";
 import { MainNav } from "@/widgets/main-nav/MainNav.js";
 
-/** The chevron and the labels sit in different widgets; the point of the
- * feature is that one drives the other. */
 function setup() {
   return renderWithProviders(
     <Routes>
@@ -57,7 +55,6 @@ describe("collapsing the navigation", () => {
     setup();
     await userEvent.click(chevron());
 
-    // Still in the tree — that is what keeps the links named — but off-screen.
     expect(screen.getByText("Проекты")).toHaveClass("sr-only");
   });
 
@@ -113,8 +110,6 @@ describe("collapsing the navigation", () => {
     await userEvent.click(chevron());
 
     const link = screen.getByRole("link", { name: "Проекты" });
-    // A fixed square, centred: without this the icon sits wherever the label
-    // used to start, and the column reads as ragged.
     expect(link).toHaveClass("size-10");
     expect(link).toHaveClass("justify-center");
   });

@@ -3,9 +3,6 @@ import type { Role } from "@adpulse/access-policy";
 import type { TransactionContext } from "../../../shared/application/index.js";
 import type { PrismaUnitOfWork } from "../../../shared/infrastructure/prisma-unit-of-work.js";
 
-/** Adding somebody to the organization, inside somebody else's transaction.
- * The members module owns writing memberships; invitations ask for one through
- * a port rather than reaching into this table themselves. */
 export class PrismaMembershipEnrolment {
   constructor(private readonly unitOfWork: PrismaUnitOfWork<Prisma.TransactionClient>) {}
 

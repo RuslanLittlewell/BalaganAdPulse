@@ -20,12 +20,8 @@ function fixture(options: {
   failGrant?: boolean;
   failClientCreation?: boolean;
   failProjectCreation?: boolean;
-  /** The clients that exist in the organization. */
   ownedClientIds?: string[];
-  /** Which projects a client has, for the grant a joiner receives. */
   clientProjectIds?: Record<string, string[]>;
-  /** Which clients a membership may invite somebody to, by membership id. An
-   * admin reaches every client that exists. */
   reachableClientIds?: Record<string, string[]>;
 } = {}) {
   const transaction = {} as TransactionContext;
@@ -278,9 +274,6 @@ describe("employee invitation redemption", () => {
     expect(invites.get("invite-existing")?.usedAt).toBeNull();
   });
 
-  // A client invitation is redeemable now, but only with the contact and the
-  // project it exists to create. Asked for without them, it is refused and left
-  // unspent so the link still works.
   it("refuses client redemption offered no details, without consuming the invitation", async () => {
     const typed = employeeInvite({ registrationType: "CLIENT", role: null, projectIds: [] });
     const { useCases, transaction, invites } = fixture({ seed: [typed] });
@@ -343,8 +336,6 @@ describe("redeeming a client invitation", () => {
     expect(f.invites.get("invite-client")?.usedAt).toEqual(NOW);
   });
 
-  // Half-finished registration is the failure worth designing against: a member
-  // with no client, or a client with no project, needs an operator to clean up.
   it("stores nothing when the project cannot be created", async () => {
     const f = fixture({ seed: [clientInvite()], failProjectCreation: true });
 
@@ -376,10 +367,6 @@ describe("redeeming a client invitation", () => {
       .rejects.toMatchObject({ category: "validation" });
   });
 
-  // The invitation's own type decides which shape it accepts, so a code cannot
-  // be redeemed as the other kind by asking differently. Nothing is hidden here
-  // — the public resolver already told the caller which form to fill in — so the
-  // answer says what is wrong rather than repeating "invalid code".
   it("refuses an employee invitation redeemed as a client", async () => {
     const f = fixture({ seed: [employeeInvite()] });
 
@@ -396,11 +383,6 @@ describe("redeeming a client invitation", () => {
   });
 });
 
-/**
- * A third kind: joining a client that already exists. It names the client, and
- * whoever redeems it becomes an ordinary member of it — the choice of who
- * administers a client's people is made once, when it registers.
- */
 describe("inviting somebody to an existing client", () => {
   const principal: ActorContext = {
     userId: "u-principal", membershipId: "m-principal", orgId: "org-1", role: "CLIENT_ADMIN",
@@ -429,8 +411,6 @@ describe("inviting somebody to an existing client", () => {
     expect(created.clientId).toBe("client-1");
   });
 
-  // Refused the way an unknown client is refused: a principal must not be able
-  // to count the agency's other customers by watching which ids come back.
   it("refuses a principal naming somebody else's client", async () => {
     const f = fixture({
       ownedClientIds: ["client-1", "client-2"],
@@ -489,8 +469,6 @@ describe("redeeming an invitation to join a client", () => {
     expect(f.grants).toEqual([{ membershipId: "membership-new", projectIds: ["project-7"] }]);
   });
 
-  // The choice of who administers a client's people is made once, when it
-  // registers. Everybody who joins afterwards is an ordinary member of it.
   it("makes them an ordinary member, never the principal", async () => {
     const f = fixture({ seed: [joining()], clientProjectIds: { "client-1": ["project-7"] } });
 

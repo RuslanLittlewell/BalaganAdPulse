@@ -5,7 +5,6 @@ export interface IdentityUser {
   readonly passwordHash: string;
   readonly image: string | null;
   readonly avatarPath: string | null;
-  /** How to reach them. Theirs to keep current, and never required. */
   readonly phone: string | null;
   readonly telegram: string | null;
 }

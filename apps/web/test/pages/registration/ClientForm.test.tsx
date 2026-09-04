@@ -18,7 +18,6 @@ function open() {
 
 const user = () => userEvent.setup();
 
-/** The stepper owns the navigation, so its own footer button is what advances. */
 async function firstStep(u: ReturnType<typeof userEvent.setup>) {
   await u.type(screen.getByLabelText("Имя"), "Иван");
   await u.type(screen.getByLabelText("Email"), "ivan@clinic.by");
@@ -36,16 +35,9 @@ describe("ClientRegistrationForm", () => {
     for (const label of ["Имя", "Email", "Пароль", "Повторите пароль", "Название организации", "Телефон"]) {
       expect(screen.getByLabelText(label)).toBeInTheDocument();
     }
-    // Present but hidden: both steps stay mounted so going back loses nothing.
-    // The stepper unmounts the step that is not on screen.
     expect(screen.queryByLabelText("Название проекта")).toBeNull();
   });
 
-  /**
-   * The account step is two columns split by a rule: who they are on the left,
-   * the organisation they are from on the right. Asserted through the structure
-   * that produces it, which is as close as jsdom gets to a layout.
-   */
   describe("the account step's two columns", () => {
     it("keeps who they are on the left", () => {
       open();
@@ -80,15 +72,11 @@ describe("ClientRegistrationForm", () => {
       expect(columns.className).toContain("sm:grid-cols-2");
     });
 
-    // The rule belongs to the account step alone. The project step pairs the
-    // budget with its currency on one row, which is not the same thing.
     it("draws no dividing rule on the project step", async () => {
       const u = user();
       open();
       await firstStep(u);
 
-      /* Containment rather than absence: the stepper animates the outgoing step
-         out, and jsdom never finishes the animation, so it lingers in the DOM. */
       expect(screen.getByTestId("registration-account-columns"))
         .not.toContainElement(screen.getByLabelText("Название проекта"));
     });
@@ -106,8 +94,6 @@ describe("ClientRegistrationForm", () => {
 
     await firstStep(u);
 
-    /* Presence, not visibility: the stepper animates its steps in, and jsdom
-       never runs the animation, so the content keeps its initial opacity. */
     expect(await screen.findByLabelText("Название проекта")).toBeInTheDocument();
     expect(screen.getByLabelText("Ниша")).toBeInTheDocument();
     expect(screen.getByLabelText("Бюджет / мес.")).toBeInTheDocument();
@@ -145,12 +131,6 @@ describe("ClientRegistrationForm", () => {
     });
   });
 
-  // Nothing entered is no budget, not a zero the agency never agreed to.
-  /**
-   * At registration the person is the company's only contact, so the one answer
-   * fills both records. They part ways afterwards: the person edits theirs in
-   * their profile, the agency edits the company's on its card.
-   */
   it("puts the contact details on the account as well as on the company", async () => {
     const u = user();
     let body: Record<string, unknown> | null = null;
@@ -189,8 +169,6 @@ describe("ClientRegistrationForm", () => {
       .toBeNull();
   });
 
-  // The client record is created from these, and a contact with no organisation
-  // named is not one the agency can act on.
   it("refuses to move on with no organisation", async () => {
     const u = user();
     open();
@@ -202,7 +180,6 @@ describe("ClientRegistrationForm", () => {
     await u.click(screen.getByRole("button", { name: "Далее" }));
 
     expect(await screen.findByText("Введите название организации")).toBeInTheDocument();
-    // The stepper unmounts the step that is not on screen.
     expect(screen.queryByLabelText("Название проекта")).toBeNull();
   });
 
@@ -217,7 +194,6 @@ describe("ClientRegistrationForm", () => {
     await u.click(screen.getByRole("button", { name: "Далее" }));
 
     expect(await screen.findByText("Пароли не совпадают")).toBeInTheDocument();
-    // The stepper unmounts the step that is not on screen.
     expect(screen.queryByLabelText("Название проекта")).toBeNull();
   });
 
@@ -232,8 +208,6 @@ describe("ClientRegistrationForm", () => {
     expect(screen.getByLabelText("Название организации")).toHaveValue("ООО Клиника");
   });
 
-  // One request, at the end. The account, the client and the project are
-  // created together or not at all.
   it("submits everything once, from the last step", async () => {
     const u = user();
     const bodies: Record<string, unknown>[] = [];
@@ -284,11 +258,6 @@ describe("ClientRegistrationForm", () => {
   });
 });
 
-/**
- * Both fields are required, and they are compared — including after the first
- * one changes. Two empty boxes compare equal, so a confirmation that only
- * checked equality would let an account through with no password at all.
- */
 describe("ClientRegistrationForm's password rules", () => {
   it("refuses an empty password", async () => {
     const u = userEvent.setup();
@@ -325,7 +294,6 @@ describe("ClientRegistrationForm's password rules", () => {
     expect(screen.getByText("Повторите пароль ещё раз")).toBeInTheDocument();
   });
 
-  // The comparison has to survive the first field changing after it was made.
   it("notices a password changed after the confirmation matched it", async () => {
     const u = userEvent.setup();
     open();
@@ -346,12 +314,6 @@ describe("ClientRegistrationForm's password rules", () => {
   });
 });
 
-/**
- * Radix renders the dialog through a portal, but React events travel the React
- * tree rather than the DOM one — so a submit inside the dialog reaches the form
- * the dialog was rendered inside, and saving an avatar stepped the visitor
- * forward as if they had pressed Далее.
- */
 describe("the avatar editor inside a step", () => {
   it("does not step forward when the avatar is saved", async () => {
     const u = user();
@@ -365,7 +327,6 @@ describe("the avatar editor inside a step", () => {
     await u.click(screen.getByRole("button", { name: "Создать аватар" }));
     await u.click(await screen.findByRole("button", { name: "Сохранить аватар" }));
 
-    // The stepper unmounts the step that is not on screen.
     expect(screen.queryByLabelText("Название проекта")).toBeNull();
   });
 
@@ -376,7 +337,6 @@ describe("the avatar editor inside a step", () => {
     await u.click(screen.getByRole("button", { name: "Создать аватар" }));
     await u.click(await screen.findByRole("button", { name: "Случайный вариант" }));
 
-    // The stepper unmounts the step that is not on screen.
     expect(screen.queryByLabelText("Название проекта")).toBeNull();
   });
 });
@@ -385,7 +345,6 @@ describe("finishing the client form", () => {
   const accepts = () => server.use(mock.post("/api/auth/register", () =>
     HttpResponse.json({ accessToken: "a", refreshToken: "r" }, { status: 201 })));
 
-  // The account is made; signing into it is the next thing they do.
   it("sends them to the sign-in form", async () => {
     const u = user();
     accepts();
@@ -398,8 +357,6 @@ describe("finishing the client form", () => {
     expect(await screen.findByRole("heading", { name: "Вход" })).toBeInTheDocument();
   });
 
-  // Landing on a sign-in form while still signed in would be a lie about which
-  // of the two states they are in.
   it("leaves no session behind", async () => {
     const u = user();
     accepts();
@@ -413,11 +370,6 @@ describe("finishing the client form", () => {
     expect(hasSession()).toBe(false);
   });
 
-  /**
-   * The indicator is a way of moving too, and it used to move without asking —
-   * so clicking the second circle skipped the first step's validation entirely
-   * and carried an empty account into the project step.
-   */
   it("refuses a jump forward past an unfilled step", async () => {
     const u = user();
     open();
@@ -442,7 +394,6 @@ describe("finishing the client form", () => {
     expect(await screen.findByLabelText("Название проекта")).toBeInTheDocument();
   });
 
-  // Going back is always allowed: nothing is being carried forward.
   it("allows a jump backwards without asking", async () => {
     const u = user();
     open();
@@ -453,8 +404,6 @@ describe("finishing the client form", () => {
     expect(await screen.findByLabelText("Имя")).toHaveValue("Иван");
   });
 
-  // A rule between the fields and what acts on them, so the buttons read as the
-  // end of the form rather than another field in it.
   it("separates the footer with a horizontal rule", () => {
     open();
 
@@ -463,8 +412,6 @@ describe("finishing the client form", () => {
     expect(footer.className).toContain("border-t");
   });
 
-  // The stepper's indicator says which step this is, so nothing repeats it in
-  // words: one circle per step, the current one marked.
   it("shows how many steps there are and which one this is", async () => {
     const u = user();
     open();
@@ -476,7 +423,6 @@ describe("finishing the client form", () => {
 
     await firstStep(u);
 
-    // On the last step the forward button becomes the action itself.
     expect(screen.getByRole("button", { name: "Создать" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Назад" })).toBeInTheDocument();
   });

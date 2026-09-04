@@ -23,7 +23,6 @@ describe("ProjectList", () => {
       mock.get("/api/projects", () => HttpResponse.json([aProject({ name: "Летний запуск" })])),
     );
     setup();
-    // Each row names the project and the company it is for.
     expect(await screen.findByText("Летний запуск")).toBeInTheDocument();
     expect(screen.getByText("Acme")).toBeInTheDocument();
   });
@@ -144,7 +143,6 @@ describe("ProjectList", () => {
 
     const edit = await screen.findByRole("button", { name: "Редактировать: Летний запуск" });
     const label = screen.getByText("Летний запуск");
-    // DOCUMENT_POSITION_FOLLOWING: the control comes after the label in the row.
     expect(label.compareDocumentPosition(edit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
@@ -154,8 +152,6 @@ describe("ProjectList", () => {
       mock.get("/api/projects", () =>
         HttpResponse.json([aProject({ id: "p1", name: "Летний запуск" })])),
     );
-    // Exactly how ProjectsPage mounts it: a sibling of the routes, so useParams
-    // never saw :projectId here. The selection store does.
     setup("/projects/p1/campaigns/c1");
 
     await screen.findByText("Летний запуск");
@@ -174,7 +170,6 @@ describe("ProjectList", () => {
     const row = await screen.findByText("Летний запуск");
     await userEvent.click(row);
 
-    // Still the same element: no navigation, so no remount of the list.
     expect(screen.getByText("Летний запуск")).toBe(row);
   });
 

@@ -56,8 +56,6 @@ describe("what a client is offered", () => {
     expect(await screen.findByText("Поменяйте баннер")).toBeInTheDocument();
   });
 
-  // A client raises a request and then leaves it alone: the API refuses an edit,
-  // so offering the form that makes one would only produce a 403.
   it("opens a task read-only rather than in the edit form", async () => {
     const user = userEvent.setup();
     asClient();
@@ -78,7 +76,6 @@ describe("what a client is offered", () => {
     expect(await screen.findByRole("button", { name: "Новая задача" })).toBeInTheDocument();
   });
 
-  // The agency edits its own work as before.
   it("opens the edit form for the agency", async () => {
     const user = userEvent.setup();
     renderWithProviders(<TasksPage />, { route: "/tasks" });

@@ -18,14 +18,12 @@ export interface WithPerformance<T> {
   readonly performance: Performance;
 }
 
-/** One channel's share of the agency, for the source panel. */
 export interface ChannelView {
   readonly channel: Channel;
   readonly campaigns: number;
   readonly performance: Performance;
 }
 
-/** What identifies a campaign, with none of what it measured. */
 export interface CampaignReference {
   readonly id: string;
   readonly name: string;
@@ -39,11 +37,6 @@ export type AdView = Ad & WithPerformance<Ad>;
 const NOT_FOUND = "Campaign not found";
 
 export function createCampaignUseCases(dependencies: CampaignDependencies) {
-  /**
-   * Read is a matrix question like any other, asked before the range is even
-   * validated: a role that may not look at campaigns learns nothing about the
-   * shape of the request it sent.
-   */
   const assertCanRead = (actor: ActorContext) => {
     if (!can(actor, "read", "campaign")) {
       throw new AppError("forbidden", "Your role may not read a campaign");
@@ -56,8 +49,6 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
     }
   };
 
-  /** Reach first, then the lookup: a refusal must never confirm that a
-   * campaign the caller cannot see exists. */
   const reachCampaign = async (actor: ActorContext, id: string): Promise<Campaign> => {
     const campaign = await dependencies.campaigns.findReachable(actor, id);
     if (!campaign) throw new AppError("not-found", NOT_FOUND);
@@ -67,8 +58,6 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
     return campaign;
   };
 
-  /** An ad set is reachable exactly when its campaign is — reach is inherited
-   * downward, never granted at a level of its own. */
   const reachAdSet = async (actor: ActorContext, id: string): Promise<AdSet> => {
     const adSet = await dependencies.adSets.findById(id);
     if (!adSet) throw new AppError("not-found", NOT_FOUND);
@@ -102,13 +91,6 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
       })));
     },
 
-    /**
-     * A project's campaigns as references, for choosing one.
-     *
-     * Deliberately not the listing above with the figures dropped: computing
-     * every campaign's sums to render a picker would read what nobody looks at,
-     * and would make the list depend on a period the chooser never named.
-     */
     listCampaignReferences: async (
       actor: ActorContext, projectId: string,
     ): Promise<CampaignReference[]> => {
@@ -146,8 +128,6 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
       })));
     },
 
-    /** The measured days themselves, for the chart. Not summed: the shape over
-     * time is the whole point of it. */
     dailySeries: async (actor: ActorContext, campaignId: string, range: DateRange) => {
       assertCanRead(actor);
       assertRange(range);
@@ -155,8 +135,6 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
       return dependencies.metrics.readCampaignRange(campaignId, range.from, range.to);
     },
 
-    /** A project measures nothing itself, so its shape over time is its
-     * campaigns' days added up per date. */
     projectDailySeries: async (
       actor: ActorContext, projectId: string, range: DateRange,
     ): Promise<MeasuredDay[]> => {
@@ -171,10 +149,6 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
       return sumByDay(days.flat());
     },
 
-    /**
-     * A project is the sum of its campaigns. It measures nothing itself — the
-     * platforms have no opinion about our groupings.
-     */
     projectSummary: async (
       actor: ActorContext, projectId: string, range: DateRange,
     ): Promise<Performance> => {
@@ -189,12 +163,6 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
       return performanceOf(days.flat());
     },
 
-    /**
-     * The agency split by channel, biggest spend first.
-     *
-     * Only channels the member actually reaches a campaign on: an empty row for
-     * every platform we support would suggest we run there and got nothing.
-     */
     channelSummary: async (actor: ActorContext, range: DateRange): Promise<ChannelView[]> => {
       assertCanRead(actor);
       assertRange(range);
@@ -215,8 +183,6 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
         .sort((a, b) => b.performance.spend - a.performance.spend);
     },
 
-    /** This member's view of the agency, not the agency's total: a project they
-     * hold no grant over contributes nothing. */
     agencySummary: async (actor: ActorContext, range: DateRange): Promise<Performance> => {
       assertCanRead(actor);
       assertRange(range);

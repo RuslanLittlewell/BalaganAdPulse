@@ -1,5 +1,3 @@
-/** The application's top-level modules. One place, so a renamed path cannot be
- * half-renamed across the navigation, the pages and the redirects. */
 export const ROUTES = {
   dashboard: "/",
   projects: "/projects",

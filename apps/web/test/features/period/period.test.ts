@@ -1,7 +1,5 @@
 import { PERIODS, periodLabel, rangeOf } from "@/features/period/index.js";
 
-// "Today" is a parameter rather than the clock, so a period means the same
-// thing in a test in August as in a test run any other day.
 const TODAY = "2026-08-17";
 
 describe("rangeOf", () => {
@@ -17,8 +15,6 @@ describe("rangeOf", () => {
     expect(rangeOf("90d", TODAY)).toEqual({ from: "2026-05-20", to: "2026-08-17" });
   });
 
-  // The month so far, not the whole month: the days after today have no
-  // figures, and a range that includes them makes the period look worse.
   it("runs this month from its first day to today", () => {
     expect(rangeOf("month", TODAY)).toEqual({ from: "2026-08-01", to: "2026-08-17" });
   });

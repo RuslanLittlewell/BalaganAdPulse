@@ -10,61 +10,34 @@ import { ApiError } from "@/shared/lib/index.js";
 export interface TaskDescriptionEditorProps {
   value: unknown | null;
   onChange: (value: unknown) => void;
-  /**
-   * False renders the description without accepting any input.
-   *
-   * The same component rather than a second renderer: a separate one would have
-   * to re-implement the image node, and the two would drift the first time
-   * either changed — showing up as a description that reads differently
-   * depending on which dialog opened it.
-   */
   editable?: boolean;
 }
 
 export interface TaskDescriptionEditorHandle {
-  /** Drops every reference to one image from the text. */
   removeImage(imageId: string): void;
 }
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ACCEPTED = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 
-/**
- * The description, with images pasted or dropped straight into it.
- *
- * An image is uploaded as it lands and the document keeps only its id — the
- * bytes never travel inside a task payload. Rendering fetches them with the
- * member's token and shows them from an object URL, because an `<img src>`
- * pointing at the API would carry no credentials.
- */
 export const TaskDescriptionEditor = forwardRef<
   TaskDescriptionEditorHandle,
   TaskDescriptionEditorProps
 >(function TaskDescriptionEditor({ value, onChange, editable = true }, ref) {
   const [status, setStatus] = useState<string | null>(null);
-  // Captured on the first render and never updated. Rebuilding the editor when
-  // the value changes would tear down the DOM node holding the caret — which is
-  // exactly what made the first keystroke lose focus, since it is the keystroke
-  // that turns an empty description into a document.
   const [initialContent] = useState(value);
 
-  // The editor reads these through a ref rather than through the closure it was
-  // built with, so the instance never has to be rebuilt to see a new one.
   const report = useRef(onChange);
   report.current = onChange;
 
   const editor = useEditor({
     extensions: [StarterKit, TaskImage],
     editable,
-    // Read once, at mount. The dialog mounts a fresh editor per task, so this
-    // is always the description being opened.
     content: (initialContent as never) ?? "",
     onUpdate: ({ editor: instance }) => report.current(instance.getJSON()),
     editorProps: {
       attributes: {
         "aria-label": t("tasks.form.description"),
-        // Grows with the text, then scrolls: past this a long description
-        // pushes the dialog's own buttons out of reach.
         class: "min-h-32 max-h-[400px] overflow-y-auto p-3 outline-none",
       },
       handlePaste: (_view, event) =>
@@ -72,12 +45,6 @@ export const TaskDescriptionEditor = forwardRef<
     },
   });
 
-  /**
-   * A command rather than a prop, because the editor is uncontrolled: it reads
-   * its content once so that the first keystroke cannot rebuild it and steal
-   * focus. Deleting an attachment therefore has to be pushed in, or the link
-   * stays on screen and saving writes the dead reference straight back.
-   */
   useImperativeHandle(ref, () => ({
     removeImage(imageId: string) {
       if (!editor) return;
@@ -88,7 +55,6 @@ export const TaskDescriptionEditor = forwardRef<
       });
       if (positions.length === 0) return;
       const transaction = editor.state.tr;
-      // Back to front: deleting shifts every position after it.
       for (const pos of positions.reverse()) {
         transaction.delete(transaction.mapping.map(pos), transaction.mapping.map(pos + 1));
       }
@@ -98,8 +64,6 @@ export const TaskDescriptionEditor = forwardRef<
 
   function insertFrom(files: FileList | undefined | null): boolean {
     const file = files?.[0];
-    // Not an image: let ProseMirror handle it as it normally would, which is
-    // what keeps pasted text pasting as text.
     if (!file || !file.type.startsWith("image/")) return false;
 
     void upload(file);
@@ -113,8 +77,6 @@ export const TaskDescriptionEditor = forwardRef<
     setStatus(t("tasks.editor.uploading"));
     try {
       const image = await taskImagesApi.upload(file);
-      // Only the id goes into the document; the node view fetches the bytes,
-      // now and on every later open.
       editor?.chain().focus()
         .insertContent({ type: "taskImage", attrs: { imageId: image.id } })
         .run();
@@ -124,11 +86,7 @@ export const TaskDescriptionEditor = forwardRef<
     }
   }
 
-  /** Drop is handled here rather than through ProseMirror: the editor's own
-   * hook needs a resolved drop position, and a file dropped anywhere on the
-   * editor should land in the description wherever the cursor happens to be. */
   function handleDrop(event: React.DragEvent<HTMLDivElement>) {
-    // Nothing dropped here could be saved, so nothing is uploaded.
     if (!editable) return;
     if (!event.dataTransfer?.files?.length) return;
     event.preventDefault();

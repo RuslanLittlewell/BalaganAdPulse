@@ -33,17 +33,13 @@ import {
 } from "@/entities/project/index.js";
 import { Can } from "@/features/permissions/index.js";
 
-/** Marks a picture the user supplied, as opposed to one the avatar editor made. */
 const UPLOADED = JSON.stringify({ source: "upload" });
 
 export interface ProjectFormDialogProps {
   project?: Project;
-  /** Preselected when the form is opened from inside a client's context. */
   clientId?: string;
   onClose: () => void;
   onSaved?: (project: Project) => void;
-  /** Deletion lives here rather than beside the project's own heading: it is
-   *  the one place that already means "change this project". */
   onDeleted?: () => void;
 }
 
@@ -61,7 +57,6 @@ function toInput(fields: Fields): ProjectInput {
     clientId: fields.clientId,
     name: fields.name.trim(),
     niche: fields.niche.trim() || null,
-    // A lone "." passes the keystroke filter but is not a number.
     monthlyBudget:
       fields.monthlyBudget.trim() && Number.isFinite(budget) ? budget : null,
     budgetCurrency: fields.budgetCurrency,
@@ -109,8 +104,6 @@ export function ProjectFormDialog({
         ? await update.mutateAsync({ id: project.id, body: toInput(fields) })
         : await create.mutateAsync(toInput(fields));
 
-      // The logo can only be stored once the project has an id, so it follows
-      // the save rather than travelling with it.
       const withLogo = logo
         ? await saveAvatar.mutateAsync({
             id: saved.id,
@@ -207,8 +200,6 @@ export function ProjectFormDialog({
                 />
               )}
             />
-            {/* Beside the amount, because the two are one decision: a number
-                with no currency beside it means four different things. */}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="project-currency">{t("project.currency.label")}</Label>
               <Controller

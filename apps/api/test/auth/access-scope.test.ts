@@ -10,8 +10,6 @@ const app = createApp();
 beforeEach(async () => { await resetDb(); });
 afterAll(async () => { await prisma.$disconnect(); });
 
-/** A client with two projects, entered by somebody else entirely, so nothing a
- * test reaches can be explained by having created it. */
 async function someoneElsesClient(name = "Acme") {
   const author = await signInAs(`${name} Author`, { role: "MANAGER" });
   const { clientId, projectId } = await seedProject(author.user.id, name);
@@ -181,11 +179,6 @@ describe("reach carries down the hierarchy", () => {
   });
 });
 
-/**
- * The principal reaches exactly what an ordinary customer reaches: one client.
- * What it adds is authority over that client's own people, and nothing about
- * reading widens with it.
- */
 describe("a client's principal reaches one client", () => {
   it("reaches its own client's projects and campaigns", async () => {
     const { clientId, projectId } = await someoneElsesClient();

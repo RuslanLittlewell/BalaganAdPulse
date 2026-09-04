@@ -24,9 +24,6 @@ describe("stored audit summaries", () => {
     expect(event.summary).toBe('Created client “Acme”');
   });
 
-  // The summary is a sentence written when the event happened, not a view
-  // rebuilt from today's rows. Renaming the thing afterwards must not rewrite
-  // what the trail says was done.
   it("keeps the name an event was written with after the entity is renamed", async () => {
     const client = await request(app).post("/api/clients").set(auth).send({ name: "Acme" });
     const created = await prisma.auditEvent.findFirstOrThrow({

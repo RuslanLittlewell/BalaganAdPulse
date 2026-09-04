@@ -9,7 +9,6 @@ describe("Sparkline", () => {
     expect(chart.querySelector("path")).not.toBeNull();
   });
 
-  // Nothing measured is not a flat line at zero — it is no picture at all.
   it("draws nothing for an empty series", () => {
     render(<Sparkline values={[]} label="Расход по дням" />);
 

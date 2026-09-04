@@ -65,12 +65,6 @@ export function AvatarEditorDialog({ open, initial, onClose, onSave }: Props) {
         <DialogHeader>
           <DialogTitle>{t("avatar.title")}</DialogTitle>
         </DialogHeader>
-        {/* The submit is stopped here as well as handled.
-            Radix renders this through a portal, but React events travel the
-            React tree rather than the DOM one — so without this, saving an
-            avatar also submits whatever form the dialog happens to be rendered
-            inside, which stepped a registration forward as if Далее had been
-            pressed. A dialog's form belongs to the dialog wherever it is used. */}
         <form
           className={"grid gap-6 md:grid-cols-[220px_1fr]"}
           onSubmit={(event) => {

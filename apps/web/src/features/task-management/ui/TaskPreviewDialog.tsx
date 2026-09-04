@@ -21,7 +21,6 @@ export interface TaskPreviewDialogProps {
   onClose: () => void;
 }
 
-/** The same four levels the card uses, so a task looks the same wherever it is read. */
 const PRIORITY_TONE: Record<Task["priority"], string> = {
   LOW: "bg-muted text-muted-foreground",
   MEDIUM: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200",
@@ -40,13 +39,6 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/**
- * A task, read rather than managed.
- *
- * Opened from the project and campaign screens, which are for reading figures.
- * It carries no control that writes: the board is where work is changed, and
- * duplicating the form here would duplicate its permissions with it.
- */
 export function TaskPreviewDialog({ task, onClose }: TaskPreviewDialogProps) {
   const { data: projects } = useProjects();
   const { data: members } = useMembers();
@@ -79,8 +71,6 @@ export function TaskPreviewDialog({ task, onClose }: TaskPreviewDialogProps) {
               {project ? <ProjectAvatar project={project} size="sm" /> : null}
               <span className="truncate">{project?.name ?? t("tasks.noProject")}</span>
             </Fact>
-            {/* Named even when there is none: "the project as a whole" is what
-                the task says, not something it failed to say. */}
             <Fact label={t("tasks.form.campaign")}>
               <span className="truncate">{campaign?.name ?? t("tasks.form.wholeProject")}</span>
             </Fact>

@@ -43,8 +43,6 @@ export class PrismaTaskImageRepository implements TaskImageRepository {
     return rows.map(toDomain);
   }
 
-  /** Only unattached images, and only the uploader's own: a description cannot
-   * adopt somebody else's upload, nor steal one already claimed by a task. */
   async claim(
     context: TransactionContext,
     taskId: string,
@@ -58,8 +56,6 @@ export class PrismaTaskImageRepository implements TaskImageRepository {
         data: { taskId },
       });
     }
-    // Read inside the transaction: the claim above is not visible to a query
-    // running outside it.
     const attached = await client.taskImage.findMany({
       where: { taskId }, select: { id: true }, orderBy: { createdAt: "asc" },
     });

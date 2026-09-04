@@ -44,8 +44,6 @@ function fixture(seed: MemberRecord[] = [], grantable: Record<string, string[]> 
           value.role === "ADMIN" && value.status === "ACTIVE").length,
     },
     access: {
-      // Answers which of the asked-for clients exist in the organization, and
-      // which projects each one holds.
       projectsByClient: async (orgId, clientIds) =>
         new Map(clientIds.filter((id) => id in grantable).map((id) => [id, grantable[id]])),
       replace: async (_tx, membershipId, next) => {
@@ -155,12 +153,6 @@ describe("removing a member", () => {
     await expect(useCases.remove(manager, "m1")).rejects.toMatchObject({ category: "forbidden" });
   });
 
-  /**
-   * Independent of the last-admin rule: even with other admins standing, an
-   * administrator removing themselves loses the organization in one click with
-   * nothing to undo it. Compared against the actor context, which is resolved
-   * fresh on every request, rather than against anything the caller sent.
-   */
   it("refuses an admin removing their own membership", async () => {
     const { useCases, members } = fixture([
       member({ id: admin.membershipId, role: "ADMIN" }),

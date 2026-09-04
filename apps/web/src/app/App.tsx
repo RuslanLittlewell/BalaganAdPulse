@@ -17,8 +17,6 @@ import { t } from "@/shared/config/index.js";
 
 const queryClient = createQueryClient();
 
-/** The shell and its navigation belong to the signed-in half of the
- * application; the auth screens stand on their own. */
 function Dashboard() {
   return (
     <RequireAuth>
@@ -31,11 +29,7 @@ function Dashboard() {
             <Route path={ROUTES.tasks} element={<TasksPage />} />
             <Route path={ROUTES.reports} element={<ModulePage title={t("nav.reports")} />} />
             <Route path={ROUTES.archive} element={<ModulePage title={t("nav.archive")} />} />
-            {/* The client screens moved under Projects; old links still land. */}
             <Route path="/clients/*" element={<Navigate to={ROUTES.projects} replace />} />
-            {/* The Team section is gone — members are read in the contact book.
-                A bookmark for it lands on the dashboard rather than on the
-                shell with an empty pane. */}
             <Route path="/team" element={<Navigate to={ROUTES.dashboard} replace />} />
           </Routes>
         </AppShell>
@@ -51,11 +45,7 @@ export function App() {
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
-            {/* Getting in is by invitation link alone. The screen that asked
-                for a hand-typed code knew only the employee's shape, so a
-                client's code could not be redeemed through it at all. */}
             <Route path="/signup" element={<Navigate to="/login" replace />} />
-            {/* Whoever follows an invitation link has no session yet. */}
             <Route path="/regustration/:code" element={<RegistrationPage />} />
             <Route path="/*" element={<Dashboard />} />
           </Routes>

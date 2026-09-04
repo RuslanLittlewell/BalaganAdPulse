@@ -80,8 +80,6 @@ describe("LoginPage", () => {
     expect(readTokens()).toEqual({});
   });
 
-  // Getting in is by invitation link alone: an invitation decides which of the
-  // three forms a visitor is shown, and no screen asks them to type a code.
   it("offers no way to create an account", () => {
     renderPage();
 
@@ -90,12 +88,6 @@ describe("LoginPage", () => {
   });
 
   it("accepts an email padded with a non-breaking space and sends it trimmed", async () => {
-    // A leading/trailing ASCII space is already stripped by the browser's
-    // built-in sanitization for type="email" inputs before React ever sees
-    // it, which is why this test cannot use a plain space to prove the
-    // component trims: it would pass even without the fix. A non-breaking
-    // space is not "ASCII whitespace" by that sanitization algorithm, so it
-    // survives to the component — exactly the gap `.trim()` must close.
     let sentEmail: string | undefined;
     server.use(http.post("/api/auth/login", async ({ request }) => {
       const body = (await request.json()) as { email: string };

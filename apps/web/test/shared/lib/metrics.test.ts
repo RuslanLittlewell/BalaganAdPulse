@@ -9,10 +9,7 @@ import {
   linePath,
 } from "@/shared/lib/metrics.js";
 
-/** Figures group with a non-breaking space and never wrap away from their
- * unit, so the expectations spell it out rather than hiding it in a literal. */
 const NBSP = "\u00A0";
-
 
 describe("formatting measured figures", () => {
   it("renders money with the rouble sign and no kopecks", () => {
@@ -20,13 +17,10 @@ describe("formatting measured figures", () => {
     expect(formatCurrency(0)).toBe(`0${NBSP}₽`);
   });
 
-  // A media buyer reads spend to the rouble; kopecks are noise at this scale.
   it("rounds money to whole roubles", () => {
     expect(formatCurrency(1284.6)).toBe(`1${NBSP}285${NBSP}₽`);
   });
 
-  // The rouble sign was a default nobody chose — it was the only currency at the
-  // time. A budget is stated in the currency the agency and the client agreed.
   it("renders money in the currency it is given", () => {
     expect(formatCurrency(1000, "BYN")).toBe(`1${NBSP}000${NBSP}Br`);
     expect(formatCurrency(1000, "USD")).toBe(`1${NBSP}000${NBSP}$`);
@@ -65,8 +59,6 @@ describe("formatting measured figures", () => {
   });
 });
 
-// A ratio with no divisor is absent, not zero: nothing was measured, so
-// rendering "0" would claim a result the platforms never reported.
 describe("an absent figure", () => {
   it("renders a dash for every formatter", () => {
     expect(formatCurrency(null)).toBe("—");
@@ -94,8 +86,6 @@ describe("chart paths", () => {
     expect(areaPath([0, 10], box)).toBe("M0,40 L100,0 L100,40 L0,40 Z");
   });
 
-  // Every value equal has no range to scale by; drawing it at the bottom would
-  // read as "nothing happened" when the figure was steady and high.
   it("draws a flat series through the middle", () => {
     expect(linePath([7, 7, 7], box)).toBe("M0,20 L50,20 L100,20");
   });

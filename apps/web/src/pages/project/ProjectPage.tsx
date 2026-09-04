@@ -34,7 +34,6 @@ function CampaignTablePlaceholder() {
   );
 }
 
-/** One project: what it spent over the period, and the campaigns it spent it on. */
 export function ProjectPage() {
   const projectId = useActiveProjectId();
   const navigate = useNavigate();
@@ -45,13 +44,8 @@ export function ProjectPage() {
   const campaigns = useProjectCampaigns(projectId, range);
   const [activityFilters, setActivityFilters] = useState<AuditEventFilters | null>(null);
   const [reading, setReading] = useState<Task | null>(null);
-  // Held back until the address has been read: an unscoped listing here
-  // would fetch every task in the organization.
   const tasks = useTasks({ projectId, enabled: projectId != null });
 
-  /* Filtered here rather than asked for: this is the listing the board already
-     fetches, so reusing it costs a cache hit, and a stage parameter would split
-     one answer into two that differ by a predicate the client can apply. */
   const inFlight = (tasks.data ?? [])
     .filter((task) => ACTIVE_TASK_COLUMNS.includes(task.column));
 

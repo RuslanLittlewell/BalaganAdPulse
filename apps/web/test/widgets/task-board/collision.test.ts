@@ -1,7 +1,6 @@
 import type { CollisionDetection } from "@dnd-kit/core";
 import { boardCollisionDetection } from "@/widgets/task-board/collision.js";
 
-/** A rect in dnd-kit's shape. */
 function rect(left: number, top: number, width = 320, height = 600) {
   return { width, height, top, left, right: left + width, bottom: top + height };
 }
@@ -17,7 +16,6 @@ function argsAt(x: number, y: number): Parameters<CollisionDetection>[0] {
   ];
   return {
     active: { id: "card", data: { current: {} }, rect: { current: { initial: null, translated: null } } },
-    // The card itself is still mostly over IDEA — only the cursor has crossed.
     collisionRect: rect(x - 150, y - 40, 300, 120),
     droppableRects,
     droppableContainers: containers,
@@ -27,7 +25,6 @@ function argsAt(x: number, y: number): Parameters<CollisionDetection>[0] {
 
 describe("what the board considers the drop target", () => {
   it("follows the cursor, so a card lands as soon as the pointer crosses over", () => {
-    // Cursor just inside DONE; the card's own rect still overlaps IDEA more.
     const collisions = boardCollisionDetection(argsAt(360, 100));
     expect(collisions[0]?.id).toBe("DONE");
   });
@@ -37,7 +34,6 @@ describe("what the board considers the drop target", () => {
   });
 
   it("falls back to the nearest column when the cursor is outside every one", () => {
-    // Dragged off the bottom of the board — still has to land somewhere.
     const collisions = boardCollisionDetection(argsAt(160, 900));
     expect(collisions[0]?.id).toBe("IDEA");
   });

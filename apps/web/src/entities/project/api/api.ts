@@ -1,10 +1,8 @@
 import { http } from "@/shared/lib/index.js";
 import { CURRENCY_SIGNS, type Currency } from "@/shared/lib/index.js";
 
-/** The four a budget can be stated in, in the order the select offers them. */
 export const CURRENCIES = Object.keys(CURRENCY_SIGNS) as Currency[];
 
-/** What a new project's budget is stated in until somebody says otherwise. */
 export const DEFAULT_CURRENCY: Currency = "BYN";
 import type { ProjectPriority } from "../model/priority.js";
 
@@ -13,13 +11,9 @@ export interface Project {
   clientId: string;
   name: string;
   niche: string | null;
-  /** A decimal string, so a budget never loses precision on the way here. */
   monthlyBudget: string | null;
-  /** What the budget is stated in. Present even when the amount is not. */
   budgetCurrency: Currency;
-  /** How much attention it needs. A new project starts at "NEW". */
   priority: ProjectPriority;
-  /** The logo itself, as a `data:` URL — or null when none is set. */
   image: string | null;
   avatarPath: string | null;
   position: number;

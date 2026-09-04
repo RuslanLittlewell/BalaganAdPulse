@@ -11,7 +11,6 @@ import {
 import { CONTACT_FIELDS, toValues, type ContactValues } from "./fields.js";
 
 export interface ContactFormProps {
-  /** Absent when a new contact is being created. */
   client?: Client;
   onDone: (client: Client) => void;
   onCancel: () => void;
@@ -20,8 +19,6 @@ export interface ContactFormProps {
 function toInput(values: ContactValues): ClientInput {
   const input: ClientInput = { name: values.name.trim() };
   for (const field of CONTACT_FIELDS) {
-    // An emptied field is sent as null so the server clears it. "" would be
-    // stored as an empty string, which is a different answer from "unknown".
     const value = values[field.key].trim();
     input[field.key] = value || null;
   }
@@ -100,8 +97,6 @@ export function ContactForm({ client, onDone, onCancel }: ContactFormProps) {
           )}
         />
       ))}
-      {/* Same rule as a dialog footer: this form is a pane rather than a
-          modal, so it does not get one for free. */}
       <div className="flex items-center justify-end gap-2 border-t border-border pt-4 sm:col-span-2">
         <Button type="button" variant="outline" onClick={onCancel}>
           {t("action.cancel")}

@@ -34,8 +34,6 @@ describe("ProjectsPage", () => {
     expect(await screen.findByRole("button", { name: /Новый проект/ })).toBeInTheDocument();
   });
 
-  // Nothing is selected yet — which is not the same as nothing existing. The
-  // list beside it may well be full.
   it("asks for a choice before one is made", async () => {
     setup();
     expect(await screen.findByText("Проект не выбран")).toBeInTheDocument();
@@ -52,8 +50,6 @@ describe("ProjectsPage", () => {
     expect(centred.className).toContain("justify-center");
   });
 
-  // The centring belongs to the empty route alone: a screen sharing this pane
-  // would be squeezed to its content width by it.
   it("leaves a selected project filling the pane", async () => {
     setup("/projects/p1");
     await screen.findByRole("heading", { name: "Летний запуск" });

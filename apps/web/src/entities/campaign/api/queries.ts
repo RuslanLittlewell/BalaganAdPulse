@@ -1,8 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { campaignsApi, type DateRange } from "./api.js";
 
-/** The range is part of the key, not just the request: two ranges are two
- * different answers and must never share a cache entry. */
 const keyed = (parts: readonly unknown[], range: DateRange) =>
   [...parts, { from: range.from, to: range.to }] as const;
 
@@ -14,8 +12,6 @@ export function useProjectCampaigns(projectId: string | undefined, range: DateRa
   });
 }
 
-/** The campaigns of one project, for choosing between them. No range: the
- * choice is about which campaign exists, not about what it spent. */
 export function useCampaignReferences(projectId: string | undefined) {
   return useQuery({
     queryKey: ["projects", projectId, "campaigns", "names"],

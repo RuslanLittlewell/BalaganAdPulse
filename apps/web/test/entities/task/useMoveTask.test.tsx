@@ -18,13 +18,6 @@ function setup() {
   return { wrapper, result };
 }
 
-/**
- * The same, with the board query mounted.
- *
- * Without a mounted `useTasks` an invalidation is silent — React Query only
- * refetches queries something is observing — so a test for "does not refetch"
- * would pass against code that refetches on every drop.
- */
 function setupWithBoard() {
   const wrapper = hookWrapper();
   wrapper.client.setQueryData(["tasks", null], board);
@@ -39,9 +32,6 @@ const read = (wrapper: ReturnType<typeof hookWrapper>) =>
   wrapper.client.getQueryData<Task[]>(["tasks", null]) ?? [];
 
 describe("useMoveTask", () => {
-  /** The card must be in its new column in the very render that follows the
-   * drop. If the cache is written a tick later, the board shows the card back
-   * where it started for a frame — which reads as the card flying home. */
   it("moves the card in the cache before it awaits anything", async () => {
     server.use(mock.post("/api/tasks/a/move", async () => {
       await delay(50);
@@ -51,7 +41,6 @@ describe("useMoveTask", () => {
 
     act(() => { result.current.mutate({ id: "a", body: { column: "DONE", position: 0 } }); });
 
-    // No await between the drop and this read: the board renders now.
     const moved = read(wrapper).find((t) => t.id === "a");
     expect(moved).toMatchObject({ column: "DONE", position: 0 });
   });
@@ -80,9 +69,6 @@ describe("useMoveTask", () => {
 });
 
 describe("useMoveTask does not poll the board", () => {
-  // The whole point of the socket. The mover already has the result — from the
-  // optimistic write and then from the response — and a refetch per drop costs
-  // one request per person dragging, exactly when the board is busiest.
   it("does not refetch the task list after a move succeeds", async () => {
     let lists = 0;
     server.use(
@@ -90,20 +76,16 @@ describe("useMoveTask does not poll the board", () => {
       mock.post("/api/tasks/a/move", () => HttpResponse.json(task("a", "DONE", 0))),
     );
     const { result } = setupWithBoard();
-    // The board's own first load is not what this is about; count from after it.
     await waitFor(() => expect(result.current.board.isSuccess).toBe(true));
     lists = 0;
 
     act(() => { result.current.move.mutate({ id: "a", body: { column: "DONE", position: 0 } }); });
     await waitFor(() => expect(result.current.move.isSuccess).toBe(true));
-    // Long enough for an invalidation to have turned into a request.
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 30)); });
 
     expect(lists).toBe(0);
   });
 
-  // Removing the refetch removes the correction it used to provide, so the
-  // response has to land in the cache instead of being discarded.
   it("writes the server's own row into the cache", async () => {
     server.use(mock.post("/api/tasks/a/move", () =>
       HttpResponse.json({ ...task("a", "DONE", 0), title: "Renamed by the server" })));
@@ -117,8 +99,6 @@ describe("useMoveTask does not poll the board", () => {
     });
   });
 
-  // A refused move must still put the card back, which was previously masked
-  // by the refetch that followed.
   it("still rolls back a refused move without refetching", async () => {
     let lists = 0;
     server.use(

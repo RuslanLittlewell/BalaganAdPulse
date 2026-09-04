@@ -71,7 +71,6 @@ describe("TaskPreviewDialog", () => {
     expect(await screen.findByText("Без описания")).toBeInTheDocument();
   });
 
-  // This is a place to read. The board is where work is managed.
   it("carries no control that changes the task", async () => {
     open(aTask({
       projectId: "project-1", assigneeId: "member-1",
@@ -97,8 +96,6 @@ describe("TaskPreviewDialog", () => {
       { route: "/projects" },
     );
 
-    // The dialog's own X closes it too, so this names the footer's button
-    // rather than whichever of the two the query happens to find first.
     const footer = (await screen.findByRole("dialog")).querySelector("[data-slot='dialog-footer']");
     await user.click(within(footer as HTMLElement).getByRole("button", { name: "Закрыть" }));
 

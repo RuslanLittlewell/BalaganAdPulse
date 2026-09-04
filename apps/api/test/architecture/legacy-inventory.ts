@@ -4,14 +4,6 @@ export type TargetArea =
 
 export type LegacyLayer = "composition" | "presentation" | "infrastructure" | "mixed";
 
-/**
- * The migration is finished: every source file now lives under `modules/`,
- * `shared/` or `composition/`, so there is nothing left to allow.
- *
- * This stays as an empty list rather than being deleted, because the test that
- * reads it is what keeps it empty — a file reintroduced outside those three
- * roots fails the build instead of quietly re-establishing a legacy slice.
- */
 const sourcesByTarget = {
   identity: [], invites: [], members: [], clients: [], projects: [],
   campaigns: [], records: [], audit: [], shared: [], composition: [],
@@ -28,5 +20,4 @@ export const LEGACY_SOURCE_INVENTORY = Object.entries(sourcesByTarget).flatMap(
   ([target, paths]) => paths.map((path) => ({ path, currentLayer: classifyLayer(path), target: target as TargetArea })),
 );
 
-/** This allow-list may only shrink as modules migrate. It is now empty. */
 export const LEGACY_ALLOW_LIST = new Set(LEGACY_SOURCE_INVENTORY.map(({ path }) => path));

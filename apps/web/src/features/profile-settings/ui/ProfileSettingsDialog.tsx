@@ -51,8 +51,6 @@ export function ProfileSettingsDialog({ open, onClose, onAvatarSaved }: Props) {
     try {
       await updateProfile({
         name,
-        // Cleared rather than left alone when emptied: this is where a person
-        // keeps their own details, so removing one has to mean removing it.
         phone: phone.trim() || null,
         telegram: telegram.trim() || null,
         ...(newPassword ? { currentPassword, newPassword } : {}),

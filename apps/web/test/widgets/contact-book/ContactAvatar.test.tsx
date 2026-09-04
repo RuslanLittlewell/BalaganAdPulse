@@ -52,7 +52,6 @@ describe("ContactAvatar", () => {
     await userEvent.click(await screen.findByRole("menuitem", { name: "Создать аватар" }));
 
     expect(await screen.findByRole("dialog", { name: "Редактор аватара" })).toBeInTheDocument();
-    // The same 13 controls the profile editor shows — one component, two callers.
     expect(screen.getAllByRole("combobox")).toHaveLength(13);
   });
 

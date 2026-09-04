@@ -12,8 +12,6 @@ const app = createApp();
 beforeEach(async () => { await resetDb(); });
 afterAll(async () => { await prisma.$disconnect(); });
 
-/** A structurally valid, correctly signed token whose lifetime has already
- * passed — the one rejection path the plan's own test list forgot. */
 async function expiredTokenFor(user: { id: string; name: string; email: string }): Promise<string> {
   const nowInSeconds = Math.floor(Date.now() / 1000);
   return new SignJWT({ name: user.name, email: user.email })

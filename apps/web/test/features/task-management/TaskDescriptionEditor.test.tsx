@@ -14,8 +14,6 @@ function imageFile(type = "image/png", size = PNG_BYTES.length) {
   return file;
 }
 
-/** ProseMirror's paste and drop handlers live on its own contenteditable node,
- * not on the wrapper that carries the test id. */
 async function editorSurface(): Promise<Element> {
   const wrapper = await screen.findByTestId("task-description-editor");
   return await waitFor(() => {
@@ -32,7 +30,6 @@ function setup() {
   );
 }
 
-/** jsdom builds no clipboard payloads of its own, so the event carries one. */
 function pasteFiles(target: Element, files: File[]) {
   const event = new Event("paste", { bubbles: true, cancelable: true });
   Object.defineProperty(event, "clipboardData", {
@@ -84,7 +81,6 @@ describe("TaskDescriptionEditor", () => {
     }));
     setup();
 
-    // Dropped on the editor as a whole, which is where the handler lives.
     dropFiles(await screen.findByTestId("task-description-editor"), [imageFile()]);
     await waitFor(() => expect(uploaded).toBe(true));
   });
@@ -140,14 +136,7 @@ describe("TaskDescriptionEditor", () => {
   });
 });
 
-
 describe("the editor's identity across renders", () => {
-  /**
-   * The reported bug: the first keystroke turned the value from null into a
-   * document, and the editor was rebuilt whenever `value === null` changed. The
-   * contenteditable element holding the caret was replaced mid-keystroke, so
-   * the field lost focus on exactly the first character and never again.
-   */
   it("keeps the same editable element when the value stops being empty", async () => {
     const { rerender } = render(
       <TaskDescriptionEditor value={null} onChange={() => {}} />,
@@ -190,7 +179,6 @@ describe("the editor's identity across renders", () => {
   });
 });
 
-
 const withImages = (...imageIds: string[]) => ({
   type: "doc",
   content: [
@@ -205,11 +193,6 @@ describe("images in the description", () => {
       HttpResponse.arrayBuffer(new ArrayBuffer(8), { headers: { "Content-Type": "image/png" } })));
   });
 
-  /**
-   * The picture itself belongs in the attachments block; the description keeps
-   * a reference to it. A description full of inline images is unreadable at the
-   * size a task dialog gives it, and the same bytes end up drawn twice.
-   */
   it("shows each image as a numbered attachment link, not as a picture", async () => {
     renderWithProviders(
       <TaskDescriptionEditor value={withImages("image-1", "image-2")} onChange={() => {}} />,
@@ -270,12 +253,9 @@ describe("images in the description", () => {
       { route: "/tasks" },
     );
 
-    // The link still names the attachment: the description must not lose the
-    // fact that something was attached because storage is unreachable.
     expect(await screen.findByRole("button", { name: "Вложение 1" })).toBeInTheDocument();
   });
 });
-
 
 describe("the attachment link sits in the text", () => {
   beforeEach(() => {
@@ -295,12 +275,6 @@ describe("the attachment link sits in the text", () => {
     }],
   };
 
-  /**
-   * jsdom computes no layout, so "does not break the line" is asserted
-   * structurally: the node lives inside the paragraph alongside the text, and
-   * its wrapper is a span. A block-level node could do neither — it would be
-   * lifted out of the paragraph by the schema.
-   */
   it("keeps the link inside the paragraph, between the words", async () => {
     renderWithProviders(
       <TaskDescriptionEditor value={inline} onChange={() => {}} />, { route: "/tasks" },
@@ -318,19 +292,11 @@ describe("the attachment link sits in the text", () => {
     expect(paragraph.querySelector("[data-task-image]")!.tagName).toBe("SPAN");
   });
 
-  /**
-   * The schema itself, because the document it produces cannot be observed
-   * here: ProseMirror reports changes from its own transactions, and jsdom's
-   * contenteditable does not drive them, so no amount of simulated typing
-   * makes the editor emit a document to inspect.
-   */
   it("declares the node inline, which is what keeps it in the paragraph", () => {
     expect(TaskImage.config.inline).toBe(true);
     expect(TaskImage.config.group).toBe("inline");
   });
 
-  // Descriptions saved before the node became inline hold it directly under the
-  // document, where an inline node is not valid. They must still open.
   it("opens a description saved with the image as a block", async () => {
     renderWithProviders(
       <TaskDescriptionEditor
@@ -356,8 +322,6 @@ describe("the description's height", () => {
   it("scrolls inside 400px instead of growing without limit", async () => {
     setup();
     const surface = await editorSurface();
-    // The editor grows with its content; past 400px it has to scroll, or a long
-    // description pushes the dialog's own buttons out of reach.
     expect(surface.className).toContain("max-h-[400px]");
     expect(surface.className).toContain("overflow-y-auto");
   });

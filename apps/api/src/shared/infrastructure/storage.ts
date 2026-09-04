@@ -21,9 +21,6 @@ export interface StoredObject {
   readonly contentType: string | undefined;
 }
 
-/** Stores bytes under their own content type. Task images may be JPEG, WebP or
- * GIF as well as PNG, so the type travels with the object rather than being
- * assumed by the reader. */
 export async function putObject(
   key: string,
   body: Buffer,
@@ -47,15 +44,11 @@ export async function getObject(key: string): Promise<StoredObject> {
   return { body: await object.Body.transformToByteArray(), contentType: object.ContentType };
 }
 
-/** Best effort, and deliberately so: an object the service will not delete is
- * rubbish that costs storage, not a failure the caller can act on. */
 export async function removeObjects(keys: readonly string[]): Promise<void> {
   await Promise.allSettled(keys.map((key) =>
     storage.send(new DeleteObjectCommand({ Bucket: config.storage.bucket, Key: key }))));
 }
 
-/** Avatars keep their own pair: one PNG per user or client, overwritten in
- * place, with the type fixed at the call site rather than carried. */
 export function putPng(key: string, body: Buffer): Promise<void> {
   return putObject(key, body, "image/png");
 }

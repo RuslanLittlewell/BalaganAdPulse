@@ -13,8 +13,6 @@ const body = {
   inviteCode: "invite-first",
 };
 
-// Two invitations, because an invitation is single use: the tests that register
-// a second time need a second one to reach the behaviour they are about.
 beforeEach(async () => {
   await resetDb();
   resetIdentityRateLimits();
@@ -41,9 +39,6 @@ describe("Auth API", () => {
     expect(res.body.error.message).toBe("Invalid invite code");
   });
 
-  /* The only way in is by invitation. There is no longer a screen that could
-     send a registration without a code, which makes this the rule's last line
-     rather than a second one behind the interface. */
   it("POST /api/auth/register with no code at all -> 400", async () => {
     const { inviteCode: _omitted, ...withoutCode } = body;
     const res = await request(app).post("/api/auth/register").send(withoutCode);
@@ -67,8 +62,6 @@ describe("Auth API", () => {
 
   it("POST /api/auth/register twice -> 409", async () => {
     await request(app).post("/api/auth/register").send(body);
-    // A fresh invitation, so this is the duplicate address being refused rather
-    // than the spent code.
     const res = await request(app).post("/api/auth/register")
       .send({ ...body, inviteCode: "invite-second" });
     expect(res.status).toBe(409);
@@ -167,7 +160,6 @@ describe("a person's own contact details", () => {
     expect(user).toMatchObject({ phone: "+375291112233", telegram: "@buyer" });
   });
 
-  // Not worth refusing an account over.
   it("creates the account without them", async () => {
     const res = await request(app).post("/api/auth/register").send(body);
 
@@ -188,7 +180,6 @@ describe("a person's own contact details", () => {
     expect(profile.body).toMatchObject({ phone: "+375299998877", telegram: "@newhandle" });
   });
 
-  // An update that mentions neither must not wipe what the person gave.
   it("leaves them alone when the update does not mention them", async () => {
     const registered = await request(app).post("/api/auth/register")
       .send({ ...body, phone: "+375291112233" });
@@ -200,8 +191,6 @@ describe("a person's own contact details", () => {
     expect(profile.body.phone).toBe("+375291112233");
   });
 
-  // They belong to the person, not to the directory: the member endpoint that
-  // an admin uses changes a role and a status, and nothing personal.
   it("is not something an admin can change on somebody else", async () => {
     const registered = await request(app).post("/api/auth/register")
       .send({ ...body, phone: "+375291112233" });

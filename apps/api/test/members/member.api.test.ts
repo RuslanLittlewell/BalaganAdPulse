@@ -82,8 +82,6 @@ describe("PATCH /api/members/:id (validation and reach)", () => {
     expect(res.status).toBe(404);
   });
 
-  /** The point of resolving the actor per request: a demotion has to bite on
-   * the member's very next call. */
   it("takes effect on the demoted member's next request", async () => {
     const manager = await signInAs("Manager", { role: "MANAGER" });
     expect((await request(app).post("/api/clients").set(manager.auth).send({ name: "Mine" })).status).toBe(201);
@@ -203,8 +201,6 @@ describe("DELETE /api/members/:id", () => {
     expect(await prisma.membership.findUnique({ where: { id: membership!.id } })).toBeNull();
   });
 
-  // Even with another admin standing, so this is not the last-admin rule: an
-  // administrator who removes themselves loses the organization in one click.
   it("refuses an admin removing their own membership (409)", async () => {
     const self = await signInAs("Owner", { role: "ADMIN" });
     await signInAs("Second", { role: "ADMIN" });
@@ -265,12 +261,6 @@ describe("DELETE /api/members/:id", () => {
   });
 });
 
-/**
- * A customer holds a membership like anybody else, but they are not staff. The
- * agency's people are its admins, managers and guests; a client belongs in the
- * contact book's other half, and never in a list of who can be made responsible
- * for the agency's work.
- */
 describe("GET /api/members?kind=staff", () => {
   it("leaves customers out", async () => {
     await signInAs("Менеджер", { role: "MANAGER" });
@@ -298,13 +288,6 @@ describe("GET /api/members?kind=staff", () => {
   });
 });
 
-/**
- * "Staff" means the agency's own people, so it excludes every customer role —
- * stated as the exclusion it is, rather than by listing the three roles that
- * qualify. A customer role added later is excluded by default, which is the
- * direction that fails safely: silently appearing among the employees is the
- * bug this follows.
- */
 describe("staff excludes every customer role", () => {
   it("leaves out a client's principal as well as its people", async () => {
     await signInAs("Менеджер", { role: "MANAGER" });
@@ -320,11 +303,6 @@ describe("staff excludes every customer role", () => {
   });
 });
 
-/**
- * A client's own people, listed under the client they belong to. The agency
- * reaches every client; a customer reaches its own and is told a stranger's
- * does not exist rather than that it is forbidden.
- */
 describe("GET /api/members?clientId=", () => {
   async function clientWithPeople() {
     const client = await prisma.client.create({
@@ -386,11 +364,6 @@ describe("GET /api/members?clientId=", () => {
   });
 });
 
-/**
- * How to reach a person, listed beside them. Optional: an account is not worth
- * refusing over a missing phone number, and one that has none reads as having
- * none rather than as having a blank.
- */
 describe("a person's contact details", () => {
   it("carries a phone and a telegram through the directory", async () => {
     const member = await signInAs("Пётр", { role: "MANAGER" });

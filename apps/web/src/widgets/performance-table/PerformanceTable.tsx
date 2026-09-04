@@ -20,34 +20,19 @@ import { t } from "@/shared/config/index.js";
 export interface PerformanceRow {
   id: string;
   name: string;
-  /** What the row is, under its name: a channel, an audience, a format. */
   note?: string;
   badge?: ReactNode;
-  /** Optional period result marker drawn around the row name. */
   tone?: PerformanceTone;
   performance: Performance;
-  /** The level below, revealed by expanding the row. May arrive after the row
-   * is expanded — see `expandable`. */
   children?: PerformanceRow[];
-  /**
-   * Whether the row has a level beneath it, when that is known before the rows
-   * themselves are. Without it a row whose children are still loading would
-   * offer no way to ask for them.
-   */
   expandable?: boolean;
 }
 
 export interface PerformanceTableProps {
-  /** What the first column holds — "Кампания", "Группа", "Проект". */
   heading: string;
   rows: PerformanceRow[];
-  /** The summed range, handed in whole. Never added up from the rows on screen:
-   * a ratio cannot be summed, and a range's ROAS is not the average of its
-   * campaigns'. */
   totals?: Performance;
   onOpen?: (id: string) => void;
-  /** Which rows are open now. The table keeps the state; this reports it, so a
-   * caller can load a level only once someone has asked to see it. */
   onExpandedChange?: (ids: ReadonlySet<string>) => void;
   empty?: string;
 }
@@ -67,8 +52,6 @@ function Figures({ performance }: { performance: Performance }) {
   );
 }
 
-/** The name cell: a button when the row leads somewhere, plain text otherwise.
- * A row that looks clickable and is not is worse than one that never offered. */
 function Name({
   row,
   depth,
@@ -170,8 +153,6 @@ export function PerformanceTable({
   }
 
   const renderRow = (row: PerformanceRow, depth: number): ReactNode => {
-    // Expanding wins over opening: a row with a level beneath it is a way in to
-    // that level, and the screen for it is one click further.
     const expandable = row.expandable ?? row.children != null;
     const activate = expandable
       ? () => toggle(row.id)

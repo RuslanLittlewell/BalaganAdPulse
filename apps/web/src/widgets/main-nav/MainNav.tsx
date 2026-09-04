@@ -25,9 +25,6 @@ interface Module {
   label: string;
   icon: LucideIcon;
   end?: boolean;
-  /** Left out for a customer, who is in here to see their own work rather than
-   * how the agency runs. The screens themselves are narrowed by reach; this
-   * only stops offering the ones that would be empty for them. */
   agencyOnly?: boolean;
 }
 
@@ -39,17 +36,8 @@ const MODULES: Module[] = [
   { to: ROUTES.archive, label: t("nav.archive"), icon: ArchiveIcon, agencyOnly: true },
 ];
 
-/**
- * One module. Collapsed, the label lives only in the accessible name, so the
- * tooltip is what gives it back to the eye; expanded, the label is right there
- * and a tooltip would only repeat it.
- */
 function ModuleLink({ module, collapsed }: { module: Module; collapsed: boolean }) {
   const { to, label, icon: Icon, end } = module;
-  /* Active is computed here rather than through NavLink's `className` callback:
-   * a tooltip trigger clones its child and merges `className` as a string, so a
-   * function would be stringified into the attribute and every class lost.
-   * `aria-current` still comes from NavLink itself. */
   const isActive = useMatch({ path: to, end: end ?? false }) != null;
   const link = (
     <NavLink

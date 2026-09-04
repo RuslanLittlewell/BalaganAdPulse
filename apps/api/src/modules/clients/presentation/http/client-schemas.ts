@@ -1,8 +1,5 @@
 import { z } from "zod";
 
-/** Free-form contact text. Deliberately unconstrained beyond being a string:
- * a UNP is nine digits in Belarus but a foreign client has something else, and
- * phone and Telegram handles are written a dozen different ways. */
 const contact = z.string().nullable().optional();
 
 export const createClientSchema = z.object({

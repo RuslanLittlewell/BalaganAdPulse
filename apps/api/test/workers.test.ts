@@ -1,4 +1,3 @@
-// apps/api/test/workers.test.ts
 import { describe, it, expect } from "vitest";
 import {
   TEST_RUN_ID_ENV,
@@ -59,11 +58,6 @@ describe("databaseUrlForWorker", () => {
   });
 
   it("throws without a base url", () => {
-    // An empty string, not `undefined`: `undefined` would trigger the
-    // parameter's own default (`process.env.DATABASE_URL`), which test/setup.ts
-    // always sets before this test body runs, so that spelling could never
-    // observe the "no base url" branch inside this suite. An empty string is
-    // still falsy but bypasses the default, reaching that branch directly.
     expect(() => databaseUrlForWorker(1, "abc123", "")).toThrow(/DATABASE_URL/);
   });
 });

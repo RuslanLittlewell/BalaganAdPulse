@@ -61,7 +61,6 @@ describe("ContactBook", () => {
     const dialog = await open([acme]);
     expect(await within(dialog).findByRole("link", { name: "ivan@acme.by" }))
       .toHaveAttribute("href", "mailto:ivan@acme.by");
-    // A bare handle, a bare domain and a spaced phone number all become links.
     expect(within(dialog).getByRole("link", { name: "@acme" }))
       .toHaveAttribute("href", "https://t.me/acme");
     expect(within(dialog).getByRole("link", { name: "acme.by" }))
@@ -150,8 +149,6 @@ describe("ContactBook editing", () => {
 
   it("creates a contact and shows it", async () => {
     await open();
-    // Registered after open(), whose own handler would otherwise win: MSW
-    // resolves with the most recently added match.
     server.use(
       http.post("/api/clients", async ({ request }) => {
         const body = (await request.json()) as Record<string, unknown>;
@@ -197,7 +194,6 @@ describe("ContactBook editing", () => {
   });
 });
 
-
 const employeeInvite = {
   id: "invite-1", code: "ABCDEFGH", registrationType: "EMPLOYEE", role: "MANAGER",
   projectIds: ["project-1"], email: null, expiresAt: null, revokedAt: null, usedAt: null,
@@ -237,16 +233,6 @@ describe("choosing which directory to show", () => {
     expect(screen.queryByRole("button", { name: /Мария/ })).not.toBeInTheDocument();
   });
 
-  /**
-   * What a colleague can actually reach is the thing an admin needs when
-   * somebody says they cannot see a client, and it was the one thing the screen
-   * did not say.
-   */
-  /**
-   * Nobody opens a directory to find themselves, and their own row is the one
-   * whose grants an admin should not change in passing while reading everybody
-   * else's.
-   */
   describe("who the employee directory lists", () => {
     const asMe = (userId: string) => server.use(http.get("/api/auth/me", () =>
       HttpResponse.json({
@@ -312,8 +298,6 @@ describe("choosing which directory to show", () => {
       expect(await screen.findByTestId("employee-access")).toHaveTextContent("Летний запуск");
     });
 
-    // A grant naming a client and no project covers every project of it, and is
-    // decided where clients are — not from a screen about one project.
     it("shows a client-wide grant as covering the client, with nothing to remove", async () => {
       const user = userEvent.setup();
       withDirectory();
@@ -345,7 +329,6 @@ describe("choosing which directory to show", () => {
 
       const access = await screen.findByTestId("employee-access");
       expect(access).toHaveTextContent("Летний запуск");
-      // The project's own picture, the way every other screen shows one.
       expect(within(access).getByRole("img", { name: "Летний запуск" })).toBeInTheDocument();
     });
 
@@ -385,8 +368,6 @@ describe("choosing which directory to show", () => {
 
       await openEmployee(user);
       await user.click(await screen.findByRole("button", { name: "Убрать Летний запуск" }));
-      // Asked before it acts: the rows are otherwise identical, a misplaced
-      // click is easy, and its result is invisible until somebody complains.
       await user.click(await screen.findByRole("button", { name: "Убрать проект" }));
 
       await waitFor(() => expect(body).not.toBeNull());
@@ -441,11 +422,6 @@ describe("choosing which directory to show", () => {
     });
   });
 
-  /**
-   * Outstanding invitations sat under the directory, competing with the person
-   * being read. They belong beside the control that makes one — which is when
-   * somebody wants to know what is already out there.
-   */
   describe("where outstanding invitations are listed", () => {
     it("shows none under either directory", async () => {
       const user = userEvent.setup();
@@ -489,8 +465,6 @@ describe("choosing which directory to show", () => {
     await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
     await user.click(await screen.findByRole("button", { name: /Мария/ }));
 
-    // The same shape the client pane uses: rows separated by a rule, each with
-    // an uppercase label beside its value.
     const details = await screen.findByTestId("employee-details");
     expect(details.className).toContain("divide-y");
     expect(within(details).getByText("Почта").className).toContain("uppercase");
@@ -523,16 +497,9 @@ describe("choosing which directory to show", () => {
     await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
 
     expect(await screen.findByRole("button", { name: /Мария/ })).toBeInTheDocument();
-    // The client list is the other pane's content, not a filter over the same one.
     expect(screen.queryByRole("button", { name: /Acme/ })).not.toBeInTheDocument();
   });
 
-  /**
-   * A customer's contact book is their own company's people, straight away —
-   * not the agency's client directory narrowed to one entry. The contact card,
-   * the client-invitation list and the control that invites a whole new company
-   * are the agency's, and none of them mean anything on this side.
-   */
   describe("what a customer's contact book is", () => {
     const asPrincipal = (role = "CLIENT_ADMIN") => server.use(
       http.get("/api/auth/me", () => HttpResponse.json({
@@ -547,7 +514,6 @@ describe("choosing which directory to show", () => {
       ])),
     );
 
-    // The list is read when somebody needs to reach somebody.
     it("shows how to reach each of them", async () => {
       withDirectory();
       server.use(
@@ -571,7 +537,6 @@ describe("choosing which directory to show", () => {
       expect(within(row).getByText("+375291112233")).toBeInTheDocument();
       expect(within(row).getByText("@ivan")).toBeInTheDocument();
 
-      // A missing one reads as absent rather than as a gap in the layout.
       const without = screen.getByTestId("company-person-m-2");
       expect(within(without).getAllByText("—")).toHaveLength(2);
     });
@@ -595,9 +560,6 @@ describe("choosing which directory to show", () => {
       expect(screen.queryByRole("button", { name: /Acme/ })).toBeNull();
     });
 
-    // The same dialog the agency uses, rather than a button that dumps a raw
-    // link into the page: it names what is being made, can be cancelled, and
-    // shows the link with the control that copies it.
     it("invites through the ordinary dialog", async () => {
       const user = userEvent.setup();
       withDirectory();
@@ -620,7 +582,6 @@ describe("choosing which directory to show", () => {
 
       await waitFor(() => expect(body).not.toBeNull());
       expect(body).toMatchObject({ registrationType: "CLIENT_STAFF", clientId: "1" });
-      // The dialog shows the whole link, built from the current origin.
       expect(await screen.findByText(/\/regustration\/NEWCODE1$/)).toBeInTheDocument();
     });
 
@@ -644,8 +605,6 @@ describe("choosing which directory to show", () => {
       expect(screen.queryByRole("button", { name: "Пригласить клиента" })).toBeNull();
     });
 
-      // A name and a surname have to fit without being cut: the list was a fifth
-    // of the dialog, which is enough for one word.
     it("gives the client list room for a full name", async () => {
       withDirectory();
       renderWithProviders(<ContactBook open onClose={() => {}} />);
@@ -664,11 +623,6 @@ describe("choosing which directory to show", () => {
     });
   });
 
-  /**
-   * The employees pane is the agency's own staff. A customer is not shown it —
-   * not as an empty list, and not as an error from an endpoint their role
-   * cannot read.
-   */
   it("offers a customer no employees pane", async () => {
     withDirectory();
     server.use(http.get("/api/auth/me", () => HttpResponse.json({
@@ -690,15 +644,8 @@ describe("choosing which directory to show", () => {
     expect(await screen.findByRole("tab", { name: "Сотрудники" })).toBeInTheDocument();
   });
 
-  /**
-   * The admin's client card is the company's contact details and nothing else.
-   * Its people were shown here beside a button that dumped a raw link, which
-   * duplicated the invitation section right below it.
-   */
   it("carries no people block on the client card", async () => {
     withDirectory();
-    /* A name that cannot be confused with the client's own contact fields —
-       the fixture's fullName is a person's name too. */
     server.use(http.get("/api/members", () => HttpResponse.json([
       { ...member, id: "m-1", name: "Совсем Другой", role: "CLIENT_ADMIN" },
     ])));
@@ -711,29 +658,9 @@ describe("choosing which directory to show", () => {
     expect(screen.queryByText("Совсем Другой")).toBeNull();
   });
 
-
-
-  /**
-   * Adding somebody to a client is the client's own job, and the agency's too.
-   * An ordinary customer administers nobody, so the control is not there for
-   * them — the API refuses it either way, and offering a button that answers
-   * 403 teaches the rule by making somebody press it.
-   */
-
-  // On the agency's side the same control follows the same rule: whoever may
-  // not issue an invitation is not offered one.
-
-
-  /**
-   * A customer holds a membership like anybody else, but they are not staff:
-   * the agency's people are its admins, managers and guests. A customer belongs
-   * in the other pane, as the client they are.
-   */
   it("shows no customer among the employees", async () => {
     const user = userEvent.setup();
     withDirectory();
-    // Whatever the server is asked, it answers with a customer among them —
-    // so the pane cannot pass by luck of what the fixture happened to return.
     server.use(http.get("/api/members", ({ request }) => {
       const staffOnly = new URL(request.url).searchParams.get("kind") === "staff";
       return HttpResponse.json(staffOnly ? [member] : [member, {
@@ -773,9 +700,6 @@ describe("inviting from the contact book", () => {
 
     await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
 
-    // The whole address, built from wherever the app is being served: the
-    // backend deliberately returns a relative path so it needs no host
-    // configuration, and this is where it becomes something pasteable.
     expect(await screen.findByText(`${window.location.origin}/regustration/ABCDEFGH`))
       .toBeInTheDocument();
   });
@@ -803,8 +727,6 @@ describe("inviting from the contact book", () => {
     });
   });
 
-  // The API refuses this too; saying so here saves a round trip and explains
-  // why the button did nothing.
   it("refuses an employee invitation with no project chosen", async () => {
     const user = userEvent.setup();
     let posted = false;
@@ -867,8 +789,6 @@ describe("inviting from the contact book", () => {
   it("offers the whole registration link to copy, not just the code", async () => {
     const user = userEvent.setup();
     const written: string[] = [];
-    // navigator.clipboard is getter-only in jsdom, so it has to be redefined
-    // rather than assigned.
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: { writeText: (text: string) => { written.push(text); return Promise.resolve(); } },
@@ -885,7 +805,6 @@ describe("inviting from the contact book", () => {
   });
 });
 
-
 describe("the employee pane's details", () => {
   const openEmployees = async () => {
     const user = userEvent.setup();
@@ -897,17 +816,12 @@ describe("the employee pane's details", () => {
     return user;
   };
 
-  // It read "Активен / Активен": the status value was being used as its own
-  // label. The row said nothing the value did not.
   it("does not repeat the status as its own label", async () => {
     await openEmployees();
     const details = screen.getByTestId("employee-details");
     expect(within(details).queryAllByText("Активен")).toHaveLength(0);
   });
 
-  // Label and value sit in one row rather than stacked. They are separate
-  // elements, so the row's text is asserted in both halves rather than as one
-  // string that a change of spacing would break.
   it.each([
     ["fullName", "Полное имя", "Мария"],
     ["email", "Почта", "maria@acme.by"],
@@ -927,13 +841,9 @@ describe("the employee pane's details", () => {
 
     const project = screen.getByTestId("invite-project-project-1");
     expect(within(project).getByRole("checkbox", { name: "Летний запуск" })).toBeInTheDocument();
-    // The logo travels inside the project, so the row can draw it directly.
     expect(within(project).getByRole("img", { name: "Летний запуск" })).toBeInTheDocument();
   });
 
-  // Opened over the contact book rather than crowding the pane: the form has a
-  // role, a project list and its own validation, and the pane behind it is
-  // still the list of who is already here.
   it("opens the invitation form in a dialog of its own, on top", async () => {
     const user = await openEmployees();
 
@@ -941,10 +851,6 @@ describe("the employee pane's details", () => {
 
     expect(await screen.findByRole("dialog", { name: "Пригласить сотрудника" }))
       .toBeInTheDocument();
-    // The contact book stays mounted underneath rather than being replaced.
-    // It is not asserted by role: while a nested modal is open the outer one is
-    // marked aria-hidden and leaves the accessibility tree, which is the
-    // behaviour that makes the inner dialog the only thing reachable.
     expect(screen.getByTestId("contact-book-footer")).toBeInTheDocument();
   });
 
@@ -984,7 +890,6 @@ describe("the employee pane's details", () => {
   });
 });
 
-
 describe("the invitation form's second step", () => {
   const openForm = async () => {
     const user = userEvent.setup();
@@ -998,11 +903,6 @@ describe("the invitation form's second step", () => {
     return { user, form };
   };
 
-  /**
-   * The link is the whole point of creating an invitation, and it exists only
-   * once the server has answered. Closing on success would leave the person who
-   * asked for it hunting through the list to find what they just made.
-   */
   it("shows the link instead of closing once the invitation is created", async () => {
     const { user, form } = await openForm();
 
@@ -1011,14 +911,11 @@ describe("the invitation form's second step", () => {
 
     const link = `${window.location.origin}/regustration/ABCDEFGH`;
     expect(await within(form).findByText(link)).toBeInTheDocument();
-    // The form it was filled in on is gone: this step is about the result.
     expect(within(form).queryByRole("checkbox", { name: "Летний запуск" })).not.toBeInTheDocument();
   });
 
   it("copies the whole link from that step", async () => {
     const { user, form } = await openForm();
-    // After userEvent.setup(), which installs a clipboard stub of its own and
-    // would otherwise replace this one.
     const written: string[] = [];
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
@@ -1046,7 +943,6 @@ describe("the invitation form's second step", () => {
 
     await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
     const reopened = await screen.findByRole("dialog", { name: "Пригласить сотрудника" });
-    // Back to the form, with nothing carried over from the last one.
     expect(await within(reopened).findByRole("checkbox", { name: "Летний запуск" }))
       .not.toBeChecked();
   });

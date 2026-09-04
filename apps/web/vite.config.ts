@@ -31,15 +31,11 @@ export default defineConfig({
     host: true,
     port: 5173,
     proxy: {
-      // Native dev talks to the API on localhost; inside Compose it is http://api:3000.
       "/api": {
         target: process.env.API_PROXY_TARGET ?? "http://localhost:3000",
-        // The board's live feed upgrades under /api; without this the proxy
-        // answers the upgrade itself and the socket never reaches the API.
         ws: true,
       },
     },
-    // Bind-mounted file events don't always propagate into containers on macOS.
     watch: process.env.CHOKIDAR_USEPOLLING === "true" ? { usePolling: true } : undefined,
   },
   test: {
@@ -47,7 +43,6 @@ export default defineConfig({
     globals: true,
     setupFiles: "./test/shared/setup.ts",
     css: true,
-    // UTC+9, no daylight saving, always differs from UTC — pins timezone-sensitive tests.
     env: { TZ: "Asia/Tokyo" },
   },
 });

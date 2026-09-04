@@ -13,7 +13,6 @@ export interface InvitationListProps {
   registrationType: RegistrationType;
 }
 
-/** The invitations of one registration type that somebody can still act on. */
 export function InvitationList({ registrationType }: InvitationListProps) {
   const invitations = useInvitations(registrationType);
   const revoke = useRevokeInvitation();
@@ -38,8 +37,6 @@ export function InvitationList({ registrationType }: InvitationListProps) {
                     key={invitation.id}
                     className="flex items-center gap-2 rounded-md border border-border p-2"
                   >
-                    {/* The whole address, not the bare code: it is what gets
-                        pasted into a message. */}
                     <code className="min-w-0 flex-1 break-all text-xs">{link}</code>
                     {invitation.role && (
                       <span className="shrink-0 text-xs text-muted-foreground">

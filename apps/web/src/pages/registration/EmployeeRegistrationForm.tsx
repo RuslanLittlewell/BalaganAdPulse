@@ -17,8 +17,6 @@ interface Values {
   telegram: string;
 }
 
-/** Name, email, password and its confirmation, plus a picture. The invitation
- * already decided the role and which projects it grants. */
 export function EmployeeRegistrationForm({ code }: { code: string }) {
   const { register: join, saveAvatar } = useAuth();
   const navigate = useNavigate();
@@ -40,13 +38,9 @@ export function EmployeeRegistrationForm({ code }: { code: string }) {
         email: values.email.trim(),
         password: values.password,
         inviteCode: code,
-        // Optional: an account is not worth refusing over a missing number.
         phone: optional(values.phone),
         telegram: optional(values.telegram),
       });
-      // After the account exists, because there was nobody to save it against
-      // before. A picture that fails to store must not undo a registration that
-      // succeeded, so it is saved separately and its failure is not fatal.
       await saveChosenAvatar(avatar, saveAvatar);
       navigate("/", { replace: true });
     } catch (error) {
@@ -89,9 +83,6 @@ export function EmployeeRegistrationForm({ code }: { code: string }) {
           minLength: { value: MIN_PASSWORD, message: t("auth.password.tooShort") },
         })}
       />
-      {/* Required as well as compared: two empty boxes are equal, so a check
-          that only compared them would let an account through with no password
-          at all. */}
       <TextField
         label={t("registration.password.confirm")}
         type="password"

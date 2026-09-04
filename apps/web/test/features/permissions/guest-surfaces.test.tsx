@@ -34,8 +34,6 @@ describe("guest controls", () => {
     expect(screen.queryByRole("button", { name: "+ Новый проект" })).not.toBeInTheDocument();
   });
 
-  // Figures are measurements, not entries: there is nothing to edit at any
-  // role. What matters for a guest is that they can read what they are granted.
   it("reads a project's figures without any control that writes", async () => {
     guestSession();
     const performance = {

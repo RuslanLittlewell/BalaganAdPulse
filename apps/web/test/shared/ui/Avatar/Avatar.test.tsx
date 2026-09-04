@@ -22,8 +22,6 @@ describe("Аватар", () => {
   });
 
   it("sizes the box itself, without handing shadcn a size to reinterpret", () => {
-    // shadcn's own `data-[size=…]` variants outrank a plain size class, so a
-    // stray data-size here would silently shrink lg from 56px back to 40.
     const { container } = render(<Avatar name="Acme" size="lg" />);
     const root = container.firstElementChild!;
 

@@ -11,5 +11,4 @@ export const createProjectSchema = z.object({
   priority: z.enum(PROJECT_PRIORITIES).optional(),
 });
 
-/** The client a project belongs to can be changed, but never unset. */
 export const updateProjectSchema = createProjectSchema.partial();

@@ -177,3 +177,67 @@ describe("endSession", () => {
     expect(listener).toHaveBeenCalledOnce();
   });
 });
+
+/**
+ * `endSession` used to skip its work when `hasSession()` was already false.
+ * That reads the very markers signing out removes: a successful sign-out clears
+ * the session cookie server-side, so on a browser whose localStorage had been
+ * cleared — Safari does this by itself after a week idle — the guard saw no
+ * session and returned before telling anyone. The listener that clears the
+ * screen and sends the visitor to the sign-in form never ran.
+ */
+describe("ending a session that has already lost its markers", () => {
+  it("still notifies when forced, with no marker left to find", () => {
+    let notified = 0;
+    const stop = onSessionExpired(() => { notified += 1; });
+
+    // What a successful sign-out leaves behind on a browser that had already
+    // lost its localStorage: the server expired the cookie in its own response,
+    // so by the time the teardown runs there is no marker left to find.
+    localStorage.clear();
+    document.cookie = "adpulse_session=; Max-Age=0; path=/";
+    expect(hasSession()).toBe(false);
+
+    endSession({ force: true });
+
+    expect(notified).toBe(1);
+    stop();
+  });
+
+  // Unforced is the reactive path: something else already ended this session.
+  it("stays quiet when unforced and no session is left", () => {
+    let notified = 0;
+    const stop = onSessionExpired(() => { notified += 1; });
+    localStorage.clear();
+
+    endSession();
+
+    expect(notified).toBe(0);
+    stop();
+  });
+
+  it("notifies once per session, not once per call", () => {
+    let notified = 0;
+    const stop = onSessionExpired(() => { notified += 1; });
+    writeTokens({ accessToken: "a", refreshToken: "r" });
+
+    endSession();
+    endSession();
+
+    expect(notified).toBe(1);
+    stop();
+  });
+
+  it("notifies again once a new session has begun", () => {
+    let notified = 0;
+    const stop = onSessionExpired(() => { notified += 1; });
+
+    writeTokens({ accessToken: "a", refreshToken: "r" });
+    endSession();
+    writeTokens({ accessToken: "b", refreshToken: "r2" });
+    endSession();
+
+    expect(notified).toBe(2);
+    stop();
+  });
+});

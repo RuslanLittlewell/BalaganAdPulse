@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { ApiError, isPartialDecimal, toSquarePng } from "@/shared/lib/index.js";
+import {
+  ApiError, CURRENCY_SIGNS, isPartialDecimal, toSquarePng, type Currency,
+} from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import {
   Button,
@@ -19,6 +21,7 @@ import {
   TextField,
 } from "@/shared/ui/index.js";
 import { useClients } from "@/entities/client/index.js";
+import { CURRENCIES, DEFAULT_CURRENCY } from "@/entities/project/index.js";
 import {
   ProjectAvatar,
   useCreateProject,
@@ -49,6 +52,7 @@ interface Fields {
   name: string;
   niche: string;
   monthlyBudget: string;
+  budgetCurrency: Currency;
 }
 
 function toInput(fields: Fields): ProjectInput {
@@ -60,6 +64,7 @@ function toInput(fields: Fields): ProjectInput {
     // A lone "." passes the keystroke filter but is not a number.
     monthlyBudget:
       fields.monthlyBudget.trim() && Number.isFinite(budget) ? budget : null,
+    budgetCurrency: fields.budgetCurrency,
   };
 }
 
@@ -93,6 +98,7 @@ export function ProjectFormDialog({
       name: project?.name ?? "",
       niche: project?.niche ?? "",
       monthlyBudget: project?.monthlyBudget ?? "",
+      budgetCurrency: project?.budgetCurrency ?? DEFAULT_CURRENCY,
     },
   });
 
@@ -201,6 +207,27 @@ export function ProjectFormDialog({
                 />
               )}
             />
+            {/* Beside the amount, because the two are one decision: a number
+                with no currency beside it means four different things. */}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="project-currency">{t("project.currency.label")}</Label>
+              <Controller
+                control={control}
+                name="budgetCurrency"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="project-currency"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {CURRENCIES.map((currency) => (
+                        <SelectItem key={currency} value={currency}>
+                          {currency} {CURRENCY_SIGNS[currency]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
           </div>
 
           <div className="grid gap-1">

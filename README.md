@@ -49,6 +49,15 @@ app on `http://localhost:5173`. The `api` container runs `prisma migrate deploy`
 startup, so the stack comes up fully migrated with no manual steps. Postgres data lives
 in the named volume `adpulse_pgdata` and survives container restarts.
 
+**After changing `schema.prisma`, restart the `api` container** — `docker compose restart
+api`. It regenerates the Prisma client and applies migrations on start, but a container
+that is already running keeps the client it generated last time. Running `prisma generate`
+on the host does not help: the container's `node_modules` is its own volume, so a client
+generated outside it is not the one it loads. The symptom is a 500 with
+`Unknown argument` naming the column you just added. The same is true of a newly installed
+dependency, which additionally needs `docker compose up -d --build --renew-anon-volumes`
+to reach the container at all.
+
 The seed command is a required first step for a fresh database: it creates the first
 administrator, who can then issue invitations. It is idempotent and is safe to run again.
 
@@ -411,8 +420,9 @@ In production, startup additionally rejects the `.env.example` placeholder and a
 
 ### Roles and membership
 
-A user is an identity; what they may do comes from their **membership** in the
-organization, which carries exactly one role — `ADMIN`, `MANAGER`, `GUEST` or `CLIENT`.
+A user is an identity — a name, an email, and optionally a phone and a Telegram handle
+they keep current themselves in profile settings. What they may do comes from their
+**membership** in the organization, which carries exactly one role — `ADMIN`, `MANAGER`, `GUEST` or `CLIENT`.
 The membership is read from the database on every request rather than sealed into the
 access token, so a suspension or a demotion takes effect on the very next call instead of
 when the token expires. A user with no membership, or a suspended one, is refused with
@@ -426,11 +436,70 @@ by the API and the web app so the interface cannot offer what the API refuses.
   operations.
 - `MANAGER` works only in granted clients/projects and may create and edit business data.
 - `GUEST` has read-only access to granted clients/projects.
-- `CLIENT` has read-only access to the client named by their grant.
+- `CLIENT` has read-only access to the client named by their grant, and may raise a task.
+- `CLIENT_ADMIN` is the principal on a customer's own company: it reaches exactly what a
+  `CLIENT` reaches, and additionally administers that company's people — invites them,
+  sees the invitations outstanding, revokes one, removes somebody who joined. It writes
+  nothing the agency owns.
+
+Which side a role is on is asked through `isCustomer` rather than compared by name, so a
+customer role added later is treated as one everywhere at once — in what it sees on the
+board, in what a task it raises is marked with, and in its exclusion from the agency's
+own staff listing.
 
 All four roles may read audit history, but the same grants constrain which events they see.
 
-The web app has no screen for member administration. The contact book's employee pane
+### Registration
+
+Registration is by invitation, and by nothing else: the invitation link is the only way
+in, and no screen asks anybody to type a code. The invitation carries its own type, and
+`GET /api/regustration/:code` answers it publicly — so `/regustration/:code` shows the
+form the code calls for, and nothing else about the agency. An unknown, revoked, used or
+expired code gives one answer for all four.
+
+An **employee** gives a name, an email, a password and its confirmation, plus an avatar to
+upload or generate. The invitation already decided their role and which projects it
+grants.
+
+Somebody **joining a company that already exists** fills the same fields and is asked
+nothing about a company: the invitation named it. They become an ordinary `CLIENT` of that
+client and reach its projects. Such an invitation is issued by either side — the client's
+own principal, for their own company alone, or an agency admin for any client. A principal
+naming somebody else's client is told it does not exist, so it cannot count the agency's
+other customers.
+
+A **client** fills two steps: their own account — the contact's fields, a password, an
+avatar — and then the first project they create, with its monthly budget in `BYN`, `RUB`,
+`USD` or `EUR`. A budget always carries the currency it is stated in; a project with no
+amount still has one, so entering an amount later is a one-field decision. What a campaign
+*spent* is a different figure and keeps its own formatting. The account, the client record, the
+project and the grant over it are written in one transaction: either all of it lands or
+none of it does and the link still works. Both steps stay mounted, so stepping back loses
+nothing.
+
+### What each role sees on the board
+
+Reach decides which projects a member may look at. Whose work it is decides what they see
+inside them, and can only narrow it further:
+
+- `ADMIN` — every task in the organization.
+- `MANAGER`, `GUEST` — only the tasks they are responsible for. A task nobody is
+  responsible for is on the admin's board alone, which is the point: a client's request
+  waits there until an admin reads it and hands it to somebody.
+- `CLIENT` — only the tasks marked as shown to them.
+
+A task raised by a client is marked shown to them when it is created; anything the agency
+raises is its own. **Only an admin changes that mark** — a manager may create, edit and
+complete a task, but what a customer is shown is one decision made in one place. The same
+rule filters the WebSocket, so an event never delivers what a listing would not.
+
+A customer's contact book is their own company's people — name, email, phone, Telegram
+and who among them is the principal. The agency's client card is the company's contact
+details alone. The employee directory is the agency's own staff, and a customer is not
+offered it at all. Both lists show how to reach somebody, with a dash where a detail was
+never given.
+
+The web app has no screen for agency member administration. The contact book's employee pane
 lists the organization's members with their name, email and role, read-only, and is where
 invitations are issued; changing a role, suspending a member or removing one is done
 through the member endpoints. The rules are unchanged and enforced server-side either
@@ -440,7 +509,7 @@ the last admin cannot be removed.
 ### Seeding the first admin
 
 Registration requires an invitation, and only an admin can issue one — so a brand-new
-database has to be seeded once before anybody can sign up:
+database has to be seeded once before anybody can get in at all:
 
 ```bash
 SEED_ADMIN_EMAIL=you@example.com SEED_ADMIN_PASSWORD=... npm run seed -w apps/api

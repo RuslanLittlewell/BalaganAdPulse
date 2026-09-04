@@ -5,7 +5,7 @@ import { aProject, aTask, renderWithProviders, server } from "@test/shared/index
 import { TaskPreviewDialog } from "@/features/task-management/index.js";
 
 const members = [
-  { id: "member-1", userId: "u1", name: "Пётр", email: "p@acme.com", image: null,
+  { id: "member-1", userId: "u1", name: "Пётр", email: "p@acme.com", image: null, phone: null, telegram: null,
     role: "MANAGER", status: "ACTIVE", createdAt: "2026-09-01T00:00:00.000Z" },
 ];
 

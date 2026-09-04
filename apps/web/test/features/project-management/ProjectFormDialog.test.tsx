@@ -132,3 +132,56 @@ describe("ProjectFormDialog", () => {
     expect(onClose).toHaveBeenCalled();
   });
 });
+
+/**
+ * A budget with no currency beside it means four different things depending on
+ * whose project it is, and nothing on screen said which.
+ */
+describe("the currency a budget is stated in", () => {
+  it("offers the four currencies", async () => {
+    const user = userEvent.setup();
+    setup();
+
+    await user.click(await screen.findByLabelText("Валюта"));
+
+    for (const sign of ["BYN", "RUB", "USD", "EUR"]) {
+      expect(await screen.findByRole("option", { name: new RegExp(sign) })).toBeInTheDocument();
+    }
+  });
+
+  it("starts on the agency's own currency", async () => {
+    setup();
+
+    expect(await screen.findByLabelText("Валюта")).toHaveTextContent("BYN");
+  });
+
+  it("sends the currency chosen", async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | null = null;
+    server.use(http.post("/api/projects", async ({ request }) => {
+      body = await request.json() as Record<string, unknown>;
+      return HttpResponse.json({ id: "p1" }, { status: 201 });
+    }));
+    setup(<ProjectFormDialog clientId="1" onClose={() => {}} />);
+
+    await user.type(await screen.findByLabelText("Название проекта"), "Стоматология");
+    await user.click(screen.getByLabelText("Валюта"));
+    await user.click(await screen.findByRole("option", { name: /USD/ }));
+    await user.type(screen.getByLabelText("Бюджет / мес."), "5000");
+    await user.click(screen.getByRole("button", { name: "Создать" }));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ monthlyBudget: 5000, budgetCurrency: "USD" });
+  });
+
+  it("opens an existing project on the currency it was stated in", async () => {
+    setup(
+      <ProjectFormDialog
+        project={aProject({ id: "p1", monthlyBudget: "300.00", budgetCurrency: "EUR" })}
+        onClose={() => {}}
+      />,
+    );
+
+    expect(await screen.findByLabelText("Валюта")).toHaveTextContent("EUR");
+  });
+});

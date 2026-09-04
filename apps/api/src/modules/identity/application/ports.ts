@@ -13,12 +13,18 @@ export interface UserRepository {
   findById(id: string): Promise<IdentityUser | null>;
   create(
     context: TransactionContext,
-    input: { name: string; email: string; passwordHash: string },
+    input: {
+      name: string; email: string; passwordHash: string;
+      phone?: string | null; telegram?: string | null;
+    },
   ): Promise<IdentityUser>;
   update(
     context: TransactionContext,
     id: string,
-    input: { name: string; passwordHash?: string },
+    input: {
+      name: string; passwordHash?: string;
+      phone?: string | null; telegram?: string | null;
+    },
   ): Promise<IdentityUser>;
   setAvatar(
     context: TransactionContext,
@@ -27,6 +33,13 @@ export interface UserRepository {
   ): Promise<void>;
 }
 
+/** What a client registration creates alongside the account. Opaque here: the
+ * invitations module owns the shape and decides when it is required. */
+export type ClientRegistration = {
+  readonly client: Record<string, unknown> & { readonly name: string };
+  readonly project: Record<string, unknown> & { readonly name: string };
+};
+
 export interface InvitationRedemption {
   redeem(
     context: TransactionContext,
@@ -34,6 +47,7 @@ export interface InvitationRedemption {
     email: string,
     userId: string,
     now: Date,
+    details?: ClientRegistration,
   ): Promise<void>;
 }
 

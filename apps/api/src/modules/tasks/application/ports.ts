@@ -25,6 +25,9 @@ export interface TaskRecord {
   /** The campaign this work is about. Null is a statement, not a gap: the task
    * is about the project as a whole. */
   readonly campaignId: string | null;
+  /** Whether the customer is shown this task. False for the agency's own work,
+   * which is what a task is unless a client raised it or an admin shared it. */
+  readonly visibleToClient: boolean;
   readonly position: number;
   /** The images this task's description claims, so the board can show that a
    * card has attachments without fetching any of them. */
@@ -44,6 +47,7 @@ export interface NewTask {
   readonly assigneeId: string | null;
   readonly createdById: string | null;
   readonly campaignId: string | null;
+  readonly visibleToClient: boolean;
   readonly position: number;
 }
 
@@ -54,6 +58,7 @@ export interface TaskChange {
   readonly priority?: TaskPriority;
   readonly assigneeId?: string | null;
   readonly campaignId?: string | null;
+  readonly visibleToClient?: boolean;
 }
 
 /** What narrows a listing. Every field is optional and every one narrows: none

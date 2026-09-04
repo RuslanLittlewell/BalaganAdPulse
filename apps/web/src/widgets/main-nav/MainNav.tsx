@@ -10,6 +10,7 @@ import {
 import { t } from "@/shared/config/index.js";
 import { ROUTES } from "@/shared/lib/index.js";
 import { useNavCollapse } from "@/features/nav-collapse/index.js";
+import { useAuth } from "@/features/auth/index.js";
 import {
   SectionLabel,
   Sidebar,
@@ -24,14 +25,18 @@ interface Module {
   label: string;
   icon: LucideIcon;
   end?: boolean;
+  /** Left out for a customer, who is in here to see their own work rather than
+   * how the agency runs. The screens themselves are narrowed by reach; this
+   * only stops offering the ones that would be empty for them. */
+  agencyOnly?: boolean;
 }
 
 const MODULES: Module[] = [
   { to: ROUTES.dashboard, label: t("nav.dashboard"), icon: LayoutDashboardIcon, end: true },
   { to: ROUTES.projects, label: t("nav.projects"), icon: FolderKanbanIcon },
   { to: ROUTES.tasks, label: t("nav.tasks"), icon: ListTodoIcon },
-  { to: ROUTES.reports, label: t("nav.reports"), icon: ChartColumnIcon },
-  { to: ROUTES.archive, label: t("nav.archive"), icon: ArchiveIcon },
+  { to: ROUTES.reports, label: t("nav.reports"), icon: ChartColumnIcon, agencyOnly: true },
+  { to: ROUTES.archive, label: t("nav.archive"), icon: ArchiveIcon, agencyOnly: true },
 ];
 
 /**
@@ -75,6 +80,7 @@ function ModuleLink({ module, collapsed }: { module: Module; collapsed: boolean 
 
 export function MainNav() {
   const { collapsed } = useNavCollapse();
+  const { role } = useAuth();
 
   return (
     <Sidebar
@@ -98,7 +104,7 @@ export function MainNav() {
           }
           aria-label={t("nav.sections")}
         >
-        {MODULES.map((module) => (
+        {MODULES.filter((module) => !module.agencyOnly || role !== "CLIENT").map((module) => (
           <ModuleLink key={module.to} module={module} collapsed={collapsed} />
         ))}
         </nav>

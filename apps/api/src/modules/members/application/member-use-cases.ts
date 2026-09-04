@@ -8,6 +8,7 @@ import type {
   AccessGrant,
   MemberDependencies,
   MemberManagementDependencies,
+  MemberKind,
   SessionDependencies,
 } from "./ports.js";
 
@@ -64,9 +65,24 @@ export function createMemberUseCases(
       return actor;
     },
 
-    list: async (actor: ActorContext) => {
+    list: async (actor: ActorContext, kind?: MemberKind) => {
       assertCan(actor, "read");
-      return dependencies.directory.listByOrg(actor.orgId);
+      return dependencies.directory.listByOrg(actor.orgId, kind);
+    },
+
+    /**
+     * A client's own people.
+     *
+     * Reach before the listing: an admin reaches every client, a principal only
+     * its own, and a client it does not reach is answered as missing rather than
+     * as forbidden — so it cannot count the agency's other customers.
+     */
+    listOfClient: async (actor: ActorContext, clientId: string) => {
+      assertCan(actor, "read");
+      if (!(await dependencies.clients.reachableClientIds(actor)).includes(clientId)) {
+        throw new AppError("not-found", "Client not found");
+      }
+      return dependencies.directory.listByClient(actor.orgId, clientId);
     },
 
     /** The picture behind a membership. Reach first, so a membership in
@@ -120,6 +136,19 @@ export function createMemberUseCases(
      * Validated before anything is written, so a rejected set leaves the
      * member's existing reach exactly as it was.
      */
+    /**
+     * What a membership reaches now.
+     *
+     * Reach before the read, as the write does: a membership in another
+     * organization is reported missing rather than refused, so an admin here
+     * learns nothing about who else exists.
+     */
+    accessOf: async (actor: ActorContext, id: string) => {
+      assertCan(actor, "update");
+      const member = await reachable(actor, id);
+      return dependencies.access.listFor(member.id);
+    },
+
     setAccess: async (actor: ActorContext, id: string, input: SetAccessInput) => {
       assertCan(actor, "update");
       const member = await reachable(actor, id);

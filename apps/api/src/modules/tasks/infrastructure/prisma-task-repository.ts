@@ -1,3 +1,4 @@
+import { isCustomer } from "@adpulse/access-policy";
 import { Prisma } from "@prisma/client";
 import type { PrismaClient, Task as TaskRow } from "@prisma/client";
 import type { ActorContext, TransactionContext } from "../../../shared/application/index.js";
@@ -20,7 +21,8 @@ function toDomain(row: RowWithImages): TaskRecord {
     id: row.id, projectId: row.projectId, orgId: row.orgId, title: row.title,
     description: row.description ?? null, column: row.column, priority: row.priority,
     assigneeId: row.assigneeId, createdById: row.createdById,
-    campaignId: row.campaignId, position: row.position,
+    campaignId: row.campaignId, visibleToClient: row.visibleToClient,
+    position: row.position,
     imageIds: (row.images ?? []).map((image) => image.id),
     createdAt: row.createdAt, updatedAt: row.updatedAt,
   };
@@ -45,6 +47,22 @@ function reachFilter(actor: ActorContext): Prisma.TaskWhereInput {
       ],
     },
   };
+}
+
+/**
+ * Whose work the actor sees, asked after reach has decided which projects they
+ * may look at. It only ever takes rows away from what reach allowed.
+ *
+ * An admin sees the organization's work. A customer — either role — sees what is
+ * marked as shown to them. A manager or guest sees the work they are responsible
+ * for and nothing else — including nothing that is nobody's yet,
+ * which is the point: a request waits on the admin's board until an admin makes
+ * somebody responsible for it. A customer sees the tasks marked as shown to them.
+ */
+function ownershipFilter(actor: ActorContext): Prisma.TaskWhereInput {
+  if (actor.role === "ADMIN") return {};
+  if (isCustomer(actor.role)) return { visibleToClient: true };
+  return { assigneeId: actor.membershipId };
 }
 
 /** The board reads column-major, in the order the columns are drawn. Postgres
@@ -79,7 +97,7 @@ export class PrismaTaskRepository implements TaskRepository {
 
   async findReachable(actor: ActorContext, id: string): Promise<TaskRecord | null> {
     const row = await this.prisma.task.findFirst({
-      where: { id, ...reachFilter(actor) }, include: WITH_IMAGES,
+      where: { id, ...reachFilter(actor), ...ownershipFilter(actor) }, include: WITH_IMAGES,
     });
     return row && toDomain(row);
   }
@@ -90,6 +108,7 @@ export class PrismaTaskRepository implements TaskRepository {
       // what the actor already reaches.
       where: {
         ...reachFilter(actor),
+        ...ownershipFilter(actor),
         ...(filter?.projectId ? { projectId: filter.projectId } : {}),
         ...(filter?.campaignId ? { campaignId: filter.campaignId } : {}),
       },
@@ -113,6 +132,9 @@ export class PrismaTaskRepository implements TaskRepository {
         ...(input.priority === undefined ? {} : { priority: input.priority }),
         ...(input.assigneeId === undefined ? {} : { assigneeId: input.assigneeId }),
         ...(input.campaignId === undefined ? {} : { campaignId: input.campaignId }),
+        ...(input.visibleToClient === undefined
+          ? {}
+          : { visibleToClient: input.visibleToClient }),
         ...(input.description === undefined
           ? {}
           : { description: input.description === null

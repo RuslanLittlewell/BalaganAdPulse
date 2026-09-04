@@ -18,11 +18,23 @@ function fixture(options: {
   seed?: Invite[];
   ownedProjectIds?: string[];
   failGrant?: boolean;
+  failClientCreation?: boolean;
+  failProjectCreation?: boolean;
+  /** The clients that exist in the organization. */
+  ownedClientIds?: string[];
+  /** Which projects a client has, for the grant a joiner receives. */
+  clientProjectIds?: Record<string, string[]>;
+  /** Which clients a membership may invite somebody to, by membership id. An
+   * admin reaches every client that exists. */
+  reachableClientIds?: Record<string, string[]>;
 } = {}) {
   const transaction = {} as TransactionContext;
   const invites = new Map((options.seed ?? []).map((invite) => [invite.id, invite]));
   const memberships: string[] = [];
   const grants: Array<{ membershipId: string; projectIds: readonly string[] }> = [];
+  const clients: Array<{ id: string; name: string }> = [];
+  const enrolments: Array<{ role: string; orgId: string }> = [];
+  const projects: Array<{ id: string; clientId: string; name: string }> = [];
   const codes = [...(options.codes ?? ["ABCDEFGH"])];
   let id = 0;
 
@@ -31,6 +43,9 @@ function fixture(options: {
       const inviteSnapshot = new Map(invites);
       const membershipCount = memberships.length;
       const grantCount = grants.length;
+      const clientCount = clients.length;
+      const enrolmentCount = enrolments.length;
+      const projectCount = projects.length;
       try {
         return await work(transaction);
       } catch (error) {
@@ -38,6 +53,9 @@ function fixture(options: {
         inviteSnapshot.forEach((value, key) => invites.set(key, value));
         memberships.length = membershipCount;
         grants.length = grantCount;
+        clients.length = clientCount;
+        enrolments.length = enrolmentCount;
+        projects.length = projectCount;
         throw error;
       }
     },
@@ -78,8 +96,9 @@ function fixture(options: {
       },
     },
     memberships: {
-      enrol: async (_context: TransactionContext) => {
+      enrol: async (_context: TransactionContext, value: { orgId: string; role: string }) => {
         memberships.push("membership-new");
+        enrolments.push({ role: value.role, orgId: value.orgId });
         return "membership-new";
       },
     },
@@ -93,6 +112,36 @@ function fixture(options: {
       allBelongToOrg: async (_orgId: string, projectIds: readonly string[]) =>
         projectIds.every((projectId) => (options.ownedProjectIds ?? ["project-1"]).includes(projectId)),
     },
+    clientProjects: {
+      projectIdsOf: async (clientId: string) => options.clientProjectIds?.[clientId] ?? [],
+    },
+    clients: {
+      isReachable: async (a: ActorContext, clientId: string) => {
+        const exists = (options.ownedClientIds ?? []).includes(clientId);
+        if (!exists) return false;
+        return a.role === "ADMIN"
+          || (options.reachableClientIds?.[a.membershipId] ?? []).includes(clientId);
+      },
+    },
+    clientDirectory: {
+      create: async (_context: TransactionContext, input: { orgId: string; name: string }) => {
+        if (options.failClientCreation) throw new Error("client failed");
+        const created = { id: `client-${clients.length + 1}`, name: input.name };
+        clients.push(created);
+        return created.id;
+      },
+    },
+    projectDirectory: {
+      create: async (
+        _context: TransactionContext,
+        input: { clientId: string; name: string },
+      ) => {
+        if (options.failProjectCreation) throw new Error("project failed");
+        const created = { id: `project-${projects.length + 1}`, clientId: input.clientId, name: input.name };
+        projects.push(created);
+        return created.id;
+      },
+    },
     codes: { generate: () => codes.shift() ?? "ZZZZZZZZ" },
     clock: new FixedClock(NOW),
     ids: { generate: () => `invite-${++id}` },
@@ -105,6 +154,9 @@ function fixture(options: {
     invites,
     memberships,
     grants,
+    clients,
+    projects,
+    enrolments,
     unitOfWork,
   };
 }
@@ -226,11 +278,328 @@ describe("employee invitation redemption", () => {
     expect(invites.get("invite-existing")?.usedAt).toBeNull();
   });
 
-  it("refuses client redemption without consuming the invitation", async () => {
-    const clientInvite = employeeInvite({ registrationType: "CLIENT", role: null, projectIds: [] });
-    const { useCases, transaction, invites } = fixture({ seed: [clientInvite] });
+  // A client invitation is redeemable now, but only with the contact and the
+  // project it exists to create. Asked for without them, it is refused and left
+  // unspent so the link still works.
+  it("refuses client redemption offered no details, without consuming the invitation", async () => {
+    const typed = employeeInvite({ registrationType: "CLIENT", role: null, projectIds: [] });
+    const { useCases, transaction, invites } = fixture({ seed: [typed] });
+
     await expect(useCases.redeem(transaction, "EXISTING", "new@acme.com", "user-new", NOW))
-      .rejects.toMatchObject({ category: "forbidden", message: "Invalid invite code" });
+      .rejects.toMatchObject({ category: "validation" });
+
     expect(invites.get("invite-existing")?.usedAt).toBeNull();
+  });
+});
+
+function clientInvite(overrides: Partial<Invite> = {}): Invite {
+  return {
+    id: "invite-client",
+    orgId: "org-1",
+    code: "CLIENTAB",
+    registrationType: "CLIENT",
+    role: null,
+    projectIds: [],
+    email: null,
+    createdById: null,
+    expiresAt: null,
+    createdAt: NOW,
+    usedAt: null,
+    usedById: null,
+    revokedAt: null,
+    ...overrides,
+  };
+}
+
+const CLIENT_REGISTRATION = {
+  client: { name: "Клиника", organization: "ООО Клиника", phone: "+375291112233" },
+  project: { name: "Стоматология", niche: "Медицина" },
+};
+
+describe("redeeming a client invitation", () => {
+  it("creates the account's client and its first project together", async () => {
+    const f = fixture({ seed: [clientInvite()] });
+
+    await f.useCases.redeem(f.transaction, "CLIENTAB", "c@acme.com", "u-new", NOW, CLIENT_REGISTRATION);
+
+    expect(f.clients).toEqual([{ id: "client-1", name: "Клиника" }]);
+    expect(f.projects).toEqual([{ id: "project-1", clientId: "client-1", name: "Стоматология" }]);
+  });
+
+  it("enrols the account as a client and grants it that client alone", async () => {
+    const f = fixture({ seed: [clientInvite()] });
+
+    await f.useCases.redeem(f.transaction, "CLIENTAB", "c@acme.com", "u-new", NOW, CLIENT_REGISTRATION);
+
+    expect(f.memberships).toHaveLength(1);
+    expect(f.grants).toEqual([{ membershipId: "membership-new", projectIds: ["project-1"] }]);
+  });
+
+  it("spends the invitation", async () => {
+    const f = fixture({ seed: [clientInvite()] });
+
+    await f.useCases.redeem(f.transaction, "CLIENTAB", "c@acme.com", "u-new", NOW, CLIENT_REGISTRATION);
+
+    expect(f.invites.get("invite-client")?.usedAt).toEqual(NOW);
+  });
+
+  // Half-finished registration is the failure worth designing against: a member
+  // with no client, or a client with no project, needs an operator to clean up.
+  it("stores nothing when the project cannot be created", async () => {
+    const f = fixture({ seed: [clientInvite()], failProjectCreation: true });
+
+    await expect(f.unitOfWork.run((context) =>
+      f.useCases.redeem(context, "CLIENTAB", "c@acme.com", "u-new", NOW, CLIENT_REGISTRATION),
+    )).rejects.toThrow();
+
+    expect(f.clients).toEqual([]);
+    expect(f.projects).toEqual([]);
+    expect(f.memberships).toEqual([]);
+    expect(f.invites.get("invite-client")?.usedAt).toBeNull();
+  });
+
+  it("stores nothing when the client cannot be created", async () => {
+    const f = fixture({ seed: [clientInvite()], failClientCreation: true });
+
+    await expect(f.unitOfWork.run((context) =>
+      f.useCases.redeem(context, "CLIENTAB", "c@acme.com", "u-new", NOW, CLIENT_REGISTRATION),
+    )).rejects.toThrow();
+
+    expect(f.clients).toEqual([]);
+    expect(f.invites.get("invite-client")?.usedAt).toBeNull();
+  });
+
+  it("refuses a client invitation redeemed without the details it needs", async () => {
+    const f = fixture({ seed: [clientInvite()] });
+
+    await expect(f.useCases.redeem(f.transaction, "CLIENTAB", "c@acme.com", "u-new", NOW))
+      .rejects.toMatchObject({ category: "validation" });
+  });
+
+  // The invitation's own type decides which shape it accepts, so a code cannot
+  // be redeemed as the other kind by asking differently. Nothing is hidden here
+  // — the public resolver already told the caller which form to fill in — so the
+  // answer says what is wrong rather than repeating "invalid code".
+  it("refuses an employee invitation redeemed as a client", async () => {
+    const f = fixture({ seed: [employeeInvite()] });
+
+    await expect(f.useCases.redeem(
+      f.transaction, "EXISTING", "e@acme.com", "u-new", NOW, CLIENT_REGISTRATION,
+    )).rejects.toMatchObject({ category: "validation" });
+  });
+
+  it("refuses a client invitation redeemed as an employee", async () => {
+    const f = fixture({ seed: [clientInvite()] });
+
+    await expect(f.useCases.redeem(f.transaction, "CLIENTAB", "c@acme.com", "u-new", NOW))
+      .rejects.toMatchObject({ category: "validation" });
+  });
+});
+
+/**
+ * A third kind: joining a client that already exists. It names the client, and
+ * whoever redeems it becomes an ordinary member of it — the choice of who
+ * administers a client's people is made once, when it registers.
+ */
+describe("inviting somebody to an existing client", () => {
+  const principal: ActorContext = {
+    userId: "u-principal", membershipId: "m-principal", orgId: "org-1", role: "CLIENT_ADMIN",
+  };
+  const customer: ActorContext = { ...principal, membershipId: "m-customer", role: "CLIENT" };
+
+  it("stores it against the client an admin names", async () => {
+    const f = fixture({ ownedClientIds: ["client-1"] });
+
+    const created = await f.useCases.create(admin, {
+      registrationType: "CLIENT_STAFF", clientId: "client-1",
+    });
+
+    expect(created).toMatchObject({
+      registrationType: "CLIENT_STAFF", clientId: "client-1", role: null, projectIds: [],
+    });
+  });
+
+  it("lets a principal invite to their own client", async () => {
+    const f = fixture({ ownedClientIds: ["client-1"], reachableClientIds: { "m-principal": ["client-1"] } });
+
+    const created = await f.useCases.create(principal, {
+      registrationType: "CLIENT_STAFF", clientId: "client-1",
+    });
+
+    expect(created.clientId).toBe("client-1");
+  });
+
+  // Refused the way an unknown client is refused: a principal must not be able
+  // to count the agency's other customers by watching which ids come back.
+  it("refuses a principal naming somebody else's client", async () => {
+    const f = fixture({
+      ownedClientIds: ["client-1", "client-2"],
+      reachableClientIds: { "m-principal": ["client-1"] },
+    });
+
+    await expect(f.useCases.create(principal, {
+      registrationType: "CLIENT_STAFF", clientId: "client-2",
+    })).rejects.toMatchObject({ category: "not-found" });
+  });
+
+  it("refuses a principal naming a client that does not exist, the same way", async () => {
+    const f = fixture({ reachableClientIds: { "m-principal": ["client-1"] } });
+
+    await expect(f.useCases.create(principal, {
+      registrationType: "CLIENT_STAFF", clientId: "nowhere",
+    })).rejects.toMatchObject({ category: "not-found" });
+  });
+
+  it("refuses an ordinary customer outright", async () => {
+    const f = fixture({ ownedClientIds: ["client-1"] });
+
+    await expect(f.useCases.create(customer, {
+      registrationType: "CLIENT_STAFF", clientId: "client-1",
+    })).rejects.toMatchObject({ category: "forbidden" });
+  });
+
+  it("refuses one that names no client", async () => {
+    const f = fixture();
+
+    await expect(f.useCases.create(admin, { registrationType: "CLIENT_STAFF" }))
+      .rejects.toMatchObject({ category: "validation" });
+  });
+
+  it("refuses a role or projects on it", async () => {
+    const f = fixture({ ownedClientIds: ["client-1"] });
+
+    await expect(f.useCases.create(admin, {
+      registrationType: "CLIENT_STAFF", clientId: "client-1", role: "MANAGER",
+    })).rejects.toMatchObject({ category: "validation" });
+  });
+});
+
+describe("redeeming an invitation to join a client", () => {
+  const joining = (overrides: Partial<Invite> = {}): Invite => clientInvite({
+    id: "invite-join", code: "JOINABCD", registrationType: "CLIENT_STAFF",
+    clientId: "client-1", ...overrides,
+  });
+
+  it("enrols the account against that client and grants its projects", async () => {
+    const f = fixture({ seed: [joining()], clientProjectIds: { "client-1": ["project-7"] } });
+
+    await f.useCases.redeem(f.transaction, "JOINABCD", "new@clinic.by", "u-new", NOW);
+
+    expect(f.memberships).toHaveLength(1);
+    expect(f.grants).toEqual([{ membershipId: "membership-new", projectIds: ["project-7"] }]);
+  });
+
+  // The choice of who administers a client's people is made once, when it
+  // registers. Everybody who joins afterwards is an ordinary member of it.
+  it("makes them an ordinary member, never the principal", async () => {
+    const f = fixture({ seed: [joining()], clientProjectIds: { "client-1": ["project-7"] } });
+
+    await f.useCases.redeem(f.transaction, "JOINABCD", "new@clinic.by", "u-new", NOW);
+
+    expect(f.enrolments).toEqual([{ role: "CLIENT", orgId: "org-1" }]);
+  });
+
+  it("spends the invitation", async () => {
+    const f = fixture({ seed: [joining()], clientProjectIds: { "client-1": ["project-7"] } });
+
+    await f.useCases.redeem(f.transaction, "JOINABCD", "new@clinic.by", "u-new", NOW);
+
+    expect(f.invites.get("invite-join")?.usedAt).toEqual(NOW);
+  });
+
+  it("creates no client and no project: both already exist", async () => {
+    const f = fixture({ seed: [joining()], clientProjectIds: { "client-1": ["project-7"] } });
+
+    await f.useCases.redeem(f.transaction, "JOINABCD", "new@clinic.by", "u-new", NOW);
+
+    expect(f.clients).toEqual([]);
+    expect(f.projects).toEqual([]);
+  });
+
+  it("stores nothing when the grant fails, and leaves the link usable", async () => {
+    const f = fixture({
+      seed: [joining()], clientProjectIds: { "client-1": ["project-7"] }, failGrant: true,
+    });
+
+    await expect(f.unitOfWork.run((context) =>
+      f.useCases.redeem(context, "JOINABCD", "new@clinic.by", "u-new", NOW),
+    )).rejects.toThrow();
+
+    expect(f.memberships).toEqual([]);
+    expect(f.invites.get("invite-join")?.usedAt).toBeNull();
+  });
+
+  it("refuses the client details a registration would carry", async () => {
+    const f = fixture({ seed: [joining()], clientProjectIds: { "client-1": ["project-7"] } });
+
+    await expect(f.useCases.redeem(
+      f.transaction, "JOINABCD", "new@clinic.by", "u-new", NOW, CLIENT_REGISTRATION,
+    )).rejects.toMatchObject({ category: "validation" });
+  });
+});
+
+describe("what a principal sees of the invitations", () => {
+  const principalActor: ActorContext = {
+    userId: "u-principal", membershipId: "m-principal", orgId: "org-1", role: "CLIENT_ADMIN",
+  };
+  const mine = clientInvite({
+    id: "invite-mine", code: "MINEABCD", registrationType: "CLIENT_STAFF", clientId: "client-1",
+  });
+  const theirs = clientInvite({
+    id: "invite-theirs", code: "THRSABCD", registrationType: "CLIENT_STAFF", clientId: "client-2",
+  });
+  const agency = employeeInvite({ id: "invite-agency", code: "AGENCYAB" });
+
+  const reachable = { "m-principal": ["client-1"] };
+
+  it("lists its own client's invitations alone", async () => {
+    const f = fixture({
+      seed: [mine, theirs, agency],
+      ownedClientIds: ["client-1", "client-2"],
+      reachableClientIds: reachable,
+    });
+
+    const listed = await f.useCases.list(principalActor);
+
+    expect(listed.map((invite) => invite.id)).toEqual(["invite-mine"]);
+  });
+
+  it("leaves an admin seeing every invitation in the organization", async () => {
+    const f = fixture({
+      seed: [mine, theirs, agency],
+      ownedClientIds: ["client-1", "client-2"],
+      reachableClientIds: reachable,
+    });
+
+    const listed = await f.useCases.list(admin);
+
+    expect(listed.map((invite) => invite.id).sort())
+      .toEqual(["invite-agency", "invite-mine", "invite-theirs"]);
+  });
+
+  it("revokes its own client's invitation", async () => {
+    const f = fixture({
+      seed: [mine], ownedClientIds: ["client-1"], reachableClientIds: reachable,
+    });
+
+    await expect(f.useCases.revoke(principalActor, "invite-mine")).resolves.toBeUndefined();
+  });
+
+  it("is told a stranger's invitation does not exist", async () => {
+    const f = fixture({
+      seed: [theirs], ownedClientIds: ["client-1", "client-2"], reachableClientIds: reachable,
+    });
+
+    await expect(f.useCases.revoke(principalActor, "invite-theirs"))
+      .rejects.toMatchObject({ category: "not-found" });
+  });
+
+  it("is told the agency's own invitation does not exist either", async () => {
+    const f = fixture({
+      seed: [agency], ownedClientIds: ["client-1"], reachableClientIds: reachable,
+    });
+
+    await expect(f.useCases.revoke(principalActor, "invite-agency"))
+      .rejects.toMatchObject({ category: "not-found" });
   });
 });

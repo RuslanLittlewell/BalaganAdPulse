@@ -24,6 +24,9 @@ export const updateTaskSchema = z.object({
   priority: z.enum(TASK_PRIORITIES).optional(),
   assigneeId: z.uuid().nullable().optional(),
   campaignId: z.uuid().nullable().optional(),
+  /** Whether the customer is shown this task. Only an admin may send it; the
+   * application refuses anybody else rather than ignoring it. */
+  visibleToClient: z.boolean().optional(),
 });
 
 export const moveTaskSchema = z.object({

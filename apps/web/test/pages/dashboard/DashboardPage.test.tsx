@@ -22,7 +22,7 @@ const performance = (spend: number, extra = {}) => ({
 });
 
 const project = (id: string, name: string) => ({
-  id, clientId: "cl1", name, niche: null, monthlyBudget: null, priority: "NEW",
+  id, clientId: "cl1", name, niche: null, monthlyBudget: null, budgetCurrency: "BYN", priority: "NEW",
   image: null, avatarPath: null, position: 0, createdAt: "", updatedAt: "",
 });
 

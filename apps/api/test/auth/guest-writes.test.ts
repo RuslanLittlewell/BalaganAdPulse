@@ -22,13 +22,18 @@ beforeEach(async () => {
   const admin = await signInAs("Admin", { role: "ADMIN" });
   ({ clientId, projectId } = await seedProject(admin.user.id));
   campaignId = (await seedCampaign(projectId, "Поиск / Москва")).id;
-  const task = await request(app).post("/api/tasks").set(admin.auth)
-    .send({ title: "Написать отчёт", projectId, priority: "MEDIUM" });
-  taskId = task.body.id;
-
   const signedIn = await signInAs("Guest", { role: "GUEST" });
   guest = signedIn.auth;
   await grantAccess(signedIn.membership!.id, clientId);
+
+  // Responsible for it, so every refusal below is the role talking rather than
+  // the guest simply not being able to see the task at all.
+  const task = await request(app).post("/api/tasks").set(admin.auth)
+    .send({
+      title: "Написать отчёт", projectId, priority: "MEDIUM",
+      assigneeId: signedIn.membership!.id,
+    });
+  taskId = task.body.id;
 });
 afterAll(async () => { await prisma.$disconnect(); });
 

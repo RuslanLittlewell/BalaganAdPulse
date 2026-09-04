@@ -207,7 +207,7 @@ const employeeInvite = {
 
 const member = {
   id: "membership-2", userId: "user-2", name: "Мария", email: "maria@acme.by",
-  image: null, role: "MANAGER", status: "ACTIVE", createdAt: "2026-08-31T10:00:00.000Z",
+  image: null, phone: null, telegram: null, role: "MANAGER", status: "ACTIVE", createdAt: "2026-08-31T10:00:00.000Z",
 };
 
 function withDirectory() {
@@ -216,8 +216,12 @@ function withDirectory() {
     http.get("/api/members", () => HttpResponse.json([member])),
     http.get("/api/projects", () => HttpResponse.json([
       { id: "project-1", clientId: "1", name: "Летний запуск", niche: "Перформанс",
-        monthlyBudget: null, priority: "NEW", image: "data:image/png;base64,AAA",
+        monthlyBudget: null, budgetCurrency: "BYN", priority: "NEW", image: "data:image/png;base64,AAA",
         avatarPath: null, position: 0, createdAt: "2026-09-01T00:00:00.000Z",
+        updatedAt: "2026-09-01T00:00:00.000Z" },
+      { id: "project-2", clientId: "1", name: "Второй проект", niche: null,
+        monthlyBudget: null, budgetCurrency: "BYN", priority: "NEW", image: null,
+        avatarPath: null, position: 1, createdAt: "2026-09-01T00:00:00.000Z",
         updatedAt: "2026-09-01T00:00:00.000Z" },
     ])),
     http.get("/api/invites", () => HttpResponse.json([employeeInvite])),
@@ -233,6 +237,283 @@ describe("choosing which directory to show", () => {
     expect(screen.queryByRole("button", { name: /Мария/ })).not.toBeInTheDocument();
   });
 
+  /**
+   * What a colleague can actually reach is the thing an admin needs when
+   * somebody says they cannot see a client, and it was the one thing the screen
+   * did not say.
+   */
+  /**
+   * Nobody opens a directory to find themselves, and their own row is the one
+   * whose grants an admin should not change in passing while reading everybody
+   * else's.
+   */
+  describe("who the employee directory lists", () => {
+    const asMe = (userId: string) => server.use(http.get("/api/auth/me", () =>
+      HttpResponse.json({
+        user: { id: userId, name: "Я", email: "me@acme.by", image: null },
+        organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
+        role: "ADMIN",
+        clientIds: [],
+      })));
+
+    it("lists colleagues and not the reader", async () => {
+      const user = userEvent.setup();
+      withDirectory();
+      asMe("user-me");
+      server.use(http.get("/api/members", () => HttpResponse.json([
+        { ...member, id: "m-me", userId: "user-me", name: "Я" },
+        { ...member, id: "m-2", userId: "user-2", name: "Мария" },
+      ])));
+      renderWithProviders(<ContactBook open onClose={() => {}} />);
+      await screen.findByRole("button", { name: /Acme/ });
+
+      await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+
+      expect(await screen.findByRole("button", { name: /Мария/ })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Я/ })).toBeNull();
+    });
+
+    it("says there is nobody when the reader is the only member", async () => {
+      const user = userEvent.setup();
+      withDirectory();
+      asMe("user-me");
+      server.use(http.get("/api/members", () => HttpResponse.json([
+        { ...member, id: "m-me", userId: "user-me", name: "Я" },
+      ])));
+      renderWithProviders(<ContactBook open onClose={() => {}} />);
+      await screen.findByRole("button", { name: /Acme/ });
+
+      await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+
+      expect(await screen.findByText("Сотрудников пока нет")).toBeInTheDocument();
+    });
+  });
+
+  describe("an employee's reach", () => {
+    const withAccess = (grants: unknown[]) => server.use(
+      http.get("/api/members", () => HttpResponse.json([member])),
+      http.get("/api/members/:id/access", () => HttpResponse.json(grants)),
+    );
+
+    async function openEmployee(user: ReturnType<typeof userEvent.setup>) {
+      renderWithProviders(<ContactBook open onClose={() => {}} />);
+      await screen.findByRole("button", { name: /Acme/ });
+      await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+      await user.click(await screen.findByRole("button", { name: /Мария/ }));
+    }
+
+    it("lists the projects they reach", async () => {
+      const user = userEvent.setup();
+      withDirectory();
+      withAccess([{ id: "g1", clientId: "1", projectId: "project-1" }]);
+
+      await openEmployee(user);
+
+      expect(await screen.findByTestId("employee-access")).toHaveTextContent("Летний запуск");
+    });
+
+    // A grant naming a client and no project covers every project of it, and is
+    // decided where clients are — not from a screen about one project.
+    it("shows a client-wide grant as covering the client, with nothing to remove", async () => {
+      const user = userEvent.setup();
+      withDirectory();
+      withAccess([{ id: "g1", clientId: "1", projectId: null }]);
+
+      await openEmployee(user);
+
+      const access = await screen.findByTestId("employee-access");
+      expect(access).toHaveTextContent("Acme");
+      expect(within(access).queryByRole("button", { name: /Убрать/ })).toBeNull();
+    });
+
+    it("says so when they reach nothing", async () => {
+      const user = userEvent.setup();
+      withDirectory();
+      withAccess([]);
+
+      await openEmployee(user);
+
+      expect(await screen.findByText("Проекты не назначены")).toBeInTheDocument();
+    });
+
+    it("shows each granted project with its picture", async () => {
+      const user = userEvent.setup();
+      withDirectory();
+      withAccess([{ id: "g1", clientId: "1", projectId: "project-1" }]);
+
+      await openEmployee(user);
+
+      const access = await screen.findByTestId("employee-access");
+      expect(access).toHaveTextContent("Летний запуск");
+      // The project's own picture, the way every other screen shows one.
+      expect(within(access).getByRole("img", { name: "Летний запуск" })).toBeInTheDocument();
+    });
+
+    it("grants a project, sending the whole set back", async () => {
+      const user = userEvent.setup();
+      let body: { grants?: unknown[] } | null = null;
+      withDirectory();
+      withAccess([{ id: "g1", clientId: "1", projectId: "project-1" }]);
+      server.use(http.put("/api/members/:id/access", async ({ request }) => {
+        body = await request.json() as { grants?: unknown[] };
+        return HttpResponse.json([]);
+      }));
+
+      await openEmployee(user);
+      await user.click(await screen.findByLabelText("Добавить проект"));
+      await user.click(await screen.findByRole("option", { name: /Второй проект/ }));
+
+      await waitFor(() => expect(body).not.toBeNull());
+      expect(body!.grants).toEqual([
+        { clientId: "1", projectId: "project-1" },
+        { clientId: "1", projectId: "project-2" },
+      ]);
+    });
+
+    it("removes a project, sending what is left", async () => {
+      const user = userEvent.setup();
+      let body: { grants?: unknown[] } | null = null;
+      withDirectory();
+      withAccess([
+        { id: "g1", clientId: "1", projectId: "project-1" },
+        { id: "g2", clientId: "1", projectId: "project-2" },
+      ]);
+      server.use(http.put("/api/members/:id/access", async ({ request }) => {
+        body = await request.json() as { grants?: unknown[] };
+        return HttpResponse.json([]);
+      }));
+
+      await openEmployee(user);
+      await user.click(await screen.findByRole("button", { name: "Убрать Летний запуск" }));
+      // Asked before it acts: the rows are otherwise identical, a misplaced
+      // click is easy, and its result is invisible until somebody complains.
+      await user.click(await screen.findByRole("button", { name: "Убрать проект" }));
+
+      await waitFor(() => expect(body).not.toBeNull());
+      expect(body!.grants).toEqual([{ clientId: "1", projectId: "project-2" }]);
+    });
+
+    it("names the project in the question it asks", async () => {
+      const user = userEvent.setup();
+      withDirectory();
+      withAccess([{ id: "g1", clientId: "1", projectId: "project-1" }]);
+
+      await openEmployee(user);
+      await user.click(await screen.findByRole("button", { name: "Убрать Летний запуск" }));
+
+      expect(await screen.findByRole("alertdialog")).toHaveTextContent("Летний запуск");
+    });
+
+    it("changes nothing when the question is declined", async () => {
+      const user = userEvent.setup();
+      let asked = false;
+      withDirectory();
+      withAccess([{ id: "g1", clientId: "1", projectId: "project-1" }]);
+      server.use(http.put("/api/members/:id/access", () => {
+        asked = true;
+        return HttpResponse.json([]);
+      }));
+
+      await openEmployee(user);
+      await user.click(await screen.findByRole("button", { name: "Убрать Летний запуск" }));
+      await user.click(await screen.findByRole("button", { name: "Отмена" }));
+
+      expect(asked).toBe(false);
+      expect(await screen.findByTestId("employee-access")).toHaveTextContent("Летний запуск");
+    });
+
+    it("offers no control to somebody who may not administer members", async () => {
+      const user = userEvent.setup();
+      withDirectory();
+      withAccess([{ id: "g1", clientId: "1", projectId: "project-1" }]);
+      server.use(http.get("/api/auth/me", () => HttpResponse.json({
+        user: { id: "u1", name: "Пётр", email: "petr@acme.by", image: null },
+        organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
+        role: "MANAGER",
+        clientIds: ["1"],
+      })));
+
+      await openEmployee(user);
+
+      expect(await screen.findByTestId("employee-access")).toHaveTextContent("Летний запуск");
+      expect(screen.queryByLabelText("Добавить проект")).toBeNull();
+      expect(screen.queryByRole("button", { name: /Убрать/ })).toBeNull();
+    });
+  });
+
+  /**
+   * Outstanding invitations sat under the directory, competing with the person
+   * being read. They belong beside the control that makes one — which is when
+   * somebody wants to know what is already out there.
+   */
+  describe("where outstanding invitations are listed", () => {
+    it("shows none under either directory", async () => {
+      const user = userEvent.setup();
+      withDirectory();
+      renderWithProviders(<ContactBook open onClose={() => {}} />);
+
+      await screen.findByRole("button", { name: /Acme/ });
+      expect(screen.queryByText("Приглашения")).toBeNull();
+
+      await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+      expect(screen.queryByText("Приглашения")).toBeNull();
+    });
+
+    it("shows them in the dialog that makes one", async () => {
+      const user = userEvent.setup();
+      withDirectory();
+      renderWithProviders(<ContactBook open onClose={() => {}} />);
+      await screen.findByRole("button", { name: /Acme/ });
+
+      await user.click(screen.getByRole("button", { name: "Пригласить клиента" }));
+
+      const dialog = await screen.findByRole("dialog", { name: "Пригласить клиента" });
+      expect(within(dialog).getByText("Приглашения")).toBeInTheDocument();
+    });
+  });
+
+  it("keeps a minimum height, so choosing between people does not resize it", async () => {
+    withDirectory();
+    renderWithProviders(<ContactBook open onClose={() => {}} />);
+
+    const dialog = await screen.findByRole("dialog", { name: "Контактная книга" });
+    expect(dialog.className).toContain("min-h-[550px]");
+  });
+
+  it("lays an employee's fields out the way a client's are", async () => {
+    const user = userEvent.setup();
+    withDirectory();
+    renderWithProviders(<ContactBook open onClose={() => {}} />);
+    await screen.findByRole("button", { name: /Acme/ });
+
+    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(await screen.findByRole("button", { name: /Мария/ }));
+
+    // The same shape the client pane uses: rows separated by a rule, each with
+    // an uppercase label beside its value.
+    const details = await screen.findByTestId("employee-details");
+    expect(details.className).toContain("divide-y");
+    expect(within(details).getByText("Почта").className).toContain("uppercase");
+  });
+
+  it("shows how to reach each employee", async () => {
+    const user = userEvent.setup();
+    withDirectory();
+    server.use(http.get("/api/members", () => HttpResponse.json([
+      { ...member, id: "membership-2", name: "Мария", email: "maria@acme.by",
+        phone: "+375299998877", telegram: "@maria" },
+    ])));
+    renderWithProviders(<ContactBook open onClose={() => {}} />);
+    await screen.findByRole("button", { name: /Acme/ });
+
+    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(await screen.findByRole("button", { name: /Мария/ }));
+
+    const details = await screen.findByTestId("employee-details");
+    expect(within(details).getByText("+375299998877")).toBeInTheDocument();
+    expect(within(details).getByText("@maria")).toBeInTheDocument();
+  });
+
   it("switches to the employees pane", async () => {
     const user = userEvent.setup();
     withDirectory();
@@ -244,6 +525,228 @@ describe("choosing which directory to show", () => {
     expect(await screen.findByRole("button", { name: /Мария/ })).toBeInTheDocument();
     // The client list is the other pane's content, not a filter over the same one.
     expect(screen.queryByRole("button", { name: /Acme/ })).not.toBeInTheDocument();
+  });
+
+  /**
+   * A customer's contact book is their own company's people, straight away —
+   * not the agency's client directory narrowed to one entry. The contact card,
+   * the client-invitation list and the control that invites a whole new company
+   * are the agency's, and none of them mean anything on this side.
+   */
+  describe("what a customer's contact book is", () => {
+    const asPrincipal = (role = "CLIENT_ADMIN") => server.use(
+      http.get("/api/auth/me", () => HttpResponse.json({
+        user: { id: "u1", name: "Иван", email: "ivan@acme.by", image: null },
+        organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
+        role,
+        clientIds: ["1"],
+      })),
+      http.get("/api/members", () => HttpResponse.json([
+        { ...member, id: "m-1", name: "Иван Петров", role: "CLIENT_ADMIN" },
+        { ...member, id: "m-2", name: "Мария Сидорова", role: "CLIENT" },
+      ])),
+    );
+
+    // The list is read when somebody needs to reach somebody.
+    it("shows how to reach each of them", async () => {
+      withDirectory();
+      server.use(
+        http.get("/api/auth/me", () => HttpResponse.json({
+          user: { id: "u1", name: "Иван", email: "ivan@acme.by", image: null },
+          organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
+          role: "CLIENT_ADMIN",
+          clientIds: ["1"],
+        })),
+        http.get("/api/members", () => HttpResponse.json([
+          { ...member, id: "m-1", name: "Иван Петров", email: "ivan@acme.by",
+            phone: "+375291112233", telegram: "@ivan", role: "CLIENT_ADMIN" },
+          { ...member, id: "m-2", name: "Мария Сидорова", email: "maria@acme.by",
+            phone: null, telegram: null, role: "CLIENT" },
+        ])),
+      );
+      renderWithProviders(<ContactBook open onClose={() => {}} />);
+
+      const row = await screen.findByTestId("company-person-m-1");
+      expect(within(row).getByText("ivan@acme.by")).toBeInTheDocument();
+      expect(within(row).getByText("+375291112233")).toBeInTheDocument();
+      expect(within(row).getByText("@ivan")).toBeInTheDocument();
+
+      // A missing one reads as absent rather than as a gap in the layout.
+      const without = screen.getByTestId("company-person-m-2");
+      expect(within(without).getAllByText("—")).toHaveLength(2);
+    });
+
+    it("lists the company's people straight away", async () => {
+      withDirectory();
+      asPrincipal();
+      renderWithProviders(<ContactBook open onClose={() => {}} />);
+
+      expect(await screen.findByText("Иван Петров")).toBeInTheDocument();
+      expect(screen.getByText("Мария Сидорова")).toBeInTheDocument();
+    });
+
+    it("shows no contact card and no client selector", async () => {
+      withDirectory();
+      asPrincipal();
+      renderWithProviders(<ContactBook open onClose={() => {}} />);
+
+      await screen.findByText("Иван Петров");
+      expect(screen.queryByText("НАЗВАНИЕ ОРГАНИЗАЦИИ")).toBeNull();
+      expect(screen.queryByRole("button", { name: /Acme/ })).toBeNull();
+    });
+
+    // The same dialog the agency uses, rather than a button that dumps a raw
+    // link into the page: it names what is being made, can be cancelled, and
+    // shows the link with the control that copies it.
+    it("invites through the ordinary dialog", async () => {
+      const user = userEvent.setup();
+      withDirectory();
+      asPrincipal();
+      let body: Record<string, unknown> | null = null;
+      server.use(http.post("/api/invites", async ({ request }) => {
+        body = await request.json() as Record<string, unknown>;
+        return HttpResponse.json(
+          { ...employeeInvite, id: "invite-new", registrationUrl: "/regustration/NEWCODE1" },
+          { status: 201 },
+        );
+      }));
+      renderWithProviders(<ContactBook open onClose={() => {}} />);
+
+      await user.click(await screen.findByRole("button", { name: "Пригласить в компанию" }));
+      expect(await screen.findByRole("dialog", { name: "Пригласить в компанию" }))
+        .toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Создать приглашение" }));
+
+      await waitFor(() => expect(body).not.toBeNull());
+      expect(body).toMatchObject({ registrationType: "CLIENT_STAFF", clientId: "1" });
+      // The dialog shows the whole link, built from the current origin.
+      expect(await screen.findByText(/\/regustration\/NEWCODE1$/)).toBeInTheDocument();
+    });
+
+    it("offers one invite control, not two", async () => {
+      withDirectory();
+      asPrincipal();
+      renderWithProviders(<ContactBook open onClose={() => {}} />);
+
+      await screen.findByText("Иван Петров");
+      expect(screen.queryByRole("button", { name: "Пригласить клиента" })).toBeNull();
+      expect(screen.getAllByRole("button", { name: "Пригласить в компанию" })).toHaveLength(1);
+    });
+
+    it("offers an ordinary customer no invite control at all", async () => {
+      withDirectory();
+      asPrincipal("CLIENT");
+      renderWithProviders(<ContactBook open onClose={() => {}} />);
+
+      await screen.findByText("Иван Петров");
+      expect(screen.queryByRole("button", { name: "Пригласить в компанию" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Пригласить клиента" })).toBeNull();
+    });
+
+      // A name and a surname have to fit without being cut: the list was a fifth
+    // of the dialog, which is enough for one word.
+    it("gives the client list room for a full name", async () => {
+      withDirectory();
+      renderWithProviders(<ContactBook open onClose={() => {}} />);
+      await screen.findByRole("button", { name: /Acme/ });
+
+      const columns = screen.getByTestId("contact-book-columns");
+      expect(columns.className).toContain("minmax(14rem,");
+    });
+
+  it("leaves the agency's own contact book as it was", async () => {
+      withDirectory();
+      renderWithProviders(<ContactBook open onClose={() => {}} />);
+
+      expect(await screen.findByRole("button", { name: /Acme/ })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Пригласить клиента" })).toBeInTheDocument();
+    });
+  });
+
+  /**
+   * The employees pane is the agency's own staff. A customer is not shown it —
+   * not as an empty list, and not as an error from an endpoint their role
+   * cannot read.
+   */
+  it("offers a customer no employees pane", async () => {
+    withDirectory();
+    server.use(http.get("/api/auth/me", () => HttpResponse.json({
+      user: { id: "u1", name: "Иван", email: "ivan@acme.by", image: null },
+      organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
+      role: "CLIENT_ADMIN",
+      clientIds: ["1"],
+    })));
+    renderWithProviders(<ContactBook open onClose={() => {}} />);
+
+    await screen.findByRole("heading", { name: "Контактная книга" });
+    expect(screen.queryByRole("tab", { name: "Сотрудники" })).toBeNull();
+  });
+
+  it("still offers it to the agency", async () => {
+    withDirectory();
+    renderWithProviders(<ContactBook open onClose={() => {}} />);
+
+    expect(await screen.findByRole("tab", { name: "Сотрудники" })).toBeInTheDocument();
+  });
+
+  /**
+   * The admin's client card is the company's contact details and nothing else.
+   * Its people were shown here beside a button that dumped a raw link, which
+   * duplicated the invitation section right below it.
+   */
+  it("carries no people block on the client card", async () => {
+    withDirectory();
+    /* A name that cannot be confused with the client's own contact fields —
+       the fixture's fullName is a person's name too. */
+    server.use(http.get("/api/members", () => HttpResponse.json([
+      { ...member, id: "m-1", name: "Совсем Другой", role: "CLIENT_ADMIN" },
+    ])));
+    renderWithProviders(<ContactBook open onClose={() => {}} />);
+
+    await userEvent.click(await screen.findByRole("button", { name: /Acme/ }));
+
+    expect(screen.queryByText("Люди клиента")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Пригласить в компанию" })).toBeNull();
+    expect(screen.queryByText("Совсем Другой")).toBeNull();
+  });
+
+
+
+  /**
+   * Adding somebody to a client is the client's own job, and the agency's too.
+   * An ordinary customer administers nobody, so the control is not there for
+   * them — the API refuses it either way, and offering a button that answers
+   * 403 teaches the rule by making somebody press it.
+   */
+
+  // On the agency's side the same control follows the same rule: whoever may
+  // not issue an invitation is not offered one.
+
+
+  /**
+   * A customer holds a membership like anybody else, but they are not staff:
+   * the agency's people are its admins, managers and guests. A customer belongs
+   * in the other pane, as the client they are.
+   */
+  it("shows no customer among the employees", async () => {
+    const user = userEvent.setup();
+    withDirectory();
+    // Whatever the server is asked, it answers with a customer among them —
+    // so the pane cannot pass by luck of what the fixture happened to return.
+    server.use(http.get("/api/members", ({ request }) => {
+      const staffOnly = new URL(request.url).searchParams.get("kind") === "staff";
+      return HttpResponse.json(staffOnly ? [member] : [member, {
+        ...member, id: "membership-9", userId: "user-9", name: "Заказчик", role: "CLIENT",
+      }]);
+    }));
+    renderWithProviders(<ContactBook open onClose={() => {}} />);
+    await screen.findByRole("button", { name: /Acme/ });
+
+    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+
+    expect(await screen.findByRole("button", { name: /Мария/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Заказчик/ })).not.toBeInTheDocument();
   });
 
   it("goes back to the clients pane", async () => {
@@ -261,13 +764,14 @@ describe("choosing which directory to show", () => {
 });
 
 describe("inviting from the contact book", () => {
-  it("lists the pending invitations of the pane it is on", async () => {
+  it("lists the pending invitations of the kind it makes", async () => {
     const user = userEvent.setup();
     withDirectory();
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
-
     await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+
+    await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
 
     // The whole address, built from wherever the app is being served: the
     // backend deliberately returns a relative path so it needs no host
@@ -353,6 +857,7 @@ describe("inviting from the contact book", () => {
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
     await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
 
     await user.click(await screen.findByRole("button", { name: "Отозвать ABCDEFGH" }));
 
@@ -372,6 +877,7 @@ describe("inviting from the contact book", () => {
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
     await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
 
     await user.click(await screen.findByRole("button", { name: "Скопировать ссылку" }));
 

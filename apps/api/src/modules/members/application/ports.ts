@@ -40,8 +40,22 @@ export interface SessionDependencies {
   readonly clients: ClientReachDirectory;
 }
 
+/** Whose people a listing is about. */
+export const MEMBER_KINDS = ["staff"] as const;
+export type MemberKind = (typeof MEMBER_KINDS)[number];
+
 export interface MemberDirectory {
-  listByOrg(orgId: string): Promise<MemberRecord[]>;
+  /**
+   * The organization's memberships, optionally narrowed to its staff.
+   *
+   * A customer holds a membership like anybody else, so the unfiltered listing
+   * still answers with them. "Staff" is the agency's own people — everyone but
+   * the customers — and is what every screen showing colleagues means.
+   */
+  listByOrg(orgId: string, kind?: MemberKind): Promise<MemberRecord[]>;
+  /** The people granted this client — its own, whichever customer role they
+   * hold. Used to show a client's people under the client they belong to. */
+  listByClient(orgId: string, clientId: string): Promise<MemberRecord[]>;
   findInOrg(orgId: string, id: string): Promise<MemberRecord | null>;
   update(context: TransactionContext, id: string, change: MemberChange): Promise<MemberRecord>;
   remove(context: TransactionContext, id: string): Promise<void>;

@@ -27,7 +27,12 @@ export function createIdentityHttpRouters(useCases: IdentityUseCases) {
   resets.add(() => { credentialLimit.reset(); sessionLimit.reset(); });
   const authRouter = Router();
   authRouter.post("/register", credentialLimit, handle(async (req, res) => {
-    const tokens = await useCases.register(registerSchema.parse(req.body));
+    const { client, project, ...account } = registerSchema.parse(req.body);
+    const tokens = await useCases.register({
+      ...account,
+      // Both or neither — the schema has already refused a request holding one.
+      ...(client && project ? { registration: { client, project } } : {}),
+    });
     setAuthCookies(res, tokens); res.status(201).json(tokens);
   }));
   authRouter.post("/login", credentialLimit, handle(async (req, res) => {

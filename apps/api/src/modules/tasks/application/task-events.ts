@@ -13,7 +13,17 @@ export type TaskEvent =
   | { readonly kind: "task.created"; readonly orgId: string; readonly projectId: string; readonly task: TaskRecord }
   | { readonly kind: "task.updated"; readonly orgId: string; readonly projectId: string; readonly task: TaskRecord }
   | { readonly kind: "task.moved"; readonly orgId: string; readonly projectId: string; readonly task: TaskRecord }
-  | { readonly kind: "task.deleted"; readonly orgId: string; readonly projectId: string; readonly taskId: string };
+  /** Carries the same ownership facts as the others, so a deletion can be
+   * withheld from the same people. Announcing an id to somebody who never held
+   * the task would tell them that work they cannot see exists. */
+  | {
+      readonly kind: "task.deleted";
+      readonly orgId: string;
+      readonly projectId: string;
+      readonly taskId: string;
+      readonly assigneeId: string | null;
+      readonly visibleToClient: boolean;
+    };
 
 export type TaskEventKind = TaskEvent["kind"];
 
@@ -35,8 +45,14 @@ export const taskMoved = carrying("task.moved");
 
 /** Only the identifier: there is no row left to send, and a recipient needs
  * just enough to drop the card from a board it may be holding. */
-export const taskDeleted = (task: TaskRecord): TaskEvent =>
-  ({ kind: "task.deleted", orgId: task.orgId, projectId: task.projectId, taskId: task.id });
+export const taskDeleted = (task: TaskRecord): TaskEvent => ({
+  kind: "task.deleted",
+  orgId: task.orgId,
+  projectId: task.projectId,
+  taskId: task.id,
+  assigneeId: task.assigneeId,
+  visibleToClient: task.visibleToClient,
+});
 
 /**
  * Where a committed task change leaves the module.

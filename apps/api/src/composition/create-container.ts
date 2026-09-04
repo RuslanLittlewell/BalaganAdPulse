@@ -32,7 +32,8 @@ import {
   PrismaAuditRepository,
 } from "../modules/audit/infrastructure/prisma-audit-repository.js";
 import { AmbientRequestMetadata } from "../modules/audit/infrastructure/request-metadata.js";
-import { createProjectRouter, createProjectUseCases } from "../modules/projects/index.js";
+import { CURRENCIES, createProjectRouter, createProjectUseCases } from "../modules/projects/index.js";
+import type { Currency } from "../modules/projects/index.js";
 import { PrismaProjectRepository } from "../modules/projects/infrastructure/prisma-project-repository.js";
 import { S3ProjectPictureStorage } from "../modules/projects/infrastructure/project-picture-storage.js";
 import { createCampaignHttpRouters, createCampaignUseCases } from "../modules/campaigns/index.js";
@@ -100,6 +101,9 @@ export interface ApiContainer {
   readonly authenticate: (accessToken: string) => Promise<SessionPrincipal>;
 }
 
+const isCurrency = (value: string | undefined): value is Currency =>
+  value !== undefined && (CURRENCIES as readonly string[]).includes(value);
+
 /** Compatibility composition while legacy vertical slices are migrated. */
 export function createContainer(): ApiContainer {
   const unitOfWork = new PrismaUnitOfWork<Prisma.TransactionClient>(prisma);
@@ -113,8 +117,12 @@ export function createContainer(): ApiContainer {
   };
   const audit = createAuditWriter(auditDependencies);
   const auditReader = createAuditReader(auditDependencies);
+  // Shared: the use cases below own them, and client registration writes a
+  // client and a project through them inside the redemption transaction.
+  const clientRepository = new PrismaClientRepository(prisma, unitOfWork);
+  const projectRepository = new PrismaProjectRepository(prisma, unitOfWork);
   const clients = createClientUseCases({
-    clients: new PrismaClientRepository(prisma, unitOfWork),
+    clients: clientRepository,
     pictures: new S3ClientPictureStorage(),
     audit,
     ids,
@@ -124,7 +132,51 @@ export function createContainer(): ApiContainer {
     invites: new PrismaInviteRepository(prisma, unitOfWork),
     memberships: new PrismaMembershipEnrolment(unitOfWork),
     projects: new PrismaInvitationProjectReach(prisma),
+    // Whether the issuer may invite somebody to this client, answered by the
+    // clients module's own reach — an admin reaches every client, anybody else
+    // only what their grants cover.
+    clients: {
+      isReachable: async (actor, clientId) =>
+        (await clients.reachableIds(actor)).includes(clientId),
+    },
+    // The work somebody joining a client should reach: the same projects its
+    // other people reach.
+    clientProjects: {
+      projectIdsOf: async (clientId) => {
+        const rows = await prisma.project.findMany({ where: { clientId }, select: { id: true } });
+        return rows.map((project) => project.id);
+      },
+    },
     projectAccess: new PrismaInvitationProjectAccess(unitOfWork),
+    // The invitations module states what registration must produce; the modules
+    // that own a client and a project produce it, inside the same transaction.
+    clientDirectory: {
+      create: async (context, input) => {
+        const { orgId, ...contact } = input;
+        // No grant here: the membership does not exist yet, and the client's
+        // reach is granted on the project a moment later.
+        const created = await clientRepository.create(
+          context, { ...contact, id: ids.generate(), orgId }, undefined,
+        );
+        return created.id;
+      },
+    },
+    projectDirectory: {
+      create: async (context, input) => {
+        const { clientId, budgetCurrency, ...details } = input;
+        const created = await projectRepository.create(context, {
+          ...details,
+          // Narrowed here, where the two modules meet: the registration schema
+          // has already checked it against the projects module's own list, and
+          // the invitations module deliberately does not know that list.
+          ...(isCurrency(budgetCurrency) ? { budgetCurrency } : {}),
+          clientId,
+          id: ids.generate(),
+          position: await projectRepository.countForClient(clientId),
+        });
+        return created.id;
+      },
+    },
     clock,
     ids,
     codes: new CryptoInvitationCodeGenerator(),
@@ -201,7 +253,7 @@ export function createContainer(): ApiContainer {
   const tasks = createTaskUseCases(taskDependencies);
   const taskImages = createTaskImageUseCases(taskDependencies);
   const projects = createProjectUseCases({
-    projects: new PrismaProjectRepository(prisma, unitOfWork),
+    projects: projectRepository,
     clients: {
       isReachable: async (actor, clientId) =>
         (await clients.reachableIds(actor)).includes(clientId),

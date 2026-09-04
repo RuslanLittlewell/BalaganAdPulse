@@ -35,13 +35,33 @@ export function onTokenRenewed(listener: (accessToken: string) => void): () => v
   return () => renewalListeners.delete(listener);
 }
 
-/** Clears the session and tells every subscriber. Idempotent: two requests
- * that both 401 around the same time can each reach this independently (the
- * second after the first's inFlight promise has already settled and been
- * reset), and a session that has already ended must not end — and notify —
- * a second time. */
-export function endSession(): void {
-  if (!hasSession()) return;
+export interface EndSessionOptions {
+  /**
+   * Run the teardown even when no marker is left to find.
+   *
+   * For a deliberate sign-out, which is not the case the guard below exists for.
+   * A successful sign-out clears the session cookie server-side, in its own
+   * response — so on a browser holding only that cookie (Safari clears
+   * localStorage by itself after a week idle), asking "is there still a session?"
+   * answers no, and signing out *successfully* looked exactly like a session that
+   * had already ended: the teardown was skipped, nothing navigated, and the
+   * screen kept the session the visitor had just asked to leave.
+   */
+  force?: boolean;
+}
+
+/**
+ * Clears the session and tells every subscriber.
+ *
+ * Idempotent for the reactive path: two requests that both 401 around the same
+ * time can each reach this independently (the second after the first's inFlight
+ * promise has already settled and been reset), and a session that has already
+ * ended must not end — and notify — a second time. That guard reads the markers,
+ * which is right when the question is "did something else already end this",
+ * and wrong when the caller *is* the ending. Hence `force`.
+ */
+export function endSession(options?: EndSessionOptions): void {
+  if (!options?.force && !hasSession()) return;
   clearTokens();
   listeners.forEach((listener) => listener());
 }

@@ -106,7 +106,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // one path rather than two: endSession() notifies onSessionExpired
       // listeners, which is exactly `leave` below (subscribed in the effect
       // above) — calling `leave` again here directly would run it twice.
-      endSession();
+      //
+      // Forced, because this *is* the ending: the request above may already
+      // have cleared the markers endSession would otherwise look for, and a
+      // sign-out that quietly does nothing is the worst outcome there is.
+      endSession({ force: true });
     },
     updateProfile: async (body) => {
       await authApi.updateProfile(body);

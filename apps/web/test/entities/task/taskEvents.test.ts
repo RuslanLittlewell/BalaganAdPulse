@@ -5,7 +5,7 @@ import type { Task } from "@/entities/task/api/api.js";
 const task = (partial: Partial<Task> = {}): Task => ({
   id: "t1", projectId: "p1", orgId: "org1", title: "Write the brief", description: null,
   column: "IDEA", priority: "MEDIUM", assigneeId: null, createdById: "m1",
-  campaignId: null, position: 0,
+  campaignId: null, visibleToClient: false, position: 0,
   imageIds: [], createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
   ...partial,
 });
@@ -170,7 +170,7 @@ describe("folding an event into a filtered listing", () => {
   });
 
   it("takes in a task about the project as a whole on a project listing", () => {
-    const general = task({ id: "b", campaignId: null, position: 1 });
+    const general = task({ id: "b", campaignId: null, visibleToClient: false, position: 1 });
 
     expect(applyTaskEvent(listing, created(general), onProject).map((t) => t.id))
       .toEqual(["a", "b"]);

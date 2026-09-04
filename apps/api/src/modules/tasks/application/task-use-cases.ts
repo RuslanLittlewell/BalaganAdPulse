@@ -1,4 +1,4 @@
-import { can } from "@adpulse/access-policy";
+import { can, isCustomer } from "@adpulse/access-policy";
 import { AppError } from "../../../shared/domain/index.js";
 import type { ActorContext } from "../../../shared/application/index.js";
 import {
@@ -90,6 +90,21 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
     }
   };
 
+  /**
+   * Deciding what a customer is shown is the agency's to make in one place.
+   *
+   * A manager may create, edit and complete a task; only an admin says whether
+   * the client is shown it. Checked on the field rather than on the verb, so a
+   * manager's ordinary edit is unaffected — it is this one change they may not
+   * make, not the task.
+   */
+  const assertMaySetVisibility = (actor: ActorContext, visibleToClient: boolean | undefined) => {
+    if (visibleToClient === undefined) return;
+    if (actor.role !== "ADMIN") {
+      throw new AppError("forbidden", "Only an admin decides what the client is shown");
+    }
+  };
+
   const assertTitle = (title: string | undefined) => {
     if (title !== undefined && title.trim().length === 0) {
       throw new AppError("validation", "title is required");
@@ -132,6 +147,11 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
           assigneeId: input.assigneeId ?? null,
           createdById: actor.membershipId,
           campaignId: input.campaignId ?? null,
+          // A customer raised it, so it is theirs to see — not a choice they
+          // make. Anything the agency raises is the agency's own until an admin
+          // says otherwise. Asked of the side rather than of the role: a
+          // client's principal is a customer like any of its people.
+          visibleToClient: isCustomer(actor.role),
           // Appended: a new task joins the end of its column.
           position: await dependencies.tasks.countInColumn(actor.orgId, column),
         });
@@ -156,6 +176,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
     update: async (actor: ActorContext, id: string, input: TaskChange): Promise<TaskRecord> => {
       const task = await reach(actor, id);
       assertCan(actor, "update");
+      assertMaySetVisibility(actor, input.visibleToClient);
       assertTitle(input.title);
       const projectId = input.projectId ?? task.projectId;
       const context = await projectContext(actor, projectId);

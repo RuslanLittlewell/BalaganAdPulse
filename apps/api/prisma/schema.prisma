@@ -12,6 +12,9 @@ enum Role {
   MANAGER
   GUEST
   CLIENT
+  /// The principal on a customer's own company: administers its people, and
+  /// reaches exactly what an ordinary CLIENT reaches.
+  CLIENT_ADMIN
 
   @@map("role")
 }
@@ -34,6 +37,9 @@ enum AuditAction {
 enum RegistrationType {
   CLIENT
   EMPLOYEE
+  /// Joining a client that already exists, rather than creating one. Carries the
+  /// client it joins and no role: whoever redeems it becomes an ordinary CLIENT.
+  CLIENT_STAFF
 
   @@map("registration_type")
 }
@@ -82,6 +88,9 @@ model Invite {
   code             String           @unique
   registrationType RegistrationType @default(EMPLOYEE) @map("registration_type")
   role             Role?
+  /// The client this invitation joins. Set for CLIENT_STAFF alone; the other two
+  /// kinds either create a client or have nothing to do with one.
+  clientId         String?          @map("client_id")
   email            String?
   expiresAt        DateTime?        @map("expires_at")
   revokedAt        DateTime?        @map("revoked_at")
@@ -92,9 +101,11 @@ model Invite {
   org              Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
   usedBy           User?            @relation(fields: [usedById], references: [id], onDelete: SetNull)
   createdBy        Membership?      @relation("InviteCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  client           Client?          @relation(fields: [clientId], references: [id], onDelete: Cascade)
   projects         InviteProject[]
 
   @@index([orgId, createdAt(sort: Desc)])
+  @@index([clientId])
   @@map("invite")
 }
 
@@ -119,21 +130,25 @@ enum TaskPriority {
 }
 
 model Task {
-  id          String       @id @default(uuid())
-  projectId   String       @map("project_id")
-  orgId       String       @map("org_id")
-  title       String
-  description Json?
-  column      TaskColumn   @default(IDEA)
-  priority    TaskPriority
-  assigneeId  String?      @map("assignee_id")
-  createdById String?      @map("created_by_id")
+  id              String       @id @default(uuid())
+  projectId       String       @map("project_id")
+  orgId           String       @map("org_id")
+  title           String
+  description     Json?
+  column          TaskColumn   @default(IDEA)
+  priority        TaskPriority
+  assigneeId      String?      @map("assignee_id")
+  createdById     String?      @map("created_by_id")
   /// The campaign this work is about. Null means the project as a whole — a
   /// statement, not a gap, so nothing here defaults it to a campaign.
-  campaignId  String?      @map("campaign_id")
-  position    Int
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt @map("updated_at")
+  campaignId      String?      @map("campaign_id")
+  /// Whether the customer is shown this task. False by default: work the agency
+  /// does about a customer is not addressed to them. A client's own request is
+  /// marked when they raise it; only an admin changes it afterwards.
+  visibleToClient Boolean      @default(false) @map("visible_to_client")
+  position        Int
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
 
   project  Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -147,6 +162,7 @@ model Task {
   @@index([orgId, column, position])
   @@index([projectId])
   @@index([campaignId])
+  @@index([orgId, visibleToClient])
   @@map("task")
 }
 
@@ -182,6 +198,7 @@ model Client {
   createdAt    DateTime       @default(now()) @map("created_at")
   updatedAt    DateTime       @updatedAt @map("updated_at")
   projects     Project[]
+  invitations  Invite[]
   orgId        String         @map("org_id")
   org          Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
   access       ClientAccess[]
@@ -200,23 +217,37 @@ enum ProjectPriority {
   @@map("project_priority")
 }
 
+/// What a project's monthly budget is stated in. Never inferred from the client
+/// or the locale: it is what the agency and the client agreed.
+enum Currency {
+  BYN
+  RUB
+  USD
+  EUR
+
+  @@map("currency")
+}
+
 model Project {
-  id            String          @id @default(uuid())
-  clientId      String          @map("client_id")
-  client        Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  name          String
-  niche         String?
-  monthlyBudget Decimal?        @map("monthly_budget") @db.Decimal(12, 2)
-  priority      ProjectPriority @default(NEW)
-  image         String?
-  avatarPath    String?         @map("avatar_path")
-  position      Int
-  createdAt     DateTime        @default(now()) @map("created_at")
-  updatedAt     DateTime        @updatedAt @map("updated_at")
-  campaigns     Campaign[]
-  access        ClientAccess[]
-  tasks         Task[]
-  invitations   InviteProject[]
+  id             String          @id @default(uuid())
+  clientId       String          @map("client_id")
+  client         Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name           String
+  niche          String?
+  monthlyBudget  Decimal?        @map("monthly_budget") @db.Decimal(12, 2)
+  /// Present even when the amount is not, so entering one later is a one-field
+  /// decision rather than two.
+  budgetCurrency Currency        @default(BYN) @map("budget_currency")
+  priority       ProjectPriority @default(NEW)
+  image          String?
+  avatarPath     String?         @map("avatar_path")
+  position       Int
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  campaigns      Campaign[]
+  access         ClientAccess[]
+  tasks          Task[]
+  invitations    InviteProject[]
 
   @@index([clientId, position])
   @@map("project")
@@ -437,6 +468,11 @@ model User {
   passwordHash  String         @map("password_hash")
   image         String?
   avatarPath    String?        @map("avatar_path")
+  /// How to reach this person. Theirs to keep current, and never required: an
+  /// account is not worth refusing over a missing phone number. Unvalidated on
+  /// purpose — the agency works across several countries and the formats differ.
+  phone         String?
+  telegram      String?
   createdAt     DateTime       @default(now()) @map("created_at")
   refreshTokens RefreshToken[]
   memberships   Membership[]

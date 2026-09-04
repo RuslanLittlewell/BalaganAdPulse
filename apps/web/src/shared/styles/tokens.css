@@ -110,7 +110,7 @@
   --space-6: 24px;
   --space-8: 32px;
 
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Montserrat Variable", Montserrat, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
 
   --sidebar-width: 280px;

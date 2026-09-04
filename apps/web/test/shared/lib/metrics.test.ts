@@ -25,6 +25,19 @@ describe("formatting measured figures", () => {
     expect(formatCurrency(1284.6)).toBe(`1${NBSP}285${NBSP}₽`);
   });
 
+  // The rouble sign was a default nobody chose — it was the only currency at the
+  // time. A budget is stated in the currency the agency and the client agreed.
+  it("renders money in the currency it is given", () => {
+    expect(formatCurrency(1000, "BYN")).toBe(`1${NBSP}000${NBSP}Br`);
+    expect(formatCurrency(1000, "USD")).toBe(`1${NBSP}000${NBSP}$`);
+    expect(formatCurrency(1000, "EUR")).toBe(`1${NBSP}000${NBSP}€`);
+    expect(formatCurrency(1000, "RUB")).toBe(`1${NBSP}000${NBSP}₽`);
+  });
+
+  it("keeps the rouble as the currency it already used", () => {
+    expect(formatCurrency(1000)).toBe(`1${NBSP}000${NBSP}₽`);
+  });
+
   it("renders counts grouped and whole", () => {
     expect(formatCount(1284500)).toBe(`1${NBSP}284${NBSP}500`);
     expect(formatCount(0)).toBe("0");

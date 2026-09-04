@@ -1,6 +1,12 @@
 import type { Role } from "@adpulse/access-policy";
 
-export type RegistrationType = "CLIENT" | "EMPLOYEE";
+/**
+ * What a link creates.
+ *
+ * `CLIENT` registers a company and its first project; `EMPLOYEE` joins the
+ * agency; `CLIENT_STAFF` joins a company that already exists.
+ */
+export type RegistrationType = "CLIENT" | "EMPLOYEE" | "CLIENT_STAFF";
 
 export interface Invite {
   readonly id: string;
@@ -9,6 +15,8 @@ export interface Invite {
   readonly registrationType: RegistrationType;
   readonly role: Role | null;
   readonly projectIds: readonly string[];
+  /** The client this invitation joins. Set for `CLIENT_STAFF` alone. */
+  readonly clientId: string | null;
   /** When set, only a registration using this address may redeem it. */
   readonly email: string | null;
   readonly expiresAt: Date | null;

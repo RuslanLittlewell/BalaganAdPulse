@@ -12,7 +12,7 @@ const customer: ActorContext = { ...admin, membershipId: "m4", role: "CLIENT" };
 const task = (partial: Partial<TaskRecord> = {}): TaskRecord => ({
   id: "t1", projectId: "p1", orgId: "org1", title: "Write the brief", description: null,
   column: "IDEA", priority: "MEDIUM", assigneeId: null, createdById: "m1",
-  campaignId: null, position: 0,
+  campaignId: null, visibleToClient: false, position: 0,
   createdAt: new Date("2026-09-01T00:00:00.000Z"), updatedAt: new Date("2026-09-01T00:00:00.000Z"),
   ...partial,
 });
@@ -43,15 +43,31 @@ function fixture(options: {
   // rather than merely that both happened.
   const journal: string[] = [];
 
+  /** The repository decides this in SQL; the fixture mirrors it, the same way it
+   * already mirrors reach, so an application test is not quietly broader than
+   * the query it stands in for. */
+  const owns = (actor: ActorContext, candidate: TaskRecord) => {
+    if (actor.role === "ADMIN") return true;
+    if (actor.role === "CLIENT") return candidate.visibleToClient;
+    return candidate.assigneeId === actor.membershipId;
+  };
+
   const useCases = createTaskUseCases({
     tasks: {
       create: async (_tx, input) => { const created = task(input); tasks.set(created.id, created); return created; },
-      findReachable: async (_actor, id) => tasks.get(id) ?? null,
-      listReachable: async (_actor, filter) =>
+      findReachable: async (actor, id) => {
+        const found = tasks.get(id);
+        return found && reachableProjects.includes(found.projectId) && owns(actor, found)
+          ? found
+          : null;
+      },
+      listReachable: async (actor, filter) =>
         [...tasks.values()]
           // Reach first, as the real query does: a filter narrows what the
           // member already reaches and can never widen it.
           .filter((t) => reachableProjects.includes(t.projectId))
+          // Then whose work it is, mirroring the repository's own filter.
+          .filter((t) => owns(actor, t))
           .filter((t) => !filter?.projectId || t.projectId === filter.projectId)
           .filter((t) => !filter?.campaignId || t.campaignId === filter.campaignId)
           // By the board's column order, not alphabetically — the same order
@@ -133,14 +149,18 @@ describe("reading the board", () => {
   });
 
   it("lets a guest read the board", async () => {
-    const { useCases } = fixture({ tasks: [task()] });
+    const { useCases } = fixture({ tasks: [task({ assigneeId: "m3" })] });
     await expect(useCases.list(guest)).resolves.toHaveLength(1);
   });
 
-  it("refuses a client-role member the board entirely", async () => {
+  // A customer reads the board now. What they find on it is reach's answer and
+  // the visibility rule's — not the matrix's — so an agency task on their own
+  // project is simply not there.
+  it("lets a client-role member read the board, and shows them nothing of the agency's", async () => {
     const { useCases } = fixture({ tasks: [task()] });
-    await expect(useCases.list(customer)).rejects.toMatchObject({ category: "forbidden" });
-    await expect(useCases.read(customer, "t1")).rejects.toMatchObject({ category: "forbidden" });
+
+    await expect(useCases.list(customer)).resolves.toEqual([]);
+    await expect(useCases.read(customer, "t1")).rejects.toMatchObject({ category: "not-found" });
   });
 
   it("answers not-found for a task out of reach", async () => {
@@ -236,7 +256,7 @@ describe("changing a task", () => {
   });
 
   it("refuses a guest", async () => {
-    const { useCases } = fixture({ tasks: [task()] });
+    const { useCases } = fixture({ tasks: [task({ assigneeId: "m3" })] });
     await expect(useCases.update(guest, "t1", { title: "x" }))
       .rejects.toMatchObject({ category: "forbidden" });
   });
@@ -259,12 +279,12 @@ describe("deleting a task", () => {
   });
 
   it("is permitted to a manager as well as an admin", async () => {
-    const { useCases } = fixture({ tasks: [task()] });
+    const { useCases } = fixture({ tasks: [task({ assigneeId: "m2" })] });
     await expect(useCases.delete(manager, "t1")).resolves.toBeUndefined();
   });
 
   it("is refused to a guest", async () => {
-    const { useCases, tasks } = fixture({ tasks: [task()] });
+    const { useCases, tasks } = fixture({ tasks: [task({ assigneeId: "m3" })] });
     await expect(useCases.delete(guest, "t1")).rejects.toMatchObject({ category: "forbidden" });
     expect(tasks.has("t1")).toBe(true);
   });
@@ -311,7 +331,7 @@ describe("moving a card", () => {
   });
 
   it("refuses a guest and moves nothing", async () => {
-    const { useCases, orders } = fixture({ tasks: [task()] });
+    const { useCases, orders } = fixture({ tasks: [task({ assigneeId: "m3" })] });
     await expect(useCases.move(guest, "t1", { column: "DONE", position: 0 }))
       .rejects.toMatchObject({ category: "forbidden" });
     expect(orders).toEqual([]);
@@ -579,5 +599,76 @@ describe("listing one campaign's tasks", () => {
     const { useCases } = fixture({ tasks: board, reachableProjects: ["p1"] });
 
     expect((await useCases.list(admin, {})).map((t) => t.id)).toEqual(["a", "b", "c"]);
+  });
+});
+
+describe("whether a task is shown to the client", () => {
+  // The client raised it; it is theirs to see. Not a choice they make.
+  it("marks a task raised by a client", async () => {
+    const { useCases } = fixture({ reachableProjects: ["p1"] });
+
+    const task = await useCases.create(customer, {
+      projectId: "p1", title: "Поменяйте баннер", priority: "MEDIUM",
+    });
+
+    expect(task.visibleToClient).toBe(true);
+  });
+
+  it("leaves a task raised by the agency as its own", async () => {
+    const { useCases } = fixture();
+
+    const byAdmin = await useCases.create(admin, {
+      projectId: "p1", title: "Разобрать статистику", priority: "LOW",
+    });
+    const byManager = await useCases.create(manager, {
+      projectId: "p1", title: "Собрать семантику", priority: "LOW",
+    });
+
+    expect(byAdmin.visibleToClient).toBe(false);
+    expect(byManager.visibleToClient).toBe(false);
+  });
+
+  it("lets an admin share a task and take it back", async () => {
+    const { useCases } = fixture({ tasks: [task()] });
+
+    expect((await useCases.update(admin, "t1", { visibleToClient: true })).visibleToClient)
+      .toBe(true);
+    expect((await useCases.update(admin, "t1", { visibleToClient: false })).visibleToClient)
+      .toBe(false);
+  });
+
+  // Deciding what a customer is shown is one decision, made in one place, by the
+  // role that answers for the relationship.
+  it("refuses a manager who tries to share one", async () => {
+    const { useCases, tasks } = fixture({ tasks: [task({ assigneeId: "m2" })] });
+
+    await expect(useCases.update(manager, "t1", { visibleToClient: true }))
+      .rejects.toMatchObject({ category: "forbidden" });
+    expect(tasks.get("t1")?.visibleToClient).toBe(false);
+  });
+
+  it("refuses a client who tries to hide their own", async () => {
+    const { useCases } = fixture({ tasks: [task({ visibleToClient: true, createdById: "m4" })] });
+
+    await expect(useCases.update(customer, "t1", { visibleToClient: false }))
+      .rejects.toMatchObject({ category: "forbidden" });
+  });
+
+  it("lets a manager edit everything else about a task", async () => {
+    const { useCases } = fixture({ tasks: [task({ assigneeId: "m2" })] });
+
+    const updated = await useCases.update(manager, "t1", { title: "Другое", priority: "HIGH" });
+
+    expect(updated).toMatchObject({ title: "Другое", priority: "HIGH" });
+  });
+
+  it("leaves the responsible member and the stage alone when sharing", async () => {
+    const { useCases } = fixture({
+      tasks: [task({ assigneeId: "m2", column: "IN_REVIEW", priority: "HIGH" })],
+    });
+
+    const shared = await useCases.update(admin, "t1", { visibleToClient: true });
+
+    expect(shared).toMatchObject({ assigneeId: "m2", column: "IN_REVIEW", priority: "HIGH" });
   });
 });

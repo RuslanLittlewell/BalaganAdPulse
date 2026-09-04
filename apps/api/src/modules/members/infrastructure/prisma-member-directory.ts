@@ -1,8 +1,9 @@
+import { ROLES, isCustomer } from "@adpulse/access-policy";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import type { TransactionContext } from "../../../shared/application/index.js";
 import type { PrismaUnitOfWork } from "../../../shared/infrastructure/prisma-unit-of-work.js";
 import type { MemberChange, MemberRecord } from "../domain/member.js";
-import type { MemberDirectory } from "../application/ports.js";
+import type { MemberDirectory , MemberKind } from "../application/ports.js";
 
 /** The password hash is excluded by selection rather than by deletion, so a
  * column added to the user table later is not exposed by default. */
@@ -13,13 +14,16 @@ const SELECT = {
   role: true,
   status: true,
   createdAt: true,
-  user: { select: { name: true, email: true, image: true } },
+  user: { select: { name: true, email: true, image: true, phone: true, telegram: true } },
 } as const;
 
 type Row = {
   id: string; userId: string; orgId: string; role: MemberRecord["role"];
   status: MemberRecord["status"]; createdAt: Date;
-  user: { name: string; email: string; image: string | null };
+  user: {
+    name: string; email: string; image: string | null;
+    phone: string | null; telegram: string | null;
+  };
 };
 
 /** Flattened for the caller: the team screen lists people, and a nested `user`
@@ -32,11 +36,15 @@ function toDomain(row: Row): MemberRecord {
     name: row.user.name,
     email: row.user.email,
     image: row.user.image,
+    phone: row.user.phone,
+    telegram: row.user.telegram,
     role: row.role,
     status: row.status,
     createdAt: row.createdAt,
   };
 }
+
+const CUSTOMER_ROLES = ROLES.filter(isCustomer);
 
 export class PrismaMemberDirectory implements MemberDirectory {
   constructor(
@@ -48,9 +56,23 @@ export class PrismaMemberDirectory implements MemberDirectory {
     return this.unitOfWork.clientFor<Prisma.TransactionClient>(context);
   }
 
-  async listByOrg(orgId: string): Promise<MemberRecord[]> {
+  async listByOrg(orgId: string, kind?: MemberKind): Promise<MemberRecord[]> {
     const rows = await this.prisma.membership.findMany({
-      where: { orgId },
+      // Staff is everyone but the customers, stated as the exclusion it is and
+      // derived from the one predicate that answers which side a role is on. A
+      // customer role added later is excluded without anybody remembering to.
+      where: { orgId, ...(kind === "staff" ? { role: { notIn: CUSTOMER_ROLES } } : {}) },
+      select: SELECT,
+      orderBy: { createdAt: "asc" },
+    });
+    return rows.map(toDomain);
+  }
+
+  async listByClient(orgId: string, clientId: string): Promise<MemberRecord[]> {
+    const rows = await this.prisma.membership.findMany({
+      // Granted the client, whether the grant names the client itself or one of
+      // its projects — both mean this person belongs to it.
+      where: { orgId, access: { some: { OR: [{ clientId }, { project: { clientId } }] } } },
       select: SELECT,
       orderBy: { createdAt: "asc" },
     });

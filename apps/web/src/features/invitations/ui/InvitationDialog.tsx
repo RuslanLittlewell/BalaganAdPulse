@@ -9,6 +9,7 @@ import {
 } from "@/entities/invitation/index.js";
 import { ProjectAvatar, useProjects, type Project } from "@/entities/project/index.js";
 import { t } from "@/shared/config/index.js";
+import { InvitationList } from "./InvitationList.js";
 import { cn } from "@/shared/lib/index.js";
 import {
   Button,
@@ -24,6 +25,10 @@ import { registrationLink } from "../lib/link.js";
 
 export interface InvitationDialogProps {
   registrationType: RegistrationType;
+  /** Required for `CLIENT_STAFF`: the company being joined. It is already known
+   * — whoever opened this is looking at it — so the dialog states what is being
+   * made and asks nothing. */
+  clientId?: string;
   open: boolean;
   onClose: () => void;
 }
@@ -36,7 +41,7 @@ export interface InvitationDialogProps {
  * answered — closing on success would leave the person who asked for it hunting
  * through the list to find what they just made.
  */
-export function InvitationDialog({ registrationType, open, onClose }: InvitationDialogProps) {
+export function InvitationDialog({ registrationType, clientId, open, onClose }: InvitationDialogProps) {
   const projects = useProjects();
   const create = useCreateInvitation();
   const [role, setRole] = useState<EmployeeRole>("MANAGER");
@@ -45,7 +50,12 @@ export function InvitationDialog({ registrationType, open, onClose }: Invitation
   const [created, setCreated] = useState<Invitation | null>(null);
 
   const isEmployee = registrationType === "EMPLOYEE";
-  const title = isEmployee ? t("invites.createEmployee") : t("invites.createClient");
+  const isJoining = registrationType === "CLIENT_STAFF";
+  const title = isEmployee
+    ? t("invites.createEmployee")
+    : isJoining
+      ? t("contacts.people.invite")
+      : t("invites.createClient");
 
   function toggleProject(id: string) {
     setProjectIds((current) =>
@@ -73,7 +83,9 @@ export function InvitationDialog({ registrationType, open, onClose }: Invitation
       setCreated(await create.mutateAsync(
         isEmployee
           ? { registrationType: "EMPLOYEE", role, projectIds }
-          : { registrationType: "CLIENT" },
+          : isJoining
+            ? { registrationType: "CLIENT_STAFF", clientId: clientId as string }
+            : { registrationType: "CLIENT" },
       ));
     } catch {
       setFailure(t("invites.failed"));
@@ -133,6 +145,12 @@ export function InvitationDialog({ registrationType, open, onClose }: Invitation
             )}
 
             {failure && <p role="alert" className="text-sm text-destructive">{failure}</p>}
+
+            {/* Beside the control that makes one, which is when somebody wants
+                to know what is already outstanding. */}
+            <div className="mt-4 border-t border-border pt-4">
+              <InvitationList registrationType={registrationType} />
+            </div>
           </>
         )}
 

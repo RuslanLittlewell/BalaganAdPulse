@@ -43,6 +43,14 @@ describe("App", () => {
     expect(window.location.pathname).toBe("/");
   });
 
+  // The screen that asked for a hand-typed code is gone; the link is the way in.
+  it("sends a bookmark for the removed sign-up screen to the sign-in form", () => {
+    renderAppAt("/signup");
+
+    expect(screen.getByRole("heading", { name: "Вход" })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/login");
+  });
+
   it("renders the dashboard shell for a signed-in visitor at a dashboard route", async () => {
     writeTokens({ accessToken: makeAccessToken(), refreshToken: "r" });
 

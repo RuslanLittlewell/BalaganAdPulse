@@ -14,7 +14,7 @@
  * is a bug in one of two implementations; there is only one here.
  */
 
-export const ROLES = ["ADMIN", "MANAGER", "GUEST", "CLIENT"] as const;
+export const ROLES = ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"] as const;
 export type Role = (typeof ROLES)[number];
 
 export const ACTIONS = ["read", "create", "update", "delete"] as const;
@@ -41,10 +41,30 @@ export interface Actor {
   role: Role;
 }
 
+/**
+ * The roles on the customer's side of the relationship.
+ *
+ * Stated once, and asked through `isCustomer` rather than compared by name at
+ * each site: the two differ only in whether they administer their own company's
+ * people, and every other rule about them — what they reach, which tasks they
+ * see, that they are not the agency's staff — is the same for both. Comparing
+ * names is how a second customer role silently turned up among the employees.
+ */
+const CUSTOMERS: readonly Role[] = ["CLIENT", "CLIENT_ADMIN"];
+
+/** Whether this role belongs to a customer rather than to the agency. */
+export function isCustomer(role: Role): boolean {
+  return CUSTOMERS.includes(role);
+}
+
 const EVERYONE: readonly Role[] = ROLES;
 const STAFF: readonly Role[] = ["ADMIN", "MANAGER"];
 const STAFF_AND_GUEST: readonly Role[] = ["ADMIN", "MANAGER", "GUEST"];
+const STAFF_AND_CUSTOMERS: readonly Role[] = ["ADMIN", "MANAGER", ...CUSTOMERS];
 const ADMINS: readonly Role[] = ["ADMIN"];
+/** The agency's admins, and the principal on a customer's own company. Which
+ * people each of them reaches is the grants' answer, not this table's. */
+const ADMINS_AND_PRINCIPAL: readonly Role[] = ["ADMIN", "CLIENT_ADMIN"];
 const NOBODY: readonly Role[] = [];
 
 type ResourcePolicy = Readonly<Record<Action, readonly Role[]>>;
@@ -56,18 +76,31 @@ type ResourcePolicy = Readonly<Record<Action, readonly Role[]>>;
  */
 const MATRIX: Readonly<Record<Resource, ResourcePolicy>> = {
   organization: { read: EVERYONE, create: NOBODY, update: ADMINS, delete: NOBODY },
-  member: { read: ADMINS, create: ADMINS, update: ADMINS, delete: ADMINS },
-  invite: { read: ADMINS, create: ADMINS, update: ADMINS, delete: ADMINS },
+  // The principal administers its own company's people: it sees them and can
+  // remove one. Creating a membership and changing a role stay with the agency —
+  // somebody joins by redeeming an invitation, not by being conjured.
+  member: { read: ADMINS_AND_PRINCIPAL, create: ADMINS, update: ADMINS, delete: ADMINS_AND_PRINCIPAL },
+  // Issued by either side. Whose invitations a caller may see, make or revoke is
+  // the grants' answer: the agency's admins reach every client, a principal
+  // reaches only its own.
+  invite: {
+    read: ADMINS_AND_PRINCIPAL,
+    create: ADMINS_AND_PRINCIPAL,
+    update: ADMINS,
+    delete: ADMINS_AND_PRINCIPAL,
+  },
   client: { read: EVERYONE, create: STAFF, update: STAFF, delete: ADMINS },
   project: { read: EVERYONE, create: STAFF, update: STAFF, delete: ADMINS },
   // One resource for the whole hierarchy — the campaign, its ad sets, its ads
   // and their measured figures. Splitting it described the old sheet's
   // internals rather than anything a role has an opinion about.
   campaign: { read: EVERYONE, create: STAFF, update: STAFF, delete: STAFF },
-  // The board is the agency's internal work: a customer does not reach it at
-  // all, rather than seeing an empty one. The client portal is a later change
-  // and will decide what they should see; closed is the safe default.
-  task: { read: STAFF_AND_GUEST, create: STAFF, update: STAFF, delete: STAFF },
+  // A customer reads the board and may raise a request on it, then leaves it
+  // alone: changing or withdrawing one is the agency's to do. What either side
+  // *sees* is reach's answer rather than this table's — a customer reaches only
+  // the tasks marked as shown to them, and a manager only the ones they are
+  // responsible for.
+  task: { read: EVERYONE, create: STAFF_AND_CUSTOMERS, update: STAFF, delete: STAFF },
   // Append-only: the trail is read through the API and written only by the
   // services, inside the transaction of the mutation being recorded.
   audit: { read: EVERYONE, create: NOBODY, update: NOBODY, delete: NOBODY },

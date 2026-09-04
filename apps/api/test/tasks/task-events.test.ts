@@ -36,12 +36,18 @@ describe("task events", () => {
       .toEqual(["task.created", "task.updated", "task.moved", "task.deleted"]);
   });
 
-  // A deleted task has no row left to send, and a recipient that never saw it
-  // needs only enough to drop it from a board it may be holding.
-  it("carries only the identifier on delete", () => {
-    const event = taskDeleted(task);
+  /**
+   * A deleted task has no row left to send, so the event carries the identifier
+   * to drop from a board — plus the two facts that decide who is told at all.
+   * Without them a deletion would have to be announced to everyone who reaches
+   * the project, telling people that work they could never see had existed.
+   */
+  it("carries the identifier and who could see it, on delete", () => {
+    const event = taskDeleted({ ...task, assigneeId: "m7", visibleToClient: true });
+
     expect(event).toEqual({
       kind: "task.deleted", orgId: "org1", projectId: "p1", taskId: "t1",
+      assigneeId: "m7", visibleToClient: true,
     });
     expect(event).not.toHaveProperty("task");
   });

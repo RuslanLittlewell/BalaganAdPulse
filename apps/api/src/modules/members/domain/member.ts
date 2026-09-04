@@ -11,6 +11,9 @@ export interface MemberRecord {
   readonly name: string;
   readonly email: string;
   readonly image: string | null;
+  /** How to reach them. The person's own, and never required. */
+  readonly phone: string | null;
+  readonly telegram: string | null;
   readonly role: Role;
   readonly status: MembershipStatus;
   readonly createdAt: Date;

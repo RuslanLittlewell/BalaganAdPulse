@@ -111,25 +111,51 @@ describe("GET /api/tasks", () => {
   });
 
   it("shows a manager only the tasks their grants reach", async () => {
-    await create({ title: "Ungranted" });
     const manager = await signInAs("Manager", { role: "MANAGER" });
+    // Responsible for it, so the grant is the only thing that varies here.
+    await create({ title: "Ungranted", assigneeId: manager.membership!.id });
 
     expect((await request(app).get("/api/tasks").set(manager.auth)).body).toEqual([]);
     await grantAccess(manager.membership!.id, clientId);
     expect((await request(app).get("/api/tasks").set(manager.auth)).body).toHaveLength(1);
   });
 
+  // Reach says which projects; this says whose work. A colleague's task on a
+  // project the manager is granted is still not theirs to see.
+  it("shows a manager nothing of a colleague's, however wide the grant", async () => {
+    const colleague = await signInAs("Colleague", { role: "MANAGER" });
+    const manager = await signInAs("Manager", { role: "MANAGER" });
+    await grantAccess(manager.membership!.id, clientId);
+    await create({ title: "Theirs", assigneeId: colleague.membership!.id });
+    await create({ title: "Nobody's" });
+
+    expect((await request(app).get("/api/tasks").set(manager.auth)).body).toEqual([]);
+  });
+
   it("lets a guest read the board", async () => {
-    await create({ title: "Visible" });
     const guest = await signInAs("Guest", { role: "GUEST" });
     await grantAccess(guest.membership!.id, clientId);
+    await create({ title: "Visible", assigneeId: guest.membership!.id });
     expect((await request(app).get("/api/tasks").set(guest.auth)).status).toBe(200);
   });
 
-  it("refuses a client-role member the board -> 403", async () => {
+  // A customer reads the board now, and finds on it what is marked as shown to
+  // them — the agency's own work is simply not there.
+  it("shows a client only what is marked as shown to them", async () => {
     const customer = await signInAs("Customer", { role: "CLIENT" });
     await grantAccess(customer.membership!.id, clientId);
-    expect((await request(app).get("/api/tasks").set(customer.auth)).status).toBe(403);
+    await create({ title: "Внутренняя" });
+
+    const before = await request(app).get("/api/tasks").set(customer.auth);
+    expect(before.status).toBe(200);
+    expect(before.body).toEqual([]);
+
+    const raised = await request(app).post("/api/tasks").set(customer.auth)
+      .send({ projectId, title: "Поменяйте баннер", priority: "MEDIUM" });
+    expect(raised.status).toBe(201);
+
+    const after = await request(app).get("/api/tasks").set(customer.auth);
+    expect(after.body.map((task: { title: string }) => task.title)).toEqual(["Поменяйте баннер"]);
   });
 });
 
@@ -167,10 +193,38 @@ describe("PATCH /api/tasks/:id", () => {
   });
 
   it("refuses a guest -> 403", async () => {
-    const created = await create({});
     const guest = await signInAs("Guest", { role: "GUEST" });
     await grantAccess(guest.membership!.id, clientId);
+    const created = await create({ assigneeId: guest.membership!.id });
     expect((await request(app).patch(`/api/tasks/${created.body.id}`).set(guest.auth).send({ title: "No" })).status).toBe(403);
+  });
+
+  // Only an admin decides what a customer is shown, so a manager's ordinary
+  // edit is untouched but this one field is not theirs.
+  it("refuses a manager who tries to share a task with the client -> 403", async () => {
+    const manager = await signInAs("Manager", { role: "MANAGER" });
+    await grantAccess(manager.membership!.id, clientId);
+    const created = await create({ assigneeId: manager.membership!.id });
+
+    const refused = await request(app).patch(`/api/tasks/${created.body.id}`)
+      .set(manager.auth).send({ visibleToClient: true });
+
+    expect(refused.status).toBe(403);
+    expect((await prisma.task.findUniqueOrThrow({ where: { id: created.body.id } })).visibleToClient)
+      .toBe(false);
+  });
+
+  it("lets an admin share a task and take it back", async () => {
+    const created = await create({});
+
+    const shared = await request(app).patch(`/api/tasks/${created.body.id}`)
+      .set(admin).send({ visibleToClient: true });
+    expect(shared.status).toBe(200);
+    expect(shared.body.visibleToClient).toBe(true);
+
+    const taken = await request(app).patch(`/api/tasks/${created.body.id}`)
+      .set(admin).send({ visibleToClient: false });
+    expect(taken.body.visibleToClient).toBe(false);
   });
 });
 
@@ -217,9 +271,9 @@ describe("POST /api/tasks/:id/move", () => {
   });
 
   it("refuses a guest and leaves the card where it was -> 403", async () => {
-    const created = await create({});
     const guest = await signInAs("Guest", { role: "GUEST" });
     await grantAccess(guest.membership!.id, clientId);
+    const created = await create({ assigneeId: guest.membership!.id });
 
     expect((await request(app).post(`/api/tasks/${created.body.id}/move`)
       .set(guest.auth).send({ column: "DONE", position: 0 })).status).toBe(403);
@@ -241,16 +295,16 @@ describe("DELETE /api/tasks/:id", () => {
   });
 
   it("is permitted to a manager", async () => {
-    const created = await create({});
     const manager = await signInAs("Manager", { role: "MANAGER" });
     await grantAccess(manager.membership!.id, clientId);
+    const created = await create({ assigneeId: manager.membership!.id });
     expect((await request(app).delete(`/api/tasks/${created.body.id}`).set(manager.auth)).status).toBe(204);
   });
 
   it("is refused to a guest -> 403", async () => {
-    const created = await create({});
     const guest = await signInAs("Guest", { role: "GUEST" });
     await grantAccess(guest.membership!.id, clientId);
+    const created = await create({ assigneeId: guest.membership!.id });
     expect((await request(app).delete(`/api/tasks/${created.body.id}`).set(guest.auth)).status).toBe(403);
     expect(await prisma.task.count()).toBe(1);
   });
@@ -497,5 +551,64 @@ describe("GET /api/tasks?campaignId=", () => {
     const res = await request(app).get("/api/tasks").set(admin);
 
     expect(res.body).toHaveLength(2);
+  });
+});
+
+/**
+ * The two customer roles see the same work. The second administers people, not
+ * tasks, so it has no more claim on the agency's internal notes than the first.
+ */
+describe("what a client's principal sees on the board", () => {
+  it("sees what is marked as shown to the client, and nothing else", async () => {
+    const principal = await signInAs("Главный", { role: "CLIENT_ADMIN" });
+    await grantAccess(principal.membership!.id, clientId);
+    await create({ title: "Внутренняя" });
+    const shown = await create({ title: "Открытая" });
+    await request(app).patch(`/api/tasks/${shown.body.id}`).set(admin)
+      .send({ visibleToClient: true });
+
+    const board = await request(app).get("/api/tasks").set(principal.auth);
+
+    expect(board.status).toBe(200);
+    expect(board.body.map((task: { title: string }) => task.title)).toEqual(["Открытая"]);
+  });
+
+  it("marks a task it raises as shown to the client", async () => {
+    const principal = await signInAs("Главный", { role: "CLIENT_ADMIN" });
+    await grantAccess(principal.membership!.id, clientId);
+
+    const raised = await request(app).post("/api/tasks").set(principal.auth)
+      .send({ projectId, title: "Поменяйте баннер", priority: "HIGH" });
+
+    expect(raised.status).toBe(201);
+    expect(raised.body.visibleToClient).toBe(true);
+  });
+
+  it("is refused an edit, like any customer", async () => {
+    const principal = await signInAs("Главный", { role: "CLIENT_ADMIN" });
+    await grantAccess(principal.membership!.id, clientId);
+    const raised = await request(app).post("/api/tasks").set(principal.auth)
+      .send({ projectId, title: "Заявка", priority: "LOW" });
+
+    const refused = await request(app).patch(`/api/tasks/${raised.body.id}`)
+      .set(principal.auth).send({ title: "Другое" });
+
+    expect(refused.status).toBe(403);
+  });
+
+  // Both roles are the same customer as far as the agency's work is concerned.
+  it("sees the same board an ordinary customer sees", async () => {
+    const principal = await signInAs("Главный", { role: "CLIENT_ADMIN" });
+    await grantAccess(principal.membership!.id, clientId);
+    const colleague = await signInAs("Коллега", { role: "CLIENT" });
+    await grantAccess(colleague.membership!.id, clientId);
+    const raised = await request(app).post("/api/tasks").set(principal.auth)
+      .send({ projectId, title: "Заявка главного", priority: "LOW" });
+    expect(raised.status).toBe(201);
+
+    const theirs = await request(app).get("/api/tasks").set(colleague.auth);
+
+    expect(theirs.body.map((task: { title: string }) => task.title))
+      .toEqual(["Заявка главного"]);
   });
 });

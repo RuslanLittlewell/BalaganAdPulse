@@ -9,7 +9,7 @@ function setup(onClose = () => {}) {
 }
 
 const members = [
-  { id: "member-1", userId: "u1", name: "Пётр", email: "p@acme.com", image: null, role: "MANAGER", status: "ACTIVE", createdAt: "2026-09-01T00:00:00.000Z" },
+  { id: "member-1", userId: "u1", name: "Пётр", email: "p@acme.com", image: null, phone: null, telegram: null, role: "MANAGER", status: "ACTIVE", createdAt: "2026-09-01T00:00:00.000Z" },
 ];
 
 let fetchedImages: string[] = [];
@@ -102,7 +102,7 @@ describe("TaskFormDialog", () => {
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "Написать бриф",
           description, column: "IDEA", priority: "HIGH", assigneeId: "member-1",
-          createdById: "member-1", campaignId: null, position: 0, imageIds: ["image-1", "image-2"],
+          createdById: "member-1", campaignId: null, visibleToClient: false, position: 0, imageIds: ["image-1", "image-2"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -137,7 +137,7 @@ describe("TaskFormDialog", () => {
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлами",
           description: null, column: "IDEA", priority: "LOW", assigneeId: null,
-          createdById: null, campaignId: null, position: 0, imageIds: ["image-1", "image-2"],
+          createdById: null, campaignId: null, visibleToClient: false, position: 0, imageIds: ["image-1", "image-2"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -157,7 +157,7 @@ describe("TaskFormDialog", () => {
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "Без файлов",
           description: null, column: "IDEA", priority: "LOW", assigneeId: null,
-          createdById: null, campaignId: null, position: 0, imageIds: [],
+          createdById: null, campaignId: null, visibleToClient: false, position: 0, imageIds: [],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -390,7 +390,7 @@ describe("attachments", () => {
       task={{
         id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлами",
         description: null, column: "IDEA", priority: "LOW", assigneeId: null,
-        createdById: null, campaignId: null, position: 0, imageIds,
+        createdById: null, campaignId: null, visibleToClient: false, position: 0, imageIds,
         createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
       }}
       onClose={() => {}}
@@ -494,7 +494,7 @@ describe("a freshly pasted image", () => {
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлами",
           description: null, column: "IDEA", priority: "LOW", assigneeId: null,
-          createdById: null, campaignId: null, position: 0, imageIds: ["image-1"],
+          createdById: null, campaignId: null, visibleToClient: false, position: 0, imageIds: ["image-1"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -555,7 +555,7 @@ describe("removing an attachment reaches the description", () => {
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлом",
           description: described("image-1"), column: "IDEA", priority: "LOW",
-          assigneeId: null, createdById: null, campaignId: null, position: 0, imageIds: ["image-1"],
+          assigneeId: null, createdById: null, campaignId: null, visibleToClient: false, position: 0, imageIds: ["image-1"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -588,7 +588,7 @@ describe("removing an attachment reaches the description", () => {
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлом",
           description: described("image-1"), column: "IDEA", priority: "LOW",
-          assigneeId: null, createdById: null, campaignId: null, position: 0, imageIds: ["image-1"],
+          assigneeId: null, createdById: null, campaignId: null, visibleToClient: false, position: 0, imageIds: ["image-1"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -715,5 +715,77 @@ describe("the campaign a task is about", () => {
     await waitFor(() => {
       expect(screen.getAllByLabelText("Кампания").at(-1)).toHaveTextContent("Лента");
     });
+  });
+});
+
+/**
+ * Deciding what a customer is shown is one decision, made in one place, by the
+ * role that answers for the relationship. A manager may edit everything else
+ * about the task.
+ */
+describe("showing a task to the client", () => {
+  const asRole = (role: string) => server.use(mock.get("/api/auth/me", () => HttpResponse.json({
+    user: { id: "u1", name: "Кто-то", email: "s@acme.com", image: null },
+    organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
+    role,
+    clientIds: [],
+  })));
+
+  it("offers an admin the control", async () => {
+    asRole("ADMIN");
+    setup();
+
+    expect(await screen.findByLabelText("Видно клиенту")).toBeInTheDocument();
+  });
+
+  it("offers a manager nothing of the kind", async () => {
+    asRole("MANAGER");
+    setup();
+
+    await screen.findByLabelText("Название");
+    expect(screen.queryByLabelText("Видно клиенту")).not.toBeInTheDocument();
+  });
+
+  it("sends the choice an admin made", async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | null = null;
+    asRole("ADMIN");
+    server.use(mock.patch("/api/tasks/:id", async ({ request }) => {
+      body = await request.json() as Record<string, unknown>;
+      return HttpResponse.json({ id: "task-1" });
+    }));
+    renderWithProviders(
+      <TaskFormDialog task={aTask({ id: "task-1", projectId: "project-1" })} onClose={() => {}} />,
+      { route: "/tasks" },
+    );
+
+    await user.click(await screen.findByLabelText("Видно клиенту"));
+    await user.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ visibleToClient: true });
+  });
+
+  // A manager's ordinary edit must not carry the field at all, or the API would
+  // refuse the whole edit for a change they never made.
+  it("leaves the field out of a manager's edit entirely", async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | null = null;
+    asRole("MANAGER");
+    server.use(mock.patch("/api/tasks/:id", async ({ request }) => {
+      body = await request.json() as Record<string, unknown>;
+      return HttpResponse.json({ id: "task-1" });
+    }));
+    renderWithProviders(
+      <TaskFormDialog task={aTask({ id: "task-1", projectId: "project-1" })} onClose={() => {}} />,
+      { route: "/tasks" },
+    );
+
+    await user.clear(await screen.findByLabelText("Название"));
+    await user.type(screen.getByLabelText("Название"), "Другое");
+    await user.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).not.toHaveProperty("visibleToClient");
   });
 });

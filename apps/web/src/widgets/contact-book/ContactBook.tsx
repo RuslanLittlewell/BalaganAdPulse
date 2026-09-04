@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { PencilIcon, PlusIcon } from "lucide-react";
+import { isCustomer } from "@adpulse/access-policy";
 import { ClientAvatar, useClients, type Client } from "@/entities/client/index.js";
+import { useAuth } from "@/features/auth/index.js";
 import { t } from "@/shared/config/index.js";
 import {
   Button,
@@ -14,8 +16,9 @@ import {
   Loader,
   Tabs,
 } from "@/shared/ui/index.js";
-import { InvitationDialog, InvitationList } from "@/features/invitations/index.js";
+import { InvitationDialog } from "@/features/invitations/index.js";
 import { ContactAvatar } from "./ContactAvatar.js";
+import { CompanyTeam } from "./CompanyTeam.js";
 import { EmployeeDirectory } from "./EmployeeDirectory.js";
 import { ContactDetails } from "./ContactDetails.js";
 import { ContactForm } from "./ContactForm.js";
@@ -43,6 +46,11 @@ export function ContactBook({ open, onClose }: ContactBookProps) {
   const [directory, setDirectory] = useState<Directory>("CLIENT");
   const [inviting, setInviting] = useState(false);
   const clients = useClients();
+  const { role, clientIds } = useAuth();
+  const isAgency = role != null && !isCustomer(role);
+  /* A customer reaches exactly one client — their own company — so there is
+     nothing to choose between and nothing of the agency's to show. */
+  const ownCompanyId = isAgency ? undefined : clientIds[0];
   const [selectedId, setSelectedId] = useState<string>();
   const [mode, setMode] = useState<Mode>({ kind: "view" });
   const list = clients.data ?? [];
@@ -64,15 +72,22 @@ export function ContactBook({ open, onClose }: ContactBookProps) {
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) close(); }}>
-      <DialogContent className="w-[min(980px,calc(100vw-2rem))] max-w-none">
+      {/* A floor rather than a fitted height: without it the book resizes as one
+          clicks from a person with three fields to a person with six. */}
+      <DialogContent className="min-h-[550px] w-[min(980px,calc(100vw-2rem))] max-w-none">
         <DialogHeader>
           <DialogTitle>{t("contacts.title")}</DialogTitle>
         </DialogHeader>
 
+        {/* The employees pane is the agency's own staff, so a customer is not
+            offered it — not as an empty list, and not as an error from an
+            endpoint their role cannot read. */}
         <Tabs
           items={[
             { id: "CLIENT", label: t("contacts.directory.clients") },
-            { id: "EMPLOYEE", label: t("contacts.directory.employees") },
+            ...(isAgency
+              ? [{ id: "EMPLOYEE", label: t("contacts.directory.employees") }]
+              : []),
           ]}
           activeId={directory}
           onSelect={(id) => {
@@ -83,16 +98,23 @@ export function ContactBook({ open, onClose }: ContactBookProps) {
           }}
         />
 
-        {directory === "EMPLOYEE" && <EmployeeDirectory />}
+        {!isAgency && ownCompanyId != null && <CompanyTeam clientId={ownCompanyId} />}
 
-        {directory === "CLIENT" && clients.isPending && (
+        {isAgency && directory === "EMPLOYEE" && <EmployeeDirectory />}
+
+        {isAgency && directory === "CLIENT" && clients.isPending && (
           <div className="grid place-items-center py-10">
             <Loader />
           </div>
         )}
 
-        {directory === "CLIENT" && clients.isSuccess && (
-          <div className="grid min-h-[22rem] gap-4 sm:grid-cols-[20%_minmax(0,1fr)]">
+        {isAgency && directory === "CLIENT" && clients.isSuccess && (
+          // A fixed floor rather than a share of the dialog: a name and a
+          // surname have to fit, and a fifth of the width is enough for one word.
+          <div
+            data-testid="contact-book-columns"
+            className="grid min-h-[22rem] gap-4 sm:grid-cols-[minmax(14rem,22%)_minmax(0,1fr)]"
+          >
             <div className="flex max-h-[60vh] flex-col gap-1 overflow-auto sm:pr-4">
               {list.map((client) => (
                 <ListItem
@@ -149,11 +171,6 @@ export function ContactBook({ open, onClose }: ContactBookProps) {
               {mode.kind === "view" && selected == null && (
                 <EmptyState title={t("contacts.empty")} />
               )}
-              {mode.kind === "view" && (
-                <div className="mt-4 border-t border-border pt-4">
-                  <InvitationList registrationType="CLIENT" />
-                </div>
-              )}
               {editing && (
                 <ContactForm
                   client={mode.kind === "edit" ? selected : undefined}
@@ -167,7 +184,10 @@ export function ContactBook({ open, onClose }: ContactBookProps) {
             </div>
           </div>
         )}
-        <DialogFooter data-testid="contact-book-footer">
+        {/* Inviting a whole new company is the agency's business. A customer's
+            own invite control lives beside their people, where it means
+            something. */}
+        <DialogFooter data-testid="contact-book-footer" hidden={!isAgency}>
           <Can action="create" resource="invite">
             <Button onClick={() => setInviting(true)}>
               {directory === "EMPLOYEE"

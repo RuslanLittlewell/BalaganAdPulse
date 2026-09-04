@@ -1,13 +1,19 @@
 import { AppError } from "../../../shared/domain/index.js";
 import type { TransactionContext } from "../../../shared/application/index.js";
 import { principalOf } from "../domain/identity-user.js";
-import type { IdentityDependencies } from "./ports.js";
+import type { ClientRegistration, IdentityDependencies } from "./ports.js";
 
 export interface RegisterIdentityInput {
   readonly name: string;
   readonly email: string;
   readonly password: string;
+  readonly phone?: string | null;
+  readonly telegram?: string | null;
   readonly inviteCode: string;
+  /** Present for a client registration, which creates a contact and its first
+   * project alongside the account. Whether it belongs is the invitation's
+   * decision, made where the code is read. */
+  readonly registration?: ClientRegistration;
 }
 
 export interface LoginIdentityInput {
@@ -17,6 +23,9 @@ export interface LoginIdentityInput {
 
 export interface UpdateIdentityProfileInput {
   readonly name: string;
+  /** Absent leaves what is stored alone; null clears it. */
+  readonly phone?: string | null;
+  readonly telegram?: string | null;
   readonly currentPassword?: string;
   readonly newPassword?: string;
 }
@@ -55,8 +64,13 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
           name: input.name,
           email: input.email,
           passwordHash,
+          phone: input.phone ?? null,
+          telegram: input.telegram ?? null,
         });
-        await dependencies.invitations.redeem(context, input.inviteCode, input.email, user.id, dependencies.clock.now());
+        await dependencies.invitations.redeem(
+          context, input.inviteCode, input.email, user.id, dependencies.clock.now(),
+          input.registration,
+        );
         return issueTokenPair(context, user);
       });
     },
@@ -94,6 +108,8 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
         email: user.email,
         image,
         avatarPath: user.avatarPath,
+        phone: user.phone,
+        telegram: user.telegram,
       };
     },
 
@@ -108,7 +124,14 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
         passwordHash = await dependencies.passwords.hash(input.newPassword);
       }
       return dependencies.unitOfWork.run(async (context) => {
-        const updated = await dependencies.users.update(context, userId, { name: input.name, ...(passwordHash ? { passwordHash } : {}) });
+        const updated = await dependencies.users.update(context, userId, {
+          name: input.name,
+          // Only what the request mentioned: an update that named neither must
+          // not clear what the person already gave.
+          ...(input.phone === undefined ? {} : { phone: input.phone }),
+          ...(input.telegram === undefined ? {} : { telegram: input.telegram }),
+          ...(passwordHash ? { passwordHash } : {}),
+        });
         return { accessToken: await dependencies.tokens.issueAccess(principalOf(updated)) };
       });
     },

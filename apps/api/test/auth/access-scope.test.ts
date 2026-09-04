@@ -180,3 +180,49 @@ describe("reach carries down the hierarchy", () => {
     expect(res.status).toBe(404);
   });
 });
+
+/**
+ * The principal reaches exactly what an ordinary customer reaches: one client.
+ * What it adds is authority over that client's own people, and nothing about
+ * reading widens with it.
+ */
+describe("a client's principal reaches one client", () => {
+  it("reaches its own client's projects and campaigns", async () => {
+    const { clientId, projectId } = await someoneElsesClient();
+    const campaign = await prisma.campaign.create({
+      data: { projectId, name: "Поиск", channel: "YANDEX", position: 0 },
+    });
+    const principal = await signInAs("Главный", { role: "CLIENT_ADMIN" });
+    await grantAccess(principal.membership!.id, clientId);
+
+    expect((await request(app).get(`/api/projects/${projectId}`).set(principal.auth)).status)
+      .toBe(200);
+    const figures = await request(app)
+      .get(`/api/campaigns/${campaign.id}?from=2026-08-01&to=2026-08-31`).set(principal.auth);
+    expect(figures.status).toBe(200);
+  });
+
+  it("answers 404 for a project of another client", async () => {
+    const theirs = await someoneElsesClient();
+    const mine = await someoneElsesClient();
+    const principal = await signInAs("Главный", { role: "CLIENT_ADMIN" });
+    await grantAccess(principal.membership!.id, mine.clientId);
+
+    expect((await request(app).get(`/api/projects/${theirs.projectId}`).set(principal.auth)).status)
+      .toBe(404);
+  });
+
+  it("writes nothing the agency owns", async () => {
+    const { clientId, projectId } = await someoneElsesClient();
+    const principal = await signInAs("Главный", { role: "CLIENT_ADMIN" });
+    await grantAccess(principal.membership!.id, clientId);
+
+    const refusals = await Promise.all([
+      request(app).post("/api/clients").set(principal.auth).send({ name: "Своя" }),
+      request(app).post("/api/projects").set(principal.auth).send({ clientId, name: "Свой" }),
+      request(app).patch(`/api/projects/${projectId}`).set(principal.auth).send({ name: "Другое" }),
+    ]);
+
+    expect(refusals.map((response) => response.status)).toEqual([403, 403, 403]);
+  });
+});

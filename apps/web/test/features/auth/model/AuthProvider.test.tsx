@@ -8,7 +8,7 @@ import { server } from "@test/shared/index.js";
 import { makeAccessToken, makeExpiredAccessToken } from "@test/shared/index.js";
 import { createQueryClient } from "@/shared/lib/index.js";
 import { http as httpClient } from "@/shared/lib/index.js";
-import { writeTokens, readTokens } from "@/shared/lib/index.js";
+import { writeTokens, readTokens, hasSession } from "@/shared/lib/index.js";
 import { endSession, forceRefresh, onSessionExpired } from "@/shared/lib/index.js";
 import { AuthProvider, useAuth } from "@/features/auth/model/AuthProvider.js";
 
@@ -118,6 +118,44 @@ describe("AuthProvider", () => {
     await userEvent.click(screen.getByRole("button", { name: "out" }));
 
     expect(readTokens()).toEqual({});
+    expect(screen.getByText("login screen")).toBeInTheDocument();
+  });
+
+  /**
+   * In a browser the session marker exists twice: in localStorage and in a
+   * readable `adpulse_session` cookie. These two cases are the ones jsdom never
+   * reproduced on its own, and between them they are why signing out could
+   * leave somebody inside the session they had just left.
+   */
+  it("signs out when the cookie is the only marker left", async () => {
+    server.use(http.post("/api/auth/logout", () =>
+      // The server expires the marker in its own response, which is what makes
+      // this the state the teardown actually runs in.
+      new HttpResponse(null, {
+        status: 204,
+        headers: { "Set-Cookie": "adpulse_session=; Max-Age=0; Path=/" },
+      })));
+    document.cookie = "adpulse_session=1; path=/";
+    // Cleared by the browser: Safari does this by itself after a week idle.
+    localStorage.clear();
+    renderProvider();
+
+    await userEvent.click(screen.getByRole("button", { name: "out" }));
+
+    expect(screen.getByText("login screen")).toBeInTheDocument();
+  });
+
+  it("leaves no marker behind when the revoke request never lands", async () => {
+    server.use(http.post("/api/auth/logout", () => HttpResponse.error()));
+    document.cookie = "adpulse_session=1; path=/";
+    writeTokens({ accessToken: makeAccessToken(), refreshToken: "r" });
+    renderProvider();
+
+    await userEvent.click(screen.getByRole("button", { name: "out" }));
+
+    // Nothing left for the guard to admit on: walking back to a protected
+    // address asks for credentials instead of restoring the session.
+    expect(hasSession()).toBe(false);
     expect(screen.getByText("login screen")).toBeInTheDocument();
   });
 

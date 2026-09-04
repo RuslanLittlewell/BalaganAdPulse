@@ -23,8 +23,22 @@ const grouped = (value: number, digits: number) =>
 const present = (value: number | null): value is number =>
   value !== null && Number.isFinite(value);
 
-export function formatCurrency(value: number | null): string {
-  return present(value) ? `${grouped(Math.round(value), 0)}${NBSP}₽` : MISSING;
+/** The four currencies a budget can be stated in, and their signs. */
+export const CURRENCY_SIGNS = { BYN: "Br", RUB: "₽", USD: "$", EUR: "€" } as const;
+
+export type Currency = keyof typeof CURRENCY_SIGNS;
+
+/**
+ * Money, in the currency it is stated in.
+ *
+ * The default is the rouble because that is what this printed before there was
+ * anything to choose — the metric screens show ad spend, which is a separate
+ * question from what a client agreed to spend a month, and is unchanged.
+ */
+export function formatCurrency(value: number | null, currency: Currency = "RUB"): string {
+  return present(value)
+    ? `${grouped(Math.round(value), 0)}${NBSP}${CURRENCY_SIGNS[currency]}`
+    : MISSING;
 }
 
 export function formatCount(value: number | null): string {

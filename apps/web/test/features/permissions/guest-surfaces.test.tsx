@@ -45,7 +45,7 @@ describe("guest controls", () => {
     server.use(
       http.get("/api/clients", () => HttpResponse.json([])),
       http.get("/api/projects", () => HttpResponse.json([{
-        id: "p1", clientId: "client-1", name: "Клиника", niche: null, monthlyBudget: null,
+        id: "p1", clientId: "client-1", name: "Клиника", niche: null, monthlyBudget: null, budgetCurrency: "BYN",
         priority: "NEW", image: null, avatarPath: null, position: 0, createdAt: "", updatedAt: "",
       }])),
       http.get("/api/projects/:projectId/summary", () => HttpResponse.json(performance)),

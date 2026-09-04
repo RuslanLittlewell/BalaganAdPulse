@@ -34,3 +34,6 @@ export { Sparkline } from "./Sparkline/Sparkline.js";
 export type { SparklineProps } from "./Sparkline/Sparkline.js";
 export { MetricCard } from "./MetricCard/MetricCard.js";
 export type { MetricCardProps } from "./MetricCard/MetricCard.js";
+export { Stepper, Step } from "./Stepper/index.js";
+export { LightRays } from "./LightRays/index.js";
+export type { RaysOrigin } from "./LightRays/index.js";

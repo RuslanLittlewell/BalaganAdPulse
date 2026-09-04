@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ActorContext } from "../../src/shared/application/index.js";
 import { createConnectionRegistry, createTaskEventDelivery } from "../../src/modules/realtime/index.js";
-import { taskMoved } from "../../src/modules/tasks/index.js";
+import { taskDeleted, taskMoved } from "../../src/modules/tasks/index.js";
 import type { TaskRecord } from "../../src/modules/tasks/index.js";
 import type { SessionPrincipal } from "../../src/modules/identity/domain/identity-user.js";
 
@@ -12,7 +12,8 @@ const actor = (partial: Partial<ActorContext> = {}): ActorContext =>
 
 const task: TaskRecord = {
   id: "t1", projectId: "p1", orgId: "org1", title: "Write the brief", description: null,
-  column: "IDEA", priority: "MEDIUM", assigneeId: null, createdById: "m1", position: 0,
+  column: "IDEA", priority: "MEDIUM", assigneeId: null, createdById: "m1",
+  campaignId: null, visibleToClient: false, position: 0,
   imageIds: [], createdAt: new Date("2026-09-01T00:00:00.000Z"),
   updatedAt: new Date("2026-09-01T00:00:00.000Z"),
 };
@@ -72,15 +73,95 @@ describe("who receives a task event", () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  // A customer does not reach the board at all, rather than seeing an empty
-  // one — the same rule the REST path applies.
-  it("withholds from a role that may not read tasks", async () => {
+  /**
+   * Whose work it is, decided the same way the REST path decides it. A socket
+   * that delivered more than a listing would return is a hole in exactly the
+   * rule the listing exists to enforce — and a noisier one, because it arrives
+   * without anybody asking.
+   */
+  it("withholds the agency's own work from a customer", async () => {
     const { delivery, connect } = harness({ actors: { u1: actor({ role: "CLIENT" }) } });
     const send = connect("u1");
 
     await delivery.deliver(taskMoved(task));
 
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it("delivers to a customer what is marked as shown to them", async () => {
+    const { delivery, connect } = harness({ actors: { u1: actor({ role: "CLIENT" }) } });
+    const send = connect("u1");
+
+    await delivery.deliver(taskMoved({ ...task, visibleToClient: true }));
+
+    expect(send).toHaveBeenCalledOnce();
+  });
+
+  it("withholds a colleague's task from a manager", async () => {
+    const { delivery, connect } = harness({
+      actors: { u1: actor({ role: "MANAGER", membershipId: "m1" }) },
+    });
+    const send = connect("u1");
+
+    await delivery.deliver(taskMoved({ ...task, assigneeId: "m2" }));
+
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("withholds a task nobody is responsible for from a manager", async () => {
+    const { delivery, connect } = harness({
+      actors: { u1: actor({ role: "MANAGER", membershipId: "m1" }) },
+    });
+    const send = connect("u1");
+
+    await delivery.deliver(taskMoved(task));
+
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("delivers to the manager who is responsible for it", async () => {
+    const { delivery, connect } = harness({
+      actors: { u1: actor({ role: "MANAGER", membershipId: "m1" }) },
+    });
+    const send = connect("u1");
+
+    await delivery.deliver(taskMoved({ ...task, assigneeId: "m1" }));
+
+    expect(send).toHaveBeenCalledOnce();
+  });
+
+  it("delivers everything in the organization to an admin", async () => {
+    const { delivery, connect } = harness();
+    const send = connect("u1");
+
+    await delivery.deliver(taskMoved({ ...task, assigneeId: "m9" }));
+
+    expect(send).toHaveBeenCalledOnce();
+  });
+
+  // A deletion carries the same facts, so it can be withheld from the same
+  // people. Announcing an id to somebody who never held the task would say that
+  // work they cannot see exists.
+  it("withholds a deletion from someone who could not see the task", async () => {
+    const { delivery, connect } = harness({
+      actors: { u1: actor({ role: "MANAGER", membershipId: "m1" }) },
+    });
+    const send = connect("u1");
+
+    await delivery.deliver(taskDeleted({ ...task, assigneeId: "m2" }));
+
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("delivers a deletion to whoever could see the task", async () => {
+    const { delivery, connect } = harness({
+      actors: { u1: actor({ role: "MANAGER", membershipId: "m1" }) },
+    });
+    const send = connect("u1");
+
+    await delivery.deliver(taskDeleted({ ...task, assigneeId: "m1" }));
+
+    expect(send).toHaveBeenCalledOnce();
   });
 
   it("withholds from a member holding no grant over the project", async () => {
@@ -102,12 +183,14 @@ describe("who receives a task event", () => {
       actors: { u1: actor({ role: "MANAGER" }) }, reach: { m1: ["p1"] },
     });
     const send = connect("u1");
+    // Responsible for it, so the grant is the only thing that changes here.
+    const theirs = taskMoved({ ...task, assigneeId: "m1" });
 
-    await delivery.deliver(taskMoved(task));
+    await delivery.deliver(theirs);
     expect(send).toHaveBeenCalledTimes(1);
 
     state.reach = { m1: [] };
-    await delivery.deliver(taskMoved(task));
+    await delivery.deliver(theirs);
 
     expect(send).toHaveBeenCalledTimes(1);
   });
@@ -133,7 +216,9 @@ describe("who receives a task event", () => {
     });
     const sends = [connect("admin"), connect("granted"), connect("ungranted")];
 
-    await delivery.deliver(taskMoved(task));
+    // Responsible for it is the granted manager; the admin sees it regardless,
+    // and the ungranted one is stopped by reach before ownership is asked.
+    await delivery.deliver(taskMoved({ ...task, assigneeId: "m2" }));
 
     expect(sends.map((send) => send.mock.calls.length)).toEqual([1, 1, 0]);
   });

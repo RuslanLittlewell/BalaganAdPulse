@@ -48,6 +48,8 @@ export interface Task {
   /** The campaign this work is about. Null is a statement, not a gap: the task
    * is about the project as a whole, which the interface calls "Общий". */
   campaignId: string | null;
+  /** Whether the customer is shown this task. Only an admin changes it. */
+  visibleToClient: boolean;
   position: number;
   /** The images this task's description claims. Ids only — the board shows
    * that a card has attachments without fetching any of them. */
@@ -64,6 +66,7 @@ export interface TaskInput {
   priority?: TaskPriority;
   assigneeId?: string | null;
   campaignId?: string | null;
+  visibleToClient?: boolean;
 }
 
 export interface TaskMove {

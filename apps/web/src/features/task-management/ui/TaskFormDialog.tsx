@@ -17,7 +17,7 @@ import {
   SelectValue,
   TextField,
 } from "@/shared/ui/index.js";
-import { Can } from "@/features/permissions/index.js";
+import { Can, useCan } from "@/features/permissions/index.js";
 import { ProjectAvatar, useProjects } from "@/entities/project/index.js";
 import { MemberAvatar, useMembers } from "@/entities/membership/index.js";
 import { channelLabel, useCampaignReferences } from "@/entities/campaign/index.js";
@@ -50,6 +50,7 @@ interface FormValues {
   priority: Task["priority"];
   assigneeId: string;
   campaignId: string;
+  visibleToClient: boolean;
 }
 
 /** The select's "nobody" option. An empty string is what a Radix select uses
@@ -97,8 +98,14 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
         priority: task?.priority ?? "MEDIUM",
         assigneeId: task?.assigneeId ?? UNASSIGNED,
         campaignId: task?.campaignId ?? WHOLE_PROJECT,
+        visibleToClient: task?.visibleToClient ?? false,
       },
     });
+
+  /* Only an admin decides what a customer is shown. A manager may edit
+     everything else, so the field is left out of their request entirely rather
+     than sent unchanged — the API refuses the whole edit if it carries one. */
+  const mayShareWithClient = useCan("update", "member");
 
   /* The campaigns to choose between belong to the chosen project, so there is
      nothing to offer until one is chosen. */
@@ -123,6 +130,7 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
       priority: values.priority,
       assigneeId: values.assigneeId === UNASSIGNED ? null : values.assigneeId,
       campaignId: values.campaignId === WHOLE_PROJECT ? null : values.campaignId,
+      ...(mayShareWithClient ? { visibleToClient: values.visibleToClient } : {}),
       description,
       // Only when the dialog was opened from a column. An edit never carries
       // one: moving a card is the board's job, not the form's.
@@ -276,6 +284,24 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
             />
           </div>
           </div>
+
+          {mayShareWithClient ? (
+            <Controller
+              control={control}
+              name="visibleToClient"
+              render={({ field }) => (
+                <label className="flex w-fit items-center gap-2 text-sm text-foreground">
+                  <input
+                    type="checkbox"
+                    className="size-4 rounded border-input"
+                    checked={field.value}
+                    onChange={(event) => field.onChange(event.target.checked)}
+                  />
+                  {t("tasks.form.visibleToClient")}
+                </label>
+              )}
+            />
+          ) : null}
 
           {/* Shown while creating too: a file pasted into a task that does not
               exist yet still has to be visible, and removable. */}

@@ -5,7 +5,7 @@ import type { Task } from "@/entities/task/index.js";
 
 const task = (id: string, column: Task["column"], position: number): Task => ({
   id, projectId: "p1", orgId: "org1", title: id, description: null,
-  column, priority: "LOW", assigneeId: null, createdById: null, campaignId: null, position, imageIds: [],
+  column, priority: "LOW", assigneeId: null, createdById: null, campaignId: null, visibleToClient: false, position, imageIds: [],
   createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
 });
 

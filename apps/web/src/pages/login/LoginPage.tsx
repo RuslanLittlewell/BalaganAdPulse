@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { CenteredPanel } from "@/shared/ui/index.js";
 import { TextField } from "@/shared/ui/index.js";
 import { Button } from "@/shared/ui/index.js";
@@ -52,7 +52,6 @@ export function LoginPage() {
         <Button type="submit" disabled={isSubmitting}>{t("auth.login.submit")}</Button>
         {isSubmitting && <Loader size="sm" />}
       </form>
-      <Link className={"text-sm text-primary hover:underline"} to="/signup">{t("auth.signup.link")}</Link>
     </CenteredPanel>
   );
 }

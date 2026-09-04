@@ -12,7 +12,7 @@ export interface ProjectHeaderProps {
 
 export function ProjectHeader({ project, clientName, actions }: ProjectHeaderProps) {
   const facts = [clientName, project.niche, project.monthlyBudget
-    ? `${formatCurrency(Number(project.monthlyBudget))} / ${t("project.budget.label").split("/")[1]?.trim() ?? ""}`
+    ? `${formatCurrency(Number(project.monthlyBudget), project.budgetCurrency)} / ${t("project.budget.label").split("/")[1]?.trim() ?? ""}`
     : null].filter(Boolean);
 
   return (

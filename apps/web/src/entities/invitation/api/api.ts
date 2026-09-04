@@ -4,7 +4,11 @@ import { http } from "@/shared/lib/index.js";
 export type InvitationStatus = "PENDING" | "USED" | "REVOKED" | "EXPIRED";
 
 /** Which registration form the link opens. */
-export type RegistrationType = "CLIENT" | "EMPLOYEE";
+/**
+ * What a link creates: a company and its first project, an agency employee, or
+ * somebody joining a company that already exists.
+ */
+export type RegistrationType = "CLIENT" | "EMPLOYEE" | "CLIENT_STAFF";
 
 /** The roles an employee invitation may grant. `CLIENT` is not among them: a
  * customer arrives through a client invitation, which carries no role. */
@@ -44,7 +48,9 @@ export type CreateInvitationInput =
       registrationType: "EMPLOYEE";
       role: EmployeeRole;
       projectIds: string[];
-    } & CommonInvitationInput);
+    } & CommonInvitationInput)
+  // Joining a client that already exists: it names the client and nothing else.
+  | ({ registrationType: "CLIENT_STAFF"; clientId: string } & CommonInvitationInput);
 
 export const invitationsApi = {
   list: (registrationType?: RegistrationType) =>

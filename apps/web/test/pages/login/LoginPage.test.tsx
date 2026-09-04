@@ -80,10 +80,13 @@ describe("LoginPage", () => {
     expect(readTokens()).toEqual({});
   });
 
-  it("links to sign-up", () => {
+  // Getting in is by invitation link alone: an invitation decides which of the
+  // three forms a visitor is shown, and no screen asks them to type a code.
+  it("offers no way to create an account", () => {
     renderPage();
-    expect(screen.getByRole("link", { name: "Нет аккаунта? Зарегистрироваться" }))
-      .toHaveAttribute("href", "/signup");
+
+    expect(screen.queryByRole("link", { name: /Зарегистрироваться/ })).toBeNull();
+    expect(screen.queryByRole("link", { name: /аккаунт/i })).toBeNull();
   });
 
   it("accepts an email padded with a non-breaking space and sends it trimmed", async () => {

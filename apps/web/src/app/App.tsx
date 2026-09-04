@@ -4,7 +4,7 @@ import { DashboardPage } from "@/pages/dashboard/index.js";
 import { ModulePage } from "@/pages/module/index.js";
 import { ProjectsPage } from "@/pages/projects/index.js";
 import { LoginPage } from "@/pages/login/index.js";
-import { SignupPage } from "@/pages/signup/index.js";
+import { RegistrationPage } from "@/pages/registration/index.js";
 import { TasksPage } from "@/pages/tasks/index.js";
 import { AuthProvider, RequireAuth } from "@/features/auth/index.js";
 import { NavCollapseProvider } from "@/features/nav-collapse/index.js";
@@ -51,7 +51,12 @@ export function App() {
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignupPage />} />
+            {/* Getting in is by invitation link alone. The screen that asked
+                for a hand-typed code knew only the employee's shape, so a
+                client's code could not be redeemed through it at all. */}
+            <Route path="/signup" element={<Navigate to="/login" replace />} />
+            {/* Whoever follows an invitation link has no session yet. */}
+            <Route path="/regustration/:code" element={<RegistrationPage />} />
             <Route path="/*" element={<Dashboard />} />
           </Routes>
         </AuthProvider>

@@ -1,7 +1,7 @@
 import type { Prisma, PrismaClient, TaskImage as TaskImageRow } from "@prisma/client";
-import type { TransactionContext } from "../../../shared/application/index.js";
-import type { PrismaUnitOfWork } from "../../../shared/infrastructure/prisma-unit-of-work.js";
-import { getObject, putObject, removeObjects } from "../../../shared/infrastructure/storage.js";
+import type { TransactionContext } from "#shared/application/index.js";
+import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
+import { getObject, putObject, removeObjects } from "#shared/infrastructure/storage.js";
 import type {
   TaskImageRecord,
   TaskImageRepository,

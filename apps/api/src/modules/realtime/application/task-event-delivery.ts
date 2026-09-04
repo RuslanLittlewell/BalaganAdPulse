@@ -1,5 +1,5 @@
 import { can, isCustomer } from "@adpulse/access-policy";
-import type { ActorContext } from "../../../shared/application/index.js";
+import type { ActorContext } from "#shared/application/index.js";
 import type { SessionPrincipal } from "../../identity/index.js";
 import type { TaskEvent } from "../../tasks/index.js";
 import type { Connection, ConnectionRegistry } from "./connection-registry.js";

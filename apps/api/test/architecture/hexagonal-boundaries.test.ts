@@ -27,6 +27,8 @@ describe("hexagonal architecture boundaries", () => {
     ["modules/invites/infrastructure/prisma/repository.ts", 'import "../../presentation/http/routes.js";', "infrastructure may not import presentation"],
     ["modules/members/application/list.ts", 'import "../../invites/application/redeem.js";', "cross-module imports must use the public index"],
     ["modules/invites/presentation/http/routes.ts", 'import { PrismaInviteRepository } from "../../infrastructure/prisma/repository.js"; new PrismaInviteRepository();', "concrete adapters may only be constructed in composition"],
+    ["modules/invites/presentation/http/routes.ts", 'import { AppError } from "../../../../shared/domain/index.js";', "the shared kernel is reached through #shared/, never relatively"],
+    ["modules/invites/index.ts", 'import { AppError } from "../../shared/domain/index.js";', "the shared kernel is reached through #shared/, never relatively"],
   ])("rejects %s: %s", (file, source, expected) => {
     expect(analyseSourceText(file, source)).toContain(expected);
   });

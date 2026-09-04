@@ -1,5 +1,5 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
-import { AppError } from "../../../../shared/domain/app-error.js";
+import { AppError } from "#shared/domain/app-error.js";
 import type { SessionPrincipal } from "../../domain/identity-user.js";
 import { ACCESS_COOKIE, readCookie } from "./auth-cookies.js";
 

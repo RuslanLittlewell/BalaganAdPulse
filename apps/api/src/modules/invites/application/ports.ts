@@ -1,6 +1,6 @@
 import type { Role } from "@adpulse/access-policy";
-import type { ActorContext } from "../../../shared/application/index.js";
-import type { Clock, IdGenerator, TransactionContext, UnitOfWork } from "../../../shared/application/index.js";
+import type { ActorContext } from "#shared/application/index.js";
+import type { Clock, IdGenerator, TransactionContext, UnitOfWork } from "#shared/application/index.js";
 import type { Invite, RegistrationType } from "../domain/invite.js";
 
 export interface NewInvite {

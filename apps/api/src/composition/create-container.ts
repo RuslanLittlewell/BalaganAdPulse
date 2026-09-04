@@ -1,7 +1,9 @@
-import type { RequestHandler, Router } from "express";
+import { Router, type RequestHandler } from "express";
 import type { Prisma } from "@prisma/client";
-import { requestContext } from "../shared/presentation/request-context.js";
-import { prisma } from "../shared/infrastructure/prisma.js";
+import { config } from "#shared/infrastructure/config.js";
+import { requestContext } from "#shared/presentation/request-context.js";
+import { apiDocument, createDocumentationRouter } from "./openapi.js";
+import { prisma } from "#shared/infrastructure/prisma.js";
 import { createIdentityUseCases } from "../modules/identity/index.js";
 import { PasswordAdapter } from "../modules/identity/infrastructure/password-adapter.js";
 import { PrismaRefreshSessionRepository, PrismaUserRepository } from "../modules/identity/infrastructure/prisma-identity-repositories.js";
@@ -73,11 +75,12 @@ import {
 } from "../modules/invites/index.js";
 import { PrismaInviteRepository } from "../modules/invites/infrastructure/prisma-invite-repository.js";
 import { PrismaInvitationProjectReach } from "../modules/invites/infrastructure/prisma-invitation-project-reach.js";
-import { RandomIdGenerator } from "../shared/infrastructure/id-generator.js";
-import { SystemClock } from "../shared/infrastructure/clock.js";
-import { PrismaUnitOfWork } from "../shared/infrastructure/prisma-unit-of-work.js";
+import { RandomIdGenerator } from "#shared/infrastructure/id-generator.js";
+import { SystemClock } from "#shared/infrastructure/clock.js";
+import { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
 
 export interface ApiContainer {
+  readonly documentationRouter: Router;
   readonly authRouter: Router;
   readonly authentication: RequestHandler;
   readonly actorResolution: RequestHandler;
@@ -240,6 +243,7 @@ export function createContainer(): ApiContainer {
     unitOfWork,
   });
   return {
+    documentationRouter: config.documentation ? createDocumentationRouter(apiDocument()) : Router(),
     authRouter: identityHttp.authRouter,
     authentication: createAuthentication(identity),
     actorResolution: createActorResolution(members),

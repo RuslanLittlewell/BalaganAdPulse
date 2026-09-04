@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { createApp } from "./app.js";
 import { createContainer } from "./create-container.js";
-import { prisma } from "../shared/infrastructure/prisma.js";
+import { prisma } from "#shared/infrastructure/prisma.js";
 import { attachRealtime } from "../modules/realtime/infrastructure/websocket-transport.js";
 import { createShutdown } from "./shutdown.js";
 

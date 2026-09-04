@@ -1,6 +1,6 @@
 import { can } from "@adpulse/access-policy";
-import { AppError } from "../../../shared/domain/index.js";
-import type { ActorContext } from "../../../shared/application/index.js";
+import { AppError } from "#shared/domain/index.js";
+import type { ActorContext } from "#shared/application/index.js";
 import { removeImage } from "../domain/description.js";
 import { assertUploadableImage } from "../domain/image.js";
 import { taskUpdated } from "./task-events.js";

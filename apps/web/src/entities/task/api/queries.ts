@@ -185,6 +185,16 @@ export function placementFor(
   return { column: over.column, position: index < 0 ? columnOf(over.column).length : index };
 }
 
+export function previewFor(board: Task[], activeId: string, overId: string): Task[] {
+  const active = board.find((task) => task.id === activeId);
+  if (!active) return board;
+
+  const placement = placementFor(board, activeId, overId);
+  if (!placement || placement.column === active.column) return board;
+
+  return applyMove(board, activeId, placement);
+}
+
 export function resolveDrop(
   server: Task[],
   preview: Task[] | null,

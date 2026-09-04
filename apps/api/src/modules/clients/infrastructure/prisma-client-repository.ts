@@ -1,6 +1,6 @@
 import type { Client as ClientRow, Prisma, PrismaClient } from "@prisma/client";
-import type { ActorContext, TransactionContext } from "../../../shared/application/index.js";
-import type { PrismaUnitOfWork } from "../../../shared/infrastructure/prisma-unit-of-work.js";
+import type { ActorContext, TransactionContext } from "#shared/application/index.js";
+import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
 import type { ClientContact, ClientRecord, NewClient } from "../domain/client.js";
 import type { ClientRepository } from "../application/ports.js";
 

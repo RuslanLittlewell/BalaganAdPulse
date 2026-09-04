@@ -1,5 +1,5 @@
 import { Router, type NextFunction, type Request, type RequestHandler, type Response } from "express";
-import { AppError } from "../../../../shared/domain/index.js";
+import { AppError } from "#shared/domain/index.js";
 import type { TaskUseCases } from "../../application/task-use-cases.js";
 import type { TaskImageUseCases } from "../../application/task-image-use-cases.js";
 import { createTaskSchema, moveTaskSchema, updateTaskSchema } from "./task-schemas.js";

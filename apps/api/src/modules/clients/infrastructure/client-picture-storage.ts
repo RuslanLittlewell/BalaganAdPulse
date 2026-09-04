@@ -1,4 +1,4 @@
-import { getPng, putPng } from "../../../shared/infrastructure/storage.js";
+import { getPng, putPng } from "#shared/infrastructure/storage.js";
 import type { ClientPictureStorage } from "../application/ports.js";
 
 function key(clientId: string): string {

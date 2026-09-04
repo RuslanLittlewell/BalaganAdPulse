@@ -15,6 +15,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Switch,
   TextField,
 } from "@/shared/ui/index.js";
 import { Can, useCan } from "@/features/permissions/index.js";
@@ -66,6 +67,7 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
   );
   const [failure, setFailure] = useState<string | null>(null);
   const editor = useRef<TaskDescriptionEditorHandle>(null);
+  const content = useRef<HTMLDivElement>(null);
 
   const { control, handleSubmit, register, setValue, watch, formState: { errors } } =
     useForm<FormValues>({
@@ -115,29 +117,44 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent
+        ref={content}
+        tabIndex={-1}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          content.current?.focus();
+        }}
         className={
-          "flex max-h-[80vh] w-[min(880px,calc(100vw-2rem))] " +
-          "min-w-[min(800px,calc(100vw-2rem))] flex-col"
+          "flex h-[min(850px,calc(100vh-2rem))] w-[min(600px,calc(100vw-2rem))] " +
+          "min-w-[min(600px,calc(100vw-2rem))] flex-col"
         }
       >
         <DialogHeader className="shrink-0">
           <DialogTitle>{task ? t("tasks.edit") : t("tasks.create")}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+        <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col gap-4">
+          <div
+            data-testid="task-form-body"
+            className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto"
+          >
           <TextField
             label={t("tasks.form.title")}
             error={errors.title?.message}
             {...register("title", { required: t("tasks.form.titleRequired") })}
           />
 
-          <div className="flex flex-col gap-2">
+          <div className="flex min-h-0 flex-1 flex-col gap-2">
             <Label>{t("tasks.form.description")}</Label>
-            <TaskDescriptionEditor ref={editor} value={description} onChange={setDescription} />
+            <TaskDescriptionEditor
+              ref={editor}
+              className="flex min-h-0 flex-1 flex-col"
+              value={description}
+              onChange={setDescription}
+            />
           </div>
 
           <div
-            className="grid gap-3 sm:grid-cols-[repeat(auto-fit,minmax(0,max-content))]"
+            className="grid gap-3 sm:grid-cols-3"
             data-testid="task-form-selects"
           >
           <div className="flex min-w-0 flex-col gap-2">
@@ -148,7 +165,7 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
               rules={{ required: t("tasks.form.projectRequired") }}
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="task-project">
+                  <SelectTrigger id="task-project" className="w-full">
                     <SelectValue placeholder={t("tasks.form.projectUnchosen")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -177,7 +194,7 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
                 name="campaignId"
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="task-campaign"><SelectValue /></SelectTrigger>
+                    <SelectTrigger id="task-campaign" className="w-full"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value={WHOLE_PROJECT}>{t("tasks.form.wholeProject")}</SelectItem>
                       {(campaigns ?? []).map((campaign) => (
@@ -204,7 +221,7 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
               name="assigneeId"
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="task-assignee"><SelectValue placeholder={t("tasks.form.unassigned")} /></SelectTrigger>
+                  <SelectTrigger id="task-assignee" className="w-full"><SelectValue placeholder={t("tasks.form.unassigned")} /></SelectTrigger>
                   <SelectContent>
                     {(members ?? []).map((member) => (
                       <SelectItem key={member.id} value={member.id}>
@@ -227,7 +244,7 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
               name="priority"
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="task-priority"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="task-priority" className="w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {TASK_PRIORITIES.map((priority) => (
                       <SelectItem key={priority} value={priority}>
@@ -239,25 +256,26 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
               )}
             />
           </div>
-          </div>
 
           {mayShareWithClient ? (
-            <Controller
-              control={control}
-              name="visibleToClient"
-              render={({ field }) => (
-                <label className="flex w-fit items-center gap-2 text-sm text-foreground">
-                  <input
-                    type="checkbox"
-                    className="size-4 rounded border-input"
-                    checked={field.value}
-                    onChange={(event) => field.onChange(event.target.checked)}
-                  />
-                  {t("tasks.form.visibleToClient")}
-                </label>
-              )}
-            />
+            <div className="flex min-w-0 flex-col gap-2">
+              <Label htmlFor="task-visible-to-client">{t("tasks.form.visibleToClient")}</Label>
+              <Controller
+                control={control}
+                name="visibleToClient"
+                render={({ field }) => (
+                  <div className="flex h-9 items-center">
+                    <Switch
+                      id="task-visible-to-client"
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </div>
+                )}
+              />
+            </div>
           ) : null}
+          </div>
 
           <TaskAttachments
             imageIds={attachmentIds}
@@ -265,8 +283,9 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
           />
 
           {failure ? <p role="alert" className="text-sm text-destructive">{failure}</p> : null}
+          </div>
 
-          <DialogFooter className="shrink-0">
+          <DialogFooter className="shrink-0 border-t border-border pt-4">
             {task && onDelete ? (
               <Can action="delete" resource="task">
                 <Button type="button" variant="destructive" onClick={() => onDelete(task)}>

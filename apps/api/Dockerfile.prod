@@ -66,4 +66,4 @@ COPY apps/api/prisma ./apps/api/prisma
 USER node
 WORKDIR /app/apps/api
 EXPOSE 3000
-CMD ["node", "dist/composition/server.js"]
+CMD ["node", "--conditions=compiled", "dist/composition/server.js"]

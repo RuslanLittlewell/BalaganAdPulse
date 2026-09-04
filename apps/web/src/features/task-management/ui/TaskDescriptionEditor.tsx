@@ -5,9 +5,10 @@ import StarterKit from "@tiptap/starter-kit";
 import { TaskImage } from "./TaskImageNode.js";
 import { taskImagesApi } from "@/entities/task/index.js";
 import { t } from "@/shared/config/index.js";
-import { ApiError } from "@/shared/lib/index.js";
+import { ApiError, cn } from "@/shared/lib/index.js";
 
 export interface TaskDescriptionEditorProps {
+  className?: string;
   value: unknown | null;
   onChange: (value: unknown) => void;
   editable?: boolean;
@@ -23,7 +24,7 @@ const ACCEPTED = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 export const TaskDescriptionEditor = forwardRef<
   TaskDescriptionEditorHandle,
   TaskDescriptionEditorProps
->(function TaskDescriptionEditor({ value, onChange, editable = true }, ref) {
+>(function TaskDescriptionEditor({ value, onChange, editable = true, className }, ref) {
   const [status, setStatus] = useState<string | null>(null);
   const [initialContent] = useState(value);
 
@@ -38,7 +39,7 @@ export const TaskDescriptionEditor = forwardRef<
     editorProps: {
       attributes: {
         "aria-label": t("tasks.form.description"),
-        class: "min-h-32 max-h-[400px] overflow-y-auto p-3 outline-none",
+        class: "min-h-32 p-3 outline-none",
       },
       handlePaste: (_view, event) =>
         editable ? insertFrom(event.clipboardData?.files) : false,
@@ -95,11 +96,15 @@ export const TaskDescriptionEditor = forwardRef<
 
   return (
     <div
-      className="rounded-md border"
+      className={cn("rounded-md border", className)}
       onDrop={handleDrop}
       onDragOver={(event) => { if (event.dataTransfer?.types?.includes("Files")) event.preventDefault(); }}
     >
-      <EditorContent editor={editor} data-testid="task-description-editor" />
+      <EditorContent
+        editor={editor}
+        className="min-h-0 flex-1 overflow-y-auto"
+        data-testid="task-description-editor"
+      />
       {status ? <p role="status" className="border-t p-2 text-xs text-muted-foreground">{status}</p> : null}
     </div>
   );

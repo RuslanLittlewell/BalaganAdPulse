@@ -1,6 +1,6 @@
 import { can } from "@adpulse/access-policy";
-import { AppError } from "../../../shared/domain/index.js";
-import type { ActorContext } from "../../../shared/application/index.js";
+import { AppError } from "#shared/domain/index.js";
+import type { ActorContext } from "#shared/application/index.js";
 import type { ClientContact, ClientRecord, NewClient } from "../domain/client.js";
 import type { ClientDependencies } from "./ports.js";
 

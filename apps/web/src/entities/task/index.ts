@@ -10,6 +10,7 @@ export type { Task, TaskColumn, TaskImage, TaskInput, TaskMove, TaskPriority } f
 export {
   applyMove,
   placementFor,
+  previewFor,
   resolveDrop,
   useCreateTask,
   useDeleteTask,

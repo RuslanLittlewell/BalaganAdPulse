@@ -159,11 +159,29 @@ describe("TaskFormDialog", () => {
     expect(await screen.findByText("Файлов нет")).toBeInTheDocument();
   });
 
-  it("is capped at 80% of the screen, with the body scrolling inside it", async () => {
+  it("stands 850px tall, shrinking only for a short screen, with the body scrolling inside it", async () => {
     setup();
     const dialog = await screen.findByRole("dialog");
-    expect(dialog.className).toContain("max-h-[80vh]");
-    expect(dialog.querySelector("form")!.className).toContain("overflow-y-auto");
+    expect(dialog.className).toContain("h-[min(850px,calc(100vh-2rem))]");
+    expect(screen.getByTestId("task-form-body").className).toContain("overflow-y-auto");
+  });
+
+  it("keeps the footer against the bottom rather than scrolling it away", async () => {
+    setup();
+    await screen.findByLabelText("Название");
+
+    const body = screen.getByTestId("task-form-body");
+    const save = screen.getByRole("button", { name: "Создать задачу" });
+    expect(body).not.toContainElement(save);
+    expect(save.closest("[data-slot=dialog-footer]")!.className).toContain("shrink-0");
+  });
+
+  it("lets the description take the room the dialog leaves over", async () => {
+    setup();
+    await screen.findByLabelText("Название");
+
+    const editor = screen.getByTestId("task-description-editor").closest("div[class*=flex-1]");
+    expect(editor).not.toBeNull();
   });
 
   it("reports a refusal from the API without closing", async () => {
@@ -235,10 +253,11 @@ describe("the dialog's shape", () => {
     await screen.findByLabelText("Проект");
 
     const row = screen.getByTestId("task-form-selects");
-    expect(row.className).toContain("grid-cols-[repeat(auto-fit,minmax(0,max-content))]");
+    expect(row.className).toContain("grid-cols-3");
     for (const label of ["Проект", "Ответственный", "Приоритет"]) {
       expect(row).toContainElement(screen.getByLabelText(label));
     }
+    expect(row).toContainElement(screen.getByRole("switch", { name: "Видно клиенту" }));
 
     await user.click(screen.getByLabelText("Проект"));
     await user.click(await screen.findByRole("option", { name: "Летний запуск" }));
@@ -251,14 +270,14 @@ describe("the dialog's shape", () => {
     await screen.findByLabelText("Проект");
 
     const className = screen.getByRole("dialog").className;
-    expect(className).toContain("w-[min(880px,calc(100vw-2rem))]");
+    expect(className).toContain("w-[min(600px,calc(100vw-2rem))]");
     expect(className).not.toContain("440px");
   });
 
   it("stays inside a narrow viewport instead of forcing a horizontal scroll", async () => {
     setup();
     await screen.findByLabelText("Проект");
-    expect(screen.getByRole("dialog").className).toContain("min-w-[min(800px,calc(100vw-2rem))]");
+    expect(screen.getByRole("dialog").className).toContain("min-w-[min(600px,calc(100vw-2rem))]");
   });
 });
 
@@ -349,6 +368,15 @@ describe("the dialog's controls", () => {
     setup();
     await screen.findByLabelText("Проект");
     expect(screen.getByTestId("task-form-selects").className).toMatch(/\bgap-3\b/);
+  });
+
+  it("stretches every select across its column instead of hugging its text", async () => {
+    setup();
+    await screen.findByLabelText("Проект");
+
+    for (const label of ["Проект", "Ответственный", "Приоритет"]) {
+      expect(screen.getByLabelText(label).className).toMatch(/\bw-full\b/);
+    }
   });
 });
 
@@ -671,11 +699,33 @@ describe("showing a task to the client", () => {
     clientIds: [],
   })));
 
-  it("offers an admin the control", async () => {
+  it("offers an admin the control, as a switch", async () => {
     asRole("ADMIN");
     setup();
 
-    expect(await screen.findByLabelText("Видно клиенту")).toBeInTheDocument();
+    const control = await screen.findByRole("switch", { name: "Видно клиенту" });
+    expect(control).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("stands the switch beside the selects rather than under them", async () => {
+    asRole("ADMIN");
+    setup();
+
+    const control = await screen.findByRole("switch", { name: "Видно клиенту" });
+    expect(screen.getByTestId("task-form-selects")).toContainElement(control);
+    expect(control.className).toMatch(/\bh-6\b/);
+    expect(control.className).toMatch(/\bw-11\b/);
+  });
+
+  it("shows the switch already on for a task the client can see", async () => {
+    asRole("ADMIN");
+    renderWithProviders(
+      <TaskFormDialog task={aTask({ id: "task-1", projectId: "project-1", visibleToClient: true })} onClose={() => {}} />,
+      { route: "/tasks" },
+    );
+
+    expect(await screen.findByRole("switch", { name: "Видно клиенту" }))
+      .toHaveAttribute("aria-checked", "true");
   });
 
   it("offers a manager nothing of the kind", async () => {
@@ -699,7 +749,9 @@ describe("showing a task to the client", () => {
       { route: "/tasks" },
     );
 
-    await user.click(await screen.findByLabelText("Видно клиенту"));
+    const control = await screen.findByRole("switch", { name: "Видно клиенту" });
+    await user.click(control);
+    expect(control).toHaveAttribute("aria-checked", "true");
     await user.click(screen.getByRole("button", { name: "Сохранить" }));
 
     await waitFor(() => expect(body).not.toBeNull());
@@ -725,5 +777,31 @@ describe("showing a task to the client", () => {
 
     await waitFor(() => expect(body).not.toBeNull());
     expect(body).not.toHaveProperty("visibleToClient");
+  });
+});
+
+describe("opening a task", () => {
+  it("leaves the cursor out of the title", async () => {
+    renderWithProviders(
+      <TaskFormDialog task={aTask({ id: "task-1", projectId: "project-1" })} onClose={() => {}} />,
+      { route: "/tasks" },
+    );
+
+    const title = await screen.findByLabelText("Название");
+    await waitFor(() => expect(title).not.toHaveFocus());
+    expect(screen.getByRole("dialog")).toHaveFocus();
+  });
+
+  it("still lets the title be typed into once it is chosen", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <TaskFormDialog task={aTask({ id: "task-1", projectId: "project-1" })} onClose={() => {}} />,
+      { route: "/tasks" },
+    );
+
+    const title = await screen.findByLabelText("Название");
+    await user.clear(title);
+    await user.type(title, "Новое название");
+    expect(title).toHaveValue("Новое название");
   });
 });

@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import type { Role } from "@adpulse/access-policy";
-import type { TransactionContext } from "../../../shared/application/index.js";
-import type { PrismaUnitOfWork } from "../../../shared/infrastructure/prisma-unit-of-work.js";
+import type { TransactionContext } from "#shared/application/index.js";
+import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
 
 export class PrismaMembershipEnrolment {
   constructor(private readonly unitOfWork: PrismaUnitOfWork<Prisma.TransactionClient>) {}

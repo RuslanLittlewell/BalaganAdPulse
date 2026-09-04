@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { SignJWT, jwtVerify } from "jose";
-import { config } from "../../../shared/infrastructure/config.js";
+import { config } from "#shared/infrastructure/config.js";
 import type { SessionPrincipal } from "../domain/identity-user.js";
 import type { TokenPort } from "../application/ports.js";
 

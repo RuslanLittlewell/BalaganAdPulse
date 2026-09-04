@@ -1,6 +1,6 @@
 import { can } from "@adpulse/access-policy";
-import { AppError } from "../../../shared/domain/index.js";
-import type { ActorContext } from "../../../shared/application/index.js";
+import { AppError } from "#shared/domain/index.js";
+import type { ActorContext } from "#shared/application/index.js";
 import type { SessionPrincipal } from "../../identity/index.js";
 import { wouldStopBeingAdmin } from "../domain/member.js";
 import type { MemberChange } from "../domain/member.js";

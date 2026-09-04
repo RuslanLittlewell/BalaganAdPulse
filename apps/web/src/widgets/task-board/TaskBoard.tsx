@@ -15,8 +15,7 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import {
   TASK_COLUMNS,
-  applyMove,
-  placementFor,
+  previewFor,
   resolveDrop,
   useMoveTask,
   useTaskEvents,
@@ -110,9 +109,7 @@ export function TaskBoard({ projectId, onOpen, onCreate }: TaskBoardProps) {
   function handleDragOver(event: DragOverEvent) {
     const { active, over } = event;
     if (!over) return;
-    const placement = placementFor(board, String(active.id), String(over.id));
-    if (!placement) return;
-    setPreview((current) => applyMove(current ?? board, String(active.id), placement));
+    setPreview((current) => previewFor(current ?? board, String(active.id), String(over.id)));
   }
 
   function handleDragEnd(event: DragEndEvent) {

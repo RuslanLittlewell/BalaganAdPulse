@@ -1,7 +1,7 @@
 import { ROLES, isCustomer } from "@adpulse/access-policy";
 import type { Prisma, PrismaClient } from "@prisma/client";
-import type { TransactionContext } from "../../../shared/application/index.js";
-import type { PrismaUnitOfWork } from "../../../shared/infrastructure/prisma-unit-of-work.js";
+import type { TransactionContext } from "#shared/application/index.js";
+import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
 import type { MemberChange, MemberRecord } from "../domain/member.js";
 import type { MemberDirectory , MemberKind } from "../application/ports.js";
 

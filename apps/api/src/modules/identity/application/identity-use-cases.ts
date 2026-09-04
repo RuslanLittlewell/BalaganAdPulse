@@ -1,5 +1,5 @@
-import { AppError } from "../../../shared/domain/index.js";
-import type { TransactionContext } from "../../../shared/application/index.js";
+import { AppError } from "#shared/domain/index.js";
+import type { TransactionContext } from "#shared/application/index.js";
 import { principalOf } from "../domain/identity-user.js";
 import type { ClientRegistration, IdentityDependencies } from "./ports.js";
 

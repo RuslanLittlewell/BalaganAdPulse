@@ -1,7 +1,7 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
-import { AppError } from "../../../shared/domain/index.js";
-import type { TransactionContext } from "../../../shared/application/index.js";
-import type { PrismaUnitOfWork } from "../../../shared/infrastructure/prisma-unit-of-work.js";
+import { AppError } from "#shared/domain/index.js";
+import type { TransactionContext } from "#shared/application/index.js";
+import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
 import type { RefreshSessionRepository, UserRepository } from "../application/ports.js";
 
 export class PrismaUserRepository implements UserRepository {

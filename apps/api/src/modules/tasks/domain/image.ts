@@ -1,4 +1,4 @@
-import { AppError } from "../../../shared/domain/index.js";
+import { AppError } from "#shared/domain/index.js";
 
 export const MAX_TASK_IMAGE_BYTES = 10 * 1024 * 1024;
 

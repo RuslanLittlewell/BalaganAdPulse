@@ -1,4 +1,4 @@
-import type { ActorContext, TransactionContext } from "../../../shared/application/index.js";
+import type { ActorContext, TransactionContext } from "#shared/application/index.js";
 import type { AuditScope, StoredAuditEvent } from "../domain/audit-event.js";
 
 export interface AuditFilters {

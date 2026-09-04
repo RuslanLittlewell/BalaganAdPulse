@@ -3,6 +3,7 @@ import { createContainer } from "../../src/composition/create-container.js";
 import { createRoutes, ROUTE_MOUNTS } from "../../src/composition/create-routes.js";
 
 const expectedMounts = [
+  "/api",
   "/api/auth",
   "/api/regustration",
   "/api",

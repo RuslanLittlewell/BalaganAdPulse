@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
-import type { ActorContext } from "../../../shared/application/index.js";
+import type { ActorContext } from "#shared/application/index.js";
 import type { MembershipDirectory } from "../application/ports.js";
 
 export class PrismaMembershipDirectory implements MembershipDirectory {

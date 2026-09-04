@@ -1,4 +1,4 @@
-import { getPng } from "../../../shared/infrastructure/storage.js";
+import { getPng } from "#shared/infrastructure/storage.js";
 import type { MemberAvatarStorage } from "../application/ports.js";
 
 export class S3MemberAvatarStorage implements MemberAvatarStorage {

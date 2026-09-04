@@ -3,7 +3,7 @@ import type {
   IdGenerator,
   TransactionContext,
   UnitOfWork,
-} from "../../../shared/application/index.js";
+} from "#shared/application/index.js";
 import type { AuditWriter } from "../../audit/index.js";
 import type { TaskEventPublisher } from "./task-events.js";
 import type { TaskColumn, TaskPriority } from "../domain/board.js";

@@ -1,7 +1,7 @@
 import type { Role } from "@adpulse/access-policy";
 import { can } from "@adpulse/access-policy";
-import { AppError } from "../../../shared/domain/index.js";
-import type { ActorContext, TransactionContext } from "../../../shared/application/index.js";
+import { AppError } from "#shared/domain/index.js";
+import type { ActorContext, TransactionContext } from "#shared/application/index.js";
 import {
   inviteStatus,
   isRedeemable,

@@ -1,4 +1,4 @@
-import { getPng, putPng } from "../../../shared/infrastructure/storage.js";
+import { getPng, putPng } from "#shared/infrastructure/storage.js";
 import type { ProfileStorage } from "../application/ports.js";
 
 interface PngStorage {

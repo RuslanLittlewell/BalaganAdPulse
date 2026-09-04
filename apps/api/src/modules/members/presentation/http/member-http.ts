@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { Router, type NextFunction, type Request, type Response } from "express";
-import { AppError } from "../../../../shared/domain/index.js";
+import { AppError } from "#shared/domain/index.js";
 import type { MemberUseCases } from "../../application/member-use-cases.js";
 import { MEMBER_KINDS } from "../../application/ports.js";
 import { setAccessSchema, updateMemberSchema } from "./member-schemas.js";

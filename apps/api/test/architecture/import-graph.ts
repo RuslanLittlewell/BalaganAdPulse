@@ -32,6 +32,12 @@ function resolveRelative(file: string, specifier: string): string {
 export function analyseSourceText(file: string, source: string): string[] {
   const errors: string[] = [];
   const location = moduleLocation(file);
+
+  for (const specifier of importsFrom(source)) {
+    if (/^(\.\.\/)+shared\//.test(specifier)) {
+      errors.push("the shared kernel is reached through #shared/, never relatively");
+    }
+  }
   if (!location?.layer && !file.startsWith("composition/")) return errors;
 
   for (const specifier of importsFrom(source)) {

@@ -1,6 +1,6 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
-import type { TransactionContext } from "../../../shared/application/index.js";
-import type { PrismaUnitOfWork } from "../../../shared/infrastructure/prisma-unit-of-work.js";
+import type { TransactionContext } from "#shared/application/index.js";
+import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
 import type { Invite, RegistrationType } from "../domain/invite.js";
 import { InvitationCodeConflictError, type InviteRepository, type NewInvite } from "../application/ports.js";
 

@@ -1,5 +1,5 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
-import { AppError } from "../../../../shared/domain/app-error.js";
+import { AppError } from "#shared/domain/app-error.js";
 import type { ActorResolutionPort } from "../../application/actor-resolution-port.js";
 
 export function createActorResolution(members: ActorResolutionPort): RequestHandler {

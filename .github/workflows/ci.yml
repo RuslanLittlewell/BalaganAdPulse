@@ -104,6 +104,9 @@ jobs:
     name: Production image
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
     services:
       postgres:
         image: postgres:16
@@ -177,15 +180,49 @@ jobs:
         if: always()
         run: docker rm -f adpulse-ci || true
 
+      - name: Publish the immutable production image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}:$GITHUB_SHA"
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker tag adpulse-api:ci "$image"
+          docker push "$image"
+
   deploy:
-    name: Trigger deploy
+    name: Deploy to VPS
     needs: [api, web, build, image]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    env:
-      HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+    timeout-minutes: 10
     steps:
-      - name: POST the Render deploy hook
-        if: env.HOOK != ''
-        run: curl -fsS -X POST "$HOOK&ref=$GITHUB_SHA"
+      - uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Install deployment files
+        run: |
+          scp deploy/compose.prod.yml deploy/deploy.sh adpulse-deploy@84.46.254.178:/opt/adpulse/
+
+      - name: Pull and deploy the tested image
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}:$GITHUB_SHA"
+          printf '%s' "$GHCR_TOKEN" | ssh adpulse-deploy@84.46.254.178 \
+            "docker login ghcr.io -u '$GITHUB_ACTOR' --password-stdin"
+          ssh adpulse-deploy@84.46.254.178 \
+            "chmod 700 /opt/adpulse/deploy.sh && APP_IMAGE='$image' /opt/adpulse/deploy.sh"
+          ssh adpulse-deploy@84.46.254.178 docker logout ghcr.io
+
+      - name: Verify the public endpoint
+        run: test "$(curl -fsS https://littlewell-app.work/healthz)" = '{"status":"ok"}'

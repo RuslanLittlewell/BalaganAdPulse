@@ -8,8 +8,6 @@ export interface ProjectAvatarProps {
   size?: keyof typeof SIZES;
 }
 
-/** The project's logo when it has one, its initial otherwise. The logo travels
- * inside the project, so there is nothing to fetch here. */
 export function ProjectAvatar({ project, size = "md" }: ProjectAvatarProps) {
   if (!project.image) return <Avatar name={project.name} size={size} />;
 

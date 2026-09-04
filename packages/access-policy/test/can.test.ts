@@ -4,14 +4,13 @@ import {
   RESOURCES,
   ROLES,
   can,
+  isCustomer,
   type Action,
   type Actor,
   type Resource,
   type Role,
 } from "../src/index.js";
 
-/** The matrix answers on the role alone; the rest of an actor is carried for
- * the caller's convenience, so a fixture only has to vary the role. */
 function actor(role: Role): Actor {
   return {
     userId: "user-1",
@@ -21,9 +20,6 @@ function actor(role: Role): Actor {
   };
 }
 
-/** Asserts a whole matrix row at once: exactly `allowed` may act, and the
- * remaining roles may not. Writing it this way means a role added to the
- * matrix without a decision here fails the test rather than passing silently. */
 function expectRow(action: Action, resource: Resource, allowed: Role[]): void {
   for (const role of ROLES) {
     expect(
@@ -40,7 +36,7 @@ describe("can", () => {
     });
 
     it("is readable by every role, since each one is shown the organization", () => {
-      expectRow("read", "organization", ["ADMIN", "MANAGER", "GUEST", "CLIENT"]);
+      expectRow("read", "organization", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"]);
     });
 
     it("is never created or deleted through the matrix", () => {
@@ -50,26 +46,26 @@ describe("can", () => {
   });
 
   describe("members", () => {
-    it("are listed, changed, added and removed by an admin alone", () => {
-      expectRow("read", "member", ["ADMIN"]);
+    it("are seen and removed by an admin or a principal, and changed by an admin alone", () => {
+      expectRow("read", "member", ["ADMIN", "CLIENT_ADMIN"]);
       expectRow("create", "member", ["ADMIN"]);
       expectRow("update", "member", ["ADMIN"]);
-      expectRow("delete", "member", ["ADMIN"]);
+      expectRow("delete", "member", ["ADMIN", "CLIENT_ADMIN"]);
     });
   });
 
   describe("invitations", () => {
-    it("are created, listed and revoked by an admin alone", () => {
-      expectRow("read", "invite", ["ADMIN"]);
-      expectRow("create", "invite", ["ADMIN"]);
+    it("are made, listed and revoked by an admin or a principal", () => {
+      expectRow("read", "invite", ["ADMIN", "CLIENT_ADMIN"]);
+      expectRow("create", "invite", ["ADMIN", "CLIENT_ADMIN"]);
       expectRow("update", "invite", ["ADMIN"]);
-      expectRow("delete", "invite", ["ADMIN"]);
+      expectRow("delete", "invite", ["ADMIN", "CLIENT_ADMIN"]);
     });
   });
 
   describe("clients", () => {
     it("are readable by every role, with grants deciding which ones", () => {
-      expectRow("read", "client", ["ADMIN", "MANAGER", "GUEST", "CLIENT"]);
+      expectRow("read", "client", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"]);
     });
 
     it("are created and edited by admins and managers", () => {
@@ -84,7 +80,7 @@ describe("can", () => {
 
   describe("projects", () => {
     it("are readable by every role", () => {
-      expectRow("read", "project", ["ADMIN", "MANAGER", "GUEST", "CLIENT"]);
+      expectRow("read", "project", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"]);
     });
 
     it("are created and edited by admins and managers", () => {
@@ -97,33 +93,31 @@ describe("can", () => {
     });
   });
 
-  describe("campaigns, columns and rows", () => {
-    for (const resource of ["campaign", "property", "record"] as const) {
-      it(`lets admins and managers write a ${resource}, and everyone else only read`, () => {
-        expectRow("read", resource, ["ADMIN", "MANAGER", "GUEST", "CLIENT"]);
-        expectRow("create", resource, ["ADMIN", "MANAGER"]);
-        expectRow("update", resource, ["ADMIN", "MANAGER"]);
-        expectRow("delete", resource, ["ADMIN", "MANAGER"]);
-      });
-    }
-  });
+  describe("the campaign hierarchy", () => {
+    it("lets admins and managers write it, and everyone else only read", () => {
+      expectRow("read", "campaign", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"]);
+      expectRow("create", "campaign", ["ADMIN", "MANAGER"]);
+      expectRow("update", "campaign", ["ADMIN", "MANAGER"]);
+      expectRow("delete", "campaign", ["ADMIN", "MANAGER"]);
+    });
 
-  describe("cell values", () => {
-    it("are written by admins and managers, and read by everyone", () => {
-      expectRow("read", "value", ["ADMIN", "MANAGER", "GUEST", "CLIENT"]);
-      expectRow("create", "value", ["ADMIN", "MANAGER"]);
-      expectRow("update", "value", ["ADMIN", "MANAGER"]);
-      expectRow("delete", "value", ["ADMIN", "MANAGER"]);
+    it("names no resource for the sheet it replaced", () => {
+      expect(RESOURCES).not.toContain("property");
+      expect(RESOURCES).not.toContain("record");
+      expect(RESOURCES).not.toContain("value");
     });
   });
 
   describe("the task board", () => {
-    it("is read by staff and guests, and never by a customer", () => {
-      expectRow("read", "task", ["ADMIN", "MANAGER", "GUEST"]);
+    it("is read by every role, including a customer", () => {
+      expectRow("read", "task", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"]);
     });
 
-    it("is written only by admins and managers", () => {
-      expectRow("create", "task", ["ADMIN", "MANAGER"]);
+    it("is raised by staff and by a customer, never by a guest", () => {
+      expectRow("create", "task", ["ADMIN", "MANAGER", "CLIENT", "CLIENT_ADMIN"]);
+    });
+
+    it("is changed and removed only by admins and managers", () => {
       expectRow("update", "task", ["ADMIN", "MANAGER"]);
       expectRow("delete", "task", ["ADMIN", "MANAGER"]);
     });
@@ -131,7 +125,7 @@ describe("can", () => {
 
   describe("the audit trail", () => {
     it("is readable by every role, with scope deciding how much", () => {
-      expectRow("read", "audit", ["ADMIN", "MANAGER", "GUEST", "CLIENT"]);
+      expectRow("read", "audit", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"]);
     });
 
     it("is never written through the API", () => {
@@ -153,15 +147,17 @@ describe("can", () => {
       }
     });
 
-    it("is true for a client-role member too", () => {
+    it("is true for a client-role member everywhere but raising a task", () => {
       for (const resource of RESOURCES) {
         for (const action of ["create", "update", "delete"] as const) {
+          if (resource === "task" && action === "create") continue;
           expect(
             can(actor("CLIENT"), action, resource),
             `CLIENT ${action} ${resource}`,
           ).toBe(false);
         }
       }
+      expect(can(actor("CLIENT"), "create", "task")).toBe(true);
     });
   });
 
@@ -181,5 +177,74 @@ describe("can", () => {
       expect(can(actor("ADMIN"), "read", "spaceship" as Resource)).toBe(false);
       expect(can({ ...actor("ADMIN"), role: "ROOT" as Role }, "read", "client")).toBe(false);
     });
+  });
+});
+
+describe("the customer's principal", () => {
+  it("is a role of its own", () => {
+    expect(ROLES).toContain("CLIENT_ADMIN");
+  });
+
+  it("reads everything an ordinary customer reads", () => {
+    for (const resource of RESOURCES) {
+      if (resource === "invite" || resource === "member") continue;
+      expect(
+        can(actor("CLIENT_ADMIN"), "read", resource),
+        `CLIENT_ADMIN read ${resource}`,
+      ).toBe(can(actor("CLIENT"), "read", resource));
+    }
+  });
+
+  it("administers its client's people and their invitations", () => {
+    for (const action of ["read", "create", "delete"] as const) {
+      expect(can(actor("CLIENT_ADMIN"), action, "invite"), `invite ${action}`).toBe(true);
+    }
+    expect(can(actor("CLIENT_ADMIN"), "read", "member")).toBe(true);
+    expect(can(actor("CLIENT_ADMIN"), "delete", "member")).toBe(true);
+  });
+
+  it("raises a task like any customer", () => {
+    expect(can(actor("CLIENT_ADMIN"), "create", "task")).toBe(true);
+    expect(can(actor("CLIENT_ADMIN"), "update", "task")).toBe(false);
+    expect(can(actor("CLIENT_ADMIN"), "delete", "task")).toBe(false);
+  });
+
+  it("writes nothing the agency owns", () => {
+    for (const resource of ["client", "project", "campaign", "organization"] as const) {
+      for (const action of ["create", "update", "delete"] as const) {
+        expect(
+          can(actor("CLIENT_ADMIN"), action, resource),
+          `CLIENT_ADMIN ${action} ${resource}`,
+        ).toBe(false);
+      }
+    }
+  });
+
+  it("leaves an ordinary customer administering nobody", () => {
+    for (const action of ["read", "create", "update", "delete"] as const) {
+      expect(can(actor("CLIENT"), action, "invite"), `CLIENT ${action} invite`).toBe(false);
+      expect(can(actor("CLIENT"), action, "member"), `CLIENT ${action} member`).toBe(false);
+    }
+  });
+});
+
+describe("isCustomer", () => {
+  it("is true for both roles on the customer's side", () => {
+    expect(isCustomer("CLIENT")).toBe(true);
+    expect(isCustomer("CLIENT_ADMIN")).toBe(true);
+  });
+
+  it("is false for everyone the agency employs", () => {
+    expect(isCustomer("ADMIN")).toBe(false);
+    expect(isCustomer("MANAGER")).toBe(false);
+    expect(isCustomer("GUEST")).toBe(false);
+  });
+
+  it("covers every role, so none is neither", () => {
+    const customers = ROLES.filter(isCustomer);
+    const staff = ROLES.filter((role) => !isCustomer(role));
+
+    expect([...customers, ...staff].sort()).toEqual([...ROLES].sort());
+    expect(customers).toEqual(["CLIENT", "CLIENT_ADMIN"]);
   });
 });

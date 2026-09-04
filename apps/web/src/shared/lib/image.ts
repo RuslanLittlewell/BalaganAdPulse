@@ -1,19 +1,5 @@
-/**
- * The side of every avatar the app stores. Small on purpose: avatars are drawn
- * at 32-56 px, so 128 covers a retina screen with room to spare, and every
- * picture now travels inline in JSON where four times the pixels would be four
- * times the payload.
- */
 export const AVATAR_PX = 128;
 
-/**
- * Redraws any image the browser can decode as a square PNG of `size` pixels.
- *
- * The server stores one shape — a PNG under a megabyte — so a logo picked from
- * disk goes through the same conversion the generated avatar already used, and
- * the upload endpoint needs no second content type. Cropping is centred, which
- * is what a logo wants far more often than letterboxing.
- */
 export async function toSquarePng(file: Blob, size = AVATAR_PX): Promise<Blob> {
   const source = URL.createObjectURL(file);
   try {

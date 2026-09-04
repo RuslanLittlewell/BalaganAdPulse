@@ -125,10 +125,6 @@ describe("forceRefresh", () => {
   });
 
   it("leaves the stored tokens in place and does not notify listeners when the refresh endpoint answers 429", async () => {
-    // The per-address rate limiter added this phase can answer 429 on
-    // /api/auth/refresh. That must not be treated as "the session is dead":
-    // the refresh token is still good, so it must survive, and nobody
-    // should be signed out over it.
     server.use(http.post("/api/auth/refresh", () =>
       HttpResponse.json({ error: { message: "Too many requests, try again later" } }, { status: 429 })));
     const accessToken = makeExpiredAccessToken();
@@ -145,10 +141,6 @@ describe("forceRefresh", () => {
   });
 
   it("does not call endSession a second time when two requests 401 back to back after the session already ended", async () => {
-    // Simulates the case from the finding: the first forceRefresh() fails,
-    // clears storage and settles; a second, later forceRefresh() call (its
-    // inFlight promise already reset to null) finds no refresh token and
-    // must not fire the listeners a second time.
     server.use(http.post("/api/auth/refresh", () =>
       HttpResponse.json({ error: { message: "Session expired" } }, { status: 401 })));
     writeTokens({ accessToken: makeExpiredAccessToken(), refreshToken: "r" });
@@ -175,5 +167,57 @@ describe("endSession", () => {
     endSession();
 
     expect(listener).toHaveBeenCalledOnce();
+  });
+});
+
+describe("ending a session that has already lost its markers", () => {
+  it("still notifies when forced, with no marker left to find", () => {
+    let notified = 0;
+    const stop = onSessionExpired(() => { notified += 1; });
+
+    localStorage.clear();
+    document.cookie = "adpulse_session=; Max-Age=0; path=/";
+    expect(hasSession()).toBe(false);
+
+    endSession({ force: true });
+
+    expect(notified).toBe(1);
+    stop();
+  });
+
+  it("stays quiet when unforced and no session is left", () => {
+    let notified = 0;
+    const stop = onSessionExpired(() => { notified += 1; });
+    localStorage.clear();
+
+    endSession();
+
+    expect(notified).toBe(0);
+    stop();
+  });
+
+  it("notifies once per session, not once per call", () => {
+    let notified = 0;
+    const stop = onSessionExpired(() => { notified += 1; });
+    writeTokens({ accessToken: "a", refreshToken: "r" });
+
+    endSession();
+    endSession();
+
+    expect(notified).toBe(1);
+    stop();
+  });
+
+  it("notifies again once a new session has begun", () => {
+    let notified = 0;
+    const stop = onSessionExpired(() => { notified += 1; });
+
+    writeTokens({ accessToken: "a", refreshToken: "r" });
+    endSession();
+    writeTokens({ accessToken: "b", refreshToken: "r2" });
+    endSession();
+
+    expect(notified).toBe(2);
+    stop();
   });
 });

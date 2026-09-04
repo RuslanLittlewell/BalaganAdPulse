@@ -13,12 +13,11 @@ export interface TaskCardProps {
   draggable: boolean;
   placeholder?: boolean;
   project?: Project;
+  campaignName?: string;
   assignee?: Membership;
   onOpen?: (task: Task) => void;
 }
 
-/** The badge in the corner. Muted for the ordinary levels so that URGENT is the
- * only thing that pulls the eye across a full column. */
 const PRIORITY_TONE: Record<Task["priority"], string> = {
   LOW: "bg-muted text-muted-foreground",
   MEDIUM: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200",
@@ -26,8 +25,6 @@ const PRIORITY_TONE: Record<Task["priority"], string> = {
   URGENT: "bg-red-600 text-white dark:bg-red-700",
 };
 
-/** The same four levels down the card's left edge, so priority is legible even
- * where the badge is clipped by a narrow column. */
 const PRIORITY_BAR: Record<Task["priority"], string> = {
   LOW: "bg-border",
   MEDIUM: "bg-sky-400",
@@ -36,7 +33,7 @@ const PRIORITY_BAR: Record<Task["priority"], string> = {
 };
 
 export function TaskCard({
-  task, draggable, placeholder = false, project, assignee, onOpen,
+  task, draggable, placeholder = false, project, campaignName, assignee, onOpen,
 }: TaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: task.id,
@@ -57,9 +54,6 @@ export function TaskCard({
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn(
         "group relative shrink-0 overflow-hidden rounded-xl border border-border bg-card",
-        // The left padding is the gutter: it holds the priority bar, and the
-        // drag handle appears over it. Reserved on every card, dragged or not,
-        // so text never reflows as the pointer crosses.
         "py-3 pl-5 pr-3 text-left",
         "shadow-sm transition-all hover:border-border hover:shadow-md",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
@@ -136,10 +130,18 @@ export function TaskCard({
       ) : null}
 
       <footer className="mt-3 flex items-center justify-between gap-2 border-t border-border/60 pt-2.5">
-        <span className="flex min-w-0 items-center gap-1.5" data-testid={`task-project-${task.id}`}>
-          {project ? <ProjectAvatar project={project} size="sm" /> : null}
-          <span className="truncate text-xs text-muted-foreground">
-            {project?.name ?? t("tasks.noProject")}
+        <span className="flex min-w-0 flex-col">
+          <span className="flex min-w-0 items-center gap-1.5" data-testid={`task-project-${task.id}`}>
+            {project ? <ProjectAvatar project={project} size="sm" /> : null}
+            <span className="truncate text-xs text-muted-foreground">
+              {project?.name ?? t("tasks.noProject")}
+            </span>
+          </span>
+          <span
+            className="truncate pt-1 pl-0.5 text-[11px] text-muted-foreground/80"
+            data-testid={`task-campaign-${task.id}`}
+          >
+            {campaignName ?? t("tasks.form.wholeProject")}
           </span>
         </span>
 

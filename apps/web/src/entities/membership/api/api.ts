@@ -9,6 +9,8 @@ export interface Membership {
   name: string;
   email: string;
   image: string | null;
+  phone: string | null;
+  telegram: string | null;
   role: Role;
   status: MembershipStatus;
   createdAt: string;
@@ -26,10 +28,13 @@ export interface ClientAccessGrant {
 }
 
 export const membersApi = {
-  list: () => http.get<Membership[]>("/members"),
+  list: () => http.get<Membership[]>("/members?kind=staff"),
+  listOfClient: (clientId: string) =>
+    http.get<Membership[]>(`/members?clientId=${clientId}`),
   update: (id: string, body: UpdateMemberInput) =>
     http.patch<Membership>(`/members/${id}`, body),
   remove: (id: string) => http.del(`/members/${id}`),
   setAccess: (id: string, grants: ClientAccessGrant[]) =>
     http.put<ClientAccessGrant[]>(`/members/${id}/access`, { grants }),
+  access: (id: string) => http.get<ClientAccessGrant[]>(`/members/${id}/access`),
 };

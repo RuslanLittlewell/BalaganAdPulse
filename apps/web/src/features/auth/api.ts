@@ -1,12 +1,34 @@
 import { http } from "@/shared/lib/index.js";
+import type { Currency } from "@/shared/lib/index.js";
 import type { TokenPair } from "@/shared/lib/index.js";
 import type { Role } from "@adpulse/access-policy";
 
-export interface RegisterBody {
+export interface ClientRegistrationBody {
+  client: {
+    name: string;
+    fullName?: string | null;
+    organization?: string | null;
+    unp?: string | null;
+    phone?: string | null;
+    telegram?: string | null;
+    email?: string | null;
+    website?: string | null;
+  };
+  project: {
+    name: string;
+    niche?: string | null;
+    monthlyBudget?: number | null;
+    budgetCurrency?: Currency;
+  };
+}
+
+export interface RegisterBody extends Partial<ClientRegistrationBody> {
   name: string;
   email: string;
   password: string;
   inviteCode: string;
+  phone?: string | null;
+  telegram?: string | null;
 }
 
 export interface LoginBody {
@@ -16,6 +38,8 @@ export interface LoginBody {
 
 export interface UpdateProfileBody {
   name: string;
+  phone?: string | null;
+  telegram?: string | null;
   currentPassword?: string;
   newPassword?: string;
 }
@@ -23,9 +47,10 @@ export interface UpdateProfileBody {
 export interface UserProfile {
   name: string;
   email: string;
-  /** A `data:` URL, ready for an `<img src>` — or null when none is set. */
   image: string | null;
   avatarPath: string | null;
+  phone: string | null;
+  telegram: string | null;
 }
 
 export interface OrganizationSummary {
@@ -41,9 +66,6 @@ export interface AuthSession {
   clientIds: string[];
 }
 
-// These three calls opt out of both renewal behaviours in lib/http.ts: they
-// must reach the server before any token check, and their own 401 (a wrong
-// password) must be answered once, not repeated as if it were a stale token.
 const UNAUTHENTICATED = { authenticated: false };
 
 export const authApi = {

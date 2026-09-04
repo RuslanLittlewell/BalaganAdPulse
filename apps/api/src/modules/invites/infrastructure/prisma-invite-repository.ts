@@ -4,9 +4,6 @@ import type { PrismaUnitOfWork } from "../../../shared/infrastructure/prisma-uni
 import type { Invite, RegistrationType } from "../domain/invite.js";
 import { InvitationCodeConflictError, type InviteRepository, type NewInvite } from "../application/ports.js";
 
-/** The row and the domain type happen to line up field for field today. The
- * mapping is written out anyway so a column added to the schema does not leak
- * into the domain by accident. */
 type InviteRow = Prisma.InviteGetPayload<{ include: { projects: true } }>;
 
 const withProjects = { projects: true } as const;
@@ -18,6 +15,7 @@ function toDomain(row: InviteRow): Invite {
     code: row.code,
     registrationType: row.registrationType,
     role: row.role,
+    clientId: row.clientId,
     projectIds: row.projects.map(({ projectId }) => projectId),
     email: row.email,
     expiresAt: row.expiresAt,
@@ -89,8 +87,6 @@ export class PrismaInviteRepository implements InviteRepository {
     return rows.map(toDomain);
   }
 
-  /** Scoped to the organization, so an invitation belonging to another agency
-   * is indistinguishable from one that does not exist. */
   async findInOrg(orgId: string, id: string): Promise<Invite | null> {
     const row = await this.prisma.invite.findFirst({ where: { id, orgId }, include: withProjects });
     return row && toDomain(row);
@@ -105,8 +101,6 @@ export class PrismaInviteRepository implements InviteRepository {
     await this.client(context).invite.update({ where: { id }, data: { revokedAt: at } });
   }
 
-  /** Conditional on the row still being unspent, which is what settles a race
-   * between two registrations redeeming the same code. */
   async claim(
     context: TransactionContext,
     id: string,

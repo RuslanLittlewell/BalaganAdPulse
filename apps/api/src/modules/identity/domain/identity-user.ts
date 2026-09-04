@@ -5,6 +5,8 @@ export interface IdentityUser {
   readonly passwordHash: string;
   readonly image: string | null;
   readonly avatarPath: string | null;
+  readonly phone: string | null;
+  readonly telegram: string | null;
 }
 
 export interface SessionPrincipal {

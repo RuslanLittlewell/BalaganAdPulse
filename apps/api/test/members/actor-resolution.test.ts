@@ -28,9 +28,6 @@ describe("resolveActor", () => {
     expect(asked).toEqual(["u1"]);
   });
 
-  /** No membership and a suspended one are refused identically: both are
-   * simply "not a member right now", and telling them apart would reveal
-   * whether an account exists in this organization. */
   it("refuses a principal with no active membership", async () => {
     const { useCases } = fixture(null);
     await expect(useCases.resolveActor(PRINCIPAL)).rejects.toBeInstanceOf(AppError);

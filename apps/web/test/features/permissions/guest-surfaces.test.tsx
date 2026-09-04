@@ -1,10 +1,9 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { server, renderWithProviders } from "@test/shared/index.js";
 import { ContactBook } from "@/widgets/contact-book/index.js";
 import { ProjectList } from "@/widgets/project-list/index.js";
-import { CampaignSheet } from "@/widgets/campaign-sheet/index.js";
-import { CampaignTabs } from "@/features/campaign-management/index.js";
+import { ProjectPage } from "@/pages/project/index.js";
 
 function guestSession() {
   server.use(http.get("/api/auth/me", () => HttpResponse.json({
@@ -35,30 +34,29 @@ describe("guest controls", () => {
     expect(screen.queryByRole("button", { name: "+ Новый проект" })).not.toBeInTheDocument();
   });
 
-  it("hides campaign, row and value editing controls", async () => {
+  it("reads a project's figures without any control that writes", async () => {
     guestSession();
-    server.use(http.get("/api/campaigns/c1", () => HttpResponse.json({
-      id: "c1", name: "Search", position: 0,
-      properties: [{ id: "p1", key: "spend", name: "SPEND", type: "MONEY", position: 0, formula: null }],
-      records: [{ id: "r1", date: "2026-08-01", values: { p1: "10.0000" } }],
-      totals: { p1: "10.0000" },
-    })));
-
-    const tabs = renderWithProviders(
-      <CampaignTabs projectId="project-1" campaigns={[{
-        id: "c1", projectId: "project-1", name: "Search", position: 0, createdAt: "", updatedAt: "",
-      }]}
-        activeCampaignId="c1" onNew={() => {}} onRename={() => {}} />,
+    const performance = {
+      spend: 4200, impressions: 100000, reach: 40000, clicks: 2000, conversions: 50,
+      revenue: 4000, ctr: 2, cpc: 0.5, cpm: 10, cpa: 20, roas: 4, frequency: 2.5,
+    };
+    server.use(
+      http.get("/api/clients", () => HttpResponse.json([])),
+      http.get("/api/projects", () => HttpResponse.json([{
+        id: "p1", clientId: "client-1", name: "Клиника", niche: null, monthlyBudget: null, budgetCurrency: "BYN",
+        priority: "NEW", image: null, avatarPath: null, position: 0, createdAt: "", updatedAt: "",
+      }])),
+      http.get("/api/projects/:projectId/summary", () => HttpResponse.json(performance)),
+      http.get("/api/projects/:projectId/campaigns", () => HttpResponse.json([{
+        id: "c1", projectId: "p1", name: "Поиск", channel: "YANDEX", status: "ACTIVE",
+        objective: null, externalId: null, position: 0, performance,
+      }])),
     );
-    expect(await screen.findByText("Search")).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByRole("button", { name: /новый/i })).not.toBeInTheDocument());
-    expect(screen.queryByLabelText("Переименовать лист")).not.toBeInTheDocument();
-    tabs.unmount();
 
-    renderWithProviders(<CampaignSheet campaignId="c1" />);
-    expect(await screen.findAllByRole("cell", { name: "10.00" })).toHaveLength(2);
-    expect(screen.queryByRole("button", { name: "+ Добавить день" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Удалить день/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "SPEND, 01 авг." })).not.toBeInTheDocument();
+    renderWithProviders(<ProjectPage />, { route: "/projects/p1" });
+
+    expect(await screen.findByRole("row", { name: /Поиск/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Редактировать" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Удалить" })).not.toBeInTheDocument();
   });
 });

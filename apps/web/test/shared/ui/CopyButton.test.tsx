@@ -22,8 +22,6 @@ describe("CopyButton", () => {
     expect(written).toEqual(["https://example.test/link"]);
   });
 
-  // The morph itself cannot be observed in jsdom; the state that drives it can,
-  // and it is what decides which icon MorphIcon is handed.
   it("marks itself copied, and says so to a screen reader too", async () => {
     const user = userEvent.setup();
     stubClipboard();
@@ -49,8 +47,6 @@ describe("CopyButton", () => {
     await waitFor(() => expect(button).toHaveAttribute("data-copied", "false"));
   });
 
-  // A tick outlives a short-lived dialog easily; the revert must not land on a
-  // component that is gone.
   it("survives being unmounted before it reverts", async () => {
     const user = userEvent.setup();
     stubClipboard();
@@ -65,7 +61,6 @@ describe("CopyButton", () => {
     unmount();
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 40)); });
 
-    // No "state update on an unmounted component" warning, and no throw.
     expect(document.body.textContent).toBe("");
   });
 

@@ -6,8 +6,6 @@ import { config } from "../../src/shared/infrastructure/config.js";
 const adapter = new TokenAdapter();
 const principal = { id: "user-1", name: "Buyer", email: "buyer@acme.com" };
 
-/** A correctly signed, unexpired token carrying only the claims given — the
- * signature is genuine, so only the claim check can reject it. */
 function signWithClaims(payload: Record<string, string>, subject?: string): Promise<string> {
   const jwt = new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256" })
@@ -39,9 +37,6 @@ describe("access tokens", () => {
     await expect(adapter.verifyAccess("nonsense")).rejects.toThrow();
   });
 
-  // Without `sub` the caller has no id, and an undefined id makes every
-  // ownership filter match everything. The signature is valid here, so this
-  // is the only check standing between such a token and the whole database.
   it("rejects a validly signed token with no sub claim", async () => {
     const token = await signWithClaims({ name: principal.name, email: principal.email });
     await expect(adapter.verifyAccess(token)).rejects.toThrow();

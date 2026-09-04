@@ -1,5 +1,3 @@
-/** The agency's customer, as a CRM record. The contact-book fields are all
- * optional: a client is usable long before anyone has collected its paperwork. */
 export interface ClientRecord {
   readonly id: string;
   readonly orgId: string;
@@ -11,8 +9,6 @@ export interface ClientRecord {
   readonly telegram: string | null;
   readonly email: string | null;
   readonly website: string | null;
-  /** A marker that a picture exists and when it landed, not a URL — nothing
-   * fetches it. The use case swaps it for the bytes on the way out. */
   readonly image: string | null;
   readonly avatarPath: string | null;
   readonly createdAt: Date;

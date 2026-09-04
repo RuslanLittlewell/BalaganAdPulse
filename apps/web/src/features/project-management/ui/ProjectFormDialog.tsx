@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { ApiError, isPartialDecimal, toSquarePng } from "@/shared/lib/index.js";
+import {
+  ApiError, CURRENCY_SIGNS, isPartialDecimal, toSquarePng, type Currency,
+} from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import {
   Button,
@@ -19,6 +21,7 @@ import {
   TextField,
 } from "@/shared/ui/index.js";
 import { useClients } from "@/entities/client/index.js";
+import { CURRENCIES, DEFAULT_CURRENCY } from "@/entities/project/index.js";
 import {
   ProjectAvatar,
   useCreateProject,
@@ -30,17 +33,13 @@ import {
 } from "@/entities/project/index.js";
 import { Can } from "@/features/permissions/index.js";
 
-/** Marks a picture the user supplied, as opposed to one the avatar editor made. */
 const UPLOADED = JSON.stringify({ source: "upload" });
 
 export interface ProjectFormDialogProps {
   project?: Project;
-  /** Preselected when the form is opened from inside a client's context. */
   clientId?: string;
   onClose: () => void;
   onSaved?: (project: Project) => void;
-  /** Deletion lives here rather than beside the project's own heading: it is
-   *  the one place that already means "change this project". */
   onDeleted?: () => void;
 }
 
@@ -49,6 +48,7 @@ interface Fields {
   name: string;
   niche: string;
   monthlyBudget: string;
+  budgetCurrency: Currency;
 }
 
 function toInput(fields: Fields): ProjectInput {
@@ -57,9 +57,9 @@ function toInput(fields: Fields): ProjectInput {
     clientId: fields.clientId,
     name: fields.name.trim(),
     niche: fields.niche.trim() || null,
-    // A lone "." passes the keystroke filter but is not a number.
     monthlyBudget:
       fields.monthlyBudget.trim() && Number.isFinite(budget) ? budget : null,
+    budgetCurrency: fields.budgetCurrency,
   };
 }
 
@@ -93,6 +93,7 @@ export function ProjectFormDialog({
       name: project?.name ?? "",
       niche: project?.niche ?? "",
       monthlyBudget: project?.monthlyBudget ?? "",
+      budgetCurrency: project?.budgetCurrency ?? DEFAULT_CURRENCY,
     },
   });
 
@@ -103,8 +104,6 @@ export function ProjectFormDialog({
         ? await update.mutateAsync({ id: project.id, body: toInput(fields) })
         : await create.mutateAsync(toInput(fields));
 
-      // The logo can only be stored once the project has an id, so it follows
-      // the save rather than travelling with it.
       const withLogo = logo
         ? await saveAvatar.mutateAsync({
             id: saved.id,
@@ -201,6 +200,25 @@ export function ProjectFormDialog({
                 />
               )}
             />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="project-currency">{t("project.currency.label")}</Label>
+              <Controller
+                control={control}
+                name="budgetCurrency"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="project-currency"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {CURRENCIES.map((currency) => (
+                        <SelectItem key={currency} value={currency}>
+                          {currency} {CURRENCY_SIGNS[currency]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
           </div>
 
           <div className="grid gap-1">

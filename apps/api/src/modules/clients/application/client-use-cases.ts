@@ -17,25 +17,15 @@ export function createClientUseCases(dependencies: ClientDependencies) {
     }
   };
 
-  /**
-   * Reach first, then the verb. A role that may not perform the action would
-   * otherwise learn, from the refusal, that a record it cannot even reach
-   * exists — which is what answering not-found rather than forbidden is for.
-   */
   const reach = async (actor: ActorContext, id: string): Promise<ClientRecord> => {
     const client = await dependencies.clients.findReachable(actor, id);
     if (!client) throw new AppError("not-found", "Client not found");
     return client;
   };
 
-  /** Swaps the stored marker for the picture itself, as a data URL. The bytes
-   * travel with the client rather than behind a second endpoint: that endpoint
-   * needed the bearer token, so the browser could never put it in an `<img src>`
-   * and the contact book had to fetch every picture by hand. */
   const withPicture = async (client: ClientRecord): Promise<ClientRecord> => {
     if (!client.image) return client;
     const bytes = await dependencies.pictures.read(client.id);
-    // A picture storage cannot serve is a missing picture, not a broken client.
     if (!bytes) return { ...client, image: null };
     return { ...client, image: `data:image/png;base64,${Buffer.from(bytes).toString("base64")}` };
   };
@@ -47,9 +37,6 @@ export function createClientUseCases(dependencies: ClientDependencies) {
         const client = await dependencies.clients.create(
           context,
           { ...input, id: dependencies.ids.generate(), orgId: actor.orgId },
-          // Whoever enters a client reaches it — the same rule the tenancy
-          // migration used when it turned ownership into grants. An admin needs
-          // no grant: their role already reaches the organization.
           actor.role === "ADMIN" ? undefined : actor.membershipId,
         );
         await dependencies.audit.append(context, {
@@ -100,7 +87,6 @@ export function createClientUseCases(dependencies: ClientDependencies) {
       png: Uint8Array,
       avatarPath: string,
     ): Promise<ClientRecord> => {
-      // Reach first: an id the caller cannot see must not even touch storage.
       const client = await reach(actor, id);
       assertCan(actor, "update");
       await dependencies.pictures.write(id, png);
@@ -117,8 +103,6 @@ export function createClientUseCases(dependencies: ClientDependencies) {
       return withPicture(updated);
     },
 
-    /** The clients an actor can reach, for the session payload the members
-     * module assembles. */
     reachableIds: (actor: ActorContext): Promise<string[]> =>
       dependencies.clients.reachableIds(actor),
   };

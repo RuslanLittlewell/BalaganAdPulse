@@ -25,8 +25,6 @@ async function harness() {
   const handle = {
     close: async () => {
       await realtime.close();
-      // Sockets already closing still hold the server open long enough to
-      // stall the next test; this drops what is left.
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
     },
@@ -35,13 +33,6 @@ async function harness() {
   return { registry, authenticate, port, realtime };
 }
 
-/**
- * Resolves with the first message, or with how the upgrade was refused.
- *
- * The token travels in the cookie the browser sends on the upgrade request —
- * the same HttpOnly cookie the REST API authenticates from. It is never
- * readable by the page, so there is nothing for the client to attach.
- */
 function connect(port: number, token?: string) {
   const socket = new WebSocket(`ws://127.0.0.1:${port}${REALTIME_PATH}`, {
     headers: token === undefined ? {} : { cookie: `adpulse_access=${token}` },
@@ -68,10 +59,6 @@ describe("the realtime handshake", () => {
     expect(registry.size()).toBe(1);
   });
 
-  // Every rejection looks the same from outside: expired, tampered, unknown,
-  // malformed and absent are indistinguishable, exactly as they are on the
-  // REST path. The upgrade is refused outright, so there is never a socket in
-  // an unauthenticated state to reason about.
   it.each([
     ["an unknown token", "wrong-token"],
     ["an empty cookie", ""],

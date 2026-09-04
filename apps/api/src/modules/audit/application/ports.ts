@@ -39,14 +39,10 @@ export interface RequestMetadata {
   readonly userAgent: string | null;
 }
 
-/** Transport metadata for the current request. Infrastructure, deliberately:
- * the use cases are handed the answer rather than reaching for ambient state. */
 export interface RequestMetadataSource {
   current(): RequestMetadata | undefined;
 }
 
-/** The actor's name and email as the database holds them right now, which is
- * what the event snapshots. */
 export interface ActorSnapshots {
   forMembership(
     context: TransactionContext,

@@ -67,7 +67,10 @@ export function AvatarEditorDialog({ open, initial, onClose, onSave }: Props) {
         </DialogHeader>
         <form
           className={"grid gap-6 md:grid-cols-[220px_1fr]"}
-          onSubmit={(event) => void submit(event)}
+          onSubmit={(event) => {
+            event.stopPropagation();
+            void submit(event);
+          }}
         >
           <aside
             className={

@@ -102,7 +102,7 @@ describe("Prisma client repository", () => {
     const { unitOfWork, clients } = repository();
     const admin = await signInAs("Admin", { role: "ADMIN" });
     const { clientId, projectId } = await seedProject(admin.user.id, "Acme");
-    await prisma.campaign.create({ data: { projectId, name: "Main", position: 0 } });
+    await prisma.campaign.create({ data: { projectId, name: "Поиск", channel: "YANDEX", position: 0 } });
 
     await unitOfWork.run((context) => clients.delete(context, clientId));
 

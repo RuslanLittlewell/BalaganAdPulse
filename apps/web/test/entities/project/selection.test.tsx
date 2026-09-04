@@ -74,7 +74,6 @@ describe("SelectionSync", () => {
         <Probe />
       </MemoryRouter>,
     );
-    // A merge would have left c1 behind, pointing at a sheet of another project.
     expect(screen.getByTestId("selection")).toHaveTextContent("p1/—");
   });
 

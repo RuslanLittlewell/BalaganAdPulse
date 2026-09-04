@@ -1,11 +1,3 @@
-/**
- * The image ids a description references.
- *
- * Mirrors the walk the API does when it claims a task's uploads, so the
- * attachments block can list what the description points at right now —
- * including a file pasted a moment ago, which is not attached to the task until
- * the task is saved.
- */
 export function collectImageIds(description: unknown): string[] {
   const found = new Set<string>();
   const walk = (node: unknown): void => {

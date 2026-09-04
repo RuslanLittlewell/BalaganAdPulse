@@ -11,22 +11,14 @@ export interface DatePickerLabels {
 }
 
 export interface DatePickerProps {
-  /** The selected day, "YYYY-MM-DD". */
   value: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   labels: DatePickerLabels;
   onSelect: (iso: string) => void;
-  /** The control the calendar hangs under. */
   children: ReactNode;
 }
 
-/**
- * shadcn's Calendar in a Popover. The popover is what makes this work inside the
- * sheet: it renders through a portal and is placed by collision detection, so a
- * scrolling table cannot clip it and a sticky cell cannot stack over it — the two
- * problems the previous hand-placed version existed to solve.
- */
 export function DatePicker({
   value,
   open,

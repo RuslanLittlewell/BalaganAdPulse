@@ -6,10 +6,17 @@ the stack, layout and commands.
 
 ## Conventions
 
-- **English in the codebase, Russian in the interface** — code, comments, docs,
-  commit messages and API error messages are English. Everything a user reads in
-  the web app is Russian and lives in `apps/web/src/shared/config/ru.ts`; reach it
-  through `t("key")` rather than writing copy inline.
+- **No comments** — the codebase carries none, and none are to be added: not in
+  TypeScript, not in `schema.prisma`, not in configs. A comment you were about to
+  write is a name that should have been clearer, a function that should have been
+  smaller, or a decision that belongs in `openspec/` or a commit message. The two
+  exceptions are machine-read directives (`/// <reference …>`, pragmas) and files
+  vendored from elsewhere (`apps/web/src/shared/ui/ui/`, `apps/api/prisma/migrations/`),
+  which are kept as they arrived.
+- **English in the codebase, Russian in the interface** — code, docs, commit
+  messages and API error messages are English. Everything a user reads in the web
+  app is Russian and lives in `apps/web/src/shared/config/ru.ts`; reach it through
+  `t("key")` rather than writing copy inline.
 - **Commit messages follow Conventional Commits** — `type(scope): subject`, imperative
   mood, lowercase, no trailing period. Full type table and examples in
   [CONTRIBUTING.md](CONTRIBUTING.md). Do not commit without an explicit request.

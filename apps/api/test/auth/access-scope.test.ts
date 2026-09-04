@@ -10,8 +10,6 @@ const app = createApp();
 beforeEach(async () => { await resetDb(); });
 afterAll(async () => { await prisma.$disconnect(); });
 
-/** A client with two projects, entered by somebody else entirely, so nothing a
- * test reaches can be explained by having created it. */
 async function someoneElsesClient(name = "Acme") {
   const author = await signInAs(`${name} Author`, { role: "MANAGER" });
   const { clientId, projectId } = await seedProject(author.user.id, name);
@@ -158,21 +156,66 @@ describe("reach carries down the hierarchy", () => {
   it("a granted manager reaches the campaigns under the project", async () => {
     const { clientId, projectId } = await someoneElsesClient();
     const campaign = await prisma.campaign.create({
-      data: { projectId, name: "Main", position: 0 },
+      data: { projectId, name: "Поиск", channel: "YANDEX", position: 0 },
     });
     const manager = await signInAs("Manager", { role: "MANAGER" });
     await grantAccess(manager.membership!.id, clientId);
 
-    expect((await request(app).get(`/api/campaigns/${campaign.id}`).set(manager.auth)).status).toBe(200);
+    const res = await request(app)
+      .get(`/api/campaigns/${campaign.id}?from=2026-08-01&to=2026-08-31`).set(manager.auth);
+    expect(res.status).toBe(200);
   });
 
   it("an ungranted manager answers 404 for the same campaign", async () => {
     const { projectId } = await someoneElsesClient();
     const campaign = await prisma.campaign.create({
-      data: { projectId, name: "Main", position: 0 },
+      data: { projectId, name: "Поиск", channel: "YANDEX", position: 0 },
     });
     const manager = await signInAs("Manager", { role: "MANAGER" });
 
-    expect((await request(app).get(`/api/campaigns/${campaign.id}`).set(manager.auth)).status).toBe(404);
+    const res = await request(app)
+      .get(`/api/campaigns/${campaign.id}?from=2026-08-01&to=2026-08-31`).set(manager.auth);
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("a client's principal reaches one client", () => {
+  it("reaches its own client's projects and campaigns", async () => {
+    const { clientId, projectId } = await someoneElsesClient();
+    const campaign = await prisma.campaign.create({
+      data: { projectId, name: "Поиск", channel: "YANDEX", position: 0 },
+    });
+    const principal = await signInAs("Главный", { role: "CLIENT_ADMIN" });
+    await grantAccess(principal.membership!.id, clientId);
+
+    expect((await request(app).get(`/api/projects/${projectId}`).set(principal.auth)).status)
+      .toBe(200);
+    const figures = await request(app)
+      .get(`/api/campaigns/${campaign.id}?from=2026-08-01&to=2026-08-31`).set(principal.auth);
+    expect(figures.status).toBe(200);
+  });
+
+  it("answers 404 for a project of another client", async () => {
+    const theirs = await someoneElsesClient();
+    const mine = await someoneElsesClient();
+    const principal = await signInAs("Главный", { role: "CLIENT_ADMIN" });
+    await grantAccess(principal.membership!.id, mine.clientId);
+
+    expect((await request(app).get(`/api/projects/${theirs.projectId}`).set(principal.auth)).status)
+      .toBe(404);
+  });
+
+  it("writes nothing the agency owns", async () => {
+    const { clientId, projectId } = await someoneElsesClient();
+    const principal = await signInAs("Главный", { role: "CLIENT_ADMIN" });
+    await grantAccess(principal.membership!.id, clientId);
+
+    const refusals = await Promise.all([
+      request(app).post("/api/clients").set(principal.auth).send({ name: "Своя" }),
+      request(app).post("/api/projects").set(principal.auth).send({ clientId, name: "Свой" }),
+      request(app).patch(`/api/projects/${projectId}`).set(principal.auth).send({ name: "Другое" }),
+    ]);
+
+    expect(refusals.map((response) => response.status)).toEqual([403, 403, 403]);
   });
 });

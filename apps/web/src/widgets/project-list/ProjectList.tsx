@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { PlusIcon } from "lucide-react";
 import {
   Button,
   ContextMenu,
@@ -11,6 +12,11 @@ import {
   EmptyState,
   ListItem,
   Loader,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
 import { projectPath, ROUTES } from "@/shared/lib/index.js";
@@ -28,16 +34,23 @@ import {
 import { ProjectFormDialog } from "@/features/project-management/index.js";
 import { Can, useCan } from "@/features/permissions/index.js";
 
-/** The projects of the Projects module, each labelled with the company it is for. */
 export function ProjectList() {
   const projectId = useActiveProjectId();
   const navigate = useNavigate();
   const projects = useProjects();
   const clients = useClients();
   const [creating, setCreating] = useState(false);
+  const [priorityFilter, setPriorityFilter] = useState<ProjectPriority | "ALL">("ALL");
   const [editingId, setEditingId] = useState<string | undefined>(undefined);
   const update = useUpdateProject();
   const mayUpdate = useCan("update", "project");
+
+  const visibleProjects = [...(projects.data ?? [])]
+    .filter((project) => priorityFilter === "ALL" || project.priority === priorityFilter)
+    .sort(
+      (left, right) =>
+        PROJECT_PRIORITIES.indexOf(left.priority) - PROJECT_PRIORITIES.indexOf(right.priority),
+    );
 
   const editing = projects.data?.find((project) => project.id === editingId);
   const clientName = (id: string) =>
@@ -45,16 +58,25 @@ export function ProjectList() {
 
   return (
     <>
-      <div className="flex min-h-0 flex-col gap-2">
-        <Can action="create" resource="project"><Button
-          variant="outline"
-          className="w-full border-dashed border-primary text-primary"
-          onClick={() => setCreating(true)}
+      <div className="relative flex min-h-0 flex-col gap-2">
+        <Select
+          value={priorityFilter}
+          onValueChange={(value) => setPriorityFilter(value as ProjectPriority | "ALL")}
         >
-          + {t("projects.new")}
-        </Button></Can>
+          <SelectTrigger className="w-full" aria-label={t("projects.priorityFilter")}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">{t("projects.allPriorities")}</SelectItem>
+            {PROJECT_PRIORITIES.map((priority) => (
+              <SelectItem key={priority} value={priority}>
+                {priorityLabel(priority)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-        <div className="flex min-h-0 flex-col gap-1 overflow-auto">
+        <div className="flex min-h-0 flex-col gap-1 overflow-auto pb-12">
           {projects.isPending && (
             <div className="grid place-items-center gap-3 p-6">
               <Loader size="sm" />
@@ -75,8 +97,7 @@ export function ProjectList() {
           )}
 
           {projects.isSuccess &&
-            projects.data.map((project) => (
-              // Right-click anywhere on the row picks its priority.
+            visibleProjects.map((project) => (
               <ContextMenu key={project.id}>
                 <ContextMenuTrigger>
                   <ListItem
@@ -124,6 +145,18 @@ export function ProjectList() {
               </ContextMenu>
             ))}
         </div>
+
+        <Can action="create" resource="project">
+          <Button
+            type="button"
+            size="icon"
+            className="absolute right-2 bottom-2 z-10 rounded-full shadow-md"
+            aria-label={t("projects.new")}
+            onClick={() => setCreating(true)}
+          >
+            <PlusIcon aria-hidden="true" />
+          </Button>
+        </Can>
       </div>
 
       {creating && (
@@ -138,7 +171,6 @@ export function ProjectList() {
           project={editing}
           onClose={() => setEditingId(undefined)}
           onDeleted={() => {
-            // Leaving the open project deleted would strand the route on it.
             if (editing.id === projectId) navigate(ROUTES.projects, { replace: true });
           }}
         />

@@ -8,15 +8,11 @@ import type { AuditWriter } from "../../audit/index.js";
 import type { ClientContact, ClientRecord, NewClient } from "../domain/client.js";
 
 export interface ClientRepository {
-  /** `grantTo` is the membership that should be able to reach the new client,
-   * or undefined when the creator's role already reaches everything. */
   create(
     context: TransactionContext,
     input: NewClient & { id: string; orgId: string },
     grantTo: string | undefined,
   ): Promise<ClientRecord>;
-  /** Reach is translated here: the actor's role and grants become the query's
-   * filter, so no use case has to know how tenancy is stored. */
   listReachable(actor: ActorContext): Promise<ClientRecord[]>;
   findReachable(actor: ActorContext, id: string): Promise<ClientRecord | null>;
   update(context: TransactionContext, id: string, input: ClientContact): Promise<ClientRecord>;

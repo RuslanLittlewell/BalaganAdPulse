@@ -5,3 +5,4 @@ export * from "./ui/project-header/ProjectHeader.js";
 export * from "./model/selection.js";
 export * from "./model/SelectionSync.js";
 export * from "./model/priority.js";
+export { CURRENCIES, DEFAULT_CURRENCY } from "./api/api.js";

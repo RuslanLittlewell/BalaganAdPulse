@@ -36,8 +36,6 @@ export function useSaveClientAvatar() {
   return useMutation({
     mutationFn: ({ id, png, avatarPath }: { id: string; png: Blob; avatarPath: string }) =>
       clientsApi.saveAvatar(id, png, avatarPath),
-    // The stored URL carries a fresh version, so refetching the list is what
-    // makes every avatar on screen reload rather than keep the cached picture.
     onSuccess: () => qc.invalidateQueries({ queryKey: CLIENTS_KEY }),
   });
 }

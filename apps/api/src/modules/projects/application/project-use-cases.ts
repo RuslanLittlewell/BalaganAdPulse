@@ -13,8 +13,6 @@ export function createProjectUseCases(dependencies: ProjectDependencies) {
     }
   };
 
-  /** Reach first, then the verb — a refusal must never reveal that a record the
-   * caller cannot reach exists. */
   const reach = async (actor: ActorContext, id: string): Promise<ProjectRecord> => {
     const project = await dependencies.projects.findReachable(actor, id);
     if (!project) throw new AppError("not-found", "Project not found");
@@ -30,7 +28,6 @@ export function createProjectUseCases(dependencies: ProjectDependencies) {
   const withPicture = async (project: ProjectRecord): Promise<ProjectRecord> => {
     if (!project.image) return project;
     const bytes = await dependencies.pictures.read(project.id);
-    // A logo storage cannot serve is a missing logo, not a broken project.
     if (!bytes) return { ...project, image: null };
     return { ...project, image: `data:image/png;base64,${Buffer.from(bytes).toString("base64")}` };
   };
@@ -54,7 +51,6 @@ export function createProjectUseCases(dependencies: ProjectDependencies) {
           id: dependencies.ids.generate(),
           position: await dependencies.projects.countForClient(input.clientId),
         });
-        await dependencies.campaigns.seedDefault(context, project.id);
         await dependencies.audit.append(context, audit("CREATE", project), actor);
         return project;
       });
@@ -95,7 +91,6 @@ export function createProjectUseCases(dependencies: ProjectDependencies) {
       png: Uint8Array,
       avatarPath: string,
     ): Promise<ProjectRecord> => {
-      // Reach first: an id the caller cannot see must not even touch storage.
       const project = await reach(actor, id);
       assertCan(actor, "update");
       await dependencies.pictures.write(id, png);

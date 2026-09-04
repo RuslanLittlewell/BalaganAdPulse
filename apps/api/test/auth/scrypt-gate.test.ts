@@ -16,9 +16,6 @@ afterAll(async () => { await prisma.$disconnect(); });
 
 describe("scrypt gate", () => {
   it("never runs more than two hashes at once", async () => {
-    // Sampled while the hashes are in flight, not after they resolve: by the
-    // time a hash's promise settles, `active` has already been decremented and
-    // the reading would be meaningless.
     const runs = Array.from({ length: 6 }, () => hashPassword("hunter2hunter2"));
     await new Promise((resolve) => setImmediate(resolve));
 
@@ -37,9 +34,6 @@ describe("scrypt gate", () => {
   });
 
   it("spends a hash on an unknown email, exactly as on a wrong password", async () => {
-    // The enumeration defence in auth.service.ts depends on this: if the gate
-    // were entered only for known users, queue wait would become the timing
-    // channel that DUMMY_PASSWORD_HASH exists to close.
     const before = scryptGate.stats().total;
     await request(app).post("/api/auth/login")
       .send({ email: "nobody@example.com", password: "hunter2hunter2" });

@@ -58,8 +58,8 @@ beforeEach(async () => {
   clientB = await prisma.client.create({ data: { name: "B", orgId: org.id } });
   projectA = await prisma.project.create({ data: { name: "PA", clientId: clientA.id, position: 0 } });
   projectB = await prisma.project.create({ data: { name: "PB", clientId: clientB.id, position: 0 } });
-  campaignA = await prisma.campaign.create({ data: { name: "CA", projectId: projectA.id, position: 0 } });
-  campaignB = await prisma.campaign.create({ data: { name: "CB", projectId: projectB.id, position: 0 } });
+  campaignA = await prisma.campaign.create({ data: { name: "CA", projectId: projectA.id, channel: "YANDEX", position: 0 } });
+  campaignB = await prisma.campaign.create({ data: { name: "CB", projectId: projectB.id, channel: "META", position: 0 } });
   await grantAccess(manager.membership!.id, clientA.id);
 
   await event({ entityType: "client", entityId: clientA.id, clientId: clientA.id, action: "CREATE", createdAt: "2026-08-01T10:00:00Z" });

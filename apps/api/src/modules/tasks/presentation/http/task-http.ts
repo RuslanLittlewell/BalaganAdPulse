@@ -19,8 +19,11 @@ export function createTaskRouter(useCases: TaskUseCases): Router {
   const router = Router();
 
   router.get("/", handle(async (req, res) => {
-    const projectId = typeof req.query.projectId === "string" ? req.query.projectId : undefined;
-    res.json(await useCases.list(actorOf(req), projectId));
+    const only = (value: unknown) => (typeof value === "string" && value ? value : undefined);
+    res.json(await useCases.list(actorOf(req), {
+      projectId: only(req.query.projectId),
+      campaignId: only(req.query.campaignId),
+    }));
   }));
   router.post("/", handle(async (req, res) => {
     res.status(201).json(await useCases.create(actorOf(req), createTaskSchema.parse(req.body)));
@@ -35,7 +38,6 @@ export function createTaskRouter(useCases: TaskUseCases): Router {
     await useCases.delete(actorOf(req), req.params.id);
     res.status(204).send();
   }));
-  /** Where a drag lands: the target column and the position within it. */
   router.post("/:id/move", handle(async (req: Request<{ id: string }>, res) => {
     res.json(await useCases.move(actorOf(req), req.params.id, moveTaskSchema.parse(req.body)));
   }));
@@ -43,11 +45,6 @@ export function createTaskRouter(useCases: TaskUseCases): Router {
   return router;
 }
 
-/**
- * Task images. The read requires the same authentication as every other `/api`
- * route: the editor fetches with the member's token and renders from an object
- * URL, so an address opened without credentials serves nothing.
- */
 export function createTaskImageRouter(
   useCases: TaskImageUseCases,
   upload: RequestHandler,

@@ -4,10 +4,6 @@ import { clearTokens, writeTokens } from "@/shared/lib/index.js";
 import { makeAccessToken } from "@test/shared/index.js";
 import { App } from "@/app/App.js";
 
-// App brings its own providers (QueryClientProvider, BrowserRouter,
-// AuthProvider), so renderWithProviders — which supplies its own — is not
-// usable here. The URL is set with window.history.pushState because App
-// uses BrowserRouter rather than MemoryRouter.
 function renderAppAt(path: string) {
   window.history.pushState({}, "", path);
   return render(<App />);
@@ -30,6 +26,22 @@ describe("App", () => {
 
     expect(screen.getByRole("heading", { name: "Вход" })).toBeInTheDocument();
     expect(screen.queryByText("Проекты")).not.toBeInTheDocument();
+  });
+
+  it("sends a bookmark for the removed Team section to the dashboard", async () => {
+    writeTokens({ accessToken: makeAccessToken(), refreshToken: "r" });
+
+    renderAppAt("/team");
+
+    await screen.findByRole("link", { name: "Проекты" });
+    expect(window.location.pathname).toBe("/");
+  });
+
+  it("sends a bookmark for the removed sign-up screen to the sign-in form", () => {
+    renderAppAt("/signup");
+
+    expect(screen.getByRole("heading", { name: "Вход" })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/login");
   });
 
   it("renders the dashboard shell for a signed-in visitor at a dashboard route", async () => {

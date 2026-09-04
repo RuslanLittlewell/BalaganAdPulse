@@ -2,6 +2,7 @@ export * from "./auth/jwt.js";
 export * from "./auth/session.js";
 export * from "./auth/tokenStore.js";
 export * from "./format.js";
+export * from "./metrics.js";
 export * from "./http.js";
 export * from "./queryClient.js";
 export * from "./theme.js";

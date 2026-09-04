@@ -8,7 +8,7 @@ import { server } from "@test/shared/index.js";
 import { makeAccessToken, makeExpiredAccessToken } from "@test/shared/index.js";
 import { createQueryClient } from "@/shared/lib/index.js";
 import { http as httpClient } from "@/shared/lib/index.js";
-import { writeTokens, readTokens } from "@/shared/lib/index.js";
+import { writeTokens, readTokens, hasSession } from "@/shared/lib/index.js";
 import { endSession, forceRefresh, onSessionExpired } from "@/shared/lib/index.js";
 import { AuthProvider, useAuth } from "@/features/auth/model/AuthProvider.js";
 
@@ -35,9 +35,6 @@ function Probe() {
   );
 }
 
-/** Issues a real query through the app's data layer (lib/http.ts), the way a
- * page component would — this is what exercises the seam between http.ts,
- * session.ts and AuthProvider, rather than any one of them in isolation. */
 function DataProbe() {
   const query = useQuery({ queryKey: ["clients"], queryFn: () => httpClient.get("/clients") });
   return <span data-testid="query-status">{query.status}</span>;
@@ -121,6 +118,33 @@ describe("AuthProvider", () => {
     expect(screen.getByText("login screen")).toBeInTheDocument();
   });
 
+  it("signs out when the cookie is the only marker left", async () => {
+    server.use(http.post("/api/auth/logout", () =>
+      new HttpResponse(null, {
+        status: 204,
+        headers: { "Set-Cookie": "adpulse_session=; Max-Age=0; Path=/" },
+      })));
+    document.cookie = "adpulse_session=1; path=/";
+    localStorage.clear();
+    renderProvider();
+
+    await userEvent.click(screen.getByRole("button", { name: "out" }));
+
+    expect(screen.getByText("login screen")).toBeInTheDocument();
+  });
+
+  it("leaves no marker behind when the revoke request never lands", async () => {
+    server.use(http.post("/api/auth/logout", () => HttpResponse.error()));
+    document.cookie = "adpulse_session=1; path=/";
+    writeTokens({ accessToken: makeAccessToken(), refreshToken: "r" });
+    renderProvider();
+
+    await userEvent.click(screen.getByRole("button", { name: "out" }));
+
+    expect(hasSession()).toBe(false);
+    expect(screen.getByText("login screen")).toBeInTheDocument();
+  });
+
   it("routes sign-out through endSession, so every sessionExpired subscriber hears about it", async () => {
     server.use(http.post("/api/auth/logout", () => new HttpResponse(null, { status: 204 })));
     writeTokens({ accessToken: makeAccessToken(), refreshToken: "r" });
@@ -168,11 +192,6 @@ describe("AuthProvider", () => {
   });
 
   it("drops the visitor at /login with an empty cache when a stale token's silent renewal is refused", async () => {
-    // The plan's "Done when": a dead refresh token drops the visitor at
-    // /login with an empty cache. This exercises the full seam — a query
-    // through lib/http.ts triggers session.ts's renewal, which fails and
-    // calls endSession(), which AuthProvider turns into navigation and a
-    // cache clear — rather than testing any one file in isolation.
     writeTokens({ accessToken: makeExpiredAccessToken(), refreshToken: "r" });
     server.use(
       http.get("/api/clients", () =>

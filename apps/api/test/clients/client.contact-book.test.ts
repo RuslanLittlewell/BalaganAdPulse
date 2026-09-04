@@ -7,9 +7,6 @@ import { signInAs } from "../helpers/auth.js";
 
 const app = createApp();
 
-/** The contact book shipped before tenancy did, and moving a client from a user
- * to an organization is not supposed to touch a single one of its own fields.
- * This is the test that says so out loud. */
 const CONTACT = {
   name: "Acme",
   fullName: "Иван Иванов",

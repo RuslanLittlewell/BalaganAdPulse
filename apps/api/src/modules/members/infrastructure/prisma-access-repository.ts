@@ -13,8 +13,6 @@ export class PrismaAccessRepository implements AccessRepository {
     return this.unitOfWork.clientFor<Prisma.TransactionClient>(context);
   }
 
-  /** Scoped to the organization: a client belonging to another agency simply
-   * does not come back, and the use case reports it as unknown. */
   async projectsByClient(
     orgId: string,
     clientIds: readonly string[],
@@ -28,8 +26,6 @@ export class PrismaAccessRepository implements AccessRepository {
     );
   }
 
-  /** Delete-then-insert inside the caller's transaction, so the member is never
-   * observed holding a half-applied set. */
   async replace(
     context: TransactionContext,
     membershipId: string,

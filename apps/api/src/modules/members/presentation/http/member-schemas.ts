@@ -8,8 +8,6 @@ export const updateMemberSchema = z.object({
   message: "role or status is required",
 });
 
-/** A grant names a client, and optionally one project of it. Omitting the
- * project means the whole client. */
 const grantSchema = z.object({
   clientId: z.uuid(),
   projectId: z.uuid().nullable().optional(),

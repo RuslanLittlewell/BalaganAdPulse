@@ -1,3 +1,4 @@
+import { isCustomer } from "@adpulse/access-policy";
 import { Prisma } from "@prisma/client";
 import type { PrismaClient, Task as TaskRow } from "@prisma/client";
 import type { ActorContext, TransactionContext } from "../../../shared/application/index.js";
@@ -8,6 +9,7 @@ import type {
   NewTask,
   ProjectReach,
   TaskChange,
+  TaskFilter,
   TaskRecord,
   TaskRepository,
 } from "../application/ports.js";
@@ -18,20 +20,16 @@ function toDomain(row: RowWithImages): TaskRecord {
   return {
     id: row.id, projectId: row.projectId, orgId: row.orgId, title: row.title,
     description: row.description ?? null, column: row.column, priority: row.priority,
-    assigneeId: row.assigneeId, createdById: row.createdById, position: row.position,
+    assigneeId: row.assigneeId, createdById: row.createdById,
+    campaignId: row.campaignId, visibleToClient: row.visibleToClient,
+    position: row.position,
     imageIds: (row.images ?? []).map((image) => image.id),
     createdAt: row.createdAt, updatedAt: row.updatedAt,
   };
 }
 
-/** Ids only: the board shows that a card has attachments, never their bytes. */
 const WITH_IMAGES = { images: { select: { id: true }, orderBy: { createdAt: "asc" } } } as const;
 
-/**
- * Which tasks an actor can reach: exactly those whose project they reach, which
- * is why this mirrors the projects module's filter rather than inventing one.
- * A grant naming a single project narrows to that project's tasks alone.
- */
 function reachFilter(actor: ActorContext): Prisma.TaskWhereInput {
   if (actor.role === "ADMIN") return { orgId: actor.orgId };
   return {
@@ -45,8 +43,12 @@ function reachFilter(actor: ActorContext): Prisma.TaskWhereInput {
   };
 }
 
-/** The board reads column-major, in the order the columns are drawn. Postgres
- * orders an enum by its declared order, which is the same order. */
+function ownershipFilter(actor: ActorContext): Prisma.TaskWhereInput {
+  if (actor.role === "ADMIN") return {};
+  if (isCustomer(actor.role)) return { visibleToClient: true };
+  return { assigneeId: actor.membershipId };
+}
+
 const BOARD_ORDER: Prisma.TaskOrderByWithRelationInput[] = [
   { column: "asc" },
   { position: "asc" },
@@ -77,14 +79,19 @@ export class PrismaTaskRepository implements TaskRepository {
 
   async findReachable(actor: ActorContext, id: string): Promise<TaskRecord | null> {
     const row = await this.prisma.task.findFirst({
-      where: { id, ...reachFilter(actor) }, include: WITH_IMAGES,
+      where: { id, ...reachFilter(actor), ...ownershipFilter(actor) }, include: WITH_IMAGES,
     });
     return row && toDomain(row);
   }
 
-  async listReachable(actor: ActorContext, projectId?: string): Promise<TaskRecord[]> {
+  async listReachable(actor: ActorContext, filter?: TaskFilter): Promise<TaskRecord[]> {
     const rows = await this.prisma.task.findMany({
-      where: { ...reachFilter(actor), ...(projectId ? { projectId } : {}) },
+      where: {
+        ...reachFilter(actor),
+        ...ownershipFilter(actor),
+        ...(filter?.projectId ? { projectId: filter.projectId } : {}),
+        ...(filter?.campaignId ? { campaignId: filter.campaignId } : {}),
+      },
       orderBy: BOARD_ORDER,
       include: WITH_IMAGES,
     });
@@ -104,6 +111,10 @@ export class PrismaTaskRepository implements TaskRepository {
         ...(input.title === undefined ? {} : { title: input.title }),
         ...(input.priority === undefined ? {} : { priority: input.priority }),
         ...(input.assigneeId === undefined ? {} : { assigneeId: input.assigneeId }),
+        ...(input.campaignId === undefined ? {} : { campaignId: input.campaignId }),
+        ...(input.visibleToClient === undefined
+          ? {}
+          : { visibleToClient: input.visibleToClient }),
         ...(input.description === undefined
           ? {}
           : { description: input.description === null
@@ -129,8 +140,6 @@ export class PrismaTaskRepository implements TaskRepository {
     return rows.map((row) => row.id);
   }
 
-  /** Writes the whole column back as 0..n-1. Bounded by the size of a column,
-   * which is the trade the design makes for never leaving a gap or a duplicate. */
   async applyOrder(
     context: TransactionContext,
     column: TaskColumn,
@@ -162,7 +171,6 @@ export class PrismaTaskProjectReach implements ProjectReach {
   }
 }
 
-/** A task may only be given to an active member of the actor's own organization. */
 export class PrismaTaskMemberReach implements MemberReach {
   constructor(private readonly prisma: PrismaClient) {}
 

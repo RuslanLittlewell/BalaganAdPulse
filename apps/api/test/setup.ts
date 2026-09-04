@@ -3,16 +3,6 @@ import { TEST_WORKERS, currentRunId, databaseUrlForWorker } from "./workers.js";
 
 config({ path: ".env.test", quiet: true });
 
-// Point this worker at its own Postgres schema before src/lib/prisma.ts (which
-// instantiates PrismaClient at import time) gets pulled in by any test file.
-//
-// Confirmed empirically for vitest@4.1.10 (see task-1-report.md): the pool
-// worker running this file sets VITEST_POOL_ID, bounded 1..maxWorkers, which
-// is exactly what we need to map onto our fixed set of TEST_WORKERS schemas.
-// VITEST_WORKER_ID also exists but is not bounded the same way, so it is not
-// used here. If VITEST_POOL_ID is absent or invalid, throw immediately to
-// prevent multiple workers from sharing the same schema and introducing race
-// conditions.
 const poolId = process.env.VITEST_POOL_ID;
 if (!poolId) {
   throw new Error(
@@ -29,8 +19,4 @@ if (!Number.isInteger(workerId) || workerId < 1 || workerId > TEST_WORKERS) {
   );
 }
 
-// Confirmed empirically for vitest@4.1.10: process.env[TEST_RUN_ID_ENV], set
-// in global-setup.ts's main process before any worker is forked, is inherited
-// here as-is. currentRunId() reads it straight from process.env; no need for
-// vitest's provide()/inject() indirection.
 process.env.DATABASE_URL = databaseUrlForWorker(workerId, currentRunId());

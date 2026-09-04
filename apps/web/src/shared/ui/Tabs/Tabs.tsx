@@ -20,20 +20,16 @@ export interface TabsProps {
   onSelect: (id: string) => void;
   itemActions?: TabItemAction[];
   onNew?: () => void;
+  addLabel?: string;
 }
 
-/**
- * Memoised: the sheet tabs re-render on every parent render otherwise, and the
- * parent renders on every route change — including one that lands on the sheet
- * already open. Callers must hand over stable props for this to bite; see
- * CampaignTabs, which memoises the arrays it builds.
- */
 export const Tabs = memo(function Tabs({
   items,
   activeId,
   onSelect,
   itemActions,
   onNew,
+  addLabel,
 }: TabsProps) {
   return (
     <div className="flex items-end justify-between gap-3 border-b border-border">
@@ -77,7 +73,7 @@ export const Tabs = memo(function Tabs({
       </TabsRoot>
       {onNew && (
         <Button variant="outline" size="sm" onClick={onNew} className="my-2">
-          + {t("campaigns.new")}
+          + {addLabel ?? t("action.add")}
         </Button>
       )}
     </div>

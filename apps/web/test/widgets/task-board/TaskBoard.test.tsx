@@ -26,7 +26,6 @@ describe("TaskBoard", () => {
     server.use(mock.get("/api/tasks", () => HttpResponse.json([aTask({ column: "DONE" })])));
     setup();
 
-    // "На исправление" holds no cards and is still there, with a count of zero.
     const column = await screen.findByLabelText("На исправление");
     expect(column).toBeInTheDocument();
     expect(column.textContent).toContain("0");
@@ -75,8 +74,6 @@ describe("TaskBoard", () => {
 
     const card = await screen.findByTestId("task-card-task-1");
     expect(card).toHaveAttribute("data-draggable", "true");
-    // The handle exists for keyboard dragging: Enter and Space on the card
-    // itself belong to opening it.
     expect(screen.getByTestId("task-drag-task-1")).toBeInTheDocument();
   });
 
@@ -95,7 +92,6 @@ describe("TaskBoard", () => {
     const card = await screen.findByTestId("task-card-task-1");
     await waitFor(() => expect(card).not.toHaveAttribute("data-draggable"));
     expect(screen.queryByTestId("task-drag-task-1")).not.toBeInTheDocument();
-    // Reading a task is not writing to it: the card still opens.
     expect(card).toHaveAttribute("role", "button");
   });
 });

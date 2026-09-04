@@ -35,9 +35,6 @@ export function UserMenu({ onSettings, avatarVersion }: UserMenuProps) {
     };
   }, [open]);
 
-  // A session can exist with no readable user yet: the rare start-up pause
-  // between a stored refresh token and the first silent renewal filling in
-  // the access token. Only a genuinely absent session renders nothing.
   if (!user) return hasSession() ? <Loader size="sm" /> : null;
 
   return (

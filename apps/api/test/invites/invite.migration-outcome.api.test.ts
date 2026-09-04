@@ -17,20 +17,10 @@ beforeEach(async () => {
 });
 afterAll(async () => { await prisma.$disconnect(); });
 
-/**
- * What a database that predates typed invitations looks like afterwards.
- *
- * The migration is purely additive: it adds `registration_type` with a default
- * of `EMPLOYEE`, drops the NOT NULL on `role`, and creates the join table. No
- * existing row is rewritten or removed, so every legacy invitation survives as
- * an `EMPLOYEE` row with no project relations — which is exactly the shape the
- * actionable list excludes.
- */
 describe("a database migrated from untyped invitations", () => {
   const legacy = async () => {
     const org = await currentOrg();
     await prisma.invite.createMany({ data: [
-      // Every lifecycle state a legacy row could have been in.
       { orgId: org.id, code: "LEGPENDA", role: "MANAGER" },
       { orgId: org.id, code: "LEGUSEDA", role: "MANAGER", usedAt: new Date() },
       { orgId: org.id, code: "LEGREVKD", role: "GUEST", revokedAt: new Date() },
@@ -50,10 +40,6 @@ describe("a database migrated from untyped invitations", () => {
     expect(stored.find((invite) => invite.code === "LEGEXPRD")!.role).toBe("ADMIN");
   });
 
-  // The documented outcome: an administrator opening the contact book after the
-  // deploy sees an empty list and issues replacements. A legacy invitation has
-  // no project scope, and redeeming one would create a member who reaches
-  // nothing — so it is not offered as actionable.
   it("offers none of them as actionable, including the pending one", async () => {
     await legacy();
 
@@ -63,16 +49,6 @@ describe("a database migrated from untyped invitations", () => {
     expect(response.body).toEqual([]);
   });
 
-  /**
-   * Worth stating plainly, because it is surprising: a legacy pending link is
-   * hidden from the list but still resolves and can still be redeemed. The
-   * list means "actionable in this interface"; redeemability is decided by the
-   * lifecycle timestamps alone, and a legacy row has none set.
-   *
-   * The consequence is that redeeming one creates a member with no project
-   * grants — reachable nothing. Revoking the row is what actually kills the
-   * link; the deploy alone does not.
-   */
   it("leaves a legacy link resolving and redeemable, though it grants nothing", async () => {
     await legacy();
 
@@ -113,8 +89,6 @@ describe("a database migrated from untyped invitations", () => {
     expect(response.body.map((invite: { id: string }) => invite.id)).toEqual([created.body.id]);
   });
 
-  // Backfilling a legacy row with a project is all it takes to make it usable
-  // again, which is what an operator would do rather than reissuing.
   it("becomes actionable again once a project is attached", async () => {
     await legacy();
     const pending = await prisma.invite.findFirstOrThrow({ where: { code: "LEGPENDA" } });

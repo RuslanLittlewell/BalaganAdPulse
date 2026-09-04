@@ -107,3 +107,51 @@ describe("PUT /api/members/:id/access", () => {
     expect(clients.body.map((c: { id: string }) => c.id)).toEqual([acmeId]);
   });
 });
+
+describe("GET /api/members/:id/access", () => {
+  it("returns every grant the membership holds", async () => {
+    const manager = await signInAs("Менеджер", { role: "MANAGER" });
+    const { clientId, projectId } = await seedProject("unused", "Acme");
+    await request(app).put(`/api/members/${manager.membership!.id}/access`).set(admin)
+      .send({ grants: [{ clientId, projectId }] });
+
+    const res = await request(app).get(`/api/members/${manager.membership!.id}/access`).set(admin);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([expect.objectContaining({ clientId, projectId })]);
+  });
+
+  it("returns an empty list for somebody holding none", async () => {
+    const manager = await signInAs("Менеджер", { role: "MANAGER" });
+
+    const res = await request(app).get(`/api/members/${manager.membership!.id}/access`).set(admin);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it("returns a client-wide grant as such", async () => {
+    const manager = await signInAs("Менеджер", { role: "MANAGER" });
+    const { clientId } = await seedProject("unused", "Acme");
+    await request(app).put(`/api/members/${manager.membership!.id}/access`).set(admin)
+      .send({ grants: [{ clientId }] });
+
+    const res = await request(app).get(`/api/members/${manager.membership!.id}/access`).set(admin);
+
+    expect(res.body).toEqual([expect.objectContaining({ clientId, projectId: null })]);
+  });
+
+  it("refuses somebody who may not administer members", async () => {
+    const manager = await signInAs("Менеджер", { role: "MANAGER" });
+
+    expect((await request(app).get(`/api/members/${manager.membership!.id}/access`)
+      .set(manager.auth)).status).toBe(403);
+  });
+
+  it("404s a membership in another organization", async () => {
+    const outsider = await signInAsOutsider();
+
+    expect((await request(app).get(`/api/members/${outsider.membership.id}/access`)
+      .set(admin)).status).toBe(404);
+  });
+});

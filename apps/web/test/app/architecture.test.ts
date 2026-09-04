@@ -40,3 +40,26 @@ describe("FSD boundaries", () => {
     expect(violations).toEqual([]);
   });
 });
+
+const COMMENT = /^\s*(\/\/|\/\*|\{\s*\/\*)/;
+const DIRECTIVE = /^\s*\/\/\/\s*</;
+const VENDORED = path.join("shared", "ui", "ui");
+
+describe("source conventions", () => {
+  const commented = (source: string) =>
+    source.split("\n").filter((line) => COMMENT.test(line) && !DIRECTIVE.test(line)).length;
+
+  it("keeps the sources free of comments", () => {
+    const offenders = sourceFiles(sourceRoot)
+      .map((file) => path.relative(sourceRoot, file))
+      .filter((file) => !file.startsWith(VENDORED))
+      .filter((file) => commented(readFileSync(path.join(sourceRoot, file), "utf8")) > 0);
+    expect(offenders).toEqual([]);
+  });
+
+  it("catches a comment wherever one is written", () => {
+    expect(commented("const a = 1;\n// why\n")).toBe(1);
+    expect(commented("  {/* why */}\n")).toBe(1);
+    expect(commented('/// <reference types="vitest" />\n')).toBe(0);
+  });
+});

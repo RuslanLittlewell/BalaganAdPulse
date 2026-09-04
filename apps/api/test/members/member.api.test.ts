@@ -3,7 +3,7 @@ import request from "supertest";
 import { createApp } from "../../src/composition/app.js";
 import { prisma } from "../../src/shared/infrastructure/prisma.js";
 import { resetDb, seedProject } from "../helpers/db.js";
-import { signInAs, signInAsOutsider } from "../helpers/auth.js";
+import { currentOrg, grantAccess, signInAs, signInAsOutsider } from "../helpers/auth.js";
 
 const app = createApp();
 const MISSING = "00000000-0000-0000-0000-000000000000";
@@ -82,8 +82,6 @@ describe("PATCH /api/members/:id (validation and reach)", () => {
     expect(res.status).toBe(404);
   });
 
-  /** The point of resolving the actor per request: a demotion has to bite on
-   * the member's very next call. */
   it("takes effect on the demoted member's next request", async () => {
     const manager = await signInAs("Manager", { role: "MANAGER" });
     expect((await request(app).post("/api/clients").set(manager.auth).send({ name: "Mine" })).status).toBe(201);
@@ -203,8 +201,6 @@ describe("DELETE /api/members/:id", () => {
     expect(await prisma.membership.findUnique({ where: { id: membership!.id } })).toBeNull();
   });
 
-  // Even with another admin standing, so this is not the last-admin rule: an
-  // administrator who removes themselves loses the organization in one click.
   it("refuses an admin removing their own membership (409)", async () => {
     const self = await signInAs("Owner", { role: "ADMIN" });
     await signInAs("Second", { role: "ADMIN" });
@@ -262,5 +258,132 @@ describe("DELETE /api/members/:id", () => {
     const { auth } = await signInAs("Manager", { role: "MANAGER" });
     expect((await request(app).delete(`/api/members/${target.membership!.id}`).set(auth)).status).toBe(403);
     expect(await prisma.membership.findUnique({ where: { id: target.membership!.id } })).not.toBeNull();
+  });
+});
+
+describe("GET /api/members?kind=staff", () => {
+  it("leaves customers out", async () => {
+    await signInAs("Менеджер", { role: "MANAGER" });
+    await signInAs("Гость", { role: "GUEST" });
+    await signInAs("Заказчик", { role: "CLIENT" });
+
+    const res = await request(app).get("/api/members?kind=staff").set(admin);
+
+    expect(res.status).toBe(200);
+    expect(res.body.map((member: { name: string }) => member.name)).not.toContain("Заказчик");
+    expect(res.body.map((member: { name: string }) => member.name))
+      .toEqual(expect.arrayContaining(["Менеджер", "Гость"]));
+  });
+
+  it("lists everyone when no kind is named", async () => {
+    await signInAs("Заказчик", { role: "CLIENT" });
+
+    const res = await request(app).get("/api/members").set(admin);
+
+    expect(res.body.map((member: { name: string }) => member.name)).toContain("Заказчик");
+  });
+
+  it("400s a kind it does not know", async () => {
+    expect((await request(app).get("/api/members?kind=everyone").set(admin)).status).toBe(400);
+  });
+});
+
+describe("staff excludes every customer role", () => {
+  it("leaves out a client's principal as well as its people", async () => {
+    await signInAs("Менеджер", { role: "MANAGER" });
+    await signInAs("Заказчик", { role: "CLIENT" });
+    await signInAs("Главный у клиента", { role: "CLIENT_ADMIN" });
+
+    const res = await request(app).get("/api/members?kind=staff").set(admin);
+
+    const names = res.body.map((member: { name: string }) => member.name);
+    expect(names).toContain("Менеджер");
+    expect(names).not.toContain("Заказчик");
+    expect(names).not.toContain("Главный у клиента");
+  });
+});
+
+describe("GET /api/members?clientId=", () => {
+  async function clientWithPeople() {
+    const client = await prisma.client.create({
+      data: { name: "Клиника", orgId: (await currentOrg()).id },
+    });
+    const principal = await signInAs("Главный", { role: "CLIENT_ADMIN" });
+    await grantAccess(principal.membership!.id, client.id);
+    const colleague = await signInAs("Коллега", { role: "CLIENT" });
+    await grantAccess(colleague.membership!.id, client.id);
+    return { client, principal, colleague };
+  }
+
+  it("lists the people of the client an admin names", async () => {
+    const { client } = await clientWithPeople();
+    await signInAs("Посторонний", { role: "CLIENT" });
+
+    const res = await request(app).get(`/api/members?clientId=${client.id}`).set(admin);
+
+    expect(res.status).toBe(200);
+    expect(res.body.map((member: { name: string }) => member.name).sort())
+      .toEqual(["Главный", "Коллега"]);
+  });
+
+  it("lets a principal list its own client's people", async () => {
+    const { client, principal } = await clientWithPeople();
+
+    const res = await request(app).get(`/api/members?clientId=${client.id}`).set(principal.auth);
+
+    expect(res.status).toBe(200);
+    expect(res.body.map((member: { name: string }) => member.name).sort())
+      .toEqual(["Главный", "Коллега"]);
+  });
+
+  it("tells a principal a stranger's client does not exist", async () => {
+    const { principal } = await clientWithPeople();
+    const other = await prisma.client.create({
+      data: { name: "Чужой", orgId: (await currentOrg()).id },
+    });
+
+    const res = await request(app).get(`/api/members?clientId=${other.id}`).set(principal.auth);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("answers the same for a client that does not exist", async () => {
+    const { principal } = await clientWithPeople();
+
+    const res = await request(app)
+      .get("/api/members?clientId=00000000-0000-0000-0000-000000000000").set(principal.auth);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("refuses an ordinary customer, who administers nobody", async () => {
+    const { client, colleague } = await clientWithPeople();
+
+    expect((await request(app).get(`/api/members?clientId=${client.id}`).set(colleague.auth)).status)
+      .toBe(403);
+  });
+});
+
+describe("a person's contact details", () => {
+  it("carries a phone and a telegram through the directory", async () => {
+    const member = await signInAs("Пётр", { role: "MANAGER" });
+    await prisma.user.update({
+      where: { id: member.user.id },
+      data: { phone: "+375291112233", telegram: "@petr" },
+    });
+
+    const res = await request(app).get("/api/members?kind=staff").set(admin);
+
+    const found = res.body.find((row: { name: string }) => row.name === "Пётр");
+    expect(found).toMatchObject({ phone: "+375291112233", telegram: "@petr" });
+  });
+
+  it("reports them absent when the person gave none", async () => {
+    await signInAs("Анна", { role: "MANAGER" });
+
+    const res = await request(app).get("/api/members?kind=staff").set(admin);
+
+    const found = res.body.find((row: { name: string }) => row.name === "Анна");
+    expect(found).toMatchObject({ phone: null, telegram: null });
   });
 });

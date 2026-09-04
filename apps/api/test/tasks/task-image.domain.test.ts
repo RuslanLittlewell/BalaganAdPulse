@@ -64,7 +64,6 @@ describe("accepting an upload", () => {
   });
 });
 
-
 describe("removing an image from a description", () => {
   const doc = (imageIds: string[]) => ({
     type: "doc",

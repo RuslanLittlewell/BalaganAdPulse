@@ -15,13 +15,6 @@ interface NavCollapseValue {
 
 const NavCollapseContext = createContext<NavCollapseValue | null>(null);
 
-/**
- * Whether the navigation shows labels or only icons.
- *
- * The state lives here rather than in the shell because its two consumers sit
- * on opposite sides of the layout: the chevron is in the header, the labels are
- * in the sidebar, and neither renders the other.
- */
 export function NavCollapseProvider({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(readNavCollapsed);
 

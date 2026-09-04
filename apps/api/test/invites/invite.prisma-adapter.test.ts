@@ -90,8 +90,6 @@ describe("Prisma invite repository", () => {
     const org = await currentOrg();
     const outsider = await signInAsOutsider();
     await prisma.invite.create({ data: { orgId: outsider.org.id, code: "theirs", role: "MANAGER" } });
-    // Explicit timestamps: two rows created in the same millisecond would leave
-    // the order up to the planner, and the assertion below is about the order.
     await prisma.invite.createMany({ data: [
       { orgId: org.id, code: "older", role: "MANAGER", createdAt: new Date("2026-09-01T10:00:00.000Z") },
       { orgId: org.id, code: "newer", role: "MANAGER", createdAt: new Date("2026-09-01T11:00:00.000Z") },

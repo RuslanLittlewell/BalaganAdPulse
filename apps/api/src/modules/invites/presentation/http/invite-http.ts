@@ -41,10 +41,6 @@ export function createRegistrationResolverRouter(useCases: InviteUseCases): Rout
   const router = Router();
   const limiter = createRateLimit({ windowMs: 60_000, limit: 30 });
   router.get("/:code", limiter, handle(async (req: Request<{ code: string }>, res) => {
-    // A code of the wrong shape is refused exactly as an unknown one is, rather
-    // than as a validation error. Answering 400 here would tell a prober which
-    // codes could never exist, which is the distinction this endpoint exists to
-    // withhold — unknown, revoked, used, expired and malformed all look alike.
     const params = resolveInviteParamsSchema.safeParse(req.params);
     if (!params.success) throw new AppError("not-found", INVALID_INVITE);
     res.json(await useCases.resolve(params.data.code));

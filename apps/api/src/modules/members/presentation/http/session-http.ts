@@ -2,8 +2,6 @@ import { Router, type NextFunction, type Request, type Response } from "express"
 import { AppError } from "../../../../shared/domain/index.js";
 import type { MemberUseCases } from "../../application/member-use-cases.js";
 
-/** Mounted at /api/auth/me — the one authenticated route under /api/auth,
- * unlike the open register/login/refresh/logout half. */
 export function createSessionRouter(useCases: MemberUseCases): Router {
   const router = Router();
   router.get("/", (req: Request, res: Response, next: NextFunction) => {

@@ -96,9 +96,6 @@ describe("GET /api/regustration/:code", () => {
     expect(response.body).toEqual({ error: { message: "Invalid invite code" } });
   });
 
-  // Its own case, so the lifecycle rows above keep testing lifecycle: a code
-  // outside the alphabet can never exist, and saying so would separate it from
-  // a code that merely does not exist.
   it.each([
     ["the wrong length", "SHORT"],
     ["a character outside the alphabet", "REVOKEDA"],
@@ -116,5 +113,69 @@ describe("GET /api/regustration/:code", () => {
       if (status === 429) break;
     }
     expect(status).toBe(429);
+  });
+});
+
+describe("inviting somebody to an existing client, over HTTP", () => {
+  it("creates one against the client it names", async () => {
+    const client = await prisma.client.create({
+      data: { name: "Клиника", orgId: (await currentOrg()).id },
+    });
+
+    const created = await request(app).post("/api/invites").set(admin)
+      .send({ registrationType: "CLIENT_STAFF", clientId: client.id });
+
+    expect(created.status).toBe(201);
+    expect(created.body).toMatchObject({
+      registrationType: "CLIENT_STAFF", clientId: client.id, role: null, projectIds: [],
+    });
+  });
+
+  it("400s one that names no client", async () => {
+    expect((await request(app).post("/api/invites").set(admin)
+      .send({ registrationType: "CLIENT_STAFF" })).status).toBe(400);
+  });
+
+  it("400s a role or projects on it", async () => {
+    const client = await prisma.client.create({
+      data: { name: "Клиника", orgId: (await currentOrg()).id },
+    });
+
+    expect((await request(app).post("/api/invites").set(admin).send({
+      registrationType: "CLIENT_STAFF", clientId: client.id, role: "MANAGER",
+    })).status).toBe(400);
+  });
+
+  it("400s a client named on the other two kinds", async () => {
+    const client = await prisma.client.create({
+      data: { name: "Клиника", orgId: (await currentOrg()).id },
+    });
+
+    expect((await request(app).post("/api/invites").set(admin).send({
+      registrationType: "CLIENT", clientId: client.id,
+    })).status).toBe(400);
+  });
+
+  it("joins the client when it is redeemed", async () => {
+    const client = await prisma.client.create({
+      data: { name: "Клиника", orgId: (await currentOrg()).id },
+    });
+    const project = await prisma.project.create({
+      data: { clientId: client.id, name: "Стоматология", position: 0 },
+    });
+    const created = await request(app).post("/api/invites").set(admin)
+      .send({ registrationType: "CLIENT_STAFF", clientId: client.id });
+
+    const registered = await request(app).post("/api/auth/register").send({
+      name: "Мария", email: "maria@clinic.by", password: "hunter2hunter2",
+      inviteCode: created.body.code,
+    });
+
+    expect(registered.status).toBe(201);
+    const user = await prisma.user.findFirstOrThrow({ where: { email: "maria@clinic.by" } });
+    const membership = await prisma.membership.findFirstOrThrow({ where: { userId: user.id } });
+    expect(membership.role).toBe("CLIENT");
+    const grants = await prisma.clientAccess.findMany({ where: { membershipId: membership.id } });
+    expect(grants.map((grant) => grant.projectId)).toEqual([project.id]);
   });
 });

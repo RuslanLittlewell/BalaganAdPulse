@@ -11,9 +11,6 @@ import { makeAccessToken } from "./token.js";
 
 export interface RenderOptions {
   route?: string;
-  /** Page tests are about the page, not about getting past the guard, so a
-   * live session is the default. A fresh, unexpired token also keeps
-   * lib/http.ts from renewing, which MSW would reject as unhandled. */
   signedIn?: boolean;
 }
 
@@ -24,8 +21,6 @@ export function renderWithProviders(ui: ReactElement, options?: RenderOptions) {
     writeTokens({ accessToken: makeAccessToken(), refreshToken: "test-refresh" });
   }
 
-  // The selection store is a module singleton, so one test's route must not
-  // leak into the next one's.
   useSelectionStore.setState({ projectId: undefined, campaignId: undefined });
 
   const client = createQueryClient();
@@ -48,8 +43,6 @@ export function hookWrapper() {
   const Wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
-  // Exposed so a test can read the cache the hook writes into — an optimistic
-  // update is only worth anything if it has landed by the time React renders.
   Wrapper.client = client;
   return Wrapper;
 }

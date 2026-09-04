@@ -1,4 +1,9 @@
 import { http } from "@/shared/lib/index.js";
+import { CURRENCY_SIGNS, type Currency } from "@/shared/lib/index.js";
+
+export const CURRENCIES = Object.keys(CURRENCY_SIGNS) as Currency[];
+
+export const DEFAULT_CURRENCY: Currency = "BYN";
 import type { ProjectPriority } from "../model/priority.js";
 
 export interface Project {
@@ -6,11 +11,9 @@ export interface Project {
   clientId: string;
   name: string;
   niche: string | null;
-  /** A decimal string, so a budget never loses precision on the way here. */
   monthlyBudget: string | null;
-  /** How much attention it needs. A new project starts at "NEW". */
+  budgetCurrency: Currency;
   priority: ProjectPriority;
-  /** The logo itself, as a `data:` URL — or null when none is set. */
   image: string | null;
   avatarPath: string | null;
   position: number;
@@ -23,6 +26,7 @@ export interface ProjectInput {
   name?: string;
   niche?: string | null;
   monthlyBudget?: number | null;
+  budgetCurrency?: Currency;
   priority?: ProjectPriority;
 }
 

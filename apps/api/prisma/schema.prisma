@@ -7,19 +7,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// What a member may do. Held by a membership rather than by an account, so the
-/// same person can be staff in one organization and a customer in another.
 enum Role {
   ADMIN
   MANAGER
   GUEST
   CLIENT
+  CLIENT_ADMIN
 
   @@map("role")
 }
 
-/// Suspension lives here rather than on the account: it withdraws a person's
-/// access to one organization without touching their ability to sign in.
 enum MembershipStatus {
   ACTIVE
   SUSPENDED
@@ -38,11 +35,11 @@ enum AuditAction {
 enum RegistrationType {
   CLIENT
   EMPLOYEE
+  CLIENT_STAFF
 
   @@map("registration_type")
 }
 
-/// The agency itself, and the boundary every other record sits inside.
 model Organization {
   id          String       @id @default(uuid())
   name        String
@@ -58,9 +55,6 @@ model Organization {
   @@map("organization")
 }
 
-/// One user's place in one organization. The role is read per request rather
-/// than carried in the access token, so a suspension or a demotion takes effect
-/// on the very next call instead of when the token expires.
 model Membership {
   id          String           @id @default(uuid())
   userId      String           @map("user_id")
@@ -84,37 +78,31 @@ model Membership {
   @@map("membership")
 }
 
-/// How a person becomes a member. The role is fixed when the invitation is
-/// created, so joining is something an admin authorised rather than something a
-/// shared secret allowed. Single use: a reusable code would be the shared
-/// secret this table exists to replace.
 model Invite {
   id               String           @id @default(uuid())
   orgId            String           @map("org_id")
   code             String           @unique
   registrationType RegistrationType @default(EMPLOYEE) @map("registration_type")
   role             Role?
-  /// Optional. When set, only a registration using this address may redeem it.
-  email       String?
-  expiresAt   DateTime?    @map("expires_at")
-  revokedAt   DateTime?    @map("revoked_at")
-  usedAt      DateTime?    @map("used_at")
-  usedById    String?      @map("used_by_id")
-  createdById String?      @map("created_by_id")
-  createdAt   DateTime     @default(now()) @map("created_at")
-  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  /// SetNull on both: an invitation is the record of how someone joined, so it
-  /// outlives the account that redeemed it and the membership that issued it.
-  usedBy      User?        @relation(fields: [usedById], references: [id], onDelete: SetNull)
-  createdBy   Membership?  @relation("InviteCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  projects    InviteProject[]
+  clientId         String?          @map("client_id")
+  email            String?
+  expiresAt        DateTime?        @map("expires_at")
+  revokedAt        DateTime?        @map("revoked_at")
+  usedAt           DateTime?        @map("used_at")
+  usedById         String?          @map("used_by_id")
+  createdById      String?          @map("created_by_id")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  org              Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  usedBy           User?            @relation(fields: [usedById], references: [id], onDelete: SetNull)
+  createdBy        Membership?      @relation("InviteCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  client           Client?          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  projects         InviteProject[]
 
   @@index([orgId, createdAt(sort: Desc)])
+  @@index([clientId])
   @@map("invite")
 }
 
-/// The board's columns, in the order they are drawn. Fixed: members do not add,
-/// rename or remove them, so the set is an enum rather than a table.
 enum TaskColumn {
   IDEA
   ARCHIVED
@@ -126,9 +114,6 @@ enum TaskColumn {
   @@map("task_column")
 }
 
-/// A task's own scale. `ProjectPriority` describes a project by summarising the
-/// tasks under it ("нет задач", "есть срочные задачи") and reads as nonsense on
-/// a task, so the two are deliberately separate and free to evolve apart.
 enum TaskPriority {
   LOW
   MEDIUM
@@ -138,38 +123,36 @@ enum TaskPriority {
   @@map("task_priority")
 }
 
-/// A unit of work under a project, drawn as a card on the board.
 model Task {
-  id          String       @id @default(uuid())
-  projectId   String       @map("project_id")
-  orgId       String       @map("org_id")
-  title       String
-  /// A ProseMirror document. Structured rather than HTML, so there is nowhere
-  /// for a script or an event-handler attribute to survive being stored.
-  description Json?
-  column      TaskColumn   @default(IDEA)
-  priority    TaskPriority
-  assigneeId  String?      @map("assignee_id")
-  createdById String?      @map("created_by_id")
-  position    Int
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt @map("updated_at")
+  id              String       @id @default(uuid())
+  projectId       String       @map("project_id")
+  orgId           String       @map("org_id")
+  title           String
+  description     Json?
+  column          TaskColumn   @default(IDEA)
+  priority        TaskPriority
+  assigneeId      String?      @map("assignee_id")
+  createdById     String?      @map("created_by_id")
+  campaignId      String?      @map("campaign_id")
+  visibleToClient Boolean      @default(false) @map("visible_to_client")
+  position        Int
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
 
   project  Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  /// SetNull: removing a member leaves their tasks standing, unassigned.
   assignee Membership?  @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  campaign Campaign?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   creator  Membership?  @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
   images   TaskImage[]
 
   @@index([orgId, column, position])
   @@index([projectId])
+  @@index([campaignId])
+  @@index([orgId, visibleToClient])
   @@map("task")
 }
 
-/// One image pasted or dropped into a task description. Recorded separately
-/// from the description so an upload abandoned before the task was saved can be
-/// found and reclaimed.
 model TaskImage {
   id          String   @id @default(uuid())
   taskId      String?  @map("task_id")
@@ -190,8 +173,6 @@ model TaskImage {
 model Client {
   id           String         @id @default(uuid())
   name         String
-  /// Contact-book details. All optional: a client is usable long before anyone
-  /// has collected its paperwork.
   fullName     String?        @map("full_name")
   organization String?
   unp          String?
@@ -204,8 +185,7 @@ model Client {
   createdAt    DateTime       @default(now()) @map("created_at")
   updatedAt    DateTime       @updatedAt @map("updated_at")
   projects     Project[]
-  /// The relation is `org`, not `organization`: the contact-book field above
-  /// already holds that name for the customer's own company.
+  invitations  Invite[]
   orgId        String         @map("org_id")
   org          Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
   access       ClientAccess[]
@@ -214,38 +194,43 @@ model Client {
   @@map("client")
 }
 
-/// How much attention a project needs. Named by what it means rather than by
-/// the colour it is drawn in — the palette belongs to the interface.
 enum ProjectPriority {
-  CRITICAL /// очень важно
-  URGENT /// есть срочные задачи
-  WAITING /// в работе, ждём результата
-  IDLE /// нет задач
-  NEW /// новый
+  CRITICAL
+  URGENT
+  WAITING
+  IDLE
+  NEW
 
   @@map("project_priority")
 }
 
-/// The unit of work: what the agency runs for a client. Niche, budget and the
-/// logo describe the project, not the company behind it — one client can run
-/// several projects that share nothing but the contact details.
+enum Currency {
+  BYN
+  RUB
+  USD
+  EUR
+
+  @@map("currency")
+}
+
 model Project {
-  id            String          @id @default(uuid())
-  clientId      String          @map("client_id")
-  client        Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  name          String
-  niche         String?
-  monthlyBudget Decimal?        @map("monthly_budget") @db.Decimal(12, 2)
-  priority      ProjectPriority @default(NEW)
-  image         String?
-  avatarPath    String?         @map("avatar_path")
-  position      Int
-  createdAt     DateTime        @default(now()) @map("created_at")
-  updatedAt     DateTime        @updatedAt @map("updated_at")
-  campaigns     Campaign[]
-  access        ClientAccess[]
-  tasks         Task[]
-  invitations   InviteProject[]
+  id             String          @id @default(uuid())
+  clientId       String          @map("client_id")
+  client         Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name           String
+  niche          String?
+  monthlyBudget  Decimal?        @map("monthly_budget") @db.Decimal(12, 2)
+  budgetCurrency Currency        @default(BYN) @map("budget_currency")
+  priority       ProjectPriority @default(NEW)
+  image          String?
+  avatarPath     String?         @map("avatar_path")
+  position       Int
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  campaigns      Campaign[]
+  access         ClientAccess[]
+  tasks          Task[]
+  invitations    InviteProject[]
 
   @@index([clientId, position])
   @@map("project")
@@ -263,12 +248,6 @@ model InviteProject {
   @@map("invite_project")
 }
 
-/// The role decides which verbs a member may use; this table decides which rows
-/// they may use them on. Admins ignore it entirely and reach their whole
-/// organization.
-///
-///   projectId null -> every project of the client
-///   projectId set  -> that project only
 model ClientAccess {
   id           String     @id @default(uuid())
   membershipId String     @map("membership_id")
@@ -279,16 +258,11 @@ model ClientAccess {
   client       Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
   project      Project?   @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  /// Postgres treats NULLs as distinct here, so this does not stop two
-  /// whole-client grants; the migration adds a partial unique index for that.
   @@unique([membershipId, clientId, projectId])
   @@index([clientId])
   @@map("client_access")
 }
 
-/// An immutable snapshot of a business mutation. Actor details and the
-/// readable summary are stored at write time so history remains meaningful
-/// after a member leaves or an entity is renamed or deleted.
 model AuditEvent {
   id         String       @id @default(uuid())
   orgId      String       @map("org_id")
@@ -318,69 +292,134 @@ model AuditEvent {
   @@map("audit_event")
 }
 
-model Campaign {
-  id         String             @id @default(uuid())
-  projectId  String             @map("project_id")
-  project    Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  name       String
-  position   Int
-  createdAt  DateTime           @default(now()) @map("created_at")
-  updatedAt  DateTime           @updatedAt @map("updated_at")
-  properties CampaignProperty[]
-  records    CampaignRecord[]
+enum Channel {
+  META
+  GOOGLE
+  YANDEX
+  VK
+  TIKTOK
+  LINKEDIN
+  TELEGRAM
 
+  @@map("channel")
+}
+
+enum DeliveryStatus {
+  ACTIVE
+  LEARNING
+  PAUSED
+  REJECTED
+  ENDED
+
+  @@map("delivery_status")
+}
+
+model Campaign {
+  id         String                @id @default(uuid())
+  projectId  String                @map("project_id")
+  project    Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name       String
+  channel    Channel
+  status     DeliveryStatus        @default(ACTIVE)
+  objective  String?
+  externalId String?               @map("external_id")
+  position   Int
+  createdAt  DateTime              @default(now()) @map("created_at")
+  updatedAt  DateTime              @updatedAt @map("updated_at")
+  adSets     AdSet[]
+  metrics    CampaignDailyMetric[]
+  tasks      Task[]
+
+  @@unique([channel, externalId])
   @@index([projectId, position])
   @@map("campaign")
 }
 
-enum PropertyType {
-  NUMBER
-  MONEY
-  PERCENT
-  TEXT
-
-  @@map("property_type")
-}
-
-model CampaignProperty {
-  id         String                  @id @default(uuid())
-  campaignId String                  @map("campaign_id")
-  campaign   Campaign                @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+model AdSet {
+  id         String             @id @default(uuid())
+  campaignId String             @map("campaign_id")
+  campaign   Campaign           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   name       String
-  key        String?
-  type       PropertyType
-  formula    Json?
+  audience   String?
+  status     DeliveryStatus     @default(ACTIVE)
+  externalId String?            @map("external_id")
   position   Int
-  values     CampaignPropertyValue[]
+  createdAt  DateTime           @default(now()) @map("created_at")
+  updatedAt  DateTime           @updatedAt @map("updated_at")
+  ads        Ad[]
+  metrics    AdSetDailyMetric[]
 
   @@index([campaignId, position])
-  @@map("campaign_property")
+  @@map("ad_set")
 }
 
-model CampaignRecord {
-  id         String                  @id @default(uuid())
-  campaignId String                  @map("campaign_id")
-  campaign   Campaign                @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  date       DateTime                @db.Date
-  values     CampaignPropertyValue[]
+model Ad {
+  id         String          @id @default(uuid())
+  adSetId    String          @map("ad_set_id")
+  adSet      AdSet           @relation(fields: [adSetId], references: [id], onDelete: Cascade)
+  name       String
+  format     String?
+  headline   String?
+  status     DeliveryStatus  @default(ACTIVE)
+  externalId String?         @map("external_id")
+  position   Int
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime        @updatedAt @map("updated_at")
+  metrics    AdDailyMetric[]
 
-  @@unique([campaignId, date])
-  @@map("campaign_record")
+  @@index([adSetId, position])
+  @@map("ad")
 }
 
-/// One value typed in by the user, at the intersection of a record (day) and a property.
-/// Exists only for properties without a formula — computed metrics are never stored here.
-model CampaignPropertyValue {
-  id          String           @id @default(uuid())
-  recordId    String           @map("record_id")
-  propertyId  String           @map("property_id")
-  record      CampaignRecord   @relation(fields: [recordId], references: [id], onDelete: Cascade)
-  property    CampaignProperty @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  numberValue Decimal?         @map("number_value") @db.Decimal(18, 4)
-  textValue   String?          @map("text_value")
+model CampaignDailyMetric {
+  campaignId  String   @map("campaign_id")
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  date        DateTime @db.Date
+  spend       Decimal  @default(0) @db.Decimal(18, 4)
+  impressions Int      @default(0)
+  reach       Int      @default(0)
+  clicks      Int      @default(0)
+  conversions Int      @default(0)
+  revenue     Decimal  @default(0) @db.Decimal(18, 4)
+  syncedAt    DateTime @default(now()) @map("synced_at")
 
-  @@unique([recordId, propertyId])
-  @@map("campaign_property_value")
+  @@id([campaignId, date])
+  @@index([date])
+  @@map("campaign_daily_metric")
+}
+
+model AdSetDailyMetric {
+  adSetId     String   @map("ad_set_id")
+  adSet       AdSet    @relation(fields: [adSetId], references: [id], onDelete: Cascade)
+  date        DateTime @db.Date
+  spend       Decimal  @default(0) @db.Decimal(18, 4)
+  impressions Int      @default(0)
+  reach       Int      @default(0)
+  clicks      Int      @default(0)
+  conversions Int      @default(0)
+  revenue     Decimal  @default(0) @db.Decimal(18, 4)
+  syncedAt    DateTime @default(now()) @map("synced_at")
+
+  @@id([adSetId, date])
+  @@index([date])
+  @@map("ad_set_daily_metric")
+}
+
+model AdDailyMetric {
+  adId        String   @map("ad_id")
+  ad          Ad       @relation(fields: [adId], references: [id], onDelete: Cascade)
+  date        DateTime @db.Date
+  spend       Decimal  @default(0) @db.Decimal(18, 4)
+  impressions Int      @default(0)
+  reach       Int      @default(0)
+  clicks      Int      @default(0)
+  conversions Int      @default(0)
+  revenue     Decimal  @default(0) @db.Decimal(18, 4)
+  syncedAt    DateTime @default(now()) @map("synced_at")
+
+  @@id([adId, date])
+  @@index([date])
+  @@map("ad_daily_metric")
 }
 
 model User {
@@ -390,6 +429,8 @@ model User {
   passwordHash  String         @map("password_hash")
   image         String?
   avatarPath    String?        @map("avatar_path")
+  phone         String?
+  telegram      String?
   createdAt     DateTime       @default(now()) @map("created_at")
   refreshTokens RefreshToken[]
   memberships   Membership[]

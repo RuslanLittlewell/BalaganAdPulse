@@ -9,8 +9,6 @@ function appWith(useCases: Record<string, ReturnType<typeof vi.fn>>) {
   app.use(express.json());
   const routers = createIdentityHttpRouters(useCases as never);
   app.use("/api/auth", routers.authRouter);
-  // Stands in for the authentication middleware, which is what puts the
-  // principal on the request in the composed application.
   app.use((req, _res, next) => { req.principal = { id: "u1", name: "Buyer", email: "buyer@acme.com" }; next(); });
   app.use("/api/user", routers.userRouter);
   app.use(errorHandler);

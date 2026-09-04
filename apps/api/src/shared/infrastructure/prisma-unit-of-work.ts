@@ -26,7 +26,6 @@ export class PrismaUnitOfWork<TClient = unknown> implements UnitOfWork {
     });
   }
 
-  /** Infrastructure adapters use this bridge; application code sees only the opaque context. */
   clientFor<T = TClient>(context: TransactionContext): T {
     if (!this.ownedContexts.has(context)) throw new Error("Transaction context does not belong to this unit of work");
     const client = this.activeClients.get(context);

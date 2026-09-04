@@ -51,13 +51,14 @@ describe("Projects API", () => {
     expect(res.status).toBe(404);
   });
 
-  it("seeds one Main sheet, so the project is usable straight away", async () => {
+  it("starts with no campaigns: they come from the connected accounts", async () => {
     const created = await project();
-    const res = await request(app).get(`/api/projects/${created.body.id}/campaigns`).set(auth);
+    const res = await request(app)
+      .get(`/api/projects/${created.body.id}/campaigns?from=2026-08-01&to=2026-08-31`)
+      .set(auth);
 
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(1);
-    expect(res.body[0].name).toBe("Main");
+    expect(res.body).toEqual([]);
   });
 
   it("creating a client alone seeds nothing: work starts with a project", async () => {
@@ -233,5 +234,40 @@ describe("Projects API", () => {
       const res = await request(app).post("/api/projects").set(manager.auth).send({ clientId, name: "Mine" });
       expect(res.status).toBe(404);
     });
+  });
+});
+
+describe("the currency a budget is stated in", () => {
+  it("stores the currency named on creation", async () => {
+    const created = await request(app).post("/api/projects").set(auth)
+      .send({ clientId, name: "Стоматология", monthlyBudget: 5000, budgetCurrency: "USD" });
+
+    expect(created.status).toBe(201);
+    expect(created.body).toMatchObject({ monthlyBudget: "5000", budgetCurrency: "USD" });
+  });
+
+  it("defaults to the agency's own currency", async () => {
+    const created = await request(app).post("/api/projects").set(auth)
+      .send({ clientId, name: "Без валюты" });
+
+    expect(created.body.budgetCurrency).toBe("BYN");
+  });
+
+  it("changes the currency without touching the amount", async () => {
+    const created = await request(app).post("/api/projects").set(auth)
+      .send({ clientId, name: "П", monthlyBudget: 300 });
+
+    const updated = await request(app).patch(`/api/projects/${created.body.id}`).set(auth)
+      .send({ budgetCurrency: "EUR" });
+
+    expect(updated.status).toBe(200);
+    expect(updated.body).toMatchObject({ monthlyBudget: "300", budgetCurrency: "EUR" });
+  });
+
+  it("400s a currency outside the four", async () => {
+    const created = await request(app).post("/api/projects").set(auth)
+      .send({ clientId, name: "П", budgetCurrency: "GBP" });
+
+    expect(created.status).toBe(400);
   });
 });

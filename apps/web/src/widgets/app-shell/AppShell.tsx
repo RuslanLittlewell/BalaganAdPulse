@@ -15,10 +15,6 @@ export function AppShell({ sidebar, header, children }: AppShellProps) {
         collapsed ? "grid-cols-[64px_1fr]" : "grid-cols-[200px_1fr]"
       }`}
     >
-      {/* These two are layout cells only. The sidebar and header widgets carry
-          their own border, background and padding — duplicating that here left
-          the header shrink-wrapped inside a wider row, pinning it to the left
-          however it aligned its own children. */}
       <div className={"row-span-2 grid min-h-0 grid-rows-[1fr]"}>{sidebar}</div>
       <div className={"min-w-0"}>{header}</div>
       <main className={"min-w-0 overflow-auto bg-background p-4"}>{children}</main>

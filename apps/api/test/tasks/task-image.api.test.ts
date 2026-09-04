@@ -107,6 +107,9 @@ describe("GET /api/task-images/:id", () => {
 
       const manager = await signInAs("Manager", { role: "MANAGER" });
       await grantAccess(manager.membership!.id, clientId);
+      await prisma.task.update({
+        where: { id: taskId }, data: { assigneeId: manager.membership!.id },
+      });
       expect((await request(app).get(`/api/task-images/${imageId}`).set(manager.auth)).status).toBe(200);
     });
 

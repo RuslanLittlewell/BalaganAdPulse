@@ -1,11 +1,11 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
+import { DashboardPage } from "@/pages/dashboard/index.js";
 import { ModulePage } from "@/pages/module/index.js";
 import { ProjectsPage } from "@/pages/projects/index.js";
 import { LoginPage } from "@/pages/login/index.js";
-import { SignupPage } from "@/pages/signup/index.js";
+import { RegistrationPage } from "@/pages/registration/index.js";
 import { TasksPage } from "@/pages/tasks/index.js";
-import { TeamPage } from "@/pages/team/index.js";
 import { AuthProvider, RequireAuth } from "@/features/auth/index.js";
 import { NavCollapseProvider } from "@/features/nav-collapse/index.js";
 import { SelectionSync } from "@/entities/project/index.js";
@@ -17,8 +17,6 @@ import { t } from "@/shared/config/index.js";
 
 const queryClient = createQueryClient();
 
-/** The shell and its navigation belong to the signed-in half of the
- * application; the auth screens stand on their own. */
 function Dashboard() {
   return (
     <RequireAuth>
@@ -26,14 +24,13 @@ function Dashboard() {
         <SelectionSync />
         <AppShell sidebar={<MainNav />} header={<AppHeader />}>
           <Routes>
-            <Route path={ROUTES.dashboard} element={<ModulePage title={t("nav.dashboard")} />} />
+            <Route path={ROUTES.dashboard} element={<DashboardPage />} />
             <Route path={`${ROUTES.projects}/*`} element={<ProjectsPage />} />
             <Route path={ROUTES.tasks} element={<TasksPage />} />
             <Route path={ROUTES.reports} element={<ModulePage title={t("nav.reports")} />} />
             <Route path={ROUTES.archive} element={<ModulePage title={t("nav.archive")} />} />
-            <Route path={ROUTES.team} element={<TeamPage />} />
-            {/* The client screens moved under Projects; old links still land. */}
             <Route path="/clients/*" element={<Navigate to={ROUTES.projects} replace />} />
+            <Route path="/team" element={<Navigate to={ROUTES.dashboard} replace />} />
           </Routes>
         </AppShell>
       </NavCollapseProvider>
@@ -48,7 +45,8 @@ export function App() {
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/signup" element={<Navigate to="/login" replace />} />
+            <Route path="/regustration/:code" element={<RegistrationPage />} />
             <Route path="/*" element={<Dashboard />} />
           </Routes>
         </AuthProvider>

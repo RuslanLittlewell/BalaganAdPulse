@@ -30,8 +30,6 @@ interface AuthValue {
 
 const AuthContext = createContext<AuthValue | null>(null);
 
-/** User identity is loaded from /auth/me; HttpOnly tokens are intentionally
- * unavailable to React. */
 function currentUser(): AuthUser | null {
   return null;
 }
@@ -57,8 +55,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setOrganization(null);
     setRole(null);
     setClientIds([]);
-    // Without this the next person to sign in on this laptop sees the previous
-    // user's clients until React Query refetches.
     queryClient.clear();
     navigate("/login", { replace: true });
   }, [navigate, queryClient]);
@@ -69,7 +65,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (hasSession()) void loadSession().catch(() => endSession());
   }, [loadSession]);
 
-  // Profile data may change together with a renewed access cookie.
   useEffect(() => onTokenRenewed(() => {
     void loadSession().catch(() => {});
   }), [loadSession]);
@@ -81,9 +76,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clientIds,
     login: async (body) => {
       writeTokens(await authApi.login(body));
-      // Identity just changed. Without this, the next person to sign in on
-      // this laptop sees the previous user's clients until React Query
-      // refetches.
       queryClient.clear();
       await loadSession();
     },
@@ -94,19 +86,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     logout: async () => {
       if (hasSession()) {
-        // A network failure must not trap someone in a session they asked to
-        // leave; the local half below runs either way.
         try {
           await authApi.logout();
         } catch {
-          // ignored on purpose
         }
       }
-      // Routes through the same teardown as an expired session, so there is
-      // one path rather than two: endSession() notifies onSessionExpired
-      // listeners, which is exactly `leave` below (subscribed in the effect
-      // above) — calling `leave` again here directly would run it twice.
-      endSession();
+      endSession({ force: true });
     },
     updateProfile: async (body) => {
       await authApi.updateProfile(body);

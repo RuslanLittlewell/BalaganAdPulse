@@ -9,8 +9,6 @@ export interface GateOptions {
 export interface GateStats {
   active: number;
   queued: number;
-  /** Runs admitted since start. Lets a caller assert that work was attempted
-   * without measuring how long it took. */
   total: number;
 }
 
@@ -25,11 +23,6 @@ interface Waiter {
   timer: NodeJS.Timeout;
 }
 
-/** Caps how many tasks may be in flight at once, queueing the rest and shedding
- * load past a bounded queue.
- *
- * Written rather than installed because the queue is the point: a limiter would
- * cap arrivals, and what needs capping here is occupancy. */
 export function createGate(options: GateOptions): Gate {
   const { maxConcurrent, maxQueue, maxWaitMs } = options;
   const queue: Waiter[] = [];
@@ -62,7 +55,6 @@ export function createGate(options: GateOptions): Gate {
         if (index >= 0) queue.splice(index, 1);
         reject(busy());
       }, maxWaitMs);
-      // Never hold the process open on a queued request during shutdown.
       timer.unref();
       queue.push({ resolve, reject, timer });
     });

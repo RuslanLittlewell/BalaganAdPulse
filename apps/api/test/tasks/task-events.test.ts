@@ -15,9 +15,6 @@ const task: TaskRecord = {
 };
 
 describe("task events", () => {
-  // Both are needed to decide who may receive the event: the organization
-  // bounds it, the project is what a grant is held over. A recipient is chosen
-  // from the event alone, never by loading the task again.
   it("carries the organization and project on every kind", () => {
     for (const event of [taskCreated(task), taskUpdated(task), taskMoved(task), taskDeleted(task)]) {
       expect(event).toMatchObject({ orgId: "org1", projectId: "p1" });
@@ -36,12 +33,12 @@ describe("task events", () => {
       .toEqual(["task.created", "task.updated", "task.moved", "task.deleted"]);
   });
 
-  // A deleted task has no row left to send, and a recipient that never saw it
-  // needs only enough to drop it from a board it may be holding.
-  it("carries only the identifier on delete", () => {
-    const event = taskDeleted(task);
+  it("carries the identifier and who could see it, on delete", () => {
+    const event = taskDeleted({ ...task, assigneeId: "m7", visibleToClient: true });
+
     expect(event).toEqual({
       kind: "task.deleted", orgId: "org1", projectId: "p1", taskId: "t1",
+      assigneeId: "m7", visibleToClient: true,
     });
     expect(event).not.toHaveProperty("task");
   });

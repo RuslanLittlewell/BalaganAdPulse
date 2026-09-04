@@ -3,11 +3,8 @@ import { http } from "@/shared/lib/index.js";
 
 export type InvitationStatus = "PENDING" | "USED" | "REVOKED" | "EXPIRED";
 
-/** Which registration form the link opens. */
-export type RegistrationType = "CLIENT" | "EMPLOYEE";
+export type RegistrationType = "CLIENT" | "EMPLOYEE" | "CLIENT_STAFF";
 
-/** The roles an employee invitation may grant. `CLIENT` is not among them: a
- * customer arrives through a client invitation, which carries no role. */
 export const EMPLOYEE_ROLES = ["ADMIN", "MANAGER", "GUEST"] as const;
 
 export type EmployeeRole = (typeof EMPLOYEE_ROLES)[number];
@@ -16,16 +13,13 @@ export interface Invitation {
   id: string;
   code: string;
   registrationType: RegistrationType;
-  /** Null on a client invitation. */
   role: Role | null;
-  /** The projects an employee invitation grants on redemption. */
   projectIds: string[];
   email: string | null;
   expiresAt: string | null;
   revokedAt: string | null;
   usedAt: string | null;
   status: InvitationStatus;
-  /** Built by the backend, which owns the exact link format. */
   registrationUrl: string;
   createdAt: string;
 }
@@ -35,16 +29,14 @@ interface CommonInvitationInput {
   expiresInDays?: number;
 }
 
-/** A discriminated union rather than optional fields, so a client invitation
- * cannot be given a role by accident — the API refuses that, and the type
- * refuses it here first. */
 export type CreateInvitationInput =
   | ({ registrationType: "CLIENT" } & CommonInvitationInput)
   | ({
       registrationType: "EMPLOYEE";
       role: EmployeeRole;
       projectIds: string[];
-    } & CommonInvitationInput);
+    } & CommonInvitationInput)
+  | ({ registrationType: "CLIENT_STAFF"; clientId: string } & CommonInvitationInput);
 
 export const invitationsApi = {
   list: (registrationType?: RegistrationType) =>

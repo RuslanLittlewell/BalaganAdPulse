@@ -24,7 +24,6 @@ export interface ClientFormDialogProps {
   onCreated?: (client: Client) => void;
 }
 
-/** Every contact field is free text here; the server stores them as typed. */
 const CONTACT_FIELDS = ["fullName", "organization", "unp", "phone", "telegram", "website"] as const;
 type ContactField = (typeof CONTACT_FIELDS)[number];
 
@@ -49,8 +48,6 @@ function initialFields(client?: Client): Fields {
 function toInput(fields: Fields): ClientInput {
   const input: ClientInput = { name: fields.name.trim() };
   if (fields.email.trim()) input.email = fields.email.trim();
-  // An untouched field is left out entirely rather than sent as "": the server
-  // stores what it is given, and "" is not the same answer as "unknown".
   for (const field of CONTACT_FIELDS) {
     const value = fields[field].trim();
     if (value) input[field] = value;
@@ -58,7 +55,6 @@ function toInput(fields: Fields): ClientInput {
   return input;
 }
 
-/** Client-side checks that mirror the server's schema, so errors land inline. */
 function localErrors(fields: Fields): Partial<Record<keyof Fields, string>> {
   const email = fields.email.trim();
   return email && !isEmail(email) ? { email: t("form.email.invalid") } : {};
@@ -108,7 +104,6 @@ export function ClientFormDialog({ client, onClose, onCreated }: ClientFormDialo
         <DialogHeader>
           <DialogTitle>{t(isEdit ? "form.edit.title" : "form.new.title")}</DialogTitle>
         </DialogHeader>
-        {/* noValidate: the app renders its own inline errors, not native bubbles. */}
         <form
           noValidate
           onSubmit={(event) => void onSubmit(event)}

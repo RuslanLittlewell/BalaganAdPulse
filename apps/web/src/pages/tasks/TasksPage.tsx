@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { TaskBoard } from "@/widgets/task-board/index.js";
-import { TaskFormDialog } from "@/features/task-management/index.js";
-import { Can } from "@/features/permissions/index.js";
+import { TaskFormDialog, TaskPreviewDialog } from "@/features/task-management/index.js";
+import { Can, useCan } from "@/features/permissions/index.js";
 import { Button, ConfirmDialog } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
 import { useDeleteTask, type Task, type TaskColumn } from "@/entities/task/index.js";
@@ -9,10 +9,12 @@ import { useDeleteTask, type Task, type TaskColumn } from "@/entities/task/index
 type Editing =
   | { mode: "closed" }
   | { mode: "create"; column?: TaskColumn }
-  | { mode: "edit"; task: Task };
+  | { mode: "edit"; task: Task }
+  | { mode: "read"; task: Task };
 
 export function TasksPage() {
   const [editing, setEditing] = useState<Editing>({ mode: "closed" });
+  const mayEdit = useCan("update", "task");
   const [pendingDelete, setPendingDelete] = useState<Task | null>(null);
   const remove = useDeleteTask();
 
@@ -27,12 +29,16 @@ export function TasksPage() {
 
       <div className="min-h-0 flex-1">
         <TaskBoard
-          onOpen={(task) => setEditing({ mode: "edit", task })}
+          onOpen={(task) => setEditing({ mode: mayEdit ? "edit" : "read", task })}
           onCreate={(column) => setEditing({ mode: "create", column })}
         />
       </div>
 
-      {editing.mode !== "closed" ? (
+      {editing.mode === "read" ? (
+        <TaskPreviewDialog task={editing.task} onClose={() => setEditing({ mode: "closed" })} />
+      ) : null}
+
+      {editing.mode === "create" || editing.mode === "edit" ? (
         <TaskFormDialog
           task={editing.mode === "edit" ? editing.task : undefined}
           column={editing.mode === "create" ? editing.column : undefined}

@@ -9,6 +9,7 @@ import {
 } from "@/entities/invitation/index.js";
 import { ProjectAvatar, useProjects, type Project } from "@/entities/project/index.js";
 import { t } from "@/shared/config/index.js";
+import { InvitationList } from "./InvitationList.js";
 import { cn } from "@/shared/lib/index.js";
 import {
   Button,
@@ -24,19 +25,12 @@ import { registrationLink } from "../lib/link.js";
 
 export interface InvitationDialogProps {
   registrationType: RegistrationType;
+  clientId?: string;
   open: boolean;
   onClose: () => void;
 }
 
-/**
- * The invitation form, in a dialog of its own over the contact book.
- *
- * Two steps: what to invite, and then the link it produced. The link is the
- * whole point of creating an invitation and exists only once the server has
- * answered — closing on success would leave the person who asked for it hunting
- * through the list to find what they just made.
- */
-export function InvitationDialog({ registrationType, open, onClose }: InvitationDialogProps) {
+export function InvitationDialog({ registrationType, clientId, open, onClose }: InvitationDialogProps) {
   const projects = useProjects();
   const create = useCreateInvitation();
   const [role, setRole] = useState<EmployeeRole>("MANAGER");
@@ -45,7 +39,12 @@ export function InvitationDialog({ registrationType, open, onClose }: Invitation
   const [created, setCreated] = useState<Invitation | null>(null);
 
   const isEmployee = registrationType === "EMPLOYEE";
-  const title = isEmployee ? t("invites.createEmployee") : t("invites.createClient");
+  const isJoining = registrationType === "CLIENT_STAFF";
+  const title = isEmployee
+    ? t("invites.createEmployee")
+    : isJoining
+      ? t("contacts.people.invite")
+      : t("invites.createClient");
 
   function toggleProject(id: string) {
     setProjectIds((current) =>
@@ -53,8 +52,6 @@ export function InvitationDialog({ registrationType, open, onClose }: Invitation
   }
 
   function close() {
-    // Reset here rather than on open: reopening must offer a blank form, and
-    // the dialog is unmounted in between only by the parent's own state.
     setProjectIds([]);
     setFailure(null);
     setCreated(null);
@@ -62,8 +59,6 @@ export function InvitationDialog({ registrationType, open, onClose }: Invitation
   }
 
   async function submit() {
-    // Checked here as well as on the server: without it the button appears to
-    // do nothing, and the round trip explains less than this does.
     if (isEmployee && projectIds.length === 0) {
       setFailure(t("invites.projects.required"));
       return;
@@ -73,7 +68,9 @@ export function InvitationDialog({ registrationType, open, onClose }: Invitation
       setCreated(await create.mutateAsync(
         isEmployee
           ? { registrationType: "EMPLOYEE", role, projectIds }
-          : { registrationType: "CLIENT" },
+          : isJoining
+            ? { registrationType: "CLIENT_STAFF", clientId: clientId as string }
+            : { registrationType: "CLIENT" },
       ));
     } catch {
       setFailure(t("invites.failed"));
@@ -133,6 +130,10 @@ export function InvitationDialog({ registrationType, open, onClose }: Invitation
             )}
 
             {failure && <p role="alert" className="text-sm text-destructive">{failure}</p>}
+
+            <div className="mt-4 border-t border-border pt-4">
+              <InvitationList registrationType={registrationType} />
+            </div>
           </>
         )}
 
@@ -153,7 +154,6 @@ export function InvitationDialog({ registrationType, open, onClose }: Invitation
   );
 }
 
-/** One project, as a card the whole of which is the control. */
 function ProjectChoice({
   project, checked, onToggle,
 }: { project: Project; checked: boolean; onToggle: () => void }) {
@@ -167,10 +167,6 @@ function ProjectChoice({
           : "border-border hover:border-primary/40 hover:bg-muted",
       )}
     >
-      {/* The native input carries the state and the label, and is drawn over by
-          the box beside it — a checkbox styled directly cannot show a tick
-          consistently across browsers, and hiding it outright would take the
-          control away from anyone navigating by keyboard. */}
       <span className="relative grid size-5 shrink-0 place-items-center">
         <input
           type="checkbox"
@@ -203,7 +199,6 @@ function ProjectChoice({
   );
 }
 
-/** The link the invitation produced, ready to be sent to somebody. */
 function CreatedStep({ invitation }: { invitation: Invitation }) {
   const link = registrationLink(invitation.registrationUrl);
 

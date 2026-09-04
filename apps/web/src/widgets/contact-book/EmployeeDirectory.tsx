@@ -1,20 +1,15 @@
 import { useState } from "react";
 import { MemberAvatar, useMembers, type Membership } from "@/entities/membership/index.js";
-import { InvitationList } from "@/features/invitations/index.js";
+import { EmployeeAccess } from "./EmployeeAccess.js";
+import { useAuth } from "@/features/auth/index.js";
 import { t } from "@/shared/config/index.js";
 import { EmptyState, ListItem, Loader } from "@/shared/ui/index.js";
 
-/**
- * The organization's people, and the invitations that will add more.
- *
- * Read-only on purpose: roles, suspension and removal stay on the Team page,
- * which is about administering members. This pane is the contact book's other
- * half — who they are, and how to invite the next one.
- */
 export function EmployeeDirectory() {
   const members = useMembers();
+  const { user } = useAuth();
   const [selectedId, setSelectedId] = useState<string>();
-  const list = members.data ?? [];
+  const list = (members.data ?? []).filter((member) => member.userId !== user?.id);
   const selected = list.find((member) => member.id === selectedId) ?? list[0];
 
   if (members.isPending) {
@@ -39,28 +34,33 @@ export function EmployeeDirectory() {
 
       <div className="max-h-[60vh] min-w-0 overflow-auto sm:border-l sm:border-border sm:pl-4">
         {selected && <EmployeeDetails member={selected} />}
-        <div className="mt-4 border-t border-border pt-4">
-          <InvitationList registrationType="EMPLOYEE" />
-        </div>
+        {selected && <EmployeeAccess membershipId={selected.id} />}
       </div>
     </div>
   );
 }
 
-/** Label and value on one line, the way the client pane reads. */
 function EmployeeDetails({ member }: { member: Membership }) {
   const rows = [
     ["fullName", t("contacts.fullName"), member.name],
     ["email", t("contacts.email"), member.email],
+    ["phone", t("contacts.phone"), member.phone ?? "—"],
+    ["telegram", t("contacts.telegram"), member.telegram ?? "—"],
     ["role", t("team.role"), t(`role.${member.role}`)],
   ] as const;
 
   return (
-    <dl className="grid gap-1.5 text-sm" data-testid="employee-details">
+    <dl className="divide-y divide-border" data-testid="employee-details">
       {rows.map(([key, label, value]) => (
-        <div key={key} data-testid={`employee-${key}`} className="flex min-w-0 gap-2">
-          <dt className="shrink-0 text-muted-foreground">{label}:</dt>
-          <dd className="min-w-0 truncate font-medium">{value}</dd>
+        <div
+          key={key}
+          data-testid={`employee-${key}`}
+          className="grid gap-1 py-3 sm:grid-cols-[200px_minmax(0,1fr)] sm:items-baseline sm:gap-4"
+        >
+          <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            {label}
+          </dt>
+          <dd className="min-w-0 break-words text-sm">{value}</dd>
         </div>
       ))}
     </dl>

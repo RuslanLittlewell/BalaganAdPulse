@@ -12,7 +12,6 @@ describe("loadConfig", () => {
     expect(() => loadConfig({})).toThrow(/JWT_SECRET/);
   });
 
-
   it("treats an empty value as missing", () => {
     expect(() => loadConfig({ JWT_SECRET: "" })).toThrow(/JWT_SECRET/);
   });
@@ -34,7 +33,6 @@ describe("loadConfig", () => {
       NODE_ENV: "production", JWT_SECRET: "a".repeat(31),
     })).toThrow(/at least 32 characters/);
   });
-
 
   it("accepts real values in production", () => {
     const config = loadConfig({

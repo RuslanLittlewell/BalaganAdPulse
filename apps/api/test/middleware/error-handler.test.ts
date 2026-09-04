@@ -27,7 +27,6 @@ function mockRequest(): Request {
 }
 
 describe("errorHandler", () => {
-  // The handler logs every 5xx server-side; keep that out of the test output.
   let consoleError: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {

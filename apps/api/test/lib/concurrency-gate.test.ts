@@ -21,9 +21,6 @@ describe("createGate", () => {
       }),
     );
 
-    // setImmediate, not Promise.resolve(): the gate's own `await acquire()`
-    // costs a microtask per task, so a single microtask tick is not enough for
-    // all three to have reached the gate.
     await new Promise((resolve) => setImmediate(resolve));
     expect(gate.stats().active).toBe(2);
     expect(gate.stats().queued).toBe(1);

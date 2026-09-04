@@ -11,8 +11,6 @@ const MISSING = "00000000-0000-0000-0000-000000000000";
 let admin: { Authorization: string };
 let projectId: string;
 
-/** An employee invitation now names a role and the projects it grants, so every
- * creation in these tests carries both unless it is testing their absence. */
 const employee = (overrides: Record<string, unknown> = {}) => ({
   registrationType: "EMPLOYEE", role: "MANAGER", projectIds: [projectId], ...overrides,
 });
@@ -41,8 +39,6 @@ describe("POST /api/invites", () => {
     }
   });
 
-  // CLIENT is not an employee role: a customer arrives through a client
-  // invitation, which carries no role at all.
   it("refuses the client role on an employee invitation -> 400", async () => {
     const res = await request(app).post("/api/invites").set(admin).send(employee({ role: "CLIENT" }));
     expect(res.status).toBe(400);
@@ -140,9 +136,6 @@ describe("POST /api/invites", () => {
     }
   });
 
-  // Eight characters from an unambiguous alphabet, so a link can be read aloud
-  // or retyped. The entropy lost against the old UUID-shaped code is answered
-  // by database uniqueness, rate limiting and uniform lookup failures.
   it("issues a short code from the unambiguous alphabet", async () => {
     const res = await request(app).post("/api/invites").set(admin).send(employee());
     expect(res.body.code).toMatch(/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/);
@@ -159,8 +152,6 @@ describe("GET /api/invites", () => {
     expect(res.body.map((i: { code: string }) => i.code)).toEqual(["newer", "older"]);
   });
 
-  // The list now means "invitations somebody can still act on". The other rows
-  // stay in the database as history rather than being deleted.
   it("returns only the pending ones, leaving the rest stored", async () => {
     await createInvite("pending", { projectIds: [projectId] });
     await createInvite("spent", { usedAt: new Date(), projectIds: [projectId] });

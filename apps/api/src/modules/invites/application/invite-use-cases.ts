@@ -9,24 +9,23 @@ import {
   type InviteStatus,
   type RegistrationType,
 } from "../domain/invite.js";
-import { InvitationCodeConflictError, type InviteDependencies } from "./ports.js";
+import {
+  InvitationCodeConflictError,
+  type ClientRegistrationDetails,
+  type InviteDependencies,
+} from "./ports.js";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MAX_CODE_ATTEMPTS = 5;
 
-/** Every rejected invitation answers with this, whatever was actually wrong
- * with it. Unknown, expired, revoked, already redeemed and addressed-to-someone
- * -else are indistinguishable from outside on purpose: registration is a public
- * endpoint, and a response that explained itself would let a stranger discover
- * which codes exist and which addresses were invited. */
 export const INVALID_INVITE = "Invalid invite code";
 
 export interface CreateInviteInput {
   readonly registrationType: RegistrationType;
   readonly role?: Role | null;
   readonly projectIds?: readonly string[];
+  readonly clientId?: string;
   readonly email?: string | null;
-  /** Absent means the invitation does not expire on its own. */
   readonly expiresInDays?: number;
 }
 
@@ -48,11 +47,37 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
     }
   };
 
+  const reaches = async (actor: ActorContext, invite: Invite): Promise<boolean> => {
+    if (actor.role === "ADMIN") return true;
+    if (!invite.clientId) return false;
+    return dependencies.clients.isReachable(actor, invite.clientId);
+  };
+
+  const onlyReachable = async (actor: ActorContext, invites: Invite[]): Promise<Invite[]> => {
+    if (actor.role === "ADMIN") return invites;
+    const verdicts = await Promise.all(invites.map((invite) => reaches(actor, invite)));
+    return invites.filter((_invite, index) => verdicts[index]);
+  };
+
   return {
     create: async (actor: ActorContext, input: CreateInviteInput): Promise<InviteView> => {
       assertCan(actor, "create");
       const projectIds = [...new Set(input.projectIds ?? [])];
-      if (input.registrationType === "CLIENT") {
+      if (input.registrationType === "CLIENT_STAFF") {
+        if (input.role !== undefined && input.role !== null || projectIds.length > 0) {
+          throw new AppError(
+            "validation", "An invitation to join a client carries no role or projects",
+          );
+        }
+        if (!input.clientId) {
+          throw new AppError("validation", "An invitation to join a client must name one");
+        }
+        if (!(await dependencies.clients.isReachable(actor, input.clientId))) {
+          throw new AppError("not-found", "Client not found");
+        }
+      } else if (input.clientId) {
+        throw new AppError("validation", "Only an invitation to join a client names one");
+      } else if (input.registrationType === "CLIENT") {
         if (input.role !== undefined && input.role !== null || projectIds.length > 0) {
           throw new AppError("validation", "Client invitations cannot include role or projects");
         }
@@ -79,8 +104,9 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
               orgId: actor.orgId,
               code: dependencies.codes.generate(),
               registrationType: input.registrationType,
-              role: input.registrationType === "CLIENT" ? null : input.role!,
-              projectIds: input.registrationType === "CLIENT" ? [] : projectIds,
+              role: input.registrationType === "EMPLOYEE" ? input.role! : null,
+              projectIds: input.registrationType === "EMPLOYEE" ? projectIds : [],
+              clientId: input.clientId ?? null,
               email: input.email ?? null,
               expiresAt: input.expiresInDays
                 ? new Date(now.getTime() + input.expiresInDays * MS_PER_DAY)
@@ -103,7 +129,7 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
         dependencies.clock.now(),
         registrationType,
       );
-      return invites.map(view);
+      return (await onlyReachable(actor, invites)).map(view);
     },
 
     resolve: async (code: string): Promise<{ registrationType: RegistrationType }> =>
@@ -115,38 +141,70 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
         return { registrationType: invite.registrationType };
       }),
 
-    /** Revoking is a timestamp rather than a delete: an invitation is the
-     * record of how somebody was let in, and one already redeemed is history
-     * that must not be rewritten — hence the conflict rather than a silent
-     * no-op. */
     revoke: async (actor: ActorContext, id: string): Promise<void> => {
       assertCan(actor, "delete");
       const invite = await dependencies.invites.findInOrg(actor.orgId, id);
-      if (!invite) throw new AppError("not-found", "Invite not found");
+      if (!invite || !(await reaches(actor, invite))) {
+        throw new AppError("not-found", "Invite not found");
+      }
       if (invite.usedAt) throw new AppError("conflict", "This invite has already been used");
       await dependencies.unitOfWork.run((context) =>
         dependencies.invites.revoke(context, id, dependencies.clock.now()),
       );
     },
 
-    /**
-     * Redeeming happens inside the registration's transaction, so the account,
-     * the membership and the claim commit together or not at all.
-     *
-     * The read and the claim are separate on purpose: two registrations can
-     * both pass the read with the same code, and only the one whose conditional
-     * claim still matches an unspent row may go on.
-     */
     redeem: async (
       context: TransactionContext,
       code: string,
       email: string,
       userId: string,
       now: Date,
+      details?: ClientRegistrationDetails,
     ): Promise<void> => {
       const invite = await dependencies.invites.findByCode(context, code);
       if (!isRedeemable(invite, email, now)) throw new AppError("forbidden", INVALID_INVITE);
-      if (invite.registrationType !== "EMPLOYEE" || !invite.role || invite.role === "CLIENT") {
+
+      if (invite.registrationType === "CLIENT_STAFF") {
+        if (details) {
+          throw new AppError(
+            "validation", "Joining a client carries no contact or project of its own",
+          );
+        }
+        if (!invite.clientId) throw new AppError("forbidden", INVALID_INVITE);
+        const membershipId = await dependencies.memberships.enrol(context, {
+          userId, orgId: invite.orgId, role: "CLIENT",
+        });
+        await dependencies.projectAccess.grant(
+          context, membershipId, await dependencies.clientProjects.projectIdsOf(invite.clientId),
+        );
+        const spent = await dependencies.invites.claim(context, invite.id, userId, now);
+        if (!spent) throw new AppError("forbidden", INVALID_INVITE);
+        return;
+      }
+
+      if (invite.registrationType === "CLIENT") {
+        if (!details) {
+          throw new AppError("validation", "Client registration needs a contact and a project");
+        }
+        const clientId = await dependencies.clientDirectory.create(context, {
+          ...details.client, orgId: invite.orgId,
+        });
+        const projectId = await dependencies.projectDirectory.create(context, {
+          ...details.project, clientId,
+        });
+        const membershipId = await dependencies.memberships.enrol(context, {
+          userId, orgId: invite.orgId, role: "CLIENT",
+        });
+        await dependencies.projectAccess.grant(context, membershipId, [projectId]);
+        const spent = await dependencies.invites.claim(context, invite.id, userId, now);
+        if (!spent) throw new AppError("forbidden", INVALID_INVITE);
+        return;
+      }
+
+      if (details) {
+        throw new AppError("validation", "An employee registration carries no client details");
+      }
+      if (!invite.role || invite.role === "CLIENT") {
         throw new AppError("forbidden", INVALID_INVITE);
       }
       const membershipId = await dependencies.memberships.enrol(context, {

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { PencilIcon, PlusIcon } from "lucide-react";
+import { isCustomer } from "@adpulse/access-policy";
 import { ClientAvatar, useClients, type Client } from "@/entities/client/index.js";
+import { useAuth } from "@/features/auth/index.js";
 import { t } from "@/shared/config/index.js";
 import {
   Button,
@@ -14,8 +16,9 @@ import {
   Loader,
   Tabs,
 } from "@/shared/ui/index.js";
-import { InvitationDialog, InvitationList } from "@/features/invitations/index.js";
+import { InvitationDialog } from "@/features/invitations/index.js";
 import { ContactAvatar } from "./ContactAvatar.js";
+import { CompanyTeam } from "./CompanyTeam.js";
 import { EmployeeDirectory } from "./EmployeeDirectory.js";
 import { ContactDetails } from "./ContactDetails.js";
 import { ContactForm } from "./ContactForm.js";
@@ -30,28 +33,20 @@ type Mode = { kind: "view" } | { kind: "edit" } | { kind: "create" };
 
 type Directory = "CLIENT" | "EMPLOYEE";
 
-/**
- * The client list and one client's details, side by side. The list is the
- * navigation and the right pane is the only thing that changes, so selection
- * lives here rather than in the URL — closing the dialog should not leave a
- * route behind. The pencil turns that pane into a form over the same record;
- * the plus opens the same form with nothing in it.
- */
 export function ContactBook({ open, onClose }: ContactBookProps) {
-  // Clients first, because that is what the contact book has always opened on
-  // and what most visits are for.
   const [directory, setDirectory] = useState<Directory>("CLIENT");
   const [inviting, setInviting] = useState(false);
   const clients = useClients();
+  const { role, clientIds } = useAuth();
+  const isAgency = role != null && !isCustomer(role);
+  const ownCompanyId = isAgency ? undefined : clientIds[0];
   const [selectedId, setSelectedId] = useState<string>();
   const [mode, setMode] = useState<Mode>({ kind: "view" });
   const list = clients.data ?? [];
-  // Falls back to the first client, so the right pane is never blank on open.
   const selected = list.find((client) => client.id === selectedId) ?? list[0];
 
   function select(client: Client) {
     setSelectedId(client.id);
-    // Choosing another contact abandons an edit rather than carrying it over.
     setMode({ kind: "view" });
   }
 
@@ -64,7 +59,7 @@ export function ContactBook({ open, onClose }: ContactBookProps) {
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) close(); }}>
-      <DialogContent className="w-[min(980px,calc(100vw-2rem))] max-w-none">
+      <DialogContent className="min-h-[550px] w-[min(980px,calc(100vw-2rem))] max-w-none">
         <DialogHeader>
           <DialogTitle>{t("contacts.title")}</DialogTitle>
         </DialogHeader>
@@ -72,27 +67,32 @@ export function ContactBook({ open, onClose }: ContactBookProps) {
         <Tabs
           items={[
             { id: "CLIENT", label: t("contacts.directory.clients") },
-            { id: "EMPLOYEE", label: t("contacts.directory.employees") },
+            ...(isAgency
+              ? [{ id: "EMPLOYEE", label: t("contacts.directory.employees") }]
+              : []),
           ]}
           activeId={directory}
           onSelect={(id) => {
             setDirectory(id as Directory);
-            // Switching directory abandons an edit rather than carrying it into
-            // a pane that has nothing to do with it.
             setMode({ kind: "view" });
           }}
         />
 
-        {directory === "EMPLOYEE" && <EmployeeDirectory />}
+        {!isAgency && ownCompanyId != null && <CompanyTeam clientId={ownCompanyId} />}
 
-        {directory === "CLIENT" && clients.isPending && (
+        {isAgency && directory === "EMPLOYEE" && <EmployeeDirectory />}
+
+        {isAgency && directory === "CLIENT" && clients.isPending && (
           <div className="grid place-items-center py-10">
             <Loader />
           </div>
         )}
 
-        {directory === "CLIENT" && clients.isSuccess && (
-          <div className="grid min-h-[22rem] gap-4 sm:grid-cols-[20%_minmax(0,1fr)]">
+        {isAgency && directory === "CLIENT" && clients.isSuccess && (
+          <div
+            data-testid="contact-book-columns"
+            className="grid min-h-[22rem] gap-4 sm:grid-cols-[minmax(14rem,22%)_minmax(0,1fr)]"
+          >
             <div className="flex max-h-[60vh] flex-col gap-1 overflow-auto sm:pr-4">
               {list.map((client) => (
                 <ListItem
@@ -109,7 +109,6 @@ export function ContactBook({ open, onClose }: ContactBookProps) {
             <div className="max-h-[60vh] min-w-0 overflow-auto sm:border-l sm:border-border sm:pl-4">
               <div className="mb-2 flex min-h-9 items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-3">
-                  {/* Only a saved client has a picture to change. */}
                   {mode.kind !== "create" && selected != null && (
                     <Can action="update" resource="client"><ContactAvatar client={selected} /></Can>
                   )}
@@ -149,11 +148,6 @@ export function ContactBook({ open, onClose }: ContactBookProps) {
               {mode.kind === "view" && selected == null && (
                 <EmptyState title={t("contacts.empty")} />
               )}
-              {mode.kind === "view" && (
-                <div className="mt-4 border-t border-border pt-4">
-                  <InvitationList registrationType="CLIENT" />
-                </div>
-              )}
               {editing && (
                 <ContactForm
                   client={mode.kind === "edit" ? selected : undefined}
@@ -167,7 +161,7 @@ export function ContactBook({ open, onClose }: ContactBookProps) {
             </div>
           </div>
         )}
-        <DialogFooter data-testid="contact-book-footer">
+        <DialogFooter data-testid="contact-book-footer" hidden={!isAgency}>
           <Can action="create" resource="invite">
             <Button onClick={() => setInviting(true)}>
               {directory === "EMPLOYEE"
@@ -177,9 +171,6 @@ export function ContactBook({ open, onClose }: ContactBookProps) {
           </Can>
         </DialogFooter>
 
-        {/* Over the contact book rather than inside a pane: the form has a role,
-            a project list and its own validation, and what is behind it is the
-            list of who is already here. */}
         <InvitationDialog
           registrationType={directory}
           open={inviting}

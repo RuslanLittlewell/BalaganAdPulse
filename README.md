@@ -49,6 +49,15 @@ app on `http://localhost:5173`. The `api` container runs `prisma migrate deploy`
 startup, so the stack comes up fully migrated with no manual steps. Postgres data lives
 in the named volume `adpulse_pgdata` and survives container restarts.
 
+**After changing `schema.prisma`, restart the `api` container** — `docker compose restart
+api`. It regenerates the Prisma client and applies migrations on start, but a container
+that is already running keeps the client it generated last time. Running `prisma generate`
+on the host does not help: the container's `node_modules` is its own volume, so a client
+generated outside it is not the one it loads. The symptom is a 500 with
+`Unknown argument` naming the column you just added. The same is true of a newly installed
+dependency, which additionally needs `docker compose up -d --build --renew-anon-volumes`
+to reach the container at all.
+
 The seed command is a required first step for a fresh database: it creates the first
 administrator, who can then issue invitations. It is idempotent and is safe to run again.
 
@@ -183,8 +192,7 @@ AdPulse/
           invites/          # role-bearing invitations
           clients/          # clients and the contact book
           projects/         # projects under a client
-          campaigns/        # campaigns, columns and the formula engine
-          records/          # days and the values written into them
+          campaigns/        # the campaign hierarchy and its measured figures
           audit/            # append-only event writes and scoped activity reads
         shared/             # the deliberately small kernel
           domain/           # AppError
@@ -203,8 +211,9 @@ Request flow: HTTP → a module's presentation adapter (Zod validation) → a us
 ports → an infrastructure adapter (Prisma, S3) → PostgreSQL. Errors surface as a
 transport-independent `AppError` and are mapped to the HTTP envelope in one place.
 
-Every client belongs to an organization. The existing business hierarchy remains
-`Client → Project → Campaign → (properties, records, values)`. An active membership
+Every client belongs to an organization. The business hierarchy is
+`Client → Project → Campaign → Ad set → Ad`, with measured figures stored per day at
+each of the last three levels. An active membership
 provides the caller's role; `ClientAccess` grants narrow non-admin members to clients or
 individual projects. Role permission and row reach are evaluated separately.
 
@@ -220,6 +229,14 @@ A task belongs to exactly one project and carries a title, a rich-text descripti
 priority of its own (`LOW`, `MEDIUM`, `HIGH`, `URGENT` — distinct from `ProjectPriority`,
 which describes a project by counting its tasks) and optionally a responsible member.
 
+It may also name **one campaign of its own project**. Naming none means the work is about
+the project as a whole, shown as **Общий** — a statement rather than a gap, so nothing
+defaults a task onto a campaign. A campaign under another project is refused with 400,
+the same answer an unknown campaign gets, so a refusal never confirms what exists outside
+the caller's grants. Moving a task to another project releases a campaign the request did
+not re-state, and deleting a campaign leaves its tasks standing as Общий: work outlives
+the campaign it was about.
+
 Reading the board follows the same grants as the projects it draws from. Admins and
 managers write; guests read; a `CLIENT` member is refused the board entirely, because it
 carries the agency's internal notes about a customer's own work.
@@ -231,6 +248,17 @@ so listing a board never carries image data. The editor fetches them with the me
 token and renders them from object URLs, because an `<img src>` pointing at the API would
 carry no credentials. An upload whose dialog was cancelled stays recorded with no task, so
 it can be found and reclaimed later.
+
+The board is not the only place work is visible. A **project** lists the tasks under it
+that are still in flight — `IDEA`, `IN_PROGRESS`, `NEEDS_FIX`, `IN_REVIEW`, everything
+but the two terminal stages — below its campaigns. A **campaign** lists the tasks naming
+it, at every stage, because its finished work is part of its history. Opening one from
+either list shows it read-only: the same description renderer the editor uses, with input
+turned off, and no control that writes. Those screens are for reading; the board is where
+work is managed.
+
+The task listing accepts `projectId` and `campaignId`; both narrow what the caller's
+grants already allow and neither can widen it.
 
 The board is shared work, so it updates live. A committed task change is published to
 `/api/realtime`, a WebSocket sharing the HTTP server and authenticated by the same HttpOnly
@@ -327,18 +355,18 @@ ports, fixed clocks and deterministic identifiers.
 | DELETE | `/tasks/:id` | Delete, with its images | 204 |
 | POST | `/task-images` | Upload one image pasted or dropped into a description | 201 |
 | GET | `/task-images/:id` | The bytes, to whoever may read the task | 200 |
-| POST | `/clients/:clientId/campaigns` | Create a campaign | 201 |
-| GET | `/clients/:clientId/campaigns` | List a client's campaigns | 200 |
-| GET | `/campaigns/:id` | Campaign with properties, records and totals | 200 |
-| PATCH | `/campaigns/:id` | Rename or reorder | 200 |
-| DELETE | `/campaigns/:id` | Delete | 204 |
-| POST | `/campaigns/:id/properties` | Add a property | 201 |
-| PATCH | `/properties/:id` | Rename, retype, reorder, set a formula | 200 |
-| DELETE | `/properties/:id` | Delete a property | 204 |
-| POST | `/campaigns/:id/records` | Add a day | 201 |
-| PATCH | `/records/:id` | Move a day to another date | 200 |
-| DELETE | `/records/:id` | Delete a day | 204 |
-| PUT | `/records/:recordId/values/:propertyId` | Write a property value | 200 |
+| GET | `/projects/:id/campaigns` | A project's campaigns, each with its figures | 200 |
+| GET | `/projects/:id/summary` | The project's figures, summed | 200 |
+| GET | `/projects/:id/daily` | The project's measured days | 200 |
+| GET | `/campaigns/:id` | One campaign with its figures | 200 |
+| GET | `/campaigns/:id/ad-sets` | Its ad sets, each with its figures | 200 |
+| GET | `/campaigns/:id/daily` | Its measured days, unsummed | 200 |
+| GET | `/ad-sets/:id/ads` | An ad set's ads, each with its figures | 200 |
+| GET | `/summary` | Every project the caller reaches, summed | 200 |
+| GET | `/summary/channels` | The same, split by channel | 200 |
+
+Every reading above is scoped to a range: `?from=YYYY-MM-DD&to=YYYY-MM-DD`, both
+endpoints included and both required.
 
 `name` is required on create; `niche`, `monthlyBudget` and `email` are optional.
 Errors are normalized to a single shape:
@@ -347,21 +375,29 @@ Errors are normalized to a single shape:
 { "error": { "message": "...", "details": [] } }
 ```
 
-A campaign starts with eleven default properties (spend, impressions, clicks, CTR, CPM,
-CPC, leads, CPL, revenue, ROAS, comment); creating a client seeds it with one such
-campaign, named `Main`, at position 0. Derived properties carry a formula — an
-expression tree — and are computed on read, so only hand-entered values are stored.
-Numeric values cross the API as strings with four decimals to preserve precision.
+### Figures
 
-The data model follows the Notion/Airtable shape rather than a spreadsheet: a campaign
-has **properties** (the metric columns), **records** (the days), and a
-**property value** for each hand-entered cell. Postgres tables use snake_case
-(`campaign_property`, `campaign_record`, `campaign_property_value`).
+Six figures are **measured** and stored, one row per entity per day: spend, impressions,
+reach, clicks, conversions and revenue. Six ratios are **derived** on read and never
+stored: CTR, CPC, CPM, CPA, ROAS and frequency.
 
-Validation failures return 400, a missing record returns 404, conflicts return 409
-(a duplicate date; deleting a property referenced by another property's formula;
-attaching a formula to a property that already has values; changing a property's type
-between text and numeric while it has values), and anything unexpected returns 500.
+A stored ratio would be a second source of truth for something already recorded, and the
+two drift the moment a figure is corrected. It also cannot be re-summed: a week's CTR is
+the week's clicks over the week's impressions, not the average of seven daily CTRs. A
+ratio whose divisor is zero is reported as `null` — a campaign that spent money and got
+no clicks has no cost per click, and `0` would read as free.
+
+Ad platforms restate a day as attribution settles, so the key is `(entity, date)` and a
+repeat replaces rather than appends. Each level stores what the platform reports *for that
+level*: a campaign is never summed from its ads, because reach is deduplicated across the
+campaign's audience. A project and the organization **are** summed from campaigns —
+those are our own groupings and the platform has no opinion about them.
+
+Nothing writes these figures yet. This change defines the shape they land in and reads
+what is there; a later change connects the platforms.
+
+Validation failures return 400 (including a range that ends before it starts), anything
+the caller cannot reach returns 404, and anything unexpected returns 500.
 
 ## Authentication
 
@@ -384,8 +420,9 @@ In production, startup additionally rejects the `.env.example` placeholder and a
 
 ### Roles and membership
 
-A user is an identity; what they may do comes from their **membership** in the
-organization, which carries exactly one role — `ADMIN`, `MANAGER`, `GUEST` or `CLIENT`.
+A user is an identity — a name, an email, and optionally a phone and a Telegram handle
+they keep current themselves in profile settings. What they may do comes from their
+**membership** in the organization, which carries exactly one role — `ADMIN`, `MANAGER`, `GUEST` or `CLIENT`.
 The membership is read from the database on every request rather than sealed into the
 access token, so a suspension or a demotion takes effect on the very next call instead of
 when the token expires. A user with no membership, or a suspended one, is refused with
@@ -399,14 +436,80 @@ by the API and the web app so the interface cannot offer what the API refuses.
   operations.
 - `MANAGER` works only in granted clients/projects and may create and edit business data.
 - `GUEST` has read-only access to granted clients/projects.
-- `CLIENT` has read-only access to the client named by their grant.
+- `CLIENT` has read-only access to the client named by their grant, and may raise a task.
+- `CLIENT_ADMIN` is the principal on a customer's own company: it reaches exactly what a
+  `CLIENT` reaches, and additionally administers that company's people — invites them,
+  sees the invitations outstanding, revokes one, removes somebody who joined. It writes
+  nothing the agency owns.
+
+Which side a role is on is asked through `isCustomer` rather than compared by name, so a
+customer role added later is treated as one everywhere at once — in what it sees on the
+board, in what a task it raises is marked with, and in its exclusion from the agency's
+own staff listing.
 
 All four roles may read audit history, but the same grants constrain which events they see.
+
+### Registration
+
+Registration is by invitation, and by nothing else: the invitation link is the only way
+in, and no screen asks anybody to type a code. The invitation carries its own type, and
+`GET /api/regustration/:code` answers it publicly — so `/regustration/:code` shows the
+form the code calls for, and nothing else about the agency. An unknown, revoked, used or
+expired code gives one answer for all four.
+
+An **employee** gives a name, an email, a password and its confirmation, plus an avatar to
+upload or generate. The invitation already decided their role and which projects it
+grants.
+
+Somebody **joining a company that already exists** fills the same fields and is asked
+nothing about a company: the invitation named it. They become an ordinary `CLIENT` of that
+client and reach its projects. Such an invitation is issued by either side — the client's
+own principal, for their own company alone, or an agency admin for any client. A principal
+naming somebody else's client is told it does not exist, so it cannot count the agency's
+other customers.
+
+A **client** fills two steps: their own account — the contact's fields, a password, an
+avatar — and then the first project they create, with its monthly budget in `BYN`, `RUB`,
+`USD` or `EUR`. A budget always carries the currency it is stated in; a project with no
+amount still has one, so entering an amount later is a one-field decision. What a campaign
+*spent* is a different figure and keeps its own formatting. The account, the client record, the
+project and the grant over it are written in one transaction: either all of it lands or
+none of it does and the link still works. Both steps stay mounted, so stepping back loses
+nothing.
+
+### What each role sees on the board
+
+Reach decides which projects a member may look at. Whose work it is decides what they see
+inside them, and can only narrow it further:
+
+- `ADMIN` — every task in the organization.
+- `MANAGER`, `GUEST` — only the tasks they are responsible for. A task nobody is
+  responsible for is on the admin's board alone, which is the point: a client's request
+  waits there until an admin reads it and hands it to somebody.
+- `CLIENT` — only the tasks marked as shown to them.
+
+A task raised by a client is marked shown to them when it is created; anything the agency
+raises is its own. **Only an admin changes that mark** — a manager may create, edit and
+complete a task, but what a customer is shown is one decision made in one place. The same
+rule filters the WebSocket, so an event never delivers what a listing would not.
+
+A customer's contact book is their own company's people — name, email, phone, Telegram
+and who among them is the principal. The agency's client card is the company's contact
+details alone. The employee directory is the agency's own staff, and a customer is not
+offered it at all. Both lists show how to reach somebody, with a dash where a detail was
+never given.
+
+The web app has no screen for agency member administration. The contact book's employee pane
+lists the organization's members with their name, email and role, read-only, and is where
+invitations are issued; changing a role, suspending a member or removing one is done
+through the member endpoints. The rules are unchanged and enforced server-side either
+way — only an admin may make those changes, no admin may remove their own membership, and
+the last admin cannot be removed.
 
 ### Seeding the first admin
 
 Registration requires an invitation, and only an admin can issue one — so a brand-new
-database has to be seeded once before anybody can sign up:
+database has to be seeded once before anybody can get in at all:
 
 ```bash
 SEED_ADMIN_EMAIL=you@example.com SEED_ADMIN_PASSWORD=... npm run seed -w apps/api

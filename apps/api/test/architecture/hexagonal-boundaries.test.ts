@@ -5,6 +5,9 @@ import { describe, expect, it } from "vitest";
 import { LEGACY_ALLOW_LIST, LEGACY_SOURCE_INVENTORY } from "./legacy-inventory.js";
 import { analyseSourceText, checkSourceTree, listTypeScriptSources } from "./import-graph.js";
 
+const COMMENT = /^\s*(\/\/|\/\*|\{\s*\/\*)/;
+const DIRECTIVE = /^\s*\/\/\/\s*</;
+
 const apiRoot = fileURLToPath(new URL("../..", import.meta.url));
 const sourceRoot = path.join(apiRoot, "src");
 
@@ -32,8 +35,6 @@ describe("hexagonal architecture boundaries", () => {
     expect(checkSourceTree(sourceRoot, LEGACY_ALLOW_LIST)).toEqual([]);
   });
 
-  /** The acceptance criterion for the migration: nothing outside the three
-   * roots, and no compatibility adapter left behind. */
   it("leaves no source file outside modules, shared and composition", () => {
     const stragglers = listTypeScriptSources(sourceRoot).filter((file) =>
       !file.startsWith("modules/") && !file.startsWith("shared/") && !file.startsWith("composition/"));
@@ -47,9 +48,6 @@ describe("hexagonal architecture boundaries", () => {
     expect(legacyShaped).toEqual([]);
   });
 
-  /** Stated as its own check rather than left to the import graph: these are
-   * the couplings that make a use case impossible to test without a database,
-   * an HTTP request or an environment. */
   it("keeps domain and application free of frameworks, persistence and process globals", () => {
     const inner = listTypeScriptSources(sourceRoot).filter((file) =>
       /^modules\/[^/]+\/(domain|application)\//.test(file));
@@ -76,5 +74,27 @@ describe("hexagonal architecture boundaries", () => {
     const compatibility = listTypeScriptSources(sourceRoot).filter((file) =>
       /legacy|compat/i.test(file));
     expect(compatibility).toEqual([]);
+  });
+});
+
+describe("source conventions", () => {
+  const commented = (source: string) =>
+    source.split("\n").filter((line) => COMMENT.test(line) && !DIRECTIVE.test(line)).length;
+
+  it("keeps the TypeScript sources free of comments", () => {
+    const offenders = listTypeScriptSources(sourceRoot)
+      .filter((file) => commented(readFileSync(path.join(sourceRoot, file), "utf8")) > 0);
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps the Prisma schema free of comments", () => {
+    const schema = readFileSync(path.join(apiRoot, "prisma/schema.prisma"), "utf8");
+    expect(commented(schema)).toBe(0);
+  });
+
+  it("catches a comment wherever one is written", () => {
+    expect(commented("const a = 1;\n// why\n")).toBe(1);
+    expect(commented("/* why */\nconst a = 1;\n")).toBe(1);
+    expect(commented('/// <reference types="vitest" />\n')).toBe(0);
   });
 });

@@ -11,6 +11,22 @@ export function useMembers() {
   return useQuery({ queryKey: MEMBERS_KEY, queryFn: membersApi.list });
 }
 
+export function useClientMembers(clientId: string | undefined) {
+  return useQuery({
+    queryKey: [...MEMBERS_KEY, "client", clientId ?? null],
+    queryFn: () => membersApi.listOfClient(clientId as string),
+    enabled: clientId != null,
+  });
+}
+
+export function useMemberAccess(membershipId: string | undefined) {
+  return useQuery({
+    queryKey: [...MEMBERS_KEY, "access", membershipId ?? null],
+    queryFn: () => membersApi.access(membershipId as string),
+    enabled: membershipId != null,
+  });
+}
+
 export function useUpdateMember() {
   const queryClient = useQueryClient();
   return useMutation({

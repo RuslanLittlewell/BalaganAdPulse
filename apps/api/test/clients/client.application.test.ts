@@ -61,8 +61,6 @@ describe("creating a client", () => {
     expect(clients.get(created.id)?.name).toBe("Acme");
   });
 
-  /** Whoever enters a client reaches it. Without this a manager could create a
-   * client and lose sight of it in the same request. */
   it("grants a manager reach over what they entered", async () => {
     const { useCases, grants } = fixture();
     const created = await useCases.create(manager, { name: "Mine" });

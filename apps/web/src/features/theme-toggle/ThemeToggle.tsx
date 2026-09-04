@@ -17,9 +17,6 @@ export function ThemeToggle() {
 
   return (
     <Button variant="ghost" size="icon" aria-label={label} onClick={toggleTheme}>
-      {/* Shows the theme it switches to. The two shapes are not congruent, so
-          morphicons morphs rather than rotates — the sun's rays grow out of the
-          crescent instead of the icons swapping. */}
       <MorphIcon icon={theme === "light" ? Moon : Sun} size={18} spring="snappy" />
     </Button>
   );

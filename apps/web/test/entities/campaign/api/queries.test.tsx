@@ -1,338 +1,213 @@
-import { http as mock, HttpResponse, delay } from "msw";
-import { act, renderHook, waitFor } from "@testing-library/react";
-import { server } from "@test/shared/index.js";
-import { hookWrapper } from "@test/shared/index.js";
+import { http as mock, HttpResponse } from "msw";
+import { renderHook, waitFor } from "@testing-library/react";
+import { server, hookWrapper } from "@test/shared/index.js";
 import {
-  useCampaigns,
-  useCampaignTable,
-  useCreateCampaign,
-  useUpdateCampaign,
-  useDeleteCampaign,
-  useCreateRecord,
-  useUpdateRecord,
-  useDeleteRecord,
-  useSetValue,
+  useAds,
+  useAdSets,
+  useAgencySummary,
+  useChannelShares,
+  useCampaign,
+  useCampaignDaily,
+  useCampaignReferences,
+  useProjectCampaigns,
+  useProjectDaily,
+  useProjectSummary,
 } from "@/entities/campaign/api/queries.js";
+import type { DateRange } from "@/entities/campaign/index.js";
 
-describe("useCampaigns", () => {
-  it("loads the campaigns of one project", async () => {
-    server.use(
-      mock.get("/api/projects/1/campaigns", () =>
-        HttpResponse.json([
-          { id: "c1", projectId: "1", name: "Search ads", position: 0, createdAt: "", updatedAt: "" },
-        ]),
-      ),
-    );
+const RANGE: DateRange = { from: "2026-08-01", to: "2026-08-31" };
 
-    const { result } = renderHook(() => useCampaigns("1"), { wrapper: hookWrapper() });
+const performance = {
+  spend: 1000, impressions: 100000, reach: 40000, clicks: 2000, conversions: 50, revenue: 4000,
+  ctr: 2, cpc: 0.5, cpm: 10, cpa: 20, roas: 4, frequency: 2.5,
+};
+
+function capturing(path: string, body: object) {
+  const seen: URL[] = [];
+  server.use(mock.get(path, ({ request }) => {
+    seen.push(new URL(request.url));
+    return HttpResponse.json(body);
+  }));
+  return seen;
+}
+
+describe("useProjectCampaigns", () => {
+  it("loads the campaigns of one project over a range", async () => {
+    const seen = capturing("/api/projects/p1/campaigns", [
+      { id: "c1", projectId: "p1", name: "Поиск / Москва", channel: "YANDEX", status: "ACTIVE",
+        objective: null, externalId: null, position: 0, performance },
+    ]);
+
+    const { result } = renderHook(() => useProjectCampaigns("p1", RANGE), { wrapper: hookWrapper() });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toHaveLength(1);
-    expect(result.current.data?.[0].name).toBe("Search ads");
+    expect(result.current.data?.[0].channel).toBe("YANDEX");
+    expect(result.current.data?.[0].performance.roas).toBe(4);
+    expect(seen[0].searchParams.get("from")).toBe("2026-08-01");
+    expect(seen[0].searchParams.get("to")).toBe("2026-08-31");
   });
 
-  it("stays idle without a client id", () => {
-    const { result } = renderHook(() => useCampaigns(undefined), { wrapper: hookWrapper() });
+  it("stays idle without a project id", () => {
+    const { result } = renderHook(() => useProjectCampaigns(undefined, RANGE), {
+      wrapper: hookWrapper(),
+    });
+    expect(result.current.fetchStatus).toBe("idle");
+  });
 
+  it("keeps each range's figures apart", async () => {
+    server.use(mock.get("/api/projects/p1/campaigns", ({ request }) => {
+      const from = new URL(request.url).searchParams.get("from") as string;
+      return HttpResponse.json([
+        { id: "c1", projectId: "p1", name: from, channel: "YANDEX", status: "ACTIVE",
+          objective: null, externalId: null, position: 0, performance },
+      ]);
+    }));
+    const wrapper = hookWrapper();
+
+    const august = renderHook(() => useProjectCampaigns("p1", RANGE), { wrapper });
+    await waitFor(() => expect(august.result.current.isSuccess).toBe(true));
+    const july = renderHook(
+      () => useProjectCampaigns("p1", { from: "2026-07-01", to: "2026-07-31" }),
+      { wrapper },
+    );
+    await waitFor(() => expect(july.result.current.isSuccess).toBe(true));
+
+    expect(july.result.current.data?.[0].name).toBe("2026-07-01");
+    expect(august.result.current.data?.[0].name).toBe("2026-08-01");
+  });
+});
+
+describe("useCampaignReferences", () => {
+  it("loads a project's campaigns with no range in the request", async () => {
+    const seen = capturing("/api/projects/p1/campaigns/names", [
+      { id: "c1", name: "Поиск / Москва", channel: "YANDEX" },
+    ]);
+
+    const { result } = renderHook(() => useCampaignReferences("p1"), { wrapper: hookWrapper() });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.[0].name).toBe("Поиск / Москва");
+    expect(seen[0].searchParams.get("from")).toBeNull();
+    expect(seen[0].searchParams.get("to")).toBeNull();
+  });
+
+  it("stays idle without a project id", () => {
+    const { result } = renderHook(() => useCampaignReferences(undefined), {
+      wrapper: hookWrapper(),
+    });
     expect(result.current.fetchStatus).toBe("idle");
   });
 });
 
-describe("useCampaignTable", () => {
-  it("loads the computed table of one campaign", async () => {
-    server.use(
-      mock.get("/api/campaigns/c1", () =>
-        HttpResponse.json({
-          id: "c1",
-          projectId: "1",
-          name: "Search ads",
-          position: 0,
-          properties: [{ id: "p1", key: "spend", name: "SPEND", type: "MONEY", position: 0, formula: null }],
-          records: [{ id: "r1", date: "2026-08-01", values: { p1: "120.0000" } }],
-          totals: { p1: "120.0000" },
-        }),
-      ),
-    );
+describe("useCampaign", () => {
+  it("loads one campaign with its figures", async () => {
+    const seen = capturing("/api/campaigns/c1", {
+      id: "c1", projectId: "p1", name: "Поиск / Москва", channel: "YANDEX", status: "ACTIVE",
+      objective: "Заявки", externalId: null, position: 0, performance,
+    });
 
-    const { result } = renderHook(() => useCampaignTable("c1"), { wrapper: hookWrapper() });
+    const { result } = renderHook(() => useCampaign("c1", RANGE), { wrapper: hookWrapper() });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data?.properties[0].name).toBe("SPEND");
-    expect(result.current.data?.records[0].values.p1).toBe("120.0000");
+    expect(result.current.data?.objective).toBe("Заявки");
+    expect(seen[0].searchParams.get("to")).toBe("2026-08-31");
   });
 });
 
-describe("useCreateCampaign", () => {
-  it("posts the name and returns the created campaign", async () => {
-    let received: unknown;
-    server.use(
-      mock.post("/api/projects/1/campaigns", async ({ request }) => {
-        received = await request.json();
-        return HttpResponse.json(
-          { id: "c9", projectId: "1", name: "Display", position: 1, createdAt: "", updatedAt: "" },
-          { status: 201 },
-        );
-      }),
-    );
+describe("the levels beneath a campaign", () => {
+  it("loads ad sets and ads over the same range", async () => {
+    capturing("/api/campaigns/c1/ad-sets", [
+      { id: "s1", campaignId: "c1", name: "Москва · 28–55", audience: "Гео Москва",
+        status: "ACTIVE", externalId: null, position: 0, performance },
+    ]);
+    const adRequests = capturing("/api/ad-sets/s1/ads", [
+      { id: "a1", adSetId: "s1", name: "Приём сегодня", format: "Текст", headline: null,
+        status: "ACTIVE", externalId: null, position: 0, performance },
+    ]);
 
-    const { result } = renderHook(() => useCreateCampaign("1"), { wrapper: hookWrapper() });
-    const created = await result.current.mutateAsync({ name: "Display" });
+    const sets = renderHook(() => useAdSets("c1", RANGE), { wrapper: hookWrapper() });
+    await waitFor(() => expect(sets.result.current.isSuccess).toBe(true));
+    expect(sets.result.current.data?.[0].audience).toBe("Гео Москва");
 
-    expect(received).toEqual({ name: "Display" });
-    expect(created.id).toBe("c9");
+    const ads = renderHook(() => useAds("s1", RANGE), { wrapper: hookWrapper() });
+    await waitFor(() => expect(ads.result.current.isSuccess).toBe(true));
+    expect(ads.result.current.data?.[0].format).toBe("Текст");
+    expect(adRequests[0].searchParams.get("from")).toBe("2026-08-01");
+  });
+
+  it("stays idle without an ad set id", () => {
+    const { result } = renderHook(() => useAds(undefined, RANGE), { wrapper: hookWrapper() });
+    expect(result.current.fetchStatus).toBe("idle");
   });
 });
 
-describe("useUpdateCampaign", () => {
-  it("patches the name of one campaign", async () => {
-    let method = "";
-    let received: unknown;
-    server.use(
-      mock.patch("/api/campaigns/c1", async ({ request }) => {
-        method = request.method;
-        received = await request.json();
-        return HttpResponse.json(
-          { id: "c1", projectId: "1", name: "Renamed", position: 0, createdAt: "", updatedAt: "" },
-        );
-      }),
-    );
+describe("useCampaignDaily", () => {
+  it("loads the measured days themselves, unsummed", async () => {
+    capturing("/api/campaigns/c1/daily", [
+      { date: "2026-08-01", spend: 400, impressions: 40000, reach: 20000, clicks: 800,
+        conversions: 20, revenue: 1600 },
+      { date: "2026-08-02", spend: 600, impressions: 60000, reach: 20000, clicks: 1200,
+        conversions: 30, revenue: 2400 },
+    ]);
 
-    const { result } = renderHook(() => useUpdateCampaign("1"), { wrapper: hookWrapper() });
-    const updated = await result.current.mutateAsync({ id: "c1", body: { name: "Renamed" } });
+    const { result } = renderHook(() => useCampaignDaily("c1", RANGE), { wrapper: hookWrapper() });
 
-    expect(method).toBe("PATCH");
-    expect(received).toEqual({ name: "Renamed" });
-    expect(updated.name).toBe("Renamed");
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toHaveLength(2);
+    expect(result.current.data?.[1].spend).toBe(600);
   });
 });
 
-describe("useCreateRecord", () => {
-  it("posts a day to one campaign", async () => {
-    let received: unknown;
-    server.use(
-      mock.post("/api/campaigns/c1/records", async ({ request }) => {
-        received = await request.json();
-        return HttpResponse.json(
-          { id: "r1", campaignId: "c1", date: "2026-08-03" },
-          { status: 201 },
-        );
-      }),
-    );
+describe("useProjectDaily", () => {
+  it("loads a project's days, already added up per date", async () => {
+    const seen = capturing("/api/projects/p1/daily", [
+      { date: "2026-08-01", spend: 400, impressions: 40000, reach: 20000, clicks: 800,
+        conversions: 20, revenue: 1600 },
+    ]);
 
-    const { result } = renderHook(() => useCreateRecord("c1"), { wrapper: hookWrapper() });
-    const created = await result.current.mutateAsync({ date: "2026-08-03" });
+    const { result } = renderHook(() => useProjectDaily("p1", RANGE), { wrapper: hookWrapper() });
 
-    expect(received).toEqual({ date: "2026-08-03" });
-    expect(created.date).toBe("2026-08-03");
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.[0].date).toBe("2026-08-01");
+    expect(seen[0].searchParams.get("to")).toBe("2026-08-31");
   });
 });
 
-describe("useDeleteCampaign", () => {
-  it("sends DELETE for one campaign", async () => {
-    let method = "";
-    server.use(
-      mock.delete("/api/campaigns/c1", ({ request }) => {
-        method = request.method;
-        return new HttpResponse(null, { status: 204 });
-      }),
-    );
+describe("summaries", () => {
+  it("loads the agency total", async () => {
+    const seen = capturing("/api/summary", performance);
 
-    const { result } = renderHook(() => useDeleteCampaign("1"), { wrapper: hookWrapper() });
-    await result.current.mutateAsync("c1");
+    const { result } = renderHook(() => useAgencySummary(RANGE), { wrapper: hookWrapper() });
 
-    expect(method).toBe("DELETE");
-  });
-});
-
-describe("useSetValue", () => {
-  const table = {
-    id: "c1",
-    projectId: "1",
-    name: "Search ads",
-    position: 0,
-    properties: [
-      { id: "p1", key: "spend", name: "SPEND", type: "MONEY", position: 0, formula: null },
-    ],
-    records: [{ id: "r1", date: "2026-08-01", values: { p1: "120.0000" } }],
-    totals: { p1: "120.0000" },
-  };
-
-  it("puts the value and writes the answer into the table cache", async () => {
-    let method = "";
-    let received: unknown;
-    server.use(
-      mock.get("/api/campaigns/c1", () => HttpResponse.json(table)),
-      mock.put("/api/records/r1/values/p1", async ({ request }) => {
-        method = request.method;
-        received = await request.json();
-        return HttpResponse.json({
-          record: { id: "r1", date: "2026-08-01", values: { p1: "200.0000" } },
-          totals: { p1: "200.0000" },
-        });
-      }),
-    );
-
-    const wrapper = hookWrapper();
-    const { result } = renderHook(
-      () => ({ table: useCampaignTable("c1"), set: useSetValue("c1") }),
-      { wrapper },
-    );
-    await waitFor(() => expect(result.current.table.isSuccess).toBe(true));
-
-    await result.current.set.mutateAsync({ recordId: "r1", propertyId: "p1", value: "200" });
-
-    expect(method).toBe("PUT");
-    expect(received).toEqual({ value: "200" });
-    await waitFor(() => expect(result.current.table.data?.records[0].values.p1).toBe("200.0000"));
-    expect(result.current.table.data?.totals.p1).toBe("200.0000");
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.spend).toBe(1000);
+    expect(seen[0].searchParams.get("from")).toBe("2026-08-01");
   });
 
-  it("ignores a stale answer that arrives after a newer one", async () => {
-    server.use(
-      mock.get("/api/campaigns/c1", () => HttpResponse.json(table)),
-      mock.put("/api/records/r1/values/p1", async ({ request }) => {
-        const body = (await request.json()) as { value: string };
-        // The first write answers last, so its response must not win.
-        if (body.value === "200") await delay(50);
-        return HttpResponse.json({
-          record: { id: "r1", date: "2026-08-01", values: { p1: `${body.value}.0000` } },
-          totals: { p1: `${body.value}.0000` },
-        });
-      }),
-    );
+  it("loads the agency split by channel", async () => {
+    capturing("/api/summary/channels", [
+      { channel: "META", campaigns: 3, performance },
+    ]);
 
-    const wrapper = hookWrapper();
-    const { result } = renderHook(
-      () => ({ table: useCampaignTable("c1"), set: useSetValue("c1") }),
-      { wrapper },
-    );
-    await waitFor(() => expect(result.current.table.isSuccess).toBe(true));
+    const { result } = renderHook(() => useChannelShares(RANGE), { wrapper: hookWrapper() });
 
-    await act(async () => {
-      // The slow write is issued first, so it carries the lower sequence number, but its
-      // response is delayed and must not win once the fast write's answer applies.
-      const slow = result.current.set.mutateAsync({ recordId: "r1", propertyId: "p1", value: "200" });
-      const fast = result.current.set.mutateAsync({ recordId: "r1", propertyId: "p1", value: "300" });
-      await Promise.all([slow, fast]);
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.[0].campaigns).toBe(3);
+  });
+
+  it("loads one project's total", async () => {
+    capturing("/api/projects/p1/summary", { ...performance, spend: 250 });
+
+    const { result } = renderHook(() => useProjectSummary("p1", RANGE), { wrapper: hookWrapper() });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.spend).toBe(250);
+  });
+
+  it("stays idle without a project id", () => {
+    const { result } = renderHook(() => useProjectSummary(undefined, RANGE), {
+      wrapper: hookWrapper(),
     });
-
-    expect(result.current.table.data?.records[0].values.p1).toBe("300.0000");
-    expect(result.current.table.data?.totals.p1).toBe("300.0000");
-  });
-
-  it("still patches a straggler's own row when a later write lands for a different record", async () => {
-    const twoRowTable = {
-      ...table,
-      records: [
-        { id: "r1", date: "2026-08-01", values: { p1: "120.0000" } },
-        { id: "r2", date: "2026-08-02", values: { p1: "50.0000" } },
-      ],
-    };
-    server.use(
-      mock.get("/api/campaigns/c1", () => HttpResponse.json(twoRowTable)),
-      mock.put("/api/records/:recordId/values/:propertyId", async ({ request, params }) => {
-        const body = (await request.json()) as { value: string };
-        const recordId = params.recordId as string;
-        // r1 is issued first but answers last, so it carries the lower sequence number.
-        if (recordId === "r1") await delay(50);
-        return HttpResponse.json({
-          record: {
-            id: recordId,
-            date: recordId === "r1" ? "2026-08-01" : "2026-08-02",
-            values: { p1: `${body.value}.0000` },
-          },
-          totals: { p1: `${body.value}.0000` },
-        });
-      }),
-    );
-
-    const wrapper = hookWrapper();
-    const { result } = renderHook(
-      () => {
-        const table = useCampaignTable("c1");
-        // React Query only tracks properties a render actually reads; touching `data`
-        // here (unlike the other tests in this file) makes it register the two
-        // *different*-record cache writes below as separate, individually-tracked
-        // updates instead of coalescing them into one.
-        void table.data;
-        return { table, set: useSetValue("c1") };
-      },
-      { wrapper },
-    );
-    await waitFor(() => expect(result.current.table.isSuccess).toBe(true));
-
-    await act(async () => {
-      // r1's write is issued first (lower sequence number) but its answer is the straggler;
-      // it must still patch r1's own row even though it loses the totals race to r2's answer.
-      const first = result.current.set.mutateAsync({ recordId: "r1", propertyId: "p1", value: "200" });
-      const second = result.current.set.mutateAsync({ recordId: "r2", propertyId: "p1", value: "300" });
-      await Promise.all([first, second]);
-    });
-
-    // r1's answer is the straggler and lands after r2's already rendered; wait for that
-    // second render rather than asserting on the snapshot act() leaves behind.
-    await waitFor(() => expect(result.current.table.data?.records[0].values.p1).toBe("200.0000"));
-    expect(result.current.table.data?.records[1].values.p1).toBe("300.0000");
-    expect(result.current.table.data?.totals.p1).toBe("300.0000");
-  });
-});
-
-describe("useUpdateRecord", () => {
-  it("patches the date and refetches the table, because the rows reorder", async () => {
-    let method = "";
-    let received: unknown;
-    let gets = 0;
-    const table = {
-      id: "c1",
-      projectId: "1",
-      name: "Search ads",
-      position: 0,
-      properties: [
-        { id: "p1", key: "spend", name: "SPEND", type: "MONEY", position: 0, formula: null },
-      ],
-      records: [{ id: "r1", date: "2026-08-01", values: { p1: "120.0000" } }],
-      totals: { p1: "120.0000" },
-    };
-    server.use(
-      mock.get("/api/campaigns/c1", () => {
-        gets += 1;
-        return HttpResponse.json(table);
-      }),
-      mock.patch("/api/records/r1", async ({ request }) => {
-        method = request.method;
-        received = await request.json();
-        return HttpResponse.json({ id: "r1", campaignId: "c1", date: "2026-08-05" });
-      }),
-    );
-
-    const wrapper = hookWrapper();
-    const { result } = renderHook(
-      () => ({ table: useCampaignTable("c1"), update: useUpdateRecord("c1") }),
-      { wrapper },
-    );
-    await waitFor(() => expect(result.current.table.isSuccess).toBe(true));
-
-    await result.current.update.mutateAsync({ id: "r1", body: { date: "2026-08-05" } });
-
-    expect(method).toBe("PATCH");
-    expect(received).toEqual({ date: "2026-08-05" });
-    await waitFor(() => expect(gets).toBe(2));
-  });
-});
-
-describe("useDeleteRecord", () => {
-  it("sends DELETE for one day", async () => {
-    let method = "";
-    server.use(
-      mock.delete("/api/records/r1", ({ request }) => {
-        method = request.method;
-        return new HttpResponse(null, { status: 204 });
-      }),
-    );
-
-    const { result } = renderHook(() => useDeleteRecord("c1"), { wrapper: hookWrapper() });
-    await result.current.mutateAsync("r1");
-
-    expect(method).toBe("DELETE");
+    expect(result.current.fetchStatus).toBe("idle");
   });
 });

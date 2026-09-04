@@ -30,9 +30,15 @@ describe("Tabs", () => {
     render(<Tabs items={items} activeId="a" onSelect={() => {}} onNew={onNew} />);
 
     expect(screen.getAllByRole("tab")).toHaveLength(2);
-    const add = screen.getByRole("button", { name: /Новый лист/ });
+    const add = screen.getByRole("button", { name: /Добавить/ });
     await userEvent.click(add);
     expect(onNew).toHaveBeenCalledOnce();
+  });
+
+  it("lets the caller name what the add control adds", () => {
+    render(<Tabs items={items} activeId="a" onSelect={() => {}} onNew={() => {}} addLabel="Новая группа" />);
+
+    expect(screen.getByRole("button", { name: /Новая группа/ })).toBeInTheDocument();
   });
 
   it("renders every item action on the active tab, in order, each reporting its id", async () => {
@@ -77,15 +83,12 @@ describe("Tabs", () => {
   it("renders no item action when none is given", () => {
     render(<Tabs items={items} activeId="a" onSelect={() => {}} onNew={() => {}} />);
 
-    // The add button belongs to the component, not to a tab: look inside the list.
     expect(within(screen.getByRole("tablist")).queryByRole("button")).not.toBeInTheDocument();
   });
 });
 
 describe("Tabs memoisation", () => {
   it("is memoised, so a parent re-render with the same data costs nothing", () => {
-    // A regression guard: dropping memo() here brings back a re-render of every
-    // tab on every route change, including one that lands where you already are.
     expect((Tabs as unknown as { $$typeof: symbol }).$$typeof)
       .toBe(Symbol.for("react.memo"));
   });

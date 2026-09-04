@@ -38,7 +38,6 @@ describe("ThemeToggle", () => {
   it("starts from the operating system's preference", () => {
     vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }));
     render(<ThemeToggle />);
-    // Already dark, so the button offers the other direction.
     expect(screen.getByRole("button", { name: "Включить светлую тему" })).toBeInTheDocument();
   });
 

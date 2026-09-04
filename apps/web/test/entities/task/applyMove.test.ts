@@ -2,12 +2,11 @@ import { applyMove, placementFor, resolveDrop, type Task } from "@/entities/task
 
 const task = (id: string, column: Task["column"], position: number): Task => ({
   id, projectId: "p1", orgId: "org1", title: id, description: null,
-  column, priority: "LOW", assigneeId: null, createdById: null, position, imageIds: [],
+  column, priority: "LOW", assigneeId: null, createdById: null, campaignId: null, visibleToClient: false,
+  position, imageIds: [],
   createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
 });
 
-/** The arithmetic the board applies before the server answers. It has to match
- * what the server does, or the card jumps when the response lands. */
 describe("applyMove", () => {
   it("moves a card into another column and renumbers both densely", () => {
     const board = [
@@ -47,9 +46,6 @@ describe("applyMove", () => {
   });
 });
 
-/** Where a drag would land, given whatever it is hovering over. The board uses
- * it twice: to preview the gap while dragging, and to commit on drop — so the
- * placeholder and the saved position cannot disagree. */
 describe("placementFor", () => {
   const board = [
     task("a", "IDEA", 0), task("b", "IDEA", 1), task("c", "IDEA", 2),
@@ -69,13 +65,10 @@ describe("placementFor", () => {
   });
 
   it("takes the slot of the card it is hovering, within its own column", () => {
-    // "c" over "a": the active card is excluded first, so slot 0 is "a"'s.
     expect(placementFor(board, "c", "a")).toEqual({ column: "IDEA", position: 0 });
   });
 
   it("lands below the card it was dragged down onto", () => {
-    // Dragging "a" down onto "c" should leave [b, c, a] — the index is read
-    // from the column as it stands, which is what the server then splices to.
     expect(placementFor(board, "a", "c")).toEqual({ column: "IDEA", position: 2 });
     const after = applyMove(board, "a", placementFor(board, "a", "c")!)
       .filter((t) => t.column === "IDEA")
@@ -91,8 +84,6 @@ describe("placementFor", () => {
   });
 
   it("is never a no-op for a real move within a column", () => {
-    // The bug this replaces: counting slots without the dragged card made
-    // "drag down onto the next card" resolve to the position it already had.
     const placement = placementFor(board, "a", "b")!;
     expect(placement).not.toEqual({ column: "IDEA", position: 0 });
   });
@@ -109,9 +100,6 @@ describe("placementFor", () => {
   });
 });
 
-/** What a drop should save. The board prefers what the preview is showing, but
- * must still work when the preview never moved — otherwise a drag that the
- * pointer tracked correctly is silently discarded. */
 describe("resolveDrop", () => {
   const server = [
     task("a", "IDEA", 0), task("b", "IDEA", 1),
@@ -124,7 +112,6 @@ describe("resolveDrop", () => {
   });
 
   it("falls back to the drop target when the preview never moved the card", () => {
-    // The preview is untouched — the case where mid-drag measurement failed.
     expect(resolveDrop(server, server, "a", "DONE")).toEqual({ column: "DONE", position: 1 });
   });
 
@@ -133,9 +120,7 @@ describe("resolveDrop", () => {
   });
 
   it("answers nothing when the card would not actually move", () => {
-    // Dropped back onto itself.
     expect(resolveDrop(server, server, "a", "a")).toBeNull();
-    // Already last in its column, dropped on that column's empty space.
     expect(resolveDrop(server, null, "b", "IDEA")).toBeNull();
   });
 
@@ -149,5 +134,42 @@ describe("resolveDrop", () => {
 
   it("answers nothing for a card it does not know", () => {
     expect(resolveDrop(server, null, "missing", "DONE")).toBeNull();
+  });
+});
+
+describe("what applyMove leaves alone", () => {
+  const board = [
+    task("a", "IDEA", 0),
+    task("b", "IDEA", 1),
+    task("c", "DONE", 0),
+  ];
+
+  it("answers the very array it was given when the move changes nothing", () => {
+    expect(applyMove(board, "a", { column: "IDEA", position: 0 })).toBe(board);
+  });
+
+  it("answers the same array when a position past the end clamps back to where it is", () => {
+    expect(applyMove(board, "c", { column: "DONE", position: 9 })).toBe(board);
+  });
+
+  it("keeps every card that did not move as the same object", () => {
+    const moved = applyMove(board, "a", { column: "DONE", position: 0 });
+
+    expect(moved).not.toBe(board);
+    expect(moved.find((t) => t.id === "a")).toMatchObject({ column: "DONE", position: 0 });
+    expect(moved.find((t) => t.id === "b")).toMatchObject({ column: "IDEA", position: 0 });
+    expect(moved.find((t) => t.id === "c")).toMatchObject({ column: "DONE", position: 1 });
+  });
+
+  it("keeps a card in an untouched column as the same object", () => {
+    const wide = [...board, task("d", "IN_REVIEW", 0)];
+    const moved = applyMove(wide, "a", { column: "IDEA", position: 1 });
+
+    expect(moved).not.toBe(wide);
+    expect(moved.find((t) => t.id === "d")).toBe(wide.find((t) => t.id === "d"));
+  });
+
+  it("answers the array it was given for a card it does not know", () => {
+    expect(applyMove(board, "missing", { column: "DONE", position: 0 })).toBe(board);
   });
 });

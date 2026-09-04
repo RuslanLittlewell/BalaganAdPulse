@@ -86,7 +86,7 @@ describe("Prisma project repository", () => {
     const { unitOfWork, projects } = repository();
     const admin = await signInAs("Admin", { role: "ADMIN" });
     const { projectId } = await seedProject(admin.user.id, "Acme");
-    await prisma.campaign.create({ data: { projectId, name: "Main", position: 0 } });
+    await prisma.campaign.create({ data: { projectId, name: "Поиск", channel: "YANDEX", position: 0 } });
 
     await unitOfWork.run((context) => projects.delete(context, projectId));
     expect(await prisma.project.findUnique({ where: { id: projectId } })).toBeNull();
@@ -106,5 +106,45 @@ describe("Prisma project repository", () => {
       throw new Error("the rest of the operation failed");
     })).rejects.toThrow("the rest of the operation failed");
     expect(await prisma.project.count()).toBe(before);
+  });
+});
+
+describe("the currency a budget is stated in", () => {
+  it("stores the currency it was given", async () => {
+    const { unitOfWork, projects } = repository();
+    const { clientId } = await seedProject((await signInAs("Admin")).user.id, "Acme");
+
+    const created = await unitOfWork.run((context) => projects.create(context, {
+      id: "44444444-4444-4444-8444-444444444444", clientId, name: "Стоматология",
+      monthlyBudget: 5000, budgetCurrency: "USD", position: 1,
+    }));
+
+    expect(created.budgetCurrency).toBe("USD");
+  });
+
+  it("defaults to the agency's own currency when none is named", async () => {
+    const { unitOfWork, projects } = repository();
+    const { clientId } = await seedProject((await signInAs("Admin")).user.id, "Acme");
+
+    const created = await unitOfWork.run((context) => projects.create(context, {
+      id: "55555555-5555-4555-8555-555555555555", clientId, name: "Без бюджета", position: 1,
+    }));
+
+    expect(created.monthlyBudget).toBeNull();
+    expect(created.budgetCurrency).toBe("BYN");
+  });
+
+  it("changes the currency without touching the amount", async () => {
+    const { unitOfWork, projects } = repository();
+    const { clientId } = await seedProject((await signInAs("Admin")).user.id, "Acme");
+    const created = await unitOfWork.run((context) => projects.create(context, {
+      id: "66666666-6666-4666-8666-666666666666", clientId, name: "П",
+      monthlyBudget: 300, position: 1,
+    }));
+
+    const updated = await unitOfWork.run((context) =>
+      projects.update(context, created.id, { budgetCurrency: "EUR" }));
+
+    expect(updated).toMatchObject({ monthlyBudget: "300", budgetCurrency: "EUR" });
   });
 });

@@ -1,13 +1,16 @@
 import { AppError } from "../../../shared/domain/index.js";
 import type { TransactionContext } from "../../../shared/application/index.js";
 import { principalOf } from "../domain/identity-user.js";
-import type { IdentityDependencies } from "./ports.js";
+import type { ClientRegistration, IdentityDependencies } from "./ports.js";
 
 export interface RegisterIdentityInput {
   readonly name: string;
   readonly email: string;
   readonly password: string;
+  readonly phone?: string | null;
+  readonly telegram?: string | null;
   readonly inviteCode: string;
+  readonly registration?: ClientRegistration;
 }
 
 export interface LoginIdentityInput {
@@ -17,6 +20,8 @@ export interface LoginIdentityInput {
 
 export interface UpdateIdentityProfileInput {
   readonly name: string;
+  readonly phone?: string | null;
+  readonly telegram?: string | null;
   readonly currentPassword?: string;
   readonly newPassword?: string;
 }
@@ -36,10 +41,6 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
   };
 
   return {
-    /** Turns an access token back into the principal it stands for. Every
-     * rejection answers the same way: telling a caller whether a token was
-     * expired, forged or simply unknown tells them something about tokens they
-     * do not hold. */
     authenticate: async (accessToken: string) => {
       try {
         return await dependencies.tokens.verifyAccess(accessToken);
@@ -55,8 +56,13 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
           name: input.name,
           email: input.email,
           passwordHash,
+          phone: input.phone ?? null,
+          telegram: input.telegram ?? null,
         });
-        await dependencies.invitations.redeem(context, input.inviteCode, input.email, user.id, dependencies.clock.now());
+        await dependencies.invitations.redeem(
+          context, input.inviteCode, input.email, user.id, dependencies.clock.now(),
+          input.registration,
+        );
         return issueTokenPair(context, user);
       });
     },
@@ -94,6 +100,8 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
         email: user.email,
         image,
         avatarPath: user.avatarPath,
+        phone: user.phone,
+        telegram: user.telegram,
       };
     },
 
@@ -108,7 +116,12 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
         passwordHash = await dependencies.passwords.hash(input.newPassword);
       }
       return dependencies.unitOfWork.run(async (context) => {
-        const updated = await dependencies.users.update(context, userId, { name: input.name, ...(passwordHash ? { passwordHash } : {}) });
+        const updated = await dependencies.users.update(context, userId, {
+          name: input.name,
+          ...(input.phone === undefined ? {} : { phone: input.phone }),
+          ...(input.telegram === undefined ? {} : { telegram: input.telegram }),
+          ...(passwordHash ? { passwordHash } : {}),
+        });
         return { accessToken: await dependencies.tokens.issueAccess(principalOf(updated)) };
       });
     },

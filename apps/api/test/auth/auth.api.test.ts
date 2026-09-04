@@ -3,7 +3,7 @@ import request from "supertest";
 import { createApp } from "../../src/composition/app.js";
 import { prisma } from "../../src/shared/infrastructure/prisma.js";
 import { resetDb } from "../helpers/db.js";
-import { createInvite } from "../helpers/auth.js";
+import { createInvite, signInAs } from "../helpers/auth.js";
 import { resetIdentityRateLimits } from "../../src/modules/identity/presentation/http/identity-http.js";
 import { TokenAdapter } from "../../src/modules/identity/infrastructure/token-adapter.js";
 
@@ -13,8 +13,6 @@ const body = {
   inviteCode: "invite-first",
 };
 
-// Two invitations, because an invitation is single use: the tests that register
-// a second time need a second one to reach the behaviour they are about.
 beforeEach(async () => {
   await resetDb();
   resetIdentityRateLimits();
@@ -41,6 +39,21 @@ describe("Auth API", () => {
     expect(res.body.error.message).toBe("Invalid invite code");
   });
 
+  it("POST /api/auth/register with no code at all -> 400", async () => {
+    const { inviteCode: _omitted, ...withoutCode } = body;
+    const res = await request(app).post("/api/auth/register").send(withoutCode);
+
+    expect(res.status).toBe(400);
+    expect(await prisma.user.count({ where: { email: body.email } })).toBe(0);
+  });
+
+  it("POST /api/auth/register with an empty code -> 400", async () => {
+    const res = await request(app).post("/api/auth/register")
+      .send({ ...body, inviteCode: "" });
+
+    expect(res.status).toBe(400);
+  });
+
   it("POST /api/auth/register with a short password -> 400", async () => {
     const res = await request(app).post("/api/auth/register")
       .send({ ...body, password: "short" });
@@ -49,8 +62,6 @@ describe("Auth API", () => {
 
   it("POST /api/auth/register twice -> 409", async () => {
     await request(app).post("/api/auth/register").send(body);
-    // A fresh invitation, so this is the duplicate address being refused rather
-    // than the spent code.
     const res = await request(app).post("/api/auth/register")
       .send({ ...body, inviteCode: "invite-second" });
     expect(res.status).toBe(409);
@@ -136,5 +147,63 @@ describe("Auth API", () => {
     const cookies = logout.headers["set-cookie"] as unknown as string[];
     expect(cookies.every((cookie) => cookie.includes("Max-Age=0"))).toBe(true);
     await browser.get("/api/auth/me").expect(401);
+  });
+});
+
+describe("a person's own contact details", () => {
+  it("stores a phone and a telegram given at registration", async () => {
+    const res = await request(app).post("/api/auth/register")
+      .send({ ...body, phone: "+375291112233", telegram: "@buyer" });
+
+    expect(res.status).toBe(201);
+    const user = await prisma.user.findFirstOrThrow({ where: { email: body.email } });
+    expect(user).toMatchObject({ phone: "+375291112233", telegram: "@buyer" });
+  });
+
+  it("creates the account without them", async () => {
+    const res = await request(app).post("/api/auth/register").send(body);
+
+    expect(res.status).toBe(201);
+    const user = await prisma.user.findFirstOrThrow({ where: { email: body.email } });
+    expect(user).toMatchObject({ phone: null, telegram: null });
+  });
+
+  it("changes them through the profile, and reads them back", async () => {
+    const registered = await request(app).post("/api/auth/register").send(body);
+    const auth = { Authorization: `Bearer ${registered.body.accessToken}` };
+
+    const updated = await request(app).patch("/api/user/profile").set(auth)
+      .send({ name: "Buyer", phone: "+375299998877", telegram: "@newhandle" });
+    expect(updated.status).toBe(200);
+
+    const profile = await request(app).get("/api/user/profile").set(auth);
+    expect(profile.body).toMatchObject({ phone: "+375299998877", telegram: "@newhandle" });
+  });
+
+  it("leaves them alone when the update does not mention them", async () => {
+    const registered = await request(app).post("/api/auth/register")
+      .send({ ...body, phone: "+375291112233" });
+    const auth = { Authorization: `Bearer ${registered.body.accessToken}` };
+
+    await request(app).patch("/api/user/profile").set(auth).send({ name: "Другое имя" });
+
+    const profile = await request(app).get("/api/user/profile").set(auth);
+    expect(profile.body.phone).toBe("+375291112233");
+  });
+
+  it("is not something an admin can change on somebody else", async () => {
+    const registered = await request(app).post("/api/auth/register")
+      .send({ ...body, phone: "+375291112233" });
+    const user = await prisma.user.findFirstOrThrow({ where: { email: body.email } });
+    const membership = await prisma.membership.findFirstOrThrow({ where: { userId: user.id } });
+    expect(registered.status).toBe(201);
+
+    const admin = await signInAs("Админ", { role: "ADMIN" });
+    const refused = await request(app).patch(`/api/members/${membership.id}`)
+      .set(admin.auth).send({ phone: "+375290000000" });
+
+    expect(refused.status).toBe(400);
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).phone)
+      .toBe("+375291112233");
   });
 });

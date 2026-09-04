@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQueries } from "@tanstack/react-query";
 import {
   DndContext,
   DragOverlay,
@@ -25,6 +26,7 @@ import {
 } from "@/entities/task/index.js";
 import { useMembers } from "@/entities/membership/index.js";
 import { useProjects } from "@/entities/project/index.js";
+import { campaignsApi } from "@/entities/campaign/index.js";
 import { useCan } from "@/features/permissions/index.js";
 import { t } from "@/shared/config/index.js";
 import { EmptyState, Loader } from "@/shared/ui/index.js";
@@ -35,15 +37,11 @@ import { TaskColumnPanel } from "./TaskColumn.js";
 export interface TaskBoardProps {
   projectId?: string;
   onOpen?: (task: Task) => void;
-  /** Opens the create dialog for one column. Supplied by the page, which owns
-   * the dialog; the button appears only when the member may create. */
   onCreate?: (column: TaskColumn) => void;
 }
 
 export function TaskBoard({ projectId, onOpen, onCreate }: TaskBoardProps) {
-  const { data: tasks, isLoading, isError } = useTasks(projectId);
-  // Other people are dragging the same cards. Without this the board only ever
-  // shows this member's own changes until the page is reloaded.
+  const { data: tasks, isLoading, isError } = useTasks({ projectId });
   useTaskEvents();
   const move = useMoveTask();
   const draggable = useCan("update", "task");
@@ -80,6 +78,24 @@ export function TaskBoard({ projectId, onOpen, onCreate }: TaskBoardProps) {
     [members],
   );
 
+  const projectsWithCampaigns = useMemo(
+    () => [...new Set(
+      (tasks ?? []).filter((task) => task.campaignId).map((task) => task.projectId),
+    )].sort(),
+    [tasks],
+  );
+  const campaignList = useQueries({
+    queries: projectsWithCampaigns.map((id) => ({
+      queryKey: ["projects", id, "campaigns", "names"],
+      queryFn: () => campaignsApi.namesByProject(id),
+    })),
+    combine: (results) => results.flatMap(({ data }) => data ?? []),
+  });
+  const campaignNameById = useMemo(
+    () => new Map(campaignList.map((campaign) => [campaign.id, campaign.name] as const)),
+    [campaignList],
+  );
+
   const dragging = board.find((task) => task.id === draggingId) ?? null;
 
   if (isLoading) return <Loader />;
@@ -107,9 +123,6 @@ export function TaskBoard({ projectId, onOpen, onCreate }: TaskBoardProps) {
     setDraggingId(null);
     if (!placement) { setPreview(null); return; }
 
-    // Mutate first: its optimistic write lands synchronously, so clearing the
-    // preview afterwards hands over to a cache that already shows the card in
-    // its new column. The other order renders the old layout for a frame.
     move.mutate(
       { id: activeId, body: placement },
       { onError: () => setMoveError(t("tasks.moveFailed")) },
@@ -145,6 +158,7 @@ export function TaskBoard({ projectId, onOpen, onCreate }: TaskBoardProps) {
             draggable={draggable}
             draggingId={draggingId}
             projects={projectById}
+            campaigns={campaignNameById}
             members={memberById}
             onOpen={onOpen}
             onCreate={creatable && onCreate ? onCreate : undefined}
@@ -157,6 +171,7 @@ export function TaskBoard({ projectId, onOpen, onCreate }: TaskBoardProps) {
             task={dragging}
             draggable={false}
             project={projectById.get(dragging.projectId)}
+            campaignName={dragging.campaignId ? campaignNameById.get(dragging.campaignId) : undefined}
             assignee={dragging.assigneeId ? memberById.get(dragging.assigneeId) : undefined}
           />
         ) : null}

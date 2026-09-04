@@ -2,14 +2,6 @@ import type { ReactNode } from "react";
 import { PencilIcon } from "lucide-react";
 import { Button } from "../ui/button.js";
 
-/**
- * The row owns its background; the controls inside it must not paint their own,
- * or hovering the row shows a lighter rectangle inside a darker one.
- *
- * Both themes have to be named. `twMerge` drops the ghost variant's
- * `hover:bg-accent` when this overrides it, but `dark:hover:bg-accent/50` is a
- * different variant chain and survives — which is exactly the seam that showed.
- */
 const NO_OWN_HOVER = "hover:bg-transparent dark:hover:bg-transparent";
 
 export interface ListItemProps {
@@ -18,11 +10,7 @@ export interface ListItemProps {
   onClick?: () => void;
   onEdit?: () => void;
   editLabel?: string;
-  /** A CSS colour drawn as a stripe down the leading edge of the row, and as
-   *  a hairline under it. Rows without one keep the same borders in transparent,
-   *  so every row is the same height either way. */
   marker?: string;
-  /** What the stripe stands for, for anyone who cannot see it. */
   markerLabel?: string;
   children: ReactNode;
 }

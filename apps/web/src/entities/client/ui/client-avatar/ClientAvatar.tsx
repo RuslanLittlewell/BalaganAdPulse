@@ -8,8 +8,6 @@ export interface ClientAvatarProps {
   size?: keyof typeof SIZES;
 }
 
-/** The client's picture when it has one, its initial otherwise. The picture
- * travels inside the client, so there is nothing to fetch here. */
 export function ClientAvatar({ client, size = "md" }: ClientAvatarProps) {
   if (!client.image) return <Avatar name={client.name} size={size} />;
 

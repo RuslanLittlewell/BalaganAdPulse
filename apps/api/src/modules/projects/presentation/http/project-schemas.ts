@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CURRENCIES } from "../../domain/project.js";
 import { PROJECT_PRIORITIES } from "../../domain/project.js";
 
 export const createProjectSchema = z.object({
@@ -6,8 +7,8 @@ export const createProjectSchema = z.object({
   name: z.string().min(1, "name is required"),
   niche: z.string().nullable().optional(),
   monthlyBudget: z.number().min(0, "monthlyBudget must be >= 0").nullable().optional(),
+  budgetCurrency: z.enum(CURRENCIES).optional(),
   priority: z.enum(PROJECT_PRIORITIES).optional(),
 });
 
-/** The client a project belongs to can be changed, but never unset. */
 export const updateProjectSchema = createProjectSchema.partial();

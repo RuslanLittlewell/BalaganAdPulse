@@ -10,13 +10,6 @@ export interface TaskImagePreviewProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/**
- * One attachment, full size.
- *
- * The bytes are fetched only while the preview is open, and the object URL is
- * revoked when it closes. A URL kept beyond that is valid for exactly one page
- * load, which is what used to leave a reopened task showing broken pictures.
- */
 export function TaskImagePreview({ imageId, label, open, onOpenChange }: TaskImagePreviewProps) {
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);

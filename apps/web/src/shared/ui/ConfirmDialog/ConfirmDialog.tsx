@@ -14,15 +14,12 @@ export interface ConfirmDialogProps {
   open: boolean;
   title: string;
   description: string;
-  /** Defaults to the destructive wording, which is what every caller confirms today. */
   confirmLabel?: string;
   pending?: boolean;
   onConfirm: () => void;
   onClose: () => void;
 }
 
-/** The shape every "are you sure?" in the app shares, on shadcn's AlertDialog —
- * which, unlike a plain dialog, traps focus on the answer and has no dismiss X. */
 export function ConfirmDialog({
   open,
   title,

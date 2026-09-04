@@ -97,7 +97,6 @@ describe("createRateLimit", () => {
     call(limiter, "10.0.0.3");
     call(limiter, "10.0.0.4");
     expect(limiter.size()).toBe(3);
-    // The newcomer was admitted, and the oldest window made room for it.
     expect(call(limiter, "10.0.0.4").next).toHaveBeenCalled();
     limiter.stop();
   });

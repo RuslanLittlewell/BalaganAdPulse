@@ -30,9 +30,6 @@ describe("loadActor", () => {
     expect(res.status).toBe(200);
   });
 
-  /** The point of loading the membership per request rather than sealing the
-   * role into the token: the token below is issued while the member is active
-   * and is never reissued, yet the very next call after the suspension fails. */
   it("refuses the very next request after a suspension, on a token issued before it", async () => {
     const { auth, membership } = await signInAs();
     expect((await request(app).get("/api/clients").set(auth)).status).toBe(200);
@@ -51,8 +48,6 @@ describe("loadActor", () => {
       where: { id: membership!.id },
       data: { role: "GUEST" },
     });
-    // A guest may still read; what matters here is that the request is
-    // evaluated against the stored role rather than the one in the token.
     const res = await request(app).get("/api/clients").set(auth);
     expect(res.status).toBe(200);
   });

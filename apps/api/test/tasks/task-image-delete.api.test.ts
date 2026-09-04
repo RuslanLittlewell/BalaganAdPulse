@@ -54,8 +54,6 @@ describe("DELETE /api/task-images/:id", () => {
     const res = await request(app).delete(`/api/task-images/${imageId}`).set(auth);
 
     expect(res.status).toBe(204);
-    // A description left pointing at a deleted object shows a link that can
-    // never open, so the node has to go with the row.
     const task = await request(app).get(`/api/tasks/${created.body.id}`).set(auth);
     expect(task.body.imageIds).toEqual([]);
     expect(JSON.stringify(task.body.description)).not.toContain(imageId);

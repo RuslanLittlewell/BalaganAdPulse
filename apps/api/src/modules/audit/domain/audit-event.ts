@@ -10,13 +10,6 @@ export type JsonValue =
   | readonly JsonValue[]
   | { readonly [key: string]: JsonValue };
 
-/**
- * An event as it is stored: the actor denormalized into the row.
- *
- * The name, email and role are copied at write time rather than resolved when
- * the trail is read, so removing a member neither erases nor rewrites their
- * history — and a later rename does not silently change what an old event says.
- */
 export interface StoredAuditEvent {
   readonly orgId: string;
   readonly actorId: string | null;
@@ -36,14 +29,6 @@ export interface StoredAuditEvent {
   readonly userAgent: string | null;
 }
 
-/**
- * How much of the trail a member may read. An admin reaches their whole
- * organization; everyone else reaches the history of what their grants name.
- *
- * A project-scoped grant still exposes the client-level history of that client,
- * exactly as it makes the client itself visible: the client record is the
- * parent of the project they were given.
- */
 export type AuditScope =
   | { readonly orgId: string; readonly everything: true }
   | {

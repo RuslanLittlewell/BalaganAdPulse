@@ -13,12 +13,18 @@ export interface UserRepository {
   findById(id: string): Promise<IdentityUser | null>;
   create(
     context: TransactionContext,
-    input: { name: string; email: string; passwordHash: string },
+    input: {
+      name: string; email: string; passwordHash: string;
+      phone?: string | null; telegram?: string | null;
+    },
   ): Promise<IdentityUser>;
   update(
     context: TransactionContext,
     id: string,
-    input: { name: string; passwordHash?: string },
+    input: {
+      name: string; passwordHash?: string;
+      phone?: string | null; telegram?: string | null;
+    },
   ): Promise<IdentityUser>;
   setAvatar(
     context: TransactionContext,
@@ -27,6 +33,11 @@ export interface UserRepository {
   ): Promise<void>;
 }
 
+export type ClientRegistration = {
+  readonly client: Record<string, unknown> & { readonly name: string };
+  readonly project: Record<string, unknown> & { readonly name: string };
+};
+
 export interface InvitationRedemption {
   redeem(
     context: TransactionContext,
@@ -34,6 +45,7 @@ export interface InvitationRedemption {
     email: string,
     userId: string,
     now: Date,
+    details?: ClientRegistration,
   ): Promise<void>;
 }
 
@@ -45,8 +57,6 @@ export interface PasswordPort {
 
 export interface TokenPort {
   issueAccess(principal: SessionPrincipal): Promise<string>;
-  /** Throws for an expired, tampered or malformed token; the use case turns
-   * every rejection into one indistinguishable refusal. */
   verifyAccess(token: string): Promise<SessionPrincipal>;
   generateRefresh(): string;
   hashRefresh(token: string): string;

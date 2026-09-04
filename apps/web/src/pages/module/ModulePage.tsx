@@ -5,9 +5,6 @@ export interface ModulePageProps {
   title: string;
 }
 
-/** A module that exists in the navigation but not yet in the product. Named
- * plainly rather than dressed up: an empty screen that pretends to work is
- * worse than one that says what it is. */
 export function ModulePage({ title }: ModulePageProps) {
   return (
     <section className="grid h-full place-items-center">

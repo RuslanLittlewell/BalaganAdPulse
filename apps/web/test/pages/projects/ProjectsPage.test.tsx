@@ -36,8 +36,25 @@ describe("ProjectsPage", () => {
 
   it("asks for a choice before one is made", async () => {
     setup();
-    expect(await screen.findByText("Создайте первый проект и привяжите к нему клиента"))
-      .toBeInTheDocument();
+    expect(await screen.findByText("Проект не выбран")).toBeInTheDocument();
+    expect(screen.getByText("Выберите из списка или создайте новый")).toBeInTheDocument();
+  });
+
+  it("centres the prompt in the pane rather than parking it at the top", async () => {
+    setup();
+    await screen.findByText("Проект не выбран");
+    const centred = screen.getByTestId("projects-unselected");
+
+    expect(centred.className).toContain("h-full");
+    expect(centred.className).toContain("items-center");
+    expect(centred.className).toContain("justify-center");
+  });
+
+  it("leaves a selected project filling the pane", async () => {
+    setup("/projects/p1");
+    await screen.findByRole("heading", { name: "Летний запуск" });
+
+    expect(screen.queryByTestId("projects-unselected")).not.toBeInTheDocument();
   });
 
   it("opens a project from the list", async () => {

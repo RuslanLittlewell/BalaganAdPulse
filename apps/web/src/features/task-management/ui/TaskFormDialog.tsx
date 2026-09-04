@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { ApiError } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
@@ -17,9 +17,10 @@ import {
   SelectValue,
   TextField,
 } from "@/shared/ui/index.js";
-import { Can } from "@/features/permissions/index.js";
+import { Can, useCan } from "@/features/permissions/index.js";
 import { ProjectAvatar, useProjects } from "@/entities/project/index.js";
 import { MemberAvatar, useMembers } from "@/entities/membership/index.js";
+import { channelLabel, useCampaignReferences } from "@/entities/campaign/index.js";
 import {
   TASK_PRIORITIES,
   collectImageIds,
@@ -34,12 +35,8 @@ import { TaskDescriptionEditor, type TaskDescriptionEditorHandle } from "./TaskD
 
 export interface TaskFormDialogProps {
   task?: Task;
-  /** The column the task should land in, when the dialog was opened from one.
-   * Left out when opened from the page header, so the API applies its own
-   * default rather than being handed a column nobody chose. */
   column?: TaskColumn;
   onClose: () => void;
-  /** Only offered when editing; the page owns the confirmation. */
   onDelete?: (task: Task) => void;
 }
 
@@ -48,11 +45,13 @@ interface FormValues {
   title: string;
   priority: Task["priority"];
   assigneeId: string;
+  campaignId: string;
+  visibleToClient: boolean;
 }
 
-/** The select's "nobody" option. An empty string is what a Radix select uses
- * for no choice, and it maps to the API's null. */
 const UNASSIGNED = "";
+
+const WHOLE_PROJECT = "__whole_project__";
 
 export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDialogProps) {
   const { data: projects } = useProjects();
@@ -61,16 +60,6 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
   const update = useUpdateTask();
   const [description, setDescription] = useState<unknown | null>(task?.description ?? null);
 
-  /**
-   * What the attachments block lists.
-   *
-   * Taken from the description as it stands, not from the saved task: an upload
-   * is not attached to a task until the task is saved, so listing only
-   * `task.imageIds` meant a file pasted into the description turned up in the
-   * block for the first time after closing and reopening. The saved ids are
-   * kept alongside, so a file already claimed stays listed while it is being
-   * edited.
-   */
   const attachmentIds = useMemo(
     () => [...new Set([...(task?.imageIds ?? []), ...collectImageIds(description)])],
     [task?.imageIds, description],
@@ -78,14 +67,29 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
   const [failure, setFailure] = useState<string | null>(null);
   const editor = useRef<TaskDescriptionEditorHandle>(null);
 
-  const { control, handleSubmit, register, formState: { errors } } = useForm<FormValues>({
-    defaultValues: {
-      projectId: task?.projectId ?? "",
-      title: task?.title ?? "",
-      priority: task?.priority ?? "MEDIUM",
-      assigneeId: task?.assigneeId ?? UNASSIGNED,
-    },
-  });
+  const { control, handleSubmit, register, setValue, watch, formState: { errors } } =
+    useForm<FormValues>({
+      defaultValues: {
+        projectId: task?.projectId ?? "",
+        title: task?.title ?? "",
+        priority: task?.priority ?? "MEDIUM",
+        assigneeId: task?.assigneeId ?? UNASSIGNED,
+        campaignId: task?.campaignId ?? WHOLE_PROJECT,
+        visibleToClient: task?.visibleToClient ?? false,
+      },
+    });
+
+  const mayShareWithClient = useCan("update", "member");
+
+  const projectId = watch("projectId");
+  const { data: campaigns } = useCampaignReferences(projectId || undefined);
+
+  const chosenProject = useRef(projectId);
+  useEffect(() => {
+    if (chosenProject.current === projectId) return;
+    chosenProject.current = projectId;
+    setValue("campaignId", WHOLE_PROJECT);
+  }, [projectId, setValue]);
 
   const onSubmit = handleSubmit(async (values) => {
     const body: TaskInput = {
@@ -93,9 +97,9 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
       title: values.title,
       priority: values.priority,
       assigneeId: values.assigneeId === UNASSIGNED ? null : values.assigneeId,
+      campaignId: values.campaignId === WHOLE_PROJECT ? null : values.campaignId,
+      ...(mayShareWithClient ? { visibleToClient: values.visibleToClient } : {}),
       description,
-      // Only when the dialog was opened from a column. An edit never carries
-      // one: moving a card is the board's job, not the form's.
       ...(column && !task ? { column } : {}),
     };
     setFailure(null);
@@ -110,11 +114,6 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      {/* The width is set, not capped: the dialog primitive carries its own
-          `w-[min(440px,…)]`, and a `max-w-*` beside it would be inert. 880px on
-          a desktop, never wider than the viewport allows — the floor of 800px
-          applies only where there is room for it, so a narrow window shrinks
-          the dialog rather than growing a horizontal scrollbar. */}
       <DialogContent
         className={
           "flex max-h-[80vh] w-[min(880px,calc(100vw-2rem))] " +
@@ -137,10 +136,8 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
             <TaskDescriptionEditor ref={editor} value={description} onChange={setDescription} />
           </div>
 
-          {/* max-content, not 1fr: the three fields take the width their own
-              contents need instead of splitting the row into equal thirds. */}
           <div
-            className="grid gap-3 sm:grid-cols-[repeat(3,minmax(0,max-content))]"
+            className="grid gap-3 sm:grid-cols-[repeat(auto-fit,minmax(0,max-content))]"
             data-testid="task-form-selects"
           >
           <div className="flex min-w-0 flex-col gap-2">
@@ -171,6 +168,34 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
               <p role="alert" className="text-sm text-destructive">{errors.projectId.message}</p>
             ) : null}
           </div>
+
+          {projectId ? (
+            <div className="flex min-w-0 flex-col gap-2">
+              <Label htmlFor="task-campaign">{t("tasks.form.campaign")}</Label>
+              <Controller
+                control={control}
+                name="campaignId"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="task-campaign"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={WHOLE_PROJECT}>{t("tasks.form.wholeProject")}</SelectItem>
+                      {(campaigns ?? []).map((campaign) => (
+                        <SelectItem key={campaign.id} value={campaign.id}>
+                          <span className="flex min-w-0 flex-col">
+                            <span className="truncate">{campaign.name}</span>
+                            <span className="truncate text-xs text-muted-foreground">
+                              {channelLabel(campaign.channel)}
+                            </span>
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
+          ) : null}
 
           <div className="flex min-w-0 flex-col gap-2">
             <Label htmlFor="task-assignee">{t("tasks.form.assignee")}</Label>
@@ -216,8 +241,24 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
           </div>
           </div>
 
-          {/* Shown while creating too: a file pasted into a task that does not
-              exist yet still has to be visible, and removable. */}
+          {mayShareWithClient ? (
+            <Controller
+              control={control}
+              name="visibleToClient"
+              render={({ field }) => (
+                <label className="flex w-fit items-center gap-2 text-sm text-foreground">
+                  <input
+                    type="checkbox"
+                    className="size-4 rounded border-input"
+                    checked={field.value}
+                    onChange={(event) => field.onChange(event.target.checked)}
+                  />
+                  {t("tasks.form.visibleToClient")}
+                </label>
+              )}
+            />
+          ) : null}
+
           <TaskAttachments
             imageIds={attachmentIds}
             onRemoved={(imageId) => editor.current?.removeImage(imageId)}
@@ -233,8 +274,6 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
                 </Button>
               </Can>
             ) : null}
-            {/* Explicitly type="button": inside a form an untyped button
-                submits, so cancelling would save the very task being abandoned. */}
             <Button type="button" variant="outline" onClick={onClose}>
               {t("action.cancel")}
             </Button>

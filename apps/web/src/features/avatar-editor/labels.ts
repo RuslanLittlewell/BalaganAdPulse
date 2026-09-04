@@ -2,17 +2,8 @@ import { avatarChoices } from "./avatar.js";
 
 type Choices = typeof avatarChoices;
 
-/**
- * Russian names for every avataaars option, keyed by the library's own values.
- *
- * These live here rather than in the app's message dictionary on purpose: they are
- * a closed set derived from a third-party enum, and the `Record<Choices[K][number]>`
- * type below makes the compiler reject the file the moment a choice gains a value
- * with no translation. A flat key/string dictionary could not check that.
- */
 type OptionLabels = { [K in keyof Choices]: Record<Choices[K][number], string> };
 
-/** The name of each control in the editor. */
 export const fieldLabels: Record<keyof Choices, string> = {
   topType: "Причёска / головной убор",
   accessoriesType: "Аксессуары",
@@ -201,7 +192,6 @@ export const optionLabels: OptionLabels = {
   },
 };
 
-/** Falls back to the library's own value, so an untranslated option still reads. */
 export function optionLabel(field: keyof Choices, option: string): string {
   return (optionLabels[field] as Record<string, string>)[option] ?? option;
 }

@@ -4,8 +4,6 @@ import { createRoutes, ROUTE_MOUNTS } from "../../src/composition/create-routes.
 
 const expectedMounts = [
   "/api/auth",
-  // Ahead of the authentication middleware on purpose: a visitor following an
-  // invitation link has no session yet.
   "/api/regustration",
   "/api",
   "/api",
@@ -15,14 +13,12 @@ const expectedMounts = [
   "/api/invites",
   "/api/members",
   "/api/audit",
-  "/api/projects/:projectId/campaigns",
+  "/api/projects/:projectId",
   "/api/projects",
   "/api/clients",
-  "/api/campaigns/:campaignId/properties",
-  "/api/campaigns/:campaignId/records",
   "/api/campaigns",
-  "/api/properties",
-  "/api/records",
+  "/api/ad-sets",
+  "/api/summary",
   "/api/tasks",
   "/api/task-images",
   "/api",

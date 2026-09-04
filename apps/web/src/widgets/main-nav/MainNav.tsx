@@ -5,13 +5,12 @@ import {
   FolderKanbanIcon,
   LayoutDashboardIcon,
   ListTodoIcon,
-  UsersIcon,
   type LucideIcon,
 } from "lucide-react";
 import { t } from "@/shared/config/index.js";
 import { ROUTES } from "@/shared/lib/index.js";
 import { useNavCollapse } from "@/features/nav-collapse/index.js";
-import { Can } from "@/features/permissions/index.js";
+import { useAuth } from "@/features/auth/index.js";
 import {
   SectionLabel,
   Sidebar,
@@ -26,27 +25,19 @@ interface Module {
   label: string;
   icon: LucideIcon;
   end?: boolean;
+  agencyOnly?: boolean;
 }
 
 const MODULES: Module[] = [
   { to: ROUTES.dashboard, label: t("nav.dashboard"), icon: LayoutDashboardIcon, end: true },
   { to: ROUTES.projects, label: t("nav.projects"), icon: FolderKanbanIcon },
   { to: ROUTES.tasks, label: t("nav.tasks"), icon: ListTodoIcon },
-  { to: ROUTES.reports, label: t("nav.reports"), icon: ChartColumnIcon },
-  { to: ROUTES.archive, label: t("nav.archive"), icon: ArchiveIcon },
+  { to: ROUTES.reports, label: t("nav.reports"), icon: ChartColumnIcon, agencyOnly: true },
+  { to: ROUTES.archive, label: t("nav.archive"), icon: ArchiveIcon, agencyOnly: true },
 ];
 
-/**
- * One module. Collapsed, the label lives only in the accessible name, so the
- * tooltip is what gives it back to the eye; expanded, the label is right there
- * and a tooltip would only repeat it.
- */
 function ModuleLink({ module, collapsed }: { module: Module; collapsed: boolean }) {
   const { to, label, icon: Icon, end } = module;
-  /* Active is computed here rather than through NavLink's `className` callback:
-   * a tooltip trigger clones its child and merges `className` as a string, so a
-   * function would be stringified into the attribute and every class lost.
-   * `aria-current` still comes from NavLink itself. */
   const isActive = useMatch({ path: to, end: end ?? false }) != null;
   const link = (
     <NavLink
@@ -77,6 +68,7 @@ function ModuleLink({ module, collapsed }: { module: Module; collapsed: boolean 
 
 export function MainNav() {
   const { collapsed } = useNavCollapse();
+  const { role } = useAuth();
 
   return (
     <Sidebar
@@ -100,15 +92,9 @@ export function MainNav() {
           }
           aria-label={t("nav.sections")}
         >
-        {MODULES.map((module) => (
+        {MODULES.filter((module) => !module.agencyOnly || role !== "CLIENT").map((module) => (
           <ModuleLink key={module.to} module={module} collapsed={collapsed} />
         ))}
-        <Can action="read" resource="member">
-          <ModuleLink
-            module={{ to: ROUTES.team, label: t("nav.team"), icon: UsersIcon }}
-            collapsed={collapsed}
-          />
-        </Can>
         </nav>
       </TooltipProvider>
     </Sidebar>

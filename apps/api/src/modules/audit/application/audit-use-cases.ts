@@ -2,12 +2,6 @@ import type { ActorContext, TransactionContext } from "../../../shared/applicati
 import type { AuditEventInput, AuditWriter } from "./audit-writer.js";
 import type { AuditDependencies, AuditFilters, AuditPage } from "./ports.js";
 
-/**
- * Appends events through the mutation's own transaction, so the trail and the
- * data it describes commit or roll back together. A log written afterwards
- * records changes that later rolled back and misses changes that succeeded
- * after the logger failed.
- */
 export function createAuditWriter(dependencies: AuditDependencies): AuditWriter {
   return {
     async append(
@@ -45,11 +39,6 @@ export interface ListAuditInput extends AuditFilters {
   readonly cursor?: string;
 }
 
-/**
- * Reading is scoped like everything else, and by reach rather than by role: a
- * guest sees the history of what they are granted, which is the point of an
- * audit trail they are allowed to consult at all.
- */
 export function createAuditReader<TEvent>(dependencies: AuditDependencies<TEvent>) {
   return {
     list: async (actor: ActorContext, input: ListAuditInput): Promise<AuditPage<TEvent>> => {

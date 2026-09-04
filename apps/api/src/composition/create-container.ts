@@ -32,15 +32,11 @@ import {
   PrismaAuditRepository,
 } from "../modules/audit/infrastructure/prisma-audit-repository.js";
 import { AmbientRequestMetadata } from "../modules/audit/infrastructure/request-metadata.js";
-import { createProjectRouter, createProjectUseCases } from "../modules/projects/index.js";
+import { CURRENCIES, createProjectRouter, createProjectUseCases } from "../modules/projects/index.js";
+import type { Currency } from "../modules/projects/index.js";
 import { PrismaProjectRepository } from "../modules/projects/infrastructure/prisma-project-repository.js";
 import { S3ProjectPictureStorage } from "../modules/projects/infrastructure/project-picture-storage.js";
-import {
-  DEFAULT_CAMPAIGN_NAME,
-  createCampaignHttpRouters,
-  createCampaignUseCases,
-} from "../modules/campaigns/index.js";
-import { createRecordHttpRouters, createRecordUseCases } from "../modules/records/index.js";
+import { createCampaignHttpRouters, createCampaignUseCases } from "../modules/campaigns/index.js";
 import {
   createTaskImageRouter,
   createTaskImageUseCases,
@@ -62,15 +58,13 @@ import { S3MemberAvatarStorage } from "../modules/members/infrastructure/member-
 import { createConnectionRegistry, createTaskEventDelivery } from "../modules/realtime/index.js";
 import type { ConnectionRegistry } from "../modules/realtime/index.js";
 import {
-  PrismaRecordRepository,
-  PrismaValueRepository,
-} from "../modules/records/infrastructure/prisma-record-repositories.js";
-import {
-  PrismaAuditContext,
+  PrismaAdRepository,
+  PrismaAdSetRepository,
+  PrismaCampaignInProject,
   PrismaCampaignRepository,
   PrismaProjectReach,
-  PrismaPropertyRepository,
 } from "../modules/campaigns/infrastructure/prisma-campaign-repositories.js";
+import { PrismaMetricRepository } from "../modules/campaigns/infrastructure/prisma-metric-repository.js";
 import {
   CryptoInvitationCodeGenerator,
   createInviteRouter,
@@ -94,22 +88,21 @@ export interface ApiContainer {
   readonly registrationResolverRouter: Router;
   readonly memberRouter: Router;
   readonly auditRouter: Router;
-  readonly projectCampaignRouter: Router;
+  readonly projectMetricRouter: Router;
   readonly projectRouter: Router;
   readonly clientRouter: Router;
-  readonly campaignPropertyRouter: Router;
-  readonly campaignRecordRouter: Router;
   readonly campaignRouter: Router;
-  readonly propertyRouter: Router;
-  readonly recordRouter: Router;
+  readonly adSetRouter: Router;
+  readonly summaryRouter: Router;
   readonly taskRouter: Router;
   readonly taskImageRouter: Router;
-  /** Not a route: the WebSocket transport attaches to these at startup. */
   readonly connections: ConnectionRegistry;
   readonly authenticate: (accessToken: string) => Promise<SessionPrincipal>;
 }
 
-/** Compatibility composition while legacy vertical slices are migrated. */
+const isCurrency = (value: string | undefined): value is Currency =>
+  value !== undefined && (CURRENCIES as readonly string[]).includes(value);
+
 export function createContainer(): ApiContainer {
   const unitOfWork = new PrismaUnitOfWork<Prisma.TransactionClient>(prisma);
   const clock = new SystemClock();
@@ -122,8 +115,10 @@ export function createContainer(): ApiContainer {
   };
   const audit = createAuditWriter(auditDependencies);
   const auditReader = createAuditReader(auditDependencies);
+  const clientRepository = new PrismaClientRepository(prisma, unitOfWork);
+  const projectRepository = new PrismaProjectRepository(prisma, unitOfWork);
   const clients = createClientUseCases({
-    clients: new PrismaClientRepository(prisma, unitOfWork),
+    clients: clientRepository,
     pictures: new S3ClientPictureStorage(),
     audit,
     ids,
@@ -133,7 +128,39 @@ export function createContainer(): ApiContainer {
     invites: new PrismaInviteRepository(prisma, unitOfWork),
     memberships: new PrismaMembershipEnrolment(unitOfWork),
     projects: new PrismaInvitationProjectReach(prisma),
+    clients: {
+      isReachable: async (actor, clientId) =>
+        (await clients.reachableIds(actor)).includes(clientId),
+    },
+    clientProjects: {
+      projectIdsOf: async (clientId) => {
+        const rows = await prisma.project.findMany({ where: { clientId }, select: { id: true } });
+        return rows.map((project) => project.id);
+      },
+    },
     projectAccess: new PrismaInvitationProjectAccess(unitOfWork),
+    clientDirectory: {
+      create: async (context, input) => {
+        const { orgId, ...contact } = input;
+        const created = await clientRepository.create(
+          context, { ...contact, id: ids.generate(), orgId }, undefined,
+        );
+        return created.id;
+      },
+    },
+    projectDirectory: {
+      create: async (context, input) => {
+        const { clientId, budgetCurrency, ...details } = input;
+        const created = await projectRepository.create(context, {
+          ...details,
+          ...(isCurrency(budgetCurrency) ? { budgetCurrency } : {}),
+          clientId,
+          id: ids.generate(),
+          position: await projectRepository.countForClient(clientId),
+        });
+        return created.id;
+      },
+    },
     clock,
     ids,
     codes: new CryptoInvitationCodeGenerator(),
@@ -141,7 +168,6 @@ export function createContainer(): ApiContainer {
   });
   const identity = createIdentityUseCases({
     users: new PrismaUserRepository(prisma, unitOfWork),
-    // Identity owns the port; the invitations module implements it.
     invitations: { redeem: invites.redeem },
     passwords: new PasswordAdapter(),
     tokens: new TokenAdapter(),
@@ -155,8 +181,6 @@ export function createContainer(): ApiContainer {
   const members = createMemberUseCases({
     memberships: new PrismaMembershipDirectory(prisma),
     organizations: new PrismaOrganizationDirectory(prisma),
-    // The session payload wants the stored picture marker, not the data URL the
-    // profile endpoint builds, so it reads the identity record directly.
     users: {
       findById: async (id) => {
         const user = await users.findById(id);
@@ -169,39 +193,14 @@ export function createContainer(): ApiContainer {
     avatars: new S3MemberAvatarStorage(),
     unitOfWork,
   });
-  const campaignRepository = new PrismaCampaignRepository(prisma, unitOfWork, ids);
-  const projectReach = new PrismaProjectReach(prisma);
-  const auditContextLookup = new PrismaAuditContext(prisma);
   const campaigns = createCampaignUseCases({
-    campaigns: campaignRepository,
-    properties: new PrismaPropertyRepository(prisma, unitOfWork),
-    projects: projectReach,
-    auditContext: auditContextLookup,
-    audit,
-    ids,
-    unitOfWork,
+    campaigns: new PrismaCampaignRepository(prisma),
+    adSets: new PrismaAdSetRepository(prisma),
+    ads: new PrismaAdRepository(prisma),
+    projects: new PrismaProjectReach(prisma),
+    metrics: new PrismaMetricRepository(prisma),
   });
   const campaignHttp = createCampaignHttpRouters(campaigns);
-  const records = createRecordUseCases({
-    records: new PrismaRecordRepository(prisma, unitOfWork),
-    values: new PrismaValueRepository(prisma, unitOfWork),
-    campaigns: {
-      contextFor: async (actor, campaignId) => {
-        const campaign = await campaignRepository.findReachable(actor, campaignId);
-        if (!campaign) return null;
-        const context = await auditContextLookup.forCampaign(campaignId);
-        return { clientId: context.clientId, projectId: context.projectId };
-      },
-      readTable: async (actor, campaignId) => {
-        const table = await campaigns.readTable(actor, campaignId).catch(() => null);
-        return table && { records: table.records, totals: table.totals };
-      },
-    },
-    audit,
-    ids,
-    unitOfWork,
-  });
-  const recordHttp = createRecordHttpRouters(records);
   const taskProjectReach = new PrismaTaskProjectReach(prisma);
   const connections = createConnectionRegistry();
   const taskEventDelivery = createTaskEventDelivery({
@@ -214,12 +213,10 @@ export function createContainer(): ApiContainer {
     images: new PrismaTaskImageRepository(prisma, unitOfWork),
     imageStorage: new S3TaskImageStorage(),
     projects: taskProjectReach,
+    campaigns: new PrismaCampaignInProject(prisma),
     members: new PrismaTaskMemberReach(prisma),
     audit,
     events: {
-      // Fire-and-forget on purpose: the write has already committed, and a
-      // delivery failure must not turn a successful change into an error.
-      // Delivery swallows its own failures, so this rejects only on a bug.
       publish: (event: TaskEvent) => {
         void taskEventDelivery.deliver(event).catch((error: unknown) => {
           console.error("Failed to deliver task event:", error);
@@ -232,17 +229,10 @@ export function createContainer(): ApiContainer {
   const tasks = createTaskUseCases(taskDependencies);
   const taskImages = createTaskImageUseCases(taskDependencies);
   const projects = createProjectUseCases({
-    projects: new PrismaProjectRepository(prisma, unitOfWork),
+    projects: projectRepository,
     clients: {
       isReachable: async (actor, clientId) =>
         (await clients.reachableIds(actor)).includes(clientId),
-    },
-    campaigns: {
-      seedDefault: async (context, projectId) => {
-        await campaignRepository.create(context, {
-          id: ids.generate(), projectId, name: DEFAULT_CAMPAIGN_NAME, position: 0,
-        });
-      },
     },
     pictures: new S3ProjectPictureStorage(),
     audit,
@@ -260,14 +250,12 @@ export function createContainer(): ApiContainer {
     registrationResolverRouter: createRegistrationResolverRouter(invites),
     memberRouter: createMemberRouter(members),
     auditRouter: createAuditRouter(auditReader),
-    projectCampaignRouter: campaignHttp.projectCampaignRouter,
+    projectMetricRouter: campaignHttp.projectMetricRouter,
     projectRouter: createProjectRouter(projects),
     clientRouter: createClientRouter(clients),
-    campaignPropertyRouter: campaignHttp.campaignPropertyRouter,
-    campaignRecordRouter: recordHttp.campaignRecordRouter,
     campaignRouter: campaignHttp.campaignRouter,
-    propertyRouter: campaignHttp.propertyRouter,
-    recordRouter: recordHttp.recordRouter,
+    adSetRouter: campaignHttp.adSetRouter,
+    summaryRouter: campaignHttp.summaryRouter,
     taskRouter: createTaskRouter(tasks),
     taskImageRouter: createTaskImageRouter(taskImages, taskImageUpload.single("image")),
     connections,

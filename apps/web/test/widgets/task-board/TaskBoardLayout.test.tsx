@@ -14,9 +14,6 @@ function board() {
   );
 }
 
-/** Layout guards. The requirement is visual — the columns run the full height of
- * the board rather than shrinking to their contents — so these assert the
- * structure that produces it, which is the closest jsdom can get. */
 describe("the board fills its height", () => {
   it("gives every column the full height and its own scroll", async () => {
     server.use(mock.get("/api/tasks", () => HttpResponse.json([])));
@@ -26,7 +23,6 @@ describe("the board fills its height", () => {
     expect(column.className).toContain("h-full");
     expect(column.className).toContain("min-h-0");
 
-    // The cards scroll inside the column, so a long one never stretches the page.
     const list = column.querySelector(".overflow-y-auto");
     expect(list).not.toBeNull();
     expect(list!.className).toContain("flex-1");
@@ -52,7 +48,6 @@ describe("how the board is drawn", () => {
     expect(header).not.toBeNull();
     expect(header.textContent).toContain("В работе");
     expect(header.textContent).toContain("1");
-    // The header is separated from the cards rather than floating above them.
     expect(header.className).toContain("border-b");
   });
 
@@ -91,8 +86,6 @@ describe("the card left behind while dragging", () => {
     );
 
     const card = screen.getByTestId("task-card-task-1");
-    // Present, marked, and still occupying its slot — a removed card would
-    // close the gap the drop is aiming at.
     expect(card).toBeInTheDocument();
     expect(card).toHaveAttribute("data-placeholder", "true");
     expect(card.className).toContain("border-dashed");
@@ -123,10 +116,10 @@ describe("the card left behind while dragging", () => {
 
 describe("what a card shows without being opened", () => {
   const project = { id: "project-1", clientId: "c1", name: "Летний запуск", niche: null,
-    monthlyBudget: null, priority: "NEW" as const, image: null, avatarPath: null,
+    monthlyBudget: null, budgetCurrency: "BYN" as const, priority: "NEW" as const, image: null, avatarPath: null,
     position: 0, createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z" };
   const member = { id: "member-1", userId: "u1", name: "Пётр", email: "p@acme.com",
-    image: null, role: "MANAGER" as const, status: "ACTIVE" as const,
+    image: null, phone: null, telegram: null, role: "MANAGER" as const, status: "ACTIVE" as const,
     createdAt: "2026-09-01T00:00:00.000Z" };
 
   it("shows a paperclip and a count when the task carries files", () => {
@@ -151,7 +144,6 @@ describe("what a card shows without being opened", () => {
     );
     const footer = screen.getByTestId("task-project-task-1");
     expect(footer.textContent).toContain("Летний запуск");
-    // No logo on this project, so the avatar falls back to its initial.
     expect(footer.textContent).toContain("Л");
   });
 
@@ -183,6 +175,62 @@ describe("what a card shows without being opened", () => {
     expect(screen.getByText("Без проекта")).toBeInTheDocument();
   });
 
+  it("names the campaign the work is about", () => {
+    renderWithProviders(
+      <TaskCard
+        task={aTask({ campaignId: "camp-1" })}
+        draggable={false}
+        project={project}
+        campaignName="Поиск / Москва"
+      />,
+      { route: "/tasks" },
+    );
+
+    expect(screen.getByTestId("task-campaign-task-1")).toHaveTextContent("Поиск / Москва");
+  });
+
+  it("says Общий when the task names no campaign", () => {
+    renderWithProviders(
+      <TaskCard task={aTask()} draggable={false} project={project} />,
+      { route: "/tasks" },
+    );
+
+    expect(screen.getByTestId("task-campaign-task-1")).toHaveTextContent("Общий");
+  });
+
+  it("carries the campaign through from the board", async () => {
+    server.use(
+      mock.get("/api/tasks", () => HttpResponse.json([
+        aTask({ projectId: "project-1", campaignId: "camp-1" }),
+      ])),
+      mock.get("/api/projects", () => HttpResponse.json([project])),
+      mock.get("/api/projects/project-1/campaigns/names", () => HttpResponse.json([
+        { id: "camp-1", name: "Поиск / Москва", channel: "YANDEX" },
+      ])),
+    );
+    board();
+
+    await waitFor(() => expect(screen.getByTestId("task-campaign-task-1"))
+      .toHaveTextContent("Поиск / Москва"));
+  });
+
+  it("asks for no campaign names when no task names one", async () => {
+    const asked: string[] = [];
+    server.use(
+      mock.get("/api/tasks", () => HttpResponse.json([aTask({ projectId: "project-1" })])),
+      mock.get("/api/projects", () => HttpResponse.json([project])),
+      mock.get("/api/projects/:projectId/campaigns/names", ({ params }) => {
+        asked.push(String(params.projectId));
+        return HttpResponse.json([]);
+      }),
+    );
+    board();
+
+    await screen.findByTestId("task-project-task-1");
+    await waitFor(() => expect(screen.getByTestId("task-campaign-task-1")).toBeInTheDocument());
+    expect(asked).toEqual([]);
+  });
+
   it("carries the project and the assignee through from the board", async () => {
     server.use(
       mock.get("/api/tasks", () => HttpResponse.json([
@@ -199,7 +247,6 @@ describe("what a card shows without being opened", () => {
   });
 });
 
-
 describe("the card's anatomy", () => {
   it("shows the priority in the card's top corner, beside the title", () => {
     renderWithProviders(
@@ -209,8 +256,6 @@ describe("the card's anatomy", () => {
 
     const badge = screen.getByTestId("task-priority-task-1");
     const header = screen.getByTestId("task-header-task-1");
-    // Beside the title rather than below it: the corner is where the eye goes
-    // when scanning a column of cards.
     expect(header).toContainElement(badge);
     expect(badge).toHaveTextContent("Срочный");
   });
@@ -230,7 +275,6 @@ describe("the card's anatomy", () => {
     );
     const header = screen.getByTestId("task-header-task-1");
     const title = header.querySelector("h3")!;
-    // Clamped rather than allowed to push the card to any height it likes.
     expect(title.className).toMatch(/line-clamp/);
   });
 
@@ -242,12 +286,9 @@ describe("the card's anatomy", () => {
 
     rerender(<TaskCard task={aTask()} draggable />);
 
-    // The same padding either way: a card that gains a handle on hover must not
-    // reflow its own text as the pointer crosses it.
     expect(screen.getByTestId("task-card-task-1").className).toBe(still);
   });
 });
-
 
 describe("creating into a column", () => {
   it("offers an add button on every column", async () => {
@@ -260,8 +301,6 @@ describe("creating into a column", () => {
     }
   });
 
-  // The point of a per-column button: the task lands where it was asked for,
-  // not in the default column with a move to follow.
   it("names the column it was pressed on", async () => {
     const user = userEvent.setup();
     const onCreate = vi.fn();

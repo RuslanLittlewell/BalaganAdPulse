@@ -1,18 +1,17 @@
 import { t } from "@/shared/config/index.js";
-import { formatValue } from "@/shared/lib/index.js";
+import { formatCurrency } from "@/shared/lib/index.js";
 import { ProjectAvatar } from "../project-avatar/ProjectAvatar.js";
 import type { Project } from "../../api/api.js";
 
 export interface ProjectHeaderProps {
   project: Project;
-  /** The company the work is for — a project is never shown without it. */
   clientName: string;
   actions?: ReactNode;
 }
 
 export function ProjectHeader({ project, clientName, actions }: ProjectHeaderProps) {
   const facts = [clientName, project.niche, project.monthlyBudget
-    ? `${formatValue(project.monthlyBudget, "MONEY")} / ${t("project.budget.label").split("/")[1]?.trim() ?? ""}`
+    ? `${formatCurrency(Number(project.monthlyBudget), project.budgetCurrency)} / ${t("project.budget.label").split("/")[1]?.trim() ?? ""}`
     : null].filter(Boolean);
 
   return (

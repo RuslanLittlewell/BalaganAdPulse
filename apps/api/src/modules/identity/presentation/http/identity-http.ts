@@ -10,9 +10,6 @@ import { clearAuthCookies, readCookie, REFRESH_COOKIE, setAuthCookies } from "./
 
 const resets = new Set<() => void>();
 export function resetIdentityRateLimits(): void { resets.forEach((reset) => reset()); }
-/** The caller's id, narrowed away from undefined. Every route here sits behind
- * the authentication middleware, which is what puts the principal on the
- * request; the check is what keeps an undefined id out of a query. */
 function userId(req: Request): string {
   if (!req.principal?.id) throw new AppError("unauthorized", "Authentication required");
   return req.principal.id;
@@ -27,7 +24,11 @@ export function createIdentityHttpRouters(useCases: IdentityUseCases) {
   resets.add(() => { credentialLimit.reset(); sessionLimit.reset(); });
   const authRouter = Router();
   authRouter.post("/register", credentialLimit, handle(async (req, res) => {
-    const tokens = await useCases.register(registerSchema.parse(req.body));
+    const { client, project, ...account } = registerSchema.parse(req.body);
+    const tokens = await useCases.register({
+      ...account,
+      ...(client && project ? { registration: { client, project } } : {}),
+    });
     setAuthCookies(res, tokens); res.status(201).json(tokens);
   }));
   authRouter.post("/login", credentialLimit, handle(async (req, res) => {

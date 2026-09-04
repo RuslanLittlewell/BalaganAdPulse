@@ -327,6 +327,9 @@ describe("the avatar editor inside a step", () => {
     await u.click(screen.getByRole("button", { name: "Создать аватар" }));
     await u.click(await screen.findByRole("button", { name: "Сохранить аватар" }));
 
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Редактор аватара" })).toBeNull();
+    });
     expect(screen.queryByLabelText("Название проекта")).toBeNull();
   });
 

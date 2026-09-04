@@ -48,6 +48,19 @@ if (!Element.prototype.scrollIntoView) {
 if (!document.elementFromPoint) {
   document.elementFromPoint = () => null;
 }
+if (!HTMLImageElement.prototype.decode) {
+  HTMLImageElement.prototype.decode = async () => {};
+}
+Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+  value: () => ({ drawImage: () => {} }),
+  configurable: true,
+});
+Object.defineProperty(HTMLCanvasElement.prototype, "toBlob", {
+  value: (callback: BlobCallback, type?: string) => {
+    callback(new Blob([], { type: type ?? "image/png" }));
+  },
+  configurable: true,
+});
 if (!Range.prototype.getClientRects) {
   Range.prototype.getClientRects = () => ({
     length: 0,

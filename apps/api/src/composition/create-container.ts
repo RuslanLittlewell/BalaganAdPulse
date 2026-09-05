@@ -1,4 +1,6 @@
 import { Router, type RequestHandler } from "express";
+import { createLeadUseCases, createLeadRouter } from '../modules/leads/index.js';
+import { PrismaLeadRepository } from '../modules/leads/infrastructure/prisma-lead-repository.js';
 import type { Prisma } from "@prisma/client";
 import { config } from "#shared/infrastructure/config.js";
 import { requestContext } from "#shared/presentation/request-context.js";
@@ -57,7 +59,11 @@ import {
   PrismaTaskRepository,
 } from "../modules/tasks/infrastructure/prisma-task-repository.js";
 import { S3MemberAvatarStorage } from "../modules/members/infrastructure/member-avatar-storage.js";
-import { createConnectionRegistry, createTaskEventDelivery } from "../modules/realtime/index.js";
+import {
+  createConnectionRegistry,
+  createLeadEventDelivery,
+  createTaskEventDelivery,
+} from "../modules/realtime/index.js";
 import type { ConnectionRegistry } from "../modules/realtime/index.js";
 import {
   PrismaAdRepository,
@@ -80,6 +86,7 @@ import { SystemClock } from "#shared/infrastructure/clock.js";
 import { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
 
 export interface ApiContainer {
+  readonly leadRouter: Router;
   readonly documentationRouter: Router;
   readonly authRouter: Router;
   readonly authentication: RequestHandler;
@@ -230,6 +237,23 @@ export function createContainer(): ApiContainer {
     unitOfWork,
   };
   const tasks = createTaskUseCases(taskDependencies);
+  const leadRepository = new PrismaLeadRepository(prisma, unitOfWork);
+  const leadEventDelivery = createLeadEventDelivery({
+    registry: connections,
+    members,
+    boards: leadRepository,
+  });
+  const leads = createLeadUseCases({
+    leads: leadRepository,
+    audit,
+    ids,
+    unitOfWork,
+    publish: (event) => {
+      void leadEventDelivery.deliver(event).catch((error: unknown) => {
+        console.error("Failed to deliver a CRM event:", error);
+      });
+    },
+  });
   const taskImages = createTaskImageUseCases(taskDependencies);
   const projects = createProjectUseCases({
     projects: projectRepository,
@@ -261,6 +285,7 @@ export function createContainer(): ApiContainer {
     adSetRouter: campaignHttp.adSetRouter,
     summaryRouter: campaignHttp.summaryRouter,
     taskRouter: createTaskRouter(tasks),
+    leadRouter: createLeadRouter(leads),
     taskImageRouter: createTaskImageRouter(taskImages, taskImageUpload.single("image")),
     connections,
     authenticate: (token: string) => identity.authenticate(token),

@@ -5,7 +5,7 @@ import { Route, Routes } from "react-router-dom";
 import { renderWithProviders, server } from "@test/shared/index.js";
 import { MainNav } from "@/widgets/main-nav/MainNav.js";
 
-const MODULES = ["Дашборд", "Проекты", "Задачи", "Отчёты", "Архив"];
+const MODULES = ["Дашборд", "Проекты", "Задачи", "CRM", "Отчёты", "Архив"];
 
 function setup(route = "/") {
   return renderWithProviders(
@@ -36,7 +36,7 @@ describe("MainNav", () => {
     expect(screen.queryByRole("link", { name: "Команда" })).not.toBeInTheDocument();
   });
 
-  it("lists the five modules, in order", () => {
+  it("lists the six modules, in order", () => {
     setup();
     const nav = screen.getByRole("navigation", { name: "Разделы" });
     expect(within(nav).getAllByRole("link").map((link) => link.textContent)).toEqual(MODULES);

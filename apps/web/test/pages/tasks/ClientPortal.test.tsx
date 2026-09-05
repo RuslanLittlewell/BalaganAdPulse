@@ -36,7 +36,7 @@ describe("what a client is offered", () => {
     const nav = await screen.findByRole("navigation", { name: "Разделы" });
     await screen.findByRole("link", { name: "Задачи" });
     expect(within(nav).getAllByRole("link").map((link) => link.textContent))
-      .toEqual(["Дашборд", "Проекты", "Задачи"]);
+      .toEqual(["Дашборд", "Проекты", "Задачи", "CRM"]);
   });
 
   it("still shows every module to the agency", async () => {
@@ -46,7 +46,7 @@ describe("what a client is offered", () => {
     );
 
     const nav = screen.getByRole("navigation", { name: "Разделы" });
-    expect(within(nav).getAllByRole("link")).toHaveLength(5);
+    expect(within(nav).getAllByRole("link")).toHaveLength(6);
   });
 
   it("lists the tasks marked as shown to them", async () => {

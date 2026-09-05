@@ -6,12 +6,14 @@ import { ProjectsPage } from "@/pages/projects/index.js";
 import { LoginPage } from "@/pages/login/index.js";
 import { RegistrationPage } from "@/pages/registration/index.js";
 import { TasksPage } from "@/pages/tasks/index.js";
+import { CrmPage } from "@/pages/crm/index.js";
 import { AuthProvider, RequireAuth } from "@/features/auth/index.js";
 import { NavCollapseProvider } from "@/features/nav-collapse/index.js";
 import { SelectionSync } from "@/entities/project/index.js";
 import { AppShell } from "@/widgets/app-shell/index.js";
 import { AppHeader } from "@/widgets/app-header/index.js";
 import { MainNav } from "@/widgets/main-nav/index.js";
+import { AlertsProvider } from "@/shared/ui/index.js";
 import { createQueryClient, ROUTES } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 
@@ -27,6 +29,7 @@ function Dashboard() {
             <Route path={ROUTES.dashboard} element={<DashboardPage />} />
             <Route path={`${ROUTES.projects}/*`} element={<ProjectsPage />} />
             <Route path={ROUTES.tasks} element={<TasksPage />} />
+            <Route path={ROUTES.crm} element={<CrmPage />} />
             <Route path={ROUTES.reports} element={<ModulePage title={t("nav.reports")} />} />
             <Route path={ROUTES.archive} element={<ModulePage title={t("nav.archive")} />} />
             <Route path="/clients/*" element={<Navigate to={ROUTES.projects} replace />} />
@@ -42,6 +45,7 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <AlertsProvider>
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
@@ -50,6 +54,7 @@ export function App() {
             <Route path="/*" element={<Dashboard />} />
           </Routes>
         </AuthProvider>
+        </AlertsProvider>
       </BrowserRouter>
     </QueryClientProvider>
   );

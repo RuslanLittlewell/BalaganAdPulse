@@ -147,10 +147,14 @@ describe("can", () => {
       }
     });
 
-    it("is true for a client-role member everywhere but raising a task", () => {
+    it("is true for a client-role member except raising tasks and managing leads", () => {
       for (const resource of RESOURCES) {
         for (const action of ["create", "update", "delete"] as const) {
           if (resource === "task" && action === "create") continue;
+          if (resource === "lead") {
+            expect(can(actor("CLIENT"), action, resource)).toBe(true);
+            continue;
+          }
           expect(
             can(actor("CLIENT"), action, resource),
             `CLIENT ${action} ${resource}`,

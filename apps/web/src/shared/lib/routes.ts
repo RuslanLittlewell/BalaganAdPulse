@@ -2,6 +2,7 @@ export const ROUTES = {
   dashboard: "/",
   projects: "/projects",
   tasks: "/tasks",
+  crm: "/crm",
   reports: "/reports",
   archive: "/archive",
 } as const;

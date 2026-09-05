@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { useCampaignReferences } from "@/entities/campaign/index.js";
 import { useProjects } from "@/entities/project/index.js";
 import {
@@ -25,6 +25,11 @@ import {
   DialogHeader,
   DialogTitle,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   TextField,
   useAlerts,
 } from "@/shared/ui/index.js";
@@ -51,9 +56,7 @@ interface FormValues {
 
 const TEXT_FIELDS = ["company", "phone", "email", "website", "source"] as const;
 
-const NONE = "";
-
-const SELECT_CLASS = "h-9 rounded-md border border-input bg-transparent pl-3 pr-9 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50";
+const NONE = "__none__";
 
 const valuesOf = (lead?: Lead): FormValues => ({
   name: lead?.name ?? "",
@@ -79,8 +82,8 @@ const bodyOf = (values: FormValues): LeadInput => ({
   website: values.website.trim() || null,
   source: values.source.trim() || null,
   notes: values.notes.trim() || null,
-  projectId: values.projectId || null,
-  campaignId: values.campaignId || null,
+  projectId: values.projectId === NONE ? null : values.projectId,
+  campaignId: values.campaignId === NONE ? null : values.campaignId,
 });
 
 export function LeadFormDialog({ boardKey, capabilities, lead, onClose }: LeadFormDialogProps) {
@@ -92,15 +95,13 @@ export function LeadFormDialog({ boardKey, capabilities, lead, onClose }: LeadFo
   const [confirming, setConfirming] = useState(false);
 
   const editable = lead ? capabilities.update : capabilities.create;
-  const { handleSubmit, register, setValue, watch, formState: { errors } } =
+  const { control, handleSubmit, register, setValue, watch, formState: { errors } } =
     useForm<FormValues>({ defaultValues: valuesOf(lead) });
 
-  const stage = watch("stage");
   const projectId = watch("projectId");
-  const campaignId = watch("campaignId");
 
   const { data: projects } = useProjects(boardKey === AGENCY_BOARD ? undefined : boardKey);
-  const { data: campaigns } = useCampaignReferences(projectId || undefined);
+  const { data: campaigns } = useCampaignReferences(projectId === NONE ? undefined : projectId);
 
   const chosenProject = useRef(projectId);
   useEffect(() => {
@@ -171,50 +172,63 @@ export function LeadFormDialog({ boardKey, capabilities, lead, onClose }: LeadFo
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex min-w-0 flex-col gap-2">
                 <Label htmlFor="lead-project">{t("crm.form.project")}</Label>
-                <select
-                  id="lead-project"
-                  className={SELECT_CLASS}
-                  disabled={!editable}
-                  value={projectId}
-                  {...register("projectId")}
-                >
-                  <option value={NONE}>{t("crm.form.noProject")}</option>
-                  {(projects ?? []).map((project) => (
-                    <option key={project.id} value={project.id}>{project.name}</option>
-                  ))}
-                </select>
+                <Controller
+                  control={control}
+                  name="projectId"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange} disabled={!editable}>
+                      <SelectTrigger id="lead-project" className="w-full"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE}>{t("crm.form.noProject")}</SelectItem>
+                        {(projects ?? []).map((project) => (
+                          <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
               </div>
 
               <div className="flex min-w-0 flex-col gap-2">
                 <Label htmlFor="lead-campaign">{t("crm.form.campaign")}</Label>
-                <select
-                  id="lead-campaign"
-                  className={SELECT_CLASS}
-                  disabled={!editable || !projectId}
-                  value={campaignId}
-                  {...register("campaignId")}
-                >
-                  <option value={NONE}>{t("crm.form.noCampaign")}</option>
-                  {(campaigns ?? []).map((campaign) => (
-                    <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
-                  ))}
-                </select>
+                <Controller
+                  control={control}
+                  name="campaignId"
+                  render={({ field }) => (
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={!editable || projectId === NONE}
+                    >
+                      <SelectTrigger id="lead-campaign" className="w-full"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE}>{t("crm.form.noCampaign")}</SelectItem>
+                        {(campaigns ?? []).map((campaign) => (
+                          <SelectItem key={campaign.id} value={campaign.id}>{campaign.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
               </div>
             </div>
 
             <div className="flex min-w-0 flex-col gap-2">
               <Label htmlFor="lead-stage">{t("crm.form.stage")}</Label>
-              <select
-                id="lead-stage"
-                className={SELECT_CLASS}
-                disabled={!editable}
-                value={stage}
-                {...register("stage")}
-              >
-                {LEAD_STAGES.map((option) => (
-                  <option key={option} value={option}>{t(`crm.stage.${option}`)}</option>
-                ))}
-              </select>
+              <Controller
+                control={control}
+                name="stage"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange} disabled={!editable}>
+                    <SelectTrigger id="lead-stage" className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {LEAD_STAGES.map((option) => (
+                        <SelectItem key={option} value={option}>{t(`crm.stage.${option}`)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col gap-2">

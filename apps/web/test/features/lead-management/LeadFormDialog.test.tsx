@@ -1,5 +1,5 @@
 import { http as mock, HttpResponse } from "msw";
-import { screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders, server } from "@test/shared/index.js";
 import { LeadFormDialog } from "@/features/lead-management/index.js";
@@ -56,33 +56,33 @@ describe("the lead form's fields", () => {
     catalogue();
     setup();
 
-    const projects = await screen.findByLabelText("Проект");
+    await userEvent.click(await screen.findByLabelText("Проект"));
     await waitFor(() =>
-      expect(within(projects).getByRole("option", { name: "Летний запуск" })).toBeInTheDocument());
-    expect(within(projects).getByRole("option", { name: "Осень" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "Летний запуск" })).toBeInTheDocument());
+    expect(screen.getByRole("option", { name: "Осень" })).toBeInTheDocument();
   });
 
   it("offers only that client's projects on a client's board", async () => {
     catalogue();
     setup({ boardKey: "client-1" });
 
-    const projects = await screen.findByLabelText("Проект");
+    await userEvent.click(await screen.findByLabelText("Проект"));
     await waitFor(() =>
-      expect(within(projects).getByRole("option", { name: "Летний запуск" })).toBeInTheDocument());
-    expect(within(projects).queryByRole("option", { name: "Осень" })).not.toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "Летний запуск" })).toBeInTheDocument());
+    expect(screen.queryByRole("option", { name: "Осень" })).not.toBeInTheDocument();
   });
 
   it("fills the campaigns from the chosen project", async () => {
     catalogue();
     setup();
 
-    const projects = await screen.findByLabelText("Проект");
+    await userEvent.click(await screen.findByLabelText("Проект"));
+    await userEvent.click(await screen.findByRole("option", { name: "Летний запуск" }));
+    await waitFor(() => expect(screen.getByLabelText("Кампания")).not.toBeDisabled());
+
+    await userEvent.click(screen.getByLabelText("Кампания"));
     await waitFor(() =>
-      expect(within(projects).getByRole("option", { name: "Летний запуск" })).toBeInTheDocument());
-    await userEvent.selectOptions(projects, "project-1");
-    const campaigns = screen.getByLabelText("Кампания");
-    await waitFor(() =>
-      expect(within(campaigns).getByRole("option", { name: "Поиск" })).toBeInTheDocument());
+      expect(screen.getByRole("option", { name: "Поиск" })).toBeInTheDocument());
   });
 
   it("releases the campaign when the project changes", async () => {
@@ -90,13 +90,11 @@ describe("the lead form's fields", () => {
     setup({ lead: aLead({ projectId: "project-1", campaignId: "campaign-1" }) });
 
     const campaigns = await screen.findByLabelText("Кампания");
-    await waitFor(() => expect(campaigns).toHaveValue("campaign-1"));
+    await waitFor(() => expect(campaigns).toHaveTextContent("Поиск"));
 
-    await waitFor(() => expect(
-      within(screen.getByLabelText("Проект")).getByRole("option", { name: "Осень" }),
-    ).toBeInTheDocument());
-    await userEvent.selectOptions(screen.getByLabelText("Проект"), "project-2");
-    await waitFor(() => expect(screen.getByLabelText("Кампания")).toHaveValue(""));
+    await userEvent.click(screen.getByLabelText("Проект"));
+    await userEvent.click(await screen.findByRole("option", { name: "Осень" }));
+    await waitFor(() => expect(screen.getByLabelText("Кампания")).toHaveTextContent("Не указана"));
   });
 
   it("sends the attribution it was given", async () => {
@@ -109,12 +107,12 @@ describe("the lead form's fields", () => {
     setup();
 
     await userEvent.type(await screen.findByLabelText("Имя / название"), "Борис");
-    await waitFor(() => expect(
-      within(screen.getByLabelText("Проект")).getByRole("option", { name: "Летний запуск" }),
-    ).toBeInTheDocument());
-    await userEvent.selectOptions(screen.getByLabelText("Проект"), "project-1");
+    await userEvent.click(screen.getByLabelText("Проект"));
+    await userEvent.click(await screen.findByRole("option", { name: "Летний запуск" }));
     await waitFor(() => expect(screen.getByLabelText("Кампания")).not.toBeDisabled());
-    await userEvent.selectOptions(screen.getByLabelText("Кампания"), "campaign-1");
+
+    await userEvent.click(screen.getByLabelText("Кампания"));
+    await userEvent.click(await screen.findByRole("option", { name: "Поиск" }));
     await userEvent.click(screen.getByRole("button", { name: "Создать" }));
 
     await waitFor(() => expect(body).not.toBeNull());

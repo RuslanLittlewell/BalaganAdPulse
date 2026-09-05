@@ -27,9 +27,10 @@ describe("the CRM board selector", () => {
     setup();
 
     const selector = await screen.findByLabelText("Воронка");
-    expect([...selector.querySelectorAll("option")].map((option) => option.textContent))
+    expect(selector).toHaveTextContent("Агентство");
+    await userEvent.click(selector);
+    expect(screen.getAllByRole("option").map((option) => option.textContent))
       .toEqual(["Агентство", "Ромашка"]);
-    expect(selector).toHaveValue("agency");
   });
 
   it("leaves out a client the API does not offer, so a project-only grant sees no board for it", async () => {
@@ -39,7 +40,7 @@ describe("the CRM board selector", () => {
     );
     setup();
 
-    await screen.findByLabelText("Воронка");
+    await userEvent.click(await screen.findByLabelText("Воронка"));
     expect(screen.getByRole("option", { name: "Василёк" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Ромашка" })).not.toBeInTheDocument();
   });
@@ -62,7 +63,7 @@ describe("the CRM board selector", () => {
     );
     setup("/crm?board=client-1");
 
-    expect(await screen.findByLabelText("Воронка")).toHaveValue("client-1");
+    expect(await screen.findByLabelText("Воронка")).toHaveTextContent("Ромашка");
   });
 
   it("says so when the address names a board the member cannot reach", async () => {
@@ -125,10 +126,12 @@ describe("the CRM board while it loads and when it fails", () => {
 
     await screen.findByText("Анна");
     const selector = screen.getByLabelText("Воронка");
-    await userEvent.selectOptions(selector, "client-1");
+    await userEvent.click(selector);
+    await userEvent.click(screen.getByRole("option", { name: "Ромашка" }));
     await waitFor(() => expect(screen.queryByText("Анна")).not.toBeInTheDocument());
 
-    await userEvent.selectOptions(selector, "agency");
+    await userEvent.click(selector);
+    await userEvent.click(screen.getByRole("option", { name: "Агентство" }));
 
     expect(screen.queryByTestId("crm-loading")).not.toBeInTheDocument();
     expect(screen.getByText("Анна")).toBeInTheDocument();
@@ -146,7 +149,8 @@ describe("the CRM board while it loads and when it fails", () => {
     setup();
 
     await screen.findByText("Анна");
-    await userEvent.selectOptions(screen.getByLabelText("Воронка"), "client-1");
+    await userEvent.click(screen.getByLabelText("Воронка"));
+    await userEvent.click(screen.getByRole("option", { name: "Ромашка" }));
 
     expect(screen.getByRole("region", { name: "Новый лид" })).toBeInTheDocument();
     expect(await screen.findAllByText("Нет лидов")).toHaveLength(8);
@@ -175,7 +179,8 @@ describe("the CRM board while it loads and when it fails", () => {
     );
     setup();
 
-    await userEvent.selectOptions(await screen.findByLabelText("Воронка"), "client-1");
+    await userEvent.click(await screen.findByLabelText("Воронка"));
+    await userEvent.click(screen.getByRole("option", { name: "Ромашка" }));
     expect(await screen.findByText("Клиентский")).toBeInTheDocument();
 
     await new Promise((resolve) => setTimeout(resolve, 120));

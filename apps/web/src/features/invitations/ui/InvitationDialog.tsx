@@ -20,6 +20,11 @@ import {
   DialogHeader,
   DialogTitle,
   Loader,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/shared/ui/index.js";
 import { registrationLink } from "../lib/link.js";
 
@@ -94,17 +99,14 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
                   <label className="text-sm font-medium" htmlFor="invitation-role">
                     {t("invites.role")}
                   </label>
-                  <select
-                    id="invitation-role"
-                    aria-label={t("invites.role")}
-                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                    value={role}
-                    onChange={(event) => setRole(event.target.value as EmployeeRole)}
-                  >
-                    {EMPLOYEE_ROLES.map((option) => (
-                      <option key={option} value={option}>{t(`role.${option}`)}</option>
-                    ))}
-                  </select>
+                  <Select value={role} onValueChange={(next) => setRole(next as EmployeeRole)}>
+                    <SelectTrigger id="invitation-role" className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {EMPLOYEE_ROLES.map((option) => (
+                        <SelectItem key={option} value={option}>{t(`role.${option}`)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <fieldset className="flex flex-col gap-2">

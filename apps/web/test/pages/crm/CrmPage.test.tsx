@@ -13,14 +13,15 @@ beforeEach(()=>server.use(
 const setup=()=>renderWithProviders(<CrmPage/>,{route:'/crm'});
 it('shows eight columns, contacts, source and agency board selector',async()=>{
   setup();
-  expect(await screen.findByLabelText('Воронка')).toHaveValue('agency');
+  expect(await screen.findByLabelText('Воронка')).toHaveTextContent('Agency');
   for(const name of ['Новый лид','Связались','Квалифицирован','Предложение','Переговоры','Выигран','Проигран','Отложен']) expect(await screen.findByRole('region',{name})).toBeInTheDocument();
   expect(await screen.findByText('Рекомендация')).toBeInTheDocument();
   expect(screen.getByRole('link',{name:'anna@example.com'})).toHaveAttribute('href','mailto:anna@example.com');
 });
 it('switches to an empty client board without retaining agency data',async()=>{
   setup(); await screen.findByText('Анна');
-  await userEvent.selectOptions(screen.getByLabelText('Воронка'),'client-1');
+  await userEvent.click(screen.getByLabelText('Воронка'));
+  await userEvent.click(screen.getByRole('option',{name:'Клиент'}));
   await waitFor(()=>expect(screen.queryByText('Анна')).not.toBeInTheDocument());
   expect(await screen.findAllByText('Нет лидов')).toHaveLength(8);
 });

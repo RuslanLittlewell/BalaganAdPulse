@@ -4,7 +4,16 @@ import { Plus } from "lucide-react";
 import { useCrmEvents, useLeadBoards, type Lead } from "@/entities/lead/index.js";
 import { LeadFormDialog } from "@/features/lead-management/index.js";
 import { t } from "@/shared/config/index.js";
-import { Button, EmptyState, Label } from "@/shared/ui/index.js";
+import {
+  Button,
+  EmptyState,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/index.js";
 import { CrmBoard } from "@/widgets/crm-board/index.js";
 
 type Editing = { lead?: Lead } | null;
@@ -30,16 +39,14 @@ export function CrmPage() {
         {(boards ?? []).length > 1 ? (
           <div className="flex min-w-0 flex-col gap-2">
             <Label htmlFor="crm-board">{t("crm.board")}</Label>
-            <select
-              id="crm-board"
-              className="h-9 w-56 rounded-md border border-input bg-transparent pl-3 pr-9 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-              value={board?.key ?? ""}
-              onChange={(event) => setParams({ board: event.target.value })}
-            >
-              {(boards ?? []).map((candidate) => (
-                <option key={candidate.key} value={candidate.key}>{candidate.label}</option>
-              ))}
-            </select>
+            <Select value={board?.key ?? ""} onValueChange={(next) => setParams({ board: next })}>
+              <SelectTrigger id="crm-board" className="w-56"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {(boards ?? []).map((candidate) => (
+                  <SelectItem key={candidate.key} value={candidate.key}>{candidate.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         ) : null}
 

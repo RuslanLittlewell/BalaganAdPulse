@@ -13,6 +13,7 @@ export const RESOURCES = [
   "campaign",
   "task",
   "audit",
+  "lead",
 ] as const;
 export type Resource = (typeof RESOURCES)[number];
 
@@ -40,6 +41,7 @@ const NOBODY: readonly Role[] = [];
 type ResourcePolicy = Readonly<Record<Action, readonly Role[]>>;
 
 const MATRIX: Readonly<Record<Resource, ResourcePolicy>> = {
+  lead: { read: EVERYONE, create: STAFF_AND_CUSTOMERS, update: STAFF_AND_CUSTOMERS, delete: STAFF_AND_CUSTOMERS },
   organization: { read: EVERYONE, create: NOBODY, update: ADMINS, delete: NOBODY },
   member: { read: ADMINS_AND_PRINCIPAL, create: ADMINS, update: ADMINS, delete: ADMINS_AND_PRINCIPAL },
   invite: {

@@ -22,6 +22,7 @@ import {
 } from "../modules/campaigns/presentation/http/campaign-openapi.js";
 import { taskComponents, taskDoc, taskImageDoc } from "../modules/tasks/presentation/http/task-openapi.js";
 import { mountPath } from "./create-routes.js";
+import { leadDoc, leadComponents } from '../modules/leads/presentation/http/lead-openapi.js';
 
 const require = createRequire(import.meta.url);
 
@@ -88,10 +89,12 @@ export function apiDocument(): OpenApiDocument {
       { mount: mountPath("ad-sets"), ...adSetDoc },
       { mount: mountPath("summary"), ...summaryDoc },
       { mount: mountPath("tasks"), ...taskDoc },
+      { mount: mountPath("leads"), ...leadDoc },
       { mount: mountPath("task-images"), ...taskImageDoc },
     ],
     components: mergeComponents(
       identityComponents,
+      leadComponents,
       memberComponents,
       inviteComponents,
       auditComponents,

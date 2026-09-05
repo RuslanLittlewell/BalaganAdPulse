@@ -21,6 +21,7 @@ const expectedMounts = [
   "/api/ad-sets",
   "/api/summary",
   "/api/tasks",
+  "/api/crm",
   "/api/task-images",
   "/api",
 ];

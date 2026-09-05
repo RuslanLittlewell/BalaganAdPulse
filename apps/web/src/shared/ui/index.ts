@@ -15,6 +15,7 @@ export * from "./ui/switch.js";
 export * from "./ui/table.js";
 export * from "./ui/tooltip.js";
 
+export * from "./Alerts/Alerts.js";
 export * from "./Avatar/Avatar.js";
 export * from "./CenteredPanel/CenteredPanel.js";
 export * from "./ConfirmDialog/ConfirmDialog.js";

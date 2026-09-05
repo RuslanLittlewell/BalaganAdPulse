@@ -5,6 +5,7 @@ import {
   FolderKanbanIcon,
   LayoutDashboardIcon,
   ListTodoIcon,
+  ContactIcon,
   type LucideIcon,
 } from "lucide-react";
 import { t } from "@/shared/config/index.js";
@@ -32,6 +33,7 @@ const MODULES: Module[] = [
   { to: ROUTES.dashboard, label: t("nav.dashboard"), icon: LayoutDashboardIcon, end: true },
   { to: ROUTES.projects, label: t("nav.projects"), icon: FolderKanbanIcon },
   { to: ROUTES.tasks, label: t("nav.tasks"), icon: ListTodoIcon },
+  { to: ROUTES.crm, label: t("nav.crm"), icon: ContactIcon },
   { to: ROUTES.reports, label: t("nav.reports"), icon: ChartColumnIcon, agencyOnly: true },
   { to: ROUTES.archive, label: t("nav.archive"), icon: ArchiveIcon, agencyOnly: true },
 ];

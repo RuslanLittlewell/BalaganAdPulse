@@ -34,6 +34,7 @@ export type AuditScope =
   | {
       readonly orgId: string;
       readonly everything: false;
+      readonly agencyLeads?: boolean;
       readonly clientIds: readonly string[];
       readonly wholeClientIds: readonly string[];
       readonly projectIds: readonly string[];

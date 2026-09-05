@@ -10,4 +10,5 @@ export * from "./utils.js";
 export * from "./validation.js";
 export * from "./image.js";
 export * from "./routes.js";
+export * from "./board-collision.js";
 export * from "./navCollapse.js";

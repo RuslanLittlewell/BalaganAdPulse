@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { createQueryClient } from "@/shared/lib/index.js";
 import { AuthProvider } from "@/features/auth/index.js";
+import { AlertsProvider } from "@/shared/ui/index.js";
 import { SelectionSync, useSelectionStore } from "@/entities/project/index.js";
 import { NavCollapseProvider } from "@/features/nav-collapse/index.js";
 import { writeTokens, clearTokens } from "@/shared/lib/index.js";
@@ -27,12 +28,14 @@ export function renderWithProviders(ui: ReactElement, options?: RenderOptions) {
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[options?.route ?? "/"]}>
+        <AlertsProvider>
         <AuthProvider>
           <NavCollapseProvider>
             <SelectionSync />
             {ui}
           </NavCollapseProvider>
         </AuthProvider>
+        </AlertsProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   );

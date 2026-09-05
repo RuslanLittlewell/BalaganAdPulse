@@ -41,6 +41,7 @@ enum RegistrationType {
 }
 
 model Organization {
+  leads       Lead[]
   id          String       @id @default(uuid())
   name        String
   slug        String       @unique
@@ -171,6 +172,7 @@ model TaskImage {
 }
 
 model Client {
+  leads        Lead[]
   id           String         @id @default(uuid())
   name         String
   fullName     String?        @map("full_name")
@@ -191,7 +193,47 @@ model Client {
   access       ClientAccess[]
 
   @@index([orgId, createdAt])
+  @@unique([id, orgId])
   @@map("client")
+}
+
+enum LeadStage {
+  NEW
+  CONTACTED
+  QUALIFIED
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+  DEFERRED
+  @@map("lead_stage")
+}
+
+model Lead {
+  id        String @id @default(uuid())
+  orgId     String @map("org_id")
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  clientId  String? @map("client_id")
+  client    Client? @relation(fields: [clientId, orgId], references: [id, orgId], onDelete: Cascade)
+  name      String @db.VarChar(200)
+  company   String? @db.VarChar(200)
+  phone     String? @db.VarChar(50)
+  email     String? @db.VarChar(254)
+  website   String? @db.VarChar(2048)
+  source    String? @db.VarChar(200)
+  notes     String? @db.VarChar(10000)
+  projectId  String? @map("project_id")
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  campaignId String? @map("campaign_id")
+  campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  stage     LeadStage @default(NEW)
+  position  Int @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@index([orgId, clientId, stage, position])
+  @@index([projectId])
+  @@index([campaignId])
+  @@map("lead")
 }
 
 enum ProjectPriority {
@@ -228,6 +270,7 @@ model Project {
   createdAt      DateTime        @default(now()) @map("created_at")
   updatedAt      DateTime        @updatedAt @map("updated_at")
   campaigns      Campaign[]
+  leads          Lead[]
   access         ClientAccess[]
   tasks          Task[]
   invitations    InviteProject[]
@@ -329,6 +372,7 @@ model Campaign {
   adSets     AdSet[]
   metrics    CampaignDailyMetric[]
   tasks      Task[]
+  leads      Lead[]
 
   @@unique([channel, externalId])
   @@index([projectId, position])

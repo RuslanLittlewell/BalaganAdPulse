@@ -91,10 +91,11 @@ Practical guidance for this project:
 
 ## Before committing
 
-Start the database and run the suite from the repository root:
+Start the database and the storage the suite writes to, then run it from the
+repository root:
 
 ```bash
-docker compose up -d db
+docker compose up -d db storage-init
 npm test
 ```
 

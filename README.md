@@ -566,12 +566,13 @@ Inside `apps/api` there are also `prisma:migrate`, `prisma:generate` and
 
 ## Testing
 
-Tests need a running Postgres — start it with `docker compose up -d db`. They use a
-separate `adpulse_test` database so clearing data never touches development data;
-the `pretest` script applies migrations to it automatically.
+Tests need a running Postgres and the S3-compatible storage the avatar and task-image
+routes write to — `docker compose up -d db storage-init` starts both and creates the
+bucket. They use a separate `adpulse_test` database so clearing data never touches
+development data; the `pretest` script applies migrations to it automatically.
 
 ```bash
-docker compose up -d db
+docker compose up -d db storage-init
 npm test
 ```
 

@@ -82,8 +82,13 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
       return { accessToken: await dependencies.tokens.issueAccess(principalOf(session.user)) };
     },
 
-    logout: (refreshToken: string) => dependencies.unitOfWork.run((context) =>
-      dependencies.sessions.revoke(context, dependencies.tokens.hashRefresh(refreshToken))),
+    logout: async (refreshToken: string): Promise<string | null> => {
+      const tokenHash = dependencies.tokens.hashRefresh(refreshToken);
+      const session = await dependencies.sessions.find(tokenHash);
+      await dependencies.unitOfWork.run((context) =>
+        dependencies.sessions.revoke(context, tokenHash));
+      return session?.user.id ?? null;
+    },
 
     principal: async (userId: string) => {
       const user = await dependencies.users.findById(userId);

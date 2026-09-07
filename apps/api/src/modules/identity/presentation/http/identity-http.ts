@@ -18,7 +18,14 @@ function userId(req: Request): string {
 function handle(action: (req: Request, res: Response) => Promise<void>) {
   return (req: Request, res: Response, next: NextFunction) => { action(req, res).catch(next); };
 }
-export function createIdentityHttpRouters(useCases: IdentityUseCases) {
+export interface IdentityHttpHooks {
+  readonly signedOut?: (userId: string) => void;
+}
+
+export function createIdentityHttpRouters(
+  useCases: IdentityUseCases,
+  hooks: IdentityHttpHooks = {},
+) {
   const credentialLimit = createRateLimit({ windowMs: 900_000, limit: 10 });
   const sessionLimit = createRateLimit({ windowMs: 900_000, limit: 60 });
   resets.add(() => { credentialLimit.reset(); sessionLimit.reset(); });
@@ -42,7 +49,9 @@ export function createIdentityHttpRouters(useCases: IdentityUseCases) {
   }));
   authRouter.post("/logout", sessionLimit, handle(async (req, res) => {
     const refreshToken = readCookie(req, REFRESH_COOKIE) ?? refreshSchema.parse(req.body).refreshToken;
-    await useCases.logout(refreshToken); clearAuthCookies(res); res.status(204).send();
+    const signedOut = await useCases.logout(refreshToken);
+    if (signedOut) hooks.signedOut?.(signedOut);
+    clearAuthCookies(res); res.status(204).send();
   }));
   const userRouter = Router();
   userRouter.get("/profile", handle(async (req, res) => { res.json(await useCases.profile(userId(req))); }));

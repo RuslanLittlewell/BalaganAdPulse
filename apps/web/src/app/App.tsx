@@ -7,9 +7,10 @@ import { LoginPage } from "@/pages/login/index.js";
 import { RegistrationPage } from "@/pages/registration/index.js";
 import { TasksPage } from "@/pages/tasks/index.js";
 import { CrmPage } from "@/pages/crm/index.js";
-import { AuthProvider, RequireAuth } from "@/features/auth/index.js";
+import { AuthProvider, RequireAuth, SessionHeartbeat } from "@/features/auth/index.js";
 import { NavCollapseProvider } from "@/features/nav-collapse/index.js";
 import { SelectionSync } from "@/entities/project/index.js";
+import { StaffSync } from "@/entities/membership/index.js";
 import { AppShell } from "@/widgets/app-shell/index.js";
 import { AppHeader } from "@/widgets/app-header/index.js";
 import { MainNav } from "@/widgets/main-nav/index.js";
@@ -24,6 +25,8 @@ function Dashboard() {
     <RequireAuth>
       <NavCollapseProvider>
         <SelectionSync />
+        <StaffSync />
+        <SessionHeartbeat />
         <AppShell sidebar={<MainNav />} header={<AppHeader />}>
           <Routes>
             <Route path={ROUTES.dashboard} element={<DashboardPage />} />

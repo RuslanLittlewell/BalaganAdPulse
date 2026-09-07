@@ -4,6 +4,7 @@ export interface Drainable {
 
 export interface ShutdownDeps {
   server: Drainable;
+  stopTimers?: () => void;
   closeRealtime?: () => Promise<void>;
   disconnect: () => Promise<void>;
   exit: (code: number) => void;
@@ -18,6 +19,8 @@ export function createShutdown(deps: ShutdownDeps): (signal: string) => Promise<
     if (started) return;
     started = true;
     log(`${signal} received, draining connections`);
+
+    deps.stopTimers?.();
 
     await deps.closeRealtime?.().catch((error: unknown) => {
       console.error("Error while closing realtime connections:", error);

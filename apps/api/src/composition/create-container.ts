@@ -66,6 +66,14 @@ import {
 } from "../modules/realtime/index.js";
 import type { ConnectionRegistry } from "../modules/realtime/index.js";
 import {
+  createPresenceRegistry,
+  createPresenceService,
+  createPresenceTouch,
+} from "../modules/presence/index.js";
+import type { PresenceRegistry } from "../modules/presence/index.js";
+import { createPresenceDelivery } from "../modules/realtime/index.js";
+import type { Connection } from "../modules/realtime/index.js";
+import {
   PrismaAdRepository,
   PrismaAdSetRepository,
   PrismaCampaignInProject,
@@ -107,6 +115,10 @@ export interface ApiContainer {
   readonly taskRouter: Router;
   readonly taskImageRouter: Router;
   readonly connections: ConnectionRegistry;
+  readonly presence: PresenceRegistry;
+  readonly presenceTouch: RequestHandler;
+  readonly greetPresence: (connection: Connection) => void;
+  readonly sweepPresence: () => void;
   readonly authenticate: (accessToken: string) => Promise<SessionPrincipal>;
 }
 
@@ -186,8 +198,8 @@ export function createContainer(): ApiContainer {
     clock,
     unitOfWork,
   });
-  const identityHttp = createIdentityHttpRouters(identity);
   const users = new PrismaUserRepository(prisma, unitOfWork);
+  const memberDirectory = new PrismaMemberDirectory(prisma, unitOfWork);
   const members = createMemberUseCases({
     memberships: new PrismaMembershipDirectory(prisma),
     organizations: new PrismaOrganizationDirectory(prisma),
@@ -198,10 +210,45 @@ export function createContainer(): ApiContainer {
       },
     },
     clients: { reachableClientIds: clients.reachableIds },
-    directory: new PrismaMemberDirectory(prisma, unitOfWork),
+    directory: memberDirectory,
     access: new PrismaAccessRepository(prisma, unitOfWork),
     avatars: new S3MemberAvatarStorage(),
     unitOfWork,
+  });
+  const connections = createConnectionRegistry();
+  const presence = createPresenceRegistry();
+  const presenceDelivery = createPresenceDelivery({
+    connections,
+    presence,
+    members,
+    clients: { reachableIds: clients.reachableIds },
+  });
+  const presenceService = createPresenceService({
+    registry: presence,
+    profiles: {
+      describe: async (actor) => {
+        const [member, clientIds] = await Promise.all([
+          memberDirectory.findInOrg(actor.orgId, actor.membershipId),
+          clients.reachableIds(actor),
+        ]);
+        return { image: member?.image ?? null, clientIds };
+      },
+    },
+    announce: {
+      joined: (person) => {
+        void presenceDelivery.deliverJoined(person).catch((error: unknown) => {
+          console.error("Failed to announce an arrival:", error);
+        });
+      },
+      left: (person) => {
+        void presenceDelivery.deliverLeft(person).catch((error: unknown) => {
+          console.error("Failed to announce a departure:", error);
+        });
+      },
+    },
+  });
+  const identityHttp = createIdentityHttpRouters(identity, {
+    signedOut: (userId) => { presenceService.leave(userId); },
   });
   const campaigns = createCampaignUseCases({
     campaigns: new PrismaCampaignRepository(prisma),
@@ -212,7 +259,6 @@ export function createContainer(): ApiContainer {
   });
   const campaignHttp = createCampaignHttpRouters(campaigns);
   const taskProjectReach = new PrismaTaskProjectReach(prisma);
-  const connections = createConnectionRegistry();
   const taskEventDelivery = createTaskEventDelivery({
     registry: connections,
     members,
@@ -288,6 +334,14 @@ export function createContainer(): ApiContainer {
     leadRouter: createLeadRouter(leads),
     taskImageRouter: createTaskImageRouter(taskImages, taskImageUpload.single("image")),
     connections,
+    presence,
+    presenceTouch: createPresenceTouch(presenceService),
+    greetPresence: (connection: Connection) => {
+      void presenceDelivery.greet(connection).catch((error: unknown) => {
+        console.error("Failed to hand over the presence roster:", error);
+      });
+    },
+    sweepPresence: () => { presenceService.sweep(); },
     authenticate: (token: string) => identity.authenticate(token),
   };
 }

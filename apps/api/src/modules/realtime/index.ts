@@ -13,3 +13,9 @@ export type {
   LeadEventDelivery,
   LeadEventDeliveryDependencies,
 } from "./application/lead-event-delivery.js";
+export { createPresenceDelivery } from "./application/presence-delivery.js";
+export type {
+  PresenceClientReach,
+  PresenceDelivery,
+  PresenceDeliveryDependencies,
+} from "./application/presence-delivery.js";

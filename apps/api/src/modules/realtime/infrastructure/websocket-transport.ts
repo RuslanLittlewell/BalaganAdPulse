@@ -3,8 +3,7 @@ import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer } from "ws";
 import { ACCESS_COOKIE } from "../../identity/index.js";
 import type { SessionPrincipal } from "../../identity/index.js";
-import type { TaskEvent } from "../../tasks/index.js";
-import type { ConnectionRegistry } from "../application/connection-registry.js";
+import type { Connection, ConnectionRegistry, RealtimeEvent } from "../application/connection-registry.js";
 
 export const REALTIME_PATH = "/api/realtime";
 
@@ -14,6 +13,7 @@ export interface RealtimeTransportDependencies {
   readonly server: Server;
   readonly registry: ConnectionRegistry;
   readonly authenticate: (accessToken: string) => Promise<SessionPrincipal>;
+  readonly greet?: (connection: Connection) => void;
 }
 
 function readCookie(header: string | undefined, name: string): string | undefined {
@@ -50,15 +50,17 @@ export function attachRealtime(dependencies: RealtimeTransportDependencies) {
       .authenticate(accessToken)
       .then((principal) => {
         sockets.handleUpgrade(request, socket, head, (client) => {
-          const handle = dependencies.registry.add({
+          const connection: Connection = {
             principal,
-            send: (event: TaskEvent) => {
+            send: (event: RealtimeEvent) => {
               if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify(event));
             },
-          });
+          };
+          const handle = dependencies.registry.add(connection);
           client.on("close", () => handle.remove());
           client.on("error", () => handle.remove());
           client.send(JSON.stringify({ kind: "ready" }));
+          dependencies.greet?.(connection);
         });
       })
       .catch(() => { refuse(socket); });

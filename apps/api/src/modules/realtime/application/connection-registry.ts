@@ -1,8 +1,9 @@
 import type { SessionPrincipal } from "../../identity/index.js";
 import type { LeadEvent } from "../../leads/index.js";
+import type { PresenceEvent } from "../../presence/index.js";
 import type { TaskEvent } from "../../tasks/index.js";
 
-export type RealtimeEvent = TaskEvent | LeadEvent;
+export type RealtimeEvent = TaskEvent | LeadEvent | PresenceEvent;
 
 export interface Connection {
   readonly principal: SessionPrincipal;

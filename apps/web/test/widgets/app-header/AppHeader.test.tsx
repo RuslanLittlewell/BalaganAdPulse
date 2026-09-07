@@ -1,10 +1,30 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { renderWithProviders, server } from "@test/shared/index.js";
+import { realtime, renderWithProviders, server } from "@test/shared/index.js";
 import { AppHeader } from "@/widgets/app-header/AppHeader.js";
 
 describe("AppHeader", () => {
+  it("shows who is online between the action buttons and the account", async () => {
+    server.use(realtime.addEventListener("connection", ({ client }) => {
+      client.send(JSON.stringify({
+        kind: "presence.state",
+        people: [{
+          userId: "u2", membershipId: "m2", name: "Мария", image: "2026-09-01T00:00:00.000Z",
+        }],
+      }));
+    }));
+    renderWithProviders(<AppHeader />);
+
+    const roster = await screen.findByTestId("online-users");
+    const activity = await screen.findByRole("button", { name: "История действий" });
+    const account = await screen.findByRole("button", { name: /Buyer/ });
+
+    expect(activity.compareDocumentPosition(roster) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(roster.compareDocumentPosition(account) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(roster).getByRole("img", { name: "Мария" })).toBeInTheDocument();
+  });
+
   it("renders the account and theme controls", async () => {
     renderWithProviders(<AppHeader />);
     expect(await screen.findByRole("button", { name: /Buyer/ })).toBeInTheDocument();

@@ -9,6 +9,7 @@ const expectedMounts = [
   "/api",
   "/api",
   "/api",
+  "/api",
   "/api/auth/me",
   "/api/user",
   "/api/invites",

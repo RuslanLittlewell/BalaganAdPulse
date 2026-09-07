@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { ApiError } from "@/shared/lib/index.js";
+import { ApiError, fieldProblems } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import {
   Button,
@@ -17,6 +17,7 @@ import {
   SelectValue,
   Switch,
   TextField,
+  useAlerts,
 } from "@/shared/ui/index.js";
 import { Can, useCan } from "@/features/permissions/index.js";
 import { ProjectAvatar, useProjects } from "@/entities/project/index.js";
@@ -54,6 +55,23 @@ const UNASSIGNED = "";
 
 const WHOLE_PROJECT = "__whole_project__";
 
+const messageOf = (error: unknown) =>
+  error instanceof ApiError && error.status < 500 ? error.message : t("tasks.saveFailed");
+
+const FORM_FIELDS = [
+  "projectId",
+  "title",
+  "priority",
+  "assigneeId",
+  "campaignId",
+  "visibleToClient",
+] as const satisfies readonly (keyof FormValues)[];
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return <p role="alert" className="text-sm text-destructive">{message}</p>;
+}
+
 export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDialogProps) {
   const { data: projects } = useProjects();
   const { data: members } = useMembers();
@@ -65,11 +83,11 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
     () => [...new Set([...(task?.imageIds ?? []), ...collectImageIds(description)])],
     [task?.imageIds, description],
   );
-  const [failure, setFailure] = useState<string | null>(null);
+  const { raise } = useAlerts();
   const editor = useRef<TaskDescriptionEditorHandle>(null);
   const content = useRef<HTMLDivElement>(null);
 
-  const { control, handleSubmit, register, setValue, watch, formState: { errors } } =
+  const { control, handleSubmit, register, setError, setValue, watch, formState: { errors } } =
     useForm<FormValues>({
       defaultValues: {
         projectId: task?.projectId ?? "",
@@ -104,13 +122,15 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
       description,
       ...(column && !task ? { column } : {}),
     };
-    setFailure(null);
     try {
       if (task) await update.mutateAsync({ id: task.id, body });
       else await create.mutateAsync(body);
       onClose();
     } catch (error) {
-      setFailure(error instanceof ApiError ? error.message : t("tasks.loadFailed"));
+      const problems = fieldProblems(error);
+      const rejected = FORM_FIELDS.filter((field) => problems[field] !== undefined);
+      for (const field of rejected) setError(field, { message: problems[field] });
+      if (rejected.length === 0) raise(messageOf(error));
     }
   });
 
@@ -181,9 +201,7 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
                 </Select>
               )}
             />
-            {errors.projectId ? (
-              <p role="alert" className="text-sm text-destructive">{errors.projectId.message}</p>
-            ) : null}
+            <FieldError message={errors.projectId?.message} />
           </div>
 
           {projectId ? (
@@ -211,6 +229,7 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
                   </Select>
                 )}
               />
+              <FieldError message={errors.campaignId?.message} />
             </div>
           ) : null}
 
@@ -235,6 +254,7 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
                 </Select>
               )}
             />
+            <FieldError message={errors.assigneeId?.message} />
           </div>
 
           <div className="flex min-w-0 flex-col gap-2">
@@ -255,6 +275,7 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
                 </Select>
               )}
             />
+            <FieldError message={errors.priority?.message} />
           </div>
 
           {mayShareWithClient ? (
@@ -282,7 +303,6 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
             onRemoved={(imageId) => editor.current?.removeImage(imageId)}
           />
 
-          {failure ? <p role="alert" className="text-sm text-destructive">{failure}</p> : null}
           </div>
 
           <DialogFooter className="shrink-0 border-t border-border pt-4">

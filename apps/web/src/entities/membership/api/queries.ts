@@ -7,10 +7,6 @@ import {
 
 export const MEMBERS_KEY = ["members"] as const;
 
-export function useMembers() {
-  return useQuery({ queryKey: MEMBERS_KEY, queryFn: membersApi.list });
-}
-
 export function useClientMembers(clientId: string | undefined) {
   return useQuery({
     queryKey: [...MEMBERS_KEY, "client", clientId ?? null],

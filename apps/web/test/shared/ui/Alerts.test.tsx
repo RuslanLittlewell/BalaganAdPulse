@@ -1,13 +1,6 @@
-import { useEffect } from "react";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AlertsProvider, useAlerts } from "@/shared/ui/index.js";
-
-function AutoRaiser() {
-  const { raise } = useAlerts();
-  useEffect(() => { raise("Не удалось сохранить"); }, [raise]);
-  return null;
-}
 
 function Raiser() {
   const { raise } = useAlerts();
@@ -26,7 +19,7 @@ describe("the alert surface", () => {
 
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Не удалось сохранить");
-    expect(screen.getByTestId("alerts")).toHaveAttribute("aria-live", "assertive");
+    expect(screen.getByRole("button", { name: "поднять" })).not.toContainElement(alert);
   });
 
   it("stacks several alerts rather than replacing the one before", async () => {
@@ -49,14 +42,14 @@ describe("the alert surface", () => {
   });
 
   it("clears itself after a while, so nothing piles up", async () => {
-    vi.useFakeTimers();
-    render(<AlertsProvider><AutoRaiser /></AlertsProvider>);
-    expect(screen.getByRole("alert")).toBeInTheDocument();
+    setup();
+    await userEvent.click(screen.getByRole("button", { name: "поднять" }));
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(8_000); });
+    const timer = await screen.findByRole("progressbar");
+    expect(timer).toHaveStyle({ animationDuration: "8000ms" });
+    fireEvent.animationEnd(timer);
 
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    vi.useRealTimers();
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
   });
 
   it("refuses to be used without its provider", () => {

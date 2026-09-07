@@ -195,8 +195,64 @@ describe("TaskFormDialog", () => {
     await userEvent.click(await screen.findByRole("option", { name: "Летний запуск" }));
     await userEvent.click(screen.getByRole("button", { name: "Создать задачу" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Недостаточно прав");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Недостаточно прав");
+    expect(screen.getByRole("dialog")).not.toContainElement(alert);
     await waitFor(() => expect(closed).toBe(false));
+  });
+
+  it("puts what the server rejected under the field it named", async () => {
+    server.use(mock.post("/api/tasks", () => HttpResponse.json({
+      error: {
+        message: "Validation error",
+        details: [{
+          origin: "string", code: "too_small", minimum: 1, inclusive: true,
+          path: ["title"], message: "title is required",
+        }],
+      },
+    }, { status: 400 })));
+    setup();
+
+    await userEvent.type(await screen.findByLabelText("Название"), "Бриф");
+    await userEvent.click(await screen.findByLabelText("Проект"));
+    await userEvent.click(await screen.findByRole("option", { name: "Летний запуск" }));
+    await userEvent.click(screen.getByRole("button", { name: "Создать задачу" }));
+
+    const title = await screen.findByLabelText("Название");
+    expect(await screen.findByText("Обязательное поле")).toBeInTheDocument();
+    expect(title).toHaveAttribute("aria-invalid", "true");
+    expect(title).toHaveAccessibleDescription("Обязательное поле");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("falls back to an alert when the rejection names no field of this form", async () => {
+    server.use(mock.post("/api/tasks", () => HttpResponse.json({
+      error: {
+        message: "Validation error",
+        details: [{ code: "invalid_type", path: ["board"], message: "board is required" }],
+      },
+    }, { status: 400 })));
+    setup();
+
+    await userEvent.type(await screen.findByLabelText("Название"), "Бриф");
+    await userEvent.click(await screen.findByLabelText("Проект"));
+    await userEvent.click(await screen.findByRole("option", { name: "Летний запуск" }));
+    await userEvent.click(screen.getByRole("button", { name: "Создать задачу" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Validation error");
+  });
+
+  it("says the task could not be saved when the server breaks down", async () => {
+    server.use(mock.post("/api/tasks", () =>
+      HttpResponse.json({ error: { message: "Internal error" } }, { status: 500 })));
+    setup();
+
+    await userEvent.type(await screen.findByLabelText("Название"), "Бриф");
+    await userEvent.click(await screen.findByLabelText("Проект"));
+    await userEvent.click(await screen.findByRole("option", { name: "Летний запуск" }));
+    await userEvent.click(screen.getByRole("button", { name: "Создать задачу" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Не удалось сохранить задачу");
   });
 });
 

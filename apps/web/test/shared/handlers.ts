@@ -1,6 +1,6 @@
 import { http, HttpResponse, ws } from "msw";
 
-const realtime = ws.link("ws://*/api/realtime");
+export const realtime = ws.link("ws://*/api/realtime");
 
 export const defaultHandlers = [
   http.get("/api/auth/me", () => HttpResponse.json({
@@ -16,5 +16,6 @@ export const defaultHandlers = [
   http.get("/api/projects", () => HttpResponse.json([])),
   http.get("/api/projects/:projectId/campaigns", () => HttpResponse.json([])),
   http.get("/api/invites", () => HttpResponse.json([])),
+  http.get("/api/members", () => HttpResponse.json([])),
   realtime.addEventListener("connection", () => undefined),
 ];

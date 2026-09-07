@@ -7,6 +7,7 @@ import { ProfileSettingsDialog } from "@/features/profile-settings/index.js";
 import { ThemeToggle } from "@/features/theme-toggle/index.js";
 import { Can } from "@/features/permissions/index.js";
 import { ContactBook } from "@/widgets/contact-book/index.js";
+import { OnlineUsers } from "@/widgets/online-users/index.js";
 import { ActivityLogModal } from "@/widgets/activity-log-modal/index.js";
 import { useNavCollapse } from "@/features/nav-collapse/index.js";
 import { t } from "@/shared/config/index.js";
@@ -69,6 +70,7 @@ export function AppHeader() {
               </Tooltip>
               <div aria-hidden="true" className="mx-1 h-6 w-px bg-border" />
             </Can>
+          <OnlineUsers />
           <UserMenu onSettings={() => setSettingsOpen(true)} avatarVersion={avatarVersion} />
           <ThemeToggle />
           </div>

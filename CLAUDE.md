@@ -21,6 +21,11 @@ the stack, layout and commands.
   mood, lowercase, no trailing period. Full type table and examples in
   [CONTRIBUTING.md](CONTRIBUTING.md). Do not commit without an explicit request.
 - **TDD** — write the failing test first, then the implementation, for each slice.
+- **No tests for styles** — never assert on CSS classes, inline styles or computed
+  colours, spacing and borders. Styling is changed on sight and such a test fails on
+  a redesign that broke nothing. Test what the component does: the text and roles it
+  renders, the handlers it fires, what the keyboard reaches, the accessible names and
+  states (`data-*`, `aria-*`) it exposes.
 - **Specs first, through OpenSpec** — planning artifacts live in `openspec/`. Scaffold
   a change with `openspec new change "<name>"`, then write its `proposal.md`,
   `specs/<capability>/spec.md`, `design.md` and `tasks.md`, guided by
@@ -31,5 +36,6 @@ the stack, layout and commands.
 
 ## Testing
 
-Tests need Postgres running (`docker compose up -d db`) and use the separate
-`adpulse_test` database. Run `npm test` from the repository root.
+Tests need Postgres and the S3-compatible storage running
+(`docker compose up -d db storage-init`) and use the separate `adpulse_test`
+database. Run `npm test` from the repository root.

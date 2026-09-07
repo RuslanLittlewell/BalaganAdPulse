@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { http as mock, HttpResponse } from "msw";
+import { render, screen, waitFor } from "@testing-library/react";
 import { clearTokens, writeTokens } from "@/shared/lib/index.js";
-import { makeAccessToken } from "@test/shared/index.js";
+import { makeAccessToken, server } from "@test/shared/index.js";
 import { App } from "@/app/App.js";
 
 function renderAppAt(path: string) {
@@ -15,6 +16,19 @@ beforeEach(() => {
 });
 
 describe("App", () => {
+  it("loads the staff once, when the dashboard opens", async () => {
+    let asked = 0;
+    server.use(mock.get("/api/members", () => {
+      asked += 1;
+      return HttpResponse.json([]);
+    }));
+    writeTokens({ accessToken: makeAccessToken(), refreshToken: "r" });
+
+    renderAppAt("/");
+
+    await waitFor(() => expect(asked).toBe(1));
+  });
+
   it("sends a signed-out visitor at a dashboard route to the sign-in screen", () => {
     renderAppAt("/clients/c1");
 

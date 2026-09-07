@@ -73,9 +73,13 @@ if (!Range.prototype.getBoundingClientRect) {
 }
 
 import { server } from "./server.js";
+import { resetStaff } from "@/entities/membership/index.js";
 
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
-afterEach(() => server.resetHandlers());
+afterEach(() => {
+  server.resetHandlers();
+  resetStaff();
+});
 afterAll(() => server.close());
 
 let objectUrlCount = 0;

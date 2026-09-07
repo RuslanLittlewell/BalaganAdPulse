@@ -54,7 +54,7 @@ export function TaskCard({
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn(
         "group relative shrink-0 overflow-hidden rounded-xl border border-border bg-card",
-        "py-3 pl-5 pr-3 text-left",
+        "py-3 pl-6 pr-3 text-left",
         "shadow-sm transition-all hover:border-border hover:shadow-md",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
         onOpen && "cursor-pointer",

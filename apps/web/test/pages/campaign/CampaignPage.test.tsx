@@ -1,7 +1,7 @@
 import { http as mock, HttpResponse } from "msw";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, useLocation } from "react-router-dom";
 import { aTask, renderWithProviders, server } from "@test/shared/index.js";
 import { CampaignPage } from "@/pages/campaign/index.js";
 
@@ -14,11 +14,16 @@ const day = (date: string, spend: number) => ({
   date, spend, impressions: 0, reach: 0, clicks: 0, conversions: 0, revenue: 0,
 });
 
+function ProjectDestination() {
+  const location = useLocation();
+  return <><h1>Проект</h1><output>{location.search}</output></>;
+}
+
 function App() {
   return (
     <Routes>
       <Route path="/projects/:projectId/campaigns/:campaignId" element={<CampaignPage />} />
-      <Route path="/projects/:projectId" element={<h1>Проект</h1>} />
+      <Route path="/projects/:projectId" element={<ProjectDestination />} />
     </Routes>
   );
 }
@@ -58,6 +63,8 @@ describe("CampaignPage", () => {
 
     expect(await screen.findByRole("heading", { name: "Поиск / Москва" })).toBeInTheDocument();
     expect(screen.getByText("Яндекс Директ · Активна · Заявки")).toBeInTheDocument();
+    expect(screen.getByLabelText("От")).toBeInTheDocument();
+    expect(screen.getByLabelText("До")).toBeInTheDocument();
   });
 
   it("returns to the campaign list through the back arrow in the title", async () => {
@@ -67,6 +74,18 @@ describe("CampaignPage", () => {
 
     await user.click(await screen.findByRole("button", { name: "Назад к кампаниям" }));
     expect(await screen.findByRole("heading", { name: "Проект" })).toBeInTheDocument();
+  });
+
+  it("keeps the selected range when returning to the project", async () => {
+    const user = userEvent.setup();
+    api();
+    renderWithProviders(<App />, {
+      route: "/projects/p1/campaigns/c1?from=2026-08-01&to=2026-08-09",
+    });
+
+    await user.click(await screen.findByRole("button", { name: "Назад к кампаниям" }));
+
+    expect(await screen.findByText("?from=2026-08-01&to=2026-08-09")).toBeInTheDocument();
   });
 
   it("shows the campaign's figures for the period", async () => {

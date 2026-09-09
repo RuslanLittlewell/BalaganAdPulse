@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { ArrowLeftIcon } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button, EmptyState } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
 import { projectPath } from "@/shared/lib/index.js";
@@ -34,6 +34,7 @@ export function CampaignPage() {
   const campaignId = useActiveCampaignId();
   const projectId = useActiveProjectId();
   const navigate = useNavigate();
+  const location = useLocation();
   const { range } = usePeriod();
   const campaign = useCampaign(campaignId, range);
   const days = useCampaignDaily(campaignId, range);
@@ -72,7 +73,7 @@ export function CampaignPage() {
             variant="ghost"
             size="icon"
             aria-label={t("campaign.back")}
-            onClick={() => { if (projectId) navigate(projectPath(projectId)); }}
+            onClick={() => { if (projectId) navigate(`${projectPath(projectId)}${location.search}`); }}
           >
             <ArrowLeftIcon />
           </Button>

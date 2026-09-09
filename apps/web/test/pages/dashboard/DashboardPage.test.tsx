@@ -3,13 +3,18 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders, server } from "@test/shared/index.js";
 import { DashboardPage } from "@/pages/dashboard/index.js";
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, useLocation } from "react-router-dom";
+
+function ProjectDestination() {
+  const location = useLocation();
+  return <><h2>Экран проекта</h2><output>{location.search}</output></>;
+}
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<DashboardPage />} />
-      <Route path="/projects/:projectId" element={<h2>Экран проекта</h2>} />
+      <Route path="/projects/:projectId" element={<ProjectDestination />} />
     </Routes>
   );
 }
@@ -50,6 +55,8 @@ describe("DashboardPage", () => {
     const summary = await screen.findByRole("group", { name: "Показатели за период" });
     expect(await within(summary).findByText("4 200 ₽")).toBeInTheDocument();
     expect(within(summary).getByText("Расход")).toBeInTheDocument();
+    expect(screen.getByLabelText("От")).toBeInTheDocument();
+    expect(screen.getByLabelText("До")).toBeInTheDocument();
   });
 
   it("lists every project with its own figures", async () => {
@@ -77,6 +84,16 @@ describe("DashboardPage", () => {
     await user.click(await screen.findByRole("button", { name: /Клиника/ }));
 
     expect(await screen.findByRole("heading", { name: "Экран проекта" })).toBeInTheDocument();
+  });
+
+  it("keeps the selected range when a project is opened", async () => {
+    const user = userEvent.setup();
+    api();
+    renderWithProviders(<App />, { route: "/?from=2026-08-01&to=2026-08-09" });
+
+    await user.click(await screen.findByRole("button", { name: /Клиника/ }));
+
+    expect(await screen.findByText("?from=2026-08-01&to=2026-08-09")).toBeInTheDocument();
   });
 
   it("shows where the money went, by channel", async () => {

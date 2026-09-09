@@ -1,21 +1,28 @@
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { DEFAULT_PERIOD, isPeriod, rangeOf, type Period } from "./period.js";
+import type { DateRange } from "@/entities/campaign/index.js";
+import { defaultRange, isDateRange } from "./period.js";
 
 export function usePeriod() {
   const [params, setParams] = useSearchParams();
-  const raw = params.get("period");
-  const period: Period = isPeriod(raw) ? raw : DEFAULT_PERIOD;
+  const from = params.get("from") ?? "";
+  const to = params.get("to") ?? "";
 
-  const setPeriod = useCallback((next: Period) => {
+  const setRange = useCallback((next: DateRange) => {
+    if (!isDateRange(next)) return;
     setParams((previous) => {
       const updated = new URLSearchParams(previous);
-      updated.set("period", next);
+      updated.delete("period");
+      updated.set("from", next.from);
+      updated.set("to", next.to);
       return updated;
     }, { replace: true });
   }, [setParams]);
 
-  const range = useMemo(() => rangeOf(period), [period]);
+  const range = useMemo(() => {
+    const requested = { from, to };
+    return isDateRange(requested) ? requested : defaultRange();
+  }, [from, to]);
 
-  return { period, setPeriod, range };
+  return { range, setRange };
 }

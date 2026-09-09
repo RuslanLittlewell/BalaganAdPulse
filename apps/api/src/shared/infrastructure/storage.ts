@@ -1,6 +1,7 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -42,6 +43,20 @@ export async function getObject(key: string): Promise<StoredObject> {
   }));
   if (!object.Body) throw new Error(`Stored object ${key} has no body`);
   return { body: await object.Body.transformToByteArray(), contentType: object.ContentType };
+}
+
+export async function headObject(
+  key: string,
+): Promise<{ contentType: string | undefined; bytes: number } | null> {
+  try {
+    const object = await storage.send(new HeadObjectCommand({
+      Bucket: config.storage.bucket,
+      Key: key,
+    }));
+    return { contentType: object.ContentType, bytes: object.ContentLength ?? 0 };
+  } catch {
+    return null;
+  }
 }
 
 export async function removeObjects(keys: readonly string[]): Promise<void> {

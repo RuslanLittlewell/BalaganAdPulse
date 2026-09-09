@@ -1,0 +1,29 @@
+.balagan-signature {
+  display: block;
+  width: min(390px, 85vw);
+  height: auto;
+  overflow: visible;
+}
+
+.balagan-signature__reveal {
+  visibility: hidden;
+  stroke-dasharray: 1.05;
+  stroke-dashoffset: 1.05;
+  animation: balagan-write linear forwards;
+}
+
+@keyframes balagan-write {
+  from { visibility: visible; }
+  to {
+    visibility: visible;
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .balagan-signature__reveal {
+    animation: none;
+    visibility: visible;
+    stroke-dashoffset: 0;
+  }
+}

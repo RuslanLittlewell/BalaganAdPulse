@@ -3,7 +3,7 @@ import { CalendarIcon } from "lucide-react";
 import { Button, DatePicker, Input, Label } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
 import type { DateRange } from "@/entities/campaign/index.js";
-import { isDateRange, isIsoDate } from "../model/period.js";
+import { SHORTCUTS, isDateRange, isIsoDate, shortcutRange } from "../model/period.js";
 import { usePeriod } from "../model/usePeriod.js";
 
 const labels = (side: "from" | "to") => ({
@@ -33,6 +33,24 @@ export function PeriodControl() {
 
   return (
     <div role="group" aria-label={t("period.label")} className="flex flex-wrap items-start gap-2">
+      <div className="flex items-center gap-1 self-end">
+        {SHORTCUTS.map((shortcut) => {
+          const preset = shortcutRange(shortcut);
+          const active = preset.from === range.from && preset.to === range.to;
+          return (
+            <Button
+              key={shortcut}
+              type="button"
+              size="sm"
+              variant={active ? "secondary" : "ghost"}
+              aria-pressed={active}
+              onClick={() => setRange(preset)}
+            >
+              {t(`period.${shortcut}`)}
+            </Button>
+          );
+        })}
+      </div>
       {(["from", "to"] as const).map((side) => {
         const fieldError = error == null ? undefined : error;
         return (

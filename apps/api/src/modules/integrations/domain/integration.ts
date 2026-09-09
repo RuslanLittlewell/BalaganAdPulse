@@ -25,7 +25,11 @@ export function publicIntegration(row: Integration | null) {
 }
 
 export class MetaError extends Error {
-  constructor(readonly code: "TOKEN" | "CURRENCY" | "PROVIDER" | "INVALID_DATA" | "CONFIGURATION" | "CONFLICT", readonly retryAfterMs = 0) {
+  constructor(
+    readonly code: "TOKEN" | "CURRENCY" | "PROVIDER" | "INVALID_DATA" | "CONFIGURATION" | "CONFLICT",
+    readonly retryAfterMs = 0,
+    readonly detail = "",
+  ) {
     super(`Meta integration: ${code}`);
   }
 }

@@ -16,6 +16,39 @@ export interface ImportedMetric {
   conversions: number;
   revenue: string;
 }
+export type CreativeKind = "IMAGE" | "VIDEO";
+export interface ImportedCreative {
+  adExternalId: string;
+  creativeId: string;
+  position: number;
+  kind: CreativeKind;
+  title?: string;
+  body?: string;
+  fileUrl?: string;
+  posterUrl?: string;
+}
+export interface CreativeView {
+  id: string;
+  position: number;
+  kind: CreativeKind;
+  title: string | null;
+  body: string | null;
+  hasFile: boolean;
+  hasPoster: boolean;
+}
+export interface StoredCreative {
+  adExternalId: string;
+  creativeId: string;
+  position: number;
+  kind: CreativeKind;
+  title?: string;
+  body?: string;
+  fileKey?: string;
+  contentType?: string;
+  bytes?: number;
+  posterKey?: string;
+  posterContentType?: string;
+}
 export interface Snapshot {
   from: string;
   to: string;

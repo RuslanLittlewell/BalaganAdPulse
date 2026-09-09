@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
@@ -9,19 +9,22 @@ import { makeAccessToken } from "@test/shared/index.js";
 import { createQueryClient } from "@/shared/lib/index.js";
 import { hasSession, readTokens } from "@/shared/lib/index.js";
 import { AuthProvider } from "@/features/auth/index.js";
+import { AlertsProvider } from "@/shared/ui/index.js";
 import { LoginPage } from "@/pages/login/LoginPage.js";
 
 function renderPage(state?: { from: string }) {
   return render(
     <QueryClientProvider client={createQueryClient()}>
       <MemoryRouter initialEntries={[{ pathname: "/login", state }]}>
-        <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/" element={<span>dashboard</span>} />
-            <Route path="/clients/c1" element={<span>client one</span>} />
-          </Routes>
-        </AuthProvider>
+        <AlertsProvider>
+          <AuthProvider>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/" element={<span>dashboard</span>} />
+              <Route path="/clients/c1" element={<span>client one</span>} />
+            </Routes>
+          </AuthProvider>
+        </AlertsProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -36,7 +39,10 @@ describe("LoginPage", () => {
     await userEvent.type(screen.getByLabelText("Пароль"), "hunter2hunter2");
     await userEvent.click(screen.getByRole("button", { name: "Войти" }));
 
-    expect(screen.getByText("Введите корректный email")).toBeInTheDocument();
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Введите корректный email");
+    expect(screen.getByLabelText("Email")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Email").closest("form")).not.toContainElement(alert);
   });
 
   it("keeps tokens out of browser storage and lands on the dashboard", async () => {
@@ -65,7 +71,7 @@ describe("LoginPage", () => {
     expect(await screen.findByText("client one")).toBeInTheDocument();
   });
 
-  it("shows the server's message above the form", async () => {
+  it("shows the server's message in a toast", async () => {
     server.use(http.post("/api/auth/login", () =>
       HttpResponse.json(
         { error: { message: "Invalid email or password" } }, { status: 401 },
@@ -76,7 +82,10 @@ describe("LoginPage", () => {
     await userEvent.type(screen.getByLabelText("Пароль"), "wrongwrongwrong");
     await userEvent.click(screen.getByRole("button", { name: "Войти" }));
 
-    expect(await screen.findByText("Invalid email or password")).toBeInTheDocument();
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Invalid email or password");
+    expect(screen.getByLabelText("Email").closest("form")).not.toContainElement(alert);
+    expect(screen.getByRole("button", { name: "Войти" })).toBeEnabled();
     expect(readTokens()).toEqual({});
   });
 
@@ -116,7 +125,12 @@ describe("LoginPage", () => {
     await userEvent.type(screen.getByLabelText("Пароль"), "hunter2hunter2");
     await userEvent.click(screen.getByRole("button", { name: "Войти" }));
 
-    expect(screen.getByRole("button", { name: "Войти" })).toBeDisabled();
+    const button = screen.getByRole("button", { name: "Войти" });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("aria-busy", "true");
+    expect(within(button).getByRole("status")).toBeInTheDocument();
+    expect(within(button).queryByText("Войти")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("status")).toHaveLength(1);
 
     resolveRequest(HttpResponse.json({ accessToken: makeAccessToken(), refreshToken: "r" }));
     expect(await screen.findByText("dashboard")).toBeInTheDocument();

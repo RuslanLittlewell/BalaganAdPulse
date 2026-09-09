@@ -36,7 +36,7 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
           <button
             type="button"
             aria-label={t("alert.dismiss")}
-            className="shrink-0 self-start rounded-sm opacity-80 transition-opacity hover:opacity-100"
+            className="shrink-0 self-start rounded-sm opacity-80 transition-opacity hover:opacity-100 ml-auto"
             onClick={closeToast}
           >
             <X aria-hidden className="size-4" />

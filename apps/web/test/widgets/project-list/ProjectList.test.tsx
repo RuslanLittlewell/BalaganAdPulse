@@ -46,23 +46,17 @@ describe("ProjectList", () => {
     await waitFor(() => expect(screen.getByLabelText("Название проекта")).toBeInTheDocument());
   });
 
-  it("sorts projects by priority from critical to new", async () => {
+  it("keeps the member's own order rather than sorting by priority", async () => {
     server.use(mock.get("/api/projects", () => HttpResponse.json([
       aProject({ id: "new", name: "Новый", priority: "NEW" }),
-      aProject({ id: "waiting", name: "Ожидает", priority: "WAITING" }),
       aProject({ id: "critical", name: "Критичный", priority: "CRITICAL" }),
-      aProject({ id: "urgent", name: "Срочный", priority: "URGENT" }),
       aProject({ id: "idle", name: "Без задач", priority: "IDLE" }),
     ])));
     setup();
 
     await screen.findByText("Критичный");
-    const names = ["Критичный", "Срочный", "Ожидает", "Без задач", "Новый"]
-      .map((name) => screen.getAllByText(name).at(-1)!);
-    for (let index = 0; index < names.length - 1; index += 1) {
-      expect(names[index].compareDocumentPosition(names[index + 1]) & Node.DOCUMENT_POSITION_FOLLOWING)
-        .toBeTruthy();
-    }
+    expect(screen.getAllByTestId(/^project-row-/).map((row) => row.getAttribute("data-testid")))
+      .toEqual(["project-row-new", "project-row-critical", "project-row-idle"]);
   });
 
   it("filters projects with the priority select", async () => {
@@ -94,7 +88,7 @@ describe("ProjectList", () => {
 
   it("uses the shared loader while the projects load", () => {
     setup();
-    expect(screen.getByRole("status")).toHaveTextContent("Загрузка…");
+    expect(screen.getAllByRole("status").map((node) => node.textContent)).toContain("Загрузка…");
   });
 
   it("puts an edit control on every row", async () => {

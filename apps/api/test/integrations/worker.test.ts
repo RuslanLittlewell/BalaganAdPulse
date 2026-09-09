@@ -46,3 +46,37 @@ it("records safe provider errors without committing a partial snapshot", async (
   expect(d.jobs.complete).not.toHaveBeenCalled();
   await worker.stop();
 });
+
+it("reports the reason an unexpected failure was recorded as a provider error", async () => {
+  const d = dependencies();
+  const reported = vi.spyOn(console, "error").mockImplementation(() => {});
+  d.jobs.complete.mockRejectedValue(new Error("adCreative is undefined"));
+  const worker = createImportWorker(d);
+  worker.start();
+  await vi.advanceTimersByTimeAsync(0);
+
+  expect(d.jobs.fail).toHaveBeenCalledWith(job, expect.objectContaining({ code: "PROVIDER" }), now);
+  expect(reported).toHaveBeenCalledWith(
+    "Meta import failed unexpectedly:",
+    "adCreative is undefined",
+  );
+  await worker.stop();
+  reported.mockRestore();
+});
+
+it("reports what the provider answered when it records a provider failure", async () => {
+  const d = dependencies();
+  const reported = vi.spyOn(console, "error").mockImplementation(() => {});
+  d.provider.snapshot.mockRejectedValue(new MetaError("PROVIDER", 0, "http 400, code 17, type OAuthException"));
+  const worker = createImportWorker(d);
+  worker.start();
+  await vi.advanceTimersByTimeAsync(0);
+
+  expect(reported).toHaveBeenCalledWith(
+    "Meta import failed:",
+    "PROVIDER",
+    "http 400, code 17, type OAuthException",
+  );
+  await worker.stop();
+  reported.mockRestore();
+});

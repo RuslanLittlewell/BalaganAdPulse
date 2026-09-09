@@ -5,6 +5,7 @@ The fixed period shortcuts prevent users from inspecting an exact reporting inte
 ## What Changes
 
 - Replace the 7-day, 30-day, 90-day, current-month and previous-month buttons with two date inputs labelled “От” and “До”.
+- Keep last-7-days, current-month and previous-month shortcuts as buttons to the left of the two inputs, each filling the range instead of storing a preset.
 - Open the existing shadcn/ui calendar from each input and allow direct keyboard entry of valid dates.
 - Keep the chosen inclusive range in the URL so dashboard, project and campaign screens share it and browser navigation preserves it.
 - Validate the range before changing metrics queries and present Russian feedback for invalid or reversed dates.

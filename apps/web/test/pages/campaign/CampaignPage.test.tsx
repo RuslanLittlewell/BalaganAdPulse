@@ -28,7 +28,8 @@ function App() {
   );
 }
 
-function api(options: { adSets?: unknown[]; days?: unknown[]; tasks?: unknown[] } = {}) {
+function api(options: { adSets?: unknown[]; ads?: unknown[]; days?: unknown[]; tasks?: unknown[] } = {}) {
+  const creativeRequests: string[] = [];
   server.use(
     mock.get("/api/members", () => HttpResponse.json([])),
     mock.get("/api/projects", () => HttpResponse.json([{
@@ -43,15 +44,27 @@ function api(options: { adSets?: unknown[]; days?: unknown[]; tasks?: unknown[] 
       { id: "s1", campaignId: "c1", name: "Москва · 28–55", audience: "Гео Москва",
         status: "ACTIVE", externalId: null, position: 0, performance: performance(600) },
     ])),
-    mock.get("/api/ad-sets/:adSetId/ads", () => HttpResponse.json([
+    mock.get("/api/ad-sets/:adSetId/ads", () => HttpResponse.json(options.ads ?? [
       { id: "a1", adSetId: "s1", name: "Приём сегодня", format: "Текст", headline: null,
         status: "PAUSED", externalId: null, position: 0, performance: performance(300) },
     ])),
+    mock.get("/api/ads/:adId/creatives", ({ params }) => {
+      creativeRequests.push(String(params.adId));
+      return HttpResponse.json([{
+        id: "cr1", position: 0, kind: "IMAGE", title: "Баннер", body: null,
+        hasFile: true, hasPoster: false,
+      }]);
+    }),
+    mock.get("/api/ad-creatives/:id/file", () =>
+      HttpResponse.arrayBuffer(new Uint8Array([137, 80, 78, 71]).buffer as ArrayBuffer, {
+        headers: { "content-type": "image/png" },
+      })),
     mock.get("/api/campaigns/:campaignId", () => HttpResponse.json({
       id: "c1", projectId: "p1", name: "Поиск / Москва", channel: "YANDEX", status: "ACTIVE",
       objective: "Заявки", externalId: null, position: 0, performance: performance(1500),
     })),
   );
+  return creativeRequests;
 }
 
 const route = { route: "/projects/p1/campaigns/c1" };
@@ -126,6 +139,20 @@ describe("CampaignPage", () => {
     await user.click(await screen.findByRole("button", { name: /Москва · 28–55/ }));
 
     expect(await screen.findByText("Приём сегодня")).toBeInTheDocument();
+  });
+
+  it("opens the creative of an ad from its row", async () => {
+    const user = userEvent.setup();
+    const creativeRequests = api();
+    renderWithProviders(<App />, route);
+
+    await user.click(await screen.findByRole("button", { name: /Москва · 28–55/ }));
+    expect(creativeRequests).toEqual([]);
+    await user.click(await screen.findByRole("button", { name: /Приём сегодня/ }));
+
+    const dialog = await screen.findByRole("dialog", { name: /Приём сегодня/ });
+    expect(await within(dialog).findByAltText("Баннер")).toBeInTheDocument();
+    expect(creativeRequests).toEqual(["a1"]);
   });
 
   it("says so when the campaign has no ad sets", async () => {

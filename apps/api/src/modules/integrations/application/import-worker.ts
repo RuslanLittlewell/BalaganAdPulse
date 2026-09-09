@@ -29,6 +29,11 @@ export function createImportWorker(d: {
       const snapshot = await d.provider.snapshot(job.accountId, token, job.currency, d.clock.now(), signal);
       if (!signal.aborted) await d.jobs.complete(job, snapshot, d.clock.now());
     } catch (error) {
+      if (error instanceof MetaError) {
+        console.error("Meta import failed:", error.code, error.detail);
+      } else {
+        console.error("Meta import failed unexpectedly:", error instanceof Error ? error.message : error);
+      }
       await d.jobs.fail(job, error instanceof MetaError ? error : new MetaError("PROVIDER"), d.clock.now());
     } finally {
       clearInterval(heartbeat);

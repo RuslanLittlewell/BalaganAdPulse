@@ -1,8 +1,9 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import type { ActorContext } from "#shared/application/index.js";
+import { getObject } from "#shared/infrastructure/storage.js";
 import type { Ad, AdSet, Campaign } from "../domain/hierarchy.js";
 import type {
-  AdRepository, AdSetRepository, CampaignRepository, ProjectReach,
+  AdRepository, AdSetRepository, CampaignRepository, CreativeRepository, CreativeStorage, ProjectReach,
 } from "../application/ports.js";
 
 function reachableProjects(actor: ActorContext): Prisma.ProjectWhereInput {
@@ -81,6 +82,31 @@ export class PrismaAdRepository implements AdRepository {
       where: { adSetId }, orderBy: { position: "asc" },
     });
     return rows.map((row) => ({ ...row, status: row.status as Ad["status"] }));
+  }
+}
+
+export class PrismaCreativeRepository implements CreativeRepository {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async findFile(
+    actor: ActorContext,
+    id: string,
+    part: "file" | "poster",
+  ): Promise<{ key: string; contentType: string } | null> {
+    const row = await this.prisma.adCreative.findFirst({
+      where: { id, ad: { adSet: { campaign: { project: reachableProjects(actor) } } } },
+    });
+    if (!row) return null;
+    const key = part === "file" ? row.fileKey : row.posterKey;
+    if (!key) return null;
+    const contentType = part === "file" ? row.contentType : row.posterContentType;
+    return { key, contentType: contentType ?? "application/octet-stream" };
+  }
+}
+
+export class S3CreativeStorage implements CreativeStorage {
+  read(key: string) {
+    return getObject(key);
   }
 }
 

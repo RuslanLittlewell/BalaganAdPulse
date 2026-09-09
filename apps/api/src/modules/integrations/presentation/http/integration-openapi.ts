@@ -11,3 +11,28 @@ export const integrationDoc: RouteDoc = {
     { method: "post", path: "/:id/integrations/meta/sync", summary: "Queue manual refresh, coalescing concurrent requests", success: { status: 202, description: "Current import status", schema: metadata }, errors: [401, 403, 404] },
   ],
 };
+export const adPreviewDoc: RouteDoc = {
+  tag: "Meta integration",
+  operations: [
+    {
+      method: "get",
+      path: "/:id/creatives",
+      summary: "Fetch and store one ad's creatives on first view",
+      success: {
+        status: 200,
+        description: "Stored creative metadata, without storage or provider URLs",
+        schema: z.array(z.object({
+          id: z.uuid(),
+          position: z.int(),
+          kind: z.enum(["IMAGE", "VIDEO"]),
+          title: z.string().nullable(),
+          body: z.string().nullable(),
+          hasFile: z.boolean(),
+          hasPoster: z.boolean(),
+        })),
+      },
+      errors: [401, 404],
+    },
+    { method: "get", path: "/:id/preview", summary: "Read the provider's rendered preview of one ad", success: { status: 200, description: "A short-lived frame address rendering the ad", schema: z.object({ url: z.url() }) }, errors: [401, 404] },
+  ],
+};

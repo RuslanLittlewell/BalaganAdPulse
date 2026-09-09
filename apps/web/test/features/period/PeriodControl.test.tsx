@@ -84,6 +84,37 @@ describe("PeriodControl", () => {
     expect(screen.getByRole("status").textContent).toBe("2026-07-19..2026-08-10");
   });
 
+  it("fills both dates from a shortcut and stores them in the address", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<><PeriodControl /><Screen /></>);
+    await user.click(screen.getByRole("button", { name: "7 дней" }));
+    expect(screen.getByLabelText("От")).toHaveValue("2026-08-11");
+    expect(screen.getByLabelText("До")).toHaveValue("2026-08-17");
+    expect(screen.getByRole("status").textContent).toBe("2026-08-11..2026-08-17");
+    expect(screen.getByTestId("search")).toHaveTextContent("from=2026-08-11");
+    expect(screen.getByTestId("search")).toHaveTextContent("to=2026-08-17");
+  });
+
+  it("offers this month and the previous month as shortcuts", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<><PeriodControl /><Screen /></>);
+    await user.click(screen.getByRole("button", { name: "Этот месяц" }));
+    expect(screen.getByRole("status").textContent).toBe("2026-08-01..2026-08-17");
+    await user.click(screen.getByRole("button", { name: "Прошлый месяц" }));
+    expect(screen.getByRole("status").textContent).toBe("2026-07-01..2026-07-31");
+  });
+
+  it("presses only the shortcut matching the current range", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<><PeriodControl /><Screen /></>);
+    const shortcut = (name: string) => screen.getByRole("button", { name });
+    expect(shortcut("7 дней")).toHaveAttribute("aria-pressed", "false");
+    await user.click(shortcut("7 дней"));
+    expect(shortcut("7 дней")).toHaveAttribute("aria-pressed", "true");
+    expect(shortcut("Этот месяц")).toHaveAttribute("aria-pressed", "false");
+    expect(shortcut("Прошлый месяц")).toHaveAttribute("aria-pressed", "false");
+  });
+
   it("asks the server for the exact selected inclusive range", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const seen: URL[] = [];

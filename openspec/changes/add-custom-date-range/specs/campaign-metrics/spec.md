@@ -30,3 +30,18 @@ Every metrics view SHALL present two date inputs for the inclusive start and end
 - **WHEN** an address contains missing, malformed or reversed range dates
 - **THEN** the interface falls back to the default last-30-days range
 
+
+### Requirement: Users fill the range from shortcuts
+
+Every metrics view SHALL offer last-7-days, current-month and previous-month shortcuts before its date inputs. A shortcut SHALL apply its inclusive range the same way a manual entry does and SHALL report itself as pressed only while the current range equals the range it produces.
+
+#### Scenario: Apply a shortcut
+
+- **WHEN** a user presses the last-7-days shortcut
+- **THEN** both date inputs and every metrics request use the seven days ending today
+- **AND** the address carries those two dates
+
+#### Scenario: Shortcut reflects the current range
+
+- **WHEN** the current range equals the range a shortcut produces
+- **THEN** that shortcut is presented as pressed and the others are not

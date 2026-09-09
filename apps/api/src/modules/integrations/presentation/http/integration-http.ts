@@ -20,3 +20,25 @@ export function createIntegrationRouter(service: ReturnType<typeof createIntegra
   router.post("/:id/integrations/meta/sync", async (req, res) => { res.status(202).json(await service.sync(req.actor!, req.params.id)); });
   return router;
 }
+
+export function createAdPreviewRouter(service: ReturnType<typeof createIntegrationUseCases>) {
+  const router = Router();
+  router.use("/:id", (req, _res, next) => {
+    next(req.actor ? undefined : new AppError("unauthorized", "Authentication required"));
+  });
+  router.get("/:id/preview", async (req, res, next) => {
+    try {
+      res.json(await service.adPreview(req.actor!, req.params.id));
+    } catch (error) {
+      next(error);
+    }
+  });
+  router.get("/:id/creatives", async (req, res, next) => {
+    try {
+      res.json(await service.adCreatives(req.actor!, req.params.id));
+    } catch (error) {
+      next(error);
+    }
+  });
+  return router;
+}

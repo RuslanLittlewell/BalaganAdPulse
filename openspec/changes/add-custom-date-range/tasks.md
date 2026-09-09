@@ -10,3 +10,9 @@
 - [x] 2.2 Replace the preset buttons with two compact inputs using the existing shadcn/ui DatePicker and add all visible copy to Russian localization.
 - [x] 2.3 Verify dashboard, project and campaign pages share and preserve the selected range through navigation.
 - [x] 2.4 Run API/frontend builds, `openspec validate add-custom-date-range --strict`, `npm test` and `npm run test:web` to green.
+
+## 3. Range shortcuts
+
+- [x] 3.1 Write and observe failing tests for the three shortcut ranges, their address effect and their pressed state.
+- [x] 3.2 Add the shortcut ranges to the period model and render the buttons before the date inputs with Russian labels.
+- [x] 3.3 Run `openspec validate add-custom-date-range --strict`, `npm test` and `npm run test:web` to green.

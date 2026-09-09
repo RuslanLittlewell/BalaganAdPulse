@@ -26,7 +26,11 @@ function App() {
 function api(options: { adSets?: unknown[]; days?: unknown[]; tasks?: unknown[] } = {}) {
   server.use(
     mock.get("/api/members", () => HttpResponse.json([])),
-    mock.get("/api/projects", () => HttpResponse.json([])),
+    mock.get("/api/projects", () => HttpResponse.json([{
+      id: "p1", clientId: "cl1", name: "Клиника", niche: null, monthlyBudget: null,
+      budgetCurrency: "BYN", priority: "NEW", image: null, avatarPath: null, position: 0,
+      createdAt: "", updatedAt: "",
+    }])),
     mock.get("/api/tasks", () => HttpResponse.json(options.tasks ?? [])),
     mock.get("/api/campaigns/:campaignId/daily", () =>
       HttpResponse.json(options.days ?? [day("2026-08-01", 400), day("2026-08-02", 900)])),
@@ -70,7 +74,7 @@ describe("CampaignPage", () => {
     renderWithProviders(<App />, route);
 
     const summary = await screen.findByRole("group", { name: "Показатели за период" });
-    expect(await within(summary).findByText("1 500 ₽")).toBeInTheDocument();
+    expect(await within(summary).findByText("1 500 Br")).toBeInTheDocument();
   });
 
   it("draws the measured days", async () => {
@@ -92,7 +96,7 @@ describe("CampaignPage", () => {
     renderWithProviders(<App />, route);
 
     const row = await screen.findByRole("row", { name: /Москва · 28–55/ });
-    expect(within(row).getByText("600 ₽")).toBeInTheDocument();
+    expect(within(row).getByText("600 Br")).toBeInTheDocument();
   });
 
   it("reveals the ads inside an ad set when it is expanded", async () => {

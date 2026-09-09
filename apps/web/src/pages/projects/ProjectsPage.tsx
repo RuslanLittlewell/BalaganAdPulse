@@ -7,9 +7,9 @@ import { t } from "@/shared/config/index.js";
 
 export function ProjectsPage() {
   return (
-    <div className="grid h-full min-h-0 gap-4 lg:grid-cols-[200px_minmax(0,1fr)] lg:[&>*:last-child]:border-l lg:[&>*:last-child]:border-border lg:[&>*:last-child]:pl-6">
+    <div className="grid overflow-hidden max-h-screen h-full min-h-0 gap-4 lg:grid-cols-[200px_minmax(0,1fr)] lg:[&>*:last-child]:border-l lg:[&>*:last-child]:border-border lg:[&>*:last-child]:pl-6">
       <ProjectList />
-      <div className="min-w-0">
+      <div className="min-w-0 overflow-auto pr-4">
         <Routes>
           <Route
             path="/"

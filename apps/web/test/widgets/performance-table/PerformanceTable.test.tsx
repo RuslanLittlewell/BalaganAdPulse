@@ -22,6 +22,31 @@ describe("PerformanceTable", () => {
     expect(within(row).getByText("4,00x")).toBeInTheDocument();
   });
 
+  it("prices the figures in the currency it is given", () => {
+    render(<PerformanceTable heading="Кампания" rows={rows} currency="BYN" totals={performance(1500)} />);
+
+    const row = screen.getByRole("row", { name: /Поиск \/ Москва/ });
+    expect(within(row).getByText("1 000 Br")).toBeInTheDocument();
+    const footer = screen.getByRole("row", { name: /Итого/ });
+    expect(within(footer).getByText("1 500 Br")).toBeInTheDocument();
+  });
+
+  it("lets a row carry its own currency, for a table that spans projects", () => {
+    render(
+      <PerformanceTable
+        heading="Проект"
+        currency="BYN"
+        rows={[
+          { id: "p1", name: "Клиника", performance: performance(1000) },
+          { id: "p2", name: "Студия", performance: performance(500), currency: "USD" },
+        ]}
+      />,
+    );
+
+    expect(within(screen.getByRole("row", { name: /Клиника/ })).getByText("1 000 Br")).toBeInTheDocument();
+    expect(within(screen.getByRole("row", { name: /Студия/ })).getByText("500 $")).toBeInTheDocument();
+  });
+
   it("names every column", () => {
     render(<PerformanceTable heading="Кампания" rows={rows} />);
 

@@ -1,3 +1,4 @@
+import { integrationDoc } from "../modules/integrations/presentation/http/integration-openapi.js";
 import { createRequire } from "node:module";
 import path from "node:path";
 import express, { Router } from "express";
@@ -83,6 +84,7 @@ export function apiDocument(): OpenApiDocument {
       { mount: mountPath("members"), ...memberDoc },
       { mount: mountPath("audit"), ...auditDoc },
       { mount: mountPath("project-metrics"), ...projectMetricDoc },
+      { mount: mountPath("integrations"), ...integrationDoc },
       { mount: mountPath("projects"), ...projectDoc },
       { mount: mountPath("clients"), ...clientDoc },
       { mount: mountPath("campaigns"), ...campaignDoc },

@@ -10,7 +10,7 @@ import {
   useAdSets, useCampaign, useCampaignDaily,
   type Ad, type DateRange,
 } from "@/entities/campaign/index.js";
-import { useActiveCampaignId, useActiveProjectId } from "@/entities/project/index.js";
+import { DEFAULT_CURRENCY, useActiveCampaignId, useActiveProjectId, useProjects } from "@/entities/project/index.js";
 import { useTasks, type Task } from "@/entities/task/index.js";
 import { PeriodControl, usePeriod } from "@/features/period/index.js";
 import { TaskPreviewDialog } from "@/features/task-management/index.js";
@@ -38,12 +38,16 @@ export function CampaignPage() {
   const campaign = useCampaign(campaignId, range);
   const days = useCampaignDaily(campaignId, range);
   const adSets = useAdSets(campaignId, range);
+  const projects = useProjects();
   const [openSets, setOpenSets] = useState<ReadonlySet<string>>(new Set());
   const [reading, setReading] = useState<Task | null>(null);
   const tasks = useTasks({ campaignId, enabled: campaignId != null });
   const adsBySet = useAdsOfOpenSets(openSets, range);
 
   if (campaign.isError) return <EmptyState title={t("campaign.notFound.title")} />;
+
+  const currency = projects.data?.find((candidate) => candidate.id === projectId)?.budgetCurrency
+    ?? DEFAULT_CURRENCY;
 
   const rows: PerformanceRow[] = (adSets.data ?? []).map((adSet) => ({
     id: adSet.id,
@@ -88,15 +92,16 @@ export function CampaignPage() {
         <PeriodControl />
       </header>
 
-      <PerformanceSummary performance={campaign.data?.performance} />
+      <PerformanceSummary performance={campaign.data?.performance} currency={currency} />
 
-      <DailyChart days={days.data ?? []} />
+      <DailyChart days={days.data ?? []} currency={currency} />
 
       <div>
         <h2 className="mb-3 text-sm font-semibold text-foreground">{t("adSets.title")}</h2>
         <PerformanceTable
           heading={t("adSets.one")}
           rows={rows}
+          currency={currency}
           onExpandedChange={setOpenSets}
           empty={adSets.isSuccess ? t("adSets.empty") : undefined}
         />

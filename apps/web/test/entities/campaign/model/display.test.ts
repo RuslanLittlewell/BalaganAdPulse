@@ -33,16 +33,16 @@ describe("campaign performance tone", () => {
 });
 
 describe("the metric columns", () => {
-  it("lists the six measured figures before the six derived ratios", () => {
+  it("lists the five measured figures before the six derived ratios", () => {
     expect(METRIC_COLUMNS.map((column) => column.id)).toEqual([
-      "spend", "impressions", "reach", "clicks", "conversions", "revenue",
+      "spend", "impressions", "reach", "clicks", "conversions",
       "ctr", "cpc", "cpm", "cpa", "roas", "frequency",
     ]);
   });
 
   it("formats each figure the way its unit reads", () => {
     const rendered = Object.fromEntries(
-      METRIC_COLUMNS.map((column) => [column.id, column.format(performance)]),
+      METRIC_COLUMNS.map((column) => [column.id, column.format(performance, "RUB")]),
     );
 
     expect(rendered.spend).toBe("1 000 ₽");
@@ -53,10 +53,21 @@ describe("the metric columns", () => {
     expect(rendered.frequency).toBe("2,50x");
   });
 
+  it("prices every money figure in the currency it is handed", () => {
+    const rendered = Object.fromEntries(
+      METRIC_COLUMNS.map((column) => [column.id, column.format(performance, "BYN")]),
+    );
+
+    expect(rendered.spend).toBe("1 000 Br");
+    expect(rendered.cpc).toBe("0,50 Br");
+    expect(rendered.cpm).toBe("10,00 Br");
+    expect(rendered.cpa).toBe("20,00 Br");
+  });
+
   it("renders an absent ratio as a dash", () => {
     const noClicks = { ...performance, cpc: null, ctr: null };
     const cpc = METRIC_COLUMNS.find((column) => column.id === "cpc");
 
-    expect(cpc?.format(noClicks)).toBe("—");
+    expect(cpc?.format(noClicks, "BYN")).toBe("—");
   });
 });

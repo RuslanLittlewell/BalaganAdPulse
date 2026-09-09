@@ -30,6 +30,7 @@ function api(options: { campaigns?: unknown[]; tasks?: unknown[] } = {}) {
     mock.get("/api/tasks", () => HttpResponse.json(options.tasks ?? [])),
     mock.get("/api/projects", () => HttpResponse.json([{
       id: "p1", clientId: "cl1", name: "Клиника", niche: "Медицина", monthlyBudget: "300000.0000",
+      budgetCurrency: "BYN",
       priority: "HIGH", image: null, avatarPath: null, position: 0, createdAt: "", updatedAt: "",
     }])),
     mock.get("/api/clients", () => HttpResponse.json([{ id: "cl1", name: "Acme", orgId: "o1" }])),
@@ -49,7 +50,7 @@ describe("ProjectPage", () => {
     renderWithProviders(<App />, route);
 
     const summary = await screen.findByRole("group", { name: "Показатели за период" });
-    expect(within(summary).getByText("4 200 ₽")).toBeInTheDocument();
+    expect(within(summary).getByText("4 200 Br")).toBeInTheDocument();
   });
 
   it("lists the project's campaigns with their channel", async () => {
@@ -58,7 +59,7 @@ describe("ProjectPage", () => {
 
     const row = await screen.findByRole("row", { name: /Поиск \/ Москва/ });
     expect(within(row).getByText("Яндекс Директ · Активна")).toBeInTheDocument();
-    expect(within(row).getByText("3 000 ₽")).toBeInTheDocument();
+    expect(within(row).getByText("3 000 Br")).toBeInTheDocument();
   });
 
   it("marks bad, stable and profitable campaign names with red, blue and green borders", async () => {
@@ -79,7 +80,7 @@ describe("ProjectPage", () => {
     renderWithProviders(<App />, route);
 
     const footer = await screen.findByRole("row", { name: /Итого/ });
-    expect(within(footer).getByText("4 200 ₽")).toBeInTheDocument();
+    expect(within(footer).getByText("4 200 Br")).toBeInTheDocument();
     expect(within(footer).getByText("3,00x")).toBeInTheDocument();
   });
 

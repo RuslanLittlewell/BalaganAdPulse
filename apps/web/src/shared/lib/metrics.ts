@@ -35,8 +35,8 @@ export function formatPercent(value: number | null): string {
   return present(value) ? `${grouped(value, 2)}%` : MISSING;
 }
 
-export function formatRatio(value: number | null): string {
-  return present(value) ? `${grouped(value, 2)}${NBSP}₽` : MISSING;
+export function formatRatio(value: number | null, currency: Currency = "RUB"): string {
+  return present(value) ? `${grouped(value, 2)}${NBSP}${CURRENCY_SIGNS[currency]}` : MISSING;
 }
 
 export function formatMultiple(value: number | null): string {

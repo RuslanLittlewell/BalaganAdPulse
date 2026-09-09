@@ -1,6 +1,7 @@
 import {
   formatCount, formatCurrency, formatMultiple, formatPercent, formatRatio,
 } from "@/shared/lib/index.js";
+import type { Currency } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import type { Channel, DeliveryStatus, Performance } from "../api/api.js";
 
@@ -30,20 +31,19 @@ export function performanceTone(performance: Performance): PerformanceTone {
 export interface MetricColumn {
   id: keyof Performance;
   label: string;
-  format: (performance: Performance) => string;
+  format: (performance: Performance, currency: Currency) => string;
 }
 
 export const METRIC_COLUMNS: MetricColumn[] = [
-  { id: "spend", label: t("metric.spend"), format: (p) => formatCurrency(p.spend) },
+  { id: "spend", label: t("metric.spend"), format: (p, currency) => formatCurrency(p.spend, currency) },
   { id: "impressions", label: t("metric.impressions"), format: (p) => formatCount(p.impressions) },
   { id: "reach", label: t("metric.reach"), format: (p) => formatCount(p.reach) },
   { id: "clicks", label: t("metric.clicks"), format: (p) => formatCount(p.clicks) },
   { id: "conversions", label: t("metric.conversions"), format: (p) => formatCount(p.conversions) },
-  { id: "revenue", label: t("metric.revenue"), format: (p) => formatCurrency(p.revenue) },
   { id: "ctr", label: t("metric.ctr"), format: (p) => formatPercent(p.ctr) },
-  { id: "cpc", label: t("metric.cpc"), format: (p) => formatRatio(p.cpc) },
-  { id: "cpm", label: t("metric.cpm"), format: (p) => formatRatio(p.cpm) },
-  { id: "cpa", label: t("metric.cpa"), format: (p) => formatRatio(p.cpa) },
+  { id: "cpc", label: t("metric.cpc"), format: (p, currency) => formatRatio(p.cpc, currency) },
+  { id: "cpm", label: t("metric.cpm"), format: (p, currency) => formatRatio(p.cpm, currency) },
+  { id: "cpa", label: t("metric.cpa"), format: (p, currency) => formatRatio(p.cpa, currency) },
   { id: "roas", label: t("metric.roas"), format: (p) => formatMultiple(p.roas) },
   { id: "frequency", label: t("metric.frequency"), format: (p) => formatMultiple(p.frequency) },
 ];

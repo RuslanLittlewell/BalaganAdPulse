@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { AccountProvider } from "../application/ports.js";
 import { MetaError } from "../domain/integration.js";
-import type { ImportedEntity, ImportedMetric, ImportedStatus, Snapshot } from "../domain/snapshot.js";
+import type { ImportedCreative, ImportedEntity, ImportedMetric, ImportedStatus, Snapshot } from "../domain/snapshot.js";
 import { localDate, shiftDate } from "../application/schedule.js";
 
 const id = z.string().regex(/^\d+$/);
@@ -10,6 +10,102 @@ const count = z.string().regex(/^\d+$/).transform(Number).pipe(z.number().int().
 const entity = z.object({ id, name: z.string().min(1), effective_status: z.string(), campaign_id: id.optional(), adset_id: id.optional(), objective: z.string().optional() });
 const action = z.object({ action_type: z.string(), value: z.string() });
 const metric = z.object({ campaign_id: id, adset_id: id.optional(), ad_id: id.optional(), date_start: z.iso.date(), spend: money.default("0"), impressions: count.default(0), reach: count.default(0), clicks: count.default(0), actions: z.array(action).default([]), action_values: z.array(action).default([]) });
+const link = z.string().min(1).max(2048);
+const attachment = z.object({ picture: link.optional(), video_id: id.optional(), name: z.string().optional(), description: z.string().optional() });
+const assetFeed = z.object({
+  videos: z.array(z.object({ video_id: id.optional(), thumbnail_url: link.optional() })).optional(),
+  images: z.array(z.object({ hash: z.string().min(1).max(200).optional(), url: link.optional() })).optional(),
+});
+const creative = z.object({
+  id: z.string().min(1),
+  asset_feed_spec: assetFeed.optional(),
+  image_url: link.optional(),
+  image_hash: z.string().min(1).max(200).optional(),
+  thumbnail_url: link.optional(),
+  video_id: id.optional(),
+  object_story_spec: z.object({
+    link_data: z.object({ name: z.string().optional(), message: z.string().optional(), picture: link.optional(), child_attachments: z.array(attachment).optional() }).optional(),
+    video_data: z.object({ video_id: id.optional(), image_url: link.optional(), title: z.string().optional(), message: z.string().optional() }).optional(),
+  }).optional(),
+});
+const video = z.object({ id, source: link.optional(), picture: link.optional() });
+const THUMBNAIL = { thumbnail_width: "1080", thumbnail_height: "1080" };
+
+type PendingCreative = ImportedCreative & { videoId?: string; imageHash?: string };
+
+const CREATIVE_FIELDS = "creative{id,thumbnail_url,image_url,image_hash,video_id,object_story_spec,asset_feed_spec}";
+const LIGHT_CREATIVE_FIELDS = "creative{id,thumbnail_url,image_url,image_hash,video_id}";
+const MAX_VIDEO_LOOKUPS = 200;
+const IMAGE_BATCH = 50;
+const PREVIEW_FORMAT = "MOBILE_FEED_STANDARD";
+
+function distinctBy<T>(assets: readonly T[], key: (asset: T) => string | undefined): T[] {
+  const seen = new Set<string>();
+  return assets.filter((asset) => {
+    const value = key(asset);
+    if (value === undefined) return true;
+    if (seen.has(value)) return false;
+    seen.add(value);
+    return true;
+  });
+}
+
+function describe(adExternalId: string, row: unknown): PendingCreative[] {
+  const parsed = creative.safeParse((row as { creative?: unknown }).creative);
+  if (!parsed.success) return [];
+  const value = parsed.data;
+  const story = value.object_story_spec;
+  const linkData = story?.link_data;
+  const videoData = story?.video_data;
+  const base = {
+    adExternalId,
+    creativeId: value.id,
+    title: linkData?.name ?? videoData?.title,
+    body: linkData?.message ?? videoData?.message,
+  };
+  const frames = linkData?.child_attachments ?? [];
+  if (frames.length > 0) {
+    return frames.map((frame, position) => frame.video_id
+      ? { ...base, position, kind: "VIDEO" as const, videoId: frame.video_id, posterUrl: frame.picture }
+      : { ...base, position, kind: "IMAGE" as const, fileUrl: frame.picture })
+      .filter((entry) => entry.kind === "VIDEO" || entry.fileUrl !== undefined);
+  }
+  const feed = value.asset_feed_spec;
+  const feedVideos = distinctBy(feed?.videos ?? [], (asset) => asset.video_id);
+  if (feedVideos.length > 0) {
+    return feedVideos.map((asset, position) => ({
+      ...base, position, kind: "VIDEO" as const,
+      videoId: asset.video_id, posterUrl: asset.thumbnail_url,
+    }));
+  }
+  const feedImages = distinctBy(
+    (feed?.images ?? []).filter((asset) => asset.url !== undefined || asset.hash !== undefined),
+    (asset) => asset.hash ?? asset.url,
+  );
+  if (feedImages.length > 0) {
+    return feedImages.map((asset, position) => ({
+      ...base, position, kind: "IMAGE" as const,
+      fileUrl: asset.url, imageHash: asset.hash,
+    }));
+  }
+
+  const videoId = value.video_id ?? videoData?.video_id;
+  if (videoId) {
+    return [{
+      ...base, position: 0, kind: "VIDEO", videoId,
+      posterUrl: value.image_url ?? value.thumbnail_url ?? videoData?.image_url,
+    }];
+  }
+  const picture = value.image_url ?? linkData?.picture ?? videoData?.image_url;
+  if (picture) return [{ ...base, position: 0, kind: "IMAGE", fileUrl: picture }];
+  if (value.image_hash) {
+    return [{ ...base, position: 0, kind: "IMAGE", imageHash: value.image_hash, fileUrl: value.thumbnail_url }];
+  }
+  return value.thumbnail_url
+    ? [{ ...base, position: 0, kind: "IMAGE", fileUrl: value.thumbnail_url }]
+    : [];
+}
+
 const statuses: Record<string, ImportedStatus> = { ACTIVE: "ACTIVE", PAUSED: "PAUSED", CAMPAIGN_PAUSED: "PAUSED", ADSET_PAUSED: "PAUSED", ARCHIVED: "ENDED", DELETED: "ENDED", DISAPPROVED: "REJECTED", PENDING_REVIEW: "LEARNING", PREAPPROVED: "LEARNING", PENDING_BILLING_INFO: "LEARNING", IN_PROCESS: "LEARNING", WITH_ISSUES: "REJECTED" };
 
 export class GraphProvider implements AccountProvider {
@@ -36,24 +132,25 @@ export class GraphProvider implements AccountProvider {
       const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
       if (!response.ok || body.error) {
         const code = body.error?.code;
-        if ([190, 102, 10, 200].includes(code)) throw new MetaError("TOKEN");
+        const detail = `http ${response.status}, code ${code ?? "none"}, type ${body.error?.type ?? "none"}`;
+        if ([190, 102, 10, 200].includes(code)) throw new MetaError("TOKEN", 0, detail);
         const retry = response.headers.get("retry-after");
         const delay = retry ? (/^\d+$/.test(retry) ? Number(retry) * 1000 : Math.max(0, Date.parse(retry) - Date.now())) : 0;
-        throw new MetaError(response.status === 429 || response.status >= 500 || body.error?.is_transient || [4, 17, 32, 613].includes(code) ? "PROVIDER" : "INVALID_DATA", Number.isFinite(delay) ? delay : 0);
+        throw new MetaError(response.status === 429 || response.status >= 500 || body.error?.is_transient || [4, 17, 32, 613].includes(code) ? "PROVIDER" : "INVALID_DATA", Number.isFinite(delay) ? delay : 0, detail);
       }
       return body;
     } catch (error) {
       if (error instanceof MetaError) throw error;
-      throw new MetaError("PROVIDER");
+      throw new MetaError("PROVIDER", 0, error instanceof Error ? error.message : "unknown");
     }
   }
 
-  private async pages(path: string, token: string, params: Record<string, string>, signal?: AbortSignal): Promise<unknown[]> {
+  private async pages(path: string, token: string, params: Record<string, string>, signal?: AbortSignal, limit = 500): Promise<unknown[]> {
     const rows: unknown[] = [];
     const cursors = new Set<string>();
     let after: string | undefined;
     for (let page = 0; page < 200; page++) {
-      const result = z.object({ data: z.array(z.unknown()), paging: z.object({ next: z.string().optional(), cursors: z.object({ after: z.string().optional() }).optional() }).optional() }).safeParse(await this.request(path, token, { ...params, limit: "500", ...(after ? { after } : {}) }, signal));
+      const result = z.object({ data: z.array(z.unknown()), paging: z.object({ next: z.string().optional(), cursors: z.object({ after: z.string().optional() }).optional() }).optional() }).safeParse(await this.request(path, token, { ...params, limit: String(limit), ...(after ? { after } : {}) }, signal));
       if (!result.success) throw new MetaError("INVALID_DATA");
       rows.push(...result.data.data);
       if (rows.length > 100_000) throw new MetaError("INVALID_DATA");
@@ -87,6 +184,80 @@ export class GraphProvider implements AccountProvider {
   }
   campaigns(accountId: string, token: string, signal?: AbortSignal) { return this.entities(accountId, token, "campaigns", signal); }
 
+  async preview(adExternalId: string, token: string, signal?: AbortSignal): Promise<string | null> {
+    try {
+      const answer = z.object({ data: z.array(z.object({ body: z.string() })) })
+        .safeParse(await this.request(`${adExternalId}/previews`, token, { ad_format: PREVIEW_FORMAT }, signal));
+      if (!answer.success) return null;
+      const frame = /<iframe[^>]+src="([^"]+)"/.exec(answer.data.data[0]?.body ?? "");
+      if (!frame) return null;
+      const address = frame[1].replaceAll("&amp;", "&");
+      return address.startsWith("https://") ? address : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async video(
+    videoId: string,
+    token: string,
+    signal?: AbortSignal,
+  ): Promise<{ source?: string; picture?: string }> {
+    try {
+      const result = video.safeParse(await this.request(videoId, token, { fields: "source,picture" }, signal));
+      return result.success ? { source: result.data.source, picture: result.data.picture } : {};
+    } catch {
+      return {};
+    }
+  }
+
+  private async creativeOf(adId: string, token: string, signal?: AbortSignal): Promise<unknown | null> {
+    try {
+      return await this.request(adId, token, { fields: `id,${CREATIVE_FIELDS}`, ...THUMBNAIL }, signal);
+    } catch {
+      try {
+        return await this.request(adId, token, { fields: `id,${LIGHT_CREATIVE_FIELDS}`, ...THUMBNAIL }, signal);
+      } catch {
+        return null;
+      }
+    }
+  }
+
+  async adCreatives(
+    adExternalId: string,
+    token: string,
+    accountId?: string,
+    signal?: AbortSignal,
+  ): Promise<ImportedCreative[]> {
+    const row = await this.creativeOf(adExternalId, token, signal);
+    return row ? this.resolve(describe(adExternalId, row), token, signal, accountId) : [];
+  }
+
+  private async resolve(
+    pending: readonly PendingCreative[],
+    token: string,
+    signal?: AbortSignal,
+    accountId?: string,
+  ): Promise<ImportedCreative[]> {
+    const videos = new Map<string, { source?: string; picture?: string }>();
+    for (const videoId of [...new Set(pending.flatMap((entry) => entry.videoId ? [entry.videoId] : []))].slice(0, MAX_VIDEO_LOOKUPS)) {
+      videos.set(videoId, await this.video(videoId, token, signal));
+    }
+    const hashes = [...new Set(pending.flatMap((entry) => entry.imageHash ? [entry.imageHash] : []))];
+    const originals = accountId && hashes.length > 0
+      ? await this.originals(accountId, token, hashes, signal)
+      : new Map<string, string>();
+
+    return pending.map(({ videoId, imageHash, ...entry }) => {
+      if (videoId) {
+        const found = videos.get(videoId) ?? {};
+        return { ...entry, fileUrl: found.source, posterUrl: found.picture ?? entry.posterUrl };
+      }
+      if (imageHash) return { ...entry, fileUrl: originals.get(imageHash) ?? entry.fileUrl };
+      return entry;
+    });
+  }
+
   private async metrics(accountId: string, token: string, level: "campaign" | "adset" | "ad", from: string, to: string, signal?: AbortSignal): Promise<ImportedMetric[]> {
     const rows = await this.pages(`act_${accountId}/insights`, token, { level, time_increment: "1", time_range: JSON.stringify({ since: from, until: to }), fields: [...new Set([`${level}_id`, "campaign_id", "date_start", "spend", "impressions", "reach", "clicks", "actions", "action_values"])].join(",") }, signal);
     const seen = new Set<string>();
@@ -104,6 +275,32 @@ export class GraphProvider implements AccountProvider {
       if (!conversions.success || !revenue.success) throw new MetaError("INVALID_DATA");
       return { externalId, date: data.date_start, spend: data.spend, impressions: data.impressions, reach: data.reach, clicks: data.clicks, conversions: conversions.data, revenue: revenue.data };
     });
+  }
+
+  private async originals(
+    accountId: string,
+    token: string,
+    hashes: readonly string[],
+    signal?: AbortSignal,
+  ): Promise<Map<string, string>> {
+    const found = new Map<string, string>();
+    for (let i = 0; i < hashes.length; i += IMAGE_BATCH) {
+      try {
+        const rows = await this.pages(`act_${accountId}/adimages`, token, {
+          fields: "hash,url",
+          hashes: JSON.stringify(hashes.slice(i, i + IMAGE_BATCH)),
+        }, signal, IMAGE_BATCH);
+        for (const row of rows) {
+          const parsed = z.object({ hash: z.string(), url: link }).safeParse(row);
+          if (parsed.success) found.set(parsed.data.hash, parsed.data.url);
+        }
+      } catch (error) {
+        if (signal?.aborted) throw error;
+        console.error("Meta creative originals refused:", error instanceof MetaError ? `${error.code} ${error.detail}` : error);
+        return found;
+      }
+    }
+    return found;
   }
 
   async snapshot(accountId: string, token: string, currency: string, now: Date, signal?: AbortSignal): Promise<Snapshot> {

@@ -48,6 +48,8 @@ function fixture(options: {
     ads: {
       listByAdSet: async (adSetId) => (options.ads ?? []).filter((a) => a.adSetId === adSetId),
     },
+    creatives: { findFile: async () => null },
+    creativeFiles: { read: async () => ({ body: new Uint8Array(), contentType: "image/png" }) },
     projects: { isReachable: async (_actor, projectId) => reachable.includes(projectId) },
     metrics: {
       recordCampaignDay: async () => undefined,

@@ -4,6 +4,10 @@
 
 @custom-variant dark (&:is(.dark *));
 
+.Toastify__toast-container {
+  --toastify-font-family: var(--font-sans);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

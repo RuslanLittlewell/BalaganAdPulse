@@ -16,6 +16,18 @@ export interface AdRepository {
   listByAdSet(adSetId: string): Promise<Ad[]>;
 }
 
+export interface CreativeRepository {
+  findFile(
+    actor: ActorContext,
+    id: string,
+    part: "file" | "poster",
+  ): Promise<{ key: string; contentType: string } | null>;
+}
+
+export interface CreativeStorage {
+  read(key: string): Promise<{ body: Uint8Array; contentType: string | undefined }>;
+}
+
 export interface ProjectReach {
   isReachable(actor: ActorContext, projectId: string): Promise<boolean>;
 }

@@ -3,8 +3,11 @@ import { createImportWorker } from "../modules/integrations/application/import-w
 import { createIntegrationUseCases } from "../modules/integrations/application/integration-use-cases.js";
 import { PrismaIntegrationRepository } from "../modules/integrations/infrastructure/prisma-integration-repository.js";
 import { AesCredentialCipher } from "../modules/integrations/infrastructure/credential-cipher.js";
+import { S3CreativeFiles } from "../modules/integrations/infrastructure/creative-files.js";
 import { GraphProvider } from "../modules/integrations/infrastructure/graph-provider.js";
-import { createIntegrationRouter } from "../modules/integrations/presentation/http/integration-http.js";
+import { createAdPreviewRouter, createIntegrationRouter } from "../modules/integrations/presentation/http/integration-http.js";
+import { PrismaAdLocator } from "../modules/integrations/infrastructure/prisma-ad-locator.js";
+import { PrismaCreativeStore } from "../modules/integrations/infrastructure/prisma-creative-store.js";
 import { Router, type RequestHandler } from "express";
 import { createLeadUseCases, createLeadRouter } from '../modules/leads/index.js';
 import { PrismaLeadRepository } from '../modules/leads/infrastructure/prisma-lead-repository.js';
@@ -46,6 +49,15 @@ import { AmbientRequestMetadata } from "../modules/audit/infrastructure/request-
 import { CURRENCIES, createProjectRouter, createProjectUseCases } from "../modules/projects/index.js";
 import type { Currency } from "../modules/projects/index.js";
 import { PrismaProjectRepository } from "../modules/projects/infrastructure/prisma-project-repository.js";
+import {
+  createProjectGroupRouter,
+  createProjectLayoutRouter,
+  createProjectLayoutUseCases,
+} from "../modules/project-layout/index.js";
+import {
+  PrismaLayoutProjectReach,
+  PrismaProjectLayoutRepository,
+} from "../modules/project-layout/infrastructure/prisma-project-layout-repository.js";
 import { S3ProjectPictureStorage } from "../modules/projects/infrastructure/project-picture-storage.js";
 import { createCampaignHttpRouters, createCampaignUseCases } from "../modules/campaigns/index.js";
 import {
@@ -85,7 +97,9 @@ import {
   PrismaAdSetRepository,
   PrismaCampaignInProject,
   PrismaCampaignRepository,
+  PrismaCreativeRepository,
   PrismaProjectReach,
+  S3CreativeStorage,
 } from "../modules/campaigns/infrastructure/prisma-campaign-repositories.js";
 import { PrismaMetricRepository } from "../modules/campaigns/infrastructure/prisma-metric-repository.js";
 import {
@@ -117,9 +131,13 @@ export interface ApiContainer {
   readonly auditRouter: Router;
   readonly projectMetricRouter: Router;
   readonly projectRouter: Router;
+  readonly projectLayoutRouter: Router;
+  readonly adPreviewRouter: Router;
+  readonly projectGroupRouter: Router;
   readonly clientRouter: Router;
   readonly campaignRouter: Router;
   readonly adSetRouter: Router;
+  readonly adCreativeRouter: Router;
   readonly summaryRouter: Router;
   readonly taskRouter: Router;
   readonly taskImageRouter: Router;
@@ -148,6 +166,12 @@ export function createContainer(): ApiContainer {
   const auditReader = createAuditReader(auditDependencies);
   const clientRepository = new PrismaClientRepository(prisma, unitOfWork);
   const projectRepository = new PrismaProjectRepository(prisma, unitOfWork);
+  const projectLayout = createProjectLayoutUseCases({
+    layouts: new PrismaProjectLayoutRepository(prisma, unitOfWork),
+    projects: new PrismaLayoutProjectReach(prisma),
+    ids,
+    unitOfWork,
+  });
   const clients = createClientUseCases({
     clients: clientRepository,
     pictures: new S3ClientPictureStorage(),
@@ -259,10 +283,20 @@ export function createContainer(): ApiContainer {
   const identityHttp = createIdentityHttpRouters(identity, {
     signedOut: (userId) => { presenceService.leave(userId); },
   });
+  const integrations = createIntegrationUseCases({
+    repository: new PrismaIntegrationRepository(prisma, unitOfWork),
+    cipher: new AesCredentialCipher(process.env.INTEGRATION_ENCRYPTION_KEY),
+    provider: new GraphProvider(process.env.META_GRAPH_VERSION ?? "v22.0"),
+    projects: projectRepository, ads: new PrismaAdLocator(prisma),
+    creatives: new PrismaCreativeStore(prisma), files: new S3CreativeFiles(),
+    clock, unitOfWork, audit,
+  });
   const campaigns = createCampaignUseCases({
     campaigns: new PrismaCampaignRepository(prisma),
     adSets: new PrismaAdSetRepository(prisma),
     ads: new PrismaAdRepository(prisma),
+    creatives: new PrismaCreativeRepository(prisma),
+    creativeFiles: new S3CreativeStorage(),
     projects: new PrismaProjectReach(prisma),
     metrics: new PrismaMetricRepository(prisma),
   });
@@ -335,16 +369,15 @@ export function createContainer(): ApiContainer {
     memberRouter: createMemberRouter(members),
     auditRouter: createAuditRouter(auditReader),
     projectMetricRouter: campaignHttp.projectMetricRouter,
-    integrationRouter: createIntegrationRouter(createIntegrationUseCases({
-      repository: new PrismaIntegrationRepository(prisma, unitOfWork),
-      cipher: new AesCredentialCipher(process.env.INTEGRATION_ENCRYPTION_KEY),
-      provider: new GraphProvider(process.env.META_GRAPH_VERSION ?? "v22.0"),
-      projects: projectRepository, clock, unitOfWork, audit,
-    })),
+    integrationRouter: createIntegrationRouter(integrations),
+    adPreviewRouter: createAdPreviewRouter(integrations),
     projectRouter: createProjectRouter(projects),
+    projectLayoutRouter: createProjectLayoutRouter(projectLayout),
+    projectGroupRouter: createProjectGroupRouter(projectLayout),
     clientRouter: createClientRouter(clients),
     campaignRouter: campaignHttp.campaignRouter,
     adSetRouter: campaignHttp.adSetRouter,
+    adCreativeRouter: campaignHttp.adCreativeRouter,
     summaryRouter: campaignHttp.summaryRouter,
     taskRouter: createTaskRouter(tasks),
     leadRouter: createLeadRouter(leads),

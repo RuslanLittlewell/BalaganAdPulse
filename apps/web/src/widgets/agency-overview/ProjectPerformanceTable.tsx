@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useQueries } from "@tanstack/react-query";
 import { Sparkline } from "@/shared/ui/index.js";
 import { projectPath } from "@/shared/lib/index.js";
@@ -31,6 +31,7 @@ function useProjectFigures(projects: Project[], range: DateRange) {
 
 export function ProjectPerformanceTable({ range }: { range: DateRange }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const projects = useProjects();
   const figures = useProjectFigures(projects.data ?? [], range);
 
@@ -54,7 +55,7 @@ export function ProjectPerformanceTable({ range }: { range: DateRange }) {
       heading={t("dashboard.project")}
       rows={rows}
       empty={projects.isSuccess ? t("projects.empty.title") : undefined}
-      onOpen={(id) => navigate(projectPath(id))}
+      onOpen={(id) => navigate(`${projectPath(id)}${location.search}`)}
     />
   );
 }

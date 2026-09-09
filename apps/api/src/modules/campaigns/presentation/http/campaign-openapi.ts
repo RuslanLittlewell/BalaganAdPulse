@@ -133,6 +133,36 @@ export const adSetDoc: RouteDoc = {
   ],
 };
 
+export const adCreativeDoc: RouteDoc = {
+  tag: "Campaigns",
+  operations: [
+    {
+      method: "get",
+      path: "/:id/file",
+      summary: "Read a creative's stored image or video",
+      success: {
+        status: 200,
+        description: "The stored file, with its own content type",
+        contentType: "application/octet-stream",
+        schema: { type: "string" },
+      },
+      errors: [401, 403, 404],
+    },
+    {
+      method: "get",
+      path: "/:id/poster",
+      summary: "Read a video creative's stored poster frame",
+      success: {
+        status: 200,
+        description: "The stored poster, with its own content type",
+        contentType: "application/octet-stream",
+        schema: { type: "string" },
+      },
+      errors: [401, 403, 404],
+    },
+  ],
+};
+
 export const projectMetricDoc: RouteDoc = {
   tag: "Campaigns",
   operations: [

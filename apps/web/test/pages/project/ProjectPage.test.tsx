@@ -1,7 +1,7 @@
 import { http as mock, HttpResponse } from "msw";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, useLocation } from "react-router-dom";
 import { aTask, renderWithProviders, server } from "@test/shared/index.js";
 import { ProjectPage } from "@/pages/project/index.js";
 
@@ -15,11 +15,16 @@ const campaign = (id: string, name: string, channel: string, spend: number) => (
   externalId: null, position: 0, performance: performance(spend),
 });
 
+function CampaignDestination() {
+  const location = useLocation();
+  return <><h2>Экран кампании</h2><output>{location.search}</output></>;
+}
+
 function App() {
   return (
     <Routes>
       <Route path="/projects/:projectId" element={<ProjectPage />} />
-      <Route path="/projects/:projectId/campaigns/:campaignId" element={<h2>Экран кампании</h2>} />
+      <Route path="/projects/:projectId/campaigns/:campaignId" element={<CampaignDestination />} />
     </Routes>
   );
 }
@@ -51,6 +56,8 @@ describe("ProjectPage", () => {
 
     const summary = await screen.findByRole("group", { name: "Показатели за период" });
     expect(within(summary).getByText("4 200 Br")).toBeInTheDocument();
+    expect(screen.getByLabelText("От")).toBeInTheDocument();
+    expect(screen.getByLabelText("До")).toBeInTheDocument();
   });
 
   it("lists the project's campaigns with their channel", async () => {
@@ -92,6 +99,16 @@ describe("ProjectPage", () => {
     await user.click(await screen.findByRole("button", { name: /Поиск \/ Москва/ }));
 
     expect(await screen.findByRole("heading", { name: "Экран кампании" })).toBeInTheDocument();
+  });
+
+  it("keeps the selected range when a campaign is opened", async () => {
+    const user = userEvent.setup();
+    api();
+    renderWithProviders(<App />, { route: "/projects/p1?from=2026-08-01&to=2026-08-09" });
+
+    await user.click(await screen.findByRole("button", { name: /Поиск \/ Москва/ }));
+
+    expect(await screen.findByText("?from=2026-08-01&to=2026-08-09")).toBeInTheDocument();
   });
 
   it("says so when the project has no campaigns yet", async () => {

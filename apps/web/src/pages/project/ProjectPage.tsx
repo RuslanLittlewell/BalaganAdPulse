@@ -1,6 +1,6 @@
 import { MetaIntegration } from "@/features/meta-integration/index.js";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { HistoryIcon } from "lucide-react";
 import { Button, EmptyState, Skeleton } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
@@ -38,6 +38,7 @@ function CampaignTablePlaceholder() {
 export function ProjectPage() {
   const projectId = useActiveProjectId();
   const navigate = useNavigate();
+  const location = useLocation();
   const { range } = usePeriod();
   const projects = useProjects();
   const clients = useClients();
@@ -102,7 +103,7 @@ export function ProjectPage() {
           totals={summary.data}
           currency={project.budgetCurrency}
           empty={campaigns.isSuccess ? t("campaigns.empty.title") : undefined}
-          onOpen={(campaignId) => navigate(projectPath(project.id, campaignId))}
+          onOpen={(campaignId) => navigate(`${projectPath(project.id, campaignId)}${location.search}`)}
         />
       )}
 

@@ -23,6 +23,7 @@ function handle<TRequest extends Request>(
 export interface CampaignHttpRouters {
   readonly campaignRouter: Router;
   readonly adSetRouter: Router;
+  readonly adCreativeRouter: Router;
   readonly projectMetricRouter: Router;
   readonly summaryRouter: Router;
 }
@@ -43,6 +44,17 @@ export function createCampaignHttpRouters(useCases: CampaignUseCases): CampaignH
   adSetRouter.get("/:id/ads", handle(async (req: Request<{ id: string }>, res) => {
     res.json(await useCases.listAds(actorOf(req), req.params.id, rangeOf(req)));
   }));
+
+  const adCreativeRouter = Router();
+  const serve = (part: "file" | "poster") =>
+    handle(async (req: Request<{ id: string }>, res: Response) => {
+      const file = await useCases.readCreativeFile(actorOf(req), req.params.id, part);
+      res.setHeader("Content-Type", file.contentType);
+      res.setHeader("Cache-Control", "private, max-age=3600");
+      res.send(Buffer.from(file.body));
+    });
+  adCreativeRouter.get("/:id/file", serve("file"));
+  adCreativeRouter.get("/:id/poster", serve("poster"));
 
   const projectMetricRouter = Router({ mergeParams: true });
   projectMetricRouter.get("/campaigns/names", handle(async (req: Request<{ projectId: string }>, res) => {
@@ -66,5 +78,5 @@ export function createCampaignHttpRouters(useCases: CampaignUseCases): CampaignH
     res.json(await useCases.agencySummary(actorOf(req), rangeOf(req)));
   }));
 
-  return { campaignRouter, adSetRouter, projectMetricRouter, summaryRouter };
+  return { campaignRouter, adSetRouter, adCreativeRouter, projectMetricRouter, summaryRouter };
 }

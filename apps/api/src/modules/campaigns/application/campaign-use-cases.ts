@@ -1,15 +1,17 @@
 import { can } from "@adpulse/access-policy";
 import { AppError } from "#shared/domain/index.js";
 import type { ActorContext } from "#shared/application/index.js";
-import { isOrderedRange, type Ad, type AdSet, type Campaign, type Channel, type DateRange } from "../domain/hierarchy.js";
+import { isOrderedRange, type Ad, type AdSet, type Campaign, type Channel, type CreativeFile, type DateRange } from "../domain/hierarchy.js";
 import { performanceOf, sumByDay, type MeasuredDay, type Performance } from "../domain/metrics.js";
-import type { AdRepository, AdSetRepository, CampaignRepository, ProjectReach } from "./ports.js";
+import type { AdRepository, AdSetRepository, CampaignRepository, CreativeRepository, CreativeStorage, ProjectReach } from "./ports.js";
 import type { MetricRepository } from "./metric-ports.js";
 
 export interface CampaignDependencies {
   readonly campaigns: CampaignRepository;
   readonly adSets: AdSetRepository;
   readonly ads: AdRepository;
+  readonly creatives: CreativeRepository;
+  readonly creativeFiles: CreativeStorage;
   readonly projects: ProjectReach;
   readonly metrics: MetricRepository;
 }
@@ -126,6 +128,22 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
         ...ad,
         performance: performanceOf(await dependencies.metrics.readAdRange(ad.id, range.from, range.to)),
       })));
+    },
+
+    readCreativeFile: async (
+      actor: ActorContext,
+      id: string,
+      part: "file" | "poster",
+    ): Promise<CreativeFile> => {
+      assertCanRead(actor);
+      const stored = await dependencies.creatives.findFile(actor, id, part);
+      if (!stored) throw new AppError("not-found", "Creative not found");
+      try {
+        const object = await dependencies.creativeFiles.read(stored.key);
+        return { body: object.body, contentType: object.contentType ?? stored.contentType };
+      } catch {
+        throw new AppError("not-found", "Creative not found");
+      }
     },
 
     dailySeries: async (actor: ActorContext, campaignId: string, range: DateRange) => {

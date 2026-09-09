@@ -1,8 +1,11 @@
 export * from "./api/api.js";
 export * from "./api/queries.js";
+export * from "./api/layout.js";
+export * from "./api/layout-queries.js";
 export * from "./ui/project-avatar/ProjectAvatar.js";
 export * from "./ui/project-header/ProjectHeader.js";
 export * from "./model/selection.js";
 export * from "./model/SelectionSync.js";
 export * from "./model/priority.js";
+export * from "./model/layout.js";
 export { CURRENCIES, DEFAULT_CURRENCY } from "./api/api.js";

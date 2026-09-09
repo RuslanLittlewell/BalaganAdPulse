@@ -1,27 +1,16 @@
 import { shiftDays, todayIso } from "@/shared/lib/index.js";
 import type { DateRange } from "@/entities/campaign/index.js";
-import { t } from "@/shared/config/index.js";
 
-export const PERIODS = ["7d", "30d", "90d", "month", "prevMonth"] as const;
+export const SHORTCUTS = ["7d", "month", "prevMonth"] as const;
 
-export type Period = (typeof PERIODS)[number];
-
-export const DEFAULT_PERIOD: Period = "30d";
-
-export function isPeriod(value: string | null): value is Period {
-  return value !== null && (PERIODS as readonly string[]).includes(value);
-}
+export type Shortcut = (typeof SHORTCUTS)[number];
 
 const firstOfMonth = (iso: string) => `${iso.slice(0, 7)}-01`;
 
-export function rangeOf(period: Period, today = todayIso()): DateRange {
-  switch (period) {
+export function shortcutRange(shortcut: Shortcut, today = todayIso()): DateRange {
+  switch (shortcut) {
     case "7d":
       return { from: shiftDays(today, -6), to: today };
-    case "30d":
-      return { from: shiftDays(today, -29), to: today };
-    case "90d":
-      return { from: shiftDays(today, -89), to: today };
     case "month":
       return { from: firstOfMonth(today), to: today };
     case "prevMonth": {
@@ -31,6 +20,16 @@ export function rangeOf(period: Period, today = todayIso()): DateRange {
   }
 }
 
-export function periodLabel(period: Period): string {
-  return t(`period.${period}`);
+export function defaultRange(today = todayIso()): DateRange {
+  return { from: shiftDays(today, -29), to: today };
+}
+
+export function isIsoDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+export function isDateRange(range: DateRange): boolean {
+  return isIsoDate(range.from) && isIsoDate(range.to) && range.from <= range.to;
 }

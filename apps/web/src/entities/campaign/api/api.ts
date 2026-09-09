@@ -58,6 +58,20 @@ export interface AdSet {
   performance: Performance;
 }
 
+export const CREATIVE_KINDS = ["IMAGE", "VIDEO"] as const;
+
+export type CreativeKind = (typeof CREATIVE_KINDS)[number];
+
+export interface Creative {
+  id: string;
+  position: number;
+  kind: CreativeKind;
+  title: string | null;
+  body: string | null;
+  hasFile: boolean;
+  hasPoster: boolean;
+}
+
 export interface Ad {
   id: string;
   adSetId: string;
@@ -103,5 +117,11 @@ export const campaignsApi = {
   projectSummary: (projectId: string, range: DateRange) =>
     http.get<Performance>(scoped(`/projects/${projectId}/summary`, range)),
   agencySummary: (range: DateRange) => http.get<Performance>(scoped("/summary", range)),
+  adCreatives: (adId: string) => http.get<Creative[]>(`/ads/${adId}/creatives`),
+  adPreview: (adId: string) => http.get<{ url: string }>(`/ads/${adId}/preview`),
+  creativeFile: async (creativeId: string, part: "file" | "poster") => {
+    const blob = await http.getBlob(`/ad-creatives/${creativeId}/${part}`);
+    return URL.createObjectURL(blob);
+  },
   channels: (range: DateRange) => http.get<ChannelShare[]>(scoped("/summary/channels", range)),
 };

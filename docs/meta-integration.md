@@ -25,7 +25,9 @@ already assigned to another project causes a conflict rather than being moved.
 
 Set `INTEGRATION_ENCRYPTION_KEY` to a base64-encoded random 32-byte key. Generate it
 with `openssl rand -base64 32` and store it in the deployment's secret environment.
-For local Compose use the root `.env`; for native API development use `apps/api/.env`.
+For local Compose use the root `.env`; for native API development use `apps/api/.env`;
+for the VPS put it in `/opt/adpulse/.env`, which `compose.prod.yml` passes to the API
+through `env_file`, and recreate the container so it picks the value up.
 The key is separate from `JWT_SECRET`. Back it up with deployment secrets. Existing
 connections require the same key after restart. To rotate it, disconnect existing
 accounts, change the key, restart and reconnect them with their tokens. A missing

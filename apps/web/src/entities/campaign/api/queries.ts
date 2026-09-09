@@ -81,3 +81,34 @@ export function useChannelShares(range: DateRange) {
     queryFn: () => campaignsApi.channels(range),
   });
 }
+
+export function useCreativeFile(creativeId: string | undefined, part: "file" | "poster") {
+  return useQuery({
+    queryKey: ["ad-creatives", creativeId, part],
+    queryFn: () => campaignsApi.creativeFile(creativeId as string, part),
+    enabled: creativeId != null,
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
+}
+
+export function useAdCreatives(adId: string | undefined) {
+  return useQuery({
+    queryKey: ["ads", adId, "creatives"],
+    queryFn: () => campaignsApi.adCreatives(adId as string),
+    enabled: adId != null,
+    retry: false,
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
+}
+
+export function useAdPreview(adId: string | undefined) {
+  return useQuery({
+    queryKey: ["ads", adId, "preview"],
+    queryFn: () => campaignsApi.adPreview(adId as string),
+    enabled: adId != null,
+    retry: false,
+    staleTime: 10 * 60_000,
+  });
+}

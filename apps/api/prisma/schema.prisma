@@ -70,6 +70,9 @@ model Membership {
   access      ClientAccess[]
   auditEvents AuditEvent[]
 
+  projectGroups     ProjectGroup[]
+  projectPlacements ProjectPlacement[]
+
   assignedTasks  Task[]      @relation("TaskAssignee")
   createdTasks   Task[]      @relation("TaskCreator")
   uploadedImages TaskImage[] @relation("TaskImageUploader")
@@ -275,6 +278,7 @@ model Project {
   tasks          Task[]
   invitations    InviteProject[]
   integration    ProjectIntegration?
+  placements     ProjectPlacement[]
 
   @@index([clientId, position])
   @@map("project")
@@ -334,6 +338,13 @@ model AuditEvent {
   @@index([clientId, createdAt(sort: Desc)])
   @@index([entityType, entityId, createdAt(sort: Desc)])
   @@map("audit_event")
+}
+
+enum CreativeKind {
+  IMAGE
+  VIDEO
+
+  @@map("creative_kind")
 }
 
 enum Channel {
@@ -411,9 +422,31 @@ model Ad {
   createdAt  DateTime        @default(now()) @map("created_at")
   updatedAt  DateTime        @updatedAt @map("updated_at")
   metrics    AdDailyMetric[]
+  creatives  AdCreative[]
 
   @@index([adSetId, position])
   @@map("ad")
+}
+
+model AdCreative {
+  id                String       @id @default(uuid())
+  adId              String       @map("ad_id")
+  ad                Ad           @relation(fields: [adId], references: [id], onDelete: Cascade)
+  externalId        String       @map("external_id")
+  position          Int
+  kind              CreativeKind
+  title             String?
+  body              String?
+  fileKey           String?      @map("file_key")
+  contentType       String?      @map("content_type")
+  bytes             Int?
+  posterKey         String?      @map("poster_key")
+  posterContentType String?      @map("poster_content_type")
+  syncedAt          DateTime     @default(now()) @map("synced_at")
+
+  @@unique([adId, externalId, position])
+  @@index([adId, position])
+  @@map("ad_creative")
 }
 
 model CampaignDailyMetric {
@@ -494,6 +527,35 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_token")
+}
+
+model ProjectGroup {
+  id           String             @id
+  membershipId String             @map("membership_id")
+  membership   Membership         @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  name         String
+  position     Int
+  createdAt    DateTime           @default(now()) @map("created_at")
+  placements   ProjectPlacement[]
+
+  @@index([membershipId, position])
+  @@map("project_group")
+}
+
+model ProjectPlacement {
+  membershipId String        @map("membership_id")
+  membership   Membership    @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  projectId    String        @map("project_id")
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  groupId      String?       @map("group_id")
+  group        ProjectGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  position     Int
+  pinned       Boolean       @default(false)
+
+  @@id([membershipId, projectId])
+  @@index([membershipId, position])
+  @@index([groupId])
+  @@map("project_placement")
 }
 
 model ProjectIntegration {

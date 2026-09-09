@@ -40,6 +40,7 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/adpulse_test?schema=public
       JWT_SECRET: ci-secret-not-used-outside-tests
       INVITE_CODE: ci-invite-not-used-outside-tests
+      INTEGRATION_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       S3_ENDPOINT: http://localhost:9000
       S3_REGION: us-east-1
       S3_ACCESS_KEY: adpulse

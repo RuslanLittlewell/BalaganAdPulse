@@ -1,4 +1,4 @@
-import { integrationDoc } from "../modules/integrations/presentation/http/integration-openapi.js";
+import { adPreviewDoc, integrationDoc } from "../modules/integrations/presentation/http/integration-openapi.js";
 import { createRequire } from "node:module";
 import path from "node:path";
 import express, { Router } from "express";
@@ -14,7 +14,9 @@ import { inviteComponents, inviteDoc, registrationResolverDoc } from "../modules
 import { auditComponents, auditDoc } from "../modules/audit/presentation/http/audit-openapi.js";
 import { clientComponents, clientDoc } from "../modules/clients/presentation/http/client-openapi.js";
 import { projectComponents, projectDoc } from "../modules/projects/presentation/http/project-openapi.js";
+import { projectGroupDoc, projectLayoutDoc } from "../modules/project-layout/presentation/http/layout-openapi.js";
 import {
+  adCreativeDoc,
   adSetDoc,
   campaignComponents,
   campaignDoc,
@@ -85,10 +87,14 @@ export function apiDocument(): OpenApiDocument {
       { mount: mountPath("audit"), ...auditDoc },
       { mount: mountPath("project-metrics"), ...projectMetricDoc },
       { mount: mountPath("integrations"), ...integrationDoc },
+      { mount: mountPath("ad-previews"), ...adPreviewDoc },
       { mount: mountPath("projects"), ...projectDoc },
+      { mount: mountPath("project-layout"), ...projectLayoutDoc },
+      { mount: mountPath("project-groups"), ...projectGroupDoc },
       { mount: mountPath("clients"), ...clientDoc },
       { mount: mountPath("campaigns"), ...campaignDoc },
       { mount: mountPath("ad-sets"), ...adSetDoc },
+      { mount: mountPath("ad-creatives"), ...adCreativeDoc },
       { mount: mountPath("summary"), ...summaryDoc },
       { mount: mountPath("tasks"), ...taskDoc },
       { mount: mountPath("leads"), ...leadDoc },

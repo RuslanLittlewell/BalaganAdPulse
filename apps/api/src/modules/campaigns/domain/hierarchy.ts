@@ -46,6 +46,25 @@ export interface Ad {
   readonly position: number;
 }
 
+export const CREATIVE_KINDS = ["IMAGE", "VIDEO"] as const;
+
+export type CreativeKind = (typeof CREATIVE_KINDS)[number];
+
+export interface Creative {
+  readonly id: string;
+  readonly position: number;
+  readonly kind: CreativeKind;
+  readonly title: string | null;
+  readonly body: string | null;
+  readonly hasFile: boolean;
+  readonly hasPoster: boolean;
+}
+
+export interface CreativeFile {
+  readonly body: Uint8Array;
+  readonly contentType: string;
+}
+
 export interface DateRange {
   readonly from: Date;
   readonly to: Date;

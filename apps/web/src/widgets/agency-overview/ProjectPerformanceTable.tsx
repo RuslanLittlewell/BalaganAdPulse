@@ -46,6 +46,7 @@ export function ProjectPerformanceTable({ range }: { range: DateRange }) {
       />
     ),
     performance,
+    currency: project.budgetCurrency,
   }));
 
   return (

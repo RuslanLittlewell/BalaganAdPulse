@@ -57,7 +57,7 @@ describe("DashboardPage", () => {
     renderWithProviders(<DashboardPage />);
 
     const row = await screen.findByRole("row", { name: /Клиника/ });
-    expect(within(row).getByText("3 000 ₽")).toBeInTheDocument();
+    expect(within(row).getByText("3 000 Br")).toBeInTheDocument();
     expect(screen.getByRole("row", { name: /Автосалон/ })).toBeInTheDocument();
   });
 

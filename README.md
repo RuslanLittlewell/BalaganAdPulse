@@ -585,3 +585,9 @@ npm test
 - [openspec/specs/](openspec/specs/) — the current behaviour contract, per capability
 - [docs/archive/phases-1-12/](docs/archive/phases-1-12/) — the specs and plans of phases
   1-12, kept as history and no longer the workflow
+
+## Meta advertising accounts
+
+Projects can connect a Meta account by entering Account ID and a token in the web
+interface. See [Meta integration](docs/meta-integration.md) for manual refresh,
+daily imports and the required server encryption key.

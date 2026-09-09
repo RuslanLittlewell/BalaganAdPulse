@@ -1,3 +1,4 @@
+import { MetaIntegration } from "@/features/meta-integration/index.js";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { HistoryIcon } from "lucide-react";
@@ -74,12 +75,14 @@ export function ProjectPage() {
         </Can>
       } />
 
+      <MetaIntegration key={project.id} projectId={project.id} />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-sm font-semibold text-foreground">{t("campaigns.title")}</h2>
         <PeriodControl />
       </div>
 
-      <PerformanceSummary performance={summary.data} />
+      <PerformanceSummary performance={summary.data} currency={project.budgetCurrency} />
 
       {campaigns.isPending ? (
         <CampaignTablePlaceholder />
@@ -97,6 +100,7 @@ export function ProjectPage() {
           heading={t("campaigns.one")}
           rows={rows}
           totals={summary.data}
+          currency={project.budgetCurrency}
           empty={campaigns.isSuccess ? t("campaigns.empty.title") : undefined}
           onOpen={(campaignId) => navigate(projectPath(project.id, campaignId))}
         />

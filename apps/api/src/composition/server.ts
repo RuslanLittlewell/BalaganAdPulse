@@ -21,13 +21,15 @@ const realtime = attachRealtime({
   greet: container.greetPresence,
 });
 
+container.importWorker.start();
+
 const presenceSweep = setInterval(() => { container.sweepPresence(); }, PRESENCE_SWEEP_MS);
 
 const shutdown = createShutdown({
   server,
   stopTimers: () => { clearInterval(presenceSweep); },
   closeRealtime: () => realtime.close(),
-  disconnect: () => prisma.$disconnect(),
+  disconnect: async () => { await container.importWorker.stop(); await prisma.$disconnect(); },
   exit: (code) => process.exit(code),
 });
 

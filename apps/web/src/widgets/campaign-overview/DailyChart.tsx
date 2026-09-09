@@ -1,10 +1,17 @@
 import { areaPath, formatCurrency, formatDay, linePath } from "@/shared/lib/index.js";
+import type { Currency } from "@/shared/lib/index.js";
 import type { MeasuredDay } from "@/entities/campaign/index.js";
 import { t } from "@/shared/config/index.js";
 
 const BOX = { width: 720, height: 180 };
 
-export function DailyChart({ days }: { days: MeasuredDay[] }) {
+export function DailyChart({
+  days,
+  currency = "RUB",
+}: {
+  days: MeasuredDay[];
+  currency?: Currency;
+}) {
   if (days.length === 0) {
     return (
       <div className="rounded-lg border border-border p-8 text-center text-sm text-muted-foreground">
@@ -22,7 +29,7 @@ export function DailyChart({ days }: { days: MeasuredDay[] }) {
       <figcaption className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="text-sm font-semibold text-foreground">{t("chart.title")}</span>
         <span className="text-xs text-muted-foreground">
-          {t("chart.peak")}: {formatCurrency(highest)}
+          {t("chart.peak")}: {formatCurrency(highest, currency)}
         </span>
       </figcaption>
       <svg

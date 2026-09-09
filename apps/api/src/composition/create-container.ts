@@ -1,3 +1,10 @@
+import { PrismaImportJobs } from "../modules/integrations/infrastructure/prisma-import-jobs.js";
+import { createImportWorker } from "../modules/integrations/application/import-worker.js";
+import { createIntegrationUseCases } from "../modules/integrations/application/integration-use-cases.js";
+import { PrismaIntegrationRepository } from "../modules/integrations/infrastructure/prisma-integration-repository.js";
+import { AesCredentialCipher } from "../modules/integrations/infrastructure/credential-cipher.js";
+import { GraphProvider } from "../modules/integrations/infrastructure/graph-provider.js";
+import { createIntegrationRouter } from "../modules/integrations/presentation/http/integration-http.js";
 import { Router, type RequestHandler } from "express";
 import { createLeadUseCases, createLeadRouter } from '../modules/leads/index.js';
 import { PrismaLeadRepository } from '../modules/leads/infrastructure/prisma-lead-repository.js';
@@ -94,6 +101,8 @@ import { SystemClock } from "#shared/infrastructure/clock.js";
 import { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
 
 export interface ApiContainer {
+  readonly integrationRouter: Router;
+  readonly importWorker: ReturnType<typeof createImportWorker>;
   readonly leadRouter: Router;
   readonly documentationRouter: Router;
   readonly authRouter: Router;
@@ -313,6 +322,7 @@ export function createContainer(): ApiContainer {
     unitOfWork,
   });
   return {
+    importWorker: createImportWorker({ jobs: new PrismaImportJobs(prisma), cipher: new AesCredentialCipher(process.env.INTEGRATION_ENCRYPTION_KEY), provider: new GraphProvider(process.env.META_GRAPH_VERSION ?? "v22.0"), clock }),
     documentationRouter: config.documentation ? createDocumentationRouter(apiDocument()) : Router(),
     authRouter: identityHttp.authRouter,
     authentication: createAuthentication(identity),
@@ -325,6 +335,12 @@ export function createContainer(): ApiContainer {
     memberRouter: createMemberRouter(members),
     auditRouter: createAuditRouter(auditReader),
     projectMetricRouter: campaignHttp.projectMetricRouter,
+    integrationRouter: createIntegrationRouter(createIntegrationUseCases({
+      repository: new PrismaIntegrationRepository(prisma, unitOfWork),
+      cipher: new AesCredentialCipher(process.env.INTEGRATION_ENCRYPTION_KEY),
+      provider: new GraphProvider(process.env.META_GRAPH_VERSION ?? "v22.0"),
+      projects: projectRepository, clock, unitOfWork, audit,
+    })),
     projectRouter: createProjectRouter(projects),
     clientRouter: createClientRouter(clients),
     campaignRouter: campaignHttp.campaignRouter,

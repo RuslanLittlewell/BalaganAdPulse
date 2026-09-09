@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/shared/ui/index.js";
 import { cn } from "@/shared/lib/utils.js";
+import type { Currency } from "@/shared/lib/index.js";
 import {
   METRIC_COLUMNS,
   type Performance,
@@ -24,6 +25,7 @@ export interface PerformanceRow {
   badge?: ReactNode;
   tone?: PerformanceTone;
   performance: Performance;
+  currency?: Currency;
   children?: PerformanceRow[];
   expandable?: boolean;
 }
@@ -32,20 +34,27 @@ export interface PerformanceTableProps {
   heading: string;
   rows: PerformanceRow[];
   totals?: Performance;
+  currency?: Currency;
   onOpen?: (id: string) => void;
   onExpandedChange?: (ids: ReadonlySet<string>) => void;
   empty?: string;
 }
 
-function Figures({ performance }: { performance: Performance }) {
+function Figures({
+  performance,
+  currency,
+}: {
+  performance: Performance;
+  currency: Currency;
+}) {
   return (
     <>
       {METRIC_COLUMNS.map((column) => (
         <TableCell
           key={column.id}
-          className="text-right tabular-nums whitespace-nowrap"
+          className="text-right tabular-nums whitespace-nowrap last:pr-5"
         >
-          {column.format(performance)}
+          {column.format(performance, currency)}
         </TableCell>
       ))}
     </>
@@ -131,6 +140,7 @@ export function PerformanceTable({
   heading,
   rows,
   totals,
+  currency = "RUB",
   onOpen,
   onExpandedChange,
   empty,
@@ -171,7 +181,7 @@ export function PerformanceTable({
             expanded={expandable ? isOpen : undefined}
             onActivate={activate}
           />
-          <Figures performance={row.performance} />
+          <Figures performance={row.performance} currency={row.currency ?? currency} />
         </TableRow>
         {isOpen &&
           (row.children ?? []).map((child) => renderRow(child, depth + 1))}
@@ -183,15 +193,15 @@ export function PerformanceTable({
     <div className="min-h-0 overflow-auto rounded-lg border border-border">
       <Table className="text-sm">
         <TableHeader>
-          <TableRow>
-            <TableHead scope="col" className="sticky left-0 z-10 bg-background">
+          <TableRow className="bg-muted hover:bg-muted">
+            <TableHead scope="col" className="sticky left-0 z-10 bg-muted">
               {heading}
             </TableHead>
             {METRIC_COLUMNS.map((column) => (
               <TableHead
                 key={column.id}
                 scope="col"
-                className="text-right whitespace-nowrap"
+                className="text-right whitespace-nowrap last:pr-5"
               >
                 {column.label}
               </TableHead>
@@ -201,14 +211,14 @@ export function PerformanceTable({
         <TableBody>{rows.map((row) => renderRow(row, 0))}</TableBody>
         {totals != null && (
           <TableFooter>
-            <TableRow>
+            <TableRow className="bg-muted hover:bg-muted">
               <TableHead
                 scope="row"
                 className="sticky left-0 z-10 bg-muted font-medium"
               >
                 {t("metric.total")}
               </TableHead>
-              <Figures performance={totals} />
+              <Figures performance={totals} currency={currency} />
             </TableRow>
           </TableFooter>
         )}

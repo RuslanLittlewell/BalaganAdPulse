@@ -32,6 +32,10 @@ services:
       # sync: false means Render prompts once at Blueprint creation and then
       # ignores these on later syncs, so re-syncing cannot clobber a rotated
       # secret. The values never appear in this file.
+      - key: INTEGRATION_ENCRYPTION_KEY
+        sync: false
+      - key: META_GRAPH_VERSION
+        value: v22.0
       - key: JWT_SECRET
         sync: false
       - key: SEED_ADMIN_NAME

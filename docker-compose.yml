@@ -63,6 +63,8 @@ services:
       PORT: 3000
       JWT_SECRET: "${JWT_SECRET}"
       INVITE_CODE: "${INVITE_CODE}"
+      INTEGRATION_ENCRYPTION_KEY: "${INTEGRATION_ENCRYPTION_KEY:-}"
+      META_GRAPH_VERSION: "${META_GRAPH_VERSION:-v22.0}"
       API_DOCS: "${API_DOCS:-on}"
       S3_ENDPOINT: "http://storage:9000"
       S3_REGION: "${S3_REGION:-us-east-1}"

@@ -102,6 +102,7 @@ export function CampaignPage() {
       <div>
         <h2 className="mb-3 text-sm font-semibold text-foreground">{t("adSets.title")}</h2>
         <PerformanceTable
+          tableKey="ad-sets"
           heading={t("adSets.one")}
           rows={rows}
           currency={currency}

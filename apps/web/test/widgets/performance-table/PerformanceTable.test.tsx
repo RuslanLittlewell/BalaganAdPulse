@@ -86,6 +86,35 @@ describe("PerformanceTable", () => {
 
     expect(screen.getByText("Пока нет кампаний")).toBeInTheDocument();
   });
+
+  it("keeps two columns, allows restoring hidden columns, and remembers the selection per table", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(
+      <PerformanceTable tableKey="column-menu-test" heading="Кампания" rows={rows} totals={performance(1500)} />,
+    );
+    await user.click(screen.getByRole("button", { name: "Отображаемые столбцы" }));
+    const items = screen.getAllByRole("menuitemcheckbox");
+    for (const item of items.slice(0, -2)) await user.click(item);
+
+    const checked = screen.getAllByRole("menuitemcheckbox", { checked: true });
+    expect(checked).toHaveLength(2);
+    checked.forEach((item) => expect(item).toHaveAttribute("aria-disabled", "true"));
+    expect(screen.getByRole("menuitemcheckbox", { name: "Кампания" })).toHaveAttribute("aria-checked", "false");
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "Кампания" }));
+    expect(screen.getAllByRole("menuitemcheckbox", { checked: true })).toHaveLength(3);
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("columnheader", { name: "Расход" })).toBeNull();
+    expect(screen.getByRole("columnheader", { name: "Кампания" })).toBeInTheDocument();
+    const stored = JSON.parse(localStorage.getItem("adpulse-performance-column-widths")!);
+    expect(stored.state.visibleColumns["column-menu-test"]).toHaveLength(3);
+
+    unmount();
+    const remounted = render(<PerformanceTable tableKey="column-menu-test" heading="Кампания" rows={rows} />);
+    expect(screen.queryByRole("columnheader", { name: "Расход" })).toBeNull();
+    remounted.unmount();
+    render(<PerformanceTable tableKey="other-table-test" heading="Проект" rows={rows} />);
+    expect(screen.getByRole("columnheader", { name: "Расход" })).toBeInTheDocument();
+  });
 });
 
 describe("rows that contain rows", () => {

@@ -1,6 +1,12 @@
-import { Fragment, useState, type ReactNode } from "react";
-import { ChevronRightIcon } from "lucide-react";
+import { Fragment, useRef, useState, type ReactNode } from "react";
+import { ChevronRightIcon, EllipsisVerticalIcon } from "lucide-react";
 import {
+  Button,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
   Table,
   TableBody,
   TableCell,
@@ -17,6 +23,7 @@ import {
   type PerformanceTone,
 } from "@/entities/campaign/index.js";
 import { t } from "@/shared/config/index.js";
+import { DEFAULT_NAME_WIDTH, MIN_NAME_WIDTH, MIN_VISIBLE_COLUMNS, isRequiredColumn, useColumnWidths, visibleColumnIds } from "./columnWidths.js";
 
 export interface PerformanceRow {
   id: string;
@@ -31,6 +38,7 @@ export interface PerformanceRow {
 }
 
 export interface PerformanceTableProps {
+  tableKey?: string;
   heading: string;
   rows: PerformanceRow[];
   totals?: Performance;
@@ -43,13 +51,15 @@ export interface PerformanceTableProps {
 function Figures({
   performance,
   currency,
+  columns,
 }: {
   performance: Performance;
   currency: Currency;
+  columns: typeof METRIC_COLUMNS;
 }) {
   return (
     <>
-      {METRIC_COLUMNS.map((column) => (
+      {columns.map((column) => (
         <TableCell
           key={column.id}
           className="text-right tabular-nums whitespace-nowrap last:pr-5"
@@ -92,24 +102,24 @@ function Name({
           )}
         />
       )}
-      <span className="min-w-0">
-        <span className="block truncate font-medium text-foreground">
+      <span className="min-w-0 flex-1">
+        <span title={row.name} className="block truncate font-medium text-foreground">
           {row.name}
         </span>
         {row.note != null && (
-          <span className="block truncate text-xs text-muted-foreground">
+          <span title={row.note} className="block truncate text-xs text-muted-foreground">
             {row.note}
           </span>
         )}
       </span>
-      {row.badge}
+      {row.badge != null && <span className="max-w-[35%] overflow-hidden">{row.badge}</span>}
     </>
   );
 
   return (
     <TableHead
       scope="row"
-      className="sticky left-0 z-10 bg-background font-normal"
+      className="sticky left-0 z-10 overflow-hidden bg-background font-normal"
       style={{
         paddingLeft: depth === 0 ? undefined : `${depth * 1.5 + 0.75}rem`,
       }}
@@ -137,6 +147,7 @@ function Name({
 }
 
 export function PerformanceTable({
+  tableKey = "performance",
   heading,
   rows,
   totals,
@@ -146,6 +157,20 @@ export function PerformanceTable({
   empty,
 }: PerformanceTableProps) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const savedWidth = useColumnWidths((state) => state.nameWidths?.[tableKey]);
+  const nameWidth = typeof savedWidth === "number" && Number.isFinite(savedWidth)
+    ? Math.max(MIN_NAME_WIDTH, savedWidth)
+    : DEFAULT_NAME_WIDTH;
+  const saveNameWidth = useColumnWidths((state) => state.setNameWidth);
+  const setNameWidth = (width: number) => saveNameWidth(tableKey, width);
+  const resize = useRef<{ x: number; width: number } | null>(null);
+  const savedColumns = useColumnWidths((state) => state.visibleColumns?.[tableKey]);
+  const toggleColumn = useColumnWidths((state) => state.toggleColumn);
+  const visibleIds = visibleColumnIds(savedColumns, tableKey);
+  const showName = visibleIds.includes("name");
+  const columns = METRIC_COLUMNS.filter((column) => visibleIds.includes(column.id));
+  const choices = [{ id: "name", label: heading }, ...METRIC_COLUMNS]
+    .filter((column) => !isRequiredColumn(tableKey, column.id));
 
   const toggle = (id: string) => {
     const next = new Set(expanded);
@@ -173,15 +198,27 @@ export function PerformanceTable({
 
     return (
       <Fragment key={row.id}>
-        <TableRow onClick={activate} className={"cursor-pointer"}>
-          <Name
+        <TableRow
+          onClick={activate}
+          className={"cursor-pointer"}
+          tabIndex={!showName && activate != null ? 0 : undefined}
+          aria-label={!showName ? row.name : undefined}
+          aria-expanded={!showName && expandable ? isOpen : undefined}
+          onKeyDown={!showName && activate != null ? (event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            activate();
+          } : undefined}
+        >
+          {showName && <Name
             row={row}
             depth={depth}
             expandable={expandable}
             expanded={expandable ? isOpen : undefined}
             onActivate={activate}
-          />
-          <Figures performance={row.performance} currency={row.currency ?? currency} />
+          />}
+          <Figures columns={columns} performance={row.performance} currency={row.currency ?? currency} />
+          <TableCell aria-hidden />
         </TableRow>
         {isOpen &&
           (row.children ?? []).map((child) => renderRow(child, depth + 1))}
@@ -191,13 +228,53 @@ export function PerformanceTable({
 
   return (
     <div className="min-h-0 overflow-auto rounded-lg border border-border">
-      <Table className="text-sm">
+      <Table
+        className="table-fixed text-sm"
+        style={{ width: (showName ? nameWidth : 0) + columns.length * 128 + 40, minWidth: "100%" }}
+      >
+        <colgroup>
+          {showName && <col style={{ width: nameWidth }} />}
+          {columns.map((column) => <col key={column.id} />)}
+          <col style={{ width: 40 }} />
+        </colgroup>
         <TableHeader>
           <TableRow className="bg-muted hover:bg-muted">
-            <TableHead scope="col" className="sticky left-0 z-10 bg-muted">
-              {heading}
-            </TableHead>
-            {METRIC_COLUMNS.map((column) => (
+            {showName && <TableHead scope="col" aria-label={heading} className="sticky left-0 z-10 bg-muted pr-3">
+              <span className="block truncate" title={heading}>{heading}</span>
+              <span
+                role="separator"
+                tabIndex={0}
+                aria-label={t("table.resizeName")}
+                aria-orientation="vertical"
+                aria-valuemin={MIN_NAME_WIDTH}
+                aria-valuenow={nameWidth}
+                className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none select-none border-r-2 border-border hover:border-primary focus-visible:border-primary focus-visible:outline-none"
+                onPointerDown={(event) => {
+                  if (event.button !== 0) return;
+                  event.preventDefault();
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  resize.current = { x: event.clientX, width: nameWidth };
+                }}
+                onPointerMove={(event) => {
+                  if (resize.current == null) return;
+                  setNameWidth(resize.current.width + event.clientX - resize.current.x);
+                }}
+                onPointerUp={(event) => {
+                  resize.current = null;
+                  if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                    event.currentTarget.releasePointerCapture(event.pointerId);
+                  }
+                }}
+                onPointerCancel={() => { resize.current = null; }}
+                onLostPointerCapture={() => { resize.current = null; }}
+                onKeyDown={(event) => {
+                  if (!["ArrowLeft", "ArrowRight", "Home"].includes(event.key)) return;
+                  event.preventDefault();
+                  setNameWidth(event.key === "Home" ? MIN_NAME_WIDTH : nameWidth + (event.key === "ArrowLeft" ? -10 : 10));
+                }}
+              />
+            </TableHead>}
+            {columns.map((column) => (
               <TableHead
                 key={column.id}
                 scope="col"
@@ -206,19 +283,44 @@ export function PerformanceTable({
                 {column.label}
               </TableHead>
             ))}
+            <TableHead className="sticky right-0 z-20 bg-muted p-1">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon-sm" aria-label={t("table.columns")}>
+                    <EllipsisVerticalIcon aria-hidden />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="max-h-96 overflow-y-auto">
+                  <DropdownMenuLabel>{t("table.columns")}</DropdownMenuLabel>
+                  <p className="px-2 pb-2 text-xs text-muted-foreground">{t("table.minimumColumns")}</p>
+                  {choices.map((column) => (
+                    <DropdownMenuCheckboxItem
+                      key={column.id}
+                      checked={visibleIds.includes(column.id)}
+                      disabled={visibleIds.length <= MIN_VISIBLE_COLUMNS && visibleIds.includes(column.id)}
+                      onSelect={(event) => event.preventDefault()}
+                      onCheckedChange={() => toggleColumn(tableKey, column.id)}
+                    >
+                      {column.label}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>{rows.map((row) => renderRow(row, 0))}</TableBody>
         {totals != null && (
           <TableFooter>
-            <TableRow className="bg-muted hover:bg-muted">
-              <TableHead
+            <TableRow aria-label={!showName ? t("metric.total") : undefined} className="bg-muted hover:bg-muted">
+              {showName && <TableHead
                 scope="row"
-                className="sticky left-0 z-10 bg-muted font-medium"
+                className="sticky left-0 z-10 truncate bg-muted font-medium"
               >
                 {t("metric.total")}
-              </TableHead>
-              <Figures performance={totals} currency={currency} />
+              </TableHead>}
+              <Figures columns={columns} performance={totals} currency={currency} />
+              <TableCell aria-hidden />
             </TableRow>
           </TableFooter>
         )}

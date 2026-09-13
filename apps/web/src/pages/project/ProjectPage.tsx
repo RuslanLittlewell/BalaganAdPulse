@@ -98,6 +98,7 @@ export function ProjectPage() {
         />
       ) : (
         <PerformanceTable
+          tableKey="campaigns"
           heading={t("campaigns.one")}
           rows={rows}
           totals={summary.data}

@@ -52,6 +52,7 @@ export function ProjectPerformanceTable({ range }: { range: DateRange }) {
 
   return (
     <PerformanceTable
+      tableKey="projects"
       heading={t("dashboard.project")}
       rows={rows}
       empty={projects.isSuccess ? t("projects.empty.title") : undefined}

@@ -8,6 +8,7 @@ const fields=z.object({
   source:optionalText(200),notes:optionalText(10000),
   projectId:z.uuid().nullable().optional(),campaignId:z.uuid().nullable().optional(),
 }).strict();
+export const leadContactSchemas={name:fields.shape.name,company:z.string().trim().max(200),phone:z.string().trim().max(50),email:z.string().trim().max(254).email()};
 export const createLeadSchema=fields.extend({stage:z.enum(LEAD_STAGES).optional()});
 export const updateLeadSchema=fields.partial();
 export const moveLeadSchema=z.object({stage:z.enum(LEAD_STAGES),position:z.number().int().min(0).max(2147483647)}).strict();

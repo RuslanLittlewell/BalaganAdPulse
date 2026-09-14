@@ -87,7 +87,7 @@ export class PrismaImportJobs implements ImportJobs {
         for (let i = 0; i < campaignMetrics.length; i += 1000) await tx.campaignDailyMetric.createMany({ data: campaignMetrics.slice(i, i + 1000) });
         for (let i = 0; i < adSetMetrics.length; i += 1000) await tx.adSetDailyMetric.createMany({ data: adSetMetrics.slice(i, i + 1000) });
         for (let i = 0; i < adMetrics.length; i += 1000) await tx.adDailyMetric.createMany({ data: adMetrics.slice(i, i + 1000) });
-        await tx.projectIntegration.update({ where: { projectId: job.projectId }, data: { status: "SUCCESS", lastSuccessAt: now, lastError: null, retryCount: 0, leaseOwner: null, leaseUntil: null } });
+        await tx.projectIntegration.update({ where: { projectId: job.projectId }, data: { status: "SUCCESS", lastSuccessAt: now, lastError: null, retryCount: 0, leaseOwner: null, leaseUntil: null, nextSweepAt: now } });
         return true;
       }, { timeout: 60_000 });
     } catch (error) {

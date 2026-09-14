@@ -74,11 +74,15 @@ if (!Range.prototype.getBoundingClientRect) {
 
 import { server } from "./server.js";
 import { resetStaff } from "@/entities/membership/index.js";
+import { useModuleMemory } from "@/shared/lib/index.js";
+import { useSummaryTiles } from "@/widgets/agency-overview/summaryTiles.js";
 
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => {
   server.resetHandlers();
   resetStaff();
+  useModuleMemory.setState({ boards: {}, projectPlaces: {} });
+  useSummaryTiles.setState({ layouts: {} });
 });
 afterAll(() => server.close());
 

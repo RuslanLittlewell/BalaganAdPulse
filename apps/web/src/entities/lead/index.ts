@@ -6,7 +6,11 @@ export {
 export type {
   BoardCapabilities,
   Lead,
+  LeadAd,
+  LeadAnswer,
   LeadBoard,
+  LeadMetaSource,
+  LeadOrigin,
   LeadInput,
   LeadMove,
   LeadStage,

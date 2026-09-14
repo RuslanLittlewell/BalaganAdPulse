@@ -53,3 +53,63 @@ it('keeps guests read only',async()=>{
   expect(screen.queryByRole('button',{name:'Сохранить'})).not.toBeInTheDocument();
   expect(screen.queryByRole('button',{name:'Удалить'})).not.toBeInTheDocument();
 });
+
+const imported = {
+  ...lead, id: 'lead-meta', clientId: 'client-1', name: 'Мария', company: null, email: null, website: null, notes: null, source: null,
+  projectId: 'project-1', campaignId: 'campaign-1', adId: 'ad-1', origin: 'META',
+  ad: {id: 'ad-1', name: 'Видео 1', externalId: '555'},
+  metaSource: {
+    accountId: '123456', formId: '777888',
+    campaign: {externalId: 'c1', name: 'Весна'}, adSet: {externalId: 's1', name: 'Москва'}, ad: {externalId: '555', name: 'Видео 1'},
+    submittedAt: '2026-09-10T10:00:00.000Z', answers: [{question: 'full_name', values: ['Мария']}], answersOmitted: false,
+  },
+};
+
+describe('imported leads on the board', () => {
+  const clientBoard = (leads: unknown[]) => server.use(
+    mock.get('/api/crm/boards', () => HttpResponse.json([{key: 'client-1', label: 'Клиент', capabilities}])),
+    mock.get('/api/crm/boards/:board/leads', () => HttpResponse.json(leads)),
+    mock.get('/api/projects', () => HttpResponse.json([])),
+    mock.get('/api/projects/project-1/campaigns/names', () => HttpResponse.json([])),
+  );
+
+  it('names Meta and the campaign where an imported lead has no source text', async () => {
+    clientBoard([imported, {...lead, id: 'lead-hand', clientId: 'client-1', name: 'Олег', source: null, origin: 'MANUAL', ad: null, metaSource: null}]);
+    renderWithProviders(<CrmPage/>, {route: '/crm'});
+
+    expect(await screen.findByTestId('lead-source-lead-meta')).toHaveTextContent('Meta · Весна');
+    expect(screen.getByTestId('lead-source-lead-hand')).toHaveTextContent('Не указан');
+  });
+
+  it('keeps source text a member wrote on an imported lead', async () => {
+    clientBoard([{...imported, source: 'Перезвонил сам'}]);
+    renderWithProviders(<CrmPage/>, {route: '/crm'});
+
+    expect(await screen.findByTestId('lead-source-lead-meta')).toHaveTextContent('Перезвонил сам');
+  });
+
+  it('opens the creative of the ad an imported lead came from', async () => {
+    let requested = false;
+    clientBoard([imported]);
+    server.use(
+      mock.get('/api/ads/ad-1/creatives', () => { requested = true; return HttpResponse.json([]); }),
+    );
+    renderWithProviders(<CrmPage/>, {route: '/crm'});
+
+    await userEvent.click(await screen.findByRole('button', {name: 'Открыть лид: Мария'}));
+    await userEvent.click(await screen.findByRole('button', {name: 'Посмотреть креатив'}));
+
+    expect(await screen.findByRole('heading', {name: 'Видео 1'})).toBeInTheDocument();
+    await waitFor(() => expect(requested).toBe(true));
+    expect(await screen.findByText('У объявления нет креатива')).toBeInTheDocument();
+  });
+
+  it('offers no creative for an imported lead whose ad is not linked yet, nor for a hand-made lead', async () => {
+    clientBoard([{...imported, ad: null, adId: null}, {...lead, id: 'lead-hand', clientId: 'client-1', name: 'Олег', origin: 'MANUAL', ad: null, metaSource: null}]);
+    renderWithProviders(<CrmPage/>, {route: '/crm'});
+
+    await userEvent.click(await screen.findByRole('button', {name: 'Открыть лид: Мария'}));
+    await screen.findByRole('region', {name: 'Источник: Meta'});
+    expect(screen.queryByRole('button', {name: 'Посмотреть креатив'})).not.toBeInTheDocument();
+  });
+});

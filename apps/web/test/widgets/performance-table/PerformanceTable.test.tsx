@@ -1,6 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PerformanceTable, type PerformanceRow } from "@/widgets/performance-table/index.js";
+import { useColumnWidths } from "@/widgets/performance-table/columnWidths.js";
 
 const performance = (spend: number, extra = {}) => ({
   spend, impressions: 100000, reach: 40000, clicks: 2000, conversions: 50, revenue: 4000,
@@ -53,6 +54,31 @@ describe("PerformanceTable", () => {
     for (const label of ["Кампания", "Расход", "Показы", "CTR", "ROAS", "Частота"]) {
       expect(screen.getByRole("columnheader", { name: label })).toBeInTheDocument();
     }
+  });
+
+  it("calls the lead count Лиды and its cost CPL", async () => {
+    const user = userEvent.setup();
+    render(<PerformanceTable tableKey="lead-labels-test" heading="Кампания" rows={rows} />);
+
+    expect(screen.getByRole("columnheader", { name: "Лиды" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "CPL" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Конверсии" })).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: "CPA" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Отображаемые столбцы" }));
+    expect(screen.getByRole("menuitemcheckbox", { name: "Лиды" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitemcheckbox", { name: "CPL" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitemcheckbox", { name: "Конверсии" })).toBeNull();
+    expect(screen.queryByRole("menuitemcheckbox", { name: "CPA" })).toBeNull();
+  });
+
+  it("keeps a column choice saved before the lead columns were renamed", () => {
+    useColumnWidths.setState({ visibleColumns: { "saved-before-rename": ["name", "spend", "cpa"] } });
+
+    render(<PerformanceTable tableKey="saved-before-rename" heading="Кампания" rows={rows} />);
+
+    expect(screen.getByRole("columnheader", { name: "CPL" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Лиды" })).toBeNull();
   });
 
   it("shows the totals it is given, not the sum of the rows on screen", () => {

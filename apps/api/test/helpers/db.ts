@@ -6,6 +6,7 @@ import { currentOrg } from "./auth.js";
 
 export async function resetDb(): Promise<void> {
   await prisma.lead.deleteMany();
+  await prisma.metaLead.deleteMany();
   await prisma.auditEvent.deleteMany();
   await prisma.clientAccess.deleteMany();
   await prisma.campaign.deleteMany();
@@ -17,6 +18,7 @@ export async function resetDb(): Promise<void> {
   await prisma.user.deleteMany();
   const original = await prisma.organization.findFirstOrThrow({ orderBy: { createdAt: "asc" } });
   await prisma.organization.deleteMany({ where: { id: { not: original.id } } });
+  await prisma.organization.update({ where: { id: original.id }, data: { kpiMetric: null, kpiTarget: null, kpiUpdatedAt: null } });
 }
 
 export async function seedProject(

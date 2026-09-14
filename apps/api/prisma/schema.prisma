@@ -52,6 +52,10 @@ model Organization {
   invites     Invite[]
   auditEvents AuditEvent[]
   tasks       Task[]
+  metaLeads   MetaLead[]
+  kpiMetric    KpiMetric?   @map("kpi_metric")
+  kpiTarget    Decimal?     @map("kpi_target") @db.Decimal(18, 4)
+  kpiUpdatedAt DateTime?    @map("kpi_updated_at")
 
   @@map("organization")
 }
@@ -229,6 +233,11 @@ model Lead {
   project    Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
   campaignId String? @map("campaign_id")
   campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  adId       String? @map("ad_id")
+  ad         Ad? @relation(fields: [adId], references: [id], onDelete: SetNull)
+  origin     LeadOrigin @default(MANUAL)
+  metaSource LeadMetaSource?
+  metaKey    MetaLead?
   stage     LeadStage @default(NEW)
   position  Int @default(0)
   createdAt DateTime @default(now()) @map("created_at")
@@ -236,7 +245,42 @@ model Lead {
   @@index([orgId, clientId, stage, position])
   @@index([projectId])
   @@index([campaignId])
+  @@index([adId])
   @@map("lead")
+}
+
+enum LeadOrigin {
+  MANUAL
+  META
+  @@map("lead_origin")
+}
+
+model LeadMetaSource {
+  leadId             String @id @map("lead_id")
+  lead               Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  accountId          String @map("account_id")
+  formId             String @map("form_id")
+  campaignExternalId String @map("campaign_external_id")
+  campaignName       String @map("campaign_name")
+  adSetExternalId    String @map("ad_set_external_id")
+  adSetName          String @map("ad_set_name")
+  adExternalId       String @map("ad_external_id")
+  adName             String @map("ad_name")
+  submittedAt        DateTime @map("submitted_at")
+  answers            Json
+  answersOmitted     Boolean @default(false) @map("answers_omitted")
+  @@map("lead_meta_source")
+}
+
+model MetaLead {
+  orgId      String @map("org_id")
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  externalId String @map("external_id")
+  leadId     String? @unique @map("lead_id")
+  lead       Lead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  importedAt DateTime @default(now()) @map("imported_at")
+  @@id([orgId, externalId])
+  @@map("meta_lead")
 }
 
 enum ProjectPriority {
@@ -279,6 +323,9 @@ model Project {
   invitations    InviteProject[]
   integration    ProjectIntegration?
   placements     ProjectPlacement[]
+  kpiMetric    KpiMetric?   @map("kpi_metric")
+  kpiTarget    Decimal?     @map("kpi_target") @db.Decimal(18, 4)
+  kpiUpdatedAt DateTime?    @map("kpi_updated_at")
 
   @@index([clientId, position])
   @@map("project")
@@ -340,6 +387,23 @@ model AuditEvent {
   @@map("audit_event")
 }
 
+enum KpiMetric {
+  SPEND
+  IMPRESSIONS
+  REACH
+  CLICKS
+  CONVERSIONS
+  REVENUE
+  CTR
+  CPC
+  CPM
+  CPA
+  ROAS
+  FREQUENCY
+
+  @@map("kpi_metric")
+}
+
 enum CreativeKind {
   IMAGE
   VIDEO
@@ -385,6 +449,9 @@ model Campaign {
   metrics    CampaignDailyMetric[]
   tasks      Task[]
   leads      Lead[]
+  kpiMetric    KpiMetric?   @map("kpi_metric")
+  kpiTarget    Decimal?     @map("kpi_target") @db.Decimal(18, 4)
+  kpiUpdatedAt DateTime?    @map("kpi_updated_at")
 
   @@unique([channel, externalId])
   @@index([projectId, position])
@@ -423,6 +490,7 @@ model Ad {
   updatedAt  DateTime        @updatedAt @map("updated_at")
   metrics    AdDailyMetric[]
   creatives  AdCreative[]
+  leads      Lead[]
 
   @@index([adSetId, position])
   @@map("ad")
@@ -574,8 +642,18 @@ model ProjectIntegration {
   retryCount Int @default(0) @map("retry_count")
   leaseOwner String? @map("lease_owner")
   leaseUntil DateTime? @map("lease_until")
+  leadsStatus String @default("WAITING") @map("leads_status")
+  leadsCoveredUntil DateTime? @map("leads_covered_until")
+  leadsLastSuccessAt DateTime? @map("leads_last_success_at")
+  leadsLastError String? @map("leads_last_error")
+  nextLeadsAt DateTime @default(now()) @map("next_leads_at")
+  leadsQueuedAt DateTime? @map("leads_queued_at")
+  nextSweepAt DateTime? @map("next_sweep_at")
+  leadsLeaseOwner String? @map("leads_lease_owner")
+  leadsLeaseUntil DateTime? @map("leads_lease_until")
   createdAt DateTime @default(now()) @map("created_at")
   @@index([nextDailyAt])
   @@index([queuedAt])
+  @@index([nextLeadsAt])
   @@map("project_integration")
 }

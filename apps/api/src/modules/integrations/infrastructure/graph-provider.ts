@@ -1,7 +1,9 @@
 import { z } from "zod";
 import type { AccountProvider } from "../application/ports.js";
 import { MetaError } from "../domain/integration.js";
-import type { ImportedCreative, ImportedEntity, ImportedMetric, ImportedStatus, Snapshot } from "../domain/snapshot.js";
+import type { ImportedCreative, ImportedEntity, ImportedMetric, ImportedStatus, PolledAd, Snapshot } from "../domain/snapshot.js";
+import type { IncomingLead } from "../../leads/index.js";
+import { mapLeadAnswers } from "./meta-lead-answers.js";
 import { localDate, shiftDate } from "../application/schedule.js";
 
 const id = z.string().regex(/^\d+$/);
@@ -29,6 +31,26 @@ const creative = z.object({
   }).optional(),
 });
 const video = z.object({ id, source: link.optional(), picture: link.optional() });
+const named = z.object({ id, name: z.string().min(1) });
+const leadAd = z.object({ id, name: z.string().min(1), adset: named, campaign: named.extend({ objective: z.string().optional() }) });
+const LEAD_OBJECTIVES = new Set(["OUTCOME_LEADS", "LEAD_GENERATION"]);
+const submittedAt = z.string().transform((value) => new Date(value.replace(/([+-]\d{2})(\d{2})$/, "$1:$2"))).refine((value) => !Number.isNaN(value.getTime()));
+const metaLead = z.object({ id, created_time: submittedAt, ad_id: id, form_id: id, field_data: z.array(z.object({ name: z.string().min(1).max(200), values: z.array(z.string().max(10_000)) })).max(1_000) });
+
+type ErrorCode = "TOKEN" | "ACCESS" | "PROVIDER" | "INVALID_DATA";
+type Classify = (status: number, error: { code?: number; is_transient?: boolean } | undefined) => ErrorCode;
+const throttled = (status: number, error: { code?: number; is_transient?: boolean } | undefined) => {
+  const code = error?.code ?? 0;
+  return status === 429 || status >= 500 || error?.is_transient === true || [4, 17, 32, 613].includes(code) || (code >= 80000 && code < 80100);
+};
+const advertisingError: Classify = (status, error) =>
+  [190, 102, 10, 200].includes(error?.code ?? 0) ? "TOKEN" : throttled(status, error) ? "PROVIDER" : "INVALID_DATA";
+const leadError: Classify = (status, error) => {
+  const code = error?.code ?? 0;
+  if ([190, 102].includes(code)) return "TOKEN";
+  if (code === 10 || (code >= 200 && code <= 299)) return "ACCESS";
+  return throttled(status, error) ? "PROVIDER" : "INVALID_DATA";
+};
 const THUMBNAIL = { thumbnail_width: "1080", thumbnail_height: "1080" };
 
 type PendingCreative = ImportedCreative & { videoId?: string; imageHash?: string };
@@ -111,7 +133,7 @@ const statuses: Record<string, ImportedStatus> = { ACTIVE: "ACTIVE", PAUSED: "PA
 export class GraphProvider implements AccountProvider {
   constructor(private readonly version = "v22.0", private readonly fetcher: typeof fetch = fetch, private readonly requestTimeoutMs = 30_000) {}
 
-  private async request(path: string, token: string, params: Record<string, string>, signal?: AbortSignal): Promise<unknown> {
+  private async request(path: string, token: string, params: Record<string, string>, signal?: AbortSignal, classify: Classify = advertisingError): Promise<unknown> {
     if (!/^v\d+\.0$/.test(this.version)) throw new MetaError("CONFIGURATION");
     const url = new URL(`https://graph.facebook.com/${this.version}/${path}`);
     for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
@@ -133,10 +155,11 @@ export class GraphProvider implements AccountProvider {
       if (!response.ok || body.error) {
         const code = body.error?.code;
         const detail = `http ${response.status}, code ${code ?? "none"}, type ${body.error?.type ?? "none"}`;
-        if ([190, 102, 10, 200].includes(code)) throw new MetaError("TOKEN", 0, detail);
+        const kind = classify(response.status, body.error);
+        if (kind !== "PROVIDER") throw new MetaError(kind, 0, detail);
         const retry = response.headers.get("retry-after");
         const delay = retry ? (/^\d+$/.test(retry) ? Number(retry) * 1000 : Math.max(0, Date.parse(retry) - Date.now())) : 0;
-        throw new MetaError(response.status === 429 || response.status >= 500 || body.error?.is_transient || [4, 17, 32, 613].includes(code) ? "PROVIDER" : "INVALID_DATA", Number.isFinite(delay) ? delay : 0, detail);
+        throw new MetaError("PROVIDER", Number.isFinite(delay) ? delay : 0, detail);
       }
       return body;
     } catch (error) {
@@ -145,12 +168,12 @@ export class GraphProvider implements AccountProvider {
     }
   }
 
-  private async pages(path: string, token: string, params: Record<string, string>, signal?: AbortSignal, limit = 500): Promise<unknown[]> {
+  private async pages(path: string, token: string, params: Record<string, string>, signal?: AbortSignal, limit = 500, classify: Classify = advertisingError): Promise<unknown[]> {
     const rows: unknown[] = [];
     const cursors = new Set<string>();
     let after: string | undefined;
     for (let page = 0; page < 200; page++) {
-      const result = z.object({ data: z.array(z.unknown()), paging: z.object({ next: z.string().optional(), cursors: z.object({ after: z.string().optional() }).optional() }).optional() }).safeParse(await this.request(path, token, { ...params, limit: String(limit), ...(after ? { after } : {}) }, signal));
+      const result = z.object({ data: z.array(z.unknown()), paging: z.object({ next: z.string().optional(), cursors: z.object({ after: z.string().optional() }).optional() }).optional() }).safeParse(await this.request(path, token, { ...params, limit: String(limit), ...(after ? { after } : {}) }, signal, classify));
       if (!result.success) throw new MetaError("INVALID_DATA");
       rows.push(...result.data.data);
       if (rows.length > 100_000) throw new MetaError("INVALID_DATA");
@@ -301,6 +324,38 @@ export class GraphProvider implements AccountProvider {
       }
     }
     return found;
+  }
+
+  async liveLeadAds(accountId: string, token: string, signal?: AbortSignal): Promise<PolledAd[]> {
+    if (!/^\d{1,30}$/.test(accountId)) throw new MetaError("INVALID_DATA");
+    const rows = await this.pages(`act_${accountId}/ads`, token, { fields: "id,name,effective_status,adset{id,name},campaign{id,name,objective}", effective_status: JSON.stringify(["ACTIVE"]) }, signal);
+    return rows.flatMap((row) => {
+      const parsed = leadAd.safeParse(row);
+      if (!parsed.success) throw new MetaError("INVALID_DATA");
+      const ad = parsed.data;
+      if (!LEAD_OBJECTIVES.has(ad.campaign.objective ?? "")) return [];
+      return [{ adId: ad.id, adName: ad.name, adSet: { externalId: ad.adset.id, name: ad.adset.name }, campaign: { externalId: ad.campaign.id, name: ad.campaign.name } }];
+    });
+  }
+
+  async leads(accountId: string, ad: PolledAd, since: Date, token: string, signal?: AbortSignal): Promise<IncomingLead[]> {
+    if (!/^\d+$/.test(ad.adId)) throw new MetaError("INVALID_DATA");
+    const filtering = JSON.stringify([{ field: "time_created", operator: "GREATER_THAN", value: Math.floor(since.getTime() / 1000) }]);
+    const rows = await this.pages(`${ad.adId}/leads`, token, { fields: "id,created_time,ad_id,form_id,field_data", filtering }, signal, 500, leadError);
+    return rows.map((row) => {
+      const parsed = metaLead.safeParse(row);
+      if (!parsed.success || parsed.data.ad_id !== ad.adId) throw new MetaError("INVALID_DATA");
+      const lead = parsed.data;
+      const { answers, answersOmitted, ...contacts } = mapLeadAnswers(lead.id, lead.field_data);
+      return {
+        externalId: lead.id, ...contacts,
+        source: {
+          accountId, formId: lead.form_id,
+          campaign: ad.campaign, adSet: ad.adSet, ad: { externalId: ad.adId, name: ad.adName },
+          submittedAt: lead.created_time, answers, answersOmitted,
+        },
+      };
+    });
   }
 
   async snapshot(accountId: string, token: string, currency: string, now: Date, signal?: AbortSignal): Promise<Snapshot> {

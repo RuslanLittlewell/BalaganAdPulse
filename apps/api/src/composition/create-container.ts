@@ -1,5 +1,7 @@
 import { PrismaImportJobs } from "../modules/integrations/infrastructure/prisma-import-jobs.js";
 import { createImportWorker } from "../modules/integrations/application/import-worker.js";
+import { createLeadPollWorker } from "../modules/integrations/application/lead-poll-worker.js";
+import { PrismaLeadPollJobs } from "../modules/integrations/infrastructure/prisma-lead-poll-jobs.js";
 import { createIntegrationUseCases } from "../modules/integrations/application/integration-use-cases.js";
 import { PrismaIntegrationRepository } from "../modules/integrations/infrastructure/prisma-integration-repository.js";
 import { AesCredentialCipher } from "../modules/integrations/infrastructure/credential-cipher.js";
@@ -9,8 +11,12 @@ import { createAdPreviewRouter, createIntegrationRouter } from "../modules/integ
 import { PrismaAdLocator } from "../modules/integrations/infrastructure/prisma-ad-locator.js";
 import { PrismaCreativeStore } from "../modules/integrations/infrastructure/prisma-creative-store.js";
 import { Router, type RequestHandler } from "express";
-import { createLeadUseCases, createLeadRouter } from '../modules/leads/index.js';
+import { createLeadIntake, createLeadUseCases, createLeadRouter } from '../modules/leads/index.js';
+import { createKpiRouter, createKpiUseCases } from '../modules/kpi/index.js';
+import { PrismaKpiRepository } from '../modules/kpi/infrastructure/prisma-kpi-repository.js';
+import type { LeadEvent } from '../modules/leads/index.js';
 import { PrismaLeadRepository } from '../modules/leads/infrastructure/prisma-lead-repository.js';
+import { PrismaLeadIntakeRepository } from '../modules/leads/infrastructure/prisma-lead-intake-repository.js';
 import type { Prisma } from "@prisma/client";
 import { config } from "#shared/infrastructure/config.js";
 import { requestContext } from "#shared/presentation/request-context.js";
@@ -117,6 +123,8 @@ import { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js"
 export interface ApiContainer {
   readonly integrationRouter: Router;
   readonly importWorker: ReturnType<typeof createImportWorker>;
+  readonly leadPollWorker: ReturnType<typeof createLeadPollWorker>;
+  readonly kpiRouter: Router;
   readonly leadRouter: Router;
   readonly documentationRouter: Router;
   readonly authRouter: Router;
@@ -332,16 +340,23 @@ export function createContainer(): ApiContainer {
     members,
     boards: leadRepository,
   });
+  const publishLeadEvent = (event: LeadEvent) => {
+    void leadEventDelivery.deliver(event).catch((error: unknown) => {
+      console.error("Failed to deliver a CRM event:", error);
+    });
+  };
   const leads = createLeadUseCases({
     leads: leadRepository,
     audit,
     ids,
     unitOfWork,
-    publish: (event) => {
-      void leadEventDelivery.deliver(event).catch((error: unknown) => {
-        console.error("Failed to deliver a CRM event:", error);
-      });
-    },
+    publish: publishLeadEvent,
+  });
+  const leadIntake = createLeadIntake({
+    intake: new PrismaLeadIntakeRepository(prisma, unitOfWork),
+    ids,
+    unitOfWork,
+    publish: publishLeadEvent,
   });
   const taskImages = createTaskImageUseCases(taskDependencies);
   const projects = createProjectUseCases({
@@ -356,7 +371,8 @@ export function createContainer(): ApiContainer {
     unitOfWork,
   });
   return {
-    importWorker: createImportWorker({ jobs: new PrismaImportJobs(prisma), cipher: new AesCredentialCipher(process.env.INTEGRATION_ENCRYPTION_KEY), provider: new GraphProvider(process.env.META_GRAPH_VERSION ?? "v22.0"), clock }),
+    importWorker: createImportWorker({ jobs: new PrismaImportJobs(prisma), cipher: new AesCredentialCipher(process.env.INTEGRATION_ENCRYPTION_KEY), provider: new GraphProvider(process.env.META_GRAPH_VERSION ?? "v22.0"), clock, leads: leadIntake }),
+    leadPollWorker: createLeadPollWorker({ jobs: new PrismaLeadPollJobs(prisma, unitOfWork), cipher: new AesCredentialCipher(process.env.INTEGRATION_ENCRYPTION_KEY), provider: new GraphProvider(process.env.META_GRAPH_VERSION ?? "v22.0"), inbox: leadIntake, unitOfWork, clock }),
     documentationRouter: config.documentation ? createDocumentationRouter(apiDocument()) : Router(),
     authRouter: identityHttp.authRouter,
     authentication: createAuthentication(identity),
@@ -381,6 +397,13 @@ export function createContainer(): ApiContainer {
     summaryRouter: campaignHttp.summaryRouter,
     taskRouter: createTaskRouter(tasks),
     leadRouter: createLeadRouter(leads),
+    kpiRouter: createKpiRouter(createKpiUseCases({
+      kpis: new PrismaKpiRepository(prisma, unitOfWork),
+      reach: { projects: projectRepository, campaigns: new PrismaCampaignRepository(prisma) },
+      audit,
+      unitOfWork,
+      clock,
+    })),
     taskImageRouter: createTaskImageRouter(taskImages, taskImageUpload.single("image")),
     connections,
     presence,

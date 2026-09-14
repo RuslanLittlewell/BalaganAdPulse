@@ -29,16 +29,36 @@ interface Module {
   agencyOnly?: boolean;
 }
 
+interface ModuleLinkProps {
+  module: Module;
+  collapsed: boolean;
+}
+
 const MODULES: Module[] = [
-  { to: ROUTES.dashboard, label: t("nav.dashboard"), icon: LayoutDashboardIcon, end: true },
+  {
+    to: ROUTES.dashboard,
+    label: t("nav.dashboard"),
+    icon: LayoutDashboardIcon,
+    end: true,
+  },
+  { to: ROUTES.crm, label: t("nav.crm"), icon: ContactIcon },
   { to: ROUTES.projects, label: t("nav.projects"), icon: FolderKanbanIcon },
   { to: ROUTES.tasks, label: t("nav.tasks"), icon: ListTodoIcon },
-  { to: ROUTES.crm, label: t("nav.crm"), icon: ContactIcon },
-  { to: ROUTES.reports, label: t("nav.reports"), icon: ChartColumnIcon, agencyOnly: true },
-  { to: ROUTES.archive, label: t("nav.archive"), icon: ArchiveIcon, agencyOnly: true },
+  {
+    to: ROUTES.reports,
+    label: t("nav.reports"),
+    icon: ChartColumnIcon,
+    agencyOnly: true,
+  },
+  {
+    to: ROUTES.archive,
+    label: t("nav.archive"),
+    icon: ArchiveIcon,
+    agencyOnly: true,
+  },
 ];
 
-function ModuleLink({ module, collapsed }: { module: Module; collapsed: boolean }) {
+function ModuleLink({ module, collapsed }: ModuleLinkProps) {
   const { to, label, icon: Icon, end } = module;
   const isActive = useMatch({ path: to, end: end ?? false }) != null;
   const link = (
@@ -94,9 +114,11 @@ export function MainNav() {
           }
           aria-label={t("nav.sections")}
         >
-        {MODULES.filter((module) => !module.agencyOnly || role !== "CLIENT").map((module) => (
-          <ModuleLink key={module.to} module={module} collapsed={collapsed} />
-        ))}
+          {MODULES.filter(
+            (module) => !module.agencyOnly || role !== "CLIENT",
+          ).map((module) => (
+            <ModuleLink key={module.to} module={module} collapsed={collapsed} />
+          ))}
         </nav>
       </TooltipProvider>
     </Sidebar>

@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Plus } from "lucide-react";
-import { useCrmEvents, useLeadBoards, type Lead } from "@/entities/lead/index.js";
+import { useCrmEvents, useLeadBoards, type Lead, type LeadAd } from "@/entities/lead/index.js";
 import { LeadFormDialog } from "@/features/lead-management/index.js";
+import { useAuth } from "@/features/auth/index.js";
 import { t } from "@/shared/config/index.js";
+import { useModuleMemory } from "@/shared/lib/index.js";
 import {
   Button,
   EmptyState,
@@ -15,6 +17,7 @@ import {
   SelectValue,
 } from "@/shared/ui/index.js";
 import { CrmBoard } from "@/widgets/crm-board/index.js";
+import { CreativePreviewDialog } from "@/widgets/creative-preview/index.js";
 
 type Editing = { lead?: Lead } | null;
 
@@ -22,14 +25,33 @@ export function CrmPage() {
   const { data: boards, isLoading, isError } = useLeadBoards();
   const [params, setParams] = useSearchParams();
   const [editing, setEditing] = useState<Editing>(null);
+  const [previewing, setPreviewing] = useState<LeadAd | null>(null);
+
+  const { user } = useAuth();
+  const remembered = useModuleMemory((state) => (user ? state.boards[user.id] : undefined));
+  const rememberBoard = useModuleMemory((state) => state.rememberBoard);
+  const forgetBoard = useModuleMemory((state) => state.forgetBoard);
 
   const chosen = params.get("board");
-  const board = boards?.find((candidate) => candidate.key === chosen)
-    ?? (chosen ? undefined : boards?.[0]);
+  const restorable = !chosen && remembered ? boards?.find((candidate) => candidate.key === remembered) : undefined;
+  const board = chosen
+    ? boards?.find((candidate) => candidate.key === chosen)
+    : restorable ?? (user ? boards?.[0] : undefined);
 
   useCrmEvents(board?.key);
 
-  useEffect(() => { setEditing(null); }, [chosen]);
+  useEffect(() => { setEditing(null); setPreviewing(null); }, [chosen]);
+
+  useEffect(() => {
+    if (!user || !boards) return;
+    if (chosen) {
+      if (board) rememberBoard(user.id, board.key);
+    } else if (restorable) {
+      setParams({ board: restorable.key }, { replace: true });
+    } else if (remembered) {
+      forgetBoard(user.id);
+    }
+  }, [user, boards, chosen, board, restorable, remembered, rememberBoard, forgetBoard, setParams]);
 
   if (isError) return <EmptyState title={t("crm.loadFailed")} />;
 
@@ -58,10 +80,10 @@ export function CrmPage() {
         ) : null}
       </header>
 
-      {board || isLoading ? (
+      {board || isLoading || !user ? (
         <CrmBoard
           boardKey={board?.key}
-          busy={isLoading}
+          busy={isLoading || !user}
           draggable={board?.capabilities.update ?? false}
           onOpen={(lead) => setEditing({ lead })}
         />
@@ -75,6 +97,15 @@ export function CrmPage() {
           capabilities={board.capabilities}
           lead={editing.lead}
           onClose={() => setEditing(null)}
+          onPreviewCreative={setPreviewing}
+        />
+      ) : null}
+
+      {previewing ? (
+        <CreativePreviewDialog
+          ads={[previewing]}
+          initialAdId={previewing.id}
+          onClose={() => setPreviewing(null)}
         />
       ) : null}
     </div>

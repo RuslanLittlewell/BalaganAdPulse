@@ -29,6 +29,7 @@ export const ROUTE_MOUNTS = [
   { id: "tasks", path: "/api/tasks" },
   { id: "leads", path: "/api/crm" },
   { id: "task-images", path: "/api/task-images" },
+  { id: "kpi", path: "/api" },
   { id: "api-not-found", path: "/api" },
 ] as const;
 
@@ -69,6 +70,7 @@ export function createRoutes(container: ApiContainer): Router {
     container.taskRouter,
     container.leadRouter,
     container.taskImageRouter,
+    container.kpiRouter,
     (_request: unknown, _response: unknown, next: (error: Error) => void) => next(new NotFoundError("Endpoint not found")),
   ];
   ROUTE_MOUNTS.forEach(({ path }, index) => router.use(path, handlers[index]));

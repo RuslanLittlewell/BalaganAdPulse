@@ -42,7 +42,9 @@ export function OnlineUsers({ createSocket }: OnlineUsersProps) {
                 +{rest.length}
               </span>
             </TooltipTrigger>
-            <TooltipContent>{rest.map((person) => person.name).join(", ")}</TooltipContent>
+            <TooltipContent>
+              {rest.map((person) => person.name).join(", ")}
+            </TooltipContent>
           </Tooltip>
         ) : null}
       </div>
@@ -56,7 +58,11 @@ function Face({ person }: { person: OnlinePerson }) {
       <TooltipTrigger asChild>
         <span className="-ml-2 rounded-md border border-background first:ml-0">
           <MemberAvatar
-            member={{ id: person.membershipId, name: person.name, image: person.image }}
+            member={{
+              id: person.membershipId,
+              name: person.name,
+              image: person.image,
+            }}
             size="sm"
           />
         </span>

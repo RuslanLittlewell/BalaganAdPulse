@@ -11,6 +11,7 @@ import {
   useUpdateLead,
   type BoardCapabilities,
   type Lead,
+  type LeadAd,
   type LeadInput,
   type LeadStage,
 } from "@/entities/lead/index.js";
@@ -33,12 +34,14 @@ import {
   TextField,
   useAlerts,
 } from "@/shared/ui/index.js";
+import { LeadSourceSection } from "./LeadSourceSection.js";
 
 export interface LeadFormDialogProps {
   boardKey: string;
   capabilities: BoardCapabilities;
   lead?: Lead;
   onClose: () => void;
+  onPreviewCreative?: (ad: LeadAd) => void;
 }
 
 interface FormValues {
@@ -86,7 +89,7 @@ const bodyOf = (values: FormValues): LeadInput => ({
   campaignId: values.campaignId === NONE ? null : values.campaignId,
 });
 
-export function LeadFormDialog({ boardKey, capabilities, lead, onClose }: LeadFormDialogProps) {
+export function LeadFormDialog({ boardKey, capabilities, lead, onClose, onPreviewCreative }: LeadFormDialogProps) {
   const create = useCreateLead(boardKey);
   const update = useUpdateLead(boardKey);
   const move = useMoveLead(boardKey);
@@ -95,6 +98,7 @@ export function LeadFormDialog({ boardKey, capabilities, lead, onClose }: LeadFo
   const [confirming, setConfirming] = useState(false);
 
   const editable = lead ? capabilities.update : capabilities.create;
+  const attributable = editable && lead?.origin !== "META";
   const { control, handleSubmit, register, setValue, watch, formState: { errors } } =
     useForm<FormValues>({ defaultValues: valuesOf(lead) });
 
@@ -151,6 +155,13 @@ export function LeadFormDialog({ boardKey, capabilities, lead, onClose }: LeadFo
 
         <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col gap-4">
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+            {lead?.metaSource ? (
+              <LeadSourceSection
+                source={lead.metaSource}
+                onPreview={lead.ad && onPreviewCreative ? () => onPreviewCreative(lead.ad!) : undefined}
+              />
+            ) : null}
+
             <TextField
               label={t("crm.form.name")}
               error={errors.name?.message}
@@ -176,7 +187,7 @@ export function LeadFormDialog({ boardKey, capabilities, lead, onClose }: LeadFo
                   control={control}
                   name="projectId"
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange} disabled={!editable}>
+                    <Select value={field.value} onValueChange={field.onChange} disabled={!attributable}>
                       <SelectTrigger id="lead-project" className="w-full"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value={NONE}>{t("crm.form.noProject")}</SelectItem>
@@ -198,7 +209,7 @@ export function LeadFormDialog({ boardKey, capabilities, lead, onClose }: LeadFo
                     <Select
                       value={field.value}
                       onValueChange={field.onChange}
-                      disabled={!editable || projectId === NONE}
+                      disabled={!attributable || projectId === NONE}
                     >
                       <SelectTrigger id="lead-campaign" className="w-full"><SelectValue /></SelectTrigger>
                       <SelectContent>

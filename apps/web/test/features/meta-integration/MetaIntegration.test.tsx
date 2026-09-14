@@ -1,5 +1,5 @@
 import { http, HttpResponse } from "msw";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders, server } from "@test/shared/index.js";
 import { MetaIntegration } from "@/features/meta-integration/index.js";
@@ -26,7 +26,11 @@ it("refreshes manually, displays success and disconnects while leaving dashboard
   renderWithProviders(<MetaIntegration projectId="p1" />);
   await userEvent.click(await screen.findByRole("button", { name: "Обновить" }));
   expect(refreshes).toBe(1);
-  expect(await screen.findByRole("status")).toHaveTextContent("В очереди");
+  const refresh = await screen.findByRole("button", { name: "Обновить" });
+  await waitFor(() => expect(refresh).toHaveAttribute("aria-busy", "true"));
+  expect(refresh).toBeDisabled();
+  await userEvent.click(refresh);
+  expect(refreshes).toBe(1);
   await userEvent.click(screen.getByRole("button", { name: "Meta API" }));
   expect(screen.getByLabelText("Account ID")).toHaveValue("123");
   expect(screen.getByLabelText("Токен доступа")).toHaveValue("");
@@ -69,4 +73,60 @@ it("polls a queued import and refreshes the displayed project summary on complet
   await userEvent.click(await screen.findByRole("button", { name: "Обновить" }));
   await screen.findByText("12.3456", {}, { timeout: 5000 });
   expect(summaryReads).toBeGreaterThan(1);
+});
+
+describe("the Meta panel at rest", () => {
+  const withLeads = (leads: unknown, overrides: Record<string, unknown> = {}) =>
+    server.use(http.get(path, () => HttpResponse.json({ ...connected, ...overrides, leads })));
+
+  it("shows its heading and only when advertising was last imported and when leads were last checked", async () => {
+    withLeads({ status: "OK", lastSuccessAt: "2026-09-13T09:50:00Z", lastError: null });
+    renderWithProviders(<MetaIntegration projectId="p1" />);
+
+    const panel = await screen.findByRole("region", { name: "Meta · Facebook Ads" });
+    expect(await within(panel).findByText(/^Проверка лидов:/)).toBeInTheDocument();
+    expect(within(panel).getByText(/^Обновление:/)).toBeInTheDocument();
+    expect(within(panel).getByRole("heading", { name: "Meta · Facebook Ads" })).toBeInTheDocument();
+    expect(within(panel).queryByText("Автообновление каждый день в 08:00")).not.toBeInTheDocument();
+    expect(within(panel).queryByRole("status")).not.toBeInTheDocument();
+    expect(within(panel).queryByText(/Данные обновлены|BYN|Лиды из форм|загружаются/)).not.toBeInTheDocument();
+    expect(within(panel).queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("says nothing about leads before the first lead check", async () => {
+    withLeads({ status: "WAITING", lastSuccessAt: null, lastError: null });
+    renderWithProviders(<MetaIntegration projectId="p1" />);
+
+    const panel = await screen.findByRole("region", { name: "Meta · Facebook Ads" });
+    expect(await within(panel).findByText(/^Обновление:/)).toBeInTheDocument();
+    expect(within(panel).queryByText(/лид/i)).not.toBeInTheDocument();
+  });
+
+  it("explains which access leads need while it applies, without asking for a new token", async () => {
+    withLeads({ status: "ACCESS_REQUIRED", lastSuccessAt: null, lastError: "ACCESS" });
+    renderWithProviders(<MetaIntegration projectId="p1" />);
+
+    const guidance = await screen.findByRole("alert");
+    expect(guidance).toHaveTextContent("leads_retrieval");
+    expect(guidance).toHaveTextContent("Leads Access Manager");
+    expect(screen.queryByText(/Лиды из форм|нет доступа$/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Токен недействителен или истёк. Вставьте новый токен.")).not.toBeInTheDocument();
+  });
+
+  it("explains a failed lead check next to the time of the last good one", async () => {
+    withLeads({ status: "ERROR", lastSuccessAt: "2026-09-13T09:00:00Z", lastError: "PROVIDER" });
+    renderWithProviders(<MetaIntegration projectId="p1" />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Не удалось загрузить лиды из Meta. Повторим при следующей проверке.");
+    expect(screen.getByText(/^Проверка лидов:/)).toBeInTheDocument();
+    expect(screen.queryByText(/Лиды из форм/)).not.toBeInTheDocument();
+  });
+
+  it("still asks for a new token when the advertising import was refused", async () => {
+    withLeads({ status: "OK", lastSuccessAt: "2026-09-13T09:50:00Z", lastError: "TOKEN" }, { status: "AUTH_REQUIRED", lastError: "TOKEN" });
+    renderWithProviders(<MetaIntegration projectId="p1" />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Токен недействителен или истёк. Вставьте новый токен.");
+    expect(screen.queryByText("Нужен новый токен")).not.toBeInTheDocument();
+  });
 });

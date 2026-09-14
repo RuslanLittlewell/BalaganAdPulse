@@ -1,0 +1,10 @@
+ALTER TABLE "project_integration" ADD COLUMN "leads_status" TEXT NOT NULL DEFAULT 'WAITING';
+ALTER TABLE "project_integration" ADD COLUMN "leads_covered_until" TIMESTAMP(3);
+ALTER TABLE "project_integration" ADD COLUMN "leads_last_success_at" TIMESTAMP(3);
+ALTER TABLE "project_integration" ADD COLUMN "leads_last_error" TEXT;
+ALTER TABLE "project_integration" ADD COLUMN "next_leads_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "project_integration" ADD COLUMN "leads_queued_at" TIMESTAMP(3);
+ALTER TABLE "project_integration" ADD COLUMN "next_sweep_at" TIMESTAMP(3);
+ALTER TABLE "project_integration" ADD COLUMN "leads_lease_owner" TEXT;
+ALTER TABLE "project_integration" ADD COLUMN "leads_lease_until" TIMESTAMP(3);
+CREATE INDEX "project_integration_next_leads_at_idx" ON "project_integration"("next_leads_at");

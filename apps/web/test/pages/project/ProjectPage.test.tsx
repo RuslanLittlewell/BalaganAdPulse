@@ -50,12 +50,27 @@ function api(options: { campaigns?: unknown[]; tasks?: unknown[] } = {}) {
 const route = { route: "/projects/p1" };
 
 describe("ProjectPage", () => {
+  it("offers the project's KPI in its summary", async () => {
+    api();
+    server.use(mock.get("/api/projects/p1/kpi", () => HttpResponse.json({ metric: "CONVERSIONS", target: "100.0000", updatedAt: "2026-09-14T10:00:00.000Z" })));
+    renderWithProviders(<App />, route);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Настроить показатели" }));
+    const dialog = await screen.findByRole("dialog", { name: "Показатели за период" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "KPI" }));
+    await userEvent.keyboard("{Escape}");
+
+    const summary = screen.getByRole("group", { name: "Показатели за период" });
+    expect(await within(summary).findByText("KPI · Лиды")).toBeInTheDocument();
+    expect(within(summary).getByRole("button", { name: "Изменить цель" })).toBeInTheDocument();
+  });
+
   it("shows the project's figures for the period", async () => {
     api();
     renderWithProviders(<App />, route);
 
     const summary = await screen.findByRole("group", { name: "Показатели за период" });
-    expect(within(summary).getByText("4 200 Br")).toBeInTheDocument();
+    expect(await within(summary).findByText(/^CPL 20,00\sBr$/)).toBeInTheDocument();
     expect(screen.getByLabelText("От")).toBeInTheDocument();
     expect(screen.getByLabelText("До")).toBeInTheDocument();
   });

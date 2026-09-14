@@ -38,6 +38,16 @@ describe("DailyChart interaction", () => {
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 
+  it("names the lead line Лиды in the legend and the tooltip", () => {
+    render(<DailyChart days={days} />);
+    const chart = chartWithWidth();
+    fireEvent.focus(chart);
+
+    expect(within(screen.getByRole("tooltip")).getByText("Лиды")).toBeInTheDocument();
+    expect(within(screen.getByRole("list")).getByText("Лиды")).toBeInTheDocument();
+    expect(screen.queryByText("Конверсии")).not.toBeInTheDocument();
+  });
+
   it("supports keyboard navigation and dismissal", () => {
     render(<DailyChart days={days} />);
     const chart = chartWithWidth();

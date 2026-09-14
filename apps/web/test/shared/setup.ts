@@ -1,19 +1,8 @@
+import "./storage-setup.js";
 import { expect } from "vitest";
 import * as matchers from "@testing-library/jest-dom/matchers";
 
 expect.extend(matchers);
-
-const jsdomStorage = (window as unknown as { _localStorage?: Storage })._localStorage;
-if (!jsdomStorage) {
-  throw new Error(
-    "jsdom's local storage was not found at window._localStorage — the test " +
-      "environment cannot provide localStorage. See apps/web/src/test/setup.ts.",
-  );
-}
-Object.defineProperty(globalThis, "localStorage", {
-  value: jsdomStorage,
-  configurable: true,
-});
 
 if (typeof HTMLDialogElement !== "undefined") {
   if (!HTMLDialogElement.prototype.showModal) {

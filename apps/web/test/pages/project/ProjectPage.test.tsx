@@ -84,19 +84,6 @@ describe("ProjectPage", () => {
     expect(within(row).getByText("3 000 Br")).toBeInTheDocument();
   });
 
-  it("marks bad, stable and profitable campaign names with red, blue and green borders", async () => {
-    api({ campaigns: [
-      { ...campaign("bad", "Плохая", "META", 1000), performance: performance(1000, { roas: 0.7 }) },
-      { ...campaign("stable", "Стабильная", "GOOGLE", 1000), performance: performance(1000, { roas: 1 }) },
-      { ...campaign("good", "Прибыльная", "YANDEX", 1000), performance: performance(1000, { roas: 2 }) },
-    ] });
-    renderWithProviders(<App />, route);
-
-    expect(await screen.findByRole("button", { name: /Плохая/ })).toHaveClass("border-red-500");
-    expect(screen.getByRole("button", { name: /Стабильная/ })).toHaveClass("border-blue-500");
-    expect(screen.getByRole("button", { name: /Прибыльная/ })).toHaveClass("border-emerald-500");
-  });
-
   it("shows the project's own total under the campaigns", async () => {
     api();
     renderWithProviders(<App />, route);

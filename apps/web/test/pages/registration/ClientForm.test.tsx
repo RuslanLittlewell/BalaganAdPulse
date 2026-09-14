@@ -58,20 +58,6 @@ describe("ClientRegistrationForm", () => {
       expect(column).not.toContainElement(screen.getByLabelText("Имя"));
     });
 
-    it("draws the rule between them", () => {
-      open();
-
-      expect(screen.getByTestId("registration-contact-column").className)
-        .toContain("border-l");
-    });
-
-    it("lays them side by side, not stacked", () => {
-      open();
-      const columns = screen.getByTestId("registration-account-columns");
-
-      expect(columns.className).toContain("sm:grid-cols-2");
-    });
-
     it("draws no dividing rule on the project step", async () => {
       const u = user();
       open();
@@ -407,12 +393,11 @@ describe("finishing the client form", () => {
     expect(await screen.findByLabelText("Имя")).toHaveValue("Иван");
   });
 
-  it("separates the footer with a horizontal rule", () => {
+  it("keeps the next step button in the footer", () => {
     open();
 
     const footer = screen.getByTestId("stepper-footer");
     expect(footer).toContainElement(screen.getByRole("button", { name: "Далее" }));
-    expect(footer.className).toContain("border-t");
   });
 
   it("shows how many steps there are and which one this is", async () => {

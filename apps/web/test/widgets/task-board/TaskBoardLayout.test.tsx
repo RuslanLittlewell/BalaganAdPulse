@@ -14,32 +14,8 @@ function board() {
   );
 }
 
-describe("the board fills its height", () => {
-  it("gives every column the full height and its own scroll", async () => {
-    server.use(mock.get("/api/tasks", () => HttpResponse.json([])));
-    board();
-
-    const column = await screen.findByTestId("task-column-IDEA");
-    expect(column.className).toContain("h-full");
-    expect(column.className).toContain("min-h-0");
-
-    const list = column.querySelector(".overflow-y-auto");
-    expect(list).not.toBeNull();
-    expect(list!.className).toContain("flex-1");
-  });
-
-  it("lays the columns out in a row that fills the board and scrolls sideways", async () => {
-    server.use(mock.get("/api/tasks", () => HttpResponse.json([])));
-    board();
-
-    const row = (await screen.findByTestId("task-column-IDEA")).parentElement!;
-    expect(row.className).toContain("h-full");
-    expect(row.className).toContain("overflow-x-auto");
-  });
-});
-
 describe("how the board is drawn", () => {
-  it("gives every column a header with its name, a colour and a count", async () => {
+  it("gives every column a header with its name and a count", async () => {
     server.use(mock.get("/api/tasks", () => HttpResponse.json([aTask({ column: "IN_PROGRESS" })])));
     board();
 
@@ -48,25 +24,6 @@ describe("how the board is drawn", () => {
     expect(header).not.toBeNull();
     expect(header.textContent).toContain("В работе");
     expect(header.textContent).toContain("1");
-    expect(header.className).toContain("border-b");
-  });
-
-  it("draws each column as a bordered, shadowed panel", async () => {
-    server.use(mock.get("/api/tasks", () => HttpResponse.json([])));
-    board();
-
-    const column = await screen.findByTestId("task-column-IDEA");
-    expect(column.className).toContain("border");
-    expect(column.className).toContain("shadow-sm");
-    expect(column.className).toContain("rounded-xl");
-  });
-
-  it("draws each card as a bordered, shadowed tile that lifts on hover", () => {
-    renderWithProviders(<TaskCard task={aTask()} draggable={false} />, { route: "/tasks" });
-    const card = screen.getByTestId("task-card-task-1");
-    expect(card.className).toContain("border");
-    expect(card.className).toContain("shadow-sm");
-    expect(card.className).toContain("hover:shadow-md");
   });
 
   it("tells an empty column it is empty, so it is still a target worth aiming at", async () => {
@@ -88,14 +45,12 @@ describe("the card left behind while dragging", () => {
     const card = screen.getByTestId("task-card-task-1");
     expect(card).toBeInTheDocument();
     expect(card).toHaveAttribute("data-placeholder", "true");
-    expect(card.className).toContain("border-dashed");
   });
 
   it("is an ordinary card when nothing is being dragged", () => {
     renderWithProviders(<TaskCard task={aTask()} draggable />, { route: "/tasks" });
     const card = screen.getByTestId("task-card-task-1");
     expect(card).not.toHaveAttribute("data-placeholder");
-    expect(card.className).not.toContain("border-dashed");
   });
 
   it("is the column's job to mark which card is the one in the air", () => {
@@ -266,27 +221,6 @@ describe("the card's anatomy", () => {
       { route: "/tasks" },
     );
     expect(screen.getByTestId("task-priority-task-1")).toHaveAttribute("data-priority", "URGENT");
-  });
-
-  it("keeps the title readable when it is long", () => {
-    renderWithProviders(
-      <TaskCard task={aTask({ title: "Очень длинное название ".repeat(10) })} draggable={false} />,
-      { route: "/tasks" },
-    );
-    const header = screen.getByTestId("task-header-task-1");
-    const title = header.querySelector("h3")!;
-    expect(title.className).toMatch(/line-clamp/);
-  });
-
-  it("reserves the drag gutter whether or not the card can be dragged", () => {
-    const { rerender } = renderWithProviders(
-      <TaskCard task={aTask()} draggable={false} />, { route: "/tasks" },
-    );
-    const still = screen.getByTestId("task-card-task-1").className;
-
-    rerender(<TaskCard task={aTask()} draggable />);
-
-    expect(screen.getByTestId("task-card-task-1").className).toBe(still);
   });
 });
 

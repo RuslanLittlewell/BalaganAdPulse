@@ -5,7 +5,7 @@ import { Route, Routes } from "react-router-dom";
 import { renderWithProviders, server } from "@test/shared/index.js";
 import { MainNav } from "@/widgets/main-nav/MainNav.js";
 
-const MODULES = ["Дашборд", "Проекты", "Задачи", "CRM", "Отчёты", "Архив"];
+const MODULES = ["Дашборд", "CRM", "Проекты", "Задачи", "Отчёты", "Архив"];
 
 function setup(route = "/") {
   return renderWithProviders(

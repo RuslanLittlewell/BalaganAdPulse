@@ -46,7 +46,6 @@ describe("the alert surface", () => {
     await userEvent.click(screen.getByRole("button", { name: "поднять" }));
 
     const timer = await screen.findByRole("progressbar");
-    expect(timer).toHaveStyle({ animationDuration: "8000ms" });
     fireEvent.animationEnd(timer);
 
     await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());

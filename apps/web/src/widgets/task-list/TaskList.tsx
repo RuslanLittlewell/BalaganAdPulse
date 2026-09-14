@@ -20,23 +20,27 @@ const PRIORITY_TONE: Record<Task["priority"], string> = {
 export function TaskList({ title, tasks, onOpen, empty }: TaskListProps) {
   const { data: members } = useMembers();
 
-  const row = (task: Task) => {
+  const card = (task: Task) => {
     const assignee = members?.find((member) => member.id === task.assigneeId);
     return (
       <>
-        <span className="min-w-0 flex-1 truncate text-sm text-foreground">{task.title}</span>
-        <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-          {t(`tasks.column.${task.column}`)}
-        </span>
-        <span className={cn("shrink-0 rounded-md px-2 py-0.5 text-xs", PRIORITY_TONE[task.priority])}>
-          {t(`tasks.priority.${task.priority}`)}
-        </span>
-        <span className="flex w-6 shrink-0 justify-end">
-          {assignee ? <MemberAvatar member={assignee} size="sm" /> : null}
+        <span className="line-clamp-2 min-h-10 text-sm font-medium leading-5 text-foreground">{task.title}</span>
+        <span className="mt-auto flex items-center gap-2 pt-3">
+          <span className="truncate rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+            {t(`tasks.column.${task.column}`)}
+          </span>
+          <span className={cn("shrink-0 rounded-md px-2 py-0.5 text-xs", PRIORITY_TONE[task.priority])}>
+            {t(`tasks.priority.${task.priority}`)}
+          </span>
+          <span className="ml-auto flex shrink-0">
+            {assignee ? <MemberAvatar member={assignee} size="sm" /> : null}
+          </span>
         </span>
       </>
     );
   };
+
+  const cardClass = "flex h-full min-h-28 w-full flex-col rounded-lg border border-border bg-card p-3 text-left shadow-sm";
 
   return (
     <section className="flex flex-col gap-3">
@@ -46,18 +50,21 @@ export function TaskList({ title, tasks, onOpen, empty }: TaskListProps) {
           {empty ?? t("tasks.empty")}
         </p>
       ) : (
-        <ul className="divide-y divide-border rounded-lg border border-border">
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {tasks.map((task) => (
-            <li key={task.id}>
+            <li key={task.id} className="min-w-0">
               {onOpen == null ? (
-                <span className="flex items-center gap-3 p-3">{row(task)}</span>
+                <span className={cardClass}>{card(task)}</span>
               ) : (
                 <button
                   type="button"
                   onClick={() => onOpen(task)}
-                  className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring"
+                  className={cn(
+                    cardClass,
+                    "transition-all hover:border-primary/40 hover:shadow-md focus-visible:outline-2 focus-visible:outline-ring",
+                  )}
                 >
-                  {row(task)}
+                  {card(task)}
                 </button>
               )}
             </li>

@@ -36,20 +36,31 @@ const setup = (props: { canEdit?: boolean; values?: Record<string, number | null
 const tile = () => screen.getByTestId("kpi-tile");
 
 describe("the KPI tile", () => {
-  it("shows a met KPI with its actual figure, period target, percent and progress", async () => {
+  it("shows an exceeded KPI with its actual figure, period target, percent, progress and Выполнено+", async () => {
     kpi({ metric: "CONVERSIONS", target: "60.0000" });
     setup({ canEdit: false });
 
     expect(await screen.findByText("KPI · Лиды")).toBeInTheDocument();
-    expect(tile()).toHaveAttribute("data-state", "met");
+    expect(tile()).toHaveAttribute("data-state", "exceeded");
     expect(within(tile()).getByText("45")).toBeInTheDocument();
     expect(within(tile()).getByText("Цель 30 · 150%")).toBeInTheDocument();
-    expect(within(tile()).getByText("Выполнено")).toBeInTheDocument();
+    expect(within(tile()).getByText("Выполнено+")).toBeInTheDocument();
+    expect(within(tile()).queryByText("Выполнено")).not.toBeInTheDocument();
     expect(within(tile()).getByRole("progressbar", { name: "Выполнение KPI" })).toHaveAttribute("aria-valuenow", "100");
     expect(within(tile()).queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("shows a lower-is-better KPI falling behind", async () => {
+  it("writes Выполнено for a KPI met exactly", async () => {
+    kpi({ metric: "CONVERSIONS", target: "60.0000" });
+    setup({ values: { conversions: 30 } });
+
+    expect(await screen.findByText("Цель 30 · 100%")).toBeInTheDocument();
+    expect(tile()).toHaveAttribute("data-state", "met");
+    expect(within(tile()).getByText("Выполнено")).toBeInTheDocument();
+    expect(within(tile()).queryByText("Выполнено+")).not.toBeInTheDocument();
+  });
+
+  it("writes no status for a lower-is-better KPI falling behind", async () => {
     kpi({ metric: "CPA", target: "20.0000" });
     setup();
 
@@ -57,17 +68,18 @@ describe("the KPI tile", () => {
     expect(tile()).toHaveAttribute("data-state", "behind");
     expect(within(tile()).getByText(/^25,00\sBr$/)).toBeInTheDocument();
     expect(within(tile()).getByText(/^Цель 20,00\sBr · 80%$/)).toBeInTheDocument();
-    expect(within(tile()).getByText("Отстаёт")).toBeInTheDocument();
+    expect(within(tile()).queryByText(/Выполнено|Отстаёт/)).not.toBeInTheDocument();
     expect(within(tile()).getByRole("progressbar", { name: "Выполнение KPI" })).toHaveAttribute("aria-valuenow", "80");
   });
 
-  it("says when the KPI cannot be measured for the period", async () => {
+  it("shows no figure, progress or status when the KPI cannot be measured for the period", async () => {
     kpi({ metric: "CPA", target: "20.0000" });
     setup({ values: { cpa: null } });
 
     await screen.findByText("KPI · CPL");
     expect(tile()).toHaveAttribute("data-state", "unmeasured");
-    expect(within(tile()).getByText("Нет данных за период")).toBeInTheDocument();
+    expect(within(tile()).getByText("—")).toBeInTheDocument();
+    expect(within(tile()).queryByText(/Выполнено|Нет данных/)).not.toBeInTheDocument();
     expect(within(tile()).queryByRole("progressbar")).not.toBeInTheDocument();
   });
 

@@ -47,23 +47,23 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
+  --background: oklch(0.96 0.003 286);
   --foreground: oklch(0.141 0.005 285.823);
-  --card: oklch(1 0 0);
+  --card: oklch(0.98 0.002 286);
   --card-foreground: oklch(0.141 0.005 285.823);
-  --popover: oklch(1 0 0);
+  --popover: oklch(0.98 0.002 286);
   --popover-foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(0.491 0.27 292.581);
-  --primary-foreground: oklch(0.969 0.016 293.756);
-  --secondary: oklch(0.967 0.001 286.375);
+  --primary: #082f68;
+  --primary-foreground: #f4f6fa;
+  --secondary: oklch(0.935 0.004 286);
   --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.967 0.001 286.375);
+  --muted: oklch(0.935 0.004 286);
   --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
+  --accent: oklch(0.935 0.004 286);
   --accent-foreground: oklch(0.21 0.006 285.885);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
+  --border: oklch(0.83 0.008 286);
+  --input: oklch(0.83 0.008 286);
   --ring: oklch(0.705 0.015 286.067);
   --chart-1: oklch(0.811 0.111 293.571);
   --chart-2: oklch(0.606 0.25 292.717);
@@ -71,13 +71,13 @@
   --chart-4: oklch(0.491 0.27 292.581);
   --chart-5: oklch(0.432 0.232 292.759);
   --radius: 0.875rem;
-  --sidebar: oklch(0.985 0 0);
+  --sidebar: oklch(0.97 0.003 286);
   --sidebar-foreground: oklch(0.141 0.005 285.823);
   --sidebar-primary: oklch(0.541 0.281 293.009);
   --sidebar-primary-foreground: oklch(0.969 0.016 293.756);
-  --sidebar-accent: oklch(0.967 0.001 286.375);
+  --sidebar-accent: oklch(0.935 0.004 286);
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
-  --sidebar-border: oklch(0.92 0.004 286.32);
+  --sidebar-border: oklch(0.83 0.008 286);
   --sidebar-ring: oklch(0.705 0.015 286.067);
 
   /* Compatibility tokens used by the existing CSS Modules. */
@@ -89,8 +89,7 @@
   --color-text: var(--foreground);
   --color-text-muted: var(--muted-foreground);
 
-  /* The ink drawn on an avatar swatch. Light theme keeps the muted text colour. */
-  --color-avatar-ink: var(--muted-foreground);
+  --color-avatar-ink: #fff;
   /* Priority markers. Signals, so they stay legible rather than joining the
      palette: only the shade shifts between themes. */
   --priority-critical: #dc2626;
@@ -115,7 +114,7 @@
   --space-8: 32px;
 
   --font-sans: "Montserrat Variable", Montserrat, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  --font-mono: var(--font-sans);
 
   --sidebar-width: 280px;
 }
@@ -209,5 +208,26 @@
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
+  }
+}
+
+@keyframes kpi-exceeded-shine {
+  from { background-position: -50% 0; }
+  to { background-position: 150% 0; }
+}
+
+@layer components {
+  .kpi-exceeded-bar {
+    background-image: linear-gradient(100deg, transparent 20%, rgb(255 255 255 / 0.65) 50%, transparent 80%);
+    background-size: 50% 100%;
+    background-repeat: no-repeat;
+    box-shadow: 0 0 10px rgb(16 185 129 / 0.55);
+    animation: kpi-exceeded-shine 1.8s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .kpi-exceeded-bar {
+      animation: none;
+    }
   }
 }

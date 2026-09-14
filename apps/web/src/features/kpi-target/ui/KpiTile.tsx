@@ -18,7 +18,7 @@ export interface KpiTileProps {
   preview?: boolean;
 }
 
-const STATE_LABELS = { met: "kpi.met", behind: "kpi.behind", unmeasured: "kpi.unmeasured" } as const;
+const STATUS = { exceeded: "kpi.exceeded", met: "kpi.met" } as const;
 
 export function KpiTile({ scope, canEdit, figures, range, currency, preview = false }: KpiTileProps) {
   const kpi = useKpi(scope);
@@ -28,6 +28,7 @@ export function KpiTile({ scope, canEdit, figures, range, currency, preview = fa
   const definition = current ? kpiMetricDefinition(current.metric) : null;
   const progress = current ? kpiProgress(figures, current, range) : null;
   const percent = progress?.percent == null ? null : Math.round(progress.percent);
+  const achieved = progress?.state === "exceeded" || progress?.state === "met";
 
   return (
     <div
@@ -64,14 +65,18 @@ export function KpiTile({ scope, canEdit, figures, range, currency, preview = fa
               className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted"
             >
               <div
-                className={cn("h-full rounded-full", progress.state === "met" ? "bg-emerald-500" : "bg-amber-500")}
+                className={cn(
+                  "h-full rounded-full",
+                  achieved ? "bg-emerald-500" : "bg-amber-500",
+                  progress.state === "exceeded" && "kpi-exceeded-bar",
+                )}
                 style={{ width: `${Math.min(100, percent ?? 100)}%` }}
               />
             </div>
           )}
-          <div className={cn("mt-2 text-xs font-medium", progress.state === "met" ? "text-emerald-600" : "text-muted-foreground")}>
-            {t(STATE_LABELS[progress.state])}
-          </div>
+          {progress.state === "exceeded" || progress.state === "met" ? (
+            <div className="mt-2 text-xs font-medium text-emerald-600">{t(STATUS[progress.state])}</div>
+          ) : null}
         </>
       ) : (
         <>

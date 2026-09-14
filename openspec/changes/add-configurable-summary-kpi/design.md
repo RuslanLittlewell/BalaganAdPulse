@@ -54,7 +54,7 @@ Embedding the KPI in the existing project, campaign and summary reads was reject
 - `isMonthly(metric)`: true for spend, impressions, reach, clicks, conversions and revenue.
 - `isLowerBetter(metric)`: true for cpc, cpm, cpa and frequency.
 - `targetForRange(kpi, range)`: prorates a monthly target over each day's calendar month.
-- `kpiProgress(performance, kpi, range)`: returns `{ actual, target, percent, state: "met" | "behind" | "unmeasured" }`.
+- `kpiProgress(performance, kpi, range)`: returns `{ actual, target, percent, state: "exceeded" | "met" | "behind" | "unmeasured" }`. It reports exceeded when the actual figure is strictly better than the target and met when equal. The tile writes Выполнено or Выполнено+ only for those two states, and animates the progress bar with a CSS keyframe shine while exceeded, disabled under `prefers-reduced-motion`.
 
 The backend only stores targets, so the calculation stays next to the figures and period the page already holds.
 

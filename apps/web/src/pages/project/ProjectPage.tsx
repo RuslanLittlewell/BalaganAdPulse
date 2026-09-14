@@ -107,10 +107,7 @@ export function ProjectPage() {
 
       <MetaIntegration key={project.id} projectId={project.id} />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-foreground">
-          {t("campaigns.title")}
-        </h2>
+      <div className="flex flex-wrap items-center justify-end gap-3 border-t pt-2">
         <PeriodControl />
       </div>
 
@@ -119,7 +116,10 @@ export function ProjectPage() {
         range={range}
         performance={summary.data}
         currency={project.budgetCurrency}
-        kpi={{ scope: { kind: "project", id: project.id }, canEdit: editsProjectKpi }}
+        kpi={{
+          scope: { kind: "project", id: project.id },
+          canEdit: editsProjectKpi,
+        }}
       />
 
       {campaigns.isPending ? (

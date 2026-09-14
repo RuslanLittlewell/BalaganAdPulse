@@ -62,11 +62,19 @@ For spend, impressions, reach, clicks, leads and revenue, the target SHALL be a 
 - **THEN** the KPI is met
 
 ### Requirement: The KPI tile shows the goal against the figure
-The KPI tile SHALL name the level's metric and show the actual figure for the period, the target for the period, the percentage achieved and a progress indicator, exposing whether the KPI is met, not met or not measurable. The percentage SHALL be actual over target, or target over actual for metrics that are better lower. A ratio with no measured value SHALL be not measurable rather than zero. Without a KPI, the tile SHALL say that no target is set and, for members allowed to change it, offer to set one. Members allowed to change the KPI SHALL be able to open a dialog from the tile to choose the metric and target, see whether the target is monthly or applies as it is, save it, or clear it.
+The KPI tile SHALL name the level's metric and show the actual figure for the period, the target for the period, the percentage achieved and a progress indicator, exposing whether the KPI is exceeded, met, not met or not measurable. A KPI SHALL be exceeded when the actual figure is strictly better than the period target, and met when it equals it. The percentage SHALL be actual over target, or target over actual for metrics that are better lower. A ratio with no measured value SHALL be not measurable rather than zero. The tile SHALL write a status only when the KPI is met, as Выполнено, or exceeded, as Выполнено+; it SHALL write no status when the KPI is not met or not measurable. While the KPI is exceeded, the progress indicator SHALL be animated, except for members who ask their system to reduce motion. Without a KPI, the tile SHALL say that no target is set and, for members allowed to change it, offer to set one. Members allowed to change the KPI SHALL be able to open a dialog from the tile to choose the metric and target, see whether the target is monthly or applies as it is, save it, or clear it.
 
-#### Scenario: A KPI being met
+#### Scenario: A KPI being exceeded
 - **WHEN** a project with a KPI of 60 leads a month recorded 45 leads in half of September
-- **THEN** the tile shows 45 against 30, 150% and that the KPI is met
+- **THEN** the tile shows 45 against 30, 150%, the status Выполнено+ and an animated progress indicator
+
+#### Scenario: A KPI met exactly
+- **WHEN** the same project recorded 30 leads in half of September
+- **THEN** the tile shows 100% and the status Выполнено, with a progress indicator that is not animated
+
+#### Scenario: A KPI falling behind
+- **WHEN** a campaign's KPI is a CPL of 20 and its CPL for the period is 25
+- **THEN** the tile shows 80% and writes no status
 
 #### Scenario: No target yet
 - **WHEN** a manager views a project without a KPI
@@ -78,4 +86,4 @@ The KPI tile SHALL name the level's metric and show the actual figure for the pe
 
 #### Scenario: Not measurable
 - **WHEN** a campaign's KPI is a CPL target and the period has no leads
-- **THEN** the tile shows that the KPI cannot be measured for the period
+- **THEN** the tile shows no figure, no progress indicator and no status

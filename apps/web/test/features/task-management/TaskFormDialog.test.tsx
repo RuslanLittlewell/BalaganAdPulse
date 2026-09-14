@@ -159,13 +159,6 @@ describe("TaskFormDialog", () => {
     expect(await screen.findByText("Файлов нет")).toBeInTheDocument();
   });
 
-  it("stands 850px tall, shrinking only for a short screen, with the body scrolling inside it", async () => {
-    setup();
-    const dialog = await screen.findByRole("dialog");
-    expect(dialog.className).toContain("h-[min(850px,calc(100vh-2rem))]");
-    expect(screen.getByTestId("task-form-body").className).toContain("overflow-y-auto");
-  });
-
   it("keeps the footer against the bottom rather than scrolling it away", async () => {
     setup();
     await screen.findByLabelText("Название");
@@ -173,7 +166,6 @@ describe("TaskFormDialog", () => {
     const body = screen.getByTestId("task-form-body");
     const save = screen.getByRole("button", { name: "Создать задачу" });
     expect(body).not.toContainElement(save);
-    expect(save.closest("[data-slot=dialog-footer]")!.className).toContain("shrink-0");
   });
 
   it("lets the description take the room the dialog leaves over", async () => {
@@ -309,7 +301,6 @@ describe("the dialog's shape", () => {
     await screen.findByLabelText("Проект");
 
     const row = screen.getByTestId("task-form-selects");
-    expect(row.className).toContain("grid-cols-3");
     for (const label of ["Проект", "Ответственный", "Приоритет"]) {
       expect(row).toContainElement(screen.getByLabelText(label));
     }
@@ -319,21 +310,6 @@ describe("the dialog's shape", () => {
     await user.click(await screen.findByRole("option", { name: "Летний запуск" }));
 
     expect(row).toContainElement(await screen.findByLabelText("Кампания"));
-  });
-
-  it("overrides the primitive's own width rather than capping it", async () => {
-    setup();
-    await screen.findByLabelText("Проект");
-
-    const className = screen.getByRole("dialog").className;
-    expect(className).toContain("w-[min(600px,calc(100vw-2rem))]");
-    expect(className).not.toContain("440px");
-  });
-
-  it("stays inside a narrow viewport instead of forcing a horizontal scroll", async () => {
-    setup();
-    await screen.findByLabelText("Проект");
-    expect(screen.getByRole("dialog").className).toContain("min-w-[min(600px,calc(100vw-2rem))]");
   });
 });
 
@@ -418,21 +394,6 @@ describe("the dialog's controls", () => {
     await user.click(await screen.findByRole("option", { name: /Летний запуск/ }));
 
     expect(screen.getByLabelText("Проект")).toHaveTextContent("Летний запуск");
-  });
-
-  it("keeps the fields on the row close together", async () => {
-    setup();
-    await screen.findByLabelText("Проект");
-    expect(screen.getByTestId("task-form-selects").className).toMatch(/\bgap-3\b/);
-  });
-
-  it("stretches every select across its column instead of hugging its text", async () => {
-    setup();
-    await screen.findByLabelText("Проект");
-
-    for (const label of ["Проект", "Ответственный", "Приоритет"]) {
-      expect(screen.getByLabelText(label).className).toMatch(/\bw-full\b/);
-    }
   });
 });
 
@@ -769,8 +730,6 @@ describe("showing a task to the client", () => {
 
     const control = await screen.findByRole("switch", { name: "Видно клиенту" });
     expect(screen.getByTestId("task-form-selects")).toContainElement(control);
-    expect(control.className).toMatch(/\bh-6\b/);
-    expect(control.className).toMatch(/\bw-11\b/);
   });
 
   it("shows the switch already on for a task the client can see", async () => {

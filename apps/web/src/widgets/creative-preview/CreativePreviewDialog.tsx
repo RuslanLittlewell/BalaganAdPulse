@@ -15,7 +15,7 @@ import { AdPreviewFrame } from "./AdPreviewFrame.js";
 import { CreativeMedia } from "./CreativeMedia.js";
 
 export interface CreativePreviewDialogProps {
-  ads: Ad[];
+  ads: Pick<Ad, "id" | "name" | "externalId">[];
   initialAdId: string;
   onClose: () => void;
 }

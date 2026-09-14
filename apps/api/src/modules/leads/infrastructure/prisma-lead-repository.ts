@@ -3,6 +3,20 @@ import { isCustomer } from '@adpulse/access-policy';
 import type { ActorContext, TransactionContext } from '#shared/application/index.js';
 import type { PrismaUnitOfWork } from '#shared/infrastructure/prisma-unit-of-work.js';
 import type { LeadRepository } from '../application/ports.js';
+import type { LeadAnswer, LeadRecord } from '../domain/lead.js';
+
+export const leadInclude = {ad:{select:{id:true,name:true,externalId:true}}, metaSource:true} satisfies Prisma.LeadInclude;
+type LeadRow = Prisma.LeadGetPayload<{include:typeof leadInclude}>;
+
+export function toLeadRecord({metaSource, ...lead}: LeadRow): LeadRecord {
+  return {...lead, metaSource: metaSource && {
+    accountId:metaSource.accountId, formId:metaSource.formId,
+    campaign:{externalId:metaSource.campaignExternalId, name:metaSource.campaignName},
+    adSet:{externalId:metaSource.adSetExternalId, name:metaSource.adSetName},
+    ad:{externalId:metaSource.adExternalId, name:metaSource.adName},
+    submittedAt:metaSource.submittedAt, answers:metaSource.answers as unknown as LeadAnswer[], answersOmitted:metaSource.answersOmitted,
+  }};
+}
 
 export class PrismaLeadRepository implements LeadRepository {
   constructor(private readonly prisma: PrismaClient, private readonly uow: PrismaUnitOfWork<Prisma.TransactionClient>) {}
@@ -21,17 +35,18 @@ export class PrismaLeadRepository implements LeadRepository {
   async campaignInProject(campaignId: string, projectId: string) {
     return (await this.prisma.campaign.count({where:{id:campaignId, projectId}})) > 0;
   }
-  list(actor: ActorContext, board: string, context?: TransactionContext) {
-    return (context ? this.uow.clientFor<Prisma.TransactionClient>(context) : this.prisma).lead.findMany({where:{orgId:actor.orgId, clientId:board === 'agency' ? null : board},orderBy:[{stage:'asc'},{position:'asc'},{id:'asc'}]});
+  async list(actor: ActorContext, board: string, context?: TransactionContext) {
+    const rows = await (context ? this.uow.clientFor<Prisma.TransactionClient>(context) : this.prisma).lead.findMany({where:{orgId:actor.orgId, clientId:board === 'agency' ? null : board},include:leadInclude,orderBy:[{stage:'asc'},{position:'asc'},{id:'asc'}]});
+    return rows.map(toLeadRecord);
   }
   async lock(context: TransactionContext, actor: ActorContext, board: string) {
     await this.uow.clientFor<Prisma.TransactionClient>(context).$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${actor.orgId + ':' + board}, 0))`;
   }
-  create(context: TransactionContext, input: Parameters<LeadRepository['create']>[1]) {
-    return this.uow.clientFor<Prisma.TransactionClient>(context).lead.create({data:input});
+  async create(context: TransactionContext, input: Parameters<LeadRepository['create']>[1]) {
+    return toLeadRecord(await this.uow.clientFor<Prisma.TransactionClient>(context).lead.create({data:input,include:leadInclude}));
   }
-  update(context: TransactionContext, id: string, input: Parameters<LeadRepository['update']>[2]) {
-    return this.uow.clientFor<Prisma.TransactionClient>(context).lead.update({where:{id},data:input});
+  async update(context: TransactionContext, id: string, input: Parameters<LeadRepository['update']>[2]) {
+    return toLeadRecord(await this.uow.clientFor<Prisma.TransactionClient>(context).lead.update({where:{id},data:input,include:leadInclude}));
   }
   async delete(context: TransactionContext, id: string) {
     await this.uow.clientFor<Prisma.TransactionClient>(context).lead.delete({where:{id}});

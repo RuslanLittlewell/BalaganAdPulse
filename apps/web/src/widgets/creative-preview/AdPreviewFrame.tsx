@@ -9,7 +9,12 @@ export interface AdPreviewFrameProps {
   variants: readonly Creative[];
 }
 
-export function AdPreviewFrame({ adId, adName, externalId, variants }: AdPreviewFrameProps) {
+export function AdPreviewFrame({
+  adId,
+  adName,
+  externalId,
+  variants,
+}: AdPreviewFrameProps) {
   const rendered = useAdPreview(adId);
 
   if (rendered.isPending) {

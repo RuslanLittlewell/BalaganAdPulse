@@ -26,6 +26,7 @@ import {
 import { taskComponents, taskDoc, taskImageDoc } from "../modules/tasks/presentation/http/task-openapi.js";
 import { mountPath } from "./create-routes.js";
 import { leadDoc, leadComponents } from '../modules/leads/presentation/http/lead-openapi.js';
+import { kpiDoc } from '../modules/kpi/index.js';
 
 const require = createRequire(import.meta.url);
 
@@ -99,6 +100,7 @@ export function apiDocument(): OpenApiDocument {
       { mount: mountPath("tasks"), ...taskDoc },
       { mount: mountPath("leads"), ...leadDoc },
       { mount: mountPath("task-images"), ...taskImageDoc },
+      { mount: mountPath("kpi"), ...kpiDoc },
     ],
     components: mergeComponents(
       identityComponents,

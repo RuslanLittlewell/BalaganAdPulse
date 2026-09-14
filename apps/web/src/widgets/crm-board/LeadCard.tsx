@@ -27,6 +27,12 @@ function contactsOf(lead: Lead): Contact[] {
   return contacts;
 }
 
+function sourceLabel(lead: Lead): string {
+  if (lead.source) return lead.source;
+  if (lead.metaSource) return `${t("crm.source.meta")} · ${lead.metaSource.campaign.name}`;
+  return t("crm.noSource");
+}
+
 export function LeadCard({ lead, draggable = false, placeholder = false, onOpen }: LeadCardProps) {
   const contacts = contactsOf(lead);
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
@@ -116,7 +122,7 @@ export function LeadCard({ lead, draggable = false, placeholder = false, onOpen 
           className="truncate text-[11px] text-muted-foreground/80"
           data-testid={`lead-source-${lead.id}`}
         >
-          {lead.source ?? t("crm.noSource")}
+          {sourceLabel(lead)}
         </span>
       </footer>
     </article>

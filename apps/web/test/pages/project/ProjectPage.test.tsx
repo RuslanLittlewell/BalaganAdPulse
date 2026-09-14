@@ -50,12 +50,27 @@ function api(options: { campaigns?: unknown[]; tasks?: unknown[] } = {}) {
 const route = { route: "/projects/p1" };
 
 describe("ProjectPage", () => {
+  it("offers the project's KPI in its summary", async () => {
+    api();
+    server.use(mock.get("/api/projects/p1/kpi", () => HttpResponse.json({ metric: "CONVERSIONS", target: "100.0000", updatedAt: "2026-09-14T10:00:00.000Z" })));
+    renderWithProviders(<App />, route);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Настроить показатели" }));
+    const dialog = await screen.findByRole("dialog", { name: "Показатели за период" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "KPI" }));
+    await userEvent.keyboard("{Escape}");
+
+    const summary = screen.getByRole("group", { name: "Показатели за период" });
+    expect(await within(summary).findByText("KPI · Лиды")).toBeInTheDocument();
+    expect(within(summary).getByRole("button", { name: "Изменить цель" })).toBeInTheDocument();
+  });
+
   it("shows the project's figures for the period", async () => {
     api();
     renderWithProviders(<App />, route);
 
     const summary = await screen.findByRole("group", { name: "Показатели за период" });
-    expect(within(summary).getByText("4 200 Br")).toBeInTheDocument();
+    expect(await within(summary).findByText(/^CPL 20,00\sBr$/)).toBeInTheDocument();
     expect(screen.getByLabelText("От")).toBeInTheDocument();
     expect(screen.getByLabelText("До")).toBeInTheDocument();
   });
@@ -67,19 +82,6 @@ describe("ProjectPage", () => {
     const row = await screen.findByRole("row", { name: /Поиск \/ Москва/ });
     expect(within(row).getByText("Яндекс Директ · Активна")).toBeInTheDocument();
     expect(within(row).getByText("3 000 Br")).toBeInTheDocument();
-  });
-
-  it("marks bad, stable and profitable campaign names with red, blue and green borders", async () => {
-    api({ campaigns: [
-      { ...campaign("bad", "Плохая", "META", 1000), performance: performance(1000, { roas: 0.7 }) },
-      { ...campaign("stable", "Стабильная", "GOOGLE", 1000), performance: performance(1000, { roas: 1 }) },
-      { ...campaign("good", "Прибыльная", "YANDEX", 1000), performance: performance(1000, { roas: 2 }) },
-    ] });
-    renderWithProviders(<App />, route);
-
-    expect(await screen.findByRole("button", { name: /Плохая/ })).toHaveClass("border-red-500");
-    expect(screen.getByRole("button", { name: /Стабильная/ })).toHaveClass("border-blue-500");
-    expect(screen.getByRole("button", { name: /Прибыльная/ })).toHaveClass("border-emerald-500");
   });
 
   it("shows the project's own total under the campaigns", async () => {

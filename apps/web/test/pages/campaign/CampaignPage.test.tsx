@@ -106,7 +106,7 @@ describe("CampaignPage", () => {
     renderWithProviders(<App />, route);
 
     const summary = await screen.findByRole("group", { name: "Показатели за период" });
-    expect(await within(summary).findByText("1 500 Br")).toBeInTheDocument();
+    expect(await within(summary).findByText(/^CPL 20,00\sBr$/)).toBeInTheDocument();
   });
 
   it("draws the measured days", async () => {

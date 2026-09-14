@@ -9,6 +9,7 @@ const dependencies = () => ({
   jobs: { claim: vi.fn().mockResolvedValueOnce(job).mockResolvedValue(null), renew: vi.fn().mockResolvedValue(true), complete: vi.fn().mockResolvedValue(true), fail: vi.fn().mockResolvedValue(undefined) },
   cipher: { encrypt: vi.fn(), decrypt: vi.fn().mockReturnValue("synthetic-secret") },
   provider: { snapshot: vi.fn().mockResolvedValue(data) }, clock: { now: () => now },
+  leads: { link: vi.fn().mockResolvedValue(undefined) },
 });
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
@@ -79,4 +80,43 @@ it("reports what the provider answered when it records a provider failure", asyn
   );
   await worker.stop();
   reported.mockRestore();
+});
+
+it("links imported leads to the advertising a successful import brought in", async () => {
+  const d = dependencies();
+  const worker = createImportWorker(d);
+  worker.start();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(d.leads.link).toHaveBeenCalledExactlyOnceWith("p");
+  await worker.stop();
+});
+
+it("links no leads when the import did not commit", async () => {
+  const d = dependencies();
+  d.jobs.complete.mockResolvedValue(false);
+  const worker = createImportWorker(d);
+  worker.start();
+  await vi.advanceTimersByTimeAsync(0);
+  await worker.stop();
+
+  const failing = dependencies();
+  failing.provider.snapshot.mockRejectedValue(new MetaError("PROVIDER"));
+  const second = createImportWorker(failing);
+  second.start();
+  await vi.advanceTimersByTimeAsync(0);
+  await second.stop();
+
+  expect(d.leads.link).not.toHaveBeenCalled();
+  expect(failing.leads.link).not.toHaveBeenCalled();
+});
+
+it("keeps a committed import successful when linking leads fails", async () => {
+  const d = dependencies();
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  d.leads.link.mockRejectedValue(new Error("database unavailable"));
+  const worker = createImportWorker(d);
+  worker.start();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(d.jobs.fail).not.toHaveBeenCalled();
+  await worker.stop();
 });

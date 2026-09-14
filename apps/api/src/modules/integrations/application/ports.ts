@@ -1,5 +1,6 @@
 import type { ActorContext, TransactionContext, UnitOfWork } from "#shared/application/index.js";
 import type { AuditWriter } from "../../audit/index.js";
+import type { LeadDelivery } from "../../leads/index.js";
 import type { Account, Integration } from "../domain/integration.js";
 import type { CreativeKind, CreativeView, ImportedCreative, StoredCreative } from "../domain/snapshot.js";
 
@@ -37,9 +38,14 @@ export interface StoredFile {
 export interface CreativeFiles {
   copy(url: string, kind: CreativeKind, signal?: AbortSignal): Promise<StoredFile | null>;
 }
+export interface LeadInbox {
+  deliver(context: TransactionContext, delivery: LeadDelivery): Promise<{ created: number }>;
+  announce(target: { orgId: string; clientId: string }): void;
+  link(projectId: string): Promise<void>;
+}
 export interface IntegrationRepository {
   read(projectId: string): Promise<Integration | null>;
-  save(context: TransactionContext, data: Account & { projectId: string; encryptedToken: string; nextDailyAt: Date; queuedAt: Date }): Promise<Integration>;
+  save(context: TransactionContext, data: Account & { projectId: string; encryptedToken: string; nextDailyAt: Date; queuedAt: Date }, now: Date): Promise<Integration>;
   remove(context: TransactionContext, projectId: string): Promise<void>;
   queue(projectId: string, now: Date): Promise<void>;
 }

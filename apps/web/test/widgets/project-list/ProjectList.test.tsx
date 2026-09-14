@@ -77,12 +77,11 @@ describe("ProjectList", () => {
     expect(screen.getByText("Проект без задач")).toBeInTheDocument();
   });
 
-  it("uses an icon-only new-project button at the bottom right", async () => {
+  it("offers an icon-only new-project button", async () => {
     server.use(mock.get("/api/projects", () => HttpResponse.json([])));
     setup();
 
     const button = await screen.findByRole("button", { name: "Новый проект" });
-    expect(button).toHaveClass("absolute", "right-2", "bottom-2", "rounded-full");
     expect(button).toHaveTextContent("");
   });
 

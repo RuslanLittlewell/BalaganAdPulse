@@ -1,6 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PerformanceTable, type PerformanceRow } from "@/widgets/performance-table/index.js";
+import { useColumnWidths } from "@/widgets/performance-table/columnWidths.js";
 
 const performance = (spend: number, extra = {}) => ({
   spend, impressions: 100000, reach: 40000, clicks: 2000, conversions: 50, revenue: 4000,
@@ -55,6 +56,31 @@ describe("PerformanceTable", () => {
     }
   });
 
+  it("calls the lead count Лиды and its cost CPL", async () => {
+    const user = userEvent.setup();
+    render(<PerformanceTable tableKey="lead-labels-test" heading="Кампания" rows={rows} />);
+
+    expect(screen.getByRole("columnheader", { name: "Лиды" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "CPL" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Конверсии" })).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: "CPA" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Отображаемые столбцы" }));
+    expect(screen.getByRole("menuitemcheckbox", { name: "Лиды" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitemcheckbox", { name: "CPL" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitemcheckbox", { name: "Конверсии" })).toBeNull();
+    expect(screen.queryByRole("menuitemcheckbox", { name: "CPA" })).toBeNull();
+  });
+
+  it("keeps a column choice saved before the lead columns were renamed", () => {
+    useColumnWidths.setState({ visibleColumns: { "saved-before-rename": ["name", "spend", "cpa"] } });
+
+    render(<PerformanceTable tableKey="saved-before-rename" heading="Кампания" rows={rows} />);
+
+    expect(screen.getByRole("columnheader", { name: "CPL" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Лиды" })).toBeNull();
+  });
+
   it("shows the totals it is given, not the sum of the rows on screen", () => {
     render(
       <PerformanceTable heading="Кампания" rows={rows} totals={performance(1500, { roas: 3 })} />,
@@ -85,6 +111,35 @@ describe("PerformanceTable", () => {
     render(<PerformanceTable heading="Кампания" rows={[]} empty="Пока нет кампаний" />);
 
     expect(screen.getByText("Пока нет кампаний")).toBeInTheDocument();
+  });
+
+  it("keeps two columns, allows restoring hidden columns, and remembers the selection per table", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(
+      <PerformanceTable tableKey="column-menu-test" heading="Кампания" rows={rows} totals={performance(1500)} />,
+    );
+    await user.click(screen.getByRole("button", { name: "Отображаемые столбцы" }));
+    const items = screen.getAllByRole("menuitemcheckbox");
+    for (const item of items.slice(0, -2)) await user.click(item);
+
+    const checked = screen.getAllByRole("menuitemcheckbox", { checked: true });
+    expect(checked).toHaveLength(2);
+    checked.forEach((item) => expect(item).toHaveAttribute("aria-disabled", "true"));
+    expect(screen.getByRole("menuitemcheckbox", { name: "Кампания" })).toHaveAttribute("aria-checked", "false");
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "Кампания" }));
+    expect(screen.getAllByRole("menuitemcheckbox", { checked: true })).toHaveLength(3);
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("columnheader", { name: "Расход" })).toBeNull();
+    expect(screen.getByRole("columnheader", { name: "Кампания" })).toBeInTheDocument();
+    const stored = JSON.parse(localStorage.getItem("adpulse-performance-column-widths")!);
+    expect(stored.state.visibleColumns["column-menu-test"]).toHaveLength(3);
+
+    unmount();
+    const remounted = render(<PerformanceTable tableKey="column-menu-test" heading="Кампания" rows={rows} />);
+    expect(screen.queryByRole("columnheader", { name: "Расход" })).toBeNull();
+    remounted.unmount();
+    render(<PerformanceTable tableKey="other-table-test" heading="Проект" rows={rows} />);
+    expect(screen.getByRole("columnheader", { name: "Расход" })).toBeInTheDocument();
   });
 });
 

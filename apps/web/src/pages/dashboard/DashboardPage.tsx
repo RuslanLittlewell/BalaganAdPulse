@@ -4,10 +4,12 @@ import {
   ChannelPanel, PerformanceSummary, ProjectPerformanceTable,
 } from "@/widgets/agency-overview/index.js";
 import { t } from "@/shared/config/index.js";
+import { useCan } from "@/features/permissions/index.js";
 
 export function DashboardPage() {
   const { range } = usePeriod();
   const agency = useAgencySummary(range);
+  const managesAgencyKpi = useCan("update", "organization");
 
   return (
     <div className="flex min-h-0 flex-col gap-6">
@@ -16,7 +18,12 @@ export function DashboardPage() {
         <PeriodControl />
       </header>
 
-      <PerformanceSummary performance={agency.data} />
+      <PerformanceSummary
+        screen="dashboard"
+        range={range}
+        performance={agency.data}
+        kpi={managesAgencyKpi ? { scope: { kind: "organization" }, canEdit: true } : undefined}
+      />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
         <ProjectPerformanceTable range={range} />

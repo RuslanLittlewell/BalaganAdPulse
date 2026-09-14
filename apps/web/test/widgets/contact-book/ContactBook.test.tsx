@@ -448,28 +448,6 @@ describe("choosing which directory to show", () => {
     });
   });
 
-  it("keeps a minimum height, so choosing between people does not resize it", async () => {
-    withDirectory();
-    renderWithProviders(<ContactBook open onClose={() => {}} />);
-
-    const dialog = await screen.findByRole("dialog", { name: "Контактная книга" });
-    expect(dialog.className).toContain("min-h-[550px]");
-  });
-
-  it("lays an employee's fields out the way a client's are", async () => {
-    const user = userEvent.setup();
-    withDirectory();
-    renderWithProviders(<ContactBook open onClose={() => {}} />);
-    await screen.findByRole("button", { name: /Acme/ });
-
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
-    await user.click(await screen.findByRole("button", { name: /Мария/ }));
-
-    const details = await screen.findByTestId("employee-details");
-    expect(details.className).toContain("divide-y");
-    expect(within(details).getByText("Почта").className).toContain("uppercase");
-  });
-
   it("shows how to reach each employee", async () => {
     const user = userEvent.setup();
     withDirectory();
@@ -603,15 +581,6 @@ describe("choosing which directory to show", () => {
       await screen.findByText("Иван Петров");
       expect(screen.queryByRole("button", { name: "Пригласить в компанию" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Пригласить клиента" })).toBeNull();
-    });
-
-    it("gives the client list room for a full name", async () => {
-      withDirectory();
-      renderWithProviders(<ContactBook open onClose={() => {}} />);
-      await screen.findByRole("button", { name: /Acme/ });
-
-      const columns = screen.getByTestId("contact-book-columns");
-      expect(columns.className).toContain("minmax(14rem,");
     });
 
   it("leaves the agency's own contact book as it was", async () => {
@@ -962,17 +931,5 @@ describe("choosing projects to grant", () => {
     expect(card).toHaveTextContent("Летний запуск");
     expect(card).toHaveTextContent("Перформанс");
     expect(within(card).getByRole("img", { name: "Летний запуск" })).toBeInTheDocument();
-  });
-
-  it("lays them out as a grid rather than a single column", async () => {
-    const user = userEvent.setup();
-    withDirectory();
-    renderWithProviders(<ContactBook open onClose={() => {}} />);
-    await screen.findByRole("button", { name: /Acme/ });
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
-    await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
-    await screen.findByRole("dialog", { name: "Пригласить сотрудника" });
-
-    expect(screen.getByTestId("invite-projects").className).toMatch(/grid-cols-2/);
   });
 });

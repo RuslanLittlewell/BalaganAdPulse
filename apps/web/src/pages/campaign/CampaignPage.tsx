@@ -6,18 +6,32 @@ import { Button, EmptyState } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
 import { projectPath } from "@/shared/lib/index.js";
 import {
-  campaignsApi, channelLabel, statusLabel,
-  useAdSets, useCampaign, useCampaignDaily,
-  type Ad, type DateRange,
+  campaignsApi,
+  channelLabel,
+  statusLabel,
+  useAdSets,
+  useCampaign,
+  useCampaignDaily,
+  type Ad,
+  type DateRange,
 } from "@/entities/campaign/index.js";
-import { DEFAULT_CURRENCY, useActiveCampaignId, useActiveProjectId, useProjects } from "@/entities/project/index.js";
+import {
+  DEFAULT_CURRENCY,
+  useActiveCampaignId,
+  useActiveProjectId,
+  useProjects,
+} from "@/entities/project/index.js";
 import { useTasks, type Task } from "@/entities/task/index.js";
 import { PeriodControl, usePeriod } from "@/features/period/index.js";
 import { TaskPreviewDialog } from "@/features/task-management/index.js";
+import { useCan } from "@/features/permissions/index.js";
 import { TaskList } from "@/widgets/task-list/index.js";
 import { PerformanceSummary } from "@/widgets/agency-overview/index.js";
 import { DailyChart } from "@/widgets/campaign-overview/index.js";
-import { PerformanceTable, type PerformanceRow } from "@/widgets/performance-table/index.js";
+import {
+  PerformanceTable,
+  type PerformanceRow,
+} from "@/widgets/performance-table/index.js";
 import { CreativePreviewDialog } from "@/widgets/creative-preview/index.js";
 
 function useAdsOfOpenSets(openIds: ReadonlySet<string>, range: DateRange) {
@@ -28,7 +42,9 @@ function useAdsOfOpenSets(openIds: ReadonlySet<string>, range: DateRange) {
       queryFn: () => campaignsApi.ads(adSetId, range),
     })),
   });
-  return new Map(ids.map((id, index) => [id, (results[index]?.data ?? []) as Ad[]]));
+  return new Map(
+    ids.map((id, index) => [id, (results[index]?.data ?? []) as Ad[]]),
+  );
 }
 
 export function CampaignPage() {
@@ -43,19 +59,27 @@ export function CampaignPage() {
   const projects = useProjects();
   const [openSets, setOpenSets] = useState<ReadonlySet<string>>(new Set());
   const [reading, setReading] = useState<Task | null>(null);
-  const [previewing, setPreviewing] = useState<{ adSetId: string; adId: string } | null>(null);
+  const [previewing, setPreviewing] = useState<{
+    adSetId: string;
+    adId: string;
+  } | null>(null);
   const tasks = useTasks({ campaignId, enabled: campaignId != null });
   const adsBySet = useAdsOfOpenSets(openSets, range);
+  const editsCampaignKpi = useCan("update", "campaign");
 
-  if (campaign.isError) return <EmptyState title={t("campaign.notFound.title")} />;
+  if (campaign.isError)
+    return <EmptyState title={t("campaign.notFound.title")} />;
 
-  const currency = projects.data?.find((candidate) => candidate.id === projectId)?.budgetCurrency
-    ?? DEFAULT_CURRENCY;
+  const currency =
+    projects.data?.find((candidate) => candidate.id === projectId)
+      ?.budgetCurrency ?? DEFAULT_CURRENCY;
 
   const rows: PerformanceRow[] = (adSets.data ?? []).map((adSet) => ({
     id: adSet.id,
     name: adSet.name,
-    note: [adSet.audience, statusLabel(adSet.status)].filter(Boolean).join(" · "),
+    note: [adSet.audience, statusLabel(adSet.status)]
+      .filter(Boolean)
+      .join(" · "),
     performance: adSet.performance,
     expandable: true,
     children: (adsBySet.get(adSet.id) ?? []).map((ad) => ({
@@ -75,40 +99,57 @@ export function CampaignPage() {
             variant="ghost"
             size="icon"
             aria-label={t("campaign.back")}
-            onClick={() => { if (projectId) navigate(`${projectPath(projectId)}${location.search}`); }}
+            onClick={() => {
+              if (projectId)
+                navigate(`${projectPath(projectId)}${location.search}`);
+            }}
           >
             <ArrowLeftIcon />
           </Button>
           <div className="min-w-0">
-          <h1 className="truncate text-lg font-semibold text-foreground">
-            {campaign.data?.name ?? ""}
-          </h1>
-          <p className="truncate text-sm text-muted-foreground">
-            {campaign.data == null ? "" : [
-              channelLabel(campaign.data.channel),
-              statusLabel(campaign.data.status),
-              campaign.data.objective,
-            ].filter(Boolean).join(" · ")}
-          </p>
+            <h1 className="truncate text-lg font-semibold text-foreground">
+              {campaign.data?.name ?? ""}
+            </h1>
+            <p className="truncate text-sm text-muted-foreground">
+              {campaign.data == null
+                ? ""
+                : [
+                    channelLabel(campaign.data.channel),
+                    statusLabel(campaign.data.status),
+                    campaign.data.objective,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+            </p>
           </div>
         </div>
         <PeriodControl />
       </header>
 
-      <PerformanceSummary performance={campaign.data?.performance} currency={currency} />
+      <PerformanceSummary
+        screen="campaign"
+        range={range}
+        performance={campaign.data?.performance}
+        currency={currency}
+        kpi={campaignId ? { scope: { kind: "campaign", id: campaignId }, canEdit: editsCampaignKpi } : undefined}
+      />
 
       <DailyChart days={days.data ?? []} currency={currency} />
 
       <div>
-        <h2 className="mb-3 text-sm font-semibold text-foreground">{t("adSets.title")}</h2>
+        <h2 className="mb-3 text-sm font-semibold text-foreground">
+          {t("adSets.title")}
+        </h2>
         <PerformanceTable
+          tableKey="ad-sets"
           heading={t("adSets.one")}
           rows={rows}
           currency={currency}
           onExpandedChange={setOpenSets}
           onOpen={(adId) => {
             for (const [adSetId, ads] of adsBySet) {
-              if (ads.some((ad) => ad.id === adId)) setPreviewing({ adSetId, adId });
+              if (ads.some((ad) => ad.id === adId))
+                setPreviewing({ adSetId, adId });
             }
           }}
           empty={adSets.isSuccess ? t("adSets.empty") : undefined}

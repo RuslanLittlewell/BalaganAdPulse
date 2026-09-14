@@ -27,6 +27,35 @@ export interface LeadBoard {
   capabilities: BoardCapabilities;
 }
 
+export type LeadOrigin = "MANUAL" | "META";
+
+export interface LeadAnswer {
+  question: string;
+  values: string[];
+}
+
+export interface MetaEntityName {
+  externalId: string;
+  name: string;
+}
+
+export interface LeadMetaSource {
+  accountId: string;
+  formId: string;
+  campaign: MetaEntityName;
+  adSet: MetaEntityName;
+  ad: MetaEntityName;
+  submittedAt: string;
+  answers: LeadAnswer[];
+  answersOmitted: boolean;
+}
+
+export interface LeadAd {
+  id: string;
+  name: string;
+  externalId: string | null;
+}
+
 export interface Lead {
   id: string;
   orgId: string;
@@ -40,6 +69,10 @@ export interface Lead {
   notes: string | null;
   projectId: string | null;
   campaignId: string | null;
+  adId: string | null;
+  origin: LeadOrigin;
+  ad: LeadAd | null;
+  metaSource: LeadMetaSource | null;
   stage: LeadStage;
   position: number;
   createdAt: string;

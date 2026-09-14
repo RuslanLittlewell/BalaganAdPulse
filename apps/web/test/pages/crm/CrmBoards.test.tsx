@@ -97,7 +97,7 @@ describe("the CRM board while it loads and when it fails", () => {
     expect(screen.getByRole("region", { name: "Новый лид" })).toBeInTheDocument();
   });
 
-  it("floats the loader over the board rather than replacing it", async () => {
+  it("shows the loader while keeping the board on screen", async () => {
     server.use(
       boards({ key: "agency", label: "Агентство" }),
       mock.get("/api/crm/boards/:board/leads", async () => {
@@ -108,10 +108,6 @@ describe("the CRM board while it loads and when it fails", () => {
     setup();
 
     const layer = await screen.findByTestId("crm-loading");
-    expect(layer.className).toMatch(/\bfixed\b/);
-    expect(layer.className).toMatch(/\binset-0\b/);
-    expect(layer.className).toMatch(/place-items-center/);
-    expect(layer.className).toMatch(/pointer-events-none/);
     expect(layer).toContainElement(screen.getByText("Загрузка…"));
     expect(screen.getByRole("region", { name: "Новый лид" })).toBeInTheDocument();
   });

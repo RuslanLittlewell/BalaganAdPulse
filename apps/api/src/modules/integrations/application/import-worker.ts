@@ -1,5 +1,5 @@
 import type { ImportJobs } from "./import-jobs.js";
-import type { CredentialCipher } from "./ports.js";
+import type { CredentialCipher, LeadInbox } from "./ports.js";
 import { MetaError } from "../domain/integration.js";
 import type { Snapshot } from "../domain/snapshot.js";
 
@@ -8,6 +8,7 @@ export function createImportWorker(d: {
   cipher: CredentialCipher;
   provider: { snapshot(accountId: string, token: string, currency: string, now: Date, signal?: AbortSignal): Promise<Snapshot> };
   clock: { now(): Date };
+  leads: Pick<LeadInbox, "link">;
 }) {
   let polling: ReturnType<typeof setInterval> | undefined;
   let active: Promise<void> | undefined;
@@ -27,7 +28,10 @@ export function createImportWorker(d: {
       if (stopped) return false;
       const token = d.cipher.decrypt(job.encryptedToken, job.projectId);
       const snapshot = await d.provider.snapshot(job.accountId, token, job.currency, d.clock.now(), signal);
-      if (!signal.aborted) await d.jobs.complete(job, snapshot, d.clock.now());
+      if (signal.aborted || !await d.jobs.complete(job, snapshot, d.clock.now())) return true;
+      await d.leads.link(job.projectId).catch((error: unknown) => {
+        console.error("Linking imported leads failed:", error instanceof Error ? error.message : error);
+      });
     } catch (error) {
       if (error instanceof MetaError) {
         console.error("Meta import failed:", error.code, error.detail);

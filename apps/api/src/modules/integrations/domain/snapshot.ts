@@ -59,3 +59,9 @@ export interface Snapshot {
   adSetMetrics: ImportedMetric[];
   adMetrics: ImportedMetric[];
 }
+export interface PolledAd {
+  adId: string;
+  adName: string;
+  adSet: { externalId: string; name: string };
+  campaign: { externalId: string; name: string };
+}

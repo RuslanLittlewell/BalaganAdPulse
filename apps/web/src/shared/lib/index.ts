@@ -14,3 +14,4 @@ export * from "./routes.js";
 export * from "./board-collision.js";
 export * from "./navCollapse.js";
 export * from "./realtime.js";
+export * from "./moduleMemory.js";

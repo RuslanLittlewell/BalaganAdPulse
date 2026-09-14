@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { RouteDoc } from "#shared/presentation/openapi.js";
-const metadata = z.object({ accountId: z.string(), currency: z.string(), timezone: z.string(), status: z.enum(["QUEUED", "RUNNING", "SUCCESS", "ERROR", "AUTH_REQUIRED"]), lastSuccessAt: z.iso.datetime().nullable(), lastError: z.string().nullable(), nextDailyAt: z.iso.datetime() }).nullable();
+const metadata = z.object({ accountId: z.string(), currency: z.string(), timezone: z.string(), status: z.enum(["QUEUED", "RUNNING", "SUCCESS", "ERROR", "AUTH_REQUIRED"]), lastSuccessAt: z.iso.datetime().nullable(), lastError: z.string().nullable(), nextDailyAt: z.iso.datetime(), leads: z.object({ status: z.enum(["WAITING", "OK", "ACCESS_REQUIRED", "ERROR"]), lastSuccessAt: z.iso.datetime().nullable(), lastError: z.string().nullable() }) }).nullable();
 export const integrationDoc: RouteDoc = {
   tag: "Meta integration",
   tagDescription: "Project editors connect a Meta account, import the last 30 completed account-local days, and refresh at 08:00 Europe/Warsaw. Tokens are write-only.",

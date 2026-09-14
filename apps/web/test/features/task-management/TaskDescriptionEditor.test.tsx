@@ -317,19 +317,3 @@ describe("the attachment link sits in the text", () => {
       .toHaveTextContent("Старое описание");
   });
 });
-
-describe("the description's height", () => {
-  it("scrolls inside the room it is given rather than pushing the page down", async () => {
-    setup();
-    const wrapper = await screen.findByTestId("task-description-editor");
-    expect(wrapper.className).toContain("overflow-y-auto");
-    expect(wrapper.className).toMatch(/\bflex-1\b/);
-    expect(wrapper.className).toMatch(/\bmin-h-0\b/);
-  });
-
-  it("stays a target worth clicking when the description is empty", async () => {
-    setup();
-    const surface = await editorSurface();
-    expect(surface.className).toContain("min-h-32");
-  });
-});

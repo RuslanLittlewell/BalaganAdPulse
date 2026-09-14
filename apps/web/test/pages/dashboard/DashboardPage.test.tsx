@@ -1,5 +1,5 @@
 import { http as mock, HttpResponse } from "msw";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders, server } from "@test/shared/index.js";
 import { DashboardPage } from "@/pages/dashboard/index.js";
@@ -53,10 +53,45 @@ describe("DashboardPage", () => {
     renderWithProviders(<DashboardPage />);
 
     const summary = await screen.findByRole("group", { name: "Показатели за период" });
-    expect(await within(summary).findByText("4 200 ₽")).toBeInTheDocument();
-    expect(within(summary).getByText("Расход")).toBeInTheDocument();
+    expect(await within(summary).findByText("50")).toBeInTheDocument();
+    expect(within(summary).getByText("Лиды")).toBeInTheDocument();
+    expect(within(summary).getByText(/^CPL 20,00/)).toBeInTheDocument();
     expect(screen.getByLabelText("От")).toBeInTheDocument();
     expect(screen.getByLabelText("До")).toBeInTheDocument();
+  });
+
+  it("calls the lead figure Лиды and its cost CPL in the summary", async () => {
+    api();
+    renderWithProviders(<DashboardPage />);
+
+    const summary = await screen.findByRole("group", { name: "Показатели за период" });
+    expect(await within(summary).findByText("Лиды")).toBeInTheDocument();
+    expect(within(summary).getByText(/^CPL /)).toBeInTheDocument();
+    expect(within(summary).queryByText("Конверсии")).toBeNull();
+    expect(within(summary).queryByText(/^CPA /)).toBeNull();
+  });
+
+  it("offers the agency KPI to an admin and not to a guest", async () => {
+    api();
+    server.use(mock.get("/api/organization/kpi", () => HttpResponse.json(null)));
+    const { unmount } = renderWithProviders(<DashboardPage />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Настроить показатели" }));
+    const dialog = await screen.findByRole("dialog", { name: "Показатели за период" });
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: "KPI" })).toBeInTheDocument());
+    unmount();
+
+    server.use(mock.get("/api/auth/me", () => HttpResponse.json({
+      user: { id: "user-1", name: "Guest", email: "guest@acme.com", image: null },
+      organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
+      role: "GUEST",
+      clientIds: [],
+    })));
+    renderWithProviders(<DashboardPage />);
+    await userEvent.click(await screen.findByRole("button", { name: "Настроить показатели" }));
+    const guestDialog = await screen.findByRole("dialog", { name: "Показатели за период" });
+    await within(guestDialog).findByRole("button", { name: "Лиды" });
+    expect(within(guestDialog).queryByRole("button", { name: "KPI" })).not.toBeInTheDocument();
   });
 
   it("lists every project with its own figures", async () => {

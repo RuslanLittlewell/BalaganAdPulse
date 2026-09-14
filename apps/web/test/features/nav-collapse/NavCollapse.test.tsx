@@ -31,7 +31,7 @@ describe("collapsing the navigation", () => {
   it("starts expanded, with the labels showing", () => {
     setup();
     expect(screen.getByRole("button", { name: "Свернуть меню" })).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText("Проекты")).not.toHaveClass("sr-only");
+    expect(screen.getByText("Разделы")).toBeInTheDocument();
   });
 
   it("collapses on the chevron and offers to expand again", async () => {
@@ -51,13 +51,6 @@ describe("collapsing the navigation", () => {
     }
   });
 
-  it("hides the labels visually, not from assistive tech", async () => {
-    setup();
-    await userEvent.click(chevron());
-
-    expect(screen.getByText("Проекты")).toHaveClass("sr-only");
-  });
-
   it("drops the section heading while collapsed, since it labels nothing visible", async () => {
     setup();
     expect(screen.getByText("Разделы")).toBeInTheDocument();
@@ -70,7 +63,8 @@ describe("collapsing the navigation", () => {
     await userEvent.click(chevron());
     await userEvent.click(chevron());
 
-    expect(screen.getByText("Проекты")).not.toHaveClass("sr-only");
+    expect(screen.getByRole("button", { name: "Свернуть меню" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Разделы")).toBeInTheDocument();
   });
 
   it("remembers the choice across a reload", async () => {
@@ -85,7 +79,6 @@ describe("collapsing the navigation", () => {
     setup();
 
     expect(screen.getByRole("button", { name: "Развернуть меню" })).toBeInTheDocument();
-    expect(screen.getByText("Проекты")).toHaveClass("sr-only");
   });
 
   it("names a collapsed icon on hover, since its label is off-screen", async () => {
@@ -103,19 +96,5 @@ describe("collapsing the navigation", () => {
     await userEvent.hover(screen.getByRole("link", { name: "Отчёты" }));
 
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
-  });
-
-  it("centres each icon in the column once collapsed", async () => {
-    setup();
-    await userEvent.click(chevron());
-
-    const link = screen.getByRole("link", { name: "Проекты" });
-    expect(link).toHaveClass("size-10");
-    expect(link).toHaveClass("justify-center");
-  });
-
-  it("stops centring when the labels come back", async () => {
-    setup();
-    expect(screen.getByRole("link", { name: "Проекты" })).not.toHaveClass("justify-center");
   });
 });

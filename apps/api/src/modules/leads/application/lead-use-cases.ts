@@ -10,7 +10,12 @@ export function createLeadUseCases(d: {leads:LeadRepository; audit:AuditWriter; 
     if (!await d.leads.reaches(actor,board)) throw new AppError('not-found','Board not found');
     if (!can(actor,action,'lead')) throw new AppError('forbidden','Action not permitted');
   }
-  async function attribution(actor:ActorContext, board:string, before:{projectId:string|null;campaignId:string|null}, input:Partial<LeadFields>) {
+  async function attribution(actor:ActorContext, board:string, before:Pick<LeadRecord,'projectId'|'campaignId'|'origin'>, input:Partial<LeadFields>) {
+    if (before.origin==='META') {
+      const changes=(key:'projectId'|'campaignId')=>input[key]!==undefined&&input[key]!==before[key];
+      if (changes('projectId')||changes('campaignId')) throw new AppError('validation','An imported lead keeps the project and campaign it came from');
+      return {projectId:before.projectId,campaignId:before.campaignId};
+    }
     const projectId = input.projectId === undefined ? before.projectId : input.projectId;
     if (projectId && !await d.leads.reachesProject(actor,board,projectId)) {
       throw new AppError('not-found','Project not found');
@@ -44,7 +49,9 @@ export function createLeadUseCases(d: {leads:LeadRepository; audit:AuditWriter; 
     return result;
   }
   async function audit(context:TransactionContext,actor:ActorContext,row:LeadRecord,action:'CREATE'|'UPDATE'|'DELETE',changes:unknown) {
-    await d.audit.append(context,{action,entityType:'lead',entityId:row.id,clientId:row.clientId,summary:`${action} lead`,changes:JSON.parse(JSON.stringify(changes))},actor);
+    const withoutSource=(value:unknown)=>value&&typeof value==='object'&&'metaSource' in value?{...value,metaSource:undefined,ad:undefined}:value;
+    const trimmed=Object.fromEntries(Object.entries(changes as Record<string,unknown>).map(([key,value])=>[key,withoutSource(value)]));
+    await d.audit.append(context,{action,entityType:'lead',entityId:row.id,clientId:row.clientId,summary:`${action} lead`,changes:JSON.parse(JSON.stringify(trimmed))},actor);
   }
   return {
     async boards(actor:ActorContext) { return (await d.leads.boards(actor)).map(b=>({...b,capabilities:{create:can(actor,'create','lead'),update:can(actor,'update','lead'),delete:can(actor,'delete','lead')}})); },
@@ -53,7 +60,7 @@ export function createLeadUseCases(d: {leads:LeadRepository; audit:AuditWriter; 
     create(actor:ActorContext,board:string,input:LeadFields & {stage?:LeadStage}) {
       return mutation(actor,board,'create',async (context,rows)=> {
         const stage=input.stage ?? 'NEW';
-        const named=await attribution(actor,board,{projectId:null,campaignId:null},input);
+        const named=await attribution(actor,board,{projectId:null,campaignId:null,origin:'MANUAL'},input);
         const row=await d.leads.create(context,{...input,...named,id:d.ids.generate(),orgId:actor.orgId,clientId:board==='agency'?null:board,stage,position:rows.filter(l=>l.stage===stage).length});
         await audit(context,actor,row,'CREATE',{after:row}); return row;
       });

@@ -119,7 +119,11 @@ function Name({
   return (
     <TableHead
       scope="row"
-      className="sticky left-0 z-10 overflow-hidden bg-background font-normal"
+      className={cn(
+        "sticky left-0 z-10 overflow-hidden bg-background font-normal transition-colors",
+        "group-hover:bg-[color-mix(in_oklab,var(--muted)_50%,var(--background))]",
+        "group-has-[[aria-expanded=true]]:bg-[color-mix(in_oklab,var(--muted)_50%,var(--background))]",
+      )}
       style={{
         paddingLeft: depth === 0 ? undefined : `${depth * 1.5 + 0.75}rem`,
       }}
@@ -200,7 +204,7 @@ export function PerformanceTable({
       <Fragment key={row.id}>
         <TableRow
           onClick={activate}
-          className={"cursor-pointer"}
+          className="group cursor-pointer"
           tabIndex={!showName && activate != null ? 0 : undefined}
           aria-label={!showName ? row.name : undefined}
           aria-expanded={!showName && expandable ? isOpen : undefined}

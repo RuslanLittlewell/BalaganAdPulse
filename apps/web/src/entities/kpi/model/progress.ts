@@ -53,7 +53,7 @@ export function targetForRange(metric: KpiMetric, target: number, range: { from:
   return total;
 }
 
-export type KpiState = "met" | "behind" | "unmeasured";
+export type KpiState = "exceeded" | "met" | "behind" | "unmeasured";
 
 export interface KpiProgress {
   actual: number | null;
@@ -66,8 +66,10 @@ export function kpiProgress(figures: KpiFigures, kpi: Pick<KpiInput, "metric" | 
   const target = targetForRange(kpi.metric, Number(kpi.target), range);
   const actual = figures[kpiMetricDefinition(kpi.metric).figure];
   if (actual === null) return { actual, target, percent: null, state: "unmeasured" };
-  if (isLowerBetter(kpi.metric)) {
-    return { actual, target, percent: actual === 0 ? null : (target / actual) * 100, state: actual <= target ? "met" : "behind" };
-  }
-  return { actual, target, percent: (actual / target) * 100, state: actual >= target ? "met" : "behind" };
+  const better = isLowerBetter(kpi.metric) ? target - actual : actual - target;
+  const state: KpiState = better > 0 ? "exceeded" : better === 0 ? "met" : "behind";
+  const percent = isLowerBetter(kpi.metric)
+    ? (actual === 0 ? null : (target / actual) * 100)
+    : (actual / target) * 100;
+  return { actual, target, percent, state };
 }

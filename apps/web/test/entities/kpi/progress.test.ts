@@ -46,9 +46,14 @@ describe("the target for a reporting period", () => {
 });
 
 describe("progress against a KPI", () => {
-  it("is met when a summable figure reaches its prorated target", () => {
+  it("is exceeded when a summable figure goes past its prorated target", () => {
     expect(kpiProgress(figures({ conversions: 45 }), { metric: "CONVERSIONS", target: "60.0000" }, { from: "2026-09-01", to: "2026-09-15" }))
-      .toEqual({ actual: 45, target: 30, percent: 150, state: "met" });
+      .toEqual({ actual: 45, target: 30, percent: 150, state: "exceeded" });
+  });
+
+  it("is met when a summable figure lands exactly on its target", () => {
+    expect(kpiProgress(figures({ conversions: 60 }), { metric: "CONVERSIONS", target: "60.0000" }, september))
+      .toMatchObject({ actual: 60, percent: 100, state: "met" });
   });
 
   it("is behind when it falls short", () => {
@@ -58,9 +63,12 @@ describe("progress against a KPI", () => {
   });
 
   it("compares lower-is-better ratios the other way round", () => {
-    const met = kpiProgress(figures({ cpa: 18 }), { metric: "CPA", target: "20.0000" }, september);
-    expect(met.state).toBe("met");
-    expect(met.percent).toBeCloseTo(111.111, 2);
+    const exceeded = kpiProgress(figures({ cpa: 18 }), { metric: "CPA", target: "20.0000" }, september);
+    expect(exceeded.state).toBe("exceeded");
+    expect(exceeded.percent).toBeCloseTo(111.111, 2);
+
+    expect(kpiProgress(figures({ cpa: 20 }), { metric: "CPA", target: "20.0000" }, september))
+      .toEqual({ actual: 20, target: 20, percent: 100, state: "met" });
 
     const behind = kpiProgress(figures({ cpa: 25 }), { metric: "CPA", target: "20.0000" }, september);
     expect(behind).toEqual({ actual: 25, target: 20, percent: 80, state: "behind" });
@@ -71,9 +79,9 @@ describe("progress against a KPI", () => {
       .toEqual({ actual: null, target: 20, percent: null, state: "unmeasured" });
   });
 
-  it("is met without a percentage when a lower-is-better figure is zero", () => {
+  it("is exceeded without a percentage when a lower-is-better figure is zero", () => {
     expect(kpiProgress(figures({ cpc: 0 }), { metric: "CPC", target: "1.5000" }, september))
-      .toEqual({ actual: 0, target: 1.5, percent: null, state: "met" });
+      .toEqual({ actual: 0, target: 1.5, percent: null, state: "exceeded" });
   });
 
   it("is behind at zero for a summable figure", () => {

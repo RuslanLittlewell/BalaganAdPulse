@@ -6,6 +6,7 @@ A member configures the period summary on a project page and then opens one of i
 
 - The campaign page shows the tiles the member chose for the project page, with the campaign's own figures and KPI.
 - The campaign page no longer offers the placeholder or the tile dialog; tiles are chosen on the project page.
+- The KPI tile on a campaign page shows the project's KPI against the campaign's figures, read-only; the campaign page no longer offers setting a campaign KPI.
 - **BREAKING** A campaign page tile choice saved earlier is no longer read.
 
 ## Capabilities

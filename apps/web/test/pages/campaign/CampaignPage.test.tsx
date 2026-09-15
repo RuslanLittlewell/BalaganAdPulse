@@ -110,21 +110,37 @@ describe("CampaignPage", () => {
     expect(await within(summary).findByText(/^CPL 20,00\sBr$/)).toBeInTheDocument();
   });
 
-  it("shows the tiles chosen on the project page, with the campaign's KPI, and nothing to configure", async () => {
+  it("shows the tiles chosen on the project page and nothing to configure", async () => {
     api();
-    let asked = "";
-    server.use(mock.get("/api/campaigns/:campaignId/kpi", ({ params }) => {
-      asked = String(params.campaignId);
-      return HttpResponse.json({ metric: "CONVERSIONS", target: "100.0000", updatedAt: "2026-09-14T10:00:00.000Z" });
-    }));
+    server.use(mock.get("/api/projects/:projectId/kpi", () => HttpResponse.json(null)));
     useSummaryTiles.setState({ layouts: { "user-1": { project: ["clicks", "conversions", "kpi"], campaign: ["spend"] } as never } });
     renderWithProviders(<App />, route);
 
     const summary = await screen.findByRole("group", { name: "Показатели за период" });
     await waitFor(() => expect(within(summary).getAllByTestId("summary-tile").map((tile) => tile.getAttribute("data-tile")))
       .toEqual(["clicks", "conversions", "kpi"]));
-    await waitFor(() => expect(asked).toBe("c1"));
     expect(screen.queryByRole("button", { name: "Настроить показатели" })).not.toBeInTheDocument();
+  });
+
+  it("shows the project's KPI against the campaign's figures, with nothing to change it", async () => {
+    api();
+    let campaignKpiAsked = false;
+    server.use(
+      mock.get("/api/projects/p1/kpi", () =>
+        HttpResponse.json({ metric: "CONVERSIONS", target: "60.0000", updatedAt: "2026-09-14T10:00:00.000Z" })),
+      mock.get("/api/campaigns/:campaignId/kpi", () => {
+        campaignKpiAsked = true;
+        return HttpResponse.json(null);
+      }),
+    );
+    useSummaryTiles.setState({ layouts: { "user-1": { project: ["kpi"] } } });
+    renderWithProviders(<App />, { route: "/projects/p1/campaigns/c1?from=2026-09-01&to=2026-09-30" });
+
+    const tile = await screen.findByTestId("kpi-tile");
+    await waitFor(() => expect(tile).toHaveTextContent("KPI · Лиды"));
+    expect(tile).toHaveTextContent("Цель 60 · 83%");
+    expect(within(tile).queryByRole("button")).not.toBeInTheDocument();
+    expect(campaignKpiAsked).toBe(false);
   });
 
   it("draws the measured days", async () => {

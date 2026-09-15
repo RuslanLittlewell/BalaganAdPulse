@@ -24,7 +24,6 @@ import {
 import { useTasks, type Task } from "@/entities/task/index.js";
 import { PeriodControl, usePeriod } from "@/features/period/index.js";
 import { TaskPreviewDialog } from "@/features/task-management/index.js";
-import { useCan } from "@/features/permissions/index.js";
 import { TaskList } from "@/widgets/task-list/index.js";
 import { PerformanceSummary } from "@/widgets/agency-overview/index.js";
 import { DailyChart } from "@/widgets/campaign-overview/index.js";
@@ -65,7 +64,6 @@ export function CampaignPage() {
   } | null>(null);
   const tasks = useTasks({ campaignId, enabled: campaignId != null });
   const adsBySet = useAdsOfOpenSets(openSets, range);
-  const editsCampaignKpi = useCan("update", "kpi");
 
   if (campaign.isError)
     return <EmptyState title={t("campaign.notFound.title")} />;
@@ -132,7 +130,7 @@ export function CampaignPage() {
         range={range}
         performance={campaign.data?.performance}
         currency={currency}
-        kpi={campaignId ? { scope: { kind: "campaign", id: campaignId }, canEdit: editsCampaignKpi } : undefined}
+        kpi={projectId ? { scope: { kind: "project", id: projectId }, canEdit: false } : undefined}
       />
 
       <DailyChart days={days.data ?? []} currency={currency} />

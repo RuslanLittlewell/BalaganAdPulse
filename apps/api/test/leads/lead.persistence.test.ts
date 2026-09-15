@@ -11,8 +11,8 @@ beforeEach(resetDb);
 afterAll(() => prisma.$disconnect());
 const repository = new PrismaLeadRepository(prisma, new PrismaUnitOfWork(prisma));
 
-it('defines the eight fixed stages in presentation order', () => {
-  expect(LEAD_STAGES).toEqual(['NEW','CONTACTED','QUALIFIED','PROPOSAL','NEGOTIATION','WON','LOST','DEFERRED']);
+it('defines the four fixed stages in presentation order', () => {
+  expect(LEAD_STAGES).toEqual(['NEW','QUALIFIED','TARGET','PROPOSAL']);
 });
 it.each(ROLES)('resolves %s boards and verbs independently of task access', async role => {
   const member = await signInAs(role, {role});

@@ -1,8 +1,4 @@
-import { LEAD_STAGES, type Lead, type LeadMove, type LeadStage } from "../api/api.js";
-
-function isStage(value: string): value is LeadStage {
-  return (LEAD_STAGES as readonly string[]).includes(value);
-}
+import { LEAD_STAGES, type Lead, type LeadMove } from "../api/api.js";
 
 export function applyLeadMove(board: Lead[], id: string, move: LeadMove): Lead[] {
   const moved = board.find((lead) => lead.id === id);
@@ -18,7 +14,7 @@ export function applyLeadMove(board: Lead[], id: string, move: LeadMove): Lead[]
   const at = Math.max(0, Math.min(move.position, target.length));
   const placed = [...target.slice(0, at), { ...moved, stage: move.stage }, ...target.slice(at)];
 
-  const placements = new Map<string, { stage: LeadStage; position: number }>();
+  const placements = new Map<string, { stage: string; position: number }>();
   source.forEach((lead, index) => placements.set(lead.id, { stage: moved.stage, position: index }));
   placed.forEach((lead, index) => placements.set(lead.id, { stage: move.stage, position: index }));
 
@@ -33,14 +29,19 @@ export function applyLeadMove(board: Lead[], id: string, move: LeadMove): Lead[]
   return changed ? next : board;
 }
 
-export function leadPlacementFor(board: Lead[], activeId: string, overId: string): LeadMove | null {
+export function leadPlacementFor(
+  board: Lead[],
+  activeId: string,
+  overId: string,
+  stages: readonly string[] = LEAD_STAGES,
+): LeadMove | null {
   const active = board.find((lead) => lead.id === activeId);
   if (!active) return null;
 
-  const stageOf = (stage: LeadStage) =>
+  const stageOf = (stage: string) =>
     board.filter((lead) => lead.stage === stage).sort((a, b) => a.position - b.position);
 
-  if (isStage(overId)) {
+  if (stages.includes(overId)) {
     return { stage: overId, position: stageOf(overId).filter((lead) => lead.id !== activeId).length };
   }
 
@@ -51,11 +52,16 @@ export function leadPlacementFor(board: Lead[], activeId: string, overId: string
   return { stage: over.stage, position: index < 0 ? stageOf(over.stage).length : index };
 }
 
-export function leadPreviewFor(board: Lead[], activeId: string, overId: string): Lead[] {
+export function leadPreviewFor(
+  board: Lead[],
+  activeId: string,
+  overId: string,
+  stages: readonly string[] = LEAD_STAGES,
+): Lead[] {
   const active = board.find((lead) => lead.id === activeId);
   if (!active) return board;
 
-  const placement = leadPlacementFor(board, activeId, overId);
+  const placement = leadPlacementFor(board, activeId, overId, stages);
   if (!placement || placement.stage === active.stage) return board;
 
   return applyLeadMove(board, activeId, placement);
@@ -66,6 +72,7 @@ export function resolveLeadDrop(
   preview: Lead[] | null,
   activeId: string,
   overId: string | null,
+  stages: readonly string[] = LEAD_STAGES,
 ): LeadMove | null {
   const original = server.find((lead) => lead.id === activeId);
   if (!original) return null;
@@ -76,7 +83,7 @@ export function resolveLeadDrop(
   }
 
   if (!overId) return null;
-  const placement = leadPlacementFor(server, activeId, overId);
+  const placement = leadPlacementFor(server, activeId, overId, stages);
   if (!placement) return null;
   if (placement.stage === original.stage && placement.position === original.position) return null;
   return placement;

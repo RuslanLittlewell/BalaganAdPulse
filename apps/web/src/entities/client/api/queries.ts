@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { clientsApi, type ClientInput } from "./api.js";
+import { clientsApi, type Client, type ClientInput } from "./api.js";
 
 const CLIENTS_KEY = ["clients"] as const;
 
@@ -11,7 +11,11 @@ export function useCreateClient() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: ClientInput) => clientsApi.create(body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: CLIENTS_KEY }),
+    onSuccess: (created) => {
+      qc.setQueryData<Client[]>(CLIENTS_KEY, (list) =>
+        list && !list.some((client) => client.id === created.id) ? [...list, created] : list);
+      return qc.invalidateQueries({ queryKey: CLIENTS_KEY });
+    },
   });
 }
 

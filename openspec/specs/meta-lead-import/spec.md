@@ -111,7 +111,7 @@ The lead SHALL be linked to the project's campaign and ad whose Meta identifiers
 - **THEN** the lead stays, its campaign link is released and the recorded Meta names still show where it came from
 
 ### Requirement: Lead import status is visible and separate
-The connection read SHALL expose the lead import state, the time of the last successful lead poll and a safe failure reason, and the project's Meta integration panel SHALL present them in Russian. A refusal caused by missing lead permissions or Leads Access Manager restrictions SHALL mark only lead import as needing access, explain which access is required, and SHALL NOT change the advertising import status or request a new token. Such a connection SHALL be retried at least hourly and SHALL recover without member action once access is granted. A credential Meta rejects as invalid or expired SHALL follow the existing credential replacement flow. Transient failures SHALL be retried at the next poll.
+The connection read SHALL expose the lead import state, the time of the last successful lead poll and a safe failure reason. The project's Meta integration panel SHALL show the time of the last successful lead poll in Russian, and SHALL explain lead import in Russian only while it needs access or its last poll failed; it SHALL NOT show the lead import state otherwise. A refusal caused by missing lead permissions or Leads Access Manager restrictions SHALL mark only lead import as needing access, explain which access is required, and SHALL NOT change the advertising import status or request a new token. Such a connection SHALL be retried at least hourly and SHALL recover without member action once access is granted. A credential Meta rejects as invalid or expired SHALL follow the existing credential replacement flow. Transient failures SHALL be retried at the next poll.
 
 #### Scenario: Token lacks lead permission
 - **WHEN** the saved token can read advertising but not leads
@@ -124,6 +124,14 @@ The connection read SHALL expose the lead import state, the time of the last suc
 #### Scenario: Restricted reader
 - **WHEN** a member without project update permission reads the project
 - **THEN** no lead import status or failure reason is exposed to them
+
+#### Scenario: Healthy lead import
+- **WHEN** lead polls succeed
+- **THEN** the panel shows only the time of the last successful lead poll, which moves forward with each poll, and no lead import state
+
+#### Scenario: Before the first lead poll
+- **WHEN** a connection has not completed a lead poll yet and nothing has failed
+- **THEN** the panel shows nothing about lead import
 
 ### Requirement: Disconnecting stops lead polling without removing leads
 Disconnecting a project SHALL stop lead polling and keep every imported lead, its answers and its recorded source. A poll in flight when the connection is disconnected or its credential replaced SHALL NOT create leads or advance the covered period.

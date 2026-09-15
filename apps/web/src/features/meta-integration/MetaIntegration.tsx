@@ -56,7 +56,7 @@ const failureText = (code: unknown) => {
 };
 
 export function MetaIntegration({ projectId }: { projectId: string }) {
-  const allowed = useCan("update", "project");
+  const allowed = useCan("update", "integration");
   const queryClient = useQueryClient();
   const path = `/projects/${projectId}/integrations/meta`;
   const queryKey = ["meta-integration", projectId];

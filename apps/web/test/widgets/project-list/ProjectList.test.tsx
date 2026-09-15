@@ -229,3 +229,29 @@ describe("ProjectList", () => {
     await waitFor(() => expect(sent).toEqual({ priority: "URGENT" }));
   });
 });
+
+describe("a customer's project list", () => {
+  const asCustomer = (role = "CLIENT", clientIds = ["1"]) => {
+    server.use(mock.get("/api/auth/me", () => HttpResponse.json({
+      user: { id: "user-9", name: "Клиент", email: "client@acme.com", image: null },
+      organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
+      role,
+      clientIds,
+    })));
+  };
+
+  it("offers the create control and the edit action but no priority menu", async () => {
+    asCustomer();
+    server.use(
+      mock.get("/api/clients", () => HttpResponse.json([aClient({ id: "1", name: "Acme" })])),
+      mock.get("/api/projects", () => HttpResponse.json([aProject({ clientId: "1", name: "Летний запуск" })])),
+    );
+    setup();
+
+    expect(await screen.findByRole("button", { name: "Новый проект" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Редактировать: Летний запуск" })).toBeInTheDocument();
+    fireEvent.contextMenu(screen.getByText("Летний запуск"));
+    expect(await screen.findByRole("menuitem", { name: "Закрепить" })).toBeInTheDocument();
+    expect(screen.queryAllByRole("menuitemradio")).toEqual([]);
+  });
+});

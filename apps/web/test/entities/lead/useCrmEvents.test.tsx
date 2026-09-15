@@ -1,6 +1,6 @@
 import { renderHook, act } from "@testing-library/react";
 import { hookWrapper } from "@test/shared/index.js";
-import { CRM_EVENTS_BASE_DELAY_MS, leadsKey, useCrmEvents } from "@/entities/lead/index.js";
+import { CRM_EVENTS_BASE_DELAY_MS, leadColumnsKey, leadsKey, useCrmEvents } from "@/entities/lead/index.js";
 
 class FakeSocket {
   static opened: FakeSocket[] = [];
@@ -43,6 +43,16 @@ describe("useCrmEvents", () => {
     socket().deliver(changed("agency"));
 
     expect(invalidate).toHaveBeenCalledWith({ queryKey: leadsKey("agency") });
+  });
+
+  it("refetches the columns of the open board too, so a column another member added appears", () => {
+    const { invalidate, socket } = setup("agency");
+    socket().ready();
+    invalidate.mockClear();
+
+    socket().deliver(changed("agency"));
+
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: leadColumnsKey("agency") });
   });
 
   it("ignores a change on a board the member is not looking at", () => {

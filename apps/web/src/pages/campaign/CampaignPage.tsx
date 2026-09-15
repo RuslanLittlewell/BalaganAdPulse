@@ -65,7 +65,7 @@ export function CampaignPage() {
   } | null>(null);
   const tasks = useTasks({ campaignId, enabled: campaignId != null });
   const adsBySet = useAdsOfOpenSets(openSets, range);
-  const editsCampaignKpi = useCan("update", "campaign");
+  const editsCampaignKpi = useCan("update", "kpi");
 
   if (campaign.isError)
     return <EmptyState title={t("campaign.notFound.title")} />;
@@ -127,7 +127,8 @@ export function CampaignPage() {
       </header>
 
       <PerformanceSummary
-        screen="campaign"
+        screen="project"
+        configurable={false}
         range={range}
         performance={campaign.data?.performance}
         currency={currency}

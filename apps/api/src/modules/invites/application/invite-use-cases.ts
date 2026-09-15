@@ -174,9 +174,7 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
         const membershipId = await dependencies.memberships.enrol(context, {
           userId, orgId: invite.orgId, role: "CLIENT",
         });
-        await dependencies.projectAccess.grant(
-          context, membershipId, await dependencies.clientProjects.projectIdsOf(invite.clientId),
-        );
+        await dependencies.projectAccess.grantClient(context, membershipId, invite.clientId);
         const spent = await dependencies.invites.claim(context, invite.id, userId, now);
         if (!spent) throw new AppError("forbidden", INVALID_INVITE);
         return;
@@ -189,13 +187,13 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
         const clientId = await dependencies.clientDirectory.create(context, {
           ...details.client, orgId: invite.orgId,
         });
-        const projectId = await dependencies.projectDirectory.create(context, {
+        await dependencies.projectDirectory.create(context, {
           ...details.project, clientId,
         });
         const membershipId = await dependencies.memberships.enrol(context, {
-          userId, orgId: invite.orgId, role: "CLIENT",
+          userId, orgId: invite.orgId, role: "CLIENT_ADMIN",
         });
-        await dependencies.projectAccess.grant(context, membershipId, [projectId]);
+        await dependencies.projectAccess.grantClient(context, membershipId, clientId);
         const spent = await dependencies.invites.claim(context, invite.id, userId, now);
         if (!spent) throw new AppError("forbidden", INVALID_INVITE);
         return;

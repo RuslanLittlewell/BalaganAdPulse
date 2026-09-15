@@ -26,7 +26,7 @@ export function createKpiUseCases(d: { kpis: KpiRepository; reach: KpiReach; aud
 
   async function change(actor: ActorContext, level: KpiLevel, next: KpiInput | null) {
     const owner = await ownerOf(actor, level);
-    if (owner.entityType !== 'organization' && !can(actor, 'update', owner.entityType)) {
+    if (owner.entityType !== 'organization' && !can(actor, 'update', 'kpi')) {
       throw new AppError('forbidden', `Your role may not change a ${owner.entityType} KPI`);
     }
     const kpi = next && { metric: next.metric, target: normalizeTarget(next.target), updatedAt: d.clock.now() };

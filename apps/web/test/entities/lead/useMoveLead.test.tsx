@@ -7,6 +7,7 @@ import { leadsKey, useMoveLead, type Lead } from "@/entities/lead/index.js";
 const lead = (id: string, stage: Lead["stage"], position: number): Lead => ({
   id, orgId: "org-1", clientId: null, name: id, company: null, phone: null, email: null,
   website: null, source: null, notes: null, projectId: null, campaignId: null, adId: null,
+  assigneeId: null, project: null, assignee: null,
   origin: "MANUAL", ad: null, metaSource: null, stage, position,
   createdAt: "2026-09-05T00:00:00.000Z", updatedAt: "2026-09-05T00:00:00.000Z",
 });
@@ -21,16 +22,16 @@ describe("useMoveLead", () => {
   it("shows the move before the API answers, then keeps what the API sends back", async () => {
     server.use(mock.patch("/api/crm/boards/agency/leads/a/move", async () => {
       await delay(60);
-      return HttpResponse.json([lead("b", "NEW", 0), lead("a", "WON", 0)]);
+      return HttpResponse.json([lead("b", "NEW", 0), lead("a", "PROPOSAL", 0)]);
     }));
     const wrapper = hookWrapper();
     wrapper.client.setQueryData(leadsKey("agency"), board);
 
     const { result } = renderHook(() => useMoveLead("agency"), { wrapper });
-    result.current.mutate({ id: "a", body: { stage: "WON", position: 0 } });
+    result.current.mutate({ id: "a", body: { stage: "PROPOSAL", position: 0 } });
 
     await waitFor(() =>
-      expect(order(wrapper.client.getQueryData<Lead[]>(leadsKey("agency")), "WON")).toEqual(["a"]));
+      expect(order(wrapper.client.getQueryData<Lead[]>(leadsKey("agency")), "PROPOSAL")).toEqual(["a"]));
     expect(result.current.isPending).toBe(true);
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(order(wrapper.client.getQueryData<Lead[]>(leadsKey("agency")), "NEW")).toEqual(["b"]);
@@ -46,23 +47,23 @@ describe("useMoveLead", () => {
     wrapper.client.setQueryData(leadsKey("agency"), board);
 
     const { result } = renderHook(() => useMoveLead("agency"), { wrapper });
-    result.current.mutate({ id: "a", body: { stage: "WON", position: 0 } });
+    result.current.mutate({ id: "a", body: { stage: "PROPOSAL", position: 0 } });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     await waitFor(() =>
       expect(order(wrapper.client.getQueryData<Lead[]>(leadsKey("agency")), "NEW")).toEqual(["a", "b"]));
-    expect(order(wrapper.client.getQueryData<Lead[]>(leadsKey("agency")), "WON")).toEqual([]);
+    expect(order(wrapper.client.getQueryData<Lead[]>(leadsKey("agency")), "PROPOSAL")).toEqual([]);
   });
 
   it("leaves another board's cache alone", async () => {
     server.use(mock.patch("/api/crm/boards/agency/leads/a/move", () =>
-      HttpResponse.json([lead("a", "WON", 0), lead("b", "NEW", 0)])));
+      HttpResponse.json([lead("a", "PROPOSAL", 0), lead("b", "NEW", 0)])));
     const wrapper = hookWrapper();
     wrapper.client.setQueryData(leadsKey("agency"), board);
     wrapper.client.setQueryData(leadsKey("client-1"), [lead("z", "NEW", 0)]);
 
     const { result } = renderHook(() => useMoveLead("agency"), { wrapper });
-    result.current.mutate({ id: "a", body: { stage: "WON", position: 0 } });
+    result.current.mutate({ id: "a", body: { stage: "PROPOSAL", position: 0 } });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(order(wrapper.client.getQueryData<Lead[]>(leadsKey("client-1")), "NEW")).toEqual(["z"]);

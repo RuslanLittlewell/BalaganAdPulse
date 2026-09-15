@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { PlusIcon } from "lucide-react";
 import {
   ApiError, CURRENCY_SIGNS, isPartialDecimal, toSquarePng, type Currency,
 } from "@/shared/lib/index.js";
@@ -31,7 +32,10 @@ import {
   type Project,
   type ProjectInput,
 } from "@/entities/project/index.js";
+import { isCustomer } from "@adpulse/access-policy";
+import { useAuth } from "@/features/auth/index.js";
 import { Can } from "@/features/permissions/index.js";
+import { ClientFormDialog } from "@/features/client-management/index.js";
 
 const UPLOADED = JSON.stringify({ source: "upload" });
 
@@ -72,6 +76,8 @@ export function ProjectFormDialog({
 }: ProjectFormDialogProps) {
   const isEdit = project != null;
   const clients = useClients();
+  const { role, clientIds } = useAuth();
+  const ownClientId = role != null && isCustomer(role) ? clientIds[0] : undefined;
   const create = useCreateProject();
   const update = useUpdateProject();
   const saveAvatar = useSaveProjectAvatar();
@@ -80,22 +86,35 @@ export function ProjectFormDialog({
   const fileRef = useRef<HTMLInputElement>(null);
   const [logo, setLogo] = useState<File | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
+  const [creatingClient, setCreatingClient] = useState(false);
+  const [createdClientId, setCreatedClientId] = useState<string | null>(null);
 
   const {
     register,
     control,
     handleSubmit,
     setError,
+    setValue,
     formState: { errors },
   } = useForm<Fields>({
     defaultValues: {
-      clientId: project?.clientId ?? clientId ?? "",
+      clientId: project?.clientId ?? clientId ?? ownClientId ?? "",
       name: project?.name ?? "",
       niche: project?.niche ?? "",
       monthlyBudget: project?.monthlyBudget ?? "",
       budgetCurrency: project?.budgetCurrency ?? DEFAULT_CURRENCY,
     },
   });
+
+  useEffect(() => {
+    if (ownClientId != null && !isEdit) setValue("clientId", ownClientId);
+  }, [ownClientId, isEdit, setValue]);
+
+  useEffect(() => {
+    if (createdClientId == null || !clients.data?.some((client) => client.id === createdClientId)) return;
+    setValue("clientId", createdClientId, { shouldValidate: true });
+    setCreatedClientId(null);
+  }, [createdClientId, clients.data, setValue]);
 
   const submit = handleSubmit(async (fields) => {
     setFailure(null);
@@ -150,25 +169,41 @@ export function ProjectFormDialog({
             <Label htmlFor="project-client" className="text-xs text-muted-foreground">
               {t("project.client.label")}
             </Label>
-            <Controller
-              control={control}
-              name="clientId"
-              rules={{ required: t("project.client.required") }}
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="project-client" className="w-full">
-                    <SelectValue placeholder={t("project.client.label")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(clients.data ?? []).map((client) => (
-                      <SelectItem key={client.id} value={client.id}>
-                        {client.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
+            <div className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <Controller
+                  control={control}
+                  name="clientId"
+                  rules={{ required: t("project.client.required") }}
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange} disabled={ownClientId != null}>
+                      <SelectTrigger id="project-client" className="w-full">
+                        <SelectValue placeholder={t("project.client.label")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(clients.data ?? []).map((client) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+              <Can action="create" resource="client">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  aria-label={t("clients.new")}
+                  onClick={() => setCreatingClient(true)}
+                >
+                  <PlusIcon aria-hidden="true" />
+                </Button>
+              </Can>
+            </div>
             {errors.clientId != null && (
               <p className="text-xs text-destructive">{errors.clientId.message}</p>
             )}
@@ -275,6 +310,13 @@ export function ProjectFormDialog({
           </DialogFooter>
         </form>
       </DialogContent>
+
+      {creatingClient && (
+        <ClientFormDialog
+          onClose={() => setCreatingClient(false)}
+          onCreated={(client) => setCreatedClientId(client.id)}
+        />
+      )}
 
       {isEdit && (
         <ConfirmDialog

@@ -48,10 +48,6 @@ export interface InvitationClientReach {
   isReachable(actor: ActorContext, clientId: string): Promise<boolean>;
 }
 
-export interface InvitationClientProjects {
-  projectIdsOf(clientId: string): Promise<string[]>;
-}
-
 export interface InvitationProjectReach {
   allBelongToOrg(orgId: string, projectIds: readonly string[]): Promise<boolean>;
 }
@@ -62,6 +58,7 @@ export interface InvitationProjectAccess {
     membershipId: string,
     projectIds: readonly string[],
   ): Promise<void>;
+  grantClient(context: TransactionContext, membershipId: string, clientId: string): Promise<void>;
 }
 
 export interface ClientRegistrationDetails {
@@ -102,7 +99,6 @@ export interface InviteDependencies {
   readonly memberships: MembershipEnrolment;
   readonly projects: InvitationProjectReach;
   readonly clients: InvitationClientReach;
-  readonly clientProjects: InvitationClientProjects;
   readonly projectAccess: InvitationProjectAccess;
   readonly clientDirectory: ClientDirectory;
   readonly projectDirectory: ProjectDirectory;

@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 
 export const SUMMARY_TILES = ["spend", "impressions", "clicks", "conversions", "cpc", "kpi"] as const;
 export type SummaryTile = (typeof SUMMARY_TILES)[number];
-export type SummaryScreen = "dashboard" | "project" | "campaign";
+export type SummaryScreen = "dashboard" | "project";
 
 export const MAX_SUMMARY_TILES = 5;
 export const DEFAULT_SUMMARY_TILES: readonly SummaryTile[] = ["conversions"];

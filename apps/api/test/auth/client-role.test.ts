@@ -51,13 +51,13 @@ describe("a client-role member", () => {
     expect(res.body.map((p: { id: string }) => p.id)).toEqual([ownProjectId]);
   });
 
-  it("is refused every write, even on the client they reach", async () => {
+  it("is refused editing the client and creating a project with a priority, even on the client they reach", async () => {
     const edit = await request(app).patch(`/api/clients/${ownClientId}`)
       .set(customer).send({ name: "Renamed" });
     expect(edit.status).toBe(403);
 
     const create = await request(app).post("/api/projects")
-      .set(customer).send({ clientId: ownClientId, name: "Mine" });
+      .set(customer).send({ clientId: ownClientId, name: "Mine", priority: "CRITICAL" });
     expect(create.status).toBe(403);
   });
 

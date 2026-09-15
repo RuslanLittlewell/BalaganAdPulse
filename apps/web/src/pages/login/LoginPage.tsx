@@ -51,7 +51,7 @@ export function LoginPage() {
           autoComplete="current-password"
           {...register("password")}
         />
-        <Button type="submit" disabled={isSubmitting} aria-busy={isSubmitting} aria-label={t("auth.login.submit")}>
+        <Button type="submit" className="h-11" disabled={isSubmitting} aria-busy={isSubmitting} aria-label={t("auth.login.submit")}>
           {isSubmitting ? (
             <span role="status">
               <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />

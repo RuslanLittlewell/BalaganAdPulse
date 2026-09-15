@@ -1,19 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useCampaignReferences } from "@/entities/campaign/index.js";
-import { useProjects } from "@/entities/project/index.js";
+import { ProjectAvatar, useProjects } from "@/entities/project/index.js";
+import { MemberAvatar, useClientMembers } from "@/entities/membership/index.js";
 import {
   AGENCY_BOARD,
-  LEAD_STAGES,
+  FIXED_LEAD_COLUMNS,
+  leadColumnLabel,
   useCreateLead,
   useDeleteLead,
+  useLeadColumns,
   useMoveLead,
   useUpdateLead,
   type BoardCapabilities,
   type Lead,
   type LeadAd,
   type LeadInput,
-  type LeadStage,
 } from "@/entities/lead/index.js";
 import { t } from "@/shared/config/index.js";
 import { ApiError } from "@/shared/lib/index.js";
@@ -46,47 +48,33 @@ export interface LeadFormDialogProps {
 
 interface FormValues {
   name: string;
-  company: string;
-  phone: string;
-  email: string;
-  website: string;
-  source: string;
   notes: string;
   projectId: string;
   campaignId: string;
-  stage: LeadStage;
+  assigneeId: string;
+  stage: string;
 }
-
-const TEXT_FIELDS = ["company", "phone", "email", "website", "source"] as const;
 
 const NONE = "__none__";
 
 const valuesOf = (lead?: Lead): FormValues => ({
   name: lead?.name ?? "",
-  company: lead?.company ?? "",
-  phone: lead?.phone ?? "",
-  email: lead?.email ?? "",
-  website: lead?.website ?? "",
-  source: lead?.source ?? "",
   notes: lead?.notes ?? "",
   projectId: lead?.projectId ?? NONE,
   campaignId: lead?.campaignId ?? NONE,
+  assigneeId: lead?.assigneeId ?? NONE,
   stage: lead?.stage ?? "NEW",
 });
 
 const messageOf = (error: unknown) =>
   error instanceof ApiError && error.status < 500 ? error.message : t("crm.form.saveFailed");
 
-const bodyOf = (values: FormValues): LeadInput => ({
-  name: values.name.trim(),
-  company: values.company.trim() || null,
-  phone: values.phone.trim() || null,
-  email: values.email.trim() || null,
-  website: values.website.trim() || null,
-  source: values.source.trim() || null,
+const bodyOf = (values: FormValues, includeName = false): LeadInput => ({
+  ...(includeName ? { name: values.name.trim() } : {}),
   notes: values.notes.trim() || null,
   projectId: values.projectId === NONE ? null : values.projectId,
   campaignId: values.campaignId === NONE ? null : values.campaignId,
+  assigneeId: values.assigneeId === NONE ? null : values.assigneeId,
 });
 
 export function LeadFormDialog({ boardKey, capabilities, lead, onClose, onPreviewCreative }: LeadFormDialogProps) {
@@ -105,19 +93,27 @@ export function LeadFormDialog({ boardKey, capabilities, lead, onClose, onPrevie
   const projectId = watch("projectId");
 
   const { data: projects } = useProjects(boardKey === AGENCY_BOARD ? undefined : boardKey);
+  const selectedProject = projects?.find((project) => project.id === projectId);
+  const assigneeClientId = boardKey === AGENCY_BOARD
+    ? selectedProject?.clientId ?? lead?.project?.clientId
+    : boardKey;
+  const { data: clientMembers } = useClientMembers(assigneeClientId);
+  const assignees = clientMembers?.filter((member) => member.status === "ACTIVE") ?? [];
   const { data: campaigns } = useCampaignReferences(projectId === NONE ? undefined : projectId);
+  const { data: columns } = useLeadColumns(boardKey);
 
   const chosenProject = useRef(projectId);
   useEffect(() => {
     if (chosenProject.current === projectId) return;
     chosenProject.current = projectId;
     setValue("campaignId", NONE);
+    setValue("assigneeId", NONE);
   }, [projectId, setValue]);
 
   const onSubmit = handleSubmit(async (values) => {
     try {
       if (!lead) {
-        await create.mutateAsync({ ...bodyOf(values), stage: values.stage });
+        await create.mutateAsync({ ...bodyOf(values, true), stage: values.stage });
       } else {
         await update.mutateAsync({ id: lead.id, body: bodyOf(values) });
         if (values.stage !== lead.stage) {
@@ -145,12 +141,18 @@ export function LeadFormDialog({ boardKey, capabilities, lead, onClose, onPrevie
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent
         className={
-          "flex h-[min(760px,calc(100vh-2rem))] w-[min(600px,calc(100vw-2rem))] " +
-          "min-w-[min(600px,calc(100vw-2rem))] flex-col"
+          "flex h-[min(820px,calc(100vh-2rem))] w-[min(860px,calc(100vw-2rem))] " +
+          "min-w-[min(860px,calc(100vw-2rem))] flex-col"
         }
       >
         <DialogHeader className="shrink-0">
-          <DialogTitle>{lead ? t("crm.form.edit") : t("crm.create")}</DialogTitle>
+          <DialogTitle>{lead ? lead.name : t("crm.create")}</DialogTitle>
+          {lead?.project ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              {selectedProject ? <ProjectAvatar project={selectedProject} size="sm" /> : null}
+              <span>{lead.project.name}</span>
+            </div>
+          ) : null}
         </DialogHeader>
 
         <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col gap-4">
@@ -162,25 +164,16 @@ export function LeadFormDialog({ boardKey, capabilities, lead, onClose, onPrevie
               />
             ) : null}
 
-            <TextField
-              label={t("crm.form.name")}
-              error={errors.name?.message}
-              disabled={!editable}
-              {...register("name", { required: t("crm.form.nameRequired") })}
-            />
+            {!lead ? (
+              <TextField
+                label={t("crm.form.name")}
+                error={errors.name?.message}
+                disabled={!editable}
+                {...register("name", { required: t("crm.form.nameRequired") })}
+              />
+            ) : null}
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              {TEXT_FIELDS.map((field) => (
-                <TextField
-                  key={field}
-                  label={t(`crm.form.${field}`)}
-                  disabled={!editable}
-                  {...register(field)}
-                />
-              ))}
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
               <div className="flex min-w-0 flex-col gap-2">
                 <Label htmlFor="lead-project">{t("crm.form.project")}</Label>
                 <Controller
@@ -192,7 +185,12 @@ export function LeadFormDialog({ boardKey, capabilities, lead, onClose, onPrevie
                       <SelectContent>
                         <SelectItem value={NONE}>{t("crm.form.noProject")}</SelectItem>
                         {(projects ?? []).map((project) => (
-                          <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+                          <SelectItem key={project.id} value={project.id}>
+                            <span className="flex min-w-0 items-center gap-2">
+                              <ProjectAvatar project={project} size="sm" />
+                              <span className="truncate">{project.name}</span>
+                            </span>
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -224,22 +222,48 @@ export function LeadFormDialog({ boardKey, capabilities, lead, onClose, onPrevie
               </div>
             </div>
 
-            <div className="flex min-w-0 flex-col gap-2">
-              <Label htmlFor="lead-stage">{t("crm.form.stage")}</Label>
-              <Controller
-                control={control}
-                name="stage"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange} disabled={!editable}>
-                    <SelectTrigger id="lead-stage" className="w-full"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {LEAD_STAGES.map((option) => (
-                        <SelectItem key={option} value={option}>{t(`crm.stage.${option}`)}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
+            <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
+              <div className="flex min-w-0 flex-col gap-2">
+                <Label htmlFor="lead-stage">{t("crm.form.stage")}</Label>
+                <Controller
+                  control={control}
+                  name="stage"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange} disabled={!editable}>
+                      <SelectTrigger id="lead-stage" className="w-full"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {(columns ?? FIXED_LEAD_COLUMNS).map((option) => (
+                          <SelectItem key={option.id} value={option.id}>{leadColumnLabel(option)}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+
+              <div className="flex min-w-0 flex-col gap-2">
+                <Label htmlFor="lead-assignee">{t("crm.form.assignee")}</Label>
+                <Controller
+                  control={control}
+                  name="assigneeId"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange} disabled={!editable || !assigneeClientId}>
+                      <SelectTrigger id="lead-assignee" className="w-full"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE}>{t("crm.form.unassigned")}</SelectItem>
+                        {assignees.map((member) => (
+                          <SelectItem key={member.id} value={member.id}>
+                            <span className="flex min-w-0 items-center gap-2">
+                              <MemberAvatar member={member} size="sm" />
+                              <span className="truncate">{member.name}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col gap-2">

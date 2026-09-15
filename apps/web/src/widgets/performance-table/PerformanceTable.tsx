@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/shared/ui/index.js";
 import { cn } from "@/shared/lib/utils.js";
-import type { Currency } from "@/shared/lib/index.js";
+import { formatCount, type Currency } from "@/shared/lib/index.js";
 import {
   METRIC_COLUMNS,
   type Performance,
@@ -35,6 +35,12 @@ export interface PerformanceRow {
   currency?: Currency;
   children?: PerformanceRow[];
   expandable?: boolean;
+  extra?: Record<string, number>;
+}
+
+export interface ExtraColumn {
+  id: string;
+  label: string;
 }
 
 export interface PerformanceTableProps {
@@ -46,16 +52,23 @@ export interface PerformanceTableProps {
   onOpen?: (id: string) => void;
   onExpandedChange?: (ids: ReadonlySet<string>) => void;
   empty?: string;
+  extraColumns?: readonly ExtraColumn[];
 }
+
+const NO_EXTRA_COLUMNS: readonly ExtraColumn[] = [];
 
 function Figures({
   performance,
   currency,
   columns,
+  extraColumns,
+  extra,
 }: {
   performance: Performance;
   currency: Currency;
   columns: typeof METRIC_COLUMNS;
+  extraColumns: readonly ExtraColumn[];
+  extra?: Record<string, number>;
 }) {
   return (
     <>
@@ -65,6 +78,14 @@ function Figures({
           className="text-right tabular-nums whitespace-nowrap last:pr-5"
         >
           {column.format(performance, currency)}
+        </TableCell>
+      ))}
+      {extraColumns.map((column) => (
+        <TableCell
+          key={column.id}
+          className="text-right tabular-nums whitespace-nowrap last:pr-5"
+        >
+          {extra == null ? null : formatCount(extra[column.id] ?? 0)}
         </TableCell>
       ))}
     </>
@@ -159,6 +180,7 @@ export function PerformanceTable({
   onOpen,
   onExpandedChange,
   empty,
+  extraColumns = NO_EXTRA_COLUMNS,
 }: PerformanceTableProps) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const savedWidth = useColumnWidths((state) => state.nameWidths?.[tableKey]);
@@ -170,10 +192,12 @@ export function PerformanceTable({
   const resize = useRef<{ x: number; width: number } | null>(null);
   const savedColumns = useColumnWidths((state) => state.visibleColumns?.[tableKey]);
   const toggleColumn = useColumnWidths((state) => state.toggleColumn);
-  const visibleIds = visibleColumnIds(savedColumns, tableKey);
+  const extraIds = extraColumns.map((column) => column.id);
+  const visibleIds = visibleColumnIds(savedColumns, tableKey, extraIds);
   const showName = visibleIds.includes("name");
   const columns = METRIC_COLUMNS.filter((column) => visibleIds.includes(column.id));
-  const choices = [{ id: "name", label: heading }, ...METRIC_COLUMNS]
+  const extras = extraColumns.filter((column) => visibleIds.includes(column.id));
+  const choices = [{ id: "name", label: heading }, ...METRIC_COLUMNS, ...extraColumns]
     .filter((column) => !isRequiredColumn(tableKey, column.id));
 
   const toggle = (id: string) => {
@@ -221,7 +245,13 @@ export function PerformanceTable({
             expanded={expandable ? isOpen : undefined}
             onActivate={activate}
           />}
-          <Figures columns={columns} performance={row.performance} currency={row.currency ?? currency} />
+          <Figures
+            columns={columns}
+            extraColumns={extras}
+            extra={row.extra ?? {}}
+            performance={row.performance}
+            currency={row.currency ?? currency}
+          />
           <TableCell aria-hidden />
         </TableRow>
         {isOpen &&
@@ -234,11 +264,11 @@ export function PerformanceTable({
     <div className="min-h-0 overflow-auto rounded-lg border border-border">
       <Table
         className="table-fixed text-sm"
-        style={{ width: (showName ? nameWidth : 0) + columns.length * 128 + 40, minWidth: "100%" }}
+        style={{ width: (showName ? nameWidth : 0) + (columns.length + extras.length) * 128 + 40, minWidth: "100%" }}
       >
         <colgroup>
           {showName && <col style={{ width: nameWidth }} />}
-          {columns.map((column) => <col key={column.id} />)}
+          {[...columns, ...extras].map((column) => <col key={column.id} />)}
           <col style={{ width: 40 }} />
         </colgroup>
         <TableHeader>
@@ -278,7 +308,7 @@ export function PerformanceTable({
                 }}
               />
             </TableHead>}
-            {columns.map((column) => (
+            {[...columns, ...extras].map((column) => (
               <TableHead
                 key={column.id}
                 scope="col"
@@ -303,7 +333,7 @@ export function PerformanceTable({
                       checked={visibleIds.includes(column.id)}
                       disabled={visibleIds.length <= MIN_VISIBLE_COLUMNS && visibleIds.includes(column.id)}
                       onSelect={(event) => event.preventDefault()}
-                      onCheckedChange={() => toggleColumn(tableKey, column.id)}
+                      onCheckedChange={() => toggleColumn(tableKey, column.id, extraIds)}
                     >
                       {column.label}
                     </DropdownMenuCheckboxItem>
@@ -323,7 +353,7 @@ export function PerformanceTable({
               >
                 {t("metric.total")}
               </TableHead>}
-              <Figures columns={columns} performance={totals} currency={currency} />
+              <Figures columns={columns} extraColumns={extras} performance={totals} currency={currency} />
               <TableCell aria-hidden />
             </TableRow>
           </TableFooter>

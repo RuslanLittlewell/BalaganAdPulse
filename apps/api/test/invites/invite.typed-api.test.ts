@@ -175,7 +175,12 @@ describe("inviting somebody to an existing client, over HTTP", () => {
     const user = await prisma.user.findFirstOrThrow({ where: { email: "maria@clinic.by" } });
     const membership = await prisma.membership.findFirstOrThrow({ where: { userId: user.id } });
     expect(membership.role).toBe("CLIENT");
-    const grants = await prisma.clientAccess.findMany({ where: { membershipId: membership.id } });
-    expect(grants.map((grant) => grant.projectId)).toEqual([project.id]);
+    expect(await prisma.clientAccess.findMany({ where: { membershipId: membership.id }, select: { clientId: true, projectId: true } }))
+      .toEqual([{ clientId: client.id, projectId: null }]);
+
+    const later = await prisma.project.create({ data: { clientId: client.id, name: "Ортодонтия", position: 1 } });
+    const auth = { Authorization: `Bearer ${registered.body.accessToken}` };
+    const names = (await request(app).get("/api/projects").set(auth)).body.map((row: { name: string }) => row.name);
+    expect(names.sort()).toEqual([project.name, later.name].sort());
   });
 });

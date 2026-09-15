@@ -85,6 +85,7 @@ export function CrmPage() {
           boardKey={board?.key}
           busy={isLoading || !user}
           draggable={board?.capabilities.update ?? false}
+          capabilities={board?.capabilities}
           onOpen={(lead) => setEditing({ lead })}
         />
       ) : (

@@ -27,4 +27,9 @@ export class PrismaInvitationProjectAccess implements InvitationProjectAccess {
       })),
     });
   }
+
+  async grantClient(context: TransactionContext, membershipId: string, clientId: string): Promise<void> {
+    const client = this.unitOfWork.clientFor<Prisma.TransactionClient>(context);
+    await client.clientAccess.create({ data: { membershipId, clientId, projectId: null } });
+  }
 }

@@ -205,15 +205,15 @@ describe("a client's principal reaches one client", () => {
       .toBe(404);
   });
 
-  it("writes nothing the agency owns", async () => {
+  it("writes none of the agency's own records", async () => {
     const { clientId, projectId } = await someoneElsesClient();
     const principal = await signInAs("Главный", { role: "CLIENT_ADMIN" });
     await grantAccess(principal.membership!.id, clientId);
 
     const refusals = await Promise.all([
       request(app).post("/api/clients").set(principal.auth).send({ name: "Своя" }),
-      request(app).post("/api/projects").set(principal.auth).send({ clientId, name: "Свой" }),
-      request(app).patch(`/api/projects/${projectId}`).set(principal.auth).send({ name: "Другое" }),
+      request(app).delete(`/api/projects/${projectId}`).set(principal.auth),
+      request(app).patch(`/api/projects/${projectId}`).set(principal.auth).send({ priority: "CRITICAL" }),
     ]);
 
     expect(refusals.map((response) => response.status)).toEqual([403, 403, 403]);

@@ -7,7 +7,13 @@ import { useProjects, type Project } from "@/entities/project/index.js";
 import {
   EMPTY_PERFORMANCE, campaignsApi, type DateRange, type MeasuredDay, type Performance,
 } from "@/entities/campaign/index.js";
-import { PerformanceTable, type PerformanceRow } from "@/widgets/performance-table/index.js";
+import { LEAD_STAGES, useProjectStageCounts } from "@/entities/lead/index.js";
+import { PerformanceTable, type ExtraColumn, type PerformanceRow } from "@/widgets/performance-table/index.js";
+
+const STAGE_COLUMNS: readonly ExtraColumn[] = LEAD_STAGES.map((stage) => ({
+  id: `crm-${stage}`,
+  label: `${t("dashboard.crmColumn")} (${t(`crm.stage.${stage}`)})`,
+}));
 
 function useProjectFigures(projects: Project[], range: DateRange) {
   const summaries = useQueries({
@@ -34,6 +40,8 @@ export function ProjectPerformanceTable({ range }: { range: DateRange }) {
   const location = useLocation();
   const projects = useProjects();
   const figures = useProjectFigures(projects.data ?? [], range);
+  const stageCounts = useProjectStageCounts(range);
+  const countsByProject = new Map((stageCounts.data ?? []).map((counts) => [counts.projectId, counts]));
 
   const rows: PerformanceRow[] = figures.map(({ project, performance, days }) => ({
     id: project.id,
@@ -48,6 +56,9 @@ export function ProjectPerformanceTable({ range }: { range: DateRange }) {
     ),
     performance,
     currency: project.budgetCurrency,
+    extra: Object.fromEntries(
+      LEAD_STAGES.map((stage) => [`crm-${stage}`, countsByProject.get(project.id)?.[stage] ?? 0]),
+    ),
   }));
 
   return (
@@ -55,6 +66,7 @@ export function ProjectPerformanceTable({ range }: { range: DateRange }) {
       tableKey="projects"
       heading={t("dashboard.project")}
       rows={rows}
+      extraColumns={STAGE_COLUMNS}
       empty={projects.isSuccess ? t("projects.empty.title") : undefined}
       onOpen={(id) => navigate(`${projectPath(id)}${location.search}`)}
     />

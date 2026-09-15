@@ -11,6 +11,7 @@ const aLead = (fields: Partial<Lead> = {}): Lead => ({
   id: "lead-1", orgId: "org-1", clientId: null, name: "Анна", company: null,
   phone: null, email: null, website: null, source: null, notes: null,
   projectId: null, campaignId: null, adId: null, origin: "MANUAL", ad: null, metaSource: null, stage: "NEW", position: 0,
+  assigneeId: null, assignee: null, project: null,
   createdAt: "2026-09-05T00:00:00.000Z", updatedAt: "2026-09-05T00:00:00.000Z",
   ...fields,
 });
@@ -53,6 +54,14 @@ function catalogue() {
     mock.get("/api/projects/project-2/campaigns/names", () => HttpResponse.json([
       { id: "campaign-2", name: "Осенний охват", channel: "META" },
     ])),
+    mock.get("/api/members", ({ request }) => {
+      const clientId = new URL(request.url).searchParams.get("clientId");
+      return HttpResponse.json(clientId === "client-1" ? [{
+        id: "member-1", userId: "user-1", name: "Мария", email: "maria@example.com",
+        image: null, phone: null, telegram: null, role: "MANAGER", status: "ACTIVE",
+        createdAt: "2026-09-05T00:00:00.000Z",
+      }] : []);
+    }),
   );
 }
 
@@ -137,6 +146,73 @@ describe("the lead form's fields", () => {
     await waitFor(() => expect(body).not.toBeNull());
     expect(body).toMatchObject({ name: "Борис", projectId: "project-1", campaignId: "campaign-1" });
   });
+
+  it("assigns an active employee of the selected project's client", async () => {
+    catalogue();
+    let body: Record<string, unknown> | null = null;
+    server.use(mock.post("/api/crm/boards/agency/leads", async ({ request }) => {
+      body = await request.json() as Record<string, unknown>;
+      return HttpResponse.json(aLead({ id: "new" }), { status: 201 });
+    }));
+    setup();
+
+    await userEvent.type(await screen.findByLabelText("Имя / название"), "Борис");
+    expect(screen.getByLabelText("Ответственный")).toBeDisabled();
+    await userEvent.click(screen.getByLabelText("Проект"));
+    await userEvent.click(await screen.findByRole("option", { name: "Летний запуск" }));
+    await waitFor(() => expect(screen.getByLabelText("Ответственный")).not.toBeDisabled());
+    await userEvent.click(screen.getByLabelText("Ответственный"));
+    await userEvent.click(await screen.findByRole("option", { name: /Мария/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Создать" }));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ projectId: "project-1", assigneeId: "member-1" });
+  });
+});
+
+describe("the lead form's stage choice", () => {
+  const withMeeting = () => server.use(
+    mock.get("/api/crm/boards/agency/columns", () => HttpResponse.json([
+      { id: "NEW", kind: "FIXED", name: "Новый", position: 0 },
+      { id: "QUALIFIED", kind: "FIXED", name: "Квалифицированный", position: 1 },
+      { id: "TARGET", kind: "FIXED", name: "Целевой", position: 2 },
+      { id: "PROPOSAL", kind: "FIXED", name: "КП", position: 3 },
+      { id: "col-1", kind: "CUSTOM", name: "Встреча", position: 0 },
+    ])),
+  );
+
+  it("lists every fixed stage and custom column of the board in board order", async () => {
+    catalogue();
+    withMeeting();
+    setup();
+
+    await userEvent.click(await screen.findByLabelText("Этап"));
+    await waitFor(() => expect(screen.getByRole("option", { name: "Встреча" })).toBeInTheDocument());
+    expect(screen.getAllByRole("option").map((option) => option.textContent))
+      .toEqual(["Новый", "Квалифицированный", "Целевой", "КП", "Встреча"]);
+  });
+
+  it("shows the custom column a lead sits in and moves it to the chosen one", async () => {
+    catalogue();
+    withMeeting();
+    let moved: unknown;
+    server.use(
+      mock.patch("/api/crm/boards/agency/leads/lead-1", () => HttpResponse.json(aLead({ stage: "col-1" }))),
+      mock.patch("/api/crm/boards/agency/leads/lead-1/move", async ({ request }) => {
+        moved = await request.json();
+        return HttpResponse.json([aLead({ stage: "TARGET" })]);
+      }),
+    );
+    setup({ lead: aLead({ stage: "col-1" }) });
+
+    const stage = await screen.findByLabelText("Этап");
+    await waitFor(() => expect(stage).toHaveTextContent("Встреча"));
+    await userEvent.click(stage);
+    await userEvent.click(await screen.findByRole("option", { name: "Целевой" }));
+    await userEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    await waitFor(() => expect(moved).toEqual({ stage: "TARGET", position: 2147483647 }));
+  });
 });
 
 describe("how the lead form reports a refusal", () => {
@@ -164,7 +240,7 @@ describe("an imported lead in the form", () => {
     setup({ boardKey: "client-1", lead: anImportedLead() });
 
     const source = await screen.findByRole("region", { name: "Источник: Meta" });
-    for (const text of ["123456", "777888", "Весна", "Москва 25–45", "Видео 1", "full_name", "Анна", "какой_у_вас_бюджет?", "до 1000, срочно"]) {
+    for (const text of ["123456", "777888", "Весна", "Москва 25–45", "Видео 1", "Имя", "Анна", "Какой у вас бюджет?", "до 1000 · срочно"]) {
       expect(within(source).getByText(text)).toBeInTheDocument();
     }
     expect(within(source).getByText(/10\.09\.2026/)).toBeInTheDocument();
@@ -180,7 +256,7 @@ describe("an imported lead in the form", () => {
     expect(within(source).getByText("Часть ответов не сохранена")).toBeInTheDocument();
   });
 
-  it("locks its project and campaign while contacts and notes stay editable", async () => {
+  it("shows no manually editable contact fields and only saves the retained fields", async () => {
     catalogue();
     let body: Record<string, unknown> | null = null;
     server.use(mock.patch("/api/crm/boards/client-1/leads/lead-1", async ({ request }) => {
@@ -192,22 +268,23 @@ describe("an imported lead in the form", () => {
     await waitFor(() => expect(screen.getByLabelText("Кампания")).toHaveTextContent("Поиск"));
     expect(screen.getByLabelText("Проект")).toBeDisabled();
     expect(screen.getByLabelText("Кампания")).toBeDisabled();
-    expect(screen.getByLabelText("Телефон")).not.toBeDisabled();
+    expect(screen.queryByLabelText("Телефон")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Компания")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Имя / название")).not.toBeInTheDocument();
 
-    await userEvent.clear(screen.getByLabelText("Телефон"));
-    await userEvent.type(screen.getByLabelText("Телефон"), "+375290000000");
     await userEvent.type(screen.getByLabelText("Заметки"), "Перезвонить");
     await userEvent.click(screen.getByRole("button", { name: "Сохранить" }));
 
     await waitFor(() => expect(body).not.toBeNull());
-    expect(body).toMatchObject({ phone: "+375290000000", notes: "Перезвонить", projectId: "project-1", campaignId: "campaign-1" });
+    expect(body).toEqual({ notes: "Перезвонить", projectId: "project-1", campaignId: "campaign-1", assigneeId: null });
   });
 
   it("shows no source for a lead made by hand", async () => {
     catalogue();
     setup({ lead: aLead() });
 
-    await screen.findByLabelText("Имя / название");
+    expect(await screen.findByRole("heading", { name: "Анна" })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Источник: Meta" })).not.toBeInTheDocument();
   });
 
@@ -216,7 +293,7 @@ describe("an imported lead in the form", () => {
     setup({ boardKey: "client-1", lead: anImportedLead(), capabilities: { create: false, update: false, delete: false } });
 
     expect(await screen.findByRole("region", { name: "Источник: Meta" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Телефон")).toBeDisabled();
+    expect(screen.getByLabelText("Заметки")).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Сохранить" })).not.toBeInTheDocument();
   });
 });

@@ -90,11 +90,11 @@ describe("the CRM board while it loads and when it fails", () => {
     setup();
 
     expect(await screen.findByTestId("crm-loading")).toBeInTheDocument();
-    for (const stage of ["Новый лид", "Выигран", "Отложен"]) {
+    for (const stage of ["Новый", "Целевой", "КП"]) {
       expect(screen.getByRole("region", { name: stage })).toBeInTheDocument();
     }
     await waitFor(() => expect(screen.queryByTestId("crm-loading")).not.toBeInTheDocument());
-    expect(screen.getByRole("region", { name: "Новый лид" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Новый" })).toBeInTheDocument();
   });
 
   it("shows the loader while keeping the board on screen", async () => {
@@ -109,7 +109,7 @@ describe("the CRM board while it loads and when it fails", () => {
 
     const layer = await screen.findByTestId("crm-loading");
     expect(layer).toContainElement(screen.getByText("Загрузка…"));
-    expect(screen.getByRole("region", { name: "Новый лид" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Новый" })).toBeInTheDocument();
   });
 
   it("shows no loader when coming back to a board it already holds", async () => {
@@ -148,8 +148,8 @@ describe("the CRM board while it loads and when it fails", () => {
     await userEvent.click(screen.getByLabelText("Воронка"));
     await userEvent.click(screen.getByRole("option", { name: "Ромашка" }));
 
-    expect(screen.getByRole("region", { name: "Новый лид" })).toBeInTheDocument();
-    expect(await screen.findAllByText("Нет лидов")).toHaveLength(8);
+    expect(screen.getByRole("region", { name: "Новый" })).toBeInTheDocument();
+    expect(await screen.findAllByText("Нет лидов")).toHaveLength(4);
   });
 
   it("reports leads it could not load", async () => {

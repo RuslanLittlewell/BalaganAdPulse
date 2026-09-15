@@ -50,6 +50,29 @@ function api(options: { campaigns?: unknown[]; tasks?: unknown[] } = {}) {
 const route = { route: "/projects/p1" };
 
 describe("ProjectPage", () => {
+  it("shows a client the project's KPI without letting them change it", async () => {
+    api();
+    server.use(
+      mock.get("/api/auth/me", () => HttpResponse.json({
+        user: { id: "user-9", name: "Клиент", email: "client@acme.com", image: null },
+        organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
+        role: "CLIENT_ADMIN",
+        clientIds: ["cl1"],
+      })),
+      mock.get("/api/projects/p1/kpi", () => HttpResponse.json({ metric: "CONVERSIONS", target: "100.0000", updatedAt: "2026-09-14T10:00:00.000Z" })),
+    );
+    renderWithProviders(<App />, route);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Настроить показатели" }));
+    const dialog = await screen.findByRole("dialog", { name: "Показатели за период" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "KPI" }));
+    await userEvent.keyboard("{Escape}");
+
+    const summary = screen.getByRole("group", { name: "Показатели за период" });
+    expect(await within(summary).findByText("KPI · Лиды")).toBeInTheDocument();
+    expect(within(summary).queryByRole("button", { name: "Изменить цель" })).not.toBeInTheDocument();
+  });
+
   it("offers the project's KPI in its summary", async () => {
     api();
     server.use(mock.get("/api/projects/p1/kpi", () => HttpResponse.json({ metric: "CONVERSIONS", target: "100.0000", updatedAt: "2026-09-14T10:00:00.000Z" })));
@@ -82,6 +105,17 @@ describe("ProjectPage", () => {
     const row = await screen.findByRole("row", { name: /Поиск \/ Москва/ });
     expect(within(row).getByText("Яндекс Директ · Активна")).toBeInTheDocument();
     expect(within(row).getByText("3 000 Br")).toBeInTheDocument();
+  });
+
+  it("offers no CRM stage columns in the campaign table", async () => {
+    const user = userEvent.setup();
+    api();
+    renderWithProviders(<App />, route);
+
+    await screen.findByRole("row", { name: /Поиск \/ Москва/ });
+    await user.click(screen.getByRole("button", { name: "Отображаемые столбцы" }));
+    expect(await screen.findByRole("menuitemcheckbox", { name: "Расход" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitemcheckbox", { name: /^CRM/ })).toBeNull();
   });
 
   it("shows the project's own total under the campaigns", async () => {

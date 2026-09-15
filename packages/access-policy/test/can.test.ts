@@ -83,9 +83,14 @@ describe("can", () => {
       expectRow("read", "project", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"]);
     });
 
-    it("are created and edited by admins and managers", () => {
-      expectRow("create", "project", ["ADMIN", "MANAGER"]);
-      expectRow("update", "project", ["ADMIN", "MANAGER"]);
+    it("are created and edited by staff and by a customer, never by a guest", () => {
+      expectRow("create", "project", ["ADMIN", "MANAGER", "CLIENT", "CLIENT_ADMIN"]);
+      expectRow("update", "project", ["ADMIN", "MANAGER", "CLIENT", "CLIENT_ADMIN"]);
+    });
+
+    it("keep their priority for admins and managers to change", () => {
+      expectRow("read", "project-priority", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"]);
+      expectRow("update", "project-priority", ["ADMIN", "MANAGER"]);
     });
 
     it("are deleted by an admin alone", () => {
@@ -105,6 +110,21 @@ describe("can", () => {
       expect(RESOURCES).not.toContain("property");
       expect(RESOURCES).not.toContain("record");
       expect(RESOURCES).not.toContain("value");
+    });
+  });
+
+  describe("agency-only project settings", () => {
+    it("leave advertising integrations to admins and managers entirely", () => {
+      for (const action of ["read", "create", "update", "delete"] as const) {
+        expectRow(action, "integration", ["ADMIN", "MANAGER"]);
+      }
+    });
+
+    it("let everyone read KPIs and only admins and managers change them", () => {
+      expectRow("read", "kpi", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"]);
+      for (const action of ["create", "update", "delete"] as const) {
+        expectRow(action, "kpi", ["ADMIN", "MANAGER"]);
+      }
     });
   });
 
@@ -147,10 +167,11 @@ describe("can", () => {
       }
     });
 
-    it("is true for a client-role member except raising tasks and managing leads", () => {
+    it("is true for a client-role member except raising tasks, managing leads and creating or editing projects", () => {
       for (const resource of RESOURCES) {
         for (const action of ["create", "update", "delete"] as const) {
           if (resource === "task" && action === "create") continue;
+          if (resource === "project" && action !== "delete") continue;
           if (resource === "lead") {
             expect(can(actor("CLIENT"), action, resource)).toBe(true);
             continue;
@@ -213,8 +234,8 @@ describe("the customer's principal", () => {
     expect(can(actor("CLIENT_ADMIN"), "delete", "task")).toBe(false);
   });
 
-  it("writes nothing the agency owns", () => {
-    for (const resource of ["client", "project", "campaign", "organization"] as const) {
+  it("writes none of the agency's clients, campaigns or organization, and deletes no project", () => {
+    for (const resource of ["client", "campaign", "organization", "integration", "kpi", "project-priority"] as const) {
       for (const action of ["create", "update", "delete"] as const) {
         expect(
           can(actor("CLIENT_ADMIN"), action, resource),
@@ -222,6 +243,7 @@ describe("the customer's principal", () => {
         ).toBe(false);
       }
     }
+    expect(can(actor("CLIENT_ADMIN"), "delete", "project")).toBe(false);
   });
 
   it("leaves an ordinary customer administering nobody", () => {

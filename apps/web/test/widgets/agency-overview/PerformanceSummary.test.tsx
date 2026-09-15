@@ -124,6 +124,14 @@ describe("the period summary", () => {
     expect(within(dialog).getByText("1/5")).toBeInTheDocument();
   });
 
+  it("shows the chosen tiles without a placeholder when it cannot be configured", async () => {
+    useSummaryTiles.setState({ layouts: { "user-1": { project: ["spend", "clicks"] } } });
+    setup({ screen: "project", configurable: false });
+
+    await waitFor(() => expect(shownTiles()).toEqual(["spend", "clicks"]));
+    expect(screen.queryByRole("button", { name: "Настроить показатели" })).not.toBeInTheDocument();
+  });
+
   it("offers KPI on a project page to a member who cannot change it", async () => {
     setup({ screen: "project", kpi: { scope: { kind: "project", id: "p1" }, canEdit: false } });
 

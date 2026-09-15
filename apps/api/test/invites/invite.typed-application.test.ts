@@ -21,13 +21,12 @@ function fixture(options: {
   failClientCreation?: boolean;
   failProjectCreation?: boolean;
   ownedClientIds?: string[];
-  clientProjectIds?: Record<string, string[]>;
   reachableClientIds?: Record<string, string[]>;
 } = {}) {
   const transaction = {} as TransactionContext;
   const invites = new Map((options.seed ?? []).map((invite) => [invite.id, invite]));
   const memberships: string[] = [];
-  const grants: Array<{ membershipId: string; projectIds: readonly string[] }> = [];
+  const grants: Array<{ membershipId: string; projectIds?: readonly string[]; clientId?: string }> = [];
   const clients: Array<{ id: string; name: string }> = [];
   const enrolments: Array<{ role: string; orgId: string }> = [];
   const projects: Array<{ id: string; clientId: string; name: string }> = [];
@@ -103,13 +102,14 @@ function fixture(options: {
         if (options.failGrant) throw new Error("grant failed");
         grants.push({ membershipId, projectIds });
       },
+      grantClient: async (_context: TransactionContext, membershipId: string, clientId: string) => {
+        if (options.failGrant) throw new Error("grant failed");
+        grants.push({ membershipId, clientId });
+      },
     },
     projects: {
       allBelongToOrg: async (_orgId: string, projectIds: readonly string[]) =>
         projectIds.every((projectId) => (options.ownedProjectIds ?? ["project-1"]).includes(projectId)),
-    },
-    clientProjects: {
-      projectIdsOf: async (clientId: string) => options.clientProjectIds?.[clientId] ?? [],
     },
     clients: {
       isReachable: async (a: ActorContext, clientId: string) => {
@@ -319,13 +319,14 @@ describe("redeeming a client invitation", () => {
     expect(f.projects).toEqual([{ id: "project-1", clientId: "client-1", name: "Стоматология" }]);
   });
 
-  it("enrols the account as a client and grants it that client alone", async () => {
+  it("enrols the account as the client's principal and grants it that whole client", async () => {
     const f = fixture({ seed: [clientInvite()] });
 
     await f.useCases.redeem(f.transaction, "CLIENTAB", "c@acme.com", "u-new", NOW, CLIENT_REGISTRATION);
 
     expect(f.memberships).toHaveLength(1);
-    expect(f.grants).toEqual([{ membershipId: "membership-new", projectIds: ["project-1"] }]);
+    expect(f.enrolments).toEqual([{ role: "CLIENT_ADMIN", orgId: "org-1" }]);
+    expect(f.grants).toEqual([{ membershipId: "membership-new", clientId: "client-1" }]);
   });
 
   it("spends the invitation", async () => {
@@ -460,17 +461,17 @@ describe("redeeming an invitation to join a client", () => {
     clientId: "client-1", ...overrides,
   });
 
-  it("enrols the account against that client and grants its projects", async () => {
-    const f = fixture({ seed: [joining()], clientProjectIds: { "client-1": ["project-7"] } });
+  it("enrols the account against that client and grants the whole client", async () => {
+    const f = fixture({ seed: [joining()] });
 
     await f.useCases.redeem(f.transaction, "JOINABCD", "new@clinic.by", "u-new", NOW);
 
     expect(f.memberships).toHaveLength(1);
-    expect(f.grants).toEqual([{ membershipId: "membership-new", projectIds: ["project-7"] }]);
+    expect(f.grants).toEqual([{ membershipId: "membership-new", clientId: "client-1" }]);
   });
 
   it("makes them an ordinary member, never the principal", async () => {
-    const f = fixture({ seed: [joining()], clientProjectIds: { "client-1": ["project-7"] } });
+    const f = fixture({ seed: [joining()] });
 
     await f.useCases.redeem(f.transaction, "JOINABCD", "new@clinic.by", "u-new", NOW);
 
@@ -478,7 +479,7 @@ describe("redeeming an invitation to join a client", () => {
   });
 
   it("spends the invitation", async () => {
-    const f = fixture({ seed: [joining()], clientProjectIds: { "client-1": ["project-7"] } });
+    const f = fixture({ seed: [joining()] });
 
     await f.useCases.redeem(f.transaction, "JOINABCD", "new@clinic.by", "u-new", NOW);
 
@@ -486,7 +487,7 @@ describe("redeeming an invitation to join a client", () => {
   });
 
   it("creates no client and no project: both already exist", async () => {
-    const f = fixture({ seed: [joining()], clientProjectIds: { "client-1": ["project-7"] } });
+    const f = fixture({ seed: [joining()] });
 
     await f.useCases.redeem(f.transaction, "JOINABCD", "new@clinic.by", "u-new", NOW);
 
@@ -496,7 +497,7 @@ describe("redeeming an invitation to join a client", () => {
 
   it("stores nothing when the grant fails, and leaves the link usable", async () => {
     const f = fixture({
-      seed: [joining()], clientProjectIds: { "client-1": ["project-7"] }, failGrant: true,
+      seed: [joining()], failGrant: true,
     });
 
     await expect(f.unitOfWork.run((context) =>
@@ -508,7 +509,7 @@ describe("redeeming an invitation to join a client", () => {
   });
 
   it("refuses the client details a registration would carry", async () => {
-    const f = fixture({ seed: [joining()], clientProjectIds: { "client-1": ["project-7"] } });
+    const f = fixture({ seed: [joining()] });
 
     await expect(f.useCases.redeem(
       f.transaction, "JOINABCD", "new@clinic.by", "u-new", NOW, CLIENT_REGISTRATION,

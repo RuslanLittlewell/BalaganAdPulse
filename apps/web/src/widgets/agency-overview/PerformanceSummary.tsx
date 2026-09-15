@@ -20,6 +20,7 @@ export interface PerformanceSummaryProps {
   performance?: Performance;
   currency?: Currency;
   kpi?: { scope: KpiScope; canEdit: boolean };
+  configurable?: boolean;
 }
 
 const LABELS: Record<SummaryTile, string> = {
@@ -31,7 +32,9 @@ const LABELS: Record<SummaryTile, string> = {
   kpi: t("summary.kpi"),
 };
 
-export function PerformanceSummary({ screen, range, performance, currency = "RUB", kpi }: PerformanceSummaryProps) {
+export function PerformanceSummary({
+  screen, range, performance, currency = "RUB", kpi, configurable = true,
+}: PerformanceSummaryProps) {
   const figures = performance ?? EMPTY_PERFORMANCE;
   const { user } = useAuth();
   const layouts = useSummaryTiles((state) => state.layouts);
@@ -74,21 +77,23 @@ export function PerformanceSummary({ screen, range, performance, currency = "RUB
         {chosen.map((tile) => (
           <div key={tile} data-testid="summary-tile" data-tile={tile}>{render(tile)}</div>
         ))}
-        <button
-          type="button"
-          aria-label={t("summary.configure")}
-          onClick={() => setConfiguring(true)}
-          className={cn(
-            "grid min-h-24 place-items-center rounded-lg border-2 border-dashed border-border text-muted-foreground",
-            "transition-colors hover:border-primary hover:text-primary",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-          )}
-        >
-          <Plus aria-hidden className="size-6" />
-        </button>
+        {configurable ? (
+          <button
+            type="button"
+            aria-label={t("summary.configure")}
+            onClick={() => setConfiguring(true)}
+            className={cn(
+              "grid min-h-24 place-items-center rounded-lg border-2 border-dashed border-border text-muted-foreground",
+              "transition-colors hover:border-primary hover:text-primary",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            )}
+          >
+            <Plus aria-hidden className="size-6" />
+          </button>
+        ) : null}
       </div>
 
-      <Dialog open={configuring} onOpenChange={setConfiguring}>
+      <Dialog open={configurable && configuring} onOpenChange={setConfiguring}>
         <DialogContent className="w-[min(760px,calc(100vw-2rem))] max-w-none">
           <DialogHeader>
             <div className="flex items-center justify-between gap-3 pr-8">

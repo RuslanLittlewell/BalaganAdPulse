@@ -1,9 +1,10 @@
 import { http as mock, HttpResponse } from "msw";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes, useLocation } from "react-router-dom";
 import { aTask, renderWithProviders, server } from "@test/shared/index.js";
 import { CampaignPage } from "@/pages/campaign/index.js";
+import { useSummaryTiles } from "@/widgets/agency-overview/summaryTiles.js";
 
 const performance = (spend: number, extra = {}) => ({
   spend, impressions: 100000, reach: 40000, clicks: 2000, conversions: 50, revenue: 4000,
@@ -107,6 +108,23 @@ describe("CampaignPage", () => {
 
     const summary = await screen.findByRole("group", { name: "Показатели за период" });
     expect(await within(summary).findByText(/^CPL 20,00\sBr$/)).toBeInTheDocument();
+  });
+
+  it("shows the tiles chosen on the project page, with the campaign's KPI, and nothing to configure", async () => {
+    api();
+    let asked = "";
+    server.use(mock.get("/api/campaigns/:campaignId/kpi", ({ params }) => {
+      asked = String(params.campaignId);
+      return HttpResponse.json({ metric: "CONVERSIONS", target: "100.0000", updatedAt: "2026-09-14T10:00:00.000Z" });
+    }));
+    useSummaryTiles.setState({ layouts: { "user-1": { project: ["clicks", "conversions", "kpi"], campaign: ["spend"] } as never } });
+    renderWithProviders(<App />, route);
+
+    const summary = await screen.findByRole("group", { name: "Показатели за период" });
+    await waitFor(() => expect(within(summary).getAllByTestId("summary-tile").map((tile) => tile.getAttribute("data-tile")))
+      .toEqual(["clicks", "conversions", "kpi"]));
+    await waitFor(() => expect(asked).toBe("c1"));
+    expect(screen.queryByRole("button", { name: "Настроить показатели" })).not.toBeInTheDocument();
   });
 
   it("draws the measured days", async () => {

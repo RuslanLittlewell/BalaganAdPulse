@@ -143,6 +143,49 @@ describe("PerformanceTable", () => {
   });
 });
 
+describe("extra columns a table is given", () => {
+  const extraColumns = [{ id: "crm-new", label: "Лид (Новый)" }];
+  const withExtras: PerformanceRow[] = [
+    { ...rows[0], extra: { "crm-new": 7 } },
+    { ...rows[1] },
+  ];
+
+  it("offers them hidden, shows their values once turned on, and remembers them", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(
+      <PerformanceTable tableKey="extra-columns-test" heading="Проект" rows={withExtras} extraColumns={extraColumns} />,
+    );
+    expect(screen.queryByRole("columnheader", { name: "Лид (Новый)" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Отображаемые столбцы" }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "Лид (Новый)" }));
+    await user.keyboard("{Escape}");
+
+    expect(screen.getByRole("columnheader", { name: "Лид (Новый)" })).toBeInTheDocument();
+    expect(within(screen.getByRole("row", { name: /Поиск \/ Москва/ })).getByText("7")).toBeInTheDocument();
+    expect(within(screen.getByRole("row", { name: /Лента \/ Россия/ })).getByText("0")).toBeInTheDocument();
+
+    unmount();
+    render(<PerformanceTable tableKey="extra-columns-test" heading="Проект" rows={withExtras} extraColumns={extraColumns} />);
+    expect(screen.getByRole("columnheader", { name: "Лид (Новый)" })).toBeInTheDocument();
+  });
+
+  it("counts them toward the two columns a table keeps", async () => {
+    const user = userEvent.setup();
+    render(<PerformanceTable tableKey="extra-minimum-test" heading="Проект" rows={withExtras} extraColumns={extraColumns} />);
+
+    await user.click(screen.getByRole("button", { name: "Отображаемые столбцы" }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "Лид (Новый)" }));
+    const metrics = screen.getAllByRole("menuitemcheckbox").filter((item) => item.textContent !== "Лид (Новый)");
+    for (const item of metrics) {
+      if (item.getAttribute("aria-checked") === "true" && item.getAttribute("aria-disabled") !== "true") await user.click(item);
+    }
+
+    expect(screen.getAllByRole("menuitemcheckbox", { checked: true })).toHaveLength(2);
+    expect(screen.getByRole("menuitemcheckbox", { name: "Лид (Новый)" })).toHaveAttribute("aria-checked", "true");
+  });
+});
+
 describe("rows that contain rows", () => {
   const nested: PerformanceRow[] = [
     {

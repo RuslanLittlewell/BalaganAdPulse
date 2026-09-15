@@ -134,20 +134,28 @@ describe("registering as a client", () => {
     expect(project.name).toBe("Стоматология");
   });
 
-  it("gives the new member the client role and reach over that project alone", async () => {
+  it("makes the new member the client's principal, reaching the whole client even after its first project goes", async () => {
     const invite = await request(app).post("/api/invites").set(admin)
       .send({ registrationType: "CLIENT" });
-    await request(app).post("/api/auth/register").send({
+    const registered = await request(app).post("/api/auth/register").send({
       name: "Иван", email: "ivan@clinic.by", password: "hunter2hunter2",
       inviteCode: invite.body.code, ...details,
     });
 
     const user = await prisma.user.findFirstOrThrow({ where: { email: "ivan@clinic.by" } });
     const membership = await prisma.membership.findFirstOrThrow({ where: { userId: user.id } });
-    expect(membership.role).toBe("CLIENT");
-    const grants = await prisma.clientAccess.findMany({ where: { membershipId: membership.id } });
-    expect(grants).toHaveLength(1);
-    expect(grants[0].projectId).not.toBeNull();
+    const client = await prisma.client.findFirstOrThrow({ where: { name: "Клиника" } });
+    expect(membership.role).toBe("CLIENT_ADMIN");
+    expect(await prisma.clientAccess.findMany({ where: { membershipId: membership.id }, select: { clientId: true, projectId: true } }))
+      .toEqual([{ clientId: client.id, projectId: null }]);
+
+    await prisma.project.deleteMany({ where: { clientId: client.id } });
+    await prisma.project.create({ data: { clientId: client.id, name: "Имплантация", position: 0 } });
+    const auth = { Authorization: `Bearer ${registered.body.accessToken}` };
+
+    expect((await request(app).get(`/api/clients/${client.id}`).set(auth)).status).toBe(200);
+    expect((await request(app).get("/api/projects").set(auth)).body.map((project: { name: string }) => project.name)).toEqual(["Имплантация"]);
+    expect((await request(app).get("/api/crm/boards").set(auth)).body.map((board: { key: string }) => board.key)).toEqual([client.id]);
   });
 
   it("spends the invitation", async () => {

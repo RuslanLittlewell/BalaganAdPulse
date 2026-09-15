@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { applyLeadMove } from "../lib/ordering.js";
-import { leadsApi, type Lead, type LeadInput, type LeadMove } from "./api.js";
+import { leadsApi, type CountingPeriod, type Lead, type LeadColumn, type LeadColumnInput, type LeadInput, type LeadMove } from "./api.js";
 
 export const BOARDS_KEY = ["crm", "boards"] as const;
 
 export const leadsKey = (boardKey: string) => ["crm", "leads", boardKey] as const;
+
+export const leadColumnsKey = (boardKey: string) => ["crm", "columns", boardKey] as const;
 
 export function useLeadBoards() {
   return useQuery({ queryKey: BOARDS_KEY, queryFn: () => leadsApi.boards() });
@@ -15,6 +17,49 @@ export function useLeads(boardKey: string | undefined) {
     queryKey: leadsKey(boardKey ?? ""),
     queryFn: () => leadsApi.list(boardKey!),
     enabled: Boolean(boardKey),
+  });
+}
+
+export function useProjectStageCounts({ from, to }: CountingPeriod) {
+  return useQuery({
+    queryKey: ["crm", "project-stage-counts", { from, to }],
+    queryFn: () => leadsApi.projectStageCounts({ from, to }),
+  });
+}
+
+export function useLeadColumns(boardKey: string | undefined) {
+  return useQuery({
+    queryKey: leadColumnsKey(boardKey ?? ""),
+    queryFn: () => leadsApi.columns(boardKey!),
+    enabled: Boolean(boardKey),
+  });
+}
+
+export function useCreateLeadColumn(boardKey: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => leadsApi.createColumn(boardKey, name),
+    onSuccess: () => qc.invalidateQueries({ queryKey: leadColumnsKey(boardKey) }),
+  });
+}
+
+export function useUpdateLeadColumn(boardKey: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: LeadColumnInput }) =>
+      leadsApi.updateColumn(boardKey, id, body),
+    onSuccess: (columns) => qc.setQueryData<LeadColumn[]>(leadColumnsKey(boardKey), columns),
+  });
+}
+
+export function useDeleteLeadColumn(boardKey: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => leadsApi.removeColumn(boardKey, id),
+    onSuccess: () => Promise.all([
+      qc.invalidateQueries({ queryKey: leadColumnsKey(boardKey) }),
+      qc.invalidateQueries({ queryKey: leadsKey(boardKey) }),
+    ]),
   });
 }
 

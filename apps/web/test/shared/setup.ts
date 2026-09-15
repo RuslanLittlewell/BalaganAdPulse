@@ -65,6 +65,7 @@ import { server } from "./server.js";
 import { resetStaff } from "@/entities/membership/index.js";
 import { useModuleMemory } from "@/shared/lib/index.js";
 import { useSummaryTiles } from "@/widgets/agency-overview/summaryTiles.js";
+import { useColumnWidths } from "@/widgets/performance-table/columnWidths.js";
 
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => {
@@ -72,6 +73,7 @@ afterEach(() => {
   resetStaff();
   useModuleMemory.setState({ boards: {}, projectPlaces: {} });
   useSummaryTiles.setState({ layouts: {} });
+  useColumnWidths.setState({ nameWidths: {}, visibleColumns: {} });
 });
 afterAll(() => server.close());
 

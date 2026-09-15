@@ -12,7 +12,7 @@ export function createIntegrationUseCases(d: IntegrationDependencies) {
   const reach = async (actor: ActorContext, id: string) => {
     const project = await d.projects.findReachable(actor, id);
     if (!project) throw new AppError("not-found", "Project not found");
-    if (!can(actor, "update", "project")) throw new AppError("forbidden", "Your role may not update a project");
+    if (!can(actor, "update", "integration")) throw new AppError("forbidden", "Your role may not manage integrations");
     return project;
   };
   return {

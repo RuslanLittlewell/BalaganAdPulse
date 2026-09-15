@@ -5,13 +5,15 @@ import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-wor
 import type { AuditScope, StoredAuditEvent } from "../domain/audit-event.js";
 import type { ActorSnapshots, AuditQuery, AuditReach, AuditRepository } from "../application/ports.js";
 
+const CRM_ENTITY_TYPES = ['lead', 'lead-column'];
+
 function scopeToWhere(scope: AuditScope): Prisma.AuditEventWhereInput {
   if (scope.everything) return { orgId: scope.orgId };
   return {
     orgId: scope.orgId,
     OR: [
-      { entityType: { not: 'lead' }, projectId: null, clientId: { in: [...scope.clientIds] } },
-      ...(scope.agencyLeads ? [{ entityType: 'lead', clientId: null }] : []),
+      { entityType: { notIn: CRM_ENTITY_TYPES }, projectId: null, clientId: { in: [...scope.clientIds] } },
+      ...(scope.agencyLeads ? [{ entityType: { in: CRM_ENTITY_TYPES }, clientId: null }] : []),
       { clientId: { in: [...scope.wholeClientIds] } },
       { projectId: { in: [...scope.projectIds] } },
     ],

@@ -19,5 +19,11 @@ export const defaultHandlers = [
   http.get("/api/projects/:projectId/campaigns", () => HttpResponse.json([])),
   http.get("/api/invites", () => HttpResponse.json([])),
   http.get("/api/members", () => HttpResponse.json([])),
+  http.get("/api/crm/boards/:board/columns", () => HttpResponse.json([
+    { id: "NEW", kind: "FIXED", name: "Новый", position: 0 },
+    { id: "QUALIFIED", kind: "FIXED", name: "Квалифицированный", position: 1 },
+    { id: "TARGET", kind: "FIXED", name: "Целевой", position: 2 },
+    { id: "PROPOSAL", kind: "FIXED", name: "КП", position: 3 },
+  ])),
   realtime.addEventListener("connection", () => undefined),
 ];

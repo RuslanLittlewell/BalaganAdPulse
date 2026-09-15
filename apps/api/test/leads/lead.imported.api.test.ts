@@ -116,9 +116,9 @@ describe("an imported lead", () => {
   });
 
   it("keeps its ad and source through a move", async () => {
-    const moved = await request(app).patch(`${leads(clientId)}/${leadId}/move`).set(auth).send({ stage: "CONTACTED", position: 0 });
+    const moved = await request(app).patch(`${leads(clientId)}/${leadId}/move`).set(auth).send({ stage: "QUALIFIED", position: 0 });
 
     expect(moved.status).toBe(200);
-    expect(moved.body).toEqual([expect.objectContaining({ ...importedShape(), stage: "CONTACTED" })]);
+    expect(moved.body).toEqual([expect.objectContaining({ ...importedShape(), stage: "QUALIFIED" })]);
   });
 });

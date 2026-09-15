@@ -130,3 +130,16 @@ describe("the Meta panel at rest", () => {
     expect(screen.queryByText("Нужен новый токен")).not.toBeInTheDocument();
   });
 });
+
+it("keeps the Meta panel from a client who may edit the project", async () => {
+  let reads = 0;
+  server.use(
+    http.get("/api/auth/me", () => HttpResponse.json({ user: { id: "u", name: "Client", email: "c@example.com" }, organization: { id: "o", name: "O", slug: "o" }, role: "CLIENT_ADMIN", clientIds: ["c1"] })),
+    http.get(path, () => { reads++; return HttpResponse.json(connected); }),
+  );
+  renderWithProviders(<MetaIntegration projectId="p1" />);
+
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Meta API" })).not.toBeInTheDocument());
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  expect(reads).toBe(0);
+});

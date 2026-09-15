@@ -81,6 +81,27 @@ describe("ContactBook", () => {
   });
 });
 
+describe("adding clients from the list", () => {
+  it("offers Новый контакт at the foot of the client list and not in the details header", async () => {
+    await open();
+
+    const list = await screen.findByTestId("contact-book-list");
+    expect(within(list).getByRole("button", { name: "Новый контакт" })).toBeInTheDocument();
+    expect(within(screen.getByTestId("contact-book-details")).queryByRole("button", { name: "Новый контакт" })).not.toBeInTheDocument();
+
+    await userEvent.click(within(list).getByRole("button", { name: "Новый контакт" }));
+    expect(screen.getByRole("form", { name: "Новый контакт" })).toBeInTheDocument();
+  });
+
+  it("shows a long client name in full on hover", async () => {
+    const long = aClient({ id: "9", name: "Общество с ограниченной ответственностью «Очень длинное название клиента»" });
+    await open([long]);
+
+    const item = await screen.findByRole("button", { name: /Очень длинное название клиента/ });
+    expect(within(item).getByTitle(long.name)).toHaveTextContent(long.name);
+  });
+});
+
 describe("ContactBook editing", () => {
   it("has no pencil or plus while a form is open", async () => {
     await open();

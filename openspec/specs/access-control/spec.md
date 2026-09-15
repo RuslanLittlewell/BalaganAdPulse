@@ -53,7 +53,7 @@ of their grants.
 
 A CLIENT member SHALL reach the client named by their grant and nothing else: its projects, campaigns, figures, client-visible tasks and its own CRM leads. Every other client, project, campaign, task or CRM lead and the agency CRM SHALL be answered as not found.
 
-A client SHALL be able to read the task module and raise a task on a project they reach. They SHALL NOT change or delete a task once raised or change its visibility. They SHALL be able to create, edit, move and delete leads on their own CRM board. Clients, projects, campaigns and members SHALL remain read-only to them.
+A client SHALL be able to read the task module and raise a task on a project they reach. They SHALL NOT change or delete a task once raised or change its visibility. They SHALL be able to create, edit, move and delete leads on their own CRM board. They SHALL be able to create projects for their own client and edit the name, niche, monthly budget, currency and picture of their client's projects. They SHALL NOT delete a project, change its priority, manage its advertising connection or set its KPIs. Clients, campaigns and members SHALL remain read-only to them.
 
 #### Scenario: A client's projects
 - **WHEN** a client opens the projects module
@@ -83,6 +83,22 @@ A client SHALL be able to read the task module and raise a task on a project the
 - **WHEN** a client edits a lead on their own CRM board
 - **THEN** the edit succeeds without granting authority over other resources
 
+#### Scenario: A client creates a project
+- **WHEN** a client creates a project for their own client
+- **THEN** it is stored for that client and the agency's admins see it in the projects module
+
+#### Scenario: A client names another client
+- **WHEN** a client creates a project naming a client that is not theirs
+- **THEN** the answer is 404 and nothing is stored
+
+#### Scenario: A client edits a project
+- **WHEN** a client changes the name, niche, budget or currency of their client's project
+- **THEN** the change is stored and audited under their name
+
+#### Scenario: Agency-only project actions
+- **WHEN** a client tries to delete a project, change its priority, connect its advertising account or set its KPI
+- **THEN** the API responds 403 and nothing changes
+
 ### Requirement: One permission matrix serves the API and the UI
 
 The role-to-permission matrix SHALL exist once, as data, and be consumed by both the API
@@ -104,11 +120,11 @@ Two customer roles SHALL exist:
 
 - `CLIENT_ADMIN` — the principal. Administers the client's own people: invites them, sees
   the invitations they hold, revokes one, and removes somebody who has joined.
-- `CLIENT` — everybody else on the customer's side. Reads what the client reads and
-  raises tasks, and administers nobody.
+- `CLIENT` — everybody else on the customer's side. Reads what the client reads, raises
+  tasks, creates and edits the client's projects, and administers nobody.
 
-Neither SHALL write anything the current `CLIENT` role cannot: clients, projects,
-campaigns and the agency's members stay read-only to both. A `CLIENT_ADMIN`'s extra
+Both SHALL create and edit their own client's projects as a client may. Clients,
+campaigns and the agency's members SHALL stay read-only to both. A `CLIENT_ADMIN`'s extra
 authority is over its own client's people and nothing else.
 
 #### Scenario: A client's employee reaches the client's work
@@ -134,8 +150,13 @@ authority is over its own client's people and nothing else.
 
 #### Scenario: Neither writes the agency's records
 
-- **WHEN** either customer role tries to create or change a client, project or campaign
+- **WHEN** either customer role tries to create or change a client or campaign
 - **THEN** the API responds 403
+
+#### Scenario: Both manage their client's projects
+
+- **WHEN** a `CLIENT` or a `CLIENT_ADMIN` creates a project for their client or edits one
+- **THEN** it is allowed
 
 ### Requirement: CRM board reach is enforced independently of task reach
 Every CRM request SHALL require an active membership. ADMIN SHALL reach every board in their organization. MANAGER and GUEST SHALL reach the agency board and client boards for which they hold a whole-client grant. A project-only grant SHALL NOT authorize a client-wide CRM board. CLIENT and CLIENT_ADMIN SHALL reach only the board of their own client. Board enumeration, lead queries, mutations, audit and realtime delivery SHALL enforce these same boundaries. Missing or unreachable board and lead identifiers SHALL return 404; missing authentication SHALL return 401. A customer with no valid client grant SHALL receive no board or leads.
@@ -161,9 +182,16 @@ Every CRM request SHALL require an active membership. ADMIN SHALL reach every bo
 - **THEN** the API returns 404
 
 ### Requirement: CRM write permissions are shared by API and UI
-The shared permission matrix SHALL permit ADMIN, MANAGER, CLIENT and CLIENT_ADMIN to create, read, edit, move and delete leads on reachable boards. GUEST SHALL only read. Customers SHALL have no authority to create agency clients by winning leads. These lead permissions SHALL NOT widen permissions for tasks, clients, projects, campaigns or members.
+The shared permission matrix SHALL permit ADMIN, MANAGER, CLIENT and CLIENT_ADMIN to create, read, edit, move and delete leads, and to create, rename, move and delete custom columns, on reachable boards. GUEST SHALL only read. Customers SHALL have no authority to create agency clients by winning leads. These lead permissions SHALL NOT widen permissions for tasks, clients, projects, campaigns or members.
 
 #### Scenario: Customer manages own funnel
 - **WHEN** a CLIENT or CLIENT_ADMIN creates, edits, moves or confirms deletion of a lead on their own board
 - **THEN** the mutation is accepted and other boards remain unchanged
 
+#### Scenario: Customer manages own columns
+- **WHEN** a CLIENT creates, renames, moves or deletes a custom column on their own board
+- **THEN** the change is accepted and other boards' columns remain unchanged
+
+#### Scenario: Guest columns
+- **WHEN** a guest tries to create or change a column on a board they can read
+- **THEN** the API responds 403 and nothing changes

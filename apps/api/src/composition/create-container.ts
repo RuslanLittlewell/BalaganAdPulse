@@ -195,12 +195,6 @@ export function createContainer(): ApiContainer {
       isReachable: async (actor, clientId) =>
         (await clients.reachableIds(actor)).includes(clientId),
     },
-    clientProjects: {
-      projectIdsOf: async (clientId) => {
-        const rows = await prisma.project.findMany({ where: { clientId }, select: { id: true } });
-        return rows.map((project) => project.id);
-      },
-    },
     projectAccess: new PrismaInvitationProjectAccess(unitOfWork),
     clientDirectory: {
       create: async (context, input) => {

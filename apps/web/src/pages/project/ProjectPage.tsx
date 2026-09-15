@@ -63,7 +63,7 @@ export function ProjectPage() {
     useState<AuditEventFilters | null>(null);
   const [reading, setReading] = useState<Task | null>(null);
   const tasks = useTasks({ projectId, enabled: projectId != null });
-  const editsProjectKpi = useCan("update", "project");
+  const editsProjectKpi = useCan("update", "kpi");
 
   const inFlight = (tasks.data ?? []).filter((task) =>
     ACTIVE_TASK_COLUMNS.includes(task.column),

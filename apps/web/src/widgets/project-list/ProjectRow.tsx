@@ -28,7 +28,7 @@ export interface ProjectRowProps {
   draggable: boolean;
   pinned: boolean;
   sorting: boolean;
-  mayUpdate: boolean;
+  mayPrioritise: boolean;
   onOpen: () => void;
   onEdit?: () => void;
   onPin: () => void;
@@ -42,7 +42,7 @@ export function ProjectRow({
   draggable,
   pinned,
   sorting,
-  mayUpdate,
+  mayPrioritise,
   onOpen,
   onEdit,
   onPin,
@@ -79,7 +79,7 @@ export function ProjectRow({
             <ContextMenuItem onSelect={onPin}>
               {t(pinned ? "projects.unpin" : "projects.pin")}
             </ContextMenuItem>
-            {mayUpdate && (
+            {mayPrioritise && (
               <>
                 <ContextMenuSeparator />
                 <ContextMenuLabel>{t("priority.title")}</ContextMenuLabel>

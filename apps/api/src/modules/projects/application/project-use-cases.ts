@@ -13,6 +13,12 @@ export function createProjectUseCases(dependencies: ProjectDependencies) {
     }
   };
 
+  const assertMayPrioritise = (actor: ActorContext, input: { priority?: unknown }) => {
+    if (input.priority !== undefined && !can(actor, "update", "project-priority")) {
+      throw new AppError("forbidden", "Your role may not set a project's priority");
+    }
+  };
+
   const reach = async (actor: ActorContext, id: string): Promise<ProjectRecord> => {
     const project = await dependencies.projects.findReachable(actor, id);
     if (!project) throw new AppError("not-found", "Project not found");
@@ -44,6 +50,7 @@ export function createProjectUseCases(dependencies: ProjectDependencies) {
   return {
     create: async (actor: ActorContext, input: NewProject): Promise<ProjectRecord> => {
       assertCan(actor, "create");
+      assertMayPrioritise(actor, input);
       await assertClientReachable(actor, input.clientId);
       return dependencies.unitOfWork.run(async (context) => {
         const project = await dependencies.projects.create(context, {
@@ -67,6 +74,7 @@ export function createProjectUseCases(dependencies: ProjectDependencies) {
     update: async (actor: ActorContext, id: string, input: ProjectChange): Promise<ProjectRecord> => {
       await reach(actor, id);
       assertCan(actor, "update");
+      assertMayPrioritise(actor, input);
       if (input.clientId) await assertClientReachable(actor, input.clientId);
       const updated = await dependencies.unitOfWork.run(async (context) => {
         const project = await dependencies.projects.update(context, id, input);

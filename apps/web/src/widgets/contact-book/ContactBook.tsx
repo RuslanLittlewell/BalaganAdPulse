@@ -93,20 +93,35 @@ export function ContactBook({ open, onClose }: ContactBookProps) {
             data-testid="contact-book-columns"
             className="grid min-h-[22rem] gap-4 sm:grid-cols-[minmax(14rem,22%)_minmax(0,1fr)]"
           >
-            <div className="flex max-h-[60vh] flex-col gap-1 overflow-auto sm:pr-4">
-              {list.map((client) => (
-                <ListItem
-                  key={client.id}
-                  selected={!editing && client.id === selected?.id}
-                  leading={<ClientAvatar client={client} size="sm" />}
-                  onClick={() => select(client)}
-                >
-                  {client.name}
-                </ListItem>
-              ))}
+            <div data-testid="contact-book-list" className="relative min-w-0 sm:pr-4">
+              <div className="flex max-h-[60vh] flex-col gap-1 overflow-auto pb-14">
+                {list.map((client) => (
+                  <ListItem
+                    key={client.id}
+                    selected={!editing && client.id === selected?.id}
+                    leading={<ClientAvatar client={client} size="sm" />}
+                    onClick={() => select(client)}
+                  >
+                    <span className="block truncate" title={client.name}>{client.name}</span>
+                  </ListItem>
+                ))}
+              </div>
+              {!editing && (
+                <Can action="create" resource="client">
+                  <Button
+                    type="button"
+                    size="icon"
+                    className="absolute right-6 bottom-2 z-10 rounded-full shadow-md"
+                    aria-label={t("contacts.new")}
+                    onClick={() => setMode({ kind: "create" })}
+                  >
+                    <PlusIcon aria-hidden="true" />
+                  </Button>
+                </Can>
+              )}
             </div>
 
-            <div className="max-h-[60vh] min-w-0 overflow-auto sm:border-l sm:border-border sm:pl-4">
+            <div data-testid="contact-book-details" className="max-h-[60vh] min-w-0 overflow-auto sm:border-l sm:border-border sm:pl-4">
               <div className="mb-2 flex min-h-9 items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-3">
                   {mode.kind !== "create" && selected != null && (
@@ -130,16 +145,6 @@ export function ContactBook({ open, onClose }: ContactBookProps) {
                       </Button>
                       </Can>
                     )}
-                    <Can action="create" resource="client">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={t("contacts.new")}
-                      onClick={() => setMode({ kind: "create" })}
-                    >
-                      <PlusIcon />
-                    </Button>
-                    </Can>
                   </div>
                 )}
               </div>

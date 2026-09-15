@@ -1,5 +1,7 @@
 export {
   AGENCY_BOARD,
+  COLUMN_NAME_LIMIT,
+  isLeadStage,
   LEAD_STAGES,
   leadsApi,
 } from "./api/api.js";
@@ -7,24 +9,37 @@ export type {
   BoardCapabilities,
   Lead,
   LeadAd,
+  LeadAssignee,
   LeadAnswer,
   LeadBoard,
+  LeadColumn,
+  LeadColumnInput,
+  CountingPeriod,
+  ProjectStageCounts,
   LeadMetaSource,
   LeadOrigin,
   LeadInput,
+  LeadProject,
   LeadMove,
   LeadStage,
 } from "./api/api.js";
 export {
   BOARDS_KEY,
+  leadColumnsKey,
   leadsKey,
   useCreateLead,
+  useCreateLeadColumn,
   useDeleteLead,
+  useDeleteLeadColumn,
   useLeadBoards,
+  useLeadColumns,
   useLeads,
+  useProjectStageCounts,
+  useUpdateLeadColumn,
   useMoveLead,
   useUpdateLead,
 } from "./api/queries.js";
+export { FIXED_LEAD_COLUMNS, leadColumnLabel } from "./lib/columns.js";
 export {
   applyLeadMove,
   leadPlacementFor,

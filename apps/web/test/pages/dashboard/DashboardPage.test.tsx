@@ -29,8 +29,9 @@ const project = (id: string, name: string) => ({
   image: null, avatarPath: null, position: 0, createdAt: "", updatedAt: "",
 });
 
-function api(options: { projects?: unknown[]; agency?: unknown; channels?: unknown[] } = {}) {
+function api(options: { projects?: unknown[]; agency?: unknown; channels?: unknown[]; stageCounts?: unknown[] } = {}) {
   server.use(
+    mock.get("/api/crm/project-stage-counts", () => HttpResponse.json(options.stageCounts ?? [])),
     mock.get("/api/projects", () =>
       HttpResponse.json(options.projects ?? [project("p1", "Клиника"), project("p2", "Автосалон")])),
     mock.get("/api/summary", () => HttpResponse.json(options.agency ?? performance(4200))),
@@ -151,5 +152,69 @@ describe("DashboardPage", () => {
     renderWithProviders(<DashboardPage />);
 
     expect(await screen.findByText("Проектов пока нет")).toBeInTheDocument();
+  });
+});
+
+describe("CRM stage columns in the dashboard project table", () => {
+  const STAGE_COLUMNS = ["Лид (Новый)", "Лид (Квалифицированный)", "Лид (Целевой)", "Лид (КП)"];
+
+  const cell = (rowName: RegExp, column: string) => {
+    const index = screen.getAllByRole("columnheader").findIndex((header) => header.textContent === column);
+    expect(index).toBeGreaterThanOrEqual(0);
+    return screen.getByRole("row", { name: rowName }).children[index];
+  };
+
+  async function turnOn(user: ReturnType<typeof userEvent.setup>, ...columns: string[]) {
+    await user.click(screen.getByRole("button", { name: "Отображаемые столбцы" }));
+    for (const column of columns) await user.click(await screen.findByRole("menuitemcheckbox", { name: column }));
+    await user.keyboard("{Escape}");
+  }
+
+  it("offers the four stage columns without showing them until they are turned on", async () => {
+    const user = userEvent.setup();
+    api();
+    renderWithProviders(<DashboardPage />);
+
+    await screen.findByRole("row", { name: /Клиника/ });
+    for (const column of STAGE_COLUMNS) expect(screen.queryByRole("columnheader", { name: column })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Отображаемые столбцы" }));
+    for (const column of STAGE_COLUMNS) {
+      expect(screen.getByRole("menuitemcheckbox", { name: column })).toHaveAttribute("aria-checked", "false");
+    }
+  });
+
+  it("shows each project's leads of the selected period by stage, and 0 where there are none", async () => {
+    const user = userEvent.setup();
+    const requested: string[] = [];
+    api({ stageCounts: [{ projectId: "p1", NEW: 3, QUALIFIED: 1, TARGET: 0, PROPOSAL: 2 }] });
+    server.use(mock.get("/api/crm/project-stage-counts", ({ request }) => {
+      requested.push(new URL(request.url).search);
+      return HttpResponse.json([{ projectId: "p1", NEW: 3, QUALIFIED: 1, TARGET: 0, PROPOSAL: 2 }]);
+    }));
+    renderWithProviders(<DashboardPage />, { route: "/?from=2026-09-01&to=2026-09-30" });
+
+    await screen.findByRole("row", { name: /Клиника/ });
+    await turnOn(user, "Лид (Новый)", "Лид (КП)");
+
+    await waitFor(() => expect(cell(/Клиника/, "Лид (Новый)")).toHaveTextContent("3"));
+    expect(cell(/Клиника/, "Лид (КП)")).toHaveTextContent("2");
+    expect(cell(/Автосалон/, "Лид (Новый)")).toHaveTextContent("0");
+    expect(cell(/Автосалон/, "Лид (КП)")).toHaveTextContent("0");
+    expect(requested).toContain("?from=2026-09-01&to=2026-09-30");
+  });
+
+  it("remembers a turned-on stage column", async () => {
+    const user = userEvent.setup();
+    api();
+    const { unmount } = renderWithProviders(<DashboardPage />);
+
+    await screen.findByRole("row", { name: /Клиника/ });
+    await turnOn(user, "Лид (Целевой)");
+    expect(screen.getByRole("columnheader", { name: "Лид (Целевой)" })).toBeInTheDocument();
+    unmount();
+
+    renderWithProviders(<DashboardPage />);
+    await screen.findByRole("row", { name: /Клиника/ });
+    expect(screen.getByRole("columnheader", { name: "Лид (Целевой)" })).toBeInTheDocument();
   });
 });

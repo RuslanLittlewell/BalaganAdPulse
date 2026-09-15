@@ -7,33 +7,15 @@ Track prospects, their contact details and acquisition sources through separate 
 ## Requirements
 
 ### Requirement: Separate agency and client funnels
-The CRM SHALL provide one agency board per organization and one board per client, including clients with no projects. A lead SHALL belong to exactly one board. Changing lead details or stage SHALL NOT change its board. Moving leads between boards SHALL NOT be supported in this release.
+The CRM SHALL provide one agency board per organization and one board per client, including clients with no projects. A lead and a custom column SHALL each belong to exactly one board. Changing lead details or stage SHALL NOT change its board. Moving leads or columns between boards SHALL NOT be supported in this release.
 
 #### Scenario: Empty client board
-- **WHEN** an authorized member opens a client board with no leads or projects
-- **THEN** all eight empty stages are displayed and permitted creation controls are available
+- **WHEN** an authorized member opens a client board with no leads, projects or custom columns
+- **THEN** the four empty fixed stages and the placeholder column are displayed and permitted creation controls are available
 
 #### Scenario: Board isolation
 - **WHEN** a member selects a client board
-- **THEN** only leads belonging to that client board appear, never agency leads or another client's leads
-
-### Requirement: Eight fixed sales stages
-The board SHALL display the following fixed stages in order: `NEW` (Новый лид), `CONTACTED` (Связались), `QUALIFIED` (Квалифицирован), `PROPOSAL` (Предложение), `NEGOTIATION` (Переговоры), `WON` (Выигран), `LOST` (Проигран), `DEFERRED` (Отложен). New leads SHALL default to `NEW`. Members SHALL be able to move leads directly between any stages, including reopening terminal outcomes. Stage names SHALL NOT be customizable.
-
-The stages SHALL mean respectively: contact received; attempted or completed first contact; confirmed need, budget and relevance; offer, estimate or demo sent; terms under discussion; sale won; refusal or unsuitable prospect; potential future interest. Qualification SHALL be a manual decision without mandatory budget fields or automatic checks.
-
-#### Scenario: New lead
-- **WHEN** a member creates a lead without specifying a stage
-- **THEN** it appears last in Новый лид
-
-#### Scenario: Unknown stage
-- **WHEN** a request names an unsupported stage
-- **THEN** the API responds 400 without storing changes
-
-#### Scenario: Winning and reopening
-- **WHEN** a lead is moved into Выигран and then back into Переговоры
-- **THEN** only its stage, ordering, update metadata and history change
-- **AND** no client, account, project or invitation is created at either transition
+- **THEN** only leads and custom columns belonging to that client board appear, never the agency's or another client's
 
 ### Requirement: Lead identity contacts and acquisition source
 A lead SHALL have a required nonblank name and optional company, phone, email, website, source and plain-text notes. Name and company SHALL be limited to 200 characters, phone to 50, email to 254, website to 2048, source to 200 and notes to 10000. Supplied email SHALL be syntactically valid and website SHALL use HTTP or HTTPS. Empty optional strings SHALL normalize to absence. Source SHALL be manually entered text. A lead SHALL be either created by a member or imported from a Meta integration; creating a lead by hand SHALL NOT require any integration. Absent source text SHALL display the imported origin for an imported lead and Не указан otherwise. Duplicate contacts SHALL be allowed, including between imported and hand-made leads.
@@ -108,18 +90,26 @@ Deleting the ad SHALL release the ad link and leave the lead standing.
 - **THEN** the notes are saved and its project, campaign and ad are unchanged
 
 ### Requirement: CRM uses the task board visual language
-The CRM SHALL appear in navigation at `/crm`. It SHALL use the task board's column panels, card styling, spacing, scroll behavior, drag overlay and keyboard drag affordance. Each card SHALL show name, supplied company and contact details, and acquisition source. Long values SHALL truncate on the card and be readable in its detail dialog. Empty contacts SHALL NOT produce blank rows. Notes SHALL be editable in the dialog. Contact actions SHALL NOT initiate a drag or accidentally open the editor.
+The CRM SHALL appear in navigation at `/crm`. It SHALL use the task board's column panels, card styling, spacing, scroll behavior, drag overlay and keyboard drag affordance. Each card SHALL show name, supplied company and contact details, and acquisition source. Long values SHALL truncate on the card and be readable in its detail dialog. Empty contacts SHALL NOT produce blank rows. Notes SHALL be editable in the dialog. Contact actions SHALL NOT initiate a drag or accidentally open the editor. The lead dialog's stage choice SHALL offer every fixed stage and custom column of the lead's board in board order.
 
 #### Scenario: Opening a card
 - **WHEN** a member clicks or keyboard-opens a lead card
 - **THEN** a dialog shows the lead's full fields and stage, with editing controls only when permitted
 
 #### Scenario: Narrow display
-- **WHEN** the viewport cannot fit eight columns
+- **WHEN** the viewport cannot fit every column
 - **THEN** columns scroll horizontally and each column's cards scroll vertically within the available board height
 
+#### Scenario: Stage choice with custom columns
+- **WHEN** a member opens a lead on a board with a custom column Встреча
+- **THEN** the stage choice lists Новый, Квалифицированный, Целевой, КП and Встреча in that order
+
 ### Requirement: Agency board selector and customer default
-Agency members SHALL see an upper-left selector containing their available boards, with Агентство first when permitted and client boards named by client organization or contact name. Agency roles SHALL default to the agency board. Customers SHALL open their own board automatically and SHALL NOT see a board selector. Selection SHALL survive reload through the page URL and SHALL clear previous-board cards, dialogs and drag state immediately. Unknown or inaccessible selections SHALL show an unavailable state without silently creating or editing leads in a different board.
+Agency members SHALL see an upper-left selector containing their available boards, with Агентство first when permitted and client boards named by the client name, even when the client has an organization. When CRM is opened without a board in the address, agency roles SHALL open the board the signed-in person last selected in this browser if they can still reach it, and SHALL otherwise default to the agency board. A board named in the address SHALL take precedence and become the remembered board. The remembered board SHALL belong to the signed-in person, SHALL survive reload, and SHALL NOT be opened for another person signing in on the same browser; a remembered board the person can no longer reach SHALL be forgotten without an error. Customers SHALL open their own board automatically and SHALL NOT see a board selector. Selection SHALL survive reload through the page URL and SHALL clear previous-board cards, dialogs and drag state immediately. Unknown or inaccessible selections named in the address SHALL show an unavailable state without silently creating or editing leads in a different board.
+
+#### Scenario: Client board names
+- **WHEN** an agency member opens the selector and client Ромашка has the organization ООО «Цветы»
+- **THEN** that client's board is listed as Ромашка
 
 #### Scenario: Switching boards during a request
 - **WHEN** agency staff switches from client A to client B before A's request completes
@@ -129,12 +119,28 @@ Agency members SHALL see an upper-left selector containing their available board
 - **WHEN** a customer opens CRM
 - **THEN** their own board opens with no agency or other-client selection controls
 
+#### Scenario: Returning to CRM from another module
+- **WHEN** an agency member selects client A's board, opens another module and returns to CRM through the menu
+- **THEN** client A's board opens and the address names it
+
+#### Scenario: A remembered board is no longer reachable
+- **WHEN** the board a member last selected is no longer among their boards
+- **THEN** CRM opens the default board without an error and no longer remembers the lost one
+
+#### Scenario: Another person on the same browser
+- **WHEN** a different person signs in on the browser where client A's board was remembered
+- **THEN** CRM opens that person's default board
+
+#### Scenario: The address names a board
+- **WHEN** a member opens a CRM address naming client B while client A is remembered
+- **THEN** client B's board opens and becomes the remembered board
+
 ### Requirement: Stable atomic ordering and deletion
-Leads SHALL have stable ordering per board and stage. Creation SHALL append, editing SHALL preserve order, and moving SHALL atomically update stage and position together with affected neighbors. Out-of-range positive positions SHALL append; negative or noninteger positions SHALL return 400. Concurrent moves SHALL preserve unique contiguous ordering. The UI SHALL show moves optimistically and restore authoritative state with feedback after failure. Deletion SHALL require confirmation and close the ordering gap.
+Leads SHALL have stable ordering per board and per fixed stage or custom column, and custom columns SHALL have stable contiguous ordering per board. Creation SHALL append, editing SHALL preserve order, and moving SHALL atomically update stage and position together with affected neighbors. Out-of-range positive positions SHALL append; negative or noninteger positions SHALL return 400. Concurrent moves SHALL preserve unique contiguous ordering. The UI SHALL show moves optimistically and restore authoritative state with feedback after failure. Deleting a lead SHALL require confirmation and close the ordering gap.
 
 #### Scenario: Move persists
-- **WHEN** a lead is moved between two cards in another stage and the page reloads
-- **THEN** the lead remains between those cards in that stage
+- **WHEN** a lead is moved between two cards in another column and the page reloads
+- **THEN** the lead remains between those cards in that column
 
 #### Scenario: Refused move
 - **WHEN** a drag request fails
@@ -149,11 +155,15 @@ Leads SHALL have stable ordering per board and stage. Creation SHALL append, edi
 - **THEN** the lead remains unchanged
 
 ### Requirement: Lead changes are audited and synchronized
-Each successful lead mutation by a member SHALL record its actor, board, lead and changed fields in an audit event committed with the mutation. Failed writes SHALL record no event. Leads created by a Meta import SHALL NOT be attributed to any member; the lead's recorded source and submission time SHALL identify how it arrived, and later member mutations of it SHALL be audited like any other. Open authorized CRM boards SHALL receive committed changes, including imported leads, through realtime notifications and refresh their selected board; notifications SHALL carry no lead contact data. Authorization SHALL be checked at delivery time. Reconnection SHALL refresh the selected board. Loss of access SHALL clear inaccessible cached data and stop delivery.
+Each successful lead or column mutation by a member SHALL record its actor, board, lead or column and changed fields in an audit event committed with the mutation. Failed writes SHALL record no event. Leads created by a Meta import SHALL NOT be attributed to any member; the lead's recorded source and submission time SHALL identify how it arrived, and later member mutations of it SHALL be audited like any other. Open authorized CRM boards SHALL receive committed changes, including imported leads and column changes, through realtime notifications and refresh their selected board; notifications SHALL carry no lead contact data. Authorization SHALL be checked at delivery time. Reconnection SHALL refresh the selected board. Loss of access SHALL clear inaccessible cached data and stop delivery.
 
 #### Scenario: Another member updates a lead
 - **WHEN** an authorized member changes a lead on the open board
 - **THEN** the other member's board updates without a manual reload
+
+#### Scenario: Another member adds a column
+- **WHEN** an authorized member creates a column on the open board
+- **THEN** the other member's board shows it without a manual reload
 
 #### Scenario: Unreachable changes
 - **WHEN** a lead changes on a board a connected member cannot access
@@ -200,3 +210,99 @@ The source section SHALL be visible to every member who can read the board and S
 #### Scenario: Editing an imported lead's contacts
 - **WHEN** an authorized member corrects the phone of an imported lead
 - **THEN** the phone changes and the recorded source and answers are unchanged
+
+### Requirement: Four fixed stages followed by the board's own columns
+Every board SHALL show four fixed stages first, in order: `NEW` (Новый), `QUALIFIED` (Квалифицированный), `TARGET` (Целевой), `PROPOSAL` (КП). Fixed stages SHALL NOT be renamed, moved or deleted. Each board SHALL then show its own custom columns in their stored order, followed by a placeholder column with a dashed border and a plus sign, named Добавить столбец, for members who may manage the board's columns. New leads SHALL default to `NEW`. Members SHALL be able to move leads directly between any fixed stage or custom column of the same board. Qualification SHALL remain a manual decision without mandatory fields or automatic checks.
+
+#### Scenario: New lead
+- **WHEN** a member creates a lead without specifying a stage
+- **THEN** it appears last in Новый
+
+#### Scenario: Unknown stage
+- **WHEN** a request names a stage that is neither a fixed stage nor a column of that board
+- **THEN** the API responds 400 without storing changes
+
+#### Scenario: A column of another board
+- **WHEN** a request moves a lead into a custom column that belongs to another board
+- **THEN** the API responds 400 and the lead is unchanged
+
+#### Scenario: Moving between fixed and custom columns
+- **WHEN** a lead is moved from КП into a custom column and back
+- **THEN** only its stage, ordering, update metadata and history change
+
+### Requirement: Board columns are created, renamed, reordered and deleted
+A member who may manage leads on a board SHALL be able to create a custom column with a name, rename it, move it one place left or right among the board's custom columns, and delete it. Column names SHALL be trimmed, nonblank, at most 50 characters, and unique on their board without regard to case, including the fixed stage names. A board SHALL hold at most 20 custom columns. Deleting a column SHALL require confirmation stating how many leads it holds, and SHALL move those leads to the end of Новый in their existing order in the same transaction. Columns SHALL belong to one board and SHALL be removed with it.
+
+#### Scenario: Create a column
+- **WHEN** a member activates Добавить столбец and enters Встреча
+- **THEN** a column Встреча appears after the last column of that board only
+
+#### Scenario: Duplicate name
+- **WHEN** a member names a column Целевой or the name of an existing column in any letter case
+- **THEN** the API responds 400 and nothing changes
+
+#### Scenario: Rename a column
+- **WHEN** a member renames Встреча to Встреча назначена
+- **THEN** the column keeps its place and leads under the new name
+
+#### Scenario: Move a column
+- **WHEN** a member moves the second custom column left
+- **THEN** it becomes the first custom column and the fixed stages keep their places
+
+#### Scenario: Delete a column with leads
+- **WHEN** a member confirms deleting a column holding three leads
+- **THEN** the column disappears and the three leads appear at the end of Новый in their previous order
+
+#### Scenario: Cancel deletion
+- **WHEN** a member cancels deleting a column
+- **THEN** the column and its leads are unchanged
+
+#### Scenario: Fixed stages cannot be changed
+- **WHEN** a request renames, moves or deletes a fixed stage
+- **THEN** the API responds 400 and nothing changes
+
+### Requirement: Period lead counts per project and fixed stage
+The API SHALL report, for an inclusive `from`/`to` range of calendar days, how many leads of each project arrived within the range and are currently in each fixed stage: `NEW`, `QUALIFIED`, `TARGET` and `PROPOSAL`. A lead imported from a Meta form SHALL arrive at its form submission time; any other lead SHALL arrive at its creation time. Days SHALL be UTC calendar days. Only leads attributed to a project SHALL be counted, and leads in custom columns SHALL NOT be counted in any stage. Counts SHALL include only leads on boards the requesting member can reach, and responses SHALL carry project ids and counts only, never lead contact data. A missing, malformed or reversed range SHALL return 400.
+
+#### Scenario: Counting arrivals by current stage
+- **WHEN** a project has one lead created in the range that was moved from Новый to КП, and one lead created in the range still in Новый
+- **THEN** the project's counts are one for `NEW` and one for `PROPOSAL`, and zero for `QUALIFIED` and `TARGET`
+
+#### Scenario: Arrivals outside the range
+- **WHEN** a lead was created the day before the range starts or the day after it ends
+- **THEN** it is not counted
+
+#### Scenario: A Meta lead imported after the range
+- **WHEN** a Meta lead was submitted on the last day of the range and imported the next day
+- **THEN** it is counted in that range
+
+#### Scenario: Leads outside the fixed stages or projects
+- **WHEN** a lead sits in a custom column, or has no project
+- **THEN** it is not counted in any stage
+
+#### Scenario: Unreachable boards
+- **WHEN** a member whose grant covers only one project of a client requests counts
+- **THEN** leads on that client's board are not counted for them
+
+#### Scenario: Invalid range
+- **WHEN** a request omits `to`, uses a malformed day or sets `from` after `to`
+- **THEN** the API responds 400
+
+### Requirement: The dashboard project table offers CRM stage columns
+The dashboard's project table column chooser SHALL offer the columns Лид (Новый), Лид (Квалифицированный), Лид (Целевой) and Лид (КП) after the advertising figures. They SHALL be hidden until a member turns them on, and the member's choice SHALL be remembered with the table's other visible columns. Each cell SHALL show the period lead count of that project and stage for the dashboard's selected period, and 0 when there are none. Changing the period SHALL update the counts. The project page's campaign table and the campaign page's tables SHALL NOT offer these columns.
+
+#### Scenario: Turning a stage column on
+- **WHEN** a member turns on Лид (Целевой) in the dashboard project table
+- **THEN** each project row shows how many of its leads that arrived in the selected period are now in Целевой
+
+#### Scenario: Hidden by default
+- **WHEN** a member who never changed the dashboard project table's columns opens the dashboard
+- **THEN** the four CRM stage columns are offered in the column chooser but not shown
+
+#### Scenario: Remembered choice
+- **WHEN** a member turns on Лид (КП) and later returns to the dashboard
+- **THEN** the Лид (КП) column is still shown
+
+#### Scenario: Other tables
+- **WHEN** a member opens the column chooser of a project's campaign table
+- **THEN** no CRM stage columns are offered

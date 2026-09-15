@@ -1,8 +1,9 @@
 import type React from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Mail, Phone } from "lucide-react";
+import { FolderKanban, GripVertical, Mail } from "lucide-react";
 import type { Lead } from "@/entities/lead/index.js";
+import { MemberAvatar } from "@/entities/membership/index.js";
 import { t } from "@/shared/config/index.js";
 import { cn } from "@/shared/lib/index.js";
 
@@ -13,20 +14,6 @@ export interface LeadCardProps {
   onOpen?: (lead: Lead) => void;
 }
 
-interface Contact {
-  key: string;
-  value: string;
-  href: string;
-  icon: typeof Mail;
-}
-
-function contactsOf(lead: Lead): Contact[] {
-  const contacts: Contact[] = [];
-  if (lead.phone) contacts.push({ key: "phone", value: lead.phone, href: `tel:${lead.phone}`, icon: Phone });
-  if (lead.email) contacts.push({ key: "email", value: lead.email, href: `mailto:${lead.email}`, icon: Mail });
-  return contacts;
-}
-
 function sourceLabel(lead: Lead): string {
   if (lead.source) return lead.source;
   if (lead.metaSource) return `${t("crm.source.meta")} · ${lead.metaSource.campaign.name}`;
@@ -34,7 +21,6 @@ function sourceLabel(lead: Lead): string {
 }
 
 export function LeadCard({ lead, draggable = false, placeholder = false, onOpen }: LeadCardProps) {
-  const contacts = contactsOf(lead);
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: lead.id,
     disabled: !draggable,
@@ -57,6 +43,7 @@ export function LeadCard({ lead, draggable = false, placeholder = false, onOpen 
         "shadow-sm transition-all hover:border-border hover:shadow-md",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
         onOpen && "cursor-pointer",
+        draggable && "cursor-grab active:cursor-grabbing",
         placeholder && "border-dashed opacity-40 shadow-none",
       )}
       data-testid={`lead-card-${lead.id}`}
@@ -79,7 +66,7 @@ export function LeadCard({ lead, draggable = false, placeholder = false, onOpen 
           aria-label={t("crm.drag")}
           data-testid={`lead-drag-${lead.id}`}
           className={cn(
-            "absolute inset-y-0 left-0 grid w-5 place-items-center text-muted-foreground",
+            "absolute inset-y-0 left-0 grid w-6 cursor-grab place-items-center text-muted-foreground active:cursor-grabbing",
             "opacity-0 transition-opacity hover:bg-muted focus-visible:opacity-100 group-hover:opacity-100",
           )}
           onClick={(event) => event.stopPropagation()}
@@ -92,38 +79,38 @@ export function LeadCard({ lead, draggable = false, placeholder = false, onOpen 
 
       <h3 className="min-w-0 truncate text-sm font-medium leading-snug">{lead.name}</h3>
 
-      {lead.company ? (
-        <p className="truncate pt-0.5 text-xs text-muted-foreground" data-testid={`lead-company-${lead.id}`}>
-          {lead.company}
+      <div className="mt-3 grid min-w-0 gap-2 text-xs">
+        <p className="flex min-w-0 items-center gap-2" data-testid={`lead-project-${lead.id}`}>
+          <FolderKanban aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+          <span className="w-16 shrink-0 text-muted-foreground">{t("crm.form.project")}</span>
+          <span className="truncate font-medium">{lead.project?.name ?? t("crm.form.noProject")}</span>
         </p>
-      ) : null}
+        {lead.email ? (
+          <p className="flex min-w-0 items-center gap-2">
+            <Mail aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className="w-16 shrink-0 text-muted-foreground">{t("crm.form.email")}</span>
+            <a href={`mailto:${lead.email}`} className="truncate hover:underline" onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
+              {lead.email}
+            </a>
+          </p>
+        ) : null}
+      </div>
 
-      {contacts.length > 0 ? (
-        <ul className="mt-2 flex flex-col gap-1">
-          {contacts.map(({ key, value, href, icon: Icon }) => (
-            <li key={key} className="flex min-w-0 items-center gap-1.5">
-              <Icon aria-hidden className="size-3 shrink-0 text-muted-foreground" />
-              <a
-                href={href}
-                className="truncate text-xs text-muted-foreground hover:text-foreground hover:underline"
-                onClick={(event) => event.stopPropagation()}
-                onKeyDown={(event) => event.stopPropagation()}
-                onPointerDown={(event) => event.stopPropagation()}
-              >
-                {value}
-              </a>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-
-      <footer className="mt-3 flex items-center gap-1.5 border-t border-border/60 pt-2.5">
+      <footer className="mt-3 flex min-w-0 items-center justify-between gap-3 border-t border-border/60 pt-3">
         <span
           className="truncate text-[11px] text-muted-foreground/80"
           data-testid={`lead-source-${lead.id}`}
         >
           {sourceLabel(lead)}
         </span>
+        {lead.assignee ? (
+          <span className="flex min-w-0 items-center gap-2" data-testid={`lead-assignee-${lead.id}`} title={lead.assignee.name}>
+            <MemberAvatar member={lead.assignee} size="sm" />
+            <span className="max-w-28 truncate text-xs font-medium">{lead.assignee.name}</span>
+          </span>
+        ) : (
+          <span className="shrink-0 text-xs text-muted-foreground">{t("crm.form.unassigned")}</span>
+        )}
       </footer>
     </article>
   );

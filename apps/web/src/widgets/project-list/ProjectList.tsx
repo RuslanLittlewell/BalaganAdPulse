@@ -88,6 +88,7 @@ export function ProjectList() {
   const [dragging, setDragging] = useState<string | null>(null);
   const update = useUpdateProject();
   const mayUpdate = useCan("update", "project");
+  const mayPrioritise = useCan("update", "project-priority");
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -124,7 +125,7 @@ export function ProjectList() {
         draggable={arrangeable && !pinned}
         pinned={pinned}
         sorting={activeKind === "project"}
-        mayUpdate={mayUpdate}
+        mayPrioritise={mayPrioritise}
         onOpen={() => { if (project.id !== projectId) navigate(projectPath(project.id)); }}
         onEdit={mayUpdate ? () => setEditingId(project.id) : undefined}
         onPin={() => {
@@ -215,7 +216,7 @@ export function ProjectList() {
           )}
 
           {projects.isSuccess && projects.data.length === 0 && (
-            <EmptyState title={t("projects.empty.title")} />
+            <EmptyState compact title={t("projects.empty.title")} />
           )}
 
           {pinned.length > 0 && (

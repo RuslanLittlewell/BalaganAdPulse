@@ -38,7 +38,7 @@ describe("task events", () => {
 
     expect(event).toEqual({
       kind: "task.deleted", orgId: "org1", projectId: "p1", taskId: "t1",
-      assigneeId: "m7", visibleToClient: true,
+      assigneeId: "m7", createdById: task.createdById, visibleToClient: true,
     });
     expect(event).not.toHaveProperty("task");
   });

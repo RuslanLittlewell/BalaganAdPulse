@@ -25,24 +25,30 @@ beforeEach(() => {
     }),
     mock.get("/api/projects", () => HttpResponse.json([aProject({ id: "project-1", name: "Летний запуск" })])),
     mock.get("/api/members", () => HttpResponse.json(members)),
-    mock.get("/api/projects/:projectId/campaigns/names", ({ params }) =>
-      HttpResponse.json(params.projectId === "project-1"
-        ? [
-            { id: "camp-1", name: "Поиск / Москва", channel: "YANDEX" },
-            { id: "camp-2", name: "Лента", channel: "META" },
-          ]
-        : [{ id: "camp-9", name: "Их кампания", channel: "VK" }])),
+    mock.get("/api/campaigns/names", () => HttpResponse.json([
+      { id: "camp-1", projectId: "project-1", name: "Поиск / Москва", channel: "YANDEX" },
+      { id: "camp-2", projectId: "project-1", name: "Лента", channel: "META" },
+      { id: "camp-9", projectId: "project-2", name: "Их кампания", channel: "VK" },
+    ])),
   );
 });
+
+const openAssign = async () => {
+  const control = screen.queryByRole("button", { name: "Назначить" });
+  if (control) await userEvent.click(control);
+};
 
 describe("TaskFormDialog", () => {
   it("shows the fields the product asked for", async () => {
     setup();
     expect(await screen.findByLabelText("Название")).toBeInTheDocument();
     expect(screen.getByText("Описание")).toBeInTheDocument();
-    expect(screen.getByText("Проект")).toBeInTheDocument();
-    expect(screen.getByText("Ответственный")).toBeInTheDocument();
     expect(screen.getByText("Приоритет")).toBeInTheDocument();
+
+    await openAssign();
+    await openAssign();
+    expect(await screen.findByLabelText("Проект")).toBeInTheDocument();
+    expect(screen.getByLabelText("Ответственный")).toBeInTheDocument();
   });
 
   it("refuses a blank title and sends nothing", async () => {
@@ -55,25 +61,16 @@ describe("TaskFormDialog", () => {
     expect(posted).toBe(false);
   });
 
-  it("refuses a missing project and sends nothing", async () => {
-    let posted = false;
-    server.use(mock.post("/api/tasks", () => { posted = true; return HttpResponse.json({}, { status: 201 }); }));
-    setup();
-
-    await userEvent.type(await screen.findByLabelText("Название"), "Бриф");
-    await userEvent.click(screen.getByRole("button", { name: "Создать задачу" }));
-    expect(await screen.findByText("Выберите проект")).toBeInTheDocument();
-    expect(posted).toBe(false);
-  });
-
   it("lists the projects the member can reach", async () => {
     setup();
+    await openAssign();
     await userEvent.click(await screen.findByLabelText("Проект"));
     expect(await screen.findByRole("option", { name: "Летний запуск" })).toBeInTheDocument();
   });
 
   it("lists the members who can be made responsible", async () => {
     setup();
+    await openAssign();
     await userEvent.click(await screen.findByLabelText("Ответственный"));
     expect(await screen.findByRole("option", { name: "Пётр" })).toBeInTheDocument();
   });
@@ -100,7 +97,7 @@ describe("TaskFormDialog", () => {
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "Написать бриф",
           description, column: "IDEA", priority: "HIGH", assigneeId: "member-1",
-          createdById: "member-1", campaignId: null, visibleToClient: false, position: 0, imageIds: ["image-1", "image-2"],
+          createdById: "member-1", campaignId: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds: ["image-1", "image-2"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -129,7 +126,7 @@ describe("TaskFormDialog", () => {
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлами",
           description: null, column: "IDEA", priority: "LOW", assigneeId: null,
-          createdById: null, campaignId: null, visibleToClient: false, position: 0, imageIds: ["image-1", "image-2"],
+          createdById: null, campaignId: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds: ["image-1", "image-2"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -149,7 +146,7 @@ describe("TaskFormDialog", () => {
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "Без файлов",
           description: null, column: "IDEA", priority: "LOW", assigneeId: null,
-          createdById: null, campaignId: null, visibleToClient: false, position: 0, imageIds: [],
+          createdById: null, campaignId: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds: [],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -183,6 +180,7 @@ describe("TaskFormDialog", () => {
     setup(() => { closed = true; });
 
     await userEvent.type(await screen.findByLabelText("Название"), "Бриф");
+    await openAssign();
     await userEvent.click(await screen.findByLabelText("Проект"));
     await userEvent.click(await screen.findByRole("option", { name: "Летний запуск" }));
     await userEvent.click(screen.getByRole("button", { name: "Создать задачу" }));
@@ -206,6 +204,7 @@ describe("TaskFormDialog", () => {
     setup();
 
     await userEvent.type(await screen.findByLabelText("Название"), "Бриф");
+    await openAssign();
     await userEvent.click(await screen.findByLabelText("Проект"));
     await userEvent.click(await screen.findByRole("option", { name: "Летний запуск" }));
     await userEvent.click(screen.getByRole("button", { name: "Создать задачу" }));
@@ -227,6 +226,7 @@ describe("TaskFormDialog", () => {
     setup();
 
     await userEvent.type(await screen.findByLabelText("Название"), "Бриф");
+    await openAssign();
     await userEvent.click(await screen.findByLabelText("Проект"));
     await userEvent.click(await screen.findByRole("option", { name: "Летний запуск" }));
     await userEvent.click(screen.getByRole("button", { name: "Создать задачу" }));
@@ -240,6 +240,7 @@ describe("TaskFormDialog", () => {
     setup();
 
     await userEvent.type(await screen.findByLabelText("Название"), "Бриф");
+    await openAssign();
     await userEvent.click(await screen.findByLabelText("Проект"));
     await userEvent.click(await screen.findByRole("option", { name: "Летний запуск" }));
     await userEvent.click(screen.getByRole("button", { name: "Создать задачу" }));
@@ -265,6 +266,8 @@ describe("pictures in the selects", () => {
     withPictures();
     setup();
 
+    await openAssign();
+
     await userEvent.click(await screen.findByLabelText("Проект"));
 
     const option = await screen.findByRole("option", { name: /Летний запуск/ });
@@ -275,6 +278,7 @@ describe("pictures in the selects", () => {
     withPictures();
     setup();
 
+    await openAssign();
     await userEvent.click(await screen.findByLabelText("Ответственный"));
 
     const option = await screen.findByRole("option", { name: /Пётр/ });
@@ -286,6 +290,7 @@ describe("pictures in the selects", () => {
     withPictures();
     setup();
 
+    await openAssign();
     await userEvent.click(await screen.findByLabelText("Ответственный"));
 
     const option = await screen.findByRole("option", { name: /Анна/ });
@@ -295,21 +300,17 @@ describe("pictures in the selects", () => {
 });
 
 describe("the dialog's shape", () => {
-  it("puts the selects on one row", async () => {
-    const user = userEvent.setup();
+  it("puts the assignment's selects on one row", async () => {
     setup();
-    await screen.findByLabelText("Проект");
+    await screen.findByLabelText("Название");
+    expect(screen.getByTestId("task-form-selects"))
+      .toContainElement(screen.getByLabelText("Приоритет"));
 
-    const row = screen.getByTestId("task-form-selects");
-    for (const label of ["Проект", "Ответственный", "Приоритет"]) {
-      expect(row).toContainElement(screen.getByLabelText(label));
+    await openAssign();
+    const block = screen.getByTestId("task-block-assign");
+    for (const label of ["Проект", "Кампания", "Ответственный"]) {
+      expect(block).toContainElement(await screen.findByLabelText(label));
     }
-    expect(row).toContainElement(screen.getByRole("switch", { name: "Видно клиенту" }));
-
-    await user.click(screen.getByLabelText("Проект"));
-    await user.click(await screen.findByRole("option", { name: "Летний запуск" }));
-
-    expect(row).toContainElement(await screen.findByLabelText("Кампания"));
   });
 });
 
@@ -326,6 +327,7 @@ describe("creating into a chosen column", () => {
     );
 
     await user.type(await screen.findByLabelText("Название"), "Проверить креативы");
+    await openAssign();
     await user.click(screen.getByLabelText("Проект"));
     await user.click(await screen.findByRole("option", { name: /Летний запуск/ }));
     await user.click(screen.getByRole("button", { name: "Создать задачу" }));
@@ -344,6 +346,7 @@ describe("creating into a chosen column", () => {
     setup();
 
     await user.type(await screen.findByLabelText("Название"), "Без колонки");
+    await openAssign();
     await user.click(screen.getByLabelText("Проект"));
     await user.click(await screen.findByRole("option", { name: /Летний запуск/ }));
     await user.click(screen.getByRole("button", { name: "Создать задачу" }));
@@ -381,17 +384,22 @@ describe("the dialog's controls", () => {
     expect(posted).toBe(false);
   });
 
-  it("says the project is not chosen yet", async () => {
+  it("says the task belongs to no project yet", async () => {
     setup();
-    expect(await screen.findByLabelText("Проект")).toHaveTextContent("Не выбран");
+    await openAssign();
+    expect(await screen.findByLabelText("Проект")).toHaveTextContent("Без проекта");
   });
 
   it("shows the chosen project instead, once one is picked", async () => {
     const user = userEvent.setup();
     setup();
 
+    await openAssign();
+
     await user.click(await screen.findByLabelText("Проект"));
     await user.click(await screen.findByRole("option", { name: /Летний запуск/ }));
+
+    await openAssign();
 
     expect(screen.getByLabelText("Проект")).toHaveTextContent("Летний запуск");
   });
@@ -403,7 +411,7 @@ describe("attachments", () => {
       task={{
         id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлами",
         description: null, column: "IDEA", priority: "LOW", assigneeId: null,
-        createdById: null, campaignId: null, visibleToClient: false, position: 0, imageIds,
+        createdById: null, campaignId: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds,
         createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
       }}
       onClose={() => {}}
@@ -498,7 +506,7 @@ describe("a freshly pasted image", () => {
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлами",
           description: null, column: "IDEA", priority: "LOW", assigneeId: null,
-          createdById: null, campaignId: null, visibleToClient: false, position: 0, imageIds: ["image-1"],
+          createdById: null, campaignId: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds: ["image-1"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -551,7 +559,7 @@ describe("removing an attachment reaches the description", () => {
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлом",
           description: described("image-1"), column: "IDEA", priority: "LOW",
-          assigneeId: null, createdById: null, campaignId: null, visibleToClient: false, position: 0, imageIds: ["image-1"],
+          assigneeId: null, createdById: null, campaignId: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds: ["image-1"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -583,7 +591,7 @@ describe("removing an attachment reaches the description", () => {
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлом",
           description: described("image-1"), column: "IDEA", priority: "LOW",
-          assigneeId: null, createdById: null, campaignId: null, visibleToClient: false, position: 0, imageIds: ["image-1"],
+          assigneeId: null, createdById: null, campaignId: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds: ["image-1"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -604,18 +612,23 @@ describe("removing an attachment reaches the description", () => {
 
 describe("the campaign a task is about", () => {
   const chooseProject = async (user: ReturnType<typeof userEvent.setup>, name = "Летний запуск") => {
+    await openAssign();
     await user.click(await screen.findByLabelText("Проект"));
     await user.click(await screen.findByRole("option", { name }));
   };
 
-  it("offers no campaign select until a project is chosen", async () => {
+  const openCampaign = async (_user: ReturnType<typeof userEvent.setup>) => {
+    await openAssign();
+  };
+
+  it("offers no campaign select until the assignment is added", async () => {
     const user = userEvent.setup();
     setup();
     await screen.findByLabelText("Название");
 
     expect(screen.queryByLabelText("Кампания")).not.toBeInTheDocument();
 
-    await chooseProject(user);
+    await openCampaign(user);
 
     expect(await screen.findByLabelText("Кампания")).toBeInTheDocument();
   });
@@ -625,6 +638,7 @@ describe("the campaign a task is about", () => {
     setup();
     await screen.findByLabelText("Название");
     await chooseProject(user);
+    await openCampaign(user);
 
     expect(await screen.findByLabelText("Кампания")).toHaveTextContent("Общий");
   });
@@ -634,6 +648,7 @@ describe("the campaign a task is about", () => {
     setup();
     await screen.findByLabelText("Название");
     await chooseProject(user);
+    await openCampaign(user);
 
     await user.click(await screen.findByLabelText("Кампания"));
 
@@ -653,6 +668,7 @@ describe("the campaign a task is about", () => {
 
     await user.type(await screen.findByLabelText("Название"), "Переписать объявления");
     await chooseProject(user);
+    await openCampaign(user);
     await user.click(await screen.findByLabelText("Кампания"));
     await user.click(await screen.findByRole("option", { name: /Поиск \/ Москва/ }));
     await user.click(screen.getByRole("button", { name: "Создать задачу" }));
@@ -672,6 +688,7 @@ describe("the campaign a task is about", () => {
 
     await user.type(await screen.findByLabelText("Название"), "Согласовать бюджет");
     await chooseProject(user);
+    await openCampaign(user);
     await user.click(screen.getByRole("button", { name: "Создать задачу" }));
 
     await waitFor(() => expect(body).not.toBeNull());
@@ -687,6 +704,7 @@ describe("the campaign a task is about", () => {
     setup();
     await screen.findByLabelText("Название");
     await chooseProject(user);
+    await openCampaign(user);
     await user.click(await screen.findByLabelText("Кампания"));
     await user.click(await screen.findByRole("option", { name: /Поиск \/ Москва/ }));
     expect(screen.getByLabelText("Кампания")).toHaveTextContent("Поиск / Москва");
@@ -718,18 +736,13 @@ describe("showing a task to the client", () => {
 
   it("offers an admin the control, as a switch", async () => {
     asRole("ADMIN");
-    setup();
+    renderWithProviders(
+      <TaskFormDialog task={aTask({ projectId: "project-1" })} onClose={() => {}} />,
+      { route: "/tasks" },
+    );
 
     const control = await screen.findByRole("switch", { name: "Видно клиенту" });
     expect(control).toHaveAttribute("aria-checked", "false");
-  });
-
-  it("stands the switch beside the selects rather than under them", async () => {
-    asRole("ADMIN");
-    setup();
-
-    const control = await screen.findByRole("switch", { name: "Видно клиенту" });
-    expect(screen.getByTestId("task-form-selects")).toContainElement(control);
   });
 
   it("shows the switch already on for a task the client can see", async () => {

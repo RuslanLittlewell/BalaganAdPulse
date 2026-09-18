@@ -1,7 +1,7 @@
 import type React from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Paperclip } from "lucide-react";
+import { CalendarClock, Check, GripVertical, ListChecks, Paperclip, Repeat } from "lucide-react";
 import type { Task } from "@/entities/task/index.js";
 import { MemberAvatar, type Membership } from "@/entities/membership/index.js";
 import { ProjectAvatar, type Project } from "@/entities/project/index.js";
@@ -16,6 +16,7 @@ export interface TaskCardProps {
   campaignName?: string;
   assignee?: Membership;
   onOpen?: (task: Task) => void;
+  onComplete?: (task: Task) => void;
 }
 
 const PRIORITY_TONE: Record<Task["priority"], string> = {
@@ -25,6 +26,11 @@ const PRIORITY_TONE: Record<Task["priority"], string> = {
   URGENT: "bg-red-600 text-white dark:bg-red-700",
 };
 
+function shortDay(iso: string): string {
+  const [, month, day] = iso.split("-");
+  return `${day}.${month}`;
+}
+
 const PRIORITY_BAR: Record<Task["priority"], string> = {
   LOW: "bg-border",
   MEDIUM: "bg-sky-400",
@@ -33,13 +39,14 @@ const PRIORITY_BAR: Record<Task["priority"], string> = {
 };
 
 export function TaskCard({
-  task, draggable, placeholder = false, project, campaignName, assignee, onOpen,
+  task, draggable, placeholder = false, project, campaignName, assignee, onOpen, onComplete,
 }: TaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: task.id,
     disabled: !draggable,
   });
   const attachments = task.imageIds.length;
+  const ticked = task.checklist.filter((item) => item.done).length;
 
   const { onKeyDown: startKeyboardDrag, ...pointerListeners } = listeners ?? {};
   const onHandleKeyDown = startKeyboardDrag as React.KeyboardEventHandler<HTMLButtonElement> | undefined;
@@ -104,6 +111,27 @@ export function TaskCard({
         data-testid={`task-header-${task.id}`}
       >
         <h3 className="min-w-0 line-clamp-3 text-sm font-medium leading-snug">{task.title}</h3>
+        {onComplete && task.repeatEvery !== "NONE" ? (
+          <button
+            type="button"
+            aria-label={t("tasks.complete")}
+            title={t("tasks.complete")}
+            data-testid={`task-complete-${task.id}`}
+            className={cn(
+              "shrink-0 rounded-md p-1 text-muted-foreground transition-colors",
+              "hover:bg-emerald-100 hover:text-emerald-700",
+              "dark:hover:bg-emerald-950 dark:hover:text-emerald-300",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            )}
+            onClick={(event) => {
+              event.stopPropagation();
+              onComplete(task);
+            }}
+            onKeyDown={(event) => event.stopPropagation()}
+          >
+            <Check aria-hidden className="size-4" />
+          </button>
+        ) : null}
         <span
           data-testid={`task-priority-${task.id}`}
           data-priority={task.priority}
@@ -115,6 +143,34 @@ export function TaskCard({
           {t(`tasks.priority.${task.priority}`)}
         </span>
       </div>
+
+      {task.dueDate || task.checklist.length > 0 || attachments > 0 ? (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {task.dueDate ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground"
+              data-testid={`task-due-${task.id}`}
+            >
+              <CalendarClock aria-hidden className="size-3" />
+              {shortDay(task.dueDate)}
+              {task.dueTime ? ` ${task.dueTime}` : ""}
+              {task.repeatEvery === "NONE" ? null : (
+                <Repeat aria-hidden={false} aria-label={t("tasks.repeats")} className="size-3" />
+              )}
+            </span>
+          ) : null}
+
+          {task.checklist.length > 0 ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground"
+              data-testid={`task-checklist-${task.id}`}
+            >
+              <ListChecks aria-hidden className="size-3" />
+              {`${ticked}/${task.checklist.length}`}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       {attachments > 0 ? (
         <div className="mt-2">

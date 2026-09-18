@@ -14,8 +14,8 @@ beforeEach(() => {
     mock.get("/api/projects", () =>
       HttpResponse.json([aProject({ id: "project-1", name: "Летний запуск" })])),
     mock.get("/api/members", () => HttpResponse.json(members)),
-    mock.get("/api/projects/project-1/campaigns/names", () => HttpResponse.json([
-      { id: "camp-1", name: "Поиск / Москва", channel: "YANDEX" },
+    mock.get("/api/campaigns/names", () => HttpResponse.json([
+      { id: "camp-1", projectId: "project-1", name: "Поиск / Москва", channel: "YANDEX" },
     ])),
     mock.get("/api/task-images/:id", () =>
       HttpResponse.arrayBuffer(new ArrayBuffer(8), { headers: { "Content-Type": "image/png" } })),

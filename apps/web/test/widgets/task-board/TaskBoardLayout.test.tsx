@@ -3,7 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Routes, Route } from "react-router-dom";
 import { aTask, renderWithProviders, server } from "@test/shared/index.js";
-import { TaskBoard } from "@/widgets/task-board/index.js";
+import { LoadedTaskBoard as TaskBoard } from "@test/shared/task-widgets.js";
 import { TaskColumnPanel } from "@/widgets/task-board/TaskColumn.js";
 import { TaskCard } from "@/widgets/task-board/TaskCard.js";
 
@@ -159,8 +159,8 @@ describe("what a card shows without being opened", () => {
         aTask({ projectId: "project-1", campaignId: "camp-1" }),
       ])),
       mock.get("/api/projects", () => HttpResponse.json([project])),
-      mock.get("/api/projects/project-1/campaigns/names", () => HttpResponse.json([
-        { id: "camp-1", name: "Поиск / Москва", channel: "YANDEX" },
+      mock.get("/api/campaigns/names", () => HttpResponse.json([
+        { id: "camp-1", projectId: "project-1", name: "Поиск / Москва", channel: "YANDEX" },
       ])),
     );
     board();

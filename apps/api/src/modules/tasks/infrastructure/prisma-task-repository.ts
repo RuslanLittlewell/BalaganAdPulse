@@ -4,6 +4,7 @@ import type { PrismaClient, Task as TaskRow } from "@prisma/client";
 import type { ActorContext, TransactionContext } from "#shared/application/index.js";
 import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
 import { TASK_COLUMNS, type TaskColumn } from "../domain/board.js";
+import { dateToDay, dayToDate } from "../domain/schedule.js";
 import type {
   MemberReach,
   NewTask,
@@ -14,7 +15,9 @@ import type {
   TaskRepository,
 } from "../application/ports.js";
 
-type RowWithImages = TaskRow & { images?: { id: string }[] };
+type ChecklistRow = { id: string; title: string; done: boolean; position: number };
+
+type RowWithImages = TaskRow & { images?: { id: string }[]; checklist?: ChecklistRow[] };
 
 function toDomain(row: RowWithImages): TaskRecord {
   return {
@@ -23,30 +26,44 @@ function toDomain(row: RowWithImages): TaskRecord {
     assigneeId: row.assigneeId, createdById: row.createdById,
     campaignId: row.campaignId, visibleToClient: row.visibleToClient,
     position: row.position,
+    dueDate: row.dueDate === null ? null : dateToDay(row.dueDate),
+    dueTime: row.dueTime, repeatEvery: row.repeatEvery,
+    checklist: row.checklist ?? [],
     imageIds: (row.images ?? []).map((image) => image.id),
     createdAt: row.createdAt, updatedAt: row.updatedAt,
   };
 }
 
-const WITH_IMAGES = { images: { select: { id: true }, orderBy: { createdAt: "asc" } } } as const;
+const WITH_IMAGES = {
+  images: { select: { id: true }, orderBy: { createdAt: "asc" } },
+  checklist: {
+    select: { id: true, title: true, done: true, position: true },
+    orderBy: { position: "asc" },
+  },
+} as const;
 
-function reachFilter(actor: ActorContext): Prisma.TaskWhereInput {
+const grantedProject = (actor: ActorContext): Prisma.ProjectWhereInput => ({
+  OR: [
+    { client: { access: { some: { membershipId: actor.membershipId, projectId: null } } } },
+    { access: { some: { membershipId: actor.membershipId } } },
+  ],
+});
+
+function visibleTo(actor: ActorContext): Prisma.TaskWhereInput {
   if (actor.role === "ADMIN") return { orgId: actor.orgId };
+  if (isCustomer(actor.role)) {
+    return { orgId: actor.orgId, visibleToClient: true, project: grantedProject(actor) };
+  }
   return {
     orgId: actor.orgId,
-    project: {
-      OR: [
-        { client: { access: { some: { membershipId: actor.membershipId, projectId: null } } } },
-        { access: { some: { membershipId: actor.membershipId } } },
-      ],
-    },
+    OR: [
+      { project: grantedProject(actor), assigneeId: actor.membershipId },
+      {
+        projectId: null,
+        OR: [{ createdById: actor.membershipId }, { assigneeId: actor.membershipId }],
+      },
+    ],
   };
-}
-
-function ownershipFilter(actor: ActorContext): Prisma.TaskWhereInput {
-  if (actor.role === "ADMIN") return {};
-  if (isCustomer(actor.role)) return { visibleToClient: true };
-  return { assigneeId: actor.membershipId };
 }
 
 const BOARD_ORDER: Prisma.TaskOrderByWithRelationInput[] = [
@@ -65,13 +82,22 @@ export class PrismaTaskRepository implements TaskRepository {
   }
 
   async create(context: TransactionContext, input: NewTask): Promise<TaskRecord> {
+    const { checklist = [], ...task } = input;
     const row = await this.client(context).task.create({
       include: WITH_IMAGES,
       data: {
-        ...input,
+        ...task,
+        dueDate: input.dueDate ? dayToDate(input.dueDate) : null,
         description: input.description === null || input.description === undefined
           ? undefined
           : (input.description as Prisma.InputJsonValue),
+        checklist: checklist.length === 0
+          ? undefined
+          : {
+              create: checklist.map((item, index) => ({
+                id: item.id, title: item.title, done: item.done, position: index,
+              })),
+            },
       },
     });
     return toDomain(row);
@@ -79,7 +105,7 @@ export class PrismaTaskRepository implements TaskRepository {
 
   async findReachable(actor: ActorContext, id: string): Promise<TaskRecord | null> {
     const row = await this.prisma.task.findFirst({
-      where: { id, ...reachFilter(actor), ...ownershipFilter(actor) }, include: WITH_IMAGES,
+      where: { id, ...visibleTo(actor) }, include: WITH_IMAGES,
     });
     return row && toDomain(row);
   }
@@ -87,10 +113,17 @@ export class PrismaTaskRepository implements TaskRepository {
   async listReachable(actor: ActorContext, filter?: TaskFilter): Promise<TaskRecord[]> {
     const rows = await this.prisma.task.findMany({
       where: {
-        ...reachFilter(actor),
-        ...ownershipFilter(actor),
+        ...visibleTo(actor),
         ...(filter?.projectId ? { projectId: filter.projectId } : {}),
         ...(filter?.campaignId ? { campaignId: filter.campaignId } : {}),
+        ...(filter?.dueFrom || filter?.dueTo
+          ? {
+              dueDate: {
+                ...(filter.dueFrom ? { gte: dayToDate(filter.dueFrom) } : {}),
+                ...(filter.dueTo ? { lte: dayToDate(filter.dueTo) } : {}),
+              },
+            }
+          : {}),
       },
       orderBy: BOARD_ORDER,
       include: WITH_IMAGES,
@@ -115,6 +148,11 @@ export class PrismaTaskRepository implements TaskRepository {
         ...(input.visibleToClient === undefined
           ? {}
           : { visibleToClient: input.visibleToClient }),
+        ...(input.dueDate === undefined
+          ? {}
+          : { dueDate: input.dueDate === null ? null : dayToDate(input.dueDate) }),
+        ...(input.dueTime === undefined ? {} : { dueTime: input.dueTime }),
+        ...(input.repeatEvery === undefined ? {} : { repeatEvery: input.repeatEvery }),
         ...(input.description === undefined
           ? {}
           : { description: input.description === null
@@ -148,6 +186,36 @@ export class PrismaTaskRepository implements TaskRepository {
     const client = this.client(context);
     await Promise.all(ids.map((id, index) =>
       client.task.update({ where: { id }, data: { column, position: index } })));
+  }
+
+  async updateChecklist(
+    context: TransactionContext,
+    taskId: string,
+    items: readonly { id: string; title: string; done: boolean }[],
+  ): Promise<TaskRecord> {
+    const client = this.client(context);
+    await client.taskChecklistItem.deleteMany({ where: { taskId } });
+    if (items.length > 0) {
+      await client.taskChecklistItem.createMany({
+        data: items.map((item, index) => ({
+          id: item.id, taskId, title: item.title, done: item.done, position: index,
+        })),
+      });
+    }
+    return this.readWithin(context, taskId);
+  }
+
+  async untickChecklist(context: TransactionContext, taskId: string): Promise<void> {
+    await this.client(context).taskChecklistItem.updateMany({
+      where: { taskId }, data: { done: false },
+    });
+  }
+
+  private async readWithin(context: TransactionContext, id: string): Promise<TaskRecord> {
+    const row = await this.client(context).task.findUniqueOrThrow({
+      where: { id }, include: WITH_IMAGES,
+    });
+    return toDomain(row);
   }
 }
 

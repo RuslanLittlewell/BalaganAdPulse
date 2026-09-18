@@ -1,13 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TASK_COLUMNS, tasksApi, type Task, type TaskColumn, type TaskInput, type TaskMove } from "./api.js";
+import type { QueryClient } from "@tanstack/react-query";
 
 export const TASKS_KEY = ["tasks"] as const;
 
 export type TaskEvent =
-  | { kind: "task.created"; orgId: string; projectId: string; task: Task }
-  | { kind: "task.updated"; orgId: string; projectId: string; task: Task }
-  | { kind: "task.moved"; orgId: string; projectId: string; task: Task }
-  | { kind: "task.deleted"; orgId: string; projectId: string; taskId: string };
+  | { kind: "task.created"; orgId: string; projectId: string | null; task: Task }
+  | { kind: "task.updated"; orgId: string; projectId: string | null; task: Task }
+  | { kind: "task.moved"; orgId: string; projectId: string | null; task: Task }
+  | { kind: "task.deleted"; orgId: string; projectId: string | null; taskId: string };
 
 export interface UseTasksOptions {
   projectId?: string;
@@ -44,6 +45,47 @@ export function useDeleteTask() {
   return useMutation({
     mutationFn: (id: string) => tasksApi.remove(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: TASKS_KEY }),
+  });
+}
+
+function writeTask(qc: QueryClient, task: Task): void {
+  for (const [key, tasks] of qc.getQueriesData<Task[]>({ queryKey: TASKS_KEY })) {
+    if (!tasks) continue;
+    qc.setQueryData<Task[]>(key, applyTaskEvent(tasks, {
+      kind: "task.updated", orgId: task.orgId, projectId: task.projectId, task,
+    }, filterOfKey(key)));
+  }
+}
+
+export function useRescheduleTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, dueDate, dueTime }: { id: string; dueDate: string | null; dueTime?: string | null }) =>
+      tasksApi.update(id, dueTime === undefined ? { dueDate } : { dueDate, dueTime }),
+    onMutate: async ({ id, dueDate, dueTime }) => {
+      const snapshots = qc.getQueriesData<Task[]>({ queryKey: TASKS_KEY });
+      for (const [key, tasks] of snapshots) {
+        if (!tasks) continue;
+        qc.setQueryData<Task[]>(key, tasks.map((task) =>
+          (task.id === id
+            ? { ...task, dueDate, ...(dueTime === undefined ? {} : { dueTime }) }
+            : task)));
+      }
+      await qc.cancelQueries({ queryKey: TASKS_KEY });
+      return { snapshots };
+    },
+    onError: (_error, _variables, context) => {
+      for (const [key, tasks] of context?.snapshots ?? []) qc.setQueryData(key, tasks);
+    },
+    onSuccess: (task) => writeTask(qc, task),
+  });
+}
+
+export function useCompleteTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => tasksApi.complete(id),
+    onSuccess: (task) => writeTask(qc, task),
   });
 }
 

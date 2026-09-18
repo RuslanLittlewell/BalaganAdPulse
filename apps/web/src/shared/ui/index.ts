@@ -20,6 +20,8 @@ export * from "./Avatar/Avatar.js";
 export * from "./CenteredPanel/CenteredPanel.js";
 export * from "./ConfirmDialog/ConfirmDialog.js";
 export * from "./DatePicker/DatePicker.js";
+export * from "./FadeContent/FadeContent.js";
+export { dayLabel, fromIso, toIso } from "./DatePicker/month.js";
 export * from "./EmptyState/EmptyState.js";
 export * from "./CopyButton/CopyButton.js";
 export * from "./ListItem/ListItem.js";

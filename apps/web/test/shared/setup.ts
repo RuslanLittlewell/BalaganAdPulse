@@ -63,6 +63,8 @@ if (!Range.prototype.getBoundingClientRect) {
 
 import { server } from "./server.js";
 import { resetStaff } from "@/entities/membership/index.js";
+import { resetProjects } from "@/entities/project/index.js";
+import { resetCampaignNames } from "@/entities/campaign/index.js";
 import { useModuleMemory } from "@/shared/lib/index.js";
 import { useSummaryTiles } from "@/widgets/agency-overview/summaryTiles.js";
 import { useColumnWidths } from "@/widgets/performance-table/columnWidths.js";
@@ -71,6 +73,8 @@ beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => {
   server.resetHandlers();
   resetStaff();
+  resetProjects();
+  resetCampaignNames();
   useModuleMemory.setState({ boards: {}, projectPlaces: {} });
   useSummaryTiles.setState({ layouts: {} });
   useColumnWidths.setState({ nameWidths: {}, visibleColumns: {} });

@@ -14,7 +14,10 @@ export interface TaskAttachmentsProps {
 export function TaskAttachments({ imageIds, onRemoved }: TaskAttachmentsProps) {
   const queryClient = useQueryClient();
   const [urls, setUrls] = useState<Record<string, string>>({});
-  const [previewing, setPreviewing] = useState<{ id: string; label: string } | null>(null);
+  const [previewing, setPreviewing] = useState<{
+    id: string;
+    label: string;
+  } | null>(null);
   const [removed, setRemoved] = useState<string[]>([]);
   const [failure, setFailure] = useState<string | null>(null);
 
@@ -24,15 +27,19 @@ export function TaskAttachments({ imageIds, onRemoved }: TaskAttachmentsProps) {
     let cancelled = false;
     const made: string[] = [];
 
-    void Promise.all(imageIds.map(async (id) => {
-      try {
-        const url = await taskImagesApi.blobUrl(id);
-        if (cancelled) { URL.revokeObjectURL(url); return; }
-        made.push(url);
-        setUrls((current) => ({ ...current, [id]: url }));
-      } catch {
-      }
-    }));
+    void Promise.all(
+      imageIds.map(async (id) => {
+        try {
+          const url = await taskImagesApi.blobUrl(id);
+          if (cancelled) {
+            URL.revokeObjectURL(url);
+            return;
+          }
+          made.push(url);
+          setUrls((current) => ({ ...current, [id]: url }));
+        } catch {}
+      }),
+    );
 
     return () => {
       cancelled = true;
@@ -61,13 +68,19 @@ export function TaskAttachments({ imageIds, onRemoved }: TaskAttachmentsProps) {
       </h3>
 
       {visible.length === 0 ? (
-        <p className="text-xs text-muted-foreground">{t("tasks.attachments.empty")}</p>
+        <p className="text-xs text-muted-foreground">
+          {t("tasks.attachments.empty")}
+        </p>
       ) : (
         <ul className="flex flex-wrap gap-2">
           {visible.map((id, index) => {
             const label = `${t("tasks.editor.attachment")} ${index + 1}`;
             return (
-              <li key={id} className="group relative" data-testid={`task-attachment-${id}`}>
+              <li
+                key={id}
+                className="group relative"
+                data-testid={`task-attachment-${id}`}
+              >
                 <button
                   type="button"
                   aria-label={label}
@@ -78,7 +91,11 @@ export function TaskAttachments({ imageIds, onRemoved }: TaskAttachmentsProps) {
                   )}
                 >
                   {urls[id] ? (
-                    <img src={urls[id]} alt="" className="size-full object-cover" />
+                    <img
+                      src={urls[id]}
+                      alt=""
+                      className="size-full object-cover"
+                    />
                   ) : (
                     <span className="flex size-full items-center justify-center text-xs text-muted-foreground">
                       …
@@ -109,13 +126,19 @@ export function TaskAttachments({ imageIds, onRemoved }: TaskAttachmentsProps) {
         </ul>
       )}
 
-      {failure ? <p role="alert" className="text-xs text-destructive">{failure}</p> : null}
+      {failure ? (
+        <p role="alert" className="text-xs text-destructive">
+          {failure}
+        </p>
+      ) : null}
 
       <TaskImagePreview
         imageId={previewing?.id ?? null}
         label={previewing?.label ?? ""}
         open={previewing !== null}
-        onOpenChange={(open) => { if (!open) setPreviewing(null); }}
+        onOpenChange={(open) => {
+          if (!open) setPreviewing(null);
+        }}
       />
     </section>
   );

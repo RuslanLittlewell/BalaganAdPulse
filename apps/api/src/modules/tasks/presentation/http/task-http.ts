@@ -2,7 +2,9 @@ import { Router, type NextFunction, type Request, type RequestHandler, type Resp
 import { AppError } from "#shared/domain/index.js";
 import type { TaskUseCases } from "../../application/task-use-cases.js";
 import type { TaskImageUseCases } from "../../application/task-image-use-cases.js";
-import { createTaskSchema, moveTaskSchema, updateTaskSchema } from "./task-schemas.js";
+import {
+  createTaskSchema, moveTaskSchema, taskFilterSchema, updateTaskSchema,
+} from "./task-schemas.js";
 
 function actorOf(req: Request) {
   if (!req.actor) throw new AppError("unauthorized", "Authentication required");
@@ -20,10 +22,12 @@ export function createTaskRouter(useCases: TaskUseCases): Router {
 
   router.get("/", handle(async (req, res) => {
     const only = (value: unknown) => (typeof value === "string" && value ? value : undefined);
-    res.json(await useCases.list(actorOf(req), {
+    res.json(await useCases.list(actorOf(req), taskFilterSchema.parse({
       projectId: only(req.query.projectId),
       campaignId: only(req.query.campaignId),
-    }));
+      dueFrom: only(req.query.dueFrom),
+      dueTo: only(req.query.dueTo),
+    })));
   }));
   router.post("/", handle(async (req, res) => {
     res.status(201).json(await useCases.create(actorOf(req), createTaskSchema.parse(req.body)));
@@ -40,6 +44,9 @@ export function createTaskRouter(useCases: TaskUseCases): Router {
   }));
   router.post("/:id/move", handle(async (req: Request<{ id: string }>, res) => {
     res.json(await useCases.move(actorOf(req), req.params.id, moveTaskSchema.parse(req.body)));
+  }));
+  router.post("/:id/complete", handle(async (req: Request<{ id: string }>, res) => {
+    res.json(await useCases.complete(actorOf(req), req.params.id));
   }));
 
   return router;

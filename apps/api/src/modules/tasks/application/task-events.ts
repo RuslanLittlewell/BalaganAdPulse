@@ -1,15 +1,16 @@
 import type { TaskRecord } from "./ports.js";
 
 export type TaskEvent =
-  | { readonly kind: "task.created"; readonly orgId: string; readonly projectId: string; readonly task: TaskRecord }
-  | { readonly kind: "task.updated"; readonly orgId: string; readonly projectId: string; readonly task: TaskRecord }
-  | { readonly kind: "task.moved"; readonly orgId: string; readonly projectId: string; readonly task: TaskRecord }
+  | { readonly kind: "task.created"; readonly orgId: string; readonly projectId: string | null; readonly task: TaskRecord }
+  | { readonly kind: "task.updated"; readonly orgId: string; readonly projectId: string | null; readonly task: TaskRecord }
+  | { readonly kind: "task.moved"; readonly orgId: string; readonly projectId: string | null; readonly task: TaskRecord }
   | {
       readonly kind: "task.deleted";
       readonly orgId: string;
-      readonly projectId: string;
+      readonly projectId: string | null;
       readonly taskId: string;
       readonly assigneeId: string | null;
+      readonly createdById: string | null;
       readonly visibleToClient: boolean;
     };
 
@@ -31,6 +32,7 @@ export const taskDeleted = (task: TaskRecord): TaskEvent => ({
   projectId: task.projectId,
   taskId: task.id,
   assigneeId: task.assigneeId,
+  createdById: task.createdById,
   visibleToClient: task.visibleToClient,
 });
 

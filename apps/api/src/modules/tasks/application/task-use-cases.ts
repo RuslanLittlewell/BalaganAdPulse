@@ -1,6 +1,6 @@
 import { can, isCustomer } from "@adpulse/access-policy";
 import { AppError } from "#shared/domain/index.js";
-import type { ActorContext } from "#shared/application/index.js";
+import type { ActorContext, TransactionContext } from "#shared/application/index.js";
 import {
   DEFAULT_TASK_COLUMN,
   isTaskColumn,
@@ -10,19 +10,30 @@ import {
   type TaskPriority,
 } from "../domain/board.js";
 import { collectImageIds } from "../domain/description.js";
+import {
+  UNSCHEDULED,
+  nextOccurrence,
+  rescheduled,
+  type TaskRepeat,
+  type TaskSchedule,
+} from "../domain/schedule.js";
 import type {
   TaskChange, TaskDependencies, TaskDescription, TaskFilter, TaskRecord,
 } from "./ports.js";
 import { taskCreated, taskDeleted, taskMoved, taskUpdated } from "./task-events.js";
 
 export interface CreateTaskInput {
-  readonly projectId: string;
+  readonly projectId?: string | null;
   readonly title: string;
   readonly description?: TaskDescription | null;
   readonly column?: TaskColumn;
   readonly priority: TaskPriority;
   readonly assigneeId?: string | null;
   readonly campaignId?: string | null;
+  readonly dueDate?: string | null;
+  readonly dueTime?: string | null;
+  readonly repeatEvery?: TaskRepeat;
+  readonly checklist?: readonly { title: string; done?: boolean }[];
 }
 
 export interface MoveTaskInput {
@@ -50,7 +61,8 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
     return task;
   };
 
-  const projectContext = async (actor: ActorContext, projectId: string) => {
+  const projectContext = async (actor: ActorContext, projectId: string | null) => {
+    if (projectId === null) return { clientId: null };
     const context = await dependencies.projects.contextFor(actor, projectId);
     if (!context) throw new AppError("not-found", "Project not found");
     return context;
@@ -65,11 +77,20 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
 
   const assertCampaignInProject = async (
     campaignId: string | null | undefined,
-    projectId: string,
+    projectId: string | null,
   ) => {
     if (!campaignId) return;
+    if (projectId === null) {
+      throw new AppError("validation", "A task with no project carries no campaign");
+    }
     if (!(await dependencies.campaigns.isInProject(campaignId, projectId))) {
       throw new AppError("validation", "That campaign does not belong to this project");
+    }
+  };
+
+  const assertMayShare = (visibleToClient: boolean, projectId: string | null) => {
+    if (visibleToClient && projectId === null) {
+      throw new AppError("validation", "A task with no project concerns no client");
     }
   };
 
@@ -92,6 +113,21 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
     }
   };
 
+  const assertSchedule = (schedule: TaskSchedule) => {
+    if (schedule.dueTime !== null && schedule.dueDate === null) {
+      throw new AppError("validation", "A time of day needs a day to fall on");
+    }
+    if (schedule.repeatEvery !== "NONE" && schedule.dueDate === null) {
+      throw new AppError("validation", "A repeating task needs a due date to count from");
+    }
+  };
+
+  const assertChecklistTitle = (title: string | undefined) => {
+    if (title !== undefined && title.trim().length === 0) {
+      throw new AppError("validation", "A checklist item needs a title");
+    }
+  };
+
   return {
     list: async (actor: ActorContext, filter?: TaskFilter): Promise<TaskRecord[]> => {
       assertCanRead(actor);
@@ -105,25 +141,35 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
       assertCan(actor, "create");
       assertTitle(input.title);
       assertColumn(input.column);
-      const context = await projectContext(actor, input.projectId);
+      const projectId = input.projectId ?? null;
+      const context = await projectContext(actor, projectId);
       await assertAssignable(actor, input.assigneeId);
-      await assertCampaignInProject(input.campaignId, input.projectId);
+      await assertCampaignInProject(input.campaignId, projectId);
+      assertMayShare(isCustomer(actor.role), projectId);
 
       const column = input.column ?? DEFAULT_TASK_COLUMN;
+      const schedule = rescheduled(UNSCHEDULED, input);
+      assertSchedule(schedule);
+      for (const item of input.checklist ?? []) assertChecklistTitle(item.title);
+      const checklist = (input.checklist ?? []).map((item) => ({
+        id: dependencies.ids.generate(), title: item.title.trim(), done: item.done ?? false,
+      }));
       const created = await dependencies.unitOfWork.run(async (transaction) => {
         const task = await dependencies.tasks.create(transaction, {
           id: dependencies.ids.generate(),
-          projectId: input.projectId,
+          projectId,
           orgId: actor.orgId,
           title: input.title.trim(),
           description: input.description ?? null,
           column,
+          ...schedule,
           priority: input.priority,
           assigneeId: input.assigneeId ?? null,
           createdById: actor.membershipId,
           campaignId: input.campaignId ?? null,
           visibleToClient: isCustomer(actor.role),
           position: await dependencies.tasks.countInColumn(actor.orgId, column),
+          checklist,
         });
         const imageIds = await dependencies.images.claim(
           transaction, task.id, actor.membershipId, collectImageIds(task.description),
@@ -144,32 +190,45 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
       assertCan(actor, "update");
       assertMaySetVisibility(actor, input.visibleToClient);
       assertTitle(input.title);
-      const projectId = input.projectId ?? task.projectId;
+      const projectId = input.projectId === undefined ? task.projectId : input.projectId;
       const context = await projectContext(actor, projectId);
       await assertAssignable(actor, input.assigneeId);
       await assertCampaignInProject(input.campaignId, projectId);
+      assertMayShare(input.visibleToClient ?? task.visibleToClient, projectId);
 
       const releasesCampaign = input.campaignId === undefined
         && projectId !== task.projectId
         && task.campaignId !== null;
 
+      const schedule = rescheduled(task, input);
+      assertSchedule(schedule);
+      for (const item of input.checklist ?? []) assertChecklistTitle(item.title);
+      const checklist = input.checklist?.map((item) => ({
+        id: dependencies.ids.generate(), title: item.title.trim(), done: item.done ?? false,
+      }));
+
       const updated = await dependencies.unitOfWork.run(async (transaction) => {
+        const { checklist: _given, ...fields } = input;
         const changed = await dependencies.tasks.update(transaction, id, {
-          ...input,
+          ...fields,
+          ...schedule,
           ...(input.title === undefined ? {} : { title: input.title.trim() }),
           ...(releasesCampaign ? { campaignId: null } : {}),
         });
+        const withChecklist = checklist === undefined
+          ? changed
+          : await dependencies.tasks.updateChecklist(transaction, id, checklist);
         const imageIds = input.description === undefined
-          ? changed.imageIds
+          ? withChecklist.imageIds
           : await dependencies.images.claim(
-              transaction, id, actor.membershipId, collectImageIds(changed.description),
+              transaction, id, actor.membershipId, collectImageIds(withChecklist.description),
             );
         await dependencies.audit.append(transaction, {
           action: "UPDATE", entityType: "task", entityId: id,
-          clientId: context.clientId, projectId: changed.projectId,
-          summary: `Updated task “${changed.title}”`,
+          clientId: context.clientId, projectId: withChecklist.projectId,
+          summary: `Updated task “${withChecklist.title}”`,
         }, actor);
-        return { ...changed, imageIds };
+        return { ...withChecklist, imageIds };
       });
       dependencies.events.publish(taskUpdated(updated));
       return updated;
@@ -197,6 +256,29 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
 
       await dependencies.imageStorage.remove(images.map((image) => image.storageKey));
       dependencies.events.publish(taskDeleted(task));
+    },
+
+    complete: async (actor: ActorContext, id: string): Promise<TaskRecord> => {
+      const task = await reach(actor, id);
+      assertCan(actor, "update");
+      if (task.repeatEvery === "NONE" || task.dueDate === null) {
+        throw new AppError("validation", "Only a repeating task is completed into its next occurrence");
+      }
+      const context = await projectContext(actor, task.projectId);
+      const dueDate = nextOccurrence(task.dueDate, task.repeatEvery);
+
+      const completed = await dependencies.unitOfWork.run(async (transaction) => {
+        await dependencies.tasks.untickChecklist(transaction, task.id);
+        const moved = await dependencies.tasks.update(transaction, task.id, { dueDate });
+        await dependencies.audit.append(transaction, {
+          action: "UPDATE", entityType: "task", entityId: task.id,
+          clientId: context.clientId, projectId: task.projectId,
+          summary: `Completed task “${task.title}” of ${task.dueDate}, due next on ${dueDate}`,
+        }, actor);
+        return moved;
+      });
+      dependencies.events.publish(taskUpdated(completed));
+      return completed;
     },
 
     move: async (actor: ActorContext, id: string, input: MoveTaskInput): Promise<TaskRecord> => {

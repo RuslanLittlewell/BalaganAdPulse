@@ -2,19 +2,31 @@ export {
   ACTIVE_TASK_COLUMNS,
   TASK_COLUMNS,
   TASK_PRIORITIES,
+  TASK_REPEATS,
   isActiveColumn,
   taskImagesApi,
   tasksApi,
 } from "./api/api.js";
-export type { Task, TaskColumn, TaskImage, TaskInput, TaskMove, TaskPriority } from "./api/api.js";
+export type {
+  ChecklistItem,
+  Task,
+  TaskColumn,
+  TaskImage,
+  TaskInput,
+  TaskMove,
+  TaskPriority,
+  TaskRepeat,
+} from "./api/api.js";
 export {
   applyMove,
   placementFor,
   previewFor,
   resolveDrop,
+  useCompleteTask,
   useCreateTask,
   useDeleteTask,
   useMoveTask,
+  useRescheduleTask,
   useTasks,
   useUpdateTask,
 } from "./api/queries.js";

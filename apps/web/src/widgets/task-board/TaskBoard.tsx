@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQueries } from "@tanstack/react-query";
 import {
   DndContext,
   DragOverlay,
@@ -18,14 +17,12 @@ import {
   previewFor,
   resolveDrop,
   useMoveTask,
-  useTaskEvents,
-  useTasks,
   type Task,
   type TaskColumn,
 } from "@/entities/task/index.js";
 import { useMembers } from "@/entities/membership/index.js";
 import { useProjects } from "@/entities/project/index.js";
-import { campaignsApi } from "@/entities/campaign/index.js";
+import { useCampaignNameById } from "@/entities/campaign/index.js";
 import { useCan } from "@/features/permissions/index.js";
 import { t } from "@/shared/config/index.js";
 import { EmptyState, Loader } from "@/shared/ui/index.js";
@@ -34,14 +31,14 @@ import { boardCollisionDetection } from "./collision.js";
 import { TaskColumnPanel } from "./TaskColumn.js";
 
 export interface TaskBoardProps {
-  projectId?: string;
+  tasks: Task[] | undefined;
+  isLoading?: boolean;
+  isError?: boolean;
   onOpen?: (task: Task) => void;
   onCreate?: (column: TaskColumn) => void;
 }
 
-export function TaskBoard({ projectId, onOpen, onCreate }: TaskBoardProps) {
-  const { data: tasks, isLoading, isError } = useTasks({ projectId });
-  useTaskEvents();
+export function TaskBoard({ tasks, isLoading, isError, onOpen, onCreate }: TaskBoardProps) {
   const move = useMoveTask();
   const draggable = useCan("update", "task");
   const creatable = useCan("create", "task");
@@ -77,23 +74,7 @@ export function TaskBoard({ projectId, onOpen, onCreate }: TaskBoardProps) {
     [members],
   );
 
-  const projectsWithCampaigns = useMemo(
-    () => [...new Set(
-      (tasks ?? []).filter((task) => task.campaignId).map((task) => task.projectId),
-    )].sort(),
-    [tasks],
-  );
-  const campaignList = useQueries({
-    queries: projectsWithCampaigns.map((id) => ({
-      queryKey: ["projects", id, "campaigns", "names"],
-      queryFn: () => campaignsApi.namesByProject(id),
-    })),
-    combine: (results) => results.flatMap(({ data }) => data ?? []),
-  });
-  const campaignNameById = useMemo(
-    () => new Map(campaignList.map((campaign) => [campaign.id, campaign.name] as const)),
-    [campaignList],
-  );
+  const campaignNameById = useCampaignNameById();
 
   const dragging = board.find((task) => task.id === draggingId) ?? null;
 
@@ -167,7 +148,7 @@ export function TaskBoard({ projectId, onOpen, onCreate }: TaskBoardProps) {
           <TaskCard
             task={dragging}
             draggable={false}
-            project={projectById.get(dragging.projectId)}
+            project={dragging.projectId ? projectById.get(dragging.projectId) : undefined}
             campaignName={dragging.campaignId ? campaignNameById.get(dragging.campaignId) : undefined}
             assignee={dragging.assigneeId ? memberById.get(dragging.assigneeId) : undefined}
           />

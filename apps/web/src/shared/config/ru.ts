@@ -233,7 +233,7 @@ export const ru = {
   "tasks.drag": "Перетащить задачу", "tasks.open": "Открыть задачу",
   "tasks.attachments": "Вложения", "tasks.attachments.empty": "Файлов нет",
   "tasks.attachments.count": "Вложений", "tasks.noProject": "Без проекта",
-  "tasks.form.due": "Срок", "tasks.form.noDue": "Без срока",
+  "tasks.form.due": "Срок", "tasks.form.noDue": "Без срока", "tasks.form.noTime": "Без времени",
   "tasks.form.pickDate": "Выбрать дату", "tasks.form.clearDue": "Убрать срок",
   "tasks.form.previousMonth": "Предыдущий месяц", "tasks.form.nextMonth": "Следующий месяц",
   "tasks.form.time": "Время", "tasks.form.repeat": "Повтор",

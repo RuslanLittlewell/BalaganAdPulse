@@ -60,14 +60,16 @@ function writeTask(qc: QueryClient, task: Task): void {
 export function useRescheduleTask() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, dueDate }: { id: string; dueDate: string | null }) =>
-      tasksApi.update(id, { dueDate }),
-    onMutate: async ({ id, dueDate }) => {
+    mutationFn: ({ id, dueDate, dueTime }: { id: string; dueDate: string | null; dueTime?: string | null }) =>
+      tasksApi.update(id, dueTime === undefined ? { dueDate } : { dueDate, dueTime }),
+    onMutate: async ({ id, dueDate, dueTime }) => {
       const snapshots = qc.getQueriesData<Task[]>({ queryKey: TASKS_KEY });
       for (const [key, tasks] of snapshots) {
         if (!tasks) continue;
         qc.setQueryData<Task[]>(key, tasks.map((task) =>
-          (task.id === id ? { ...task, dueDate } : task)));
+          (task.id === id
+            ? { ...task, dueDate, ...(dueTime === undefined ? {} : { dueTime }) }
+            : task)));
       }
       await qc.cancelQueries({ queryKey: TASKS_KEY });
       return { snapshots };

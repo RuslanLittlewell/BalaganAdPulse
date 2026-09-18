@@ -46,6 +46,20 @@ describe("useRescheduleTask", () => {
     await waitFor(() => expect(sent).toEqual({ dueDate: "2026-09-17" }));
   });
 
+  it("sends the time when a calendar drop chooses a slot", async () => {
+    let sent: unknown = null;
+    server.use(mock.patch("/api/tasks/a", async ({ request }) => {
+      sent = await request.json();
+      return HttpResponse.json(task("a", "2026-09-17", "09:30"));
+    }));
+    const { wrapper, result } = setup();
+
+    act(() => { result.current.mutate({ id: "a", dueDate: "2026-09-17", dueTime: "09:30" }); });
+
+    await waitFor(() => expect(sent).toEqual({ dueDate: "2026-09-17", dueTime: "09:30" }));
+    expect(read(wrapper)[0]).toMatchObject({ dueDate: "2026-09-17", dueTime: "09:30" });
+  });
+
   it("puts the card back on its own day when the server refuses", async () => {
     server.use(mock.patch("/api/tasks/a", () =>
       HttpResponse.json({ error: { message: "нельзя" } }, { status: 403 })));

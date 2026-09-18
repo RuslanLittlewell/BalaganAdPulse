@@ -1,4 +1,9 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
+export const HOURS_PER_DAY = 24;
+export const MINUTES_PER_HOUR = 60;
+export const CALENDAR_HOUR_HEIGHT = 56;
+export const CALENDAR_SNAP_MINUTES = 15;
+export const CALENDAR_START_HOUR = 6;
 
 function asDate(iso: string): Date {
   return new Date(`${iso}T00:00:00.000Z`);
@@ -85,4 +90,40 @@ export function tasksOfDay<T extends { dueDate: string | null; dueTime: string |
       if (b.dueTime === null) return -1;
       return a.dueTime.localeCompare(b.dueTime);
     });
+}
+
+export function minutesOfTime(time: string | null): number | null {
+  if (!time) return null;
+  const [hours, minutes] = time.split(":").map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  return Math.max(0, Math.min((HOURS_PER_DAY * MINUTES_PER_HOUR) - 1, hours * MINUTES_PER_HOUR + minutes));
+}
+
+export function timeOfMinutes(minutes: number): string {
+  const clamped = Math.max(0, Math.min((HOURS_PER_DAY * MINUTES_PER_HOUR) - 1, minutes));
+  const hours = Math.floor(clamped / MINUTES_PER_HOUR);
+  const mins = clamped % MINUTES_PER_HOUR;
+  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+}
+
+export function snapMinutes(minutes: number, step = CALENDAR_SNAP_MINUTES): number {
+  return Math.max(0, Math.min(
+    (HOURS_PER_DAY * MINUTES_PER_HOUR) - step,
+    Math.round(minutes / step) * step,
+  ));
+}
+
+export function minutesFromTop(top: number, hourHeight = CALENDAR_HOUR_HEIGHT): number {
+  const displayedMinutes = snapMinutes((top / hourHeight) * MINUTES_PER_HOUR);
+  return (displayedMinutes + (CALENDAR_START_HOUR * MINUTES_PER_HOUR)) % (HOURS_PER_DAY * MINUTES_PER_HOUR);
+}
+
+export function topOfTime(time: string | null, hourHeight = CALENDAR_HOUR_HEIGHT): number | null {
+  const minutes = minutesOfTime(time);
+  if (minutes === null) return null;
+
+  const displayedMinutes =
+    (minutes - (CALENDAR_START_HOUR * MINUTES_PER_HOUR) + (HOURS_PER_DAY * MINUTES_PER_HOUR)) %
+    (HOURS_PER_DAY * MINUTES_PER_HOUR);
+  return (displayedMinutes / MINUTES_PER_HOUR) * hourHeight;
 }

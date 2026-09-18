@@ -17,6 +17,7 @@ export const defaultHandlers = [
   http.get("/api/projects", () => HttpResponse.json([])),
   http.get("/api/project-layout", () => HttpResponse.json({ pinned: [], items: [] })),
   http.get("/api/projects/:projectId/campaigns", () => HttpResponse.json([])),
+  http.get("/api/campaigns/names", () => HttpResponse.json([])),
   http.get("/api/invites", () => HttpResponse.json([])),
   http.get("/api/members", () => HttpResponse.json([])),
   http.get("/api/crm/boards/:board/columns", () => HttpResponse.json([

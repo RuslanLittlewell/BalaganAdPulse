@@ -1,11 +1,18 @@
 import { useState } from "react";
 import { Node, mergeAttributes } from "@tiptap/core";
-import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
+import {
+  NodeViewWrapper,
+  ReactNodeViewRenderer,
+  type NodeViewProps,
+} from "@tiptap/react";
 import { Paperclip } from "lucide-react";
 import { t } from "@/shared/config/index.js";
 import { TaskImagePreview } from "./TaskImagePreview.js";
 
-function attachmentNumber(editor: NodeViewProps["editor"], pos: number | undefined): number {
+function attachmentNumber(
+  editor: NodeViewProps["editor"],
+  pos: number | undefined,
+): number {
   if (pos === undefined) return 1;
   let seen = 0;
   editor.state.doc.descendants((candidate, candidatePos) => {
@@ -19,7 +26,10 @@ function attachmentNumber(editor: NodeViewProps["editor"], pos: number | undefin
 function TaskImageView({ node, editor, getPos }: NodeViewProps) {
   const imageId = node.attrs.imageId as string | null;
   const [open, setOpen] = useState(false);
-  const number = attachmentNumber(editor, typeof getPos === "function" ? getPos() : undefined);
+  const number = attachmentNumber(
+    editor,
+    typeof getPos === "function" ? getPos() : undefined,
+  );
   const label = `${t("tasks.editor.attachment")} ${number}`;
 
   return (
@@ -37,7 +47,12 @@ function TaskImageView({ node, editor, getPos }: NodeViewProps) {
         <span className="underline underline-offset-2">{label}</span>
       </button>
 
-      <TaskImagePreview imageId={imageId} label={label} open={open} onOpenChange={setOpen} />
+      <TaskImagePreview
+        imageId={imageId}
+        label={label}
+        open={open}
+        onOpenChange={setOpen}
+      />
     </NodeViewWrapper>
   );
 }

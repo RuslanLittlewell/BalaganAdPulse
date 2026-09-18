@@ -8,6 +8,7 @@ export async function resetDb(): Promise<void> {
   await prisma.lead.deleteMany();
   await prisma.leadColumn.deleteMany();
   await prisma.metaLead.deleteMany();
+  await prisma.task.deleteMany();
   await prisma.auditEvent.deleteMany();
   await prisma.clientAccess.deleteMany();
   await prisma.campaign.deleteMany();

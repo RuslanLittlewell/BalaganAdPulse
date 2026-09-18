@@ -39,6 +39,7 @@ function api(options: { adSets?: unknown[]; ads?: unknown[]; days?: unknown[]; t
       createdAt: "", updatedAt: "",
     }])),
     mock.get("/api/tasks", () => HttpResponse.json(options.tasks ?? [])),
+    mock.get("/api/campaigns/names", () => HttpResponse.json([])),
     mock.get("/api/campaigns/:campaignId/daily", () =>
       HttpResponse.json(options.days ?? [day("2026-08-01", 400), day("2026-08-02", 900)])),
     mock.get("/api/campaigns/:campaignId/ad-sets", () => HttpResponse.json(options.adSets ?? [

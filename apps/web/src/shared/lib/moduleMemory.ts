@@ -6,10 +6,12 @@ type ByUser = Record<string, string>;
 interface ModuleMemoryState {
   boards: ByUser;
   projectPlaces: ByUser;
+  taskViews: ByUser;
   rememberBoard: (userId: string, board: string) => void;
   forgetBoard: (userId: string) => void;
   rememberProjectPlace: (userId: string, place: string) => void;
   forgetProjectPlace: (userId: string) => void;
+  rememberTaskView: (userId: string, view: string) => void;
 }
 
 function withValue(map: ByUser, userId: string, value: string): ByUser {
@@ -27,16 +29,32 @@ export const useModuleMemory = create<ModuleMemoryState>()(
     (set) => ({
       boards: {},
       projectPlaces: {},
-      rememberBoard: (userId, board) => set((state) => ({ boards: withValue(state.boards, userId, board) })),
-      forgetBoard: (userId) => set((state) => ({ boards: withoutUser(state.boards, userId) })),
+      taskViews: {},
+      rememberBoard: (userId, board) =>
+        set((state) => ({ boards: withValue(state.boards, userId, board) })),
+      forgetBoard: (userId) =>
+        set((state) => ({ boards: withoutUser(state.boards, userId) })),
       rememberProjectPlace: (userId, place) =>
-        set((state) => ({ projectPlaces: withValue(state.projectPlaces, userId, place) })),
-      forgetProjectPlace: (userId) => set((state) => ({ projectPlaces: withoutUser(state.projectPlaces, userId) })),
+        set((state) => ({
+          projectPlaces: withValue(state.projectPlaces, userId, place),
+        })),
+      forgetProjectPlace: (userId) =>
+        set((state) => ({
+          projectPlaces: withoutUser(state.projectPlaces, userId),
+        })),
+      rememberTaskView: (userId, view) =>
+        set((state) => ({
+          taskViews: withValue(state.taskViews, userId, view),
+        })),
     }),
     {
       name: "adpulse-module-memory",
       version: 1,
-      partialize: (state) => ({ boards: state.boards, projectPlaces: state.projectPlaces }),
+      partialize: (state) => ({
+        boards: state.boards,
+        projectPlaces: state.projectPlaces,
+        taskViews: state.taskViews,
+      }),
     },
   ),
 );

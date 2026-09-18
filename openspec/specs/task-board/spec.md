@@ -147,9 +147,10 @@ that it exists.
 
 ### Requirement: Only admins and managers change tasks
 
-Creating, updating, moving and deleting a task SHALL be permitted to `ADMIN` and `MANAGER`
-only. A `GUEST` SHALL read the board and be refused every write. A `CLIENT` SHALL NOT reach
-tasks at all — the board is the agency's internal work.
+Creating, updating, moving, completing and deleting a task, and every change to its
+checklist, SHALL be permitted to `ADMIN` and `MANAGER` only. A `GUEST` SHALL read the board
+and be refused every write. A `CLIENT` SHALL NOT reach tasks at all — the board is the
+agency's internal work.
 
 #### Scenario: Guest drags a card
 - **WHEN** a guest drops a card in another column
@@ -160,18 +161,32 @@ tasks at all — the board is the agency's internal work.
 - **WHEN** a guest opens the board
 - **THEN** the create button and the card menus are absent, and cards cannot be dragged
 
+#### Scenario: Guest ticks a checklist item
+- **WHEN** a guest ticks an item of a task's checklist
+- **THEN** the API responds 403 and the item is unchanged
+
+#### Scenario: Guest completes a repeating task
+- **WHEN** a guest completes a repeating task
+- **THEN** the API responds 403, the task keeps its due date, and a guest is offered no
+  completion control
+
 #### Scenario: Client-role member opens the board
 - **WHEN** a member with the `CLIENT` role requests the board or any task
 - **THEN** the API responds 403 and no task is returned
 
 ### Requirement: Every task mutation is audited
 
-Creating, updating, moving and deleting a task SHALL each write an audit event in the same
-transaction as the mutation, naming the member who made the change.
+Creating, updating, moving, completing and deleting a task, and every change to its
+checklist, SHALL each write an audit event in the same transaction as the mutation, naming
+the member who made the change.
 
 #### Scenario: A move is recorded
 - **WHEN** a manager drags a task from `IN_PROGRESS` to `DONE`
 - **THEN** an audit event records that member, that task, and the column it moved between
+
+#### Scenario: A completion is recorded
+- **WHEN** a manager completes a repeating task
+- **THEN** an audit event records that member, that task, and the due date it moved between
 
 #### Scenario: A failed mutation writes no audit event
 - **WHEN** a task update is refused
@@ -442,3 +457,280 @@ Marking a task visible SHALL NOT change who is responsible for it or which stage
 
 - **WHEN** a client tries to change the mark on a task they raised
 - **THEN** the API refuses with 403
+
+### Requirement: A task may carry a due date
+
+A task SHALL optionally carry a due date: a calendar day, and on that day an optional time
+of day. A task SHALL NOT carry a time of day without a day. The day SHALL be the same
+calendar day for every member whatever their machine's clock or time zone, and the time of
+day SHALL be read as the agency's wall clock rather than converted for the reader.
+
+Setting, changing and clearing the due date SHALL be permitted at any time, and SHALL leave
+the task's column and position untouched.
+
+#### Scenario: A task without a due date
+
+- **WHEN** a member creates a task naming no due date
+- **THEN** the task is stored with none, and the board shows it as it shows every other task
+
+#### Scenario: A day with no time
+
+- **WHEN** a member sets a task's due date to 25 September and names no time
+- **THEN** the task reads back as due on 25 September with no time of day
+
+#### Scenario: A day with a time
+
+- **WHEN** a member sets a task's due date to 25 September at 12:00
+- **THEN** the task reads back as due on 25 September at 12:00
+
+#### Scenario: A time without a day
+
+- **WHEN** a request names a time of day for a task that has no due date and names no day
+- **THEN** the API responds 400 and the task's due date is unchanged
+
+#### Scenario: Clearing the due date
+
+- **WHEN** a member clears the due date of a task that had one
+- **THEN** the task is stored with no due date and no time of day, and keeps its column and
+  position
+
+#### Scenario: The day does not drift
+
+- **WHEN** a task due on 25 September is read by a member whose machine is three hours
+  behind the agency
+- **THEN** the task is still due on 25 September
+
+### Requirement: A task may carry a checklist
+
+A task SHALL optionally carry an ordered checklist. Each item SHALL have a non-empty title
+and SHALL be either ticked or not, starting not ticked. The checklist SHALL be a property of
+the task, given whole when the task is created and when it is updated: a change to it SHALL
+take effect when the task is saved and not before, exactly as a change to the title does.
+Items SHALL read back in the order they were given. Deleting a task SHALL delete its
+checklist with it.
+
+The checklist SHALL be reported as the number ticked out of the total, so progress is
+visible without opening the task.
+
+#### Scenario: Adding an item
+
+- **WHEN** a member writes "Собрать креативы" into a task's checklist and saves
+- **THEN** the item is stored last in the checklist, not ticked
+
+#### Scenario: An item with a blank title
+
+- **WHEN** a member saves a task carrying a checklist item whose title is empty or only
+  whitespace
+- **THEN** the API responds 400 and the checklist is unchanged
+
+#### Scenario: Ticking an item
+
+- **WHEN** a member ticks the second of three items and saves
+- **THEN** that item reads back ticked, the other two unchanged, and the task reports 1 of 3
+
+#### Scenario: A change that is not saved
+
+- **WHEN** a member ticks an item and closes the form without saving
+- **THEN** the task's checklist is as it was
+
+#### Scenario: Order survives a reload
+
+- **WHEN** a member saves a checklist with its last item first and reloads
+- **THEN** that item is still at the top
+
+#### Scenario: A deleted task takes its checklist
+
+- **WHEN** an admin deletes a task that has four checklist items
+- **THEN** the items are gone with it and no longer readable
+
+#### Scenario: Ticking an item does not move the card
+
+- **WHEN** a member ticks an item of a task in `IN_PROGRESS` and saves
+- **THEN** the task keeps its column and its position
+
+### Requirement: A task may repeat on an interval
+
+A task SHALL carry a repetition interval of `NONE`, `DAILY`, `WEEKLY`, `BIWEEKLY` or
+`MONTHLY`, defaulting to `NONE`. An interval other than `NONE` SHALL require a due date, so
+there is a point to count from; a request setting one on a task without a due date SHALL be
+refused, and clearing the due date of a repeating task SHALL be refused while it repeats.
+
+#### Scenario: Making a task repeat weekly
+
+- **WHEN** a member sets a task due on Wednesday 12:00 to repeat every week
+- **THEN** the task reads back as repeating weekly, still due that Wednesday at 12:00
+
+#### Scenario: Repetition without a due date
+
+- **WHEN** a member sets an interval on a task that has no due date
+- **THEN** the API responds 400 and the task does not repeat
+
+#### Scenario: Clearing the due date of a repeating task
+
+- **WHEN** a member clears the due date of a task that repeats weekly
+- **THEN** the API responds 400 and both the due date and the interval are unchanged
+
+#### Scenario: Stopping the repetition
+
+- **WHEN** a member sets a repeating task's interval to `NONE`
+- **THEN** the task keeps its due date and no longer repeats
+
+### Requirement: Completing a repeating task moves it to its next occurrence
+
+A repeating task SHALL offer completion as its own operation. Completing it SHALL, in one
+atomic step, move that same task's due date forward by its interval, keep its time of day
+and untick every checklist item. The task SHALL stay in the column and at the position it
+already holds, so completion moves it in time and never on the board. No second task SHALL
+be created, and the task SHALL keep its title, description, priority, responsible member,
+project, campaign and images.
+
+Completion SHALL be refused for a task that does not repeat; such a task is finished by
+moving it to `DONE` as before.
+
+The next occurrence SHALL be counted from the task's own due date rather than from today,
+so a task completed late keeps its rhythm. A monthly task due on a day the next month does
+not have SHALL fall on that month's last day.
+
+#### Scenario: A weekly call is held
+
+- **WHEN** a member completes a task that repeats weekly and is due Wednesday 17 September
+  at 12:00
+- **THEN** the same task is due Wednesday 24 September at 12:00, stays in the column it was
+  in, and no second task exists
+
+#### Scenario: The card does not move on the board
+
+- **WHEN** a member completes a repeating task sitting second in `IN_PROGRESS`
+- **THEN** the task is still second in `IN_PROGRESS`, and the cards around it keep their
+  positions
+
+#### Scenario: The checklist starts again
+
+- **WHEN** a member completes a repeating task whose three checklist items are all ticked
+- **THEN** the task keeps all three items, none of them ticked
+
+#### Scenario: Completing late keeps the rhythm
+
+- **WHEN** a task repeating weekly and due Wednesday 17 September is completed on Friday
+  19 September
+- **THEN** it becomes due Wednesday 24 September
+
+#### Scenario: A month that is too short
+
+- **WHEN** a task repeating monthly and due 31 January is completed
+- **THEN** it becomes due 28 February, or 29 February in a leap year
+
+#### Scenario: Completing a task that does not repeat
+
+- **WHEN** a member completes a task whose interval is `NONE`
+- **THEN** the API responds 400 and the task is unchanged
+
+### Requirement: A task is composed from the blocks of content it is given
+
+The task form SHALL open showing only a title, a description, a project and a priority. The
+due date, the checklist, the responsible member and the campaign SHALL NOT be shown until
+they are asked for.
+
+A row of controls under the title SHALL offer each block a task does not yet show —
+`Даты`, `Чек-лист`, `Ответственный` and `Кампания`. Choosing one SHALL show that block and
+SHALL take it out of the row, so a block is never offered twice. A block whose task already
+carries a value SHALL be shown from the start and SHALL NOT be offered in the row.
+
+A shown block SHALL be removable, and removing it SHALL clear what it held, so what the
+form shows and what the task carries never disagree. Attachments SHALL keep their own place
+and SHALL NOT be part of the row.
+
+#### Scenario: A new task starts bare
+
+- **WHEN** a member opens the form to create a task
+- **THEN** the title, the description, the project and the priority are shown, and no due
+  date, checklist, responsible member or campaign is
+
+#### Scenario: Adding a block
+
+- **WHEN** a member chooses `Чек-лист` from the row
+- **THEN** the checklist block appears and `Чек-лист` is no longer offered in the row
+
+#### Scenario: A task that already carries a value
+
+- **WHEN** a member opens a task that is due on 25 September and has two checklist items
+- **THEN** both blocks are shown, and neither `Даты` nor `Чек-лист` is offered in the row
+
+#### Scenario: Removing a block clears it
+
+- **WHEN** a member removes the `Даты` block from a task due on 25 September at 12:00 that
+  repeats weekly, and saves
+- **THEN** the task is stored with no due date, no time of day and no repetition, and
+  `Даты` is offered in the row again
+
+#### Scenario: Removing the responsible member
+
+- **WHEN** a member removes the `Ответственный` block from an assigned task and saves
+- **THEN** the task is stored with nobody responsible
+
+#### Scenario: Attachments are not a block
+
+- **WHEN** a member opens the form to create a task
+- **THEN** the attachments block is in its usual place and the row offers no control for it
+
+### Requirement: A task's checklist is given whole with the task
+
+Creating and updating a task SHALL accept the whole checklist, in the order it is to be
+shown, and SHALL store it as given: items no longer present are gone, items present are kept
+in that order with the ticks they are given. The task and its checklist SHALL be written in
+one transaction, so a refused request leaves neither changed and a task never carries half of
+a checklist.
+
+Each item SHALL carry a non-empty title and SHALL be ticked or not, starting unticked. A
+request naming an item with a blank title SHALL be refused as a whole. A request that names
+no checklist at all SHALL leave the task's checklist as it is.
+
+An item SHALL NOT be addressable on its own: there is no way to add, change, reorder or
+remove one item without the task it belongs to.
+
+#### Scenario: Creating a task with a checklist
+
+- **WHEN** a member creates a task naming three checklist items
+- **THEN** the task is stored with those three items, in that order, none of them ticked
+
+#### Scenario: Creating a task without one
+
+- **WHEN** a member creates a task naming no checklist
+- **THEN** the task is stored with an empty checklist
+
+#### Scenario: Replacing a checklist
+
+- **WHEN** a member updates a task of three items, naming two of them in the other order with
+  the first one ticked
+- **THEN** the task carries those two items in the order given, the first ticked, and the
+  third is gone
+
+#### Scenario: Leaving a checklist alone
+
+- **WHEN** a member updates a task's title and names no checklist
+- **THEN** the task keeps every item it had, in its order, with its ticks
+
+#### Scenario: Emptying a checklist
+
+- **WHEN** a member updates a task naming an empty checklist
+- **THEN** the task is stored with no items
+
+#### Scenario: A blank item refuses the whole request
+
+- **WHEN** a member creates or updates a task naming an item whose title is only whitespace
+- **THEN** the API responds 400 and neither the task nor its checklist is changed
+
+#### Scenario: A refused creation leaves no items
+
+- **WHEN** a creation carrying a checklist is refused because the project cannot be reached
+- **THEN** no task and no checklist item is stored
+
+#### Scenario: The items come back with the task
+
+- **WHEN** a member creates a task with two items and the board is read
+- **THEN** the task carries both items and reports 0 of 2
+
+#### Scenario: One item on its own
+
+- **WHEN** a request addresses a single checklist item
+- **THEN** the API offers no such route

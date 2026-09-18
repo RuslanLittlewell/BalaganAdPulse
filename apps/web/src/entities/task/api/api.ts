@@ -23,9 +23,20 @@ export const TASK_PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"] as const;
 
 export type TaskPriority = (typeof TASK_PRIORITIES)[number];
 
+export const TASK_REPEATS = ["NONE", "DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"] as const;
+
+export type TaskRepeat = (typeof TASK_REPEATS)[number];
+
+export interface ChecklistItem {
+  id: string;
+  title: string;
+  done: boolean;
+  position: number;
+}
+
 export interface Task {
   id: string;
-  projectId: string;
+  projectId: string | null;
   orgId: string;
   title: string;
   description: unknown | null;
@@ -36,13 +47,17 @@ export interface Task {
   campaignId: string | null;
   visibleToClient: boolean;
   position: number;
+  dueDate: string | null;
+  dueTime: string | null;
+  repeatEvery: TaskRepeat;
+  checklist: ChecklistItem[];
   imageIds: string[];
   createdAt: string;
   updatedAt: string;
 }
 
 export interface TaskInput {
-  projectId?: string;
+  projectId?: string | null;
   title?: string;
   description?: unknown | null;
   column?: TaskColumn;
@@ -50,6 +65,10 @@ export interface TaskInput {
   assigneeId?: string | null;
   campaignId?: string | null;
   visibleToClient?: boolean;
+  dueDate?: string | null;
+  dueTime?: string | null;
+  repeatEvery?: TaskRepeat;
+  checklist?: { title: string; done: boolean }[];
 }
 
 export interface TaskMove {
@@ -76,6 +95,7 @@ export const tasksApi = {
   update: (id: string, body: TaskInput) => http.patch<Task>(`/tasks/${id}`, body),
   remove: (id: string) => http.del(`/tasks/${id}`),
   move: (id: string, body: TaskMove) => http.post<Task>(`/tasks/${id}/move`, body),
+  complete: (id: string) => http.post<Task>(`/tasks/${id}/complete`, {}),
 };
 
 export const taskImagesApi = {

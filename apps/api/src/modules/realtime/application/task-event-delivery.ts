@@ -20,9 +20,12 @@ export interface TaskEventDeliveryDependencies {
 
 function sees(actor: ActorContext, event: TaskEvent): boolean {
   if (actor.role === "ADMIN") return true;
-  const { assigneeId, visibleToClient } = event.kind === "task.deleted" ? event : event.task;
-  if (isCustomer(actor.role)) return visibleToClient;
-  return assigneeId === actor.membershipId;
+  const held = event.kind === "task.deleted" ? event : event.task;
+  if (isCustomer(actor.role)) return held.visibleToClient && event.projectId !== null;
+  if (event.projectId === null) {
+    return held.assigneeId === actor.membershipId || held.createdById === actor.membershipId;
+  }
+  return held.assigneeId === actor.membershipId;
 }
 
 export function createTaskEventDelivery(dependencies: TaskEventDeliveryDependencies) {
@@ -36,6 +39,7 @@ export function createTaskEventDelivery(dependencies: TaskEventDeliveryDependenc
     if (actor.orgId !== event.orgId) return false;
     if (!can(actor, "read", "task")) return false;
     if (!sees(actor, event)) return false;
+    if (event.projectId === null) return true;
     return (await dependencies.projects.contextFor(actor, event.projectId)) !== null;
   };
 

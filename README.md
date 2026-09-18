@@ -211,23 +211,78 @@ Request flow: HTTP → a module's presentation adapter (Zod validation) → a us
 ports → an infrastructure adapter (Prisma, S3) → PostgreSQL. Errors surface as a
 transport-independent `AppError` and are mapped to the HTTP envelope in one place.
 
+**How the web app holds what the server sends.** Readings that depend on a period — figures,
+ad sets, ads, leads — are React Query queries, refetched when the screen that wants them is
+mounted, because a stale figure is worse than a request. The lists the whole session leans on
+— the staff, the projects, and the campaign names the task module names its work by — are
+zustand stores loaded once and read from everywhere: `StaffSync` and `ProjectsSync` fill
+theirs when the app starts, `CampaignNamesSync` fills its own when the task module is opened
+and drops it when the module is left. A store is refreshed by the mutations that change what
+it holds, so creating or renaming a project reaches every screen showing the list.
+
 Every client belongs to an organization. The business hierarchy is
 `Client → Project → Campaign → Ad set → Ad`, with measured figures stored per day at
 each of the last three levels. An active membership
 provides the caller's role; `ClientAccess` grants narrow non-admin members to clients or
 individual projects. Role permission and row reach are evaluated separately.
 
-### The task board
+### The task board and the calendar
 
-`/tasks` is a Kanban board of work under a project. Six fixed columns, drawn left to right:
+`/tasks` shows the same tasks two ways, switched by the **Канбан** / **Календарь** tabs in
+the page header and faded into place. The chosen view is remembered for that person in that
+browser, so they return to the one they left; someone else signing in on the same browser
+gets their own.
+
+The board is a Kanban of work under a project. Six fixed columns, drawn left to right:
 **Идея, Архив, В работе, На исправление, На проверке, Готово**. Cards are dragged between
 columns and reordered within one; the move is applied to the board before the server
 answers and rolled back if it is refused. Both affected columns are renumbered densely
 inside one transaction, so a position is never duplicated or left with a gap.
 
-A task belongs to exactly one project and carries a title, a rich-text description, a
-priority of its own (`LOW`, `MEDIUM`, `HIGH`, `URGENT` — distinct from `ProjectPriority`,
-which describes a project by counting its tasks) and optionally a responsible member.
+A task carries a title, a rich-text description and a priority of its own (`LOW`, `MEDIUM`,
+`HIGH`, `URGENT` — distinct from `ProjectPriority`, which describes a project by counting its
+tasks), and optionally a project, a campaign, a responsible member, a due date and a
+checklist.
+
+**A task may stand without a project** — the note a media buyer writes to themselves. Such a
+task carries no campaign and is never shared with a client, because both come from the
+project, and it is reached by the member who wrote it, the member responsible for it and any
+admin: the project's grants cannot answer for it. The board and the calendar show it as
+**Без проекта**.
+
+**The form is composed rather than filled in.** It opens with the title, the description and
+the priority, and a row of controls under the title adds what this task actually needs:
+**Чек-лист**, **Даты**, **Назначить** — the last carrying the project, the campaign and the
+responsible member together, because they answer one question. Whatever order the blocks were
+added in, they are shown in that order, each separated from the next by a line and carrying
+its remove control at its right edge. A block a task already fills is shown from the start and
+is not offered again; removing a block clears what it held, so what the form shows and what
+the task carries never drift apart. Attachments keep their own place and are not part of the
+row, and **Видно клиенту** sits in the dialog's footer, with the controls that act on the task
+as a whole.
+
+**The due date is a calendar day**, optionally with a time of day: `due_date` is a `DATE`
+and `due_time` a `HH:MM` string, so a task due on 25 September is due on that day for every
+reader whatever their machine's clock, and 12:00 is the agency's wall clock rather than an
+instant to convert. A time of day without a day is refused, by the use case and by a `CHECK`
+constraint both.
+
+**A checklist** is a property of the task, like its title: a list of items, each ticked or
+not, given whole when the task is created and when it is updated. Adding, ticking and
+removing an item changes the form; the change reaches the server when the task is saved, and
+closing the dialog drops it. An item is not addressable on its own — `POST /api/tasks` and
+`PATCH /api/tasks/:id` carry the whole list, in order, and a `PATCH` naming none leaves the
+one the task has. Items ride on the task as it is read, so a board costs one query, and they
+go with the task when it is deleted. The card shows the progress as `1/3`.
+
+**A repeating task** carries an interval — `DAILY`, `WEEKLY`, `BIWEEKLY` or `MONTHLY` — and
+offers **Выполнено**. Completing it moves that same task's due date on by its interval,
+counted from its own date rather than from today, keeps its time of day, unticks its
+checklist and leaves the card exactly where it sits on the board: completion moves a task in
+time, never on the board. No second task is created, so the record of past occurrences lives
+in the audit trail. A monthly task due on the 31st falls on the last day of a month too
+short to hold it. An interval needs a due date to count from, and clearing the due date of a
+task while it repeats is refused.
 
 It may also name **one campaign of its own project**. Naming none means the work is about
 the project as a whole, shown as **Общий** — a statement rather than a gap, so nothing
@@ -248,6 +303,15 @@ so listing a board never carries image data. The editor fetches them with the me
 token and renders them from object URLs, because an `<img src>` pointing at the API would
 carry no credentials. An upload whose dialog was cancelled stays recorded with no task, so
 it can be found and reclaimed later.
+
+**The calendar** shows one week at a time, Monday to Sunday, with the week named, today
+marked and navigation to the previous week, the next one and back to today. It holds only
+tasks that have a due date — a task without one is found on the board — and within a day it
+puts the timed tasks first, earliest first, then those with no time. Dragging a card into
+another day gives the task that day and keeps its time; the card moves before the server
+answers and returns to its own day if the move is refused. `GET /api/tasks` accepts
+`dueFrom` and `dueTo`, though the calendar filters the board it already holds rather than
+asking for a week.
 
 The board is not the only place work is visible. A **project** lists the tasks under it
 that are still in flight — `IDEA`, `IN_PROGRESS`, `NEEDS_FIX`, `IN_REVIEW`, everything

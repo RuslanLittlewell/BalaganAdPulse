@@ -30,12 +30,15 @@ function messageOf(data: unknown): RealtimeMessage | null {
   } catch {
     return null;
   }
-  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) return null;
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload))
+    return null;
   const { kind } = payload as { kind?: unknown };
   return typeof kind === "string" ? (payload as RealtimeMessage) : null;
 }
 
-export function openRealtimeChannel(options: RealtimeChannelOptions = {}): RealtimeChannel {
+export function openRealtimeChannel(
+  options: RealtimeChannelOptions = {},
+): RealtimeChannel {
   const open = options.createSocket ?? ((url: string) => new WebSocket(url));
   let stopped = false;
   let socket: WebSocket | null = null;
@@ -45,9 +48,14 @@ export function openRealtimeChannel(options: RealtimeChannelOptions = {}): Realt
 
   const scheduleRetry = () => {
     if (stopped) return;
-    const delay = Math.min(REALTIME_BASE_DELAY_MS * 2 ** attempt, REALTIME_MAX_DELAY_MS);
+    const delay = Math.min(
+      REALTIME_BASE_DELAY_MS * 2 ** attempt,
+      REALTIME_MAX_DELAY_MS,
+    );
     attempt += 1;
-    retry = setTimeout(() => { connect(); }, delay);
+    retry = setTimeout(() => {
+      connect();
+    }, delay);
   };
 
   const connect = () => {
@@ -67,8 +75,12 @@ export function openRealtimeChannel(options: RealtimeChannelOptions = {}): Realt
       options.onMessage?.(message);
     };
 
-    client.onclose = () => { if (socket === client) scheduleRetry(); };
-    client.onerror = () => { client.close(); };
+    client.onclose = () => {
+      if (socket === client) scheduleRetry();
+    };
+    client.onerror = () => {
+      client.close();
+    };
   };
 
   connect();

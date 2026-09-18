@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { taskImagesApi } from "@/entities/task/index.js";
 import { t } from "@/shared/config/index.js";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/index.js";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/shared/ui/index.js";
 
 export interface TaskImagePreviewProps {
   imageId: string | null;
@@ -10,7 +15,12 @@ export interface TaskImagePreviewProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function TaskImagePreview({ imageId, label, open, onOpenChange }: TaskImagePreviewProps) {
+export function TaskImagePreview({
+  imageId,
+  label,
+  open,
+  onOpenChange,
+}: TaskImagePreviewProps) {
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -23,11 +33,16 @@ export function TaskImagePreview({ imageId, label, open, onOpenChange }: TaskIma
     taskImagesApi
       .blobUrl(imageId)
       .then((resolved) => {
-        if (cancelled) { URL.revokeObjectURL(resolved); return; }
+        if (cancelled) {
+          URL.revokeObjectURL(resolved);
+          return;
+        }
         url = resolved;
         setSrc(resolved);
       })
-      .catch(() => { if (!cancelled) setFailed(true); });
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
 
     return () => {
       cancelled = true;
@@ -46,10 +61,16 @@ export function TaskImagePreview({ imageId, label, open, onOpenChange }: TaskIma
           <DialogTitle>{label}</DialogTitle>
         </DialogHeader>
         {src ? (
-          <img src={src} alt={label} className="max-h-[70vh] w-full rounded-md object-contain" />
+          <img
+            src={src}
+            alt={label}
+            className="max-h-[70vh] w-full rounded-md object-contain"
+          />
         ) : (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            {failed ? t("tasks.editor.uploadFailed") : t("tasks.editor.uploading")}
+            {failed
+              ? t("tasks.editor.uploadFailed")
+              : t("tasks.editor.uploading")}
           </p>
         )}
       </DialogContent>

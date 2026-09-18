@@ -66,6 +66,13 @@ const campaignReference = z.object({
   channel: z.enum(CHANNELS),
 });
 
+const projectCampaignReference = z.object({
+  id: z.uuid(),
+  projectId: z.uuid(),
+  name: z.string(),
+  channel: z.enum(CHANNELS),
+});
+
 const channelSummary = z.object({
   channel: z.enum(CHANNELS),
   campaigns: z.int(),
@@ -79,6 +86,7 @@ export const campaignComponents: ComponentDocs = {
   AdSet: adSet,
   Ad: ad,
   CampaignReference: campaignReference,
+  ProjectCampaignReference: projectCampaignReference,
   ChannelSummary: channelSummary,
 };
 
@@ -88,6 +96,14 @@ export const campaignDoc: RouteDoc = {
   tag: "Campaigns",
   tagDescription: "The advertising hierarchy and the figures measured against it",
   operations: [
+    {
+      method: "get",
+      path: "/names",
+      summary: "Name every campaign the member reaches",
+      description: "Identity only, for pickers that span projects: no range and no figures. Each campaign names the project it belongs to.",
+      success: { status: 200, description: "The campaigns", schema: arrayOf(ref("ProjectCampaignReference")) },
+      errors: [401, 403],
+    },
     {
       method: "get",
       path: "/:id",

@@ -2,7 +2,7 @@ import { http as mock, HttpResponse } from "msw";
 import { screen, waitFor } from "@testing-library/react";
 import { Routes, Route } from "react-router-dom";
 import { aTask, renderWithProviders, server } from "@test/shared/index.js";
-import { TaskBoard } from "@/widgets/task-board/index.js";
+import { LoadedTaskBoard as TaskBoard } from "@test/shared/task-widgets.js";
 
 function setup() {
   return renderWithProviders(

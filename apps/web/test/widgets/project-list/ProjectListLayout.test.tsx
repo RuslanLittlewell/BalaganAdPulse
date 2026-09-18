@@ -1,5 +1,5 @@
 import { http as mock, HttpResponse } from "msw";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Routes, Route } from "react-router-dom";
 import { aProject, renderWithProviders, server } from "@test/shared/index.js";
@@ -125,7 +125,8 @@ describe("ProjectList arrangement", () => {
     const { saved } = api({ pinned: ["b"], items: [{ type: "project", projectId: "a" }] });
     setup();
 
-    fireEvent.contextMenu(await screen.findByText("Бета"));
+    const pinned = await screen.findByLabelText("Закреплённые");
+    fireEvent.contextMenu(await within(pinned).findByText("Бета"));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Открепить" }));
 
     await waitFor(() => expect(saved).toHaveLength(1));

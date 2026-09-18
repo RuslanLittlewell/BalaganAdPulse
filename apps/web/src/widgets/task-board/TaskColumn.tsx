@@ -79,7 +79,7 @@ export function TaskColumnPanel({
               task={task}
               draggable={draggable}
               placeholder={task.id === draggingId}
-              project={projects?.get(task.projectId)}
+              project={task.projectId ? projects?.get(task.projectId) : undefined}
               campaignName={task.campaignId ? campaigns?.get(task.campaignId) : undefined}
               assignee={task.assigneeId ? members?.get(task.assigneeId) : undefined}
               onOpen={onOpen}

@@ -6,6 +6,7 @@ const task = (partial: Partial<Task> = {}): Task => ({
   id: "t1", projectId: "p1", orgId: "org1", title: "Write the brief", description: null,
   column: "IDEA", priority: "MEDIUM", assigneeId: null, createdById: "m1",
   campaignId: null, visibleToClient: false, position: 0,
+  dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [],
   imageIds: [], createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
   ...partial,
 });

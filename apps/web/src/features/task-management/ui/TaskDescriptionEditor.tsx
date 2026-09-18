@@ -24,7 +24,10 @@ const ACCEPTED = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 export const TaskDescriptionEditor = forwardRef<
   TaskDescriptionEditorHandle,
   TaskDescriptionEditorProps
->(function TaskDescriptionEditor({ value, onChange, editable = true, className }, ref) {
+>(function TaskDescriptionEditor(
+  { value, onChange, editable = true, className },
+  ref,
+) {
   const [status, setStatus] = useState<string | null>(null);
   const [initialContent] = useState(value);
 
@@ -46,22 +49,30 @@ export const TaskDescriptionEditor = forwardRef<
     },
   });
 
-  useImperativeHandle(ref, () => ({
-    removeImage(imageId: string) {
-      if (!editor) return;
-      const positions: number[] = [];
-      editor.state.doc.descendants((node, pos) => {
-        if (node.type.name === "taskImage" && node.attrs.imageId === imageId) positions.push(pos);
-        return true;
-      });
-      if (positions.length === 0) return;
-      const transaction = editor.state.tr;
-      for (const pos of positions.reverse()) {
-        transaction.delete(transaction.mapping.map(pos), transaction.mapping.map(pos + 1));
-      }
-      editor.view.dispatch(transaction);
-    },
-  }), [editor]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      removeImage(imageId: string) {
+        if (!editor) return;
+        const positions: number[] = [];
+        editor.state.doc.descendants((node, pos) => {
+          if (node.type.name === "taskImage" && node.attrs.imageId === imageId)
+            positions.push(pos);
+          return true;
+        });
+        if (positions.length === 0) return;
+        const transaction = editor.state.tr;
+        for (const pos of positions.reverse()) {
+          transaction.delete(
+            transaction.mapping.map(pos),
+            transaction.mapping.map(pos + 1),
+          );
+        }
+        editor.view.dispatch(transaction);
+      },
+    }),
+    [editor],
+  );
 
   function insertFrom(files: FileList | undefined | null): boolean {
     const file = files?.[0];
@@ -72,18 +83,30 @@ export const TaskDescriptionEditor = forwardRef<
   }
 
   async function upload(file: Blob & { type: string }) {
-    if (!ACCEPTED.includes(file.type)) { setStatus(t("tasks.editor.wrongType")); return; }
-    if (file.size > MAX_BYTES) { setStatus(t("tasks.editor.tooLarge")); return; }
+    if (!ACCEPTED.includes(file.type)) {
+      setStatus(t("tasks.editor.wrongType"));
+      return;
+    }
+    if (file.size > MAX_BYTES) {
+      setStatus(t("tasks.editor.tooLarge"));
+      return;
+    }
 
     setStatus(t("tasks.editor.uploading"));
     try {
       const image = await taskImagesApi.upload(file);
-      editor?.chain().focus()
+      editor
+        ?.chain()
+        .focus()
         .insertContent({ type: "taskImage", attrs: { imageId: image.id } })
         .run();
       setStatus(null);
     } catch (error) {
-      setStatus(error instanceof ApiError ? error.message : t("tasks.editor.uploadFailed"));
+      setStatus(
+        error instanceof ApiError
+          ? error.message
+          : t("tasks.editor.uploadFailed"),
+      );
     }
   }
 
@@ -98,14 +121,21 @@ export const TaskDescriptionEditor = forwardRef<
     <div
       className={cn("rounded-md border", className)}
       onDrop={handleDrop}
-      onDragOver={(event) => { if (event.dataTransfer?.types?.includes("Files")) event.preventDefault(); }}
+      onDragOver={(event) => {
+        if (event.dataTransfer?.types?.includes("Files"))
+          event.preventDefault();
+      }}
     >
       <EditorContent
         editor={editor}
         className="min-h-0 flex-1 overflow-y-auto"
         data-testid="task-description-editor"
       />
-      {status ? <p role="status" className="border-t p-2 text-xs text-muted-foreground">{status}</p> : null}
+      {status ? (
+        <p role="status" className="border-t p-2 text-xs text-muted-foreground">
+          {status}
+        </p>
+      ) : null}
     </div>
   );
 });

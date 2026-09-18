@@ -48,9 +48,10 @@ describe("POST /api/tasks", () => {
     expect((await create({ title: "   " })).status).toBe(400);
   });
 
-  it("refuses a missing project -> 400", async () => {
+  it("stores a task that names no project", async () => {
     const res = await request(app).post("/api/tasks").set(admin).send({ title: "T", priority: "LOW" });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(201);
+    expect(res.body.projectId).toBeNull();
   });
 
   it("refuses an unknown column -> 400", async () => {

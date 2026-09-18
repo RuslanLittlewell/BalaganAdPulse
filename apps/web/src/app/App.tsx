@@ -9,7 +9,7 @@ import { TasksPage } from "@/pages/tasks/index.js";
 import { CrmPage } from "@/pages/crm/index.js";
 import { AuthProvider, RequireAuth, SessionHeartbeat } from "@/features/auth/index.js";
 import { NavCollapseProvider } from "@/features/nav-collapse/index.js";
-import { SelectionSync } from "@/entities/project/index.js";
+import { ProjectsSync, SelectionSync } from "@/entities/project/index.js";
 import { StaffSync } from "@/entities/membership/index.js";
 import { AppShell } from "@/widgets/app-shell/index.js";
 import { AppHeader } from "@/widgets/app-header/index.js";
@@ -26,6 +26,7 @@ function Dashboard() {
       <NavCollapseProvider>
         <SelectionSync />
         <StaffSync />
+        <ProjectsSync />
         <SessionHeartbeat />
         <AppShell sidebar={<MainNav />} header={<AppHeader />}>
           <Routes>

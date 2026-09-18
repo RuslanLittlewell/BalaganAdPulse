@@ -8,10 +8,11 @@ import {
   DialogTitle,
 } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
+import { dayLabel } from "@/shared/ui/index.js";
 import { cn } from "@/shared/lib/index.js";
 import { ProjectAvatar, useProjects } from "@/entities/project/index.js";
 import { MemberAvatar, useMembers } from "@/entities/membership/index.js";
-import { useCampaignReferences } from "@/entities/campaign/index.js";
+import { useProjectCampaignNames } from "@/entities/campaign/index.js";
 import type { Task } from "@/entities/task/index.js";
 import { TaskAttachments } from "./TaskAttachments.js";
 import { TaskDescriptionEditor } from "./TaskDescriptionEditor.js";
@@ -34,7 +35,9 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
       <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </span>
-      <span className="flex min-w-0 items-center gap-1.5 text-sm text-foreground">{children}</span>
+      <span className="flex min-w-0 items-center gap-1.5 text-sm text-foreground">
+        {children}
+      </span>
     </div>
   );
 }
@@ -42,14 +45,25 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 export function TaskPreviewDialog({ task, onClose }: TaskPreviewDialogProps) {
   const { data: projects } = useProjects();
   const { data: members } = useMembers();
-  const { data: campaigns } = useCampaignReferences(task.projectId);
+  const { data: campaigns } = useProjectCampaignNames(task.projectId ?? undefined);
 
-  const project = projects?.find((candidate) => candidate.id === task.projectId);
-  const assignee = members?.find((candidate) => candidate.id === task.assigneeId);
-  const campaign = campaigns?.find((candidate) => candidate.id === task.campaignId);
+  const project = projects?.find(
+    (candidate) => candidate.id === task.projectId,
+  );
+  const assignee = members?.find(
+    (candidate) => candidate.id === task.assigneeId,
+  );
+  const campaign = campaigns?.find(
+    (candidate) => candidate.id === task.campaignId,
+  );
 
   return (
-    <Dialog open onOpenChange={(next) => { if (!next) onClose(); }}>
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
       <DialogContent className="flex max-h-[80vh] w-[min(720px,calc(100vw-2rem))] flex-col">
         <DialogHeader className="shrink-0">
           <DialogTitle>{task.title}</DialogTitle>
@@ -63,21 +77,46 @@ export function TaskPreviewDialog({ task, onClose }: TaskPreviewDialogProps) {
               </span>
             </Fact>
             <Fact label={t("tasks.form.priority")}>
-              <span className={cn("rounded-md px-2 py-0.5 text-xs", PRIORITY_TONE[task.priority])}>
+              <span
+                className={cn(
+                  "rounded-md px-2 py-0.5 text-xs",
+                  PRIORITY_TONE[task.priority],
+                )}
+              >
                 {t(`tasks.priority.${task.priority}`)}
               </span>
             </Fact>
             <Fact label={t("tasks.form.project")}>
               {project ? <ProjectAvatar project={project} size="sm" /> : null}
-              <span className="truncate">{project?.name ?? t("tasks.noProject")}</span>
+              <span className="truncate">
+                {project?.name ?? t("tasks.noProject")}
+              </span>
             </Fact>
             <Fact label={t("tasks.form.campaign")}>
-              <span className="truncate">{campaign?.name ?? t("tasks.form.wholeProject")}</span>
+              <span className="truncate">
+                {campaign?.name ?? t("tasks.form.wholeProject")}
+              </span>
             </Fact>
             <Fact label={t("tasks.form.assignee")}>
               {assignee ? <MemberAvatar member={assignee} size="sm" /> : null}
-              <span className="truncate">{assignee?.name ?? t("tasks.form.unassigned")}</span>
+              <span className="truncate">
+                {assignee?.name ?? t("tasks.form.unassigned")}
+              </span>
             </Fact>
+            <Fact label={t("tasks.form.due")}>
+              <span className="truncate">
+                {task.dueDate === null
+                  ? t("tasks.form.noDue")
+                  : `${dayLabel(task.dueDate)}${task.dueTime ? `, ${task.dueTime}` : ""}`}
+              </span>
+            </Fact>
+            {task.repeatEvery === "NONE" ? null : (
+              <Fact label={t("tasks.form.repeat")}>
+                <span className="truncate">
+                  {t(`tasks.repeat.${task.repeatEvery}`)}
+                </span>
+              </Fact>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">
@@ -85,17 +124,55 @@ export function TaskPreviewDialog({ task, onClose }: TaskPreviewDialogProps) {
               {t("tasks.form.description")}
             </span>
             {task.description == null ? (
-              <p className="text-sm text-muted-foreground">{t("tasks.noDescription")}</p>
+              <p className="text-sm text-muted-foreground">
+                {t("tasks.noDescription")}
+              </p>
             ) : (
-              <TaskDescriptionEditor value={task.description} onChange={() => {}} editable={false} />
+              <TaskDescriptionEditor
+                value={task.description}
+                onChange={() => {}}
+                editable={false}
+              />
             )}
           </div>
 
-          {task.imageIds.length > 0 ? <TaskAttachments imageIds={task.imageIds} /> : null}
+          {task.checklist.length > 0 ? (
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {`${t("tasks.checklist")} · ${task.checklist.filter((item) => item.done).length} ${t("tasks.checklist.of")} ${task.checklist.length}`}
+              </span>
+              <ul className="flex flex-col gap-1">
+                {task.checklist.map((item) => (
+                  <li key={item.id} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={item.done}
+                      disabled
+                      readOnly
+                      className="size-4 accent-primary"
+                    />
+                    <span
+                      className={
+                        item.done ? "text-muted-foreground line-through" : ""
+                      }
+                    >
+                      {item.title}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {task.imageIds.length > 0 ? (
+            <TaskAttachments imageIds={task.imageIds} />
+          ) : null}
         </div>
 
         <DialogFooter className="shrink-0">
-          <Button variant="outline" onClick={onClose}>{t("action.close")}</Button>
+          <Button variant="outline" onClick={onClose}>
+            {t("action.close")}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

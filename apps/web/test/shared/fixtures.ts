@@ -1,5 +1,6 @@
 import type { Client } from "@/entities/client/index.js";
 import type { Task } from "@/entities/task/index.js";
+import type { Lead } from "@/entities/lead/index.js";
 import type { Project } from "@/entities/project/index.js";
 
 export function aClient(overrides: Partial<Client> = {}): Client {
@@ -35,6 +36,35 @@ export function aProject(overrides: Partial<Project> = {}): Project {
     position: 0,
     createdAt: "",
     updatedAt: "",
+    ...overrides,
+  };
+}
+
+export function aLead(overrides: Partial<Lead> = {}): Lead {
+  return {
+    id: "lead-1",
+    orgId: "org-1",
+    clientId: null,
+    name: "Анна",
+    company: null,
+    phone: null,
+    email: null,
+    website: null,
+    source: null,
+    notes: null,
+    projectId: null,
+    campaignId: null,
+    assigneeId: null,
+    adId: null,
+    origin: "MANUAL",
+    ad: null,
+    project: null,
+    assignee: null,
+    metaSource: null,
+    stage: "NEW",
+    position: 0,
+    createdAt: "2026-09-01T00:00:00.000Z",
+    updatedAt: "2026-09-01T00:00:00.000Z",
     ...overrides,
   };
 }

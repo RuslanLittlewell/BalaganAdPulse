@@ -64,7 +64,7 @@ export class PrismaLeadRepository implements LeadRepository {
     await this.uow.clientFor<Prisma.TransactionClient>(context).lead.delete({where:{id}});
   }
   async columns(actor: ActorContext, board: string, context?: TransactionContext) {
-    return (context ? this.uow.clientFor<Prisma.TransactionClient>(context) : this.prisma).leadColumn.findMany({where:{orgId:actor.orgId, clientId:board === 'agency' ? null : board},orderBy:[{position:'asc'},{id:'asc'}]});
+    return (context ? this.uow.clientFor<Prisma.TransactionClient>(context) : this.prisma).leadColumn.findMany({where:{orgId:actor.orgId, clientId:board === 'agency' ? null : board},orderBy:[{afterStage:{sort:'asc',nulls:'first'}},{position:'asc'},{id:'asc'}]});
   }
   async createColumn(context: TransactionContext, input: Parameters<LeadRepository['createColumn']>[1]) {
     return this.uow.clientFor<Prisma.TransactionClient>(context).leadColumn.create({data:input});

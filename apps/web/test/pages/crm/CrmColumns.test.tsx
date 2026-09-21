@@ -121,24 +121,51 @@ describe("the columns of a CRM board", () => {
     await waitFor(() => expect(patched).toEqual({ name: "Встреча назначена" }));
   });
 
-  it("moves a column one place left or right among the custom columns", async () => {
+  it("disables a move only at the very start or end of the whole board", async () => {
+    board({ columns: [custom("col-1", "Встреча", 0), custom("col-2", "Договор", 1)] });
+    server.use(mock.patch("/api/crm/boards/agency/columns/:id", () => HttpResponse.json(FIXED)));
+    setup();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Действия столбца: Встреча" }));
+    expect(await screen.findByRole("menuitem", { name: "Сдвинуть влево" })).not.toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("menuitem", { name: "Сдвинуть вправо" })).not.toHaveAttribute("aria-disabled", "true");
+    await userEvent.keyboard("{Escape}");
+
+    await userEvent.click(await screen.findByRole("button", { name: "Действия столбца: Договор" }));
+    expect(await screen.findByRole("menuitem", { name: "Сдвинуть вправо" })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("menuitem", { name: "Сдвинуть влево" })).not.toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("moves a column across a fixed stage, indexing against the whole board", async () => {
     board({ columns: [custom("col-1", "Встреча", 0), custom("col-2", "Договор", 1)] });
     const patched: Array<{ id: string; body: unknown }> = [];
     server.use(mock.patch("/api/crm/boards/agency/columns/:id", async ({ params, request }) => {
       patched.push({ id: String(params.id), body: await request.json() });
-      return HttpResponse.json([...FIXED, custom("col-2", "Договор", 0), custom("col-1", "Встреча", 1)]);
+      return HttpResponse.json([FIXED[0], custom("col-1", "Встреча", 0), ...FIXED.slice(1), custom("col-2", "Договор", 0)]);
     }));
     setup();
 
     await userEvent.click(await screen.findByRole("button", { name: "Действия столбца: Встреча" }));
-    expect(await screen.findByRole("menuitem", { name: "Сдвинуть влево" })).toHaveAttribute("aria-disabled", "true");
-    await userEvent.click(screen.getByRole("menuitem", { name: "Сдвинуть вправо" }));
-    await waitFor(() => expect(patched).toEqual([{ id: "col-1", body: { position: 1 } }]));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Сдвинуть влево" }));
+    await waitFor(() => expect(patched).toEqual([{ id: "col-1", body: { position: 3 } }]));
+  });
+
+  it("moves a column past the first fixed stage to the very start of the board", async () => {
+    board();
+    server.use(
+      mock.get("/api/crm/boards/agency/columns", () =>
+        HttpResponse.json([FIXED[0], custom("col-1", "Встреча", 0), FIXED[1], FIXED[2], FIXED[3]])),
+    );
+    let patched: unknown;
+    server.use(mock.patch("/api/crm/boards/agency/columns/:id", async ({ request }) => {
+      patched = await request.json();
+      return HttpResponse.json([custom("col-1", "Встреча", 0), ...FIXED]);
+    }));
+    setup();
 
     await userEvent.click(await screen.findByRole("button", { name: "Действия столбца: Встреча" }));
-    expect(await screen.findByRole("menuitem", { name: "Сдвинуть вправо" })).toHaveAttribute("aria-disabled", "true");
     await userEvent.click(screen.getByRole("menuitem", { name: "Сдвинуть влево" }));
-    await waitFor(() => expect(patched.at(-1)).toEqual({ id: "col-1", body: { position: 0 } }));
+    await waitFor(() => expect(patched).toEqual({ position: 0 }));
   });
 
   it("deletes a column only after confirming how many leads it holds", async () => {

@@ -250,11 +250,12 @@ model LeadColumn {
   clientId  String? @map("client_id")
   client    Client? @relation(fields: [clientId, orgId], references: [id, orgId], onDelete: Cascade)
   name      String @db.VarChar(50)
+  afterStage LeadStage? @map("after_stage")
   position  Int @default(0)
   leads     Lead[]
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  @@index([orgId, clientId, position])
+  @@index([orgId, clientId, afterStage, position])
   @@map("lead_column")
 }
 

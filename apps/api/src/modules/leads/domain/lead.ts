@@ -19,6 +19,7 @@ export interface LeadColumnRecord {
   orgId: string;
   clientId: string | null;
   name: string;
+  afterStage: LeadStage | null;
   position: number;
   createdAt: Date;
   updatedAt: Date;
@@ -30,9 +31,14 @@ export function customColumnOf({ id, name, position }: LeadColumnRecord): BoardC
   return { id, kind: 'CUSTOM', name, position };
 }
 export function boardColumns(custom: readonly LeadColumnRecord[]): BoardColumn[] {
+  const after = (stage: LeadStage | null) =>
+    custom.filter(column => column.afterStage === stage).sort((a, b) => a.position - b.position).map(customColumnOf);
   return [
-    ...LEAD_STAGES.map((id, position) => ({ id, kind: 'FIXED' as const, name: LEAD_STAGE_NAMES[id], position })),
-    ...custom.map(customColumnOf),
+    ...after(null),
+    ...LEAD_STAGES.flatMap((stage, position) => [
+      { id: stage, kind: 'FIXED' as const, name: LEAD_STAGE_NAMES[stage], position },
+      ...after(stage),
+    ]),
   ];
 }
 export const LEAD_ORIGINS = ['MANUAL', 'META'] as const;

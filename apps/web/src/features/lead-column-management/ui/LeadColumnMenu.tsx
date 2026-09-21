@@ -33,8 +33,7 @@ export function LeadColumnMenu({ boardKey, column, columns, leadCount, capabilit
   const [renaming, setRenaming] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
-  const custom = columns.filter((candidate) => candidate.kind === "CUSTOM");
-  const index = custom.findIndex((candidate) => candidate.id === column.id);
+  const index = columns.findIndex((candidate) => candidate.id === column.id);
 
   function shift(by: number) {
     update.mutate(
@@ -80,7 +79,7 @@ export function LeadColumnMenu({ boardKey, column, columns, leadCount, capabilit
               <DropdownMenuItem disabled={index <= 0} onSelect={() => shift(-1)}>
                 {t("crm.columns.moveLeft")}
               </DropdownMenuItem>
-              <DropdownMenuItem disabled={index >= custom.length - 1} onSelect={() => shift(1)}>
+              <DropdownMenuItem disabled={index >= columns.length - 1} onSelect={() => shift(1)}>
                 {t("crm.columns.moveRight")}
               </DropdownMenuItem>
             </>

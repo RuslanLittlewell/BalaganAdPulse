@@ -35,7 +35,7 @@ export function FadeContent({
       style={{
         opacity: visible ? 1 : initialOpacity,
         transition: `opacity ${duration}ms ${easing}, filter ${duration}ms ${easing}`,
-        filter: blur && !visible ? "blur(8px)" : "blur(0px)",
+        filter: blur && !visible ? "blur(8px)" : "none",
       }}
     >
       {children}

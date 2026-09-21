@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useDroppable } from "@dnd-kit/core";
-import { isLeadStage, leadColumnLabel, type Lead, type LeadColumn, type LeadStage } from "@/entities/lead/index.js";
+import { leadColumnLabel, type Lead, type LeadColumn } from "@/entities/lead/index.js";
 import { t } from "@/shared/config/index.js";
 import { cn } from "@/shared/lib/index.js";
+import { accentOf } from "./accent.js";
 import { LeadCard } from "./LeadCard.js";
 
 export interface CrmColumnProps {
@@ -14,13 +15,6 @@ export interface CrmColumnProps {
   actions?: ReactNode;
   onOpen?: (lead: Lead) => void;
 }
-
-const ACCENT: Record<LeadStage, string> = {
-  NEW: "bg-slate-400",
-  QUALIFIED: "bg-cyan-500",
-  TARGET: "bg-amber-500",
-  PROPOSAL: "bg-violet-500",
-};
 
 export function CrmColumnPanel({
   column, leads, draggable = false, draggingId, actions, onOpen,
@@ -42,7 +36,7 @@ export function CrmColumnPanel({
       <header className="flex shrink-0 items-center gap-2 border-b border-border/70 px-3 py-2.5">
         <span
           aria-hidden
-          className={cn("size-2 shrink-0 rounded-full", isLeadStage(column.id) ? ACCENT[column.id] : "bg-primary/60")}
+          className={cn("size-2 shrink-0 rounded-full", accentOf(column.id))}
         />
         <h2 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight" title={title}>
           {title}

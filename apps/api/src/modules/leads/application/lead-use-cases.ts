@@ -2,7 +2,7 @@ import { can, type Action } from '@adpulse/access-policy';
 import { AppError } from '#shared/domain/index.js';
 import type { ActorContext, IdGenerator, UnitOfWork, TransactionContext } from '#shared/application/index.js';
 import type { AuditWriter } from '../../audit/index.js';
-import { arrivalWindow, boardColumns, customColumnOf, CUSTOM_COLUMN_LIMIT, isLeadStage, LEAD_STAGE_NAMES, type LeadColumnRecord, type LeadFields, type LeadRecord } from '../domain/lead.js';
+import { arrivalWindow, boardColumns, customColumnOf, CUSTOM_COLUMN_LIMIT, isLeadStage, LEAD_STAGE_NAMES, LEAD_STAGES, type BoardColumn, type LeadColumnRecord, type LeadFields, type LeadRecord, type LeadStage } from '../domain/lead.js';
 import type { LeadRepository, LeadEvent } from './ports.js';
 
 export function createLeadUseCases(d: {leads:LeadRepository; audit:AuditWriter; ids:IdGenerator; unitOfWork:UnitOfWork; publish:(event:LeadEvent)=>void}) {
@@ -60,6 +60,16 @@ export function createLeadUseCases(d: {leads:LeadRepository; audit:AuditWriter; 
   async function orderedColumns(context:TransactionContext, columns:LeadColumnRecord[]) {
     for (const [position,column] of columns.entries()) if(column.position!==position) await d.leads.updateColumn(context,column.id,{position});
   }
+  async function repositionColumns(context:TransactionContext, existing:LeadColumnRecord[], target:BoardColumn[]) {
+    const byId=new Map(existing.map(column=>[column.id,column]));
+    let afterStage:LeadStage|null=null, position=0;
+    for (const entry of target) {
+      if (entry.kind==='FIXED') { afterStage=entry.id; position=0; continue; }
+      const before=byId.get(entry.id);
+      if (!before||before.afterStage!==afterStage||before.position!==position) await d.leads.updateColumn(context,entry.id,{afterStage,position});
+      position++;
+    }
+  }
   async function mutation<T>(actor:ActorContext, board:string, action:Action, work:(context:TransactionContext,rows:LeadRecord[])=>Promise<T>) {
     await authorize(actor,board,action);
     const result=await d.unitOfWork.run(async context=> {
@@ -88,7 +98,8 @@ export function createLeadUseCases(d: {leads:LeadRepository; audit:AuditWriter; 
         await placement(context,actor,board,stage);
         const named=await attribution(actor,board,{projectId:null,campaignId:null,origin:'MANUAL'},input);
         const assigned=await assignment(actor,board,{assigneeId:null},input,named.projectId);
-        const row=await d.leads.create(context,{...input,...named,...assigned,id:d.ids.generate(),orgId:actor.orgId,clientId:board==='agency'?null:board,stage,position:rows.filter(l=>l.stage===stage).length});
+        const row=await d.leads.create(context,{...input,...named,...assigned,id:d.ids.generate(),orgId:actor.orgId,clientId:board==='agency'?null:board,stage,position:0});
+        await ordered(context,[{...row,position:-1},...rows.filter(l=>l.stage===stage)]);
         await audit(context,actor,row,'CREATE',{after:row}); return row;
       });
     },
@@ -130,7 +141,9 @@ export function createLeadUseCases(d: {leads:LeadRepository; audit:AuditWriter; 
         const columns=await d.leads.columns(actor,board,context);
         if (columns.length>=CUSTOM_COLUMN_LIMIT) throw new AppError('validation',`A board holds at most ${CUSTOM_COLUMN_LIMIT} columns`);
         assertNameFree(columns,input.name);
-        const column=await d.leads.createColumn(context,{id:d.ids.generate(),orgId:actor.orgId,clientId:board==='agency'?null:board,name:input.name,position:columns.length});
+        const afterStage=LEAD_STAGES[LEAD_STAGES.length-1];
+        const position=columns.filter(column=>column.afterStage===afterStage).length;
+        const column=await d.leads.createColumn(context,{id:d.ids.generate(),orgId:actor.orgId,clientId:board==='agency'?null:board,name:input.name,afterStage,position});
         await auditColumn(context,actor,column,'CREATE',{after:column});
         return customColumnOf(column);
       });
@@ -141,9 +154,12 @@ export function createLeadUseCases(d: {leads:LeadRepository; audit:AuditWriter; 
         const before=customColumn(columns,id);
         if (input.name!==undefined) { assertNameFree(columns,input.name,id); await d.leads.updateColumn(context,id,{name:input.name}); }
         if (input.position!==undefined) {
-          const target=columns.filter(column=>column.id!==id);
-          target.splice(Math.min(input.position,target.length),0,{...before,position:-1});
-          await orderedColumns(context,target);
+          const full=boardColumns(columns);
+          const moving=full.find(entry=>entry.id===id)!;
+          const rest=full.filter(entry=>entry.id!==id);
+          const at=Math.max(0,Math.min(input.position,rest.length));
+          const target=[...rest.slice(0,at),moving,...rest.slice(at)];
+          await repositionColumns(context,columns,target);
         }
         const result=await d.leads.columns(actor,board,context);
         await auditColumn(context,actor,before,'UPDATE',{before,after:customColumn(result,id)});
@@ -158,7 +174,7 @@ export function createLeadUseCases(d: {leads:LeadRepository; audit:AuditWriter; 
         let position=rows.filter(lead=>lead.stage==='NEW').length;
         for (const lead of moving) await d.leads.update(context,lead.id,{stage:'NEW',position:position++});
         await d.leads.deleteColumn(context,id);
-        await orderedColumns(context,columns.filter(candidate=>candidate.id!==id));
+        await orderedColumns(context,columns.filter(candidate=>candidate.id!==id&&candidate.afterStage===column.afterStage));
         await auditColumn(context,actor,column,'DELETE',{before:column,movedLeadIds:moving.map(lead=>lead.id)});
       });
     },

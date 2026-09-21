@@ -21,7 +21,7 @@ export interface ImportedLeadInput extends IncomingLead, LeadTarget {
 export interface LeadIntakeRepository {
   lockBoard(context: TransactionContext, orgId: string, board: string): Promise<void>;
   claim(context: TransactionContext, orgId: string, externalId: string): Promise<boolean>;
-  countNew(context: TransactionContext, orgId: string, clientId: string): Promise<number>;
+  shiftNew(context: TransactionContext, orgId: string, clientId: string, by: number): Promise<void>;
   attribution(context: TransactionContext, projectId: string, source: LeadMetaSource): Promise<{ campaignId: string | null; adId: string | null }>;
   createImported(context: TransactionContext, input: ImportedLeadInput): Promise<void>;
   linkAttribution(context: TransactionContext, projectId: string): Promise<Array<{ orgId: string; clientId: string }>>;
@@ -35,15 +35,17 @@ export function createLeadIntake(d: { intake: LeadIntakeRepository; ids: IdGener
     async deliver(context: TransactionContext, delivery: LeadDelivery): Promise<{ created: number }> {
       const { orgId, clientId, projectId } = delivery;
       await d.intake.lockBoard(context, orgId, clientId);
-      let position = await d.intake.countNew(context, orgId, clientId);
-      let created = 0;
+      const claimed: IncomingLead[] = [];
       for (const lead of delivery.leads) {
-        if (!await d.intake.claim(context, orgId, lead.externalId)) continue;
+        if (await d.intake.claim(context, orgId, lead.externalId)) claimed.push(lead);
+      }
+      if (claimed.length > 0) await d.intake.shiftNew(context, orgId, clientId, claimed.length);
+      let position = 0;
+      for (const lead of claimed) {
         const attribution = await d.intake.attribution(context, projectId, lead.source);
         await d.intake.createImported(context, { ...lead, ...attribution, orgId, clientId, projectId, id: d.ids.generate(), position: position++ });
-        created++;
       }
-      return { created };
+      return { created: claimed.length };
     },
     announce,
     async link(projectId: string): Promise<void> {

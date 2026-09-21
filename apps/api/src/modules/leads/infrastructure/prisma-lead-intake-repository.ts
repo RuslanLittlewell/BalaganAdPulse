@@ -16,8 +16,8 @@ export class PrismaLeadIntakeRepository implements LeadIntakeRepository {
     const inserted = await this.tx(context).$executeRaw`INSERT INTO meta_lead (org_id, external_id) VALUES (${orgId}, ${externalId}) ON CONFLICT DO NOTHING`;
     return inserted === 1;
   }
-  countNew(context: TransactionContext, orgId: string, clientId: string) {
-    return this.tx(context).lead.count({ where: { orgId, clientId, stage: 'NEW' } });
+  async shiftNew(context: TransactionContext, orgId: string, clientId: string, by: number) {
+    await this.tx(context).$executeRaw`UPDATE lead SET position = position + ${by} WHERE org_id = ${orgId} AND client_id = ${clientId} AND stage = 'NEW'`;
   }
   async attribution(context: TransactionContext, projectId: string, source: LeadMetaSource) {
     const tx = this.tx(context);

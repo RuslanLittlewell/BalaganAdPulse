@@ -6,6 +6,7 @@ import type { Lead } from "@/entities/lead/index.js";
 import { MemberAvatar } from "@/entities/membership/index.js";
 import { t } from "@/shared/config/index.js";
 import { cn } from "@/shared/lib/index.js";
+import { accentOf } from "./accent.js";
 
 export interface LeadCardProps {
   lead: Lead;
@@ -60,6 +61,14 @@ export function LeadCard({ lead, draggable = false, placeholder = false, onOpen 
       }}
       {...(draggable ? pointerListeners : {})}
     >
+      <span
+        aria-hidden
+        className={cn(
+          "absolute inset-y-0 left-0 w-1.5 transition-opacity group-hover:opacity-0",
+          accentOf(lead.stage),
+        )}
+      />
+
       {draggable ? (
         <button
           type="button"

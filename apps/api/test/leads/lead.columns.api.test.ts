@@ -105,11 +105,11 @@ describe("board columns", () => {
     const second = (await addColumn("Второй")).body;
     const third = (await addColumn("Третий")).body;
 
-    const moved = await request(app).patch(`${columns()}/${second.id}`).set(auth).send({ position: 0 });
+    const moved = await request(app).patch(`${columns()}/${second.id}`).set(auth).send({ position: 4 });
     expect(moved.status).toBe(200);
     expect(moved.body.map((column: { name: string }) => column.name)).toEqual(["Новый", "Квалифицированный", "Целевой", "КП", "Второй", "Первый", "Третий"]);
 
-    await request(app).patch(`${columns()}/${third.id}`).set(auth).send({ position: 0 }).expect(200);
+    await request(app).patch(`${columns()}/${third.id}`).set(auth).send({ position: 4 }).expect(200);
     await request(app).patch(`${columns()}/${third.id}`).set(auth).send({ position: 99 }).expect(200);
     expect((await listColumns()).slice(4).map((column) => [column.name, column.position])).toEqual([
       ["Второй", 0],
@@ -118,6 +118,30 @@ describe("board columns", () => {
     ]);
     expect((await request(app).patch(`${columns()}/${third.id}`).set(auth).send({ position: -1 })).status).toBe(400);
     expect((await request(app).patch(`${columns()}/${third.id}`).set(auth).send({})).status).toBe(400);
+  });
+
+  it("moves a custom column across fixed stages, including to the very start of the board", async () => {
+    const meeting = (await addColumn("Встреча")).body;
+
+    const betweenNewAndQualified = await request(app).patch(`${columns()}/${meeting.id}`).set(auth).send({ position: 1 });
+    expect(betweenNewAndQualified.status).toBe(200);
+    expect(betweenNewAndQualified.body.map((column: { name: string }) => column.name)).toEqual(
+      ["Новый", "Встреча", "Квалифицированный", "Целевой", "КП"],
+    );
+
+    const betweenTargetAndProposal = await request(app).patch(`${columns()}/${meeting.id}`).set(auth).send({ position: 3 });
+    expect(betweenTargetAndProposal.body.map((column: { name: string }) => column.name)).toEqual(
+      ["Новый", "Квалифицированный", "Целевой", "Встреча", "КП"],
+    );
+
+    const atStart = await request(app).patch(`${columns()}/${meeting.id}`).set(auth).send({ position: 0 });
+    expect(atStart.body.map((column: { name: string }) => column.name)).toEqual(
+      ["Встреча", "Новый", "Квалифицированный", "Целевой", "КП"],
+    );
+    expect(await listColumns()).toEqual([
+      { id: meeting.id, kind: "CUSTOM", name: "Встреча", position: 0 },
+      ...FIXED,
+    ]);
   });
 
   it("refuses renaming, moving or deleting a fixed stage", async () => {
@@ -146,9 +170,9 @@ describe("board columns", () => {
 
     expect((await listLeads()).map((lead) => [lead.name, lead.stage, lead.position])).toEqual([
       ["Новый 1", "NEW", 0],
-      ["Встреча 1", "NEW", 1],
+      ["Встреча 3", "NEW", 1],
       ["Встреча 2", "NEW", 2],
-      ["Встреча 3", "NEW", 3],
+      ["Встреча 1", "NEW", 3],
     ]);
     expect((await listColumns()).slice(4)).toEqual([
       { id: first.id, kind: "CUSTOM", name: "Первый", position: 0 },
@@ -158,34 +182,34 @@ describe("board columns", () => {
 });
 
 describe("leads in custom columns", () => {
-  it("creates a lead last in a custom column and moves it between fixed and custom columns", async () => {
+  it("creates a lead first in a custom column and moves it between fixed and custom columns", async () => {
     const meeting = (await addColumn("Встреча")).body;
     await addLead("Первый", meeting.id).expect(201);
     const created = await addLead("Второй", meeting.id);
     expect(created.status).toBe(201);
-    expect(created.body).toMatchObject({ stage: meeting.id, position: 1 });
+    expect(created.body).toMatchObject({ stage: meeting.id, position: 0 });
     const proposal = (await addLead("КП", "PROPOSAL")).body;
 
     const intoColumn = await request(app).patch(`${leads()}/${proposal.id}/move`).set(auth).send({ stage: meeting.id, position: 0 });
     expect(intoColumn.status).toBe(200);
     expect((await listLeads()).map((lead) => [lead.name, lead.stage, lead.position])).toEqual([
       ["КП", meeting.id, 0],
-      ["Первый", meeting.id, 1],
-      ["Второй", meeting.id, 2],
+      ["Второй", meeting.id, 1],
+      ["Первый", meeting.id, 2],
     ]);
 
     await request(app).patch(`${leads()}/${proposal.id}/move`).set(auth).send({ stage: "PROPOSAL", position: 0 }).expect(200);
     expect((await listLeads()).map((lead) => [lead.name, lead.stage, lead.position])).toEqual([
       ["КП", "PROPOSAL", 0],
-      ["Первый", meeting.id, 0],
-      ["Второй", meeting.id, 1],
+      ["Второй", meeting.id, 0],
+      ["Первый", meeting.id, 1],
     ]);
   });
 
   it("orders a board by fixed stages, then custom columns, then position", async () => {
     const later = (await addColumn("Позже")).body;
     const sooner = (await addColumn("Раньше")).body;
-    await request(app).patch(`${columns()}/${sooner.id}`).set(auth).send({ position: 0 }).expect(200);
+    await request(app).patch(`${columns()}/${sooner.id}`).set(auth).send({ position: 4 }).expect(200);
     await addLead("В позже", later.id).expect(201);
     await addLead("В раньше", sooner.id).expect(201);
     await addLead("Целевой", "TARGET").expect(201);

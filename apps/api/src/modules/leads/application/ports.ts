@@ -1,5 +1,5 @@
 import type { ActorContext, TransactionContext } from '#shared/application/index.js';
-import type { ArrivalWindow, LeadBoard, LeadColumnRecord, LeadFields, LeadRecord, ProjectStageCounts } from '../domain/lead.js';
+import type { ArrivalWindow, LeadBoard, LeadColumnRecord, LeadFields, LeadRecord, LeadStage, ProjectStageCounts } from '../domain/lead.js';
 export interface LeadRepository {
   boards(actor: ActorContext): Promise<LeadBoard[]>;
   reaches(actor: ActorContext, board: string): Promise<boolean>;
@@ -12,8 +12,8 @@ export interface LeadRepository {
   update(context: TransactionContext, id: string, input: Partial<LeadFields> & {stage?: string; position?: number}): Promise<LeadRecord>;
   delete(context: TransactionContext, id: string): Promise<void>;
   columns(actor: ActorContext, board: string, context?: TransactionContext): Promise<LeadColumnRecord[]>;
-  createColumn(context: TransactionContext, input: {id: string; orgId: string; clientId: string | null; name: string; position: number}): Promise<LeadColumnRecord>;
-  updateColumn(context: TransactionContext, id: string, input: {name?: string; position?: number}): Promise<LeadColumnRecord>;
+  createColumn(context: TransactionContext, input: {id: string; orgId: string; clientId: string | null; name: string; afterStage: LeadStage | null; position: number}): Promise<LeadColumnRecord>;
+  updateColumn(context: TransactionContext, id: string, input: {name?: string; afterStage?: LeadStage | null; position?: number}): Promise<LeadColumnRecord>;
   deleteColumn(context: TransactionContext, id: string): Promise<void>;
   projectStageCounts(actor: ActorContext, window: ArrivalWindow): Promise<ProjectStageCounts[]>;
 }

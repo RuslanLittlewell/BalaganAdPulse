@@ -16,6 +16,13 @@ it('lists empty reachable boards and defaults new leads', async () => {
   expect((await request(app).get(url()).set(auth)).body).toEqual([]);
   const r=await create(); expect(r.status).toBe(201); expect(r.body).toMatchObject({name:'Lead',stage:'NEW',position:0,clientId:null});
 });
+it('places each new lead first in its stage, pushing earlier leads back', async () => {
+  const a=(await create('A')).body,b=(await create('B')).body,c=(await create('C')).body;
+  const leads=(await request(app).get(url()).set(auth)).body;
+  expect(leads.map((l:{id:string;position:number})=>[l.id,l.position])).toEqual([
+    [c.id,0],[b.id,1],[a.id,2],
+  ]);
+});
 it('names client boards by the client name, not its organization', async () => {
   await prisma.client.update({where:{id:clientId},data:{name:'Ромашка',organization:'ООО «Цветы»'}});
   const boards=(await request(app).get('/api/crm/boards').set(auth)).body;

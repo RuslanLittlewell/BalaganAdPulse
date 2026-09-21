@@ -52,7 +52,7 @@ const boardLeads = (board: string | null) =>
   prisma.lead.findMany({ where: { orgId, clientId: board }, orderBy: [{ stage: "asc" }, { position: "asc" }] });
 
 describe("lead intake", () => {
-  it("places imported leads last in Новый лид on the project client's board", async () => {
+  it("places imported leads first in Новый лид on the project client's board, ahead of leads already there", async () => {
     await prisma.lead.create({ data: { name: "Вручную", orgId, clientId, position: 0 } });
 
     const result = await deliver([incoming("L1"), incoming("L2")]);
@@ -60,7 +60,7 @@ describe("lead intake", () => {
     expect(result).toEqual({ created: 2 });
     const rows = await boardLeads(clientId);
     expect(rows.map((row) => [row.name, row.stage, row.position])).toEqual([
-      ["Вручную", "NEW", 0], ["Лид L1", "NEW", 1], ["Лид L2", "NEW", 2],
+      ["Лид L1", "NEW", 0], ["Лид L2", "NEW", 1], ["Вручную", "NEW", 2],
     ]);
     const imported = await prisma.lead.findFirstOrThrow({ where: { name: "Лид L1" }, include: { metaSource: true, metaKey: true } });
     expect(imported).toMatchObject({ origin: "META", projectId, clientId, phone: "+375291234567" });

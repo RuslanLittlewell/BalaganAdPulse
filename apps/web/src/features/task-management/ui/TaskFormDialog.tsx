@@ -144,6 +144,17 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
   const content = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(true);
   const requestClose = () => setOpen(false);
+  const closedRef = useRef(false);
+  const finalizeClose = () => {
+    if (closedRef.current) return;
+    closedRef.current = true;
+    onClose();
+  };
+  useEffect(() => {
+    if (open) return;
+    const fallback = setTimeout(finalizeClose, 250);
+    return () => clearTimeout(fallback);
+  }, [open]);
 
   const { control, handleSubmit, register, setError, setValue, watch, formState: { errors } } =
     useForm<FormValues>({
@@ -243,7 +254,7 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
           content.current?.focus();
         }}
         onAnimationEnd={(event) => {
-          if (event.target === event.currentTarget && !open) onClose();
+          if (event.target === event.currentTarget && !open) finalizeClose();
         }}
         className={
           "flex h-[min(850px,calc(100vh-2rem))] w-[min(880px,calc(100vw-2rem))] " +

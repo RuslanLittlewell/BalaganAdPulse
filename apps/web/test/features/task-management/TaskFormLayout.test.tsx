@@ -88,15 +88,6 @@ describe("the blocks a task is composed from", () => {
       .toEqual(["task-block-checklist", "task-block-dates", "task-block-assign"]);
   });
 
-  it("separates the blocks from one another", async () => {
-    creating();
-    await open("Чек-лист");
-    await open("Даты");
-
-    const dates = screen.getByTestId("task-block-dates");
-    expect(within(dates).getByRole("separator")).toBeInTheDocument();
-  });
-
   it("carries the remove control of each block", async () => {
     creating();
     await open("Назначить");

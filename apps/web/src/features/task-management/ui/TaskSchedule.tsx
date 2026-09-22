@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CalendarIcon, XIcon } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { t } from "@/shared/config/index.js";
 import {
   Button,

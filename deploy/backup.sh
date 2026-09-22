@@ -6,6 +6,11 @@ readonly compose_file="$app_dir/compose.prod.yml"
 readonly backup_dir="$app_dir/backups"
 readonly keep_days=14
 
+# compose.prod.yml references APP_IMAGE for the app/migrate services even
+# though backups only touch db — compose validates the whole file regardless
+# of which service is targeted, so an unset APP_IMAGE fails config parsing.
+export APP_IMAGE="${APP_IMAGE:-unused-for-backup}"
+
 cd "$app_dir"
 mkdir -p "$backup_dir"
 

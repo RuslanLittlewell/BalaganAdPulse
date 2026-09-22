@@ -25,6 +25,19 @@ if (!("ResizeObserver" in globalThis)) {
     disconnect() {}
   } as unknown as typeof ResizeObserver;
 }
+if (!window.matchMedia) {
+  window.matchMedia = (query: string) =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }) as unknown as MediaQueryList;
+}
 for (const method of ["hasPointerCapture", "setPointerCapture", "releasePointerCapture"] as const) {
   if (!(method in Element.prototype)) {
     Object.defineProperty(Element.prototype, method, { value: () => false, configurable: true });

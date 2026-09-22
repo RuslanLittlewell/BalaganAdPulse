@@ -97,6 +97,24 @@ describe("useCampaignReferences", () => {
     });
     expect(result.current.fetchStatus).toBe("idle");
   });
+
+  it("does not refetch a project's campaign names on a second mount right after the first", async () => {
+    let requests = 0;
+    server.use(mock.get("/api/projects/p1/campaigns/names", () => {
+      requests += 1;
+      return HttpResponse.json([{ id: "c1", name: "Поиск / Москва", channel: "YANDEX" }]);
+    }));
+    const wrapper = hookWrapper();
+
+    const first = renderHook(() => useCampaignReferences("p1"), { wrapper });
+    await waitFor(() => expect(first.result.current.isSuccess).toBe(true));
+    first.unmount();
+
+    const second = renderHook(() => useCampaignReferences("p1"), { wrapper });
+    await waitFor(() => expect(second.result.current.isSuccess).toBe(true));
+
+    expect(requests).toBe(1);
+  });
 });
 
 describe("useCampaign", () => {

@@ -16,8 +16,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Tabs,
 } from "@/shared/ui/index.js";
-import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/ui/tabs.js";
 import { CrmBoard } from "@/widgets/crm-board/index.js";
 import { CrmCalendar } from "@/widgets/crm-calendar/index.js";
 import { CreativePreviewDialog } from "@/widgets/creative-preview/index.js";
@@ -89,18 +89,18 @@ export function CrmPage() {
         ) : null}
 
         <Tabs
-          value={view}
-          onValueChange={(value) => {
-            if (!isView(value)) return;
-            setChosenView(value);
-            if (user) rememberCrmView(user.id, value);
+          items={[
+            { id: "board", label: t("crm.view.board") },
+            { id: "calendar", label: t("crm.view.calendar") },
+          ]}
+          activeId={view}
+          onSelect={(id) => {
+            if (!isView(id)) return;
+            setChosenView(id);
+            if (user) rememberCrmView(user.id, id);
           }}
-        >
-          <TabsList>
-            <TabsTrigger value="board">{t("crm.view.board")}</TabsTrigger>
-            <TabsTrigger value="calendar">{t("crm.view.calendar")}</TabsTrigger>
-          </TabsList>
-        </Tabs>
+          ariaLabel={t("crm.view.label")}
+        />
 
         {board?.capabilities.create ? (
           <Button type="button" onClick={() => setEditing({})}>

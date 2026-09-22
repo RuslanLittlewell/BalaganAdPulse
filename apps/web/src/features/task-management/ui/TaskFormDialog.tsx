@@ -105,8 +105,7 @@ function Block({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-3" data-testid={`task-block-${block}`}>
-      <Separator decorative={false} />
+    <div className="flex min-w-0 flex-col gap-1 pt-1 border-t-1 border-border" data-testid={`task-block-${block}`}>
       <div className="flex items-center justify-between gap-2">
         <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {t(`tasks.block.${block}`)}
@@ -143,6 +142,8 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
   const { raise } = useAlerts();
   const editor = useRef<TaskDescriptionEditorHandle>(null);
   const content = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(true);
+  const requestClose = () => setOpen(false);
 
   const { control, handleSubmit, register, setError, setValue, watch, formState: { errors } } =
     useForm<FormValues>({
@@ -223,7 +224,7 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
     try {
       if (task) await update.mutateAsync({ id: task.id, body });
       else await create.mutateAsync(body);
-      onClose();
+      requestClose();
     } catch (error) {
       const problems = fieldProblems(error);
       const rejected = FORM_FIELDS.filter((field) => problems[field] !== undefined);
@@ -233,7 +234,7 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
   });
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) requestClose(); }}>
       <DialogContent
         ref={content}
         tabIndex={-1}
@@ -241,13 +242,40 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
           event.preventDefault();
           content.current?.focus();
         }}
+        onAnimationEnd={(event) => {
+          if (event.target === event.currentTarget && !open) onClose();
+        }}
         className={
           "flex h-[min(850px,calc(100vh-2rem))] w-[min(880px,calc(100vw-2rem))] " +
-          "min-w-[min(880px,calc(100vw-2rem))] flex-col sm:max-w-[880px]"
+          "min-w-[min(880px,calc(100vw-2rem))] flex-col sm:max-w-[880px] h-full"
         }
       >
-        <DialogHeader className="shrink-0">
+        <DialogHeader className="shrink-0 flex-row items-center justify-between gap-3 border-border border-b pb-2">
           <DialogTitle>{task ? t("tasks.edit") : t("tasks.create")}</DialogTitle>
+          <div className="flex shrink-0 flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="task-priority" className="whitespace-nowrap text-sm font-normal text-muted-foreground">
+                {t("tasks.form.priority")}
+              </Label>
+              <Controller
+                control={control}
+                name="priority"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="task-priority" className="w-36"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {TASK_PRIORITIES.map((priority) => (
+                        <SelectItem key={priority} value={priority}>
+                          {t(`tasks.priority.${priority}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
+            <FieldError message={errors.priority?.message} />
+          </div>
         </DialogHeader>
 
         <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col gap-4">
@@ -285,29 +313,6 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
               value={description}
               onChange={setDescription}
             />
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3" data-testid="task-form-selects">
-            <div className="flex min-w-0 flex-col gap-2">
-              <Label htmlFor="task-priority">{t("tasks.form.priority")}</Label>
-              <Controller
-                control={control}
-                name="priority"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="task-priority" className="w-full"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {TASK_PRIORITIES.map((priority) => (
-                        <SelectItem key={priority} value={priority}>
-                          {t(`tasks.priority.${priority}`)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              <FieldError message={errors.priority?.message} />
-            </div>
           </div>
 
           {shown.map((block) => (
@@ -459,12 +464,17 @@ export function TaskFormDialog({ task, column, onClose, onDelete }: TaskFormDial
             <div className="flex items-center gap-2">
               {task && onDelete ? (
                 <Can action="delete" resource="task">
-                  <Button type="button" variant="destructive" onClick={() => onDelete(task)}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+                    onClick={() => onDelete(task)}
+                  >
                     {t("tasks.delete")}
                   </Button>
                 </Can>
               ) : null}
-              <Button type="button" variant="outline" onClick={onClose}>
+              <Button type="button" variant="outline" onClick={requestClose}>
                 {t("action.cancel")}
               </Button>
               <Button type="submit">{task ? t("tasks.form.save") : t("tasks.form.create")}</Button>

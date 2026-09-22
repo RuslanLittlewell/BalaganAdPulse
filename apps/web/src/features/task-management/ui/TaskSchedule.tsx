@@ -61,17 +61,6 @@ export function TaskSchedule({
               </span>
             </Button>
           </DatePicker>
-          {dueDate === null ? null : (
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              aria-label={t("tasks.form.clearDue")}
-              onClick={() => onDueDateChange(null)}
-            >
-              <XIcon />
-            </Button>
-          )}
         </div>
       </div>
 

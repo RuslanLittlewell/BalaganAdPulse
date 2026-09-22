@@ -12,14 +12,8 @@ import { t } from "@/shared/config/index.js";
 import { ROUTES } from "@/shared/lib/index.js";
 import { useNavCollapse } from "@/features/nav-collapse/index.js";
 import { useAuth } from "@/features/auth/index.js";
-import {
-  SectionLabel,
-  Sidebar,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/shared/ui/index.js";
+import { SectionLabel, Sidebar } from "@/shared/ui/index.js";
+import WarmTooltip, { WarmTooltipGroup } from "@/shared/ui/WarmTooltip/WarmTooltip.js";
 
 interface Module {
   to: string;
@@ -81,10 +75,9 @@ function ModuleLink({ module, collapsed }: ModuleLinkProps) {
   if (!collapsed) return link;
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>{link}</TooltipTrigger>
-      <TooltipContent side="right">{label}</TooltipContent>
-    </Tooltip>
+    <WarmTooltip content={label} side="right">
+      {link}
+    </WarmTooltip>
   );
 }
 
@@ -105,7 +98,7 @@ export function MainNav() {
       }
     >
       {!collapsed && <SectionLabel>{t("nav.sections")}</SectionLabel>}
-      <TooltipProvider delayDuration={200}>
+      <WarmTooltipGroup>
         <nav
           className={
             collapsed
@@ -120,7 +113,7 @@ export function MainNav() {
             <ModuleLink key={module.to} module={module} collapsed={collapsed} />
           ))}
         </nav>
-      </TooltipProvider>
+      </WarmTooltipGroup>
     </Sidebar>
   );
 }

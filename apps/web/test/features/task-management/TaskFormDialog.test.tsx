@@ -300,11 +300,19 @@ describe("pictures in the selects", () => {
 });
 
 describe("the dialog's shape", () => {
+  it("puts the priority select in the dialog header, not the scrollable body", async () => {
+    setup();
+    await screen.findByLabelText("Название");
+    const priority = screen.getByLabelText("Приоритет");
+
+    expect(screen.getByTestId("task-form-body")).not.toContainElement(priority);
+    expect(screen.getByRole("heading", { name: "Новая задача" }).parentElement)
+      .toContainElement(priority);
+  });
+
   it("puts the assignment's selects on one row", async () => {
     setup();
     await screen.findByLabelText("Название");
-    expect(screen.getByTestId("task-form-selects"))
-      .toContainElement(screen.getByLabelText("Приоритет"));
 
     await openAssign();
     const block = screen.getByTestId("task-block-assign");

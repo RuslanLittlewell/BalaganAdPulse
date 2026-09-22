@@ -105,7 +105,7 @@ export function ProfileSettingsDialog({ open, onClose, onAvatarSaved }: Props) {
           if (!next) onClose();
         }}
       >
-        <DialogContent className="w-[min(760px,calc(100vw-2rem))] max-w-none">
+        <DialogContent className="w-[min(760px,calc(100vw-2rem))] max-w-none h-auto">
           <DialogHeader>
             <DialogTitle>{t("profile.title")}</DialogTitle>
           </DialogHeader>

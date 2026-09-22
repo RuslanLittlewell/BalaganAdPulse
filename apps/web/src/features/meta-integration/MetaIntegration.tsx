@@ -235,7 +235,7 @@ export function MetaIntegration({ projectId }: { projectId: string }) {
           if (!value) close();
         }}
       >
-        <DialogContent>
+        <DialogContent className="h-auto">
           <DialogHeader>
             <DialogTitle>{t("meta.settings")}</DialogTitle>
           </DialogHeader>
@@ -270,7 +270,7 @@ export function MetaIntegration({ projectId }: { projectId: string }) {
               {connection.data && (
                 <Button
                   type="button"
-                  variant="destructive"
+                  variant="ghost"
                   disabled={pending}
                   onClick={() =>
                     void run(async () => {

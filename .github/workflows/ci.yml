@@ -2,13 +2,13 @@ name: CI
 
 # No `paths:` filter, deliberately. Render's checksPass trigger counts a
 # skipped check as a pass, so a path-filtered workflow would wave untested
-# commits straight into production. The push-to-main run is the one that gate
-# reads.
+# commits straight into production. Pushes to `production` are what deploy;
+# `main` still runs the full suite for PR feedback but no longer ships.
 on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [main, production]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -188,7 +188,7 @@ jobs:
         run: docker rm -f adpulse-ci || true
 
       - name: Publish the immutable production image
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production')
         env:
           GHCR_TOKEN: ${{ github.token }}
         run: |
@@ -200,7 +200,7 @@ jobs:
   deploy:
     name: Deploy to VPS
     needs: [api, web, build, image]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/production'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -208,30 +208,30 @@ jobs:
 
       - name: Configure SSH
         env:
-          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_SSH_KEY: ${{ secrets.PRODUCTION_VPS_SSH_KEY }}
         run: |
           install -m 700 -d ~/.ssh
-          test -n "$VPS_SSH_KEY" || { echo 'VPS_SSH_KEY secret is missing' >&2; exit 1; }
+          test -n "$VPS_SSH_KEY" || { echo 'PRODUCTION_VPS_SSH_KEY secret is missing' >&2; exit 1; }
           printf '%s\n' "$VPS_SSH_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           install -m 600 deploy/known_hosts ~/.ssh/known_hosts
           ssh-keygen -y -P '' -f ~/.ssh/id_ed25519 > /dev/null
-          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes adpulse-deploy@84.46.254.178 true
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes adpulse-deploy@45.87.219.63 true
 
       - name: Install deployment files
         run: |
-          scp deploy/compose.prod.yml deploy/deploy.sh adpulse-deploy@84.46.254.178:/opt/adpulse/
+          scp deploy/compose.prod.yml deploy/deploy.sh deploy/backup.sh adpulse-deploy@45.87.219.63:/opt/adpulse/
 
       - name: Pull and deploy the tested image
         env:
           GHCR_TOKEN: ${{ github.token }}
         run: |
           image="ghcr.io/${GITHUB_REPOSITORY,,}:$GITHUB_SHA"
-          printf '%s' "$GHCR_TOKEN" | ssh adpulse-deploy@84.46.254.178 \
+          printf '%s' "$GHCR_TOKEN" | ssh adpulse-deploy@45.87.219.63 \
             "docker login ghcr.io -u '$GITHUB_ACTOR' --password-stdin"
-          ssh adpulse-deploy@84.46.254.178 \
+          ssh adpulse-deploy@45.87.219.63 \
             "chmod 700 /opt/adpulse/deploy.sh && APP_IMAGE='$image' /opt/adpulse/deploy.sh"
-          ssh adpulse-deploy@84.46.254.178 docker logout ghcr.io
+          ssh adpulse-deploy@45.87.219.63 docker logout ghcr.io
 
       - name: Verify the public endpoint
-        run: test "$(curl -fsS https://littlewell-app.work/healthz)" = '{"status":"ok"}'
+        run: test "$(curl -fsS https://app.balagan.pro/healthz)" = '{"status":"ok"}'

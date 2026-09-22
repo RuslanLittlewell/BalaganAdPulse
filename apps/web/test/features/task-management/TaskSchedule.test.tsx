@@ -77,7 +77,8 @@ describe("a task's due date in the form", () => {
   it("clears the due date", async () => {
     edit({ dueDate: "2026-09-25", dueTime: "12:00" });
     await open("Даты");
-    await userEvent.click(await screen.findByRole("button", { name: "Убрать срок" }));
+    const block = screen.getByTestId("task-block-dates");
+    await userEvent.click(within(block).getByRole("button", { name: "Убрать даты" }));
     await save();
 
     await waitFor(() => expect(sent).toMatchObject({ dueDate: null }));

@@ -375,7 +375,7 @@ describe("the dialog's controls", () => {
     await user.type(await screen.findByLabelText("Название"), "Передумал");
     await user.click(screen.getByRole("button", { name: "Отмена" }));
 
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(posted).toBe(false);
   });
 

@@ -96,7 +96,7 @@ describe("the checklist of a task being edited", () => {
     await userEvent.click(await screen.findByRole("checkbox", { name: "Собрать креативы" }));
     await userEvent.click(screen.getByRole("button", { name: "Отмена" }));
 
-    expect(closed).toBe(true);
+    await waitFor(() => expect(closed).toBe(true));
     expect(requests).toBe(0);
   });
 

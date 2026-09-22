@@ -32,6 +32,7 @@ export function useLeadColumns(boardKey: string | undefined) {
     queryKey: leadColumnsKey(boardKey ?? ""),
     queryFn: () => leadsApi.columns(boardKey!),
     enabled: Boolean(boardKey),
+    staleTime: 5 * 60_000,
   });
 }
 

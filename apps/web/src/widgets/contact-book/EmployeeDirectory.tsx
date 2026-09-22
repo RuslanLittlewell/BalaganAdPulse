@@ -17,8 +17,8 @@ export function EmployeeDirectory() {
   }
 
   return (
-    <div className="grid min-h-[22rem] gap-4 sm:grid-cols-[30%_minmax(0,1fr)]">
-      <div className="flex max-h-[60vh] flex-col gap-1 overflow-auto sm:pr-4">
+    <div className="grid min-h-[22rem] gap-4 sm:grid-cols-[minmax(14rem,22%)_minmax(0,1fr)] flex-1">
+      <div className="flex max-h-[60vh] flex-col gap-1 overflow-auto">
         {list.map((member) => (
           <ListItem
             key={member.id}

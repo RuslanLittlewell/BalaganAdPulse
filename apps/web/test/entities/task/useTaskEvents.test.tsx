@@ -95,6 +95,19 @@ describe("subscribing to the board", () => {
     expect(read(wrapper)).toEqual(board);
   });
 
+  it("ignores an event kind from another feed sharing the socket", async () => {
+    const { wrapper } = setup();
+    await waitFor(() => expect(FakeSocket.opened).toHaveLength(1));
+    latest().accept();
+    latest().ready();
+
+    expect(() => {
+      latest().deliver({ kind: "crm.changed", orgId: "org1", board: "b1" });
+    }).not.toThrow();
+
+    expect(read(wrapper)).toEqual(board);
+  });
+
   it("closes the socket when the board unmounts", async () => {
     const { rendered } = setup();
     await waitFor(() => expect(FakeSocket.opened).toHaveLength(1));

@@ -202,7 +202,7 @@ export const ru = {
   "crm.delete": "Удалить", "crm.deleteConfirm": "Удалить лид",
   "crm.deleteQuestion": "Удалить лид безвозвратно?",
   "crm.moveFailed": "Не удалось переместить лид",
-  "crm.view.board": "Канбан", "crm.view.calendar": "Календарь",
+  "crm.view.board": "Канбан", "crm.view.calendar": "Календарь", "crm.view.label": "Вид",
   "crm.calendar.previousWeek": "Предыдущая неделя",
   "crm.calendar.nextWeek": "Следующая неделя", "crm.calendar.today": "Сегодня",
   "tasks.title": "Задачи", "tasks.create": "Новая задача", "tasks.empty": "Задач пока нет",
@@ -233,6 +233,9 @@ export const ru = {
   "tasks.editor.uploadFailed": "Не удалось загрузить изображение",
   "tasks.editor.tooLarge": "Изображение слишком большое, максимум 10 МБ",
   "tasks.editor.wrongType": "Можно загружать только PNG, JPEG, WebP и GIF",
+  "tasks.editor.bold": "Жирный", "tasks.editor.italic": "Курсив", "tasks.editor.strike": "Зачёркнутый",
+  "tasks.editor.bulletList": "Маркированный список", "tasks.editor.orderedList": "Нумерованный список",
+  "tasks.editor.blockquote": "Цитата", "tasks.editor.undo": "Отменить", "tasks.editor.redo": "Повторить",
   "tasks.drag": "Перетащить задачу", "tasks.open": "Открыть задачу",
   "tasks.attachments": "Вложения", "tasks.attachments.empty": "Файлов нет",
   "tasks.attachments.count": "Вложений", "tasks.noProject": "Без проекта",
@@ -255,7 +258,7 @@ export const ru = {
   "tasks.block.remove.assign": "Убрать назначение",
   "tasks.calendar.previousWeek": "Предыдущая неделя",
   "tasks.calendar.nextWeek": "Следующая неделя", "tasks.calendar.today": "Сегодня",
-  "tasks.view.board": "Канбан", "tasks.view.calendar": "Календарь",
+  "tasks.view.board": "Канбан", "tasks.view.calendar": "Календарь", "tasks.view.label": "Вид",
   "auth.email.invalid": "Введите корректный email", "auth.password.tooShort": "Минимум 8 символов", "auth.name.required": "Введите имя",
 } as const;
 export type MessageKey = keyof typeof ru;

@@ -274,7 +274,7 @@ describe("choosing which directory to show", () => {
       renderWithProviders(<ContactBook open onClose={() => {}} />);
       await screen.findByRole("button", { name: /Acme/ });
 
-      await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+      await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
 
       expect(await screen.findByRole("button", { name: /Мария/ })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /Я/ })).toBeNull();
@@ -290,7 +290,7 @@ describe("choosing which directory to show", () => {
       renderWithProviders(<ContactBook open onClose={() => {}} />);
       await screen.findByRole("button", { name: /Acme/ });
 
-      await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+      await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
 
       expect(await screen.findByText("Сотрудников пока нет")).toBeInTheDocument();
     });
@@ -305,7 +305,7 @@ describe("choosing which directory to show", () => {
     async function openEmployee(user: ReturnType<typeof userEvent.setup>) {
       renderWithProviders(<ContactBook open onClose={() => {}} />);
       await screen.findByRole("button", { name: /Acme/ });
-      await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+      await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
       await user.click(await screen.findByRole("button", { name: /Мария/ }));
     }
 
@@ -452,7 +452,7 @@ describe("choosing which directory to show", () => {
       await screen.findByRole("button", { name: /Acme/ });
       expect(screen.queryByText("Приглашения")).toBeNull();
 
-      await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+      await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
       expect(screen.queryByText("Приглашения")).toBeNull();
     });
 
@@ -479,7 +479,7 @@ describe("choosing which directory to show", () => {
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
 
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
     await user.click(await screen.findByRole("button", { name: /Мария/ }));
 
     const details = await screen.findByTestId("employee-details");
@@ -493,7 +493,7 @@ describe("choosing which directory to show", () => {
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
 
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
 
     expect(await screen.findByRole("button", { name: /Мария/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Acme/ })).not.toBeInTheDocument();
@@ -624,14 +624,14 @@ describe("choosing which directory to show", () => {
     renderWithProviders(<ContactBook open onClose={() => {}} />);
 
     await screen.findByRole("heading", { name: "Контактная книга" });
-    expect(screen.queryByRole("tab", { name: "Сотрудники" })).toBeNull();
+    expect(screen.queryByRole("radio", { name: "Сотрудники" })).toBeNull();
   });
 
   it("still offers it to the agency", async () => {
     withDirectory();
     renderWithProviders(<ContactBook open onClose={() => {}} />);
 
-    expect(await screen.findByRole("tab", { name: "Сотрудники" })).toBeInTheDocument();
+    expect(await screen.findByRole("radio", { name: "Сотрудники" })).toBeInTheDocument();
   });
 
   it("carries no people block on the client card", async () => {
@@ -660,7 +660,7 @@ describe("choosing which directory to show", () => {
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
 
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
 
     expect(await screen.findByRole("button", { name: /Мария/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Заказчик/ })).not.toBeInTheDocument();
@@ -672,9 +672,9 @@ describe("choosing which directory to show", () => {
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
 
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
     await screen.findByRole("button", { name: /Мария/ });
-    await user.click(screen.getByRole("tab", { name: "Клиенты" }));
+    await user.click(screen.getByRole("radio", { name: "Клиенты" }));
 
     expect(await screen.findByRole("button", { name: /Acme/ })).toBeInTheDocument();
   });
@@ -686,7 +686,7 @@ describe("inviting from the contact book", () => {
     withDirectory();
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
 
     await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
 
@@ -704,7 +704,7 @@ describe("inviting from the contact book", () => {
     }));
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
 
     await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
     const form = await screen.findByRole("dialog", { name: "Пригласить сотрудника" });
@@ -727,7 +727,7 @@ describe("inviting from the contact book", () => {
     }));
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
 
     await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
     const form = await screen.findByRole("dialog", { name: "Пригласить сотрудника" });
@@ -768,7 +768,7 @@ describe("inviting from the contact book", () => {
     }));
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
     await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
 
     await user.click(await screen.findByRole("button", { name: "Отозвать ABCDEFGH" }));
@@ -786,7 +786,7 @@ describe("inviting from the contact book", () => {
     withDirectory();
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
     await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
 
     await user.click(await screen.findByRole("button", { name: "Скопировать ссылку" }));
@@ -801,7 +801,7 @@ describe("the employee pane's details", () => {
     withDirectory();
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
     await screen.findByRole("button", { name: /Мария/ });
     return user;
   };
@@ -887,7 +887,7 @@ describe("the invitation form's second step", () => {
     server.use(http.post("/api/invites", () => HttpResponse.json(employeeInvite, { status: 201 })));
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
     await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
     const form = await screen.findByRole("dialog", { name: "Пригласить сотрудника" });
     return { user, form };
@@ -944,7 +944,7 @@ describe("choosing projects to grant", () => {
     withDirectory();
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
     await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
     await screen.findByRole("dialog", { name: "Пригласить сотрудника" });
 

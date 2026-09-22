@@ -4,8 +4,7 @@ import { TaskCalendar } from "@/widgets/task-calendar/index.js";
 import { TaskFormDialog, TaskPreviewDialog } from "@/features/task-management/index.js";
 import { Can, useCan } from "@/features/permissions/index.js";
 import { useAuth } from "@/features/auth/index.js";
-import { Button, ConfirmDialog, FadeContent } from "@/shared/ui/index.js";
-import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/ui/tabs.js";
+import { Button, ConfirmDialog, FadeContent, Tabs } from "@/shared/ui/index.js";
 import { useModuleMemory } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import {
@@ -49,26 +48,28 @@ export function TasksPage() {
 
   return (
     <section className="flex h-full flex-col gap-4">
-      <header className="flex shrink-0 items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">{t("tasks.title")}</h1>
+      <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <h1 className="justify-self-start text-2xl font-bold">{t("tasks.title")}</h1>
 
         <Tabs
-          value={view}
-          onValueChange={(value) => {
-            if (!isView(value)) return;
-            setChosen(value);
-            if (userId) rememberTaskView(userId, value);
+          items={[
+            { id: "board", label: t("tasks.view.board") },
+            { id: "calendar", label: t("tasks.view.calendar") },
+          ]}
+          activeId={view}
+          onSelect={(id) => {
+            if (!isView(id)) return;
+            setChosen(id);
+            if (userId) rememberTaskView(userId, id);
           }}
-          className="ml-auto"
-        >
-          <TabsList>
-            <TabsTrigger value="board">{t("tasks.view.board")}</TabsTrigger>
-            <TabsTrigger value="calendar">{t("tasks.view.calendar")}</TabsTrigger>
-          </TabsList>
-        </Tabs>
+          ariaLabel={t("tasks.view.label")}
+          className="justify-self-center"
+        />
 
         <Can action="create" resource="task">
-          <Button onClick={() => setEditing({ mode: "create" })}>{t("tasks.create")}</Button>
+          <Button className="justify-self-end" onClick={() => setEditing({ mode: "create" })}>
+            {t("tasks.create")}
+          </Button>
         </Can>
       </header>
 

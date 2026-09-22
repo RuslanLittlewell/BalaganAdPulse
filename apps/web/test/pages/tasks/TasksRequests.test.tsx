@@ -68,10 +68,10 @@ describe("what the task module asks the server for", () => {
     await screen.findByText("Написать бриф");
     const before = { ...counts };
 
-    await userEvent.click(screen.getByRole("tab", { name: "Календарь" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Календарь" }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Следующая неделя" })).toBeInTheDocument());
-    await userEvent.click(screen.getByRole("tab", { name: "Канбан" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Канбан" }));
     await screen.findByRole("heading", { name: "Идея", level: 2 });
 
     expect(counts).toEqual(before);
@@ -82,10 +82,10 @@ describe("what the task module asks the server for", () => {
     await screen.findByText("Написать бриф");
     await waitFor(() => expect(connections).toBe(1));
 
-    await userEvent.click(screen.getByRole("tab", { name: "Календарь" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Календарь" }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Следующая неделя" })).toBeInTheDocument());
-    await userEvent.click(screen.getByRole("tab", { name: "Канбан" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Канбан" }));
     await screen.findByRole("heading", { name: "Идея", level: 2 });
 
     expect(connections).toBe(1);

@@ -25,30 +25,30 @@ beforeEach(() => {
   );
 });
 
-const tab = (name: string) => screen.getByRole("tab", { name });
+const tab = (name: string) => screen.getByRole("radio", { name });
 
 const onCalendar = () => screen.queryByRole("button", { name: "Следующая неделя" }) !== null;
 
 describe("switching between the board and the calendar", () => {
   it("starts on the board", async () => {
     setup();
-    expect(await screen.findByRole("tab", { name: "Канбан" })).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByRole("radio", { name: "Канбан" })).toHaveAttribute("aria-checked", "true");
     expect(await screen.findByRole("heading", { name: "Идея", level: 2 })).toBeInTheDocument();
     expect(onCalendar()).toBe(false);
   });
 
   it("shows the calendar once it is chosen, and only the calendar", async () => {
     setup();
-    await userEvent.click(await screen.findByRole("tab", { name: "Календарь" }));
+    await userEvent.click(await screen.findByRole("radio", { name: "Календарь" }));
 
     await waitFor(() => expect(onCalendar()).toBe(true));
-    expect(tab("Календарь")).toHaveAttribute("aria-selected", "true");
+    expect(tab("Календарь")).toHaveAttribute("aria-checked", "true");
     expect(screen.queryByRole("heading", { name: "Идея", level: 2 })).not.toBeInTheDocument();
   });
 
   it("comes back to the board", async () => {
     setup();
-    await userEvent.click(await screen.findByRole("tab", { name: "Календарь" }));
+    await userEvent.click(await screen.findByRole("radio", { name: "Календарь" }));
     await waitFor(() => expect(onCalendar()).toBe(true));
 
     await userEvent.click(tab("Канбан"));
@@ -58,7 +58,7 @@ describe("switching between the board and the calendar", () => {
 
   it("switches from the keyboard", async () => {
     setup();
-    (await screen.findByRole("tab", { name: "Канбан" })).focus();
+    (await screen.findByRole("radio", { name: "Канбан" })).focus();
     await userEvent.keyboard("{ArrowRight}");
 
     await waitFor(() => expect(onCalendar()).toBe(true));
@@ -66,7 +66,7 @@ describe("switching between the board and the calendar", () => {
 
   it("returns to the view the member left", async () => {
     const first = setup();
-    await userEvent.click(await screen.findByRole("tab", { name: "Календарь" }));
+    await userEvent.click(await screen.findByRole("radio", { name: "Календарь" }));
     await waitFor(() => expect(onCalendar()).toBe(true));
     first.unmount();
 
@@ -77,7 +77,7 @@ describe("switching between the board and the calendar", () => {
   it("keeps one person's view off another signing in on the same browser", async () => {
     server.use(mock.get("/api/auth/me", () => HttpResponse.json(sessionOf("user-1"))));
     const first = setup();
-    await userEvent.click(await screen.findByRole("tab", { name: "Календарь" }));
+    await userEvent.click(await screen.findByRole("radio", { name: "Календарь" }));
     await waitFor(() => expect(onCalendar()).toBe(true));
     first.unmount();
 

@@ -35,7 +35,7 @@ const MAX_BYTES = 10 * 1024 * 1024;
 const ACCEPTED = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 
 const EDITOR_CONTENT_CLASS = [
-  "min-h-[400px] p-3 outline-none",
+  "p-3 outline-none",
   "[&_p]:my-1",
   "[&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5",
   "[&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5",
@@ -266,6 +266,9 @@ export const TaskDescriptionEditor = forwardRef<
   return (
     <div
       className={cn("rounded-md border", className)}
+      onClick={() => {
+        if (editable) editor?.commands.focus();
+      }}
       onDrop={handleDrop}
       onDragOver={(event) => {
         if (event.dataTransfer?.types?.includes("Files"))

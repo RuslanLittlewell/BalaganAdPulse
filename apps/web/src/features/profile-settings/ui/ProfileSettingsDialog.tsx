@@ -116,7 +116,7 @@ export function ProfileSettingsDialog({ open, onClose, onAvatarSaved }: Props) {
           >
             <div className="grid gap-6 sm:grid-cols-[180px_minmax(0,1fr)]">
               <div className="flex flex-col items-center gap-3 sm:border-r sm:border-border sm:pr-6">
-                <div className="w-32 sm:w-full [&>img]:aspect-square [&>img]:w-full [&>img]:rounded-full [&>img]:bg-muted">
+                <div className="w-32 sm:w-full [&>img]:aspect-square [&>img]:w-full [&>img]:rounded-full">
                   <AvatarPreview options={options} />
                 </div>
                 <strong className="text-sm">{t("profile.avatar")}</strong>

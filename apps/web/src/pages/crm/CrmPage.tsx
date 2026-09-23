@@ -86,7 +86,7 @@ export function CrmPage() {
               </SelectContent>
             </Select>
           </div>
-        ) : null}
+        ) : <div />}
 
         <Tabs
           items={[

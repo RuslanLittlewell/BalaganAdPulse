@@ -232,12 +232,12 @@ function withDirectory() {
     http.get("/api/clients", () => HttpResponse.json([acme, bare])),
     http.get("/api/members", () => HttpResponse.json([member])),
     http.get("/api/projects", () => HttpResponse.json([
-      { id: "project-1", clientId: "1", name: "Летний запуск", niche: "Перформанс",
-        monthlyBudget: null, budgetCurrency: "BYN", priority: "NEW", image: "data:image/png;base64,AAA",
+      { id: "project-1", clientId: "1", name: "Летний запуск",
+        budgetCurrency: "BYN", priority: "NEW", image: "data:image/png;base64,AAA",
         avatarPath: null, position: 0, createdAt: "2026-09-01T00:00:00.000Z",
         updatedAt: "2026-09-01T00:00:00.000Z" },
-      { id: "project-2", clientId: "1", name: "Второй проект", niche: null,
-        monthlyBudget: null, budgetCurrency: "BYN", priority: "NEW", image: null,
+      { id: "project-2", clientId: "1", name: "Второй проект",
+        budgetCurrency: "BYN", priority: "NEW", image: null,
         avatarPath: null, position: 1, createdAt: "2026-09-01T00:00:00.000Z",
         updatedAt: "2026-09-01T00:00:00.000Z" },
     ])),
@@ -939,7 +939,7 @@ describe("the invitation form's second step", () => {
 });
 
 describe("choosing projects to grant", () => {
-  it("draws each project as a card with its name and niche", async () => {
+  it("draws each project as a card with its name and picture", async () => {
     const user = userEvent.setup();
     withDirectory();
     renderWithProviders(<ContactBook open onClose={() => {}} />);
@@ -950,7 +950,6 @@ describe("choosing projects to grant", () => {
 
     const card = screen.getByTestId("invite-project-project-1");
     expect(card).toHaveTextContent("Летний запуск");
-    expect(card).toHaveTextContent("Перформанс");
     expect(within(card).getByRole("img", { name: "Летний запуск" })).toBeInTheDocument();
   });
 });

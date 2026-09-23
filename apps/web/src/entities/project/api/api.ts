@@ -10,8 +10,6 @@ export interface Project {
   id: string;
   clientId: string;
   name: string;
-  niche: string | null;
-  monthlyBudget: string | null;
   budgetCurrency: Currency;
   priority: ProjectPriority;
   image: string | null;
@@ -24,8 +22,6 @@ export interface Project {
 export interface ProjectInput {
   clientId?: string;
   name?: string;
-  niche?: string | null;
-  monthlyBudget?: number | null;
   budgetCurrency?: Currency;
   priority?: ProjectPriority;
 }

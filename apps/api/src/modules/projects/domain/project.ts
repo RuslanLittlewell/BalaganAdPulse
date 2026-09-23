@@ -10,8 +10,6 @@ export interface ProjectRecord {
   readonly id: string;
   readonly clientId: string;
   readonly name: string;
-  readonly niche: string | null;
-  readonly monthlyBudget: string | null;
   readonly budgetCurrency: Currency;
   readonly priority: ProjectPriority;
   readonly image: string | null;
@@ -24,8 +22,6 @@ export interface ProjectRecord {
 export interface ProjectChange {
   readonly clientId?: string;
   readonly name?: string;
-  readonly niche?: string | null;
-  readonly monthlyBudget?: number | null;
   readonly budgetCurrency?: Currency;
   readonly priority?: ProjectPriority;
 }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { PlusIcon } from "lucide-react";
 import {
-  ApiError, CURRENCY_SIGNS, isPartialDecimal, toSquarePng, type Currency,
+  ApiError, CURRENCY_SIGNS, toSquarePng, type Currency,
 } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import {
@@ -50,19 +50,13 @@ export interface ProjectFormDialogProps {
 interface Fields {
   clientId: string;
   name: string;
-  niche: string;
-  monthlyBudget: string;
   budgetCurrency: Currency;
 }
 
 function toInput(fields: Fields): ProjectInput {
-  const budget = Number(fields.monthlyBudget);
   return {
     clientId: fields.clientId,
     name: fields.name.trim(),
-    niche: fields.niche.trim() || null,
-    monthlyBudget:
-      fields.monthlyBudget.trim() && Number.isFinite(budget) ? budget : null,
     budgetCurrency: fields.budgetCurrency,
   };
 }
@@ -100,8 +94,6 @@ export function ProjectFormDialog({
     defaultValues: {
       clientId: project?.clientId ?? clientId ?? ownClientId ?? "",
       name: project?.name ?? "",
-      niche: project?.niche ?? "",
-      monthlyBudget: project?.monthlyBudget ?? "",
       budgetCurrency: project?.budgetCurrency ?? DEFAULT_CURRENCY,
     },
   });
@@ -157,84 +149,89 @@ export function ProjectFormDialog({
         </DialogHeader>
 
         <form noValidate className="grid gap-3" onSubmit={(event) => void submit(event)}>
-          <TextField
-            compact
-            label={t("project.name.label")}
-            {...register("name", { required: t("project.name.required") })}
-            error={errors.name?.message}
-            autoFocus
-          />
-
-          <div className="grid gap-1">
-            <Label htmlFor="project-client" className="text-xs text-muted-foreground">
-              {t("project.client.label")}
-            </Label>
-            <div className="flex items-center gap-2">
-              <div className="min-w-0 flex-1">
-                <Controller
-                  control={control}
-                  name="clientId"
-                  rules={{ required: t("project.client.required") }}
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange} disabled={ownClientId != null}>
-                      <SelectTrigger id="project-client" className="w-full">
-                        <SelectValue placeholder={t("project.client.label")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(clients.data ?? []).map((client) => (
-                          <SelectItem key={client.id} value={client.id}>
-                            {client.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </div>
-              <Can action="create" resource="client">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="shrink-0"
-                  aria-label={t("clients.new")}
-                  onClick={() => setCreatingClient(true)}
-                >
-                  <PlusIcon aria-hidden="true" />
-                </Button>
-              </Can>
-            </div>
-            {errors.clientId != null && (
-              <p className="text-xs text-destructive">{errors.clientId.message}</p>
+          <div className="grid gap-6 sm:grid-cols-[1fr_4fr]">
+          <div className="flex flex-col items-center gap-3 sm:border-r sm:border-border sm:pr-6">
+            {project != null && <ProjectAvatar project={project} size="xl" />}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => fileRef.current?.click()}
+            >
+              {t("project.logo.pick")}
+            </Button>
+            {logo != null && (
+              <span className="min-w-0 max-w-full truncate text-xs text-muted-foreground">{logo.name}</span>
             )}
-            {noClients && (
-              <p className="text-xs text-muted-foreground">{t("project.client.empty")}</p>
-            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              aria-label={t("project.logo.label")}
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null;
+                event.target.value = "";
+                setLogo(file);
+              }}
+            />
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex min-w-0 flex-col gap-3">
             <TextField
               compact
-              label={t("project.niche.label")}
-              {...register("niche")}
-              error={errors.niche?.message}
+              label={t("project.name.label")}
+              {...register("name", { required: t("project.name.required") })}
+              error={errors.name?.message}
+              autoFocus
             />
-            <Controller
-              control={control}
-              name="monthlyBudget"
-              render={({ field }) => (
-                <TextField
-                  compact
-                  label={t("project.budget.label")}
-                  {...field}
-                  onChange={(event) => {
-                    if (isPartialDecimal(event.target.value)) field.onChange(event);
-                  }}
-                  error={errors.monthlyBudget?.message}
-                  inputMode="decimal"
-                />
+            <div className="grid gap-1">
+              <Label htmlFor="project-client" className="text-xs text-muted-foreground">
+                {t("project.client.label")}
+              </Label>
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <Controller
+                    control={control}
+                    name="clientId"
+                    rules={{ required: t("project.client.required") }}
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange} disabled={ownClientId != null}>
+                        <SelectTrigger id="project-client" className="w-full">
+                          <SelectValue placeholder={t("project.client.label")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(clients.data ?? []).map((client) => (
+                            <SelectItem key={client.id} value={client.id}>
+                              {client.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+                <Can action="create" resource="client">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0"
+                    aria-label={t("clients.new")}
+                    onClick={() => setCreatingClient(true)}
+                  >
+                    <PlusIcon aria-hidden="true" />
+                  </Button>
+                </Can>
+              </div>
+              {errors.clientId != null && (
+                <p className="text-xs text-destructive">{errors.clientId.message}</p>
               )}
-            />
+              {noClients && (
+                <p className="text-xs text-muted-foreground">{t("project.client.empty")}</p>
+              )}
+            </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="project-currency">{t("project.currency.label")}</Label>
               <Controller
@@ -254,52 +251,27 @@ export function ProjectFormDialog({
                 )}
               />
             </div>
-          </div>
-
-          <div className="grid gap-1">
-            <Label className="text-xs text-muted-foreground">{t("project.logo.label")}</Label>
-            <div className="flex items-center gap-3">
-              {project != null && <ProjectAvatar project={project} />}
-              <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
-                {t("project.logo.pick")}
-              </Button>
-              {logo != null && (
-                <span className="min-w-0 truncate text-xs text-muted-foreground">{logo.name}</span>
-              )}
             </div>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              aria-label={t("project.logo.label")}
-              onChange={(event) => {
-                const file = event.target.files?.[0] ?? null;
-                event.target.value = "";
-                setLogo(file);
-              }}
-            />
           </div>
 
           {failure != null && (
             <p role="alert" className="text-xs text-destructive">{failure}</p>
           )}
 
-          <DialogFooter className="sm:justify-between">
-            {isEdit ? (
-              <Can action="delete" resource="project">
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={() => setConfirming(true)}
-              >
-                {t("project.delete")}
-              </Button>
-              </Can>
-            ) : (
-              <span />
-            )}
+          <DialogFooter>
             <div className="flex items-center gap-2">
+              {isEdit && (
+                <Can action="delete" resource="project">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+                    onClick={() => setConfirming(true)}
+                  >
+                    {t("project.delete")}
+                  </Button>
+                </Can>
+              )}
               <Button type="button" variant="outline" onClick={onClose}>
                 {t("action.cancel")}
               </Button>

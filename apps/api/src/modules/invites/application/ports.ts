@@ -74,8 +74,6 @@ export interface ClientRegistrationDetails {
   };
   readonly project: {
     readonly name: string;
-    readonly niche?: string | null;
-    readonly monthlyBudget?: number | null;
     readonly budgetCurrency?: string;
   };
 }

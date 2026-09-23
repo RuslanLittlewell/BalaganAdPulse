@@ -10,7 +10,7 @@ const guest: ActorContext = { ...admin, membershipId: "m3", role: "GUEST" };
 
 function record(partial: Partial<ProjectRecord> = {}): ProjectRecord {
   return {
-    id: "p1", clientId: "c1", name: "Acme Ads", niche: null, monthlyBudget: null,
+    id: "p1", clientId: "c1", name: "Acme Ads",
     priority: "NEW", image: null, avatarPath: null, position: 0,
     createdAt: new Date("2026-09-01T00:00:00.000Z"), updatedAt: new Date("2026-09-01T00:00:00.000Z"),
     ...partial,

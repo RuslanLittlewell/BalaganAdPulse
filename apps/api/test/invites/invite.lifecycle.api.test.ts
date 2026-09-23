@@ -115,7 +115,7 @@ describe("a client invitation end to end", () => {
 describe("registering as a client", () => {
   const details = {
     client: { name: "Клиника", organization: "ООО Клиника", phone: "+375291112233" },
-    project: { name: "Стоматология", niche: "Медицина" },
+    project: { name: "Стоматология" },
   };
 
   it("creates the account, the client and the first project together", async () => {

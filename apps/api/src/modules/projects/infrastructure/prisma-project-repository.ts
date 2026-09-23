@@ -6,8 +6,7 @@ import type { ProjectRepository } from "../application/ports.js";
 
 function toDomain(row: ProjectRow): ProjectRecord {
   return {
-    id: row.id, clientId: row.clientId, name: row.name, niche: row.niche,
-    monthlyBudget: row.monthlyBudget === null ? null : row.monthlyBudget.toString(),
+    id: row.id, clientId: row.clientId, name: row.name,
     budgetCurrency: row.budgetCurrency,
     priority: row.priority, image: row.image, avatarPath: row.avatarPath,
     position: row.position, createdAt: row.createdAt, updatedAt: row.updatedAt,

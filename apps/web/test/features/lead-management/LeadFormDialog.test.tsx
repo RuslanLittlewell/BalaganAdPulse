@@ -36,7 +36,7 @@ const anImportedLead = (fields: Partial<Lead> = {}): Lead => aLead({
 });
 
 const project = (id: string, name: string, clientId = "client-1") => ({
-  id, clientId, name, niche: null, monthlyBudget: null, budgetCurrency: "BYN",
+  id, clientId, name, budgetCurrency: "BYN",
   priority: "NEW", image: null, avatarPath: null, position: 0,
   createdAt: "2026-09-05T00:00:00.000Z", updatedAt: "2026-09-05T00:00:00.000Z",
 });

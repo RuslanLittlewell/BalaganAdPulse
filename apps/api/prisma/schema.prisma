@@ -353,8 +353,6 @@ model Project {
   clientId       String          @map("client_id")
   client         Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
   name           String
-  niche          String?
-  monthlyBudget  Decimal?        @map("monthly_budget") @db.Decimal(12, 2)
   budgetCurrency Currency        @default(BYN) @map("budget_currency")
   priority       ProjectPriority @default(NEW)
   image          String?

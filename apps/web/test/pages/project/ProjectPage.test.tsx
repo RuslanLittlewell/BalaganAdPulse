@@ -34,7 +34,7 @@ function api(options: { campaigns?: unknown[]; tasks?: unknown[] } = {}) {
     mock.get("/api/members", () => HttpResponse.json([])),
     mock.get("/api/tasks", () => HttpResponse.json(options.tasks ?? [])),
     mock.get("/api/projects", () => HttpResponse.json([{
-      id: "p1", clientId: "cl1", name: "Клиника", niche: "Медицина", monthlyBudget: "300000.0000",
+      id: "p1", clientId: "cl1", name: "Клиника",
       budgetCurrency: "BYN",
       priority: "HIGH", image: null, avatarPath: null, position: 0, createdAt: "", updatedAt: "",
     }])),

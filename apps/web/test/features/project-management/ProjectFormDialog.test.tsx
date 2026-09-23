@@ -15,13 +15,14 @@ function setup(ui = <ProjectFormDialog onClose={() => {}} />, clients = [acme, o
 }
 
 describe("ProjectFormDialog", () => {
-  it("asks for exactly the four things a project is described by", async () => {
+  it("asks for exactly the things a project is described by", async () => {
     setup();
     expect(screen.getByLabelText("Название проекта")).toBeInTheDocument();
     expect(await screen.findByLabelText("Клиент")).toBeInTheDocument();
-    expect(screen.getByLabelText("Ниша")).toBeInTheDocument();
-    expect(screen.getByLabelText("Бюджет / мес.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Валюта")).toBeInTheDocument();
     expect(screen.getByLabelText("Логотип или картинка")).toHaveAttribute("accept", "image/*");
+    expect(screen.queryByLabelText("Ниша")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Бюджет / мес.")).not.toBeInTheDocument();
   });
 
   it("refuses a project with no name", async () => {
@@ -37,7 +38,7 @@ describe("ProjectFormDialog", () => {
     expect(await screen.findByText("Выберите клиента")).toBeInTheDocument();
   });
 
-  it("sends the name, the client and the numbers", async () => {
+  it("sends the name and the client", async () => {
     let sent: Record<string, unknown> | undefined;
     server.use(
       http.post("/api/projects", async ({ request }) => {
@@ -48,42 +49,13 @@ describe("ProjectFormDialog", () => {
     setup(<ProjectFormDialog clientId="1" onClose={() => {}} />);
 
     await userEvent.type(screen.getByLabelText("Название проекта"), "  Летний запуск  ");
-    await userEvent.type(screen.getByLabelText("Ниша"), "fitness");
-    await userEvent.type(screen.getByLabelText("Бюджет / мес."), "1500");
     await userEvent.click(screen.getByRole("button", { name: "Создать" }));
 
     await waitFor(() => expect(sent).toBeDefined());
     expect(sent).toMatchObject({
       clientId: "1",
       name: "Летний запуск",
-      niche: "fitness",
-      monthlyBudget: 1500,
     });
-  });
-
-  it("ignores keystrokes that would make the budget a non-number", async () => {
-    setup();
-    const budget = screen.getByLabelText("Бюджет / мес.");
-    await userEvent.type(budget, "12a.5b");
-    expect(budget).toHaveValue("12.5");
-  });
-
-  it("clears an emptied niche rather than storing a blank", async () => {
-    let sent: Record<string, unknown> | undefined;
-    server.use(
-      http.patch("/api/projects/p1", async ({ request }) => {
-        sent = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json(aProject());
-      }),
-    );
-    const project = aProject({ id: "p1", clientId: "1", niche: "fitness" });
-    setup(<ProjectFormDialog project={project} onClose={() => {}} />);
-
-    await userEvent.clear(screen.getByLabelText("Ниша"));
-    await userEvent.click(screen.getByRole("button", { name: "Сохранить" }));
-
-    await waitFor(() => expect(sent).toBeDefined());
-    expect(sent?.niche).toBeNull();
   });
 
   it("says where clients come from when there are none to pick", async () => {
@@ -165,17 +137,16 @@ describe("the currency a budget is stated in", () => {
     await user.type(await screen.findByLabelText("Название проекта"), "Стоматология");
     await user.click(screen.getByLabelText("Валюта"));
     await user.click(await screen.findByRole("option", { name: /USD/ }));
-    await user.type(screen.getByLabelText("Бюджет / мес."), "5000");
     await user.click(screen.getByRole("button", { name: "Создать" }));
 
     await waitFor(() => expect(body).not.toBeNull());
-    expect(body).toMatchObject({ monthlyBudget: 5000, budgetCurrency: "USD" });
+    expect(body).toMatchObject({ name: "Стоматология", budgetCurrency: "USD" });
   });
 
   it("opens an existing project on the currency it was stated in", async () => {
     setup(
       <ProjectFormDialog
-        project={aProject({ id: "p1", monthlyBudget: "300.00", budgetCurrency: "EUR" })}
+        project={aProject({ id: "p1", budgetCurrency: "EUR" })}
         onClose={() => {}}
       />,
     );

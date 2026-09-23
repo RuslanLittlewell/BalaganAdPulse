@@ -27,18 +27,11 @@ afterAll(async () => { await prisma.$disconnect(); });
 
 describe("Projects API", () => {
   it("creates a project bound to a client (201)", async () => {
-    const res = await project({ niche: "fitness", monthlyBudget: 1500 });
+    const res = await project({ budgetCurrency: "USD" });
 
     expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({ clientId, name: "Летний запуск", niche: "fitness" });
-    expect(res.body.monthlyBudget).toBe("1500");
+    expect(res.body).toMatchObject({ clientId, name: "Летний запуск", budgetCurrency: "USD" });
     await expectAudit({ action: "CREATE", entityType: "project", entityId: res.body.id, clientId, projectId: res.body.id });
-  });
-
-  it("keeps the budget exact, as a decimal rather than a float", async () => {
-    const res = await project({ monthlyBudget: 1234.56 });
-    const stored = await prisma.project.findUniqueOrThrow({ where: { id: res.body.id } });
-    expect(String(stored.monthlyBudget)).toBe("1234.56");
   });
 
   it("refuses a project without a client", async () => {
@@ -92,10 +85,10 @@ describe("Projects API", () => {
   it("updates a project", async () => {
     const created = await project();
     const res = await request(app).patch(`/api/projects/${created.body.id}`).set(auth)
-      .send({ name: "Осенний запуск", niche: "beauty" });
+      .send({ name: "Осенний запуск", budgetCurrency: "EUR" });
 
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ name: "Осенний запуск", niche: "beauty" });
+    expect(res.body).toMatchObject({ name: "Осенний запуск", budgetCurrency: "EUR" });
     await expectAudit({ action: "UPDATE", entityType: "project", entityId: created.body.id, clientId, projectId: created.body.id });
   });
 
@@ -162,13 +155,13 @@ describe("Projects API", () => {
   });
 
   it("changes the priority on its own, without touching the rest", async () => {
-    const created = await project({ niche: "fitness", monthlyBudget: 1500 });
+    const created = await project({ budgetCurrency: "USD" });
     const res = await request(app).patch(`/api/projects/${created.body.id}`).set(auth)
       .send({ priority: "URGENT" });
 
     expect(res.status).toBe(200);
     expect(res.body.priority).toBe("URGENT");
-    expect(res.body).toMatchObject({ niche: "fitness", name: "Летний запуск" });
+    expect(res.body).toMatchObject({ budgetCurrency: "USD", name: "Летний запуск" });
   });
 
   it("accepts every priority the interface offers", async () => {
@@ -237,13 +230,13 @@ describe("Projects API", () => {
   });
 });
 
-describe("the currency a budget is stated in", () => {
+describe("the currency a project's figures are stated in", () => {
   it("stores the currency named on creation", async () => {
     const created = await request(app).post("/api/projects").set(auth)
-      .send({ clientId, name: "Стоматология", monthlyBudget: 5000, budgetCurrency: "USD" });
+      .send({ clientId, name: "Стоматология", budgetCurrency: "USD" });
 
     expect(created.status).toBe(201);
-    expect(created.body).toMatchObject({ monthlyBudget: "5000", budgetCurrency: "USD" });
+    expect(created.body).toMatchObject({ budgetCurrency: "USD" });
   });
 
   it("defaults to the agency's own currency", async () => {
@@ -253,15 +246,15 @@ describe("the currency a budget is stated in", () => {
     expect(created.body.budgetCurrency).toBe("BYN");
   });
 
-  it("changes the currency without touching the amount", async () => {
+  it("changes the currency without touching the rest", async () => {
     const created = await request(app).post("/api/projects").set(auth)
-      .send({ clientId, name: "П", monthlyBudget: 300 });
+      .send({ clientId, name: "П" });
 
     const updated = await request(app).patch(`/api/projects/${created.body.id}`).set(auth)
       .send({ budgetCurrency: "EUR" });
 
     expect(updated.status).toBe(200);
-    expect(updated.body).toMatchObject({ monthlyBudget: "300", budgetCurrency: "EUR" });
+    expect(updated.body).toMatchObject({ name: "П", budgetCurrency: "EUR" });
   });
 
   it("400s a currency outside the four", async () => {

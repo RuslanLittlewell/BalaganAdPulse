@@ -193,9 +193,6 @@ function ProjectChoice({
 
       <span className="flex min-w-0 flex-col">
         <span className="truncate text-sm font-medium">{project.name}</span>
-        {project.niche && (
-          <span className="truncate text-xs text-muted-foreground">{project.niche}</span>
-        )}
       </span>
     </label>
   );

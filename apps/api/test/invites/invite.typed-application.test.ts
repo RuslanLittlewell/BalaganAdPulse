@@ -306,7 +306,7 @@ function clientInvite(overrides: Partial<Invite> = {}): Invite {
 
 const CLIENT_REGISTRATION = {
   client: { name: "Клиника", organization: "ООО Клиника", phone: "+375291112233" },
-  project: { name: "Стоматология", niche: "Медицина" },
+  project: { name: "Стоматология" },
 };
 
 describe("redeeming a client invitation", () => {

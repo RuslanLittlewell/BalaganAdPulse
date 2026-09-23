@@ -432,7 +432,7 @@ ports, fixed clocks and deterministic identifiers.
 Every reading above is scoped to a range: `?from=YYYY-MM-DD&to=YYYY-MM-DD`, both
 endpoints included and both required.
 
-`name` is required on create; `niche`, `monthlyBudget` and `email` are optional.
+`name` is required on create; `email` is optional.
 Errors are normalized to a single shape:
 
 ```json

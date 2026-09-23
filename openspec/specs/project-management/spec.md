@@ -3,8 +3,8 @@
 ## Purpose
 
 A project is the unit of work the agency runs for one client, and the object most of the
-interface hangs on: it carries the niche, the monthly budget and the priority, and it is
-what campaigns, their daily figures and the board's tasks belong to.
+interface hangs on: it carries the currency its figures are stated in and the priority, and
+it is what campaigns, their daily figures and the board's tasks belong to.
 
 ## Requirements
 

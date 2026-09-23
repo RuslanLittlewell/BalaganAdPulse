@@ -26,6 +26,7 @@ export * from "./EmptyState/EmptyState.js";
 export * from "./CopyButton/CopyButton.js";
 export * from "./ListItem/ListItem.js";
 export * from "./Loader/Loader.js";
+export * from "./MultiSelect/MultiSelect.js";
 export * from "./SectionLabel/SectionLabel.js";
 export * from "./Sidebar/Sidebar.js";
 export * from "./Tabs/Tabs.js";

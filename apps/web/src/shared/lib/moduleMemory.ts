@@ -3,16 +3,20 @@ import { persist } from "zustand/middleware";
 
 type ByUser = Record<string, string>;
 
+type ListByUser = Record<string, string[]>;
+
 interface ModuleMemoryState {
   boards: ByUser;
   projectPlaces: ByUser;
   taskViews: ByUser;
+  taskAssignees: ListByUser;
   crmViews: ByUser;
   rememberBoard: (userId: string, board: string) => void;
   forgetBoard: (userId: string) => void;
   rememberProjectPlace: (userId: string, place: string) => void;
   forgetProjectPlace: (userId: string) => void;
   rememberTaskView: (userId: string, view: string) => void;
+  rememberTaskAssignees: (userId: string, assigneeIds: string[]) => void;
   rememberCrmView: (userId: string, view: string) => void;
 }
 
@@ -32,6 +36,7 @@ export const useModuleMemory = create<ModuleMemoryState>()(
       boards: {},
       projectPlaces: {},
       taskViews: {},
+      taskAssignees: {},
       crmViews: {},
       rememberBoard: (userId, board) =>
         set((state) => ({ boards: withValue(state.boards, userId, board) })),
@@ -49,6 +54,10 @@ export const useModuleMemory = create<ModuleMemoryState>()(
         set((state) => ({
           taskViews: withValue(state.taskViews, userId, view),
         })),
+      rememberTaskAssignees: (userId, assigneeIds) =>
+        set((state) => ({
+          taskAssignees: { ...state.taskAssignees, [userId]: assigneeIds },
+        })),
       rememberCrmView: (userId, view) =>
         set((state) => ({
           crmViews: withValue(state.crmViews, userId, view),
@@ -61,6 +70,7 @@ export const useModuleMemory = create<ModuleMemoryState>()(
         boards: state.boards,
         projectPlaces: state.projectPlaces,
         taskViews: state.taskViews,
+        taskAssignees: state.taskAssignees,
         crmViews: state.crmViews,
       }),
     },

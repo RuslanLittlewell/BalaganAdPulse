@@ -206,6 +206,8 @@ export const ru = {
   "crm.calendar.previousWeek": "Предыдущая неделя",
   "crm.calendar.nextWeek": "Следующая неделя", "crm.calendar.today": "Сегодня",
   "tasks.title": "Задачи", "tasks.create": "Новая задача", "tasks.empty": "Задач пока нет",
+  "tasks.assignees.filter": "Ответственный", "tasks.assignees.filterLabel": "Фильтр по ответственным",
+  "tasks.assignees.unassigned": "Не назначен",
   "tasks.loadFailed": "Не удалось загрузить задачи", "tasks.moveFailed": "Не удалось переместить задачу",
   "tasks.saveFailed": "Не удалось сохранить задачу",
   "tasks.column.IDEA": "Идея", "tasks.column.ARCHIVED": "Архив", "tasks.column.IN_PROGRESS": "В работе",

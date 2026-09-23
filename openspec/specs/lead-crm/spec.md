@@ -136,7 +136,13 @@ Agency members SHALL see an upper-left selector containing their available board
 - **THEN** client B's board opens and becomes the remembered board
 
 ### Requirement: Stable atomic ordering and deletion
-Leads SHALL have stable ordering per board and per fixed stage or custom column, and custom columns SHALL have stable contiguous ordering per board. Creation SHALL append, editing SHALL preserve order, and moving SHALL atomically update stage and position together with affected neighbors. Out-of-range positive positions SHALL append; negative or noninteger positions SHALL return 400. Concurrent moves SHALL preserve unique contiguous ordering. The UI SHALL show moves optimistically and restore authoritative state with feedback after failure. Deleting a lead SHALL require confirmation and close the ordering gap.
+Leads SHALL have stable ordering per board and per fixed stage or custom column, and custom columns SHALL have stable contiguous ordering per board. Creation SHALL prepend, placing the new lead first in its stage or column and shifting the leads already there down by one; editing SHALL preserve order; moving SHALL atomically update stage and position together with affected neighbors. Out-of-range positive positions given to an explicit move SHALL append; negative or noninteger positions SHALL return 400. Concurrent moves SHALL preserve unique contiguous ordering. The UI SHALL show moves optimistically and restore authoritative state with feedback after failure. Deleting a lead SHALL require confirmation and close the ordering gap.
+
+Every lead stored before this ordering rule took effect SHALL be renumbered once, per board and per fixed stage or custom column, newest `createdAt` first, so existing boards read newest-first immediately rather than only for leads created afterwards. This renumbering SHALL NOT change any lead's stage, column or other field, and SHALL NOT produce an audit event.
+
+#### Scenario: A new lead is placed first
+- **WHEN** a member creates a lead in a stage or column that already holds leads
+- **THEN** the new lead is first and the existing leads keep their relative order, each one position further back
 
 #### Scenario: Move persists
 - **WHEN** a lead is moved between two cards in another column and the page reloads
@@ -153,6 +159,12 @@ Leads SHALL have stable ordering per board and per fixed stage or custom column,
 #### Scenario: Confirm deletion
 - **WHEN** a member cancels deletion
 - **THEN** the lead remains unchanged
+
+#### Scenario: Existing boards are reordered once
+- **WHEN** a board held leads created under the previous append ordering before this change
+  shipped
+- **THEN** after the migration, that stage or column lists them newest-`createdAt`-first, with
+  no other field of any lead changed
 
 ### Requirement: Lead changes are audited and synchronized
 Each successful lead or column mutation by a member SHALL record its actor, board, lead or column and changed fields in an audit event committed with the mutation. Failed writes SHALL record no event. Leads created by a Meta import SHALL NOT be attributed to any member; the lead's recorded source and submission time SHALL identify how it arrived, and later member mutations of it SHALL be audited like any other. Open authorized CRM boards SHALL receive committed changes, including imported leads and column changes, through realtime notifications and refresh their selected board; notifications SHALL carry no lead contact data. Authorization SHALL be checked at delivery time. Reconnection SHALL refresh the selected board. Loss of access SHALL clear inaccessible cached data and stop delivery.
@@ -211,27 +223,10 @@ The source section SHALL be visible to every member who can read the board and S
 - **WHEN** an authorized member corrects the phone of an imported lead
 - **THEN** the phone changes and the recorded source and answers are unchanged
 
-### Requirement: Four fixed stages followed by the board's own columns
-Every board SHALL show four fixed stages first, in order: `NEW` (Новый), `QUALIFIED` (Квалифицированный), `TARGET` (Целевой), `PROPOSAL` (КП). Fixed stages SHALL NOT be renamed, moved or deleted. Each board SHALL then show its own custom columns in their stored order, followed by a placeholder column with a dashed border and a plus sign, named Добавить столбец, for members who may manage the board's columns. New leads SHALL default to `NEW`. Members SHALL be able to move leads directly between any fixed stage or custom column of the same board. Qualification SHALL remain a manual decision without mandatory fields or automatic checks.
-
-#### Scenario: New lead
-- **WHEN** a member creates a lead without specifying a stage
-- **THEN** it appears last in Новый
-
-#### Scenario: Unknown stage
-- **WHEN** a request names a stage that is neither a fixed stage nor a column of that board
-- **THEN** the API responds 400 without storing changes
-
-#### Scenario: A column of another board
-- **WHEN** a request moves a lead into a custom column that belongs to another board
-- **THEN** the API responds 400 and the lead is unchanged
-
-#### Scenario: Moving between fixed and custom columns
-- **WHEN** a lead is moved from КП into a custom column and back
-- **THEN** only its stage, ordering, update metadata and history change
-
 ### Requirement: Board columns are created, renamed, reordered and deleted
-A member who may manage leads on a board SHALL be able to create a custom column with a name, rename it, move it one place left or right among the board's custom columns, and delete it. Column names SHALL be trimmed, nonblank, at most 50 characters, and unique on their board without regard to case, including the fixed stage names. A board SHALL hold at most 20 custom columns. Deleting a column SHALL require confirmation stating how many leads it holds, and SHALL move those leads to the end of Новый in their existing order in the same transaction. Columns SHALL belong to one board and SHALL be removed with it.
+A member who may manage leads on a board SHALL be able to create a custom column with a name, rename it, move it one place left or right among all of the board's columns — crossing a fixed stage where that is the next position in either direction — and delete it. A newly created column SHALL be placed last, after every fixed stage and every existing custom column. Column names SHALL be trimmed, nonblank, at most 50 characters, and unique on their board without regard to case, including the fixed stage names. A board SHALL hold at most 20 custom columns. Deleting a column SHALL require confirmation stating how many leads it holds, and SHALL move those leads to the end of Новый in their existing order in the same transaction. Columns SHALL belong to one board and SHALL be removed with it.
+
+Every custom column stored before this requirement's move range widened to the whole board SHALL be treated, once, as sitting after `PROPOSAL` — the same position it was already limited to — so no board's visible order changes because of that widening.
 
 #### Scenario: Create a column
 - **WHEN** a member activates Добавить столбец and enters Встреча
@@ -246,8 +241,17 @@ A member who may manage leads on a board SHALL be able to create a custom column
 - **THEN** the column keeps its place and leads under the new name
 
 #### Scenario: Move a column
-- **WHEN** a member moves the second custom column left
-- **THEN** it becomes the first custom column and the fixed stages keep their places
+- **WHEN** a member moves the second of three custom columns, all sitting after `PROPOSAL`, one place left
+- **THEN** it becomes the first of those three custom columns and the fixed stages keep their places
+
+#### Scenario: Move a column across a fixed stage
+- **WHEN** a member repeatedly moves a custom column sitting after `PROPOSAL` left, past every
+  other custom column after `PROPOSAL`
+- **THEN** its next move left places it between `TARGET` and `PROPOSAL`
+
+#### Scenario: Move a column to the very start of the board
+- **WHEN** a member moves a custom column left until nothing is left to its left
+- **THEN** it sits before `NEW`, first on the board
 
 #### Scenario: Delete a column with leads
 - **WHEN** a member confirms deleting a column holding three leads
@@ -260,6 +264,12 @@ A member who may manage leads on a board SHALL be able to create a custom column
 #### Scenario: Fixed stages cannot be changed
 - **WHEN** a request renames, moves or deletes a fixed stage
 - **THEN** the API responds 400 and nothing changes
+
+#### Scenario: Existing boards keep their order
+- **WHEN** a board held custom columns, all after `PROPOSAL`, stored before this requirement's
+  move range widened to the whole board
+- **THEN** after the migration they are still shown after `PROPOSAL`, in the same order as
+  before
 
 ### Requirement: Period lead counts per project and fixed stage
 The API SHALL report, for an inclusive `from`/`to` range of calendar days, how many leads of each project arrived within the range and are currently in each fixed stage: `NEW`, `QUALIFIED`, `TARGET` and `PROPOSAL`. A lead imported from a Meta form SHALL arrive at its form submission time; any other lead SHALL arrive at its creation time. Days SHALL be UTC calendar days. Only leads attributed to a project SHALL be counted, and leads in custom columns SHALL NOT be counted in any stage. Counts SHALL include only leads on boards the requesting member can reach, and responses SHALL carry project ids and counts only, never lead contact data. A missing, malformed or reversed range SHALL return 400.
@@ -306,3 +316,42 @@ The dashboard's project table column chooser SHALL offer the columns Лид (Н�
 #### Scenario: Other tables
 - **WHEN** a member opens the column chooser of a project's campaign table
 - **THEN** no CRM stage columns are offered
+
+### Requirement: Four fixed stages and the board's own columns, in either order
+
+Every board SHALL show four fixed stages, always in the same relative order: `NEW` (Новый),
+`QUALIFIED` (Квалифицированный), `TARGET` (Целевой), `PROPOSAL` (КП). Fixed stages SHALL NOT
+be renamed, deleted, or moved relative to one another. A board's custom columns SHALL each sit
+in exactly one of the five positions this creates — before `NEW`, between `NEW` and
+`QUALIFIED`, between `QUALIFIED` and `TARGET`, between `TARGET` and `PROPOSAL`, or after
+`PROPOSAL` — and SHALL keep their stored order within that position. A placeholder column
+with a dashed border and a plus sign, named Добавить столбец, SHALL always be shown last, after
+every fixed stage and every custom column, for members who may manage the board's columns.
+
+New leads SHALL default to `NEW`. Members SHALL be able to move leads directly between any
+fixed stage or custom column of the same board, wherever that column sits. Qualification SHALL
+remain a manual decision without mandatory fields or automatic checks.
+
+#### Scenario: New lead
+- **WHEN** a member creates a lead without specifying a stage
+- **THEN** it appears last in Новый
+
+#### Scenario: A custom column between two fixed stages
+- **WHEN** a board has a custom column Встреча positioned between `NEW` and `QUALIFIED`
+- **THEN** the board shows Новый, Встреча, Квалифицированный, Целевой, КП, in that order
+
+#### Scenario: A custom column before the first fixed stage
+- **WHEN** a board has a custom column Заявка positioned before `NEW`
+- **THEN** the board shows Заявка first, followed by Новый, Квалифицированный, Целевой, КП
+
+#### Scenario: Unknown stage
+- **WHEN** a request names a stage that is neither a fixed stage nor a column of that board
+- **THEN** the API responds 400 without storing changes
+
+#### Scenario: A column of another board
+- **WHEN** a request moves a lead into a custom column that belongs to another board
+- **THEN** the API responds 400 and the lead is unchanged
+
+#### Scenario: Moving between fixed and custom columns
+- **WHEN** a lead is moved from КП into a custom column and back
+- **THEN** only its stage, ordering, update metadata and history change

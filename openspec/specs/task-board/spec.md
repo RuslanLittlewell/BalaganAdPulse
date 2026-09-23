@@ -188,161 +188,6 @@ column's order.
 - **WHEN** a member chooses to delete a task
 - **THEN** they are asked to confirm, and the task survives if they decline
 
-### Requirement: A task may name one campaign of its project
-
-A task SHALL optionally name a campaign. The named campaign SHALL belong to the task's
-own project; naming a campaign under any other project SHALL be refused. A task with no
-campaign is about the project as a whole, and the interface SHALL present that as
-**Общий** rather than as an empty or missing value.
-
-No campaign SHALL be the default: a task created without naming one is stored with none.
-
-#### Scenario: Creating a task on a campaign
-
-- **WHEN** a member creates a task naming a campaign of the same project
-- **THEN** the task is stored against that campaign and reads back with it
-
-#### Scenario: Creating a task about the project as a whole
-
-- **WHEN** a member creates a task naming no campaign
-- **THEN** the task is stored with no campaign, and the board shows it as Общий
-
-#### Scenario: Naming a campaign from another project
-
-- **WHEN** a member creates or updates a task naming a campaign that belongs to a
-  different project
-- **THEN** the API responds 400 and the task's campaign is unchanged
-
-#### Scenario: Naming a campaign that does not exist
-
-- **WHEN** a member names a campaign id no campaign has, or one they cannot reach
-- **THEN** the API responds 400, the same answer a campaign under another project gets,
-  so an unreachable campaign is not distinguishable from an absent one
-
-#### Scenario: Releasing a campaign
-
-- **WHEN** a member updates a task naming no campaign where one was set
-- **THEN** the task is stored with no campaign and becomes Общий
-
-#### Scenario: Naming a campaign on a task with no project
-
-- **WHEN** a member creates or updates a task that names a campaign but no project
-- **THEN** the API responds 400 and the task carries no campaign
-
-#### Scenario: Clearing the project of a task on a campaign
-
-- **WHEN** a member clears the project of a task that named a campaign
-- **THEN** the task is stored with neither, and the board shows it as Без проекта
-
-### Requirement: Moving a task to another project releases its campaign
-
-Changing a task's project SHALL leave the task without a campaign, unless the same
-request names a campaign of the new project. A task SHALL never be stored against a
-campaign outside its own project, whatever order the two fields are changed in.
-
-#### Scenario: Changing the project alone
-
-- **WHEN** a member moves a task with a campaign to another project, naming no campaign
-- **THEN** the task is stored under the new project with no campaign
-
-#### Scenario: Changing the project and the campaign together
-
-- **WHEN** a member moves a task to another project and names a campaign of that project
-  in the same request
-- **THEN** the task is stored under the new project against the named campaign
-
-#### Scenario: Changing the project and naming the old campaign
-
-- **WHEN** a member moves a task to another project while naming a campaign of the old one
-- **THEN** the API responds 400 and neither the project nor the campaign changes
-
-### Requirement: Deleting a campaign leaves its tasks standing
-
-Deleting a campaign SHALL NOT delete the tasks that named it. Each such task SHALL be
-left with no campaign, becoming a task about the project as a whole. Work outlives the
-campaign it was about.
-
-#### Scenario: A campaign with outstanding work is deleted
-
-- **WHEN** a campaign named by two tasks is deleted
-- **THEN** both tasks still exist, still under their project, each with no campaign
-
-### Requirement: Tasks can be listed for one campaign
-
-The task listing SHALL accept a campaign alongside the project it already accepts, and
-answer only the tasks naming that campaign. Reach is unchanged: a member is answered
-only the tasks whose project they reach, so a campaign filter can never widen what they
-see.
-
-#### Scenario: Listing a campaign's tasks
-
-- **WHEN** a member lists tasks naming a campaign of a project they reach
-- **THEN** only the tasks naming that campaign are returned
-
-#### Scenario: A campaign filter does not widen reach
-
-- **WHEN** a member lists tasks naming a campaign under a project they hold no grant for
-- **THEN** no tasks are returned, and the answer is the same as for a campaign that does
-  not exist
-
-#### Scenario: Listing without a campaign
-
-- **WHEN** a member lists tasks naming no campaign filter
-- **THEN** every task they reach is returned, whether it names a campaign or not
-
-### Requirement: Work in flight is visible beside the figures
-
-A project SHALL show the tasks under it that are still in flight — those in the `IDEA`,
-`IN_PROGRESS`, `NEEDS_FIX` and `IN_REVIEW` stages. Tasks that are done or archived SHALL
-be left out: the list answers "what is being worked on", not "what has ever existed".
-
-A campaign SHALL show the tasks that name it, at whatever stage, because a campaign's
-work is small enough to read whole and its finished work is part of its history.
-
-#### Scenario: A project with work at several stages
-
-- **WHEN** a member opens a project whose tasks span every stage
-- **THEN** the tasks in the four in-flight stages are listed, and the done and archived
-  ones are not
-
-#### Scenario: A project with nothing in flight
-
-- **WHEN** every task under a project is done or archived
-- **THEN** the project says there is no work in flight rather than showing an empty table
-
-#### Scenario: A campaign's own work
-
-- **WHEN** a member opens a campaign
-- **THEN** the tasks naming that campaign are listed, and tasks of the same project
-  naming another campaign or none are not
-
-### Requirement: A task can be read without being changed
-
-Opening a task from a project or campaign screen SHALL show it read-only: its title,
-description as written, stage, priority, project, campaign and responsible member, with
-no control that edits, moves or deletes it. The description SHALL render the same
-content the editor would show, including the images it references.
-
-These screens are for reading; the board is where work is managed. A read-only view SHALL
-be offered whatever the member's role, since it grants nothing beyond what listing the
-task already did.
-
-#### Scenario: Opening a task from a project
-
-- **WHEN** a member opens a task from the project's list
-- **THEN** the task's title, description, stage, priority, campaign and responsible
-  member are shown, and no control changes any of them
-
-#### Scenario: A task about the project as a whole
-
-- **WHEN** the opened task names no campaign
-- **THEN** the dialog states that it is about the project as a whole
-
-#### Scenario: Closing the view
-
-- **WHEN** the member closes the dialog
-- **THEN** the list is still shown, unchanged
-
 ### Requirement: The board shows the work that is the member's own
 
 What a member sees on the board SHALL be narrowed by whose work it is, not only by which
@@ -405,7 +250,7 @@ board cannot be used to learn that somebody else's work exists.
 
 #### Scenario: The lists beside the figures follow the same rule
 
-- **WHEN** a member opens a project or a campaign screen
+- **WHEN** a member opens a project's screen
 - **THEN** the tasks listed there are the ones their board would show, on the same rule
 
 ### Requirement: A task is either the agency's own or shared with the client
@@ -584,7 +429,7 @@ atomic step, move that same task's due date forward by its interval, keep its ti
 and untick every checklist item. The task SHALL stay in the column and at the position it
 already holds, so completion moves it in time and never on the board. No second task SHALL
 be created, and the task SHALL keep its title, description, priority, responsible member,
-project, campaign and images.
+project and images.
 
 Completion SHALL be refused for a task that does not repeat; such a task is finished by
 moving it to `DONE` as before.
@@ -630,8 +475,8 @@ not have SHALL fall on that month's last day.
 ### Requirement: A task is composed from the blocks of content it is given
 
 The task form SHALL open showing only a title, a description and a priority. The checklist,
-the dates and the block that names a project, a campaign and a responsible member SHALL NOT
-be shown until they are asked for.
+the dates and the block that names a project and a responsible member SHALL NOT be shown
+until they are asked for.
 
 A row of controls under the title SHALL offer each block a task does not yet show —
 `Чек-лист`, `Даты` and `Назначить`. Choosing one SHALL show that block and SHALL take it out
@@ -640,7 +485,7 @@ SHALL be shown from the start and SHALL NOT be offered in the row.
 
 Shown blocks SHALL appear under the description in one fixed order, whatever order they were
 added in: the checklist, then the dates, then `Назначить`. `Назначить` SHALL carry the
-project, the campaign and the responsible member together, because they answer one question.
+project and the responsible member together, because they answer one question.
 
 Each block SHALL be separated from what precedes it by a horizontal line and SHALL carry its
 remove control at its right edge. Removing a block SHALL clear everything it held, so what
@@ -654,7 +499,7 @@ footer, next to the controls that act on the task as a whole.
 
 - **WHEN** a member opens the form to create a task
 - **THEN** the title, the description and the priority are shown, and no checklist, due date,
-  project, campaign or responsible member is
+  project or responsible member is
 
 #### Scenario: Adding a block
 
@@ -664,7 +509,7 @@ footer, next to the controls that act on the task as a whole.
 #### Scenario: One block for who it is for and who does it
 
 - **WHEN** a member chooses `Назначить` from the row
-- **THEN** the project, the campaign and the responsible member appear together in one block
+- **THEN** the project and the responsible member appear together in one block
 
 #### Scenario: The order does not follow the adding
 
@@ -691,9 +536,9 @@ footer, next to the controls that act on the task as a whole.
 
 #### Scenario: Removing the block that names a project
 
-- **WHEN** a member removes the `Назначить` block from a task that has a project, a campaign
-  and a responsible member, and saves
-- **THEN** the task is stored with none of the three
+- **WHEN** a member removes the `Назначить` block from a task that has a project and a
+  responsible member, and saves
+- **THEN** the task is stored with neither
 
 #### Scenario: Blocks are told apart
 
@@ -835,3 +680,129 @@ such a task concerns no client.
 
 - **WHEN** a member with the `CLIENT` role opens their board
 - **THEN** no task without a project is shown
+
+### Requirement: Work in flight is visible beside a project's figures
+
+A project SHALL show the tasks under it that are still in flight — those in the `IDEA`,
+`IN_PROGRESS`, `NEEDS_FIX` and `IN_REVIEW` stages. Tasks that are done or archived SHALL
+be left out: the list answers "what is being worked on", not "what has ever existed".
+
+#### Scenario: A project with work at several stages
+
+- **WHEN** a member opens a project whose tasks span every stage
+- **THEN** the tasks in the four in-flight stages are listed, and the done and archived
+  ones are not
+
+#### Scenario: A project with nothing in flight
+
+- **WHEN** every task under a project is done or archived
+- **THEN** the project says there is no work in flight rather than showing an empty table
+
+### Requirement: A task can be read from its project without being changed
+
+Opening a task from a project's list SHALL show it read-only: its title, description as
+written, stage, priority, project and responsible member, with no control that edits, moves
+or deletes it. The description SHALL render the same content the editor would show,
+including the images it references.
+
+This screen is for reading; the board is where work is managed. A read-only view SHALL be
+offered whatever the member's role, since it grants nothing beyond what listing the task
+already did.
+
+#### Scenario: Opening a task from a project
+
+- **WHEN** a member opens a task from the project's list
+- **THEN** the task's title, description, stage, priority and responsible member are shown,
+  and no control changes any of them
+
+#### Scenario: Closing the view
+
+- **WHEN** the member closes the dialog
+- **THEN** the list is still shown, unchanged
+
+### Requirement: The task module can be narrowed to chosen responsible members
+
+The task module SHALL offer a filter by responsible member, choosing any number of them at
+once. Choosing none SHALL mean the module shows everything it otherwise would; choosing one
+or more SHALL show only the tasks those members are responsible for.
+
+The filter SHALL list the members who are responsible for the tasks the viewer can already
+see, not the organization's staff, so the list answers whose work is on this board. Each
+SHALL be shown by name with their avatar. An **Не назначен** entry SHALL be offered
+alongside them while a task nobody is responsible for is visible, and choosing it SHALL
+include those tasks.
+
+The filter SHALL narrow only what reach and the own-work rule already allow, and SHALL NOT
+widen it: it is a reading aid, never a way to see somebody else's work.
+
+The filter SHALL belong to the module rather than to one of its views: it SHALL narrow the
+board and the calendar alike, and switching between them SHALL keep it.
+
+#### Scenario: Narrowing to one member
+
+- **WHEN** an admin whose board carries several members' tasks chooses one member in the
+  filter
+- **THEN** only the tasks that member is responsible for are shown
+
+#### Scenario: Narrowing to several members
+
+- **WHEN** the admin chooses a second member as well
+- **THEN** the tasks of both members are shown, and no others
+
+#### Scenario: Choosing nobody shows everything
+
+- **WHEN** no member is chosen in the filter
+- **THEN** every task the member would otherwise see is shown
+
+#### Scenario: Unchoosing the last member
+
+- **WHEN** the admin unchooses the only member they had chosen
+- **THEN** the module shows everything again, as it did before the filter was touched
+
+#### Scenario: The list names whose work is on the board
+
+- **WHEN** a member opens the filter
+- **THEN** it lists, each with their avatar, the members responsible for the tasks that
+  member can see, and nobody else
+
+#### Scenario: Work nobody is responsible for
+
+- **WHEN** a task nobody is responsible for is visible and the member chooses **Не назначен**
+- **THEN** the tasks with no responsible member are shown
+
+#### Scenario: Nothing to claim
+
+- **WHEN** every visible task has somebody responsible for it
+- **THEN** the filter offers no **Не назначен** entry
+
+#### Scenario: The filter cannot widen what is seen
+
+- **WHEN** a manager, who sees only the tasks they are responsible for, uses the filter
+- **THEN** no colleague's task appears, whatever is chosen
+
+#### Scenario: The same filter on the calendar
+
+- **WHEN** a member narrows the board to one responsible member and switches to the calendar
+- **THEN** the calendar shows that member's tasks alone, with the filter still chosen
+
+### Requirement: The task module remembers whose work was chosen
+
+The chosen responsible members SHALL be remembered for the member who chose them and SHALL
+survive leaving the module and reloading the app, the way the chosen view already does. Each
+member SHALL have their own choice: one member's filter SHALL NOT be shown to another.
+
+#### Scenario: The filter outlives the visit
+
+- **WHEN** a member narrows the module to one responsible member, leaves the module and
+  opens it again
+- **THEN** the same member is still chosen and the module is still narrowed to their work
+
+#### Scenario: The filter survives a reload
+
+- **WHEN** a member narrows the module and reloads the app
+- **THEN** the filter is as they left it
+
+#### Scenario: Another member's own filter
+
+- **WHEN** a second member opens the task module on the same browser
+- **THEN** their filter is their own, unaffected by what the first member chose

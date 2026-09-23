@@ -38,3 +38,5 @@ export {
 export { applyTaskEvent, filterOfKey, TASKS_KEY } from "./api/queries.js";
 export type { TaskEvent, TaskListFilter, UseTasksOptions } from "./api/queries.js";
 export { collectImageIds } from "./lib/description.js";
+export { UNASSIGNED_TASK, assigneeChoices, tasksOfAssignees } from "./lib/assignees.js";
+export type { AssigneeChoice, AssigneeNamed } from "./lib/assignees.js";

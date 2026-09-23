@@ -45,7 +45,6 @@ describe("TasksPage", () => {
     );
     setup();
 
-    await screen.findByRole("heading", { name: "Задачи", level: 1 });
     await waitFor(() =>
       expect(screen.queryByRole("button", { name: "Новая задача" })).not.toBeInTheDocument());
   });

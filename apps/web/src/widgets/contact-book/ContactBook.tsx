@@ -38,7 +38,7 @@ export function ContactBook({ open, onClose }: ContactBookProps) {
         if (!next) onClose();
       }}
     >
-      <DialogContent className="h-145.25 w-[min(980px,calc(100vw-2rem))] max-w-none flex flex-col">
+      <DialogContent className="h-[38rem] w-[min(980px,calc(100vw-2rem))] max-w-none flex flex-col">
         <DialogHeader>
           <DialogTitle>{t("contacts.title")}</DialogTitle>
         </DialogHeader>

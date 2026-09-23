@@ -22,7 +22,6 @@ import {
 } from "@/entities/task/index.js";
 import { useMembers } from "@/entities/membership/index.js";
 import { useProjects } from "@/entities/project/index.js";
-import { useCampaignNameById } from "@/entities/campaign/index.js";
 import { useCan } from "@/features/permissions/index.js";
 import { t } from "@/shared/config/index.js";
 import { EmptyState, Loader } from "@/shared/ui/index.js";
@@ -74,7 +73,6 @@ export function TaskBoard({ tasks, isLoading, isError, onOpen, onCreate }: TaskB
     [members],
   );
 
-  const campaignNameById = useCampaignNameById();
 
   const dragging = board.find((task) => task.id === draggingId) ?? null;
 
@@ -136,7 +134,6 @@ export function TaskBoard({ tasks, isLoading, isError, onOpen, onCreate }: TaskB
             draggable={draggable}
             draggingId={draggingId}
             projects={projectById}
-            campaigns={campaignNameById}
             members={memberById}
             onOpen={onOpen}
             onCreate={creatable && onCreate ? onCreate : undefined}
@@ -149,7 +146,6 @@ export function TaskBoard({ tasks, isLoading, isError, onOpen, onCreate }: TaskB
             task={dragging}
             draggable={false}
             project={dragging.projectId ? projectById.get(dragging.projectId) : undefined}
-            campaignName={dragging.campaignId ? campaignNameById.get(dragging.campaignId) : undefined}
             assignee={dragging.assigneeId ? memberById.get(dragging.assigneeId) : undefined}
           />
         ) : null}

@@ -101,7 +101,6 @@ import type { Connection } from "../modules/realtime/index.js";
 import {
   PrismaAdRepository,
   PrismaAdSetRepository,
-  PrismaCampaignInProject,
   PrismaCampaignRepository,
   PrismaCreativeRepository,
   PrismaProjectReach,
@@ -314,7 +313,6 @@ export function createContainer(): ApiContainer {
     images: new PrismaTaskImageRepository(prisma, unitOfWork),
     imageStorage: new S3TaskImageStorage(),
     projects: taskProjectReach,
-    campaigns: new PrismaCampaignInProject(prisma),
     members: new PrismaTaskMemberReach(prisma),
     audit,
     events: {

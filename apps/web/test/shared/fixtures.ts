@@ -80,7 +80,6 @@ export function aTask(overrides: Partial<Task> = {}): Task {
     priority: "MEDIUM",
     assigneeId: null,
     createdById: "member-1",
-    campaignId: null,
     visibleToClient: false,
     position: 0,
     dueDate: null,

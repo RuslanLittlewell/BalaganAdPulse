@@ -21,10 +21,7 @@ import {
   useActiveProjectId,
   useProjects,
 } from "@/entities/project/index.js";
-import { useTasks, type Task } from "@/entities/task/index.js";
 import { PeriodControl, usePeriod } from "@/features/period/index.js";
-import { TaskPreviewDialog } from "@/features/task-management/index.js";
-import { TaskList } from "@/widgets/task-list/index.js";
 import { PerformanceSummary } from "@/widgets/agency-overview/index.js";
 import { DailyChart } from "@/widgets/campaign-overview/index.js";
 import {
@@ -57,12 +54,10 @@ export function CampaignPage() {
   const adSets = useAdSets(campaignId, range);
   const projects = useProjects();
   const [openSets, setOpenSets] = useState<ReadonlySet<string>>(new Set());
-  const [reading, setReading] = useState<Task | null>(null);
   const [previewing, setPreviewing] = useState<{
     adSetId: string;
     adId: string;
   } | null>(null);
-  const tasks = useTasks({ campaignId, enabled: campaignId != null });
   const adsBySet = useAdsOfOpenSets(openSets, range);
 
   if (campaign.isError)
@@ -154,17 +149,6 @@ export function CampaignPage() {
           empty={adSets.isSuccess ? t("adSets.empty") : undefined}
         />
       </div>
-
-      <TaskList
-        title={t("tasks.ofCampaign.title")}
-        tasks={tasks.data ?? []}
-        empty={t("tasks.ofCampaign.empty")}
-        onOpen={setReading}
-      />
-
-      {reading ? (
-        <TaskPreviewDialog task={reading} onClose={() => setReading(null)} />
-      ) : null}
 
       {previewing ? (
         <CreativePreviewDialog

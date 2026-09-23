@@ -18,9 +18,6 @@ beforeEach(() => {
   server.use(
     mock.get("/api/projects", () => HttpResponse.json([aProject({ id: "project-1", name: "Летний запуск" })])),
     mock.get("/api/members", () => HttpResponse.json(members)),
-    mock.get("/api/campaigns/names", () => HttpResponse.json([
-      { id: "camp-1", projectId: "project-1", name: "Поиск / Москва", channel: "YANDEX" },
-    ])),
     mock.post("/api/tasks", async ({ request }) => {
       sent = await request.json() as Record<string, unknown>;
       return HttpResponse.json({ id: "task-1" }, { status: 201 });
@@ -65,15 +62,13 @@ describe("the blocks a task is composed from", () => {
 
     expect(screen.queryByLabelText("Проект")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Ответственный")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Кампания")).not.toBeInTheDocument();
   });
 
-  it("brings the project, the campaign and the responsible member in one block", async () => {
+  it("brings the project and the responsible member in one block", async () => {
     creating();
     await open("Назначить");
 
     expect(await screen.findByLabelText("Проект")).toBeInTheDocument();
-    expect(screen.getByLabelText("Кампания")).toBeInTheDocument();
     expect(screen.getByLabelText("Ответственный")).toBeInTheDocument();
     expect(offered()).toEqual(["Чек-лист", "Даты"]);
   });
@@ -114,13 +109,13 @@ describe("a task the form saves without a project", () => {
     await waitFor(() => expect(sent).toMatchObject({ title: "Заметка", projectId: null }));
   });
 
-  it("clears the project, the campaign and the responsible member together", async () => {
-    edit({ campaignId: "camp-1", assigneeId: "member-1" });
+  it("clears the project and the responsible member together", async () => {
+    edit({ assigneeId: "member-1" });
     await userEvent.click(await screen.findByRole("button", { name: "Убрать назначение" }));
     await save();
 
     await waitFor(() => expect(sent).toMatchObject({
-      projectId: null, campaignId: null, assigneeId: null,
+      projectId: null, assigneeId: null,
     }));
   });
 

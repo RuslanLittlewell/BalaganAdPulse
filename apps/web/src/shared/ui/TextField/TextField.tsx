@@ -15,14 +15,14 @@ export function TextField({ label, error, id, compact = false, ...rest }: TextFi
   return (
     <div className={compact ? "flex flex-col gap-1" : "flex flex-col gap-2"}>
       <Label
-        className="font-mono text-[11px] uppercase tracking-[.12em] text-muted-foreground"
+        className="font-mono text-[10px] uppercase tracking-[.12em] text-muted-foreground"
         htmlFor={inputId}
       >
         {label}
       </Label>
       <Input
         id={inputId}
-        className={compact ? "h-9" : "h-11"}
+        className="h-10"
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
         {...rest}

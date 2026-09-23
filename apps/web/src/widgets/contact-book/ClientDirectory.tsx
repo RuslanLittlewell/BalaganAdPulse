@@ -36,7 +36,7 @@ export function ClientDirectory() {
   return (
     <div
       data-testid="contact-book-columns flex-1"
-      className="grid min-h-[22rem] gap-4 sm:grid-cols-[minmax(14rem,22%)_minmax(0,1fr)]"
+      className="grid min-h-[22rem] gap-4 sm:grid-cols-[minmax(14rem,22%)_minmax(0,1fr)] flex-1"
     >
       <div data-testid="contact-book-list" className="relative min-w-0">
         <div className="flex max-h-[60vh] flex-col gap-1 overflow-auto pb-14">

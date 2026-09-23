@@ -29,7 +29,6 @@ export interface CreateTaskInput {
   readonly column?: TaskColumn;
   readonly priority: TaskPriority;
   readonly assigneeId?: string | null;
-  readonly campaignId?: string | null;
   readonly dueDate?: string | null;
   readonly dueTime?: string | null;
   readonly repeatEvery?: TaskRepeat;
@@ -72,19 +71,6 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
     if (!assigneeId) return;
     if (!(await dependencies.members.isAssignable(actor, assigneeId))) {
       throw new AppError("validation", "That member cannot be made responsible for this task");
-    }
-  };
-
-  const assertCampaignInProject = async (
-    campaignId: string | null | undefined,
-    projectId: string | null,
-  ) => {
-    if (!campaignId) return;
-    if (projectId === null) {
-      throw new AppError("validation", "A task with no project carries no campaign");
-    }
-    if (!(await dependencies.campaigns.isInProject(campaignId, projectId))) {
-      throw new AppError("validation", "That campaign does not belong to this project");
     }
   };
 
@@ -144,7 +130,6 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
       const projectId = input.projectId ?? null;
       const context = await projectContext(actor, projectId);
       await assertAssignable(actor, input.assigneeId);
-      await assertCampaignInProject(input.campaignId, projectId);
       assertMayShare(isCustomer(actor.role), projectId);
 
       const column = input.column ?? DEFAULT_TASK_COLUMN;
@@ -166,7 +151,6 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
           priority: input.priority,
           assigneeId: input.assigneeId ?? null,
           createdById: actor.membershipId,
-          campaignId: input.campaignId ?? null,
           visibleToClient: isCustomer(actor.role),
           position: await dependencies.tasks.countInColumn(actor.orgId, column),
           checklist,
@@ -193,12 +177,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
       const projectId = input.projectId === undefined ? task.projectId : input.projectId;
       const context = await projectContext(actor, projectId);
       await assertAssignable(actor, input.assigneeId);
-      await assertCampaignInProject(input.campaignId, projectId);
       assertMayShare(input.visibleToClient ?? task.visibleToClient, projectId);
-
-      const releasesCampaign = input.campaignId === undefined
-        && projectId !== task.projectId
-        && task.campaignId !== null;
 
       const schedule = rescheduled(task, input);
       assertSchedule(schedule);
@@ -213,7 +192,6 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
           ...fields,
           ...schedule,
           ...(input.title === undefined ? {} : { title: input.title.trim() }),
-          ...(releasesCampaign ? { campaignId: null } : {}),
         });
         const withChecklist = checklist === undefined
           ? changed

@@ -279,7 +279,12 @@ export function LeadFormDialog({ boardKey, capabilities, lead, onClose, onPrevie
 
           <DialogFooter className="shrink-0 border-t border-border pt-4">
             {lead && capabilities.delete ? (
-              <Button type="button" variant="destructive" onClick={() => setConfirming(true)}>
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+                onClick={() => setConfirming(true)}
+              >
                 {t("crm.delete")}
               </Button>
             ) : null}

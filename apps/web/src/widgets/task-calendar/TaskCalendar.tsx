@@ -30,7 +30,6 @@ import {
   ProjectAvatar,
   type Project,
 } from "@/entities/project/index.js";
-import { useCampaignNameById } from "@/entities/campaign/index.js";
 import { useCan } from "@/features/permissions/index.js";
 import { t } from "@/shared/config/index.js";
 import { cn } from "@/shared/lib/index.js";
@@ -99,7 +98,6 @@ export function TaskCalendar({
     [members],
   );
 
-  const campaignNameById = useCampaignNameById();
 
   const rescheduleTask = useCallback(
     (task: Task, dueDate: string, dueTime: string) => {
@@ -242,11 +240,6 @@ export function TaskCalendar({
                           ? projectById.get(task.projectId)
                           : undefined
                       }
-                      campaignName={
-                        task.campaignId
-                          ? campaignNameById.get(task.campaignId)
-                          : undefined
-                      }
                       assignee={
                         task.assigneeId
                           ? memberById.get(task.assigneeId)
@@ -277,11 +270,6 @@ export function TaskCalendar({
                       project={
                         task.projectId
                           ? projectById.get(task.projectId)
-                          : undefined
-                      }
-                      campaignName={
-                        task.campaignId
-                          ? campaignNameById.get(task.campaignId)
                           : undefined
                       }
                       assignee={
@@ -317,7 +305,6 @@ interface CalendarTaskEventProps {
   draggable: boolean;
   floating: boolean;
   project?: Project;
-  campaignName?: string;
   assignee?: Membership;
   onOpen?: (task: Task) => void;
   onDrop: (task: Task, dueDate: string, dueTime: string) => void;
@@ -329,7 +316,6 @@ function CalendarTaskEvent({
   draggable,
   floating,
   project,
-  campaignName,
   assignee,
   onOpen,
   onDrop,
@@ -608,7 +594,6 @@ function CalendarTaskEvent({
           {project ? <ProjectAvatar project={project} size="sm" /> : null}
           <span className="truncate text-[11px] text-muted-foreground">
             {project?.name ?? t("tasks.noProject")}
-            {campaignName ? ` / ${campaignName}` : ""}
           </span>
         </span>
         {assignee ? <MemberAvatar member={assignee} size="sm" /> : null}

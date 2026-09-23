@@ -93,9 +93,6 @@ export interface CampaignReference {
   channel: Channel;
 }
 
-export interface ProjectCampaignReference extends CampaignReference {
-  projectId: string;
-}
 
 export interface ChannelShare {
   channel: Channel;
@@ -108,7 +105,6 @@ export const campaignsApi = {
     http.get<Campaign[]>(scoped(`/projects/${projectId}/campaigns`, range)),
   namesByProject: (projectId: string) =>
     http.get<CampaignReference[]>(`/projects/${projectId}/campaigns/names`),
-  names: () => http.get<ProjectCampaignReference[]>("/campaigns/names"),
   get: (campaignId: string, range: DateRange) =>
     http.get<Campaign>(scoped(`/campaigns/${campaignId}`, range)),
   daily: (campaignId: string, range: DateRange) =>

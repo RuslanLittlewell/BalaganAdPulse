@@ -12,7 +12,7 @@ const customer: ActorContext = { ...admin, membershipId: "m4", role: "CLIENT" };
 const task = (partial: Partial<TaskRecord> = {}): TaskRecord => ({
   id: "t1", projectId: "p1", orgId: "org1", title: "Write the brief", description: null,
   column: "IDEA", priority: "MEDIUM", assigneeId: null, createdById: "m1",
-  campaignId: null, visibleToClient: false, position: 0,
+  visibleToClient: false, position: 0,
   createdAt: new Date("2026-09-01T00:00:00.000Z"), updatedAt: new Date("2026-09-01T00:00:00.000Z"),
   ...partial,
 });
@@ -21,14 +21,12 @@ function fixture(options: {
   tasks?: TaskRecord[];
   reachableProjects?: string[];
   assignable?: string[];
-  campaigns?: Record<string, string>;
   failCommit?: boolean;
 } = {}) {
   const context = {} as TransactionContext;
   const tasks = new Map((options.tasks ?? []).map((t) => [t.id, t]));
   const reachableProjects = options.reachableProjects ?? ["p1"];
   const assignable = options.assignable ?? ["m2"];
-  const campaigns = options.campaigns ?? { "camp-1": "p1" };
   const audit: Array<Record<string, unknown>> = [];
   const orders: Array<{ column: string; ids: string[] }> = [];
   const claimed: Array<{ taskId: string; imageIds: string[] }> = [];
@@ -56,7 +54,6 @@ function fixture(options: {
           .filter((t) => reachableProjects.includes(t.projectId))
           .filter((t) => owns(actor, t))
           .filter((t) => !filter?.projectId || t.projectId === filter.projectId)
-          .filter((t) => !filter?.campaignId || t.campaignId === filter.campaignId)
           .sort((a, b) =>
             TASK_COLUMNS.indexOf(a.column) - TASK_COLUMNS.indexOf(b.column) || a.position - b.position),
       update: async (_tx, id, input) => {
@@ -93,9 +90,6 @@ function fixture(options: {
     projects: {
       contextFor: async (_actor, projectId) =>
         reachableProjects.includes(projectId) ? { clientId: "c1" } : null,
-    },
-    campaigns: {
-      isInProject: async (campaignId, projectId) => campaigns[campaignId] === projectId,
     },
     members: { isAssignable: async (_actor, membershipId) => assignable.includes(membershipId) },
     audit: { append: async (_tx, event) => { audit.push(event as never); } },
@@ -403,168 +397,6 @@ describe("telling other members what happened", () => {
     const { useCases, published } = fixture({ tasks: [task({ id: "t1", projectId: "p1" })] });
     await useCases.update(admin, "t1", { title: "Renamed" });
     expect(published[0]).toMatchObject({ orgId: "org1", projectId: "p1" });
-  });
-});
-
-describe("the campaign a task is about", () => {
-  const created = (id = "new-1") => ({ id });
-
-  it("stores the campaign named on creation", async () => {
-    const { useCases, tasks } = fixture();
-
-    const task = await useCases.create(admin, {
-      projectId: "p1", title: "Переписать объявления", priority: "HIGH", campaignId: "camp-1",
-    });
-
-    expect(task.campaignId).toBe("camp-1");
-    expect(tasks.get(created().id)?.campaignId).toBe("camp-1");
-  });
-
-  it("stores no campaign when none is named", async () => {
-    const { useCases } = fixture();
-
-    const task = await useCases.create(admin, {
-      projectId: "p1", title: "Согласовать бюджет", priority: "LOW",
-    });
-
-    expect(task.campaignId).toBeNull();
-  });
-
-  it("refuses a campaign belonging to another project", async () => {
-    const { useCases } = fixture({ campaigns: { "camp-2": "p2" } });
-
-    await expect(useCases.create(admin, {
-      projectId: "p1", title: "T", priority: "LOW", campaignId: "camp-2",
-    })).rejects.toMatchObject({ category: "validation" });
-  });
-
-  it("refuses an unknown campaign the same way", async () => {
-    const { useCases } = fixture();
-
-    await expect(useCases.create(admin, {
-      projectId: "p1", title: "T", priority: "LOW", campaignId: "nowhere",
-    })).rejects.toMatchObject({ category: "validation" });
-  });
-
-  it("stores nothing when the campaign is refused", async () => {
-    const { useCases, tasks } = fixture();
-
-    await useCases.create(admin, {
-      projectId: "p1", title: "T", priority: "LOW", campaignId: "nowhere",
-    }).catch(() => undefined);
-
-    expect(tasks.size).toBe(0);
-  });
-
-  it("attaches a campaign to an existing task", async () => {
-    const { useCases } = fixture({ tasks: [task()] });
-
-    const updated = await useCases.update(admin, "t1", { campaignId: "camp-1" });
-
-    expect(updated.campaignId).toBe("camp-1");
-  });
-
-  it("releases a campaign when the update names none", async () => {
-    const { useCases } = fixture({ tasks: [task({ campaignId: "camp-1" })] });
-
-    const updated = await useCases.update(admin, "t1", { campaignId: null });
-
-    expect(updated.campaignId).toBeNull();
-  });
-
-  it("leaves the campaign alone when the update does not mention it", async () => {
-    const { useCases } = fixture({ tasks: [task({ campaignId: "camp-1" })] });
-
-    const updated = await useCases.update(admin, "t1", { title: "Другое" });
-
-    expect(updated.campaignId).toBe("camp-1");
-  });
-});
-
-describe("moving a task to another project", () => {
-  const across = { "camp-1": "p1", "camp-2": "p2" };
-
-  it("releases the campaign when only the project changes", async () => {
-    const { useCases } = fixture({
-      tasks: [task({ campaignId: "camp-1" })],
-      reachableProjects: ["p1", "p2"],
-      campaigns: across,
-    });
-
-    const updated = await useCases.update(admin, "t1", { projectId: "p2" });
-
-    expect(updated.projectId).toBe("p2");
-    expect(updated.campaignId).toBeNull();
-  });
-
-  it("keeps a campaign named alongside the new project", async () => {
-    const { useCases } = fixture({
-      tasks: [task({ campaignId: "camp-1" })],
-      reachableProjects: ["p1", "p2"],
-      campaigns: across,
-    });
-
-    const updated = await useCases.update(admin, "t1", { projectId: "p2", campaignId: "camp-2" });
-
-    expect(updated).toMatchObject({ projectId: "p2", campaignId: "camp-2" });
-  });
-
-  it("refuses the old project's campaign alongside the new project", async () => {
-    const { useCases, tasks } = fixture({
-      tasks: [task({ campaignId: "camp-1" })],
-      reachableProjects: ["p1", "p2"],
-      campaigns: across,
-    });
-
-    await expect(useCases.update(admin, "t1", { projectId: "p2", campaignId: "camp-1" }))
-      .rejects.toMatchObject({ category: "validation" });
-    expect(tasks.get("t1")).toMatchObject({ projectId: "p1", campaignId: "camp-1" });
-  });
-
-  it("keeps the campaign when the project is named but unchanged", async () => {
-    const { useCases } = fixture({ tasks: [task({ campaignId: "camp-1" })] });
-
-    const updated = await useCases.update(admin, "t1", { projectId: "p1", title: "Другое" });
-
-    expect(updated.campaignId).toBe("camp-1");
-  });
-});
-
-describe("listing one campaign's tasks", () => {
-  const board = [
-    task({ id: "a", campaignId: "camp-1" }),
-    task({ id: "b", campaignId: "camp-2" }),
-    task({ id: "c", campaignId: null }),
-    task({ id: "d", projectId: "p2", campaignId: "camp-1" }),
-  ];
-
-  it("returns only the tasks naming that campaign", async () => {
-    const { useCases } = fixture({ tasks: board, reachableProjects: ["p1", "p2"] });
-
-    const listed = await useCases.list(admin, { campaignId: "camp-1" });
-
-    expect(listed.map((t) => t.id)).toEqual(["a", "d"]);
-  });
-
-  it("narrows by project and campaign together", async () => {
-    const { useCases } = fixture({ tasks: board, reachableProjects: ["p1", "p2"] });
-
-    const listed = await useCases.list(admin, { projectId: "p1", campaignId: "camp-1" });
-
-    expect(listed.map((t) => t.id)).toEqual(["a"]);
-  });
-
-  it("returns nothing for a campaign under a project out of reach", async () => {
-    const { useCases } = fixture({ tasks: board, reachableProjects: ["p1"] });
-
-    expect((await useCases.list(admin, { campaignId: "camp-1" })).map((t) => t.id))
-      .toEqual(["a"]);
-  });
-
-  it("returns everything the member reaches when no campaign is named", async () => {
-    const { useCases } = fixture({ tasks: board, reachableProjects: ["p1"] });
-
-    expect((await useCases.list(admin, {})).map((t) => t.id)).toEqual(["a", "b", "c"]);
   });
 });
 

@@ -14,7 +14,6 @@ import {
   type Task,
   type TaskColumn,
 } from "@/entities/task/index.js";
-import { CampaignNamesSync } from "@/entities/campaign/index.js";
 
 type Editing =
   | { mode: "closed" }
@@ -73,7 +72,6 @@ export function TasksPage() {
         </Can>
       </header>
 
-      <CampaignNamesSync />
 
       <div className="min-h-0 flex-1">
         <FadeContent key={view} className="h-full">

@@ -16,7 +16,6 @@ beforeEach(() => {
   server.use(
     mock.get("/api/projects", () => HttpResponse.json([aProject({ id: "project-1", name: "Летний запуск" })])),
     mock.get("/api/members", () => HttpResponse.json(members)),
-    mock.get("/api/projects/:projectId/campaigns/names", () => HttpResponse.json([])),
   );
 });
 

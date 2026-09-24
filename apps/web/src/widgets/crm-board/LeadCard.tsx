@@ -15,11 +15,7 @@ export interface LeadCardProps {
   onOpen?: (lead: Lead) => void;
 }
 
-function sourceLabel(lead: Lead): string {
-  if (lead.source) return lead.source;
-  if (lead.metaSource) return `${t("crm.source.meta")} · ${lead.metaSource.campaign.name}`;
-  return t("crm.noSource");
-}
+const SHOWN_TAGS = 3;
 
 export function LeadCard({ lead, draggable = false, placeholder = false, onOpen }: LeadCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
@@ -92,7 +88,7 @@ export function LeadCard({ lead, draggable = false, placeholder = false, onOpen 
         <p className="flex min-w-0 items-center gap-2" data-testid={`lead-project-${lead.id}`}>
           <FolderKanban aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
           <span className="w-16 shrink-0 text-muted-foreground">{t("crm.form.project")}</span>
-          <span className="truncate font-medium">{lead.project?.name ?? t("crm.form.noProject")}</span>
+          <span className="truncate font-medium">{lead.project.name}</span>
         </p>
         {lead.email ? (
           <p className="flex min-w-0 items-center gap-2">
@@ -106,12 +102,18 @@ export function LeadCard({ lead, draggable = false, placeholder = false, onOpen 
       </div>
 
       <footer className="mt-3 flex min-w-0 items-center justify-between gap-3 border-t border-border/60 pt-3">
-        <span
-          className="truncate text-[11px] text-muted-foreground/80"
-          data-testid={`lead-source-${lead.id}`}
-        >
-          {sourceLabel(lead)}
-        </span>
+        {lead.tags.length > 0 ? (
+          <span className="flex min-w-0 items-center gap-1" data-testid={`lead-tags-${lead.id}`}>
+            {lead.tags.slice(0, SHOWN_TAGS).map((tag) => (
+              <span key={tag} className="truncate rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+                {tag}
+              </span>
+            ))}
+            {lead.tags.length > SHOWN_TAGS ? (
+              <span className="shrink-0 text-[11px] text-muted-foreground">+{lead.tags.length - SHOWN_TAGS}</span>
+            ) : null}
+          </span>
+        ) : <span />}
         {lead.assignee ? (
           <span className="flex min-w-0 items-center gap-2" data-testid={`lead-assignee-${lead.id}`} title={lead.assignee.name}>
             <MemberAvatar member={lead.assignee} size="sm" />

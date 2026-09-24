@@ -59,9 +59,9 @@ describe("lead poll worker", () => {
 
     expect(d.provider.liveLeadAds).toHaveBeenCalledWith("123", "synthetic-secret", expect.any(AbortSignal));
     expect(d.provider.leads).toHaveBeenCalledWith("123", ad("1"), new Date(now.getTime() - days(7)), "synthetic-secret", expect.any(AbortSignal));
-    expect(d.inbox.deliver).toHaveBeenCalledWith(context, { orgId: "org", clientId: "client", projectId: "p", leads: [lead("L1")] });
+    expect(d.inbox.deliver).toHaveBeenCalledWith(context, { orgId: "org", projectId: "p", leads: [lead("L1")] });
     expect(d.jobs.succeed).toHaveBeenCalledWith(context, expect.objectContaining({ projectId: "p" }), { polled: true, swept: false, coveredUntil: now }, now);
-    expect(d.inbox.announce).toHaveBeenCalledExactlyOnceWith({ orgId: "org", clientId: "client" });
+    expect(d.inbox.announce).toHaveBeenCalledExactlyOnceWith({ orgId: "org", projectId: "p" });
   });
 
   it("overlaps the covered period by ten minutes", async () => {

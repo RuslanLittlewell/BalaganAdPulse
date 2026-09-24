@@ -7,7 +7,7 @@ import { useModuleMemory } from "@/shared/lib/index.js";
 
 const capabilities = { create: true, update: true, delete: true };
 const boards = [
-  { key: "agency", label: "Agency", capabilities },
+  { key: "project-1", label: "Сайт", capabilities },
   { key: "client-1", label: "Клиент", capabilities },
 ];
 
@@ -27,7 +27,7 @@ beforeEach(() => {
   server.use(
     mock.get("/api/crm/boards", () => HttpResponse.json(boards)),
     mock.get("/api/crm/boards/:board/leads", ({ params }) =>
-      HttpResponse.json(params.board === "agency" ? [aLead({ id: "lead-1", name: "Анна" })] : [])),
+      HttpResponse.json(params.board === "project-1" ? [aLead({ id: "lead-1", name: "Анна" })] : [])),
   );
 });
 

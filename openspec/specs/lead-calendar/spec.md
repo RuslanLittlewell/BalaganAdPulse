@@ -114,7 +114,7 @@ board while the calendar is shown SHALL replace its leads with that board's own 
 previous board's cards immediately.
 
 #### Scenario: Reach is the same
-- **WHEN** a member reaches only the agency board and client A's board
+- **WHEN** a member reaches only project A's board and project B's board
 - **THEN** the calendar, like the board selector, offers only those two boards' leads
 
 #### Scenario: A change made by someone else
@@ -122,5 +122,5 @@ previous board's cards immediately.
 - **THEN** the new lead appears in its arrival day's column without the member reloading
 
 #### Scenario: Switching boards during the calendar view
-- **WHEN** a member switches from client A's board to client B's while the calendar is open
-- **THEN** the calendar shows client B's leads and none of client A's remain
+- **WHEN** a member switches from project A's board to project B's while the calendar is open
+- **THEN** the calendar shows project B's leads and none of project A's remain

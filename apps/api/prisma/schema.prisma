@@ -54,6 +54,7 @@ model Organization {
   auditEvents AuditEvent[]
   tasks       Task[]
   metaLeads   MetaLead[]
+  leadFiles   LeadFile[]
   kpiMetric    KpiMetric?   @map("kpi_metric")
   kpiTarget    Decimal?     @map("kpi_target") @db.Decimal(18, 4)
   kpiUpdatedAt DateTime?    @map("kpi_updated_at")
@@ -82,6 +83,7 @@ model Membership {
   assignedLeads  Lead[]      @relation("LeadAssignee")
   createdTasks   Task[]      @relation("TaskCreator")
   uploadedImages TaskImage[] @relation("TaskImageUploader")
+  leadFiles      LeadFile[]  @relation("LeadFileUploader")
 
   @@unique([userId, orgId])
   @@index([orgId, role])
@@ -206,8 +208,6 @@ model TaskImage {
 }
 
 model Client {
-  leads        Lead[]
-  leadColumns  LeadColumn[]
   id           String         @id @default(uuid())
   name         String
   fullName     String?        @map("full_name")
@@ -244,15 +244,15 @@ model LeadColumn {
   id        String @id @default(uuid())
   orgId     String @map("org_id")
   org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  clientId  String? @map("client_id")
-  client    Client? @relation(fields: [clientId, orgId], references: [id, orgId], onDelete: Cascade)
+  projectId String @map("project_id")
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   name      String @db.VarChar(50)
   afterStage LeadStage? @map("after_stage")
   position  Int @default(0)
   leads     Lead[]
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  @@index([orgId, clientId, afterStage, position])
+  @@index([projectId, afterStage, position])
   @@map("lead_column")
 }
 
@@ -260,8 +260,6 @@ model Lead {
   id        String @id @default(uuid())
   orgId     String @map("org_id")
   org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  clientId  String? @map("client_id")
-  client    Client? @relation(fields: [clientId, orgId], references: [id, orgId], onDelete: Cascade)
   name      String @db.VarChar(200)
   company   String? @db.VarChar(200)
   phone     String? @db.VarChar(50)
@@ -269,10 +267,15 @@ model Lead {
   website   String? @db.VarChar(2048)
   source    String? @db.VarChar(200)
   notes     String? @db.VarChar(10000)
+  amount    Decimal? @db.Decimal(18, 4)
+  service   String? @db.VarChar(200)
+  telegram  String? @db.VarChar(100)
+  messenger String? @db.VarChar(100)
+  tags      String[] @default([])
   assigneeId String? @map("assignee_id")
   assignee   Membership? @relation("LeadAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  projectId  String? @map("project_id")
-  project    Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  projectId  String @map("project_id")
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   campaignId String? @map("campaign_id")
   campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   adId       String? @map("ad_id")
@@ -280,19 +283,36 @@ model Lead {
   origin     LeadOrigin @default(MANUAL)
   metaSource LeadMetaSource?
   metaKey    MetaLead?
+  files      LeadFile[]
   stage     LeadStage? @default(NEW)
   columnId  String? @map("column_id")
   column    LeadColumn? @relation(fields: [columnId], references: [id], onDelete: NoAction)
   position  Int @default(0)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  @@index([orgId, clientId, stage, position])
-  @@index([projectId])
+  @@index([projectId, stage, position])
   @@index([campaignId])
   @@index([adId])
   @@index([columnId])
   @@index([assigneeId])
   @@map("lead")
+}
+
+model LeadFile {
+  id          String      @id @default(uuid())
+  orgId       String      @map("org_id")
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  leadId      String      @map("lead_id")
+  lead        Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  name        String      @db.VarChar(255)
+  contentType String      @map("content_type") @db.VarChar(255)
+  bytes       Int
+  storageKey  String      @unique @map("storage_key")
+  uploaderId  String?     @map("uploader_id")
+  uploader    Membership? @relation("LeadFileUploader", fields: [uploaderId], references: [id], onDelete: SetNull)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  @@index([leadId, createdAt(sort: Desc)])
+  @@map("lead_file")
 }
 
 enum LeadOrigin {
@@ -362,6 +382,7 @@ model Project {
   updatedAt      DateTime        @updatedAt @map("updated_at")
   campaigns      Campaign[]
   leads          Lead[]
+  leadColumns    LeadColumn[]
   access         ClientAccess[]
   tasks          Task[]
   invitations    InviteProject[]

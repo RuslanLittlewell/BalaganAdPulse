@@ -187,12 +187,12 @@ describe("registering as a client", () => {
       .toEqual([{ clientId: client.id, projectId: null }]);
 
     await prisma.project.deleteMany({ where: { clientId: client.id } });
-    await prisma.project.create({ data: { clientId: client.id, name: "Имплантация", position: 0 } });
+    const replacement = await prisma.project.create({ data: { clientId: client.id, name: "Имплантация", position: 0 } });
     const auth = { Authorization: `Bearer ${registered.body.accessToken}` };
 
     expect((await request(app).get(`/api/clients/${client.id}`).set(auth)).status).toBe(200);
     expect((await request(app).get("/api/projects").set(auth)).body.map((project: { name: string }) => project.name)).toEqual(["Имплантация"]);
-    expect((await request(app).get("/api/crm/boards").set(auth)).body.map((board: { key: string }) => board.key)).toEqual([client.id]);
+    expect((await request(app).get("/api/crm/boards").set(auth)).body.map((board: { key: string }) => board.key)).toEqual([replacement.id]);
   });
 
   it("spends the invitation", async () => {

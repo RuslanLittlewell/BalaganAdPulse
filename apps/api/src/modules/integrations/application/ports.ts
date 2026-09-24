@@ -40,7 +40,7 @@ export interface CreativeFiles {
 }
 export interface LeadInbox {
   deliver(context: TransactionContext, delivery: LeadDelivery): Promise<{ created: number }>;
-  announce(target: { orgId: string; clientId: string }): void;
+  announce(target: { orgId: string; projectId: string }): void;
   link(projectId: string): Promise<void>;
 }
 export interface IntegrationRepository {

@@ -15,8 +15,12 @@ cd "$app_dir"
 mkdir -p "$backup_dir"
 
 readonly dump_file="$backup_dir/adpulse-$(date +%Y%m%d-%H%M%S).sql.gz"
+readonly partial_file="$dump_file.partial"
+trap 'rm -f "$partial_file"' EXIT
+
 docker compose --env-file .env -f "$compose_file" exec -T db \
-  sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' | gzip > "$dump_file"
+  sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' | gzip > "$partial_file"
+mv "$partial_file" "$dump_file"
 
 find "$backup_dir" -name 'adpulse-*.sql.gz' -mtime "+$keep_days" -delete
 

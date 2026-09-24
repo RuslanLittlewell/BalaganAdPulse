@@ -24,7 +24,7 @@ class FakeSocket {
 function setup(boardKey: string | undefined) {
   FakeSocket.opened = [];
   const wrapper = hookWrapper();
-  wrapper.client.setQueryData(leadsKey("agency"), []);
+  wrapper.client.setQueryData(leadsKey("project-1"), []);
   wrapper.client.setQueryData(leadsKey("client-1"), []);
   const invalidate = vi.spyOn(wrapper.client, "invalidateQueries");
   const createSocket = vi.fn((url: string) => new FakeSocket(url) as never);
@@ -36,27 +36,27 @@ const changed = (board: string) => ({ kind: "crm.changed", orgId: "org1", board 
 
 describe("useCrmEvents", () => {
   it("refetches the open board when it is told the board changed", () => {
-    const { invalidate, socket } = setup("agency");
+    const { invalidate, socket } = setup("project-1");
     socket().ready();
     invalidate.mockClear();
 
-    socket().deliver(changed("agency"));
+    socket().deliver(changed("project-1"));
 
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: leadsKey("agency") });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: leadsKey("project-1") });
   });
 
   it("refetches the columns of the open board too, so a column another member added appears", () => {
-    const { invalidate, socket } = setup("agency");
+    const { invalidate, socket } = setup("project-1");
     socket().ready();
     invalidate.mockClear();
 
-    socket().deliver(changed("agency"));
+    socket().deliver(changed("project-1"));
 
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: leadColumnsKey("agency") });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: leadColumnsKey("project-1") });
   });
 
   it("ignores a change on a board the member is not looking at", () => {
-    const { invalidate, socket } = setup("agency");
+    const { invalidate, socket } = setup("project-1");
     socket().ready();
     invalidate.mockClear();
 
@@ -66,7 +66,7 @@ describe("useCrmEvents", () => {
   });
 
   it("leaves task events to the task board", () => {
-    const { invalidate, socket } = setup("agency");
+    const { invalidate, socket } = setup("project-1");
     socket().ready();
     invalidate.mockClear();
 
@@ -77,7 +77,7 @@ describe("useCrmEvents", () => {
 
   it("refetches after a dropped connection comes back", async () => {
     vi.useFakeTimers();
-    const { invalidate, socket } = setup("agency");
+    const { invalidate, socket } = setup("project-1");
     socket().ready();
     invalidate.mockClear();
 
@@ -86,7 +86,7 @@ describe("useCrmEvents", () => {
     expect(FakeSocket.opened).toHaveLength(2);
 
     socket().ready();
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: leadsKey("agency") });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: leadsKey("project-1") });
     vi.useRealTimers();
   });
 
@@ -97,7 +97,7 @@ describe("useCrmEvents", () => {
   });
 
   it("closes the connection when the board is left", () => {
-    const { rendered, socket } = setup("agency");
+    const { rendered, socket } = setup("project-1");
     const opened = socket();
     rendered.unmount();
     expect(opened.closed).toBe(true);

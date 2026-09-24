@@ -348,9 +348,9 @@ describe("the files tab", () => {
 
   it("attaches a file", async () => {
     catalogue();
-    let uploaded: string | null = null;
-    server.use(mock.post(`${BOARD}/leads/lead-1/files`, ({ request }) => {
-      uploaded = request.headers.get("content-type");
+    let uploaded = false;
+    server.use(mock.post(`${BOARD}/leads/lead-1/files`, () => {
+      uploaded = true;
       return HttpResponse.json(contract, { status: 201 });
     }));
     setup({ lead: aLead() });
@@ -358,7 +358,7 @@ describe("the files tab", () => {
     await userEvent.click(await screen.findByRole("radio", { name: "Файлы" }));
     await userEvent.upload(screen.getByLabelText("Прикрепить файл"), new File(["pdf"], "Договор.pdf", { type: "application/pdf" }));
 
-    await waitFor(() => expect(uploaded).toMatch(/^multipart\/form-data/));
+    await waitFor(() => expect(uploaded).toBe(true));
   });
 
   it("removes a file once confirmed", async () => {

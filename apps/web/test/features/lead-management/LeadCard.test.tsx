@@ -138,6 +138,8 @@ describe("creating a lead from the card", () => {
     expect(await screen.findByRole("button", { name: "Сохранить" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Активность" })).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
+    const notice = await within(screen.getByRole("region", { name: "Уведомления" })).findByText("Лид создан");
+    expect(notice.closest('[role="status"]')).not.toBeNull();
   });
 
   it("refuses an amount that is not a number", async () => {
@@ -185,6 +187,7 @@ describe("creating a lead from the card", () => {
     expect(alert).toHaveTextContent("Клиент уже заведён");
     expect(screen.getByRole("dialog")).not.toContainElement(alert);
     expect(name).toHaveValue("Борис");
+    expect(screen.queryByText("Лид создан")).not.toBeInTheDocument();
   });
 });
 
@@ -272,6 +275,8 @@ describe("editing a lead", () => {
     expect(deleted).toBe(false);
     await userEvent.click(screen.getByRole("button", { name: "Удалить лид" }));
     await waitFor(() => expect(deleted).toBe(true));
+    const notice = await within(screen.getByRole("region", { name: "Уведомления" })).findByText("Лид удалён");
+    expect(notice.closest('[role="status"]')).not.toBeNull();
   });
 
   it("keeps what the integration delivered in a Доп. информация tab", async () => {

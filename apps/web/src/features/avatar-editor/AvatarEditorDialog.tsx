@@ -94,7 +94,7 @@ export function AvatarEditorDialog({ open, initial, onClose, onSave }: Props) {
                 name={key}
                 render={({ field }) => (
                   <div className="grid gap-1">
-                    <Label htmlFor={key} className="text-xs text-muted-foreground">
+                    <Label htmlFor={key}>
                       {fieldLabels[key]}
                     </Label>
                     <Select value={field.value} onValueChange={field.onChange}>

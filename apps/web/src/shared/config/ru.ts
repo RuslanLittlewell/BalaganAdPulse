@@ -201,6 +201,7 @@ export const ru = {
   "crm.source.answersOmitted": "Часть ответов не сохранена", "crm.source.preview": "Посмотреть креатив",
   "crm.delete": "Удалить", "crm.deleteConfirm": "Удалить лид",
   "crm.deleteQuestion": "Удалить лид безвозвратно?",
+  "crm.created": "Лид создан", "crm.deleted": "Лид удалён",
   "crm.card.fields": "Поля лида", "crm.card.placeholder": "Введите значение",
   "crm.card.amount": "Сумма сделки", "crm.card.amountInvalid": "Введите сумму числом",
   "crm.card.tags": "Метки", "crm.card.tagAdd": "Добавить метку", "crm.card.tagNew": "Новая метка",
@@ -275,7 +276,7 @@ export const ru = {
   "tasks.block.remove.dates": "Убрать даты", "tasks.block.remove.checklist": "Убрать чек-лист",
   "tasks.block.remove.assign": "Убрать назначение",
   "tasks.calendar.previousWeek": "Предыдущая неделя",
-  "tasks.calendar.nextWeek": "Следующая неделя", "tasks.calendar.today": "Сегодня",
+  "tasks.calendar.nextWeek": "Следующая неделя", "tasks.calendar.today": "Сегодня", "tasks.calendar.zoomOut": "Уменьшить масштаб", "tasks.calendar.zoomIn": "Увеличить масштаб",
   "tasks.view.board": "Канбан", "tasks.view.calendar": "Календарь", "tasks.view.label": "Вид",
   "auth.email.invalid": "Введите корректный email", "auth.password.tooShort": "Минимум 8 символов", "auth.name.required": "Введите имя",
 } as const;

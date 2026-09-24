@@ -1,5 +1,5 @@
 import { http, HttpResponse } from "msw";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { makeAccessToken, renderWithProviders, server } from "@test/shared/index.js";
 import { ProfileSettingsDialog } from "@/features/profile-settings/index.js";
@@ -21,10 +21,11 @@ describe("the outcome of saving a profile", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Сохранить" }));
 
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Профиль сохранён");
-    expect(form()).not.toContainElement(alert);
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    const region = screen.getByRole("region", { name: "Уведомления" });
+    const status = await within(region).findByText("Профиль сохранён");
+    expect(status.closest('[role="status"]')).not.toBeNull();
+    expect(form()).not.toContainElement(status);
+    expect(within(form()).queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("announces why a save was refused as a notification", async () => {

@@ -117,7 +117,7 @@ function Block({
       data-testid={`task-block-${block}`}
     >
       <div className="flex items-center justify-between gap-2">
-        <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <Label>
           {t(`tasks.block.${block}`)}
         </Label>
         <Button

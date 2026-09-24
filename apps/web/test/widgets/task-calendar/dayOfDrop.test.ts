@@ -61,3 +61,11 @@ describe("the time slot under a calendar drag", () => {
     expect(topOfTime(null)).toBeNull();
   });
 });
+
+describe("the grid at another scale", () => {
+  it("reads and places times with the hour height it is given", () => {
+    expect(timeOfMinutes(minutesFromTop(24 * 8.5, 24))).toBe("14:30");
+    expect(topOfTime("14:30", 24)).toBe(24 * 8.5);
+  });
+});
+

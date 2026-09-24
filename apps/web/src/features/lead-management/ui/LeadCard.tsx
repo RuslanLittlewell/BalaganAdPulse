@@ -61,7 +61,7 @@ const messageOf = (error: unknown) =>
 function Row({ id, label, children }: { id: string; label: MessageKey; children: ReactNode }) {
   return (
     <li data-field={t(label)} className="grid grid-cols-[9rem_minmax(0,1fr)] items-center gap-3 border-b border-border py-1.5">
-      <Label id={`${id}-label`} htmlFor={id} className="text-sm text-muted-foreground">{t(label)}</Label>
+      <Label id={`${id}-label`} htmlFor={id}>{t(label)}</Label>
       <div className="min-w-0">{children}</div>
     </li>
   );
@@ -98,6 +98,7 @@ export function LeadCard({ boardKey, capabilities, lead: opened, onClose, onPrev
         const created = await create.mutateAsync({ ...bodyOf(values), stage: values.stage });
         setLead(created);
         reset(valuesOf(created));
+        raise(t("crm.created"), "success");
         return;
       }
       await update.mutateAsync({ id: lead.id, body: bodyOf(values) });
@@ -114,6 +115,7 @@ export function LeadCard({ boardKey, capabilities, lead: opened, onClose, onPrev
     if (!lead) return;
     try {
       await remove.mutateAsync(lead.id);
+      raise(t("crm.deleted"), "success");
       onClose();
     } catch (error) {
       setConfirming(false);
@@ -245,7 +247,7 @@ export function LeadCard({ boardKey, capabilities, lead: opened, onClose, onPrev
               </ul>
 
               <div className="flex flex-col gap-2">
-                <Label htmlFor="lead-notes" className="text-sm text-muted-foreground">{t("crm.card.description")}</Label>
+                <Label htmlFor="lead-notes">{t("crm.card.description")}</Label>
                 <textarea
                   id="lead-notes"
                   className="min-h-28 rounded-md border border-input bg-transparent p-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -261,7 +263,7 @@ export function LeadCard({ boardKey, capabilities, lead: opened, onClose, onPrev
                 <Button
                   type="button"
                   variant="ghost"
-                  className="mr-auto text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
                   onClick={() => setConfirming(true)}
                 >
                   {t("crm.delete")}

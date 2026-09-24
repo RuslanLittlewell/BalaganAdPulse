@@ -6,7 +6,7 @@ export * from "./ui/context-menu.js";
 export * from "./ui/dialog.js";
 export * from "./ui/dropdown-menu.js";
 export * from "./ui/input.js";
-export * from "./ui/label.js";
+export { Label, LABEL_CLASS } from "./Label/Label.js";
 export * from "./ui/popover.js";
 export * from "./ui/select.js";
 export * from "./ui/separator.js";

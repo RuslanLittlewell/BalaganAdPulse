@@ -40,7 +40,6 @@ import { Can, useCan } from "@/features/permissions/index.js";
 import { ClientFormDialog } from "@/features/client-management/index.js";
 
 const UPLOADED = JSON.stringify({ source: "upload" });
-const FIELD_LABEL = "text-xs text-muted-foreground";
 
 export interface ProjectFormDialogProps {
   project?: Project;
@@ -66,7 +65,7 @@ function StaffPicker({ chosen, onChange }: { chosen: string[]; onChange: (next: 
 
   return (
     <div className="grid gap-1">
-      <Label className={FIELD_LABEL}>{t("project.staff.label")}</Label>
+      <Label>{t("project.staff.label")}</Label>
       <MultiSelect
         items={assignable.map((member) => ({
           value: member.id,
@@ -216,14 +215,13 @@ export function ProjectFormDialog({
             <div className="flex min-w-0 flex-col gap-3">
             <TextField
               compact
-              labelClassName={FIELD_LABEL}
               label={t("project.name.label")}
               {...register("name", { required: t("project.name.required") })}
               error={errors.name?.message}
               autoFocus
             />
             <div className="grid gap-1">
-              <Label htmlFor="project-client" className={FIELD_LABEL}>
+              <Label htmlFor="project-client">
                 {t("project.client.label")}
               </Label>
               <div className="flex items-center gap-2">
@@ -270,7 +268,7 @@ export function ProjectFormDialog({
             </div>
             {mayAssignStaff && <StaffPicker chosen={memberIds} onChange={setMemberIds} />}
             <div className="grid gap-1">
-              <Label htmlFor="project-currency" className={FIELD_LABEL}>{t("project.currency.label")}</Label>
+              <Label htmlFor="project-currency">{t("project.currency.label")}</Label>
               <Controller
                 control={control}
                 name="budgetCurrency"

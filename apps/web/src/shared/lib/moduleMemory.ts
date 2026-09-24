@@ -11,6 +11,7 @@ interface ModuleMemoryState {
   taskViews: ByUser;
   taskAssignees: ListByUser;
   crmViews: ByUser;
+  taskCalendarZooms: ByUser;
   rememberBoard: (userId: string, board: string) => void;
   forgetBoard: (userId: string) => void;
   rememberProjectPlace: (userId: string, place: string) => void;
@@ -18,6 +19,7 @@ interface ModuleMemoryState {
   rememberTaskView: (userId: string, view: string) => void;
   rememberTaskAssignees: (userId: string, assigneeIds: string[]) => void;
   rememberCrmView: (userId: string, view: string) => void;
+  rememberTaskCalendarZoom: (userId: string, level: string) => void;
 }
 
 function withValue(map: ByUser, userId: string, value: string): ByUser {
@@ -38,6 +40,7 @@ export const useModuleMemory = create<ModuleMemoryState>()(
       taskViews: {},
       taskAssignees: {},
       crmViews: {},
+      taskCalendarZooms: {},
       rememberBoard: (userId, board) =>
         set((state) => ({ boards: withValue(state.boards, userId, board) })),
       forgetBoard: (userId) =>
@@ -62,6 +65,10 @@ export const useModuleMemory = create<ModuleMemoryState>()(
         set((state) => ({
           crmViews: withValue(state.crmViews, userId, view),
         })),
+      rememberTaskCalendarZoom: (userId, level) =>
+        set((state) => ({
+          taskCalendarZooms: withValue(state.taskCalendarZooms, userId, level),
+        })),
     }),
     {
       name: "adpulse-module-memory",
@@ -72,6 +79,7 @@ export const useModuleMemory = create<ModuleMemoryState>()(
         taskViews: state.taskViews,
         taskAssignees: state.taskAssignees,
         crmViews: state.crmViews,
+        taskCalendarZooms: state.taskCalendarZooms,
       }),
     },
   ),

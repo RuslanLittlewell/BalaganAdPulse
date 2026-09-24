@@ -19,6 +19,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Label,
+  LABEL_CLASS,
   Loader,
   Select,
   SelectContent,
@@ -97,9 +99,7 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
             {isEmployee ? (
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium" htmlFor="invitation-role">
-                    {t("invites.role")}
-                  </label>
+                  <Label htmlFor="invitation-role">{t("invites.role")}</Label>
                   <Select value={role} onValueChange={(next) => setRole(next as EmployeeRole)}>
                     <SelectTrigger id="invitation-role" className="w-full"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -112,7 +112,7 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
 
                 {needsProjects && (
                   <fieldset className="flex flex-col gap-2">
-                    <legend className="mb-2 text-sm font-medium">{t("invites.projects")}</legend>
+                    <legend className={cn(LABEL_CLASS, "mb-2")}>{t("invites.projects")}</legend>
                     {projects.isPending && <Loader label={t("state.loading")} />}
                     <div
                       data-testid="invite-projects"

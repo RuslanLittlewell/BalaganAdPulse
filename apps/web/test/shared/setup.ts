@@ -1,6 +1,7 @@
 import "./storage-setup.js";
 import { expect } from "vitest";
 import * as matchers from "@testing-library/jest-dom/matchers";
+import { installFakeAnimate } from "./animations.js";
 
 expect.extend(matchers);
 
@@ -43,6 +44,7 @@ for (const method of ["hasPointerCapture", "setPointerCapture", "releasePointerC
     Object.defineProperty(Element.prototype, method, { value: () => false, configurable: true });
   }
 }
+installFakeAnimate();
 if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = function scrollIntoView() {};
 }
@@ -86,7 +88,7 @@ afterEach(() => {
   server.resetHandlers();
   resetStaff();
   resetProjects();
-  useModuleMemory.setState({ boards: {}, projectPlaces: {} });
+  useModuleMemory.setState({ boards: {}, projectPlaces: {}, taskCalendarZooms: {} });
   useSummaryTiles.setState({ layouts: {} });
   useColumnWidths.setState({ nameWidths: {}, visibleColumns: {} });
 });

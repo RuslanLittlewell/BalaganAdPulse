@@ -1,26 +1,20 @@
 import { useId, type InputHTMLAttributes } from "react";
 import { Input } from "../ui/input.js";
-import { Label } from "../ui/label.js";
+import { Label } from "../Label/Label.js";
 
 export interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   error?: string;
   compact?: boolean;
-  labelClassName?: string;
 }
 
-const LABEL_CLASS = "font-mono text-[10px] uppercase tracking-[.12em] text-muted-foreground";
-
-export function TextField({ label, error, id, compact = false, labelClassName = LABEL_CLASS, ...rest }: TextFieldProps) {
+export function TextField({ label, error, id, compact = false, ...rest }: TextFieldProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
   const errorId = `${inputId}-error`;
   return (
     <div className={compact ? "flex flex-col gap-1" : "flex flex-col gap-2"}>
-      <Label
-        className={labelClassName}
-        htmlFor={inputId}
-      >
+      <Label htmlFor={inputId}>
         {label}
       </Label>
       <Input

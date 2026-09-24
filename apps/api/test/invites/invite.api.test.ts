@@ -33,7 +33,8 @@ describe("POST /api/invites", () => {
 
   it("accepts each of the three employee roles", async () => {
     for (const role of ["ADMIN", "MANAGER", "GUEST"]) {
-      const res = await request(app).post("/api/invites").set(admin).send(employee({ role }));
+      const body = role === "ADMIN" ? employee({ role, projectIds: undefined }) : employee({ role });
+      const res = await request(app).post("/api/invites").set(admin).send(body);
       expect(res.status, role).toBe(201);
       expect(res.body.role).toBe(role);
     }

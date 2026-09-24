@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
   TextField,
+  useAlerts,
 } from "@/shared/ui/index.js";
 import { ApiError } from "@/shared/lib/index.js";
 import {
@@ -51,11 +52,10 @@ export function ProfileSettingsDialog({ open, onClose, onAvatarSaved }: Props) {
   });
   const [options, setOptions] = useState<AvatarOptions>(randomAvatarOptions);
   const [editorOpen, setEditorOpen] = useState(false);
-  const [message, setMessage] = useState("");
+  const { raise } = useAlerts();
 
   useEffect(() => {
     if (!open) return;
-    setMessage("");
     void loadProfile()
       .then((profile) => {
         reset({
@@ -67,12 +67,11 @@ export function ProfileSettingsDialog({ open, onClose, onAvatarSaved }: Props) {
         });
         setOptions(parseAvatarPath(profile.avatarPath));
       })
-      .catch(() => setMessage(t("profile.loadFailed")));
-  }, [open, loadProfile, reset]);
+      .catch(() => raise(t("profile.loadFailed")));
+  }, [open, loadProfile, reset, raise]);
 
   const submit = handleSubmit(
     async ({ name, phone, telegram, currentPassword, newPassword }) => {
-      setMessage("");
       try {
         await updateProfile({
           name,
@@ -81,11 +80,9 @@ export function ProfileSettingsDialog({ open, onClose, onAvatarSaved }: Props) {
           ...(newPassword ? { currentPassword, newPassword } : {}),
         });
         reset({ name, phone, telegram, currentPassword: "", newPassword: "" });
-        setMessage(t("profile.saved"));
+        raise(t("profile.saved"), "success");
       } catch (error) {
-        setMessage(
-          error instanceof ApiError ? error.message : t("profile.saveFailed"),
-        );
+        raise(error instanceof ApiError ? error.message : t("profile.saveFailed"));
       }
     },
   );
@@ -167,11 +164,6 @@ export function ProfileSettingsDialog({ open, onClose, onAvatarSaved }: Props) {
                 <p className="-mt-2 text-xs text-muted-foreground">
                   {t("profile.passwordHint")}
                 </p>
-                {message && (
-                  <p className="text-sm text-foreground" role="status">
-                    {message}
-                  </p>
-                )}
               </div>
             </div>
             <DialogFooter>

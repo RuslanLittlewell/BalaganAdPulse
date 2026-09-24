@@ -3,7 +3,7 @@ import request from "supertest";
 import { createApp } from "../../src/composition/app.js";
 import { resetDb, seedProject } from "../helpers/db.js";
 import { prisma } from "../../src/shared/infrastructure/prisma.js";
-import { grantAccess, signInAs } from "../helpers/auth.js";
+import { grantAccess, signInAs, signInAsOutsider } from "../helpers/auth.js";
 import { expectAudit } from "../helpers/audit.js";
 
 const app = createApp();
@@ -262,5 +262,75 @@ describe("the currency a project's figures are stated in", () => {
       .send({ clientId, name: "П", budgetCurrency: "GBP" });
 
     expect(created.status).toBe(400);
+  });
+});
+
+describe("assigning staff while creating a project", () => {
+  async function employee(name: string, role: "MANAGER" | "GUEST" | "ADMIN" | "CLIENT" = "MANAGER", status: "ACTIVE" | "SUSPENDED" = "ACTIVE") {
+    const signedIn = await signInAs(name, { role, status });
+    return { id: signedIn.membership!.id, auth: signedIn.auth };
+  }
+
+  async function nothingStored() {
+    expect(await prisma.project.count()).toBe(0);
+    expect(await prisma.clientAccess.count()).toBe(0);
+  }
+
+  it("lets each named employee reach the new project", async () => {
+    const first = await employee("First");
+    const second = await employee("Second", "GUEST");
+
+    const created = await project({ memberIds: [first.id, second.id] });
+
+    expect(created.status).toBe(201);
+    for (const one of [first, second]) {
+      const listed = await request(app).get("/api/projects").set(one.auth);
+      expect(listed.body.map((p: { id: string }) => p.id)).toEqual([created.body.id]);
+    }
+  });
+
+  it("grants that project alone, not the rest of its client", async () => {
+    const existing = await project({ name: "Старый" });
+    const staff = await employee("Staff");
+
+    const created = await project({ memberIds: [staff.id] });
+
+    const listed = await request(app).get(`/api/projects?clientId=${clientId}`).set(staff.auth);
+    expect(listed.body.map((p: { id: string }) => p.id)).toEqual([created.body.id]);
+    expect(listed.body.map((p: { id: string }) => p.id)).not.toContain(existing.body.id);
+  });
+
+  it("refuses a manager who names an employee, storing nothing", async () => {
+    const lead = await employee("Lead");
+    await grantAccess(lead.id, clientId);
+    const other = await employee("Other");
+
+    const res = await request(app).post("/api/projects").set(lead.auth)
+      .send({ clientId, name: "Чужой", memberIds: [other.id] });
+
+    expect(res.status).toBe(403);
+    expect(await prisma.project.count()).toBe(0);
+    expect(await prisma.clientAccess.count({ where: { membershipId: other.id } })).toBe(0);
+  });
+
+  it.each([
+    ["an admin", () => employee("Boss", "ADMIN")],
+    ["a client", () => employee("Customer", "CLIENT")],
+    ["a suspended manager", () => employee("Away", "MANAGER", "SUSPENDED")],
+    ["a member of another organization", async () => ({ id: (await signInAsOutsider()).membership.id })],
+  ])("refuses naming %s, storing nothing", async (_label, make) => {
+    const staff = await employee("Staff");
+    const ineligible = await make();
+
+    const res = await project({ memberIds: [staff.id, ineligible.id] });
+
+    expect(res.status).toBe(400);
+    await nothingStored();
+  });
+
+  it("refuses an id that is not a uuid", async () => {
+    const res = await project({ memberIds: ["nobody"] });
+    expect(res.status).toBe(400);
+    await nothingStored();
   });
 });

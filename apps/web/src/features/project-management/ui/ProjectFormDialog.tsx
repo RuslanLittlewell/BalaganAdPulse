@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
   Label,
+  MultiSelect,
   Select,
   SelectContent,
   SelectItem,
@@ -32,12 +33,14 @@ import {
   type Project,
   type ProjectInput,
 } from "@/entities/project/index.js";
+import { MemberAvatar, useMembers } from "@/entities/membership/index.js";
 import { isCustomer } from "@adpulse/access-policy";
 import { useAuth } from "@/features/auth/index.js";
-import { Can } from "@/features/permissions/index.js";
+import { Can, useCan } from "@/features/permissions/index.js";
 import { ClientFormDialog } from "@/features/client-management/index.js";
 
 const UPLOADED = JSON.stringify({ source: "upload" });
+const FIELD_LABEL = "text-xs text-muted-foreground";
 
 export interface ProjectFormDialogProps {
   project?: Project;
@@ -51,6 +54,33 @@ interface Fields {
   clientId: string;
   name: string;
   budgetCurrency: Currency;
+}
+
+const ASSIGNABLE_ROLES = ["MANAGER", "GUEST"];
+
+function StaffPicker({ chosen, onChange }: { chosen: string[]; onChange: (next: string[]) => void }) {
+  const members = useMembers();
+  const assignable = (members.data ?? []).filter(
+    (member) => member.status === "ACTIVE" && ASSIGNABLE_ROLES.includes(member.role),
+  );
+
+  return (
+    <div className="grid gap-1">
+      <Label className={FIELD_LABEL}>{t("project.staff.label")}</Label>
+      <MultiSelect
+        items={assignable.map((member) => ({
+          value: member.id,
+          label: member.name,
+          icon: <MemberAvatar member={member} size="sm" />,
+        }))}
+        chosen={chosen}
+        onChange={onChange}
+        placeholder={t("project.staff.none")}
+        ariaLabel={t("project.staff.label")}
+        className="w-full"
+      />
+    </div>
+  );
 }
 
 function toInput(fields: Fields): ProjectInput {
@@ -82,6 +112,8 @@ export function ProjectFormDialog({
   const [failure, setFailure] = useState<string | null>(null);
   const [creatingClient, setCreatingClient] = useState(false);
   const [createdClientId, setCreatedClientId] = useState<string | null>(null);
+  const [memberIds, setMemberIds] = useState<string[]>([]);
+  const mayAssignStaff = useCan("update", "member") && !isEdit;
 
   const {
     register,
@@ -113,7 +145,10 @@ export function ProjectFormDialog({
     try {
       const saved = isEdit
         ? await update.mutateAsync({ id: project.id, body: toInput(fields) })
-        : await create.mutateAsync(toInput(fields));
+        : await create.mutateAsync({
+            ...toInput(fields),
+            ...(memberIds.length > 0 ? { memberIds } : {}),
+          });
 
       const withLogo = logo
         ? await saveAvatar.mutateAsync({
@@ -181,13 +216,14 @@ export function ProjectFormDialog({
             <div className="flex min-w-0 flex-col gap-3">
             <TextField
               compact
+              labelClassName={FIELD_LABEL}
               label={t("project.name.label")}
               {...register("name", { required: t("project.name.required") })}
               error={errors.name?.message}
               autoFocus
             />
             <div className="grid gap-1">
-              <Label htmlFor="project-client" className="text-xs text-muted-foreground">
+              <Label htmlFor="project-client" className={FIELD_LABEL}>
                 {t("project.client.label")}
               </Label>
               <div className="flex items-center gap-2">
@@ -232,8 +268,9 @@ export function ProjectFormDialog({
                 <p className="text-xs text-muted-foreground">{t("project.client.empty")}</p>
               )}
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="project-currency">{t("project.currency.label")}</Label>
+            {mayAssignStaff && <StaffPicker chosen={memberIds} onChange={setMemberIds} />}
+            <div className="grid gap-1">
+              <Label htmlFor="project-currency" className={FIELD_LABEL}>{t("project.currency.label")}</Label>
               <Controller
                 control={control}
                 name="budgetCurrency"

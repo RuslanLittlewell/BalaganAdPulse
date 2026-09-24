@@ -278,3 +278,75 @@ describe("creating a client from the project form", () => {
     expect(await within(list).findByRole("button", { name: /Ромашка/ })).toBeInTheDocument();
   });
 });
+
+describe("assigning employees while creating a project", () => {
+  const member = (id: string, name: string, role: string, status = "ACTIVE") => ({
+    id, userId: `u-${id}`, name, email: `${id}@acme.com`, image: null, phone: null,
+    telegram: null, role, status, createdAt: "2026-09-01T00:00:00.000Z",
+  });
+
+  const staff = [
+    member("m1", "Пётр", "MANAGER"),
+    member("m2", "Анна", "GUEST"),
+    member("m3", "Босс", "ADMIN"),
+    member("m4", "Заказчик", "CLIENT"),
+    member("m5", "Ушедший", "MANAGER", "SUSPENDED"),
+  ];
+
+  const asRole = (role: string) => server.use(http.get("/api/auth/me", () => HttpResponse.json({
+    user: { id: "user-1", name: "Buyer", email: "buyer@acme.com", image: null },
+    organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
+    role,
+    clientIds: role === "CLIENT" ? ["1"] : [],
+  })));
+
+  beforeEach(() => {
+    server.use(http.get("/api/members", () => HttpResponse.json(staff)));
+  });
+
+  it("offers an admin only the active managers and guests", async () => {
+    const user = userEvent.setup();
+    setup(<ProjectFormDialog clientId="1" onClose={() => {}} />);
+
+    await user.click(await screen.findByRole("button", { name: "Сотрудники" }));
+
+    expect(await screen.findByRole("menuitemcheckbox", { name: "Пётр" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitemcheckbox", { name: "Анна" })).toBeInTheDocument();
+    expect(screen.getAllByRole("menuitemcheckbox")).toHaveLength(2);
+  });
+
+  it("sends the employees chosen", async () => {
+    const user = userEvent.setup();
+    let sent: Record<string, unknown> | undefined;
+    server.use(http.post("/api/projects", async ({ request }) => {
+      sent = (await request.json()) as Record<string, unknown>;
+      return HttpResponse.json(aProject(sent as never), { status: 201 });
+    }));
+    setup(<ProjectFormDialog clientId="1" onClose={() => {}} />);
+
+    await user.type(screen.getByLabelText("Название проекта"), "Летний запуск");
+    await user.click(await screen.findByRole("button", { name: "Сотрудники" }));
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Пётр" }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "Анна" }));
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "Создать" }));
+
+    await waitFor(() => expect(sent).toBeDefined());
+    expect(sent?.memberIds).toEqual(["m1", "m2"]);
+  });
+
+  it.each(["MANAGER", "CLIENT"])("offers no picker to a %s", async (role) => {
+    asRole(role);
+    setup(<ProjectFormDialog clientId="1" onClose={() => {}} />);
+
+    expect(await screen.findByLabelText("Название проекта")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Сотрудники" })).not.toBeInTheDocument());
+  });
+
+  it("offers no picker when editing a project", async () => {
+    setup(<ProjectFormDialog project={aProject({ id: "p1", clientId: "1" })} onClose={() => {}} />);
+
+    expect(await screen.findByRole("button", { name: "Сохранить" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Сотрудники" })).not.toBeInTheDocument();
+  });
+});

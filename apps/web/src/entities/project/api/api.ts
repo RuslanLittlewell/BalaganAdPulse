@@ -24,6 +24,7 @@ export interface ProjectInput {
   name?: string;
   budgetCurrency?: Currency;
   priority?: ProjectPriority;
+  memberIds?: string[];
 }
 
 export const projectsApi = {

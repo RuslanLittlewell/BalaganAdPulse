@@ -31,6 +31,19 @@ export function createProjectUseCases(dependencies: ProjectDependencies) {
     }
   };
 
+  const staffOf = async (actor: ActorContext, memberIds: readonly string[] = []) => {
+    const named = [...new Set(memberIds)];
+    if (named.length === 0) return named;
+    if (!can(actor, "update", "member")) {
+      throw new AppError("forbidden", "Your role may not assign employees to a project");
+    }
+    const eligible = new Set(await dependencies.staffing.eligible(actor.orgId, named));
+    if (named.some((id) => !eligible.has(id))) {
+      throw new AppError("validation", "Only active managers and guests of the organization can be assigned");
+    }
+    return named;
+  };
+
   const withPicture = async (project: ProjectRecord): Promise<ProjectRecord> => {
     if (!project.image) return project;
     const bytes = await dependencies.pictures.read(project.id);
@@ -51,13 +64,16 @@ export function createProjectUseCases(dependencies: ProjectDependencies) {
     create: async (actor: ActorContext, input: NewProject): Promise<ProjectRecord> => {
       assertCan(actor, "create");
       assertMayPrioritise(actor, input);
-      await assertClientReachable(actor, input.clientId);
+      const { memberIds, ...fields } = input;
+      const staff = await staffOf(actor, memberIds);
+      await assertClientReachable(actor, fields.clientId);
       return dependencies.unitOfWork.run(async (context) => {
         const project = await dependencies.projects.create(context, {
-          ...input,
+          ...fields,
           id: dependencies.ids.generate(),
-          position: await dependencies.projects.countForClient(input.clientId),
+          position: await dependencies.projects.countForClient(fields.clientId),
         });
+        if (staff.length > 0) await dependencies.staffing.grant(context, project, staff);
         await dependencies.audit.append(context, audit("CREATE", project), actor);
         return project;
       });

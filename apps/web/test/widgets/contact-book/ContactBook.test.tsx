@@ -737,6 +737,57 @@ describe("inviting from the contact book", () => {
     expect(posted).toBe(false);
   });
 
+  it("invites an admin without asking for projects", async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | null = null;
+    withDirectory();
+    server.use(http.post("/api/invites", async ({ request }) => {
+      body = await request.json() as Record<string, unknown>;
+      return HttpResponse.json({ ...employeeInvite, role: "ADMIN", projectIds: [] }, { status: 201 });
+    }));
+    renderWithProviders(<ContactBook open onClose={() => {}} />);
+    await screen.findByRole("button", { name: /Acme/ });
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
+
+    await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
+    const form = await screen.findByRole("dialog", { name: "Пригласить сотрудника" });
+    await within(form).findByRole("checkbox", { name: "Летний запуск" });
+    await user.click(within(form).getByLabelText("Роль приглашения"));
+    await user.click(await screen.findByRole("option", { name: "Администратор" }));
+
+    expect(within(form).queryByRole("group", { name: "Проекты" })).not.toBeInTheDocument();
+    expect(within(form).queryByRole("checkbox", { name: "Летний запуск" })).not.toBeInTheDocument();
+
+    await user.click(within(form).getByRole("button", { name: "Создать приглашение" }));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ registrationType: "EMPLOYEE", role: "ADMIN", projectIds: [] });
+    expect(screen.queryByText("Выберите хотя бы один проект")).not.toBeInTheDocument();
+  });
+
+  it("sends no projects chosen before the role was switched to admin", async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | null = null;
+    withDirectory();
+    server.use(http.post("/api/invites", async ({ request }) => {
+      body = await request.json() as Record<string, unknown>;
+      return HttpResponse.json({ ...employeeInvite, role: "ADMIN", projectIds: [] }, { status: 201 });
+    }));
+    renderWithProviders(<ContactBook open onClose={() => {}} />);
+    await screen.findByRole("button", { name: /Acme/ });
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
+
+    await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
+    const form = await screen.findByRole("dialog", { name: "Пригласить сотрудника" });
+    await user.click(await within(form).findByRole("checkbox", { name: "Летний запуск" }));
+    await user.click(within(form).getByLabelText("Роль приглашения"));
+    await user.click(await screen.findByRole("option", { name: "Администратор" }));
+    await user.click(within(form).getByRole("button", { name: "Создать приглашение" }));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ role: "ADMIN", projectIds: [] });
+  });
+
   it("creates a client invitation with no role and no projects", async () => {
     const user = userEvent.setup();
     let body: Record<string, unknown> | null = null;

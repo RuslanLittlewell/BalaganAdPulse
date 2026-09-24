@@ -44,6 +44,7 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
   const [created, setCreated] = useState<Invitation | null>(null);
 
   const isEmployee = registrationType === "EMPLOYEE";
+  const needsProjects = isEmployee && role !== "ADMIN";
   const isJoining = registrationType === "CLIENT_STAFF";
   const title = isEmployee
     ? t("invites.createEmployee")
@@ -64,7 +65,7 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
   }
 
   async function submit() {
-    if (isEmployee && projectIds.length === 0) {
+    if (needsProjects && projectIds.length === 0) {
       setFailure(t("invites.projects.required"));
       return;
     }
@@ -72,7 +73,7 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
     try {
       setCreated(await create.mutateAsync(
         isEmployee
-          ? { registrationType: "EMPLOYEE", role, projectIds }
+          ? { registrationType: "EMPLOYEE", role, projectIds: needsProjects ? projectIds : [] }
           : isJoining
             ? { registrationType: "CLIENT_STAFF", clientId: clientId as string }
             : { registrationType: "CLIENT" },
@@ -109,23 +110,25 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
                   </Select>
                 </div>
 
-                <fieldset className="flex flex-col gap-2">
-                  <legend className="mb-2 text-sm font-medium">{t("invites.projects")}</legend>
-                  {projects.isPending && <Loader label={t("state.loading")} />}
-                  <div
-                    data-testid="invite-projects"
-                    className="grid max-h-72 grid-cols-2 gap-2 overflow-auto"
-                  >
-                    {(projects.data ?? []).map((project) => (
-                      <ProjectChoice
-                        key={project.id}
-                        project={project}
-                        checked={projectIds.includes(project.id)}
-                        onToggle={() => toggleProject(project.id)}
-                      />
-                    ))}
-                  </div>
-                </fieldset>
+                {needsProjects && (
+                  <fieldset className="flex flex-col gap-2">
+                    <legend className="mb-2 text-sm font-medium">{t("invites.projects")}</legend>
+                    {projects.isPending && <Loader label={t("state.loading")} />}
+                    <div
+                      data-testid="invite-projects"
+                      className="grid max-h-72 grid-cols-2 gap-2 overflow-auto"
+                    >
+                      {(projects.data ?? []).map((project) => (
+                        <ProjectChoice
+                          key={project.id}
+                          project={project}
+                          checked={projectIds.includes(project.id)}
+                          onToggle={() => toggleProject(project.id)}
+                        />
+                      ))}
+                    </div>
+                  </fieldset>
+                )}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">{t("invites.clientHint")}</p>

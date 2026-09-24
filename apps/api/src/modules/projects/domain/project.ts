@@ -29,4 +29,5 @@ export interface ProjectChange {
 export interface NewProject extends ProjectChange {
   readonly clientId: string;
   readonly name: string;
+  readonly memberIds?: readonly string[];
 }

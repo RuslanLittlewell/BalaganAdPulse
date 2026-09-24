@@ -24,7 +24,7 @@ import {
 } from "@/entities/lead/index.js";
 import { AddLeadColumn, LeadColumnMenu } from "@/features/lead-column-management/index.js";
 import { t } from "@/shared/config/index.js";
-import { boardCollisionDetection } from "@/shared/lib/index.js";
+import { boardCollisionDetection, useDragPreview } from "@/shared/lib/index.js";
 import { EmptyState, Loader } from "@/shared/ui/index.js";
 import { CrmColumnPanel } from "./CrmColumn.js";
 import { LeadCard } from "./LeadCard.js";
@@ -44,13 +44,10 @@ export function CrmBoard({ boardKey, busy = false, draggable = false, capabiliti
   const stages = useMemo(() => columns.map((column) => column.id), [columns]);
   const move = useMoveLead(boardKey ?? "");
   const [moveError, setMoveError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<Lead[] | null>(null);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const drag = useDragPreview(leads);
+  const { board, draggingId, cancel: cancelDrag } = drag;
 
-  useEffect(() => { if (!draggingId) setPreview(null); }, [draggingId, leads]);
-  useEffect(() => { setPreview(null); setDraggingId(null); setMoveError(null); }, [boardKey]);
-
-  const board = preview ?? leads ?? [];
+  useEffect(() => { cancelDrag(); setMoveError(null); }, [boardKey, cancelDrag]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -70,35 +67,31 @@ export function CrmBoard({ boardKey, busy = false, draggable = false, capabiliti
   if (isError && board.length === 0) return <EmptyState title={t("crm.loadFailed")} />;
 
   function handleDragStart(event: DragStartEvent) {
-    setDraggingId(String(event.active.id));
-    setPreview(leads ?? []);
+    drag.start(String(event.active.id));
     setMoveError(null);
   }
 
   function handleDragOver(event: DragOverEvent) {
     const { active, over } = event;
     if (!over) return;
-    setPreview((current) => leadPreviewFor(current ?? board, String(active.id), String(over.id), stages));
+    drag.preview((current) => leadPreviewFor(current, String(active.id), String(over.id), stages));
   }
 
   function handleDragEnd(event: DragEndEvent) {
     const activeId = String(event.active.id);
     const overId = event.over ? String(event.over.id) : null;
-    const placement = resolveLeadDrop(leads ?? [], preview, activeId, overId, stages);
+    const placement = resolveLeadDrop(leads ?? [], drag.previewed, activeId, overId, stages);
 
-    setDraggingId(null);
-    if (!placement) { setPreview(null); return; }
+    if (!placement) { cancelDrag(); return; }
 
     move.mutate(
       { id: activeId, body: placement },
-      { onError: () => setMoveError(t("crm.moveFailed")) },
+      {
+        onError: () => setMoveError(t("crm.moveFailed")),
+        onSettled: drag.release,
+      },
     );
-    setPreview(null);
-  }
-
-  function handleDragCancel() {
-    setDraggingId(null);
-    setPreview(null);
+    drag.settle();
   }
 
   return (
@@ -109,7 +102,7 @@ export function CrmBoard({ boardKey, busy = false, draggable = false, capabiliti
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
+      onDragCancel={cancelDrag}
     >
       {moveError ? (
         <p role="alert" className="mb-2 text-sm text-destructive">{moveError}</p>

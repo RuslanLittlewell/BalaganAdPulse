@@ -33,6 +33,7 @@ import { createIdentityHttpRouters } from "../modules/identity/presentation/http
 import {
   PrismaMembershipEnrolment,
   PrismaInvitationProjectAccess,
+  PrismaProjectStaffing,
   createActorResolution,
   createMemberRouter,
   createMemberUseCases,
@@ -358,6 +359,7 @@ export function createContainer(): ApiContainer {
         (await clients.reachableIds(actor)).includes(clientId),
     },
     pictures: new S3ProjectPictureStorage(),
+    staffing: new PrismaProjectStaffing(prisma, unitOfWork),
     audit,
     ids,
     unitOfWork,

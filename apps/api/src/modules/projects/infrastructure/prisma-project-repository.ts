@@ -36,7 +36,7 @@ export class PrismaProjectRepository implements ProjectRepository {
 
   async create(
     context: TransactionContext,
-    input: NewProject & { id: string; position: number },
+    input: Omit<NewProject, "memberIds"> & { id: string; position: number },
   ): Promise<ProjectRecord> {
     return toDomain(await this.client(context).project.create({ data: input }));
   }

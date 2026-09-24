@@ -53,7 +53,7 @@ of their grants.
 
 A CLIENT member SHALL reach the client named by their grant and nothing else: its projects, campaigns, figures, client-visible tasks and its own CRM leads. Every other client, project, campaign, task or CRM lead and the agency CRM SHALL be answered as not found.
 
-A client SHALL be able to read the task module and raise a task on a project they reach. They SHALL NOT change or delete a task once raised or change its visibility. They SHALL be able to create, edit, move and delete leads on their own CRM board. They SHALL be able to create projects for their own client and edit the name, niche, monthly budget, currency and picture of their client's projects. They SHALL NOT delete a project, change its priority, manage its advertising connection or set its KPIs. Clients, campaigns and members SHALL remain read-only to them.
+A client SHALL be able to read the task module and raise a task on a project they reach. They SHALL NOT change or delete a task once raised or change its visibility. They SHALL be able to create, edit, move and delete leads on their own CRM board. They SHALL be able to create projects for their own client and edit the name, currency and picture of their client's projects. They SHALL NOT delete a project, change its priority, manage its advertising connection or set its KPIs. Clients, campaigns and members SHALL remain read-only to them.
 
 #### Scenario: A client's projects
 - **WHEN** a client opens the projects module
@@ -92,7 +92,7 @@ A client SHALL be able to read the task module and raise a task on a project the
 - **THEN** the answer is 404 and nothing is stored
 
 #### Scenario: A client edits a project
-- **WHEN** a client changes the name, niche, budget or currency of their client's project
+- **WHEN** a client changes the name or the currency of their client's project
 - **THEN** the change is stored and audited under their name
 
 #### Scenario: Agency-only project actions

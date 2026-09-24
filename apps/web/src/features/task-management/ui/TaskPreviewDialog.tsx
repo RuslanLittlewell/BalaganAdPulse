@@ -12,7 +12,6 @@ import { dayLabel } from "@/shared/ui/index.js";
 import { cn } from "@/shared/lib/index.js";
 import { ProjectAvatar, useProjects } from "@/entities/project/index.js";
 import { MemberAvatar, useMembers } from "@/entities/membership/index.js";
-import { useProjectCampaignNames } from "@/entities/campaign/index.js";
 import type { Task } from "@/entities/task/index.js";
 import { TaskAttachments } from "./TaskAttachments.js";
 import { TaskDescriptionEditor } from "./TaskDescriptionEditor.js";
@@ -45,16 +44,12 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 export function TaskPreviewDialog({ task, onClose }: TaskPreviewDialogProps) {
   const { data: projects } = useProjects();
   const { data: members } = useMembers();
-  const { data: campaigns } = useProjectCampaignNames(task.projectId ?? undefined);
 
   const project = projects?.find(
     (candidate) => candidate.id === task.projectId,
   );
   const assignee = members?.find(
     (candidate) => candidate.id === task.assigneeId,
-  );
-  const campaign = campaigns?.find(
-    (candidate) => candidate.id === task.campaignId,
   );
 
   return (
@@ -90,11 +85,6 @@ export function TaskPreviewDialog({ task, onClose }: TaskPreviewDialogProps) {
               {project ? <ProjectAvatar project={project} size="sm" /> : null}
               <span className="truncate">
                 {project?.name ?? t("tasks.noProject")}
-              </span>
-            </Fact>
-            <Fact label={t("tasks.form.campaign")}>
-              <span className="truncate">
-                {campaign?.name ?? t("tasks.form.wholeProject")}
               </span>
             </Fact>
             <Fact label={t("tasks.form.assignee")}>

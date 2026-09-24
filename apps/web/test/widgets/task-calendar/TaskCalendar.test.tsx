@@ -2,7 +2,7 @@ import { http as mock, HttpResponse } from "msw";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Routes, Route } from "react-router-dom";
-import { aTask, renderWithProviders, server } from "@test/shared/index.js";
+import { aProject, aTask, renderWithProviders, server } from "@test/shared/index.js";
 import { LoadedTaskCalendar as TaskCalendar } from "@test/shared/task-widgets.js";
 
 const TODAY = "2026-09-17";
@@ -127,5 +127,110 @@ describe("what the calendar holds", () => {
     const wednesday = await screen.findByRole("group", { name: /среда/ });
     const titles = [...wednesday.querySelectorAll("article h3")].map((node) => node.textContent);
     expect(titles).toEqual(["Утром", "Днём", "Без времени"]);
+  });
+});
+
+describe("zooming the hour grid", () => {
+  const grid = () => screen.getByTestId("calendar-grid");
+  const zoomOut = () => screen.getByRole("button", { name: "Уменьшить масштаб" });
+  const zoomIn = () => screen.getByRole("button", { name: "Увеличить масштаб" });
+
+  it("opens at the largest scale, with only zooming out available", async () => {
+    calendar();
+    await screen.findByText("14 – 20 сентября 2026");
+
+    expect(grid()).toHaveAttribute("data-zoom", "4");
+    expect(zoomIn()).toBeDisabled();
+    expect(zoomOut()).toBeEnabled();
+  });
+
+  it("steps down to the smallest scale and back up", async () => {
+    calendar();
+    await screen.findByText("14 – 20 сентября 2026");
+
+    for (let step = 0; step < 4; step++) await userEvent.click(zoomOut());
+    expect(grid()).toHaveAttribute("data-zoom", "0");
+    expect(zoomOut()).toBeDisabled();
+    expect(zoomIn()).toBeEnabled();
+
+    await userEvent.click(zoomIn());
+    expect(grid()).toHaveAttribute("data-zoom", "1");
+  });
+
+  it("remembers the chosen scale when the calendar opens again", async () => {
+    const first = calendar();
+    await screen.findByText("14 – 20 сентября 2026");
+    await userEvent.click(zoomOut());
+    await userEvent.click(zoomOut());
+    first.unmount();
+
+    calendar();
+    await screen.findByText("14 – 20 сентября 2026");
+    expect(grid()).toHaveAttribute("data-zoom", "2");
+  });
+
+  it("shows compact cards, title and time only, at the smallest scale", async () => {
+    calendar([aTask({ id: "timed", title: "Созвон", dueDate: TODAY, dueTime: "10:00", checklist: [{ id: "c1", title: "Пункт", done: false, position: 0 }] })]);
+    const card = await screen.findByTestId("task-card-timed");
+    expect(card).not.toHaveAttribute("data-compact");
+    expect(within(card).getByText("0/1")).toBeInTheDocument();
+
+    for (let step = 0; step < 4; step++) await userEvent.click(zoomOut());
+
+    const compact = screen.getByTestId("task-card-timed");
+    expect(compact).toHaveAttribute("data-compact", "true");
+    expect(within(compact).getByText("Созвон")).toBeInTheDocument();
+    expect(within(compact).getByText("10:00")).toBeInTheDocument();
+    expect(within(compact).queryByText("0/1")).not.toBeInTheDocument();
+  });
+});
+
+describe("the assignee on a calendar card", () => {
+  it("names the assignee in a tooltip when their picture is hovered", async () => {
+    server.use(mock.get("/api/members", () => HttpResponse.json([{
+      id: "member-1", userId: "user-1", name: "Мария", email: "maria@example.com",
+      image: null, phone: null, telegram: null, role: "MANAGER", status: "ACTIVE",
+      createdAt: "2026-09-05T00:00:00.000Z",
+    }])));
+    calendar([aTask({ id: "assigned", title: "Созвон", dueDate: TODAY, dueTime: "10:00", assigneeId: "member-1" })]);
+
+    await userEvent.hover(await screen.findByTestId("task-assignee-assigned"));
+
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Мария");
+  });
+});
+
+describe("the details of a compact card", () => {
+  function staffed() {
+    server.use(
+      mock.get("/api/members", () => HttpResponse.json([{
+        id: "member-1", userId: "user-1", name: "Мария", email: "maria@example.com",
+        image: null, phone: null, telegram: null, role: "MANAGER", status: "ACTIVE",
+        createdAt: "2026-09-05T00:00:00.000Z",
+      }])),
+      mock.get("/api/projects", () => HttpResponse.json([aProject({ id: "project-1", name: "Сайт" })])),
+    );
+    calendar([aTask({ id: "busy", title: "Созвон с клиентом", dueDate: TODAY, dueTime: "10:00", projectId: "project-1", assigneeId: "member-1" })]);
+  }
+
+  it("tells the title, time, project and assignee on hover", async () => {
+    staffed();
+    await screen.findByTestId("task-card-busy");
+    for (let step = 0; step < 4; step++) await userEvent.click(screen.getByRole("button", { name: "Уменьшить масштаб" }));
+
+    await userEvent.hover(screen.getByTestId("task-card-busy"));
+
+    const tooltip = await screen.findByRole("tooltip");
+    for (const text of ["Созвон с клиентом", "10:00", "Сайт", "Мария"]) expect(tooltip).toHaveTextContent(text);
+  });
+
+  it("shows no details tooltip for a full-size card", async () => {
+    staffed();
+    const card = await screen.findByTestId("task-card-busy");
+
+    await userEvent.hover(within(card).getByText("Созвон с клиентом"));
+
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 });

@@ -22,8 +22,6 @@ export const registerSchema = z.object({
   }).optional(),
   project: z.object({
     name: z.string().trim().min(1, "project name is required"),
-    niche: optionalText,
-    monthlyBudget: z.number().nonnegative().nullable().optional(),
     budgetCurrency: z.enum(CURRENCIES).optional(),
   }).optional(),
 }).refine(

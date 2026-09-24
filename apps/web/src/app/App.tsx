@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route, useLocation } from "react-router-dom";
 import { DashboardPage } from "@/pages/dashboard/index.js";
 import { ModulePage } from "@/pages/module/index.js";
 import { ProjectsPage } from "@/pages/projects/index.js";
@@ -15,12 +15,13 @@ import { AppShell } from "@/widgets/app-shell/index.js";
 import { AppHeader } from "@/widgets/app-header/index.js";
 import { MainNav } from "@/widgets/main-nav/index.js";
 import { AlertsProvider } from "@/shared/ui/index.js";
-import { createQueryClient, ROUTES } from "@/shared/lib/index.js";
+import { createQueryClient, moduleKeyFromPathname, ROUTES } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 
 const queryClient = createQueryClient();
 
 function Dashboard() {
+  const location = useLocation();
   return (
     <RequireAuth>
       <NavCollapseProvider>
@@ -28,8 +29,8 @@ function Dashboard() {
         <StaffSync />
         <ProjectsSync />
         <SessionHeartbeat />
-        <AppShell sidebar={<MainNav />} header={<AppHeader />}>
-          <Routes>
+        <AppShell sidebar={<MainNav />} header={<AppHeader />} moduleKey={moduleKeyFromPathname(location.pathname)}>
+          <Routes location={location}>
             <Route path={ROUTES.dashboard} element={<DashboardPage />} />
             <Route path={`${ROUTES.projects}/*`} element={<ProjectsPage />} />
             <Route path={ROUTES.tasks} element={<TasksPage />} />

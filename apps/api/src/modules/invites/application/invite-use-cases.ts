@@ -85,14 +85,20 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
         if (!input.role || input.role === "CLIENT") {
           throw new AppError("validation", "Employee invitation role is invalid");
         }
-        if (projectIds.length === 0) {
-          throw new AppError("validation", "Employee invitations require at least one project");
-        }
-        if (!(await dependencies.projects.allBelongToOrg(actor.orgId, projectIds))) {
-          throw new AppError("validation", "One or more invitation projects are invalid");
-        }
         if (input.role === "ADMIN" && actor.role !== "ADMIN") {
           throw new AppError("forbidden", "Only an admin may grant the admin role");
+        }
+        if (input.role === "ADMIN") {
+          if (projectIds.length > 0) {
+            throw new AppError("validation", "An admin invitation carries no projects");
+          }
+        } else {
+          if (projectIds.length === 0) {
+            throw new AppError("validation", "Manager and guest invitations require at least one project");
+          }
+          if (!(await dependencies.projects.allBelongToOrg(actor.orgId, projectIds))) {
+            throw new AppError("validation", "One or more invitation projects are invalid");
+          }
         }
       }
       const now = dependencies.clock.now();

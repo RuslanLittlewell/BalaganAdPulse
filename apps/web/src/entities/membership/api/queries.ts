@@ -12,6 +12,7 @@ export function useClientMembers(clientId: string | undefined) {
     queryKey: [...MEMBERS_KEY, "client", clientId ?? null],
     queryFn: () => membersApi.listOfClient(clientId as string),
     enabled: clientId != null,
+    staleTime: 5 * 60_000,
   });
 }
 

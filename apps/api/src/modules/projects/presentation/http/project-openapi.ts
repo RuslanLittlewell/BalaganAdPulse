@@ -8,8 +8,6 @@ const project = z.object({
   id: z.uuid(),
   clientId: z.uuid(),
   name: z.string(),
-  niche: z.string().nullable(),
-  monthlyBudget: z.string().nullable(),
   budgetCurrency: z.enum(CURRENCIES),
   priority: z.enum(PROJECT_PRIORITIES),
   image: z.string().nullable(),
@@ -23,7 +21,7 @@ export const projectComponents: ComponentDocs = { Project: project };
 
 export const projectDoc: RouteDoc = {
   tag: "Projects",
-  tagDescription: "A client's projects, their budget, their priority and their order on the board",
+  tagDescription: "A client's projects, their currency, their priority and their order on the board",
   operations: [
     {
       method: "post",

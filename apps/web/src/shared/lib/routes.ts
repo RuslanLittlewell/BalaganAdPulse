@@ -11,3 +11,8 @@ export function projectPath(clientId: string, campaignId?: string): string {
   const base = `${ROUTES.projects}/${clientId}`;
   return campaignId ? `${base}/campaigns/${campaignId}` : base;
 }
+
+export function moduleKeyFromPathname(pathname: string): string {
+  const [segment] = pathname.split("/").filter(Boolean);
+  return segment ?? "dashboard";
+}

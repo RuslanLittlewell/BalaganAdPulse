@@ -19,6 +19,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Label,
+  LABEL_CLASS,
   Loader,
   Select,
   SelectContent,
@@ -44,6 +46,7 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
   const [created, setCreated] = useState<Invitation | null>(null);
 
   const isEmployee = registrationType === "EMPLOYEE";
+  const needsProjects = isEmployee && role !== "ADMIN";
   const isJoining = registrationType === "CLIENT_STAFF";
   const title = isEmployee
     ? t("invites.createEmployee")
@@ -64,7 +67,7 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
   }
 
   async function submit() {
-    if (isEmployee && projectIds.length === 0) {
+    if (needsProjects && projectIds.length === 0) {
       setFailure(t("invites.projects.required"));
       return;
     }
@@ -72,7 +75,7 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
     try {
       setCreated(await create.mutateAsync(
         isEmployee
-          ? { registrationType: "EMPLOYEE", role, projectIds }
+          ? { registrationType: "EMPLOYEE", role, projectIds: needsProjects ? projectIds : [] }
           : isJoining
             ? { registrationType: "CLIENT_STAFF", clientId: clientId as string }
             : { registrationType: "CLIENT" },
@@ -96,9 +99,7 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
             {isEmployee ? (
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium" htmlFor="invitation-role">
-                    {t("invites.role")}
-                  </label>
+                  <Label htmlFor="invitation-role">{t("invites.role")}</Label>
                   <Select value={role} onValueChange={(next) => setRole(next as EmployeeRole)}>
                     <SelectTrigger id="invitation-role" className="w-full"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -109,23 +110,25 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
                   </Select>
                 </div>
 
-                <fieldset className="flex flex-col gap-2">
-                  <legend className="mb-2 text-sm font-medium">{t("invites.projects")}</legend>
-                  {projects.isPending && <Loader label={t("state.loading")} />}
-                  <div
-                    data-testid="invite-projects"
-                    className="grid max-h-72 grid-cols-2 gap-2 overflow-auto"
-                  >
-                    {(projects.data ?? []).map((project) => (
-                      <ProjectChoice
-                        key={project.id}
-                        project={project}
-                        checked={projectIds.includes(project.id)}
-                        onToggle={() => toggleProject(project.id)}
-                      />
-                    ))}
-                  </div>
-                </fieldset>
+                {needsProjects && (
+                  <fieldset className="flex flex-col gap-2">
+                    <legend className={cn(LABEL_CLASS, "mb-2")}>{t("invites.projects")}</legend>
+                    {projects.isPending && <Loader label={t("state.loading")} />}
+                    <div
+                      data-testid="invite-projects"
+                      className="grid max-h-72 grid-cols-2 gap-2 overflow-auto"
+                    >
+                      {(projects.data ?? []).map((project) => (
+                        <ProjectChoice
+                          key={project.id}
+                          project={project}
+                          checked={projectIds.includes(project.id)}
+                          onToggle={() => toggleProject(project.id)}
+                        />
+                      ))}
+                    </div>
+                  </fieldset>
+                )}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">{t("invites.clientHint")}</p>
@@ -193,9 +196,6 @@ function ProjectChoice({
 
       <span className="flex min-w-0 flex-col">
         <span className="truncate text-sm font-medium">{project.name}</span>
-        {project.niche && (
-          <span className="truncate text-xs text-muted-foreground">{project.niche}</span>
-        )}
       </span>
     </label>
   );

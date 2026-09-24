@@ -105,7 +105,7 @@ describe("ProjectList", () => {
     server.use(
       mock.get("/api/clients", () => HttpResponse.json([aClient({ id: "1", name: "Acme" })])),
       mock.get("/api/projects", () =>
-        HttpResponse.json([aProject({ clientId: "1", name: "Летний запуск", niche: "fitness" })])),
+        HttpResponse.json([aProject({ clientId: "1", name: "Летний запуск" })])),
     );
     setup();
 
@@ -113,7 +113,6 @@ describe("ProjectList", () => {
 
     expect(await screen.findByRole("dialog", { name: "Редактирование проекта" })).toBeInTheDocument();
     expect(screen.getByLabelText("Название проекта")).toHaveValue("Летний запуск");
-    expect(screen.getByLabelText("Ниша")).toHaveValue("fitness");
   });
 
   it("keeps the row itself navigating, not editing", async () => {

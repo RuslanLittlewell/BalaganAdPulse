@@ -28,7 +28,6 @@ export interface TaskRecord {
   readonly priority: TaskPriority;
   readonly assigneeId: string | null;
   readonly createdById: string | null;
-  readonly campaignId: string | null;
   readonly visibleToClient: boolean;
   readonly position: number;
   readonly dueDate: string | null;
@@ -50,7 +49,6 @@ export interface NewTask {
   readonly priority: TaskPriority;
   readonly assigneeId: string | null;
   readonly createdById: string | null;
-  readonly campaignId: string | null;
   readonly visibleToClient: boolean;
   readonly position: number;
   readonly dueDate: string | null;
@@ -65,7 +63,6 @@ export interface TaskChange {
   readonly description?: TaskDescription | null;
   readonly priority?: TaskPriority;
   readonly assigneeId?: string | null;
-  readonly campaignId?: string | null;
   readonly visibleToClient?: boolean;
   readonly dueDate?: string | null;
   readonly dueTime?: string | null;
@@ -75,7 +72,6 @@ export interface TaskChange {
 
 export interface TaskFilter {
   readonly projectId?: string;
-  readonly campaignId?: string;
   readonly dueFrom?: string;
   readonly dueTo?: string;
 }
@@ -101,10 +97,6 @@ export interface ProjectReach {
   contextFor(actor: ActorContext, projectId: string): Promise<{ clientId: string } | null>;
 }
 
-export interface CampaignReach {
-  isInProject(campaignId: string, projectId: string): Promise<boolean>;
-}
-
 export interface MemberReach {
   isAssignable(actor: ActorContext, membershipId: string): Promise<boolean>;
 }
@@ -114,7 +106,6 @@ export interface TaskDependencies {
   readonly images: TaskImageRepository;
   readonly imageStorage: TaskImageStorage;
   readonly projects: ProjectReach;
-  readonly campaigns: CampaignReach;
   readonly members: MemberReach;
   readonly audit: AuditWriter;
   readonly events: TaskEventPublisher;

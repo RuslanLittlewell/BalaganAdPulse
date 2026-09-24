@@ -1,6 +1,7 @@
 import "./storage-setup.js";
 import { expect } from "vitest";
 import * as matchers from "@testing-library/jest-dom/matchers";
+import { installFakeAnimate } from "./animations.js";
 
 expect.extend(matchers);
 
@@ -25,11 +26,25 @@ if (!("ResizeObserver" in globalThis)) {
     disconnect() {}
   } as unknown as typeof ResizeObserver;
 }
+if (!window.matchMedia) {
+  window.matchMedia = (query: string) =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }) as unknown as MediaQueryList;
+}
 for (const method of ["hasPointerCapture", "setPointerCapture", "releasePointerCapture"] as const) {
   if (!(method in Element.prototype)) {
     Object.defineProperty(Element.prototype, method, { value: () => false, configurable: true });
   }
 }
+installFakeAnimate();
 if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = function scrollIntoView() {};
 }
@@ -64,7 +79,6 @@ if (!Range.prototype.getBoundingClientRect) {
 import { server } from "./server.js";
 import { resetStaff } from "@/entities/membership/index.js";
 import { resetProjects } from "@/entities/project/index.js";
-import { resetCampaignNames } from "@/entities/campaign/index.js";
 import { useModuleMemory } from "@/shared/lib/index.js";
 import { useSummaryTiles } from "@/widgets/agency-overview/summaryTiles.js";
 import { useColumnWidths } from "@/widgets/performance-table/columnWidths.js";
@@ -74,8 +88,7 @@ afterEach(() => {
   server.resetHandlers();
   resetStaff();
   resetProjects();
-  resetCampaignNames();
-  useModuleMemory.setState({ boards: {}, projectPlaces: {} });
+  useModuleMemory.setState({ boards: {}, projectPlaces: {}, taskCalendarZooms: {} });
   useSummaryTiles.setState({ layouts: {} });
   useColumnWidths.setState({ nameWidths: {}, visibleColumns: {} });
 });

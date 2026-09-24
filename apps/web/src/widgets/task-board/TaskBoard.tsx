@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -22,9 +22,9 @@ import {
 } from "@/entities/task/index.js";
 import { useMembers } from "@/entities/membership/index.js";
 import { useProjects } from "@/entities/project/index.js";
-import { useCampaignNameById } from "@/entities/campaign/index.js";
 import { useCan } from "@/features/permissions/index.js";
 import { t } from "@/shared/config/index.js";
+import { useDragPreview } from "@/shared/lib/index.js";
 import { EmptyState, Loader } from "@/shared/ui/index.js";
 import { TaskCard } from "./TaskCard.js";
 import { boardCollisionDetection } from "./collision.js";
@@ -46,12 +46,8 @@ export function TaskBoard({ tasks, isLoading, isError, onOpen, onCreate }: TaskB
   const { data: members } = useMembers();
   const [moveError, setMoveError] = useState<string | null>(null);
 
-  const [preview, setPreview] = useState<Task[] | null>(null);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-
-  useEffect(() => { if (!draggingId) setPreview(null); }, [draggingId, tasks]);
-
-  const board = preview ?? tasks ?? [];
+  const drag = useDragPreview(tasks);
+  const { board, draggingId } = drag;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -74,7 +70,6 @@ export function TaskBoard({ tasks, isLoading, isError, onOpen, onCreate }: TaskB
     [members],
   );
 
-  const campaignNameById = useCampaignNameById();
 
   const dragging = board.find((task) => task.id === draggingId) ?? null;
 
@@ -82,35 +77,31 @@ export function TaskBoard({ tasks, isLoading, isError, onOpen, onCreate }: TaskB
   if (isError) return <EmptyState title={t("tasks.loadFailed")} />;
 
   function handleDragStart(event: DragStartEvent) {
-    setDraggingId(String(event.active.id));
-    setPreview(tasks ?? []);
+    drag.start(String(event.active.id));
     setMoveError(null);
   }
 
   function handleDragOver(event: DragOverEvent) {
     const { active, over } = event;
     if (!over) return;
-    setPreview((current) => previewFor(current ?? board, String(active.id), String(over.id)));
+    drag.preview((current) => previewFor(current, String(active.id), String(over.id)));
   }
 
   function handleDragEnd(event: DragEndEvent) {
     const activeId = String(event.active.id);
     const overId = event.over ? String(event.over.id) : null;
-    const placement = resolveDrop(tasks ?? [], preview, activeId, overId);
+    const placement = resolveDrop(tasks ?? [], drag.previewed, activeId, overId);
 
-    setDraggingId(null);
-    if (!placement) { setPreview(null); return; }
+    if (!placement) { drag.cancel(); return; }
 
     move.mutate(
       { id: activeId, body: placement },
-      { onError: () => setMoveError(t("tasks.moveFailed")) },
+      {
+        onError: () => setMoveError(t("tasks.moveFailed")),
+        onSettled: drag.release,
+      },
     );
-    setPreview(null);
-  }
-
-  function handleDragCancel() {
-    setDraggingId(null);
-    setPreview(null);
+    drag.settle();
   }
 
   return (
@@ -121,7 +112,7 @@ export function TaskBoard({ tasks, isLoading, isError, onOpen, onCreate }: TaskB
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
+      onDragCancel={drag.cancel}
     >
       {moveError ? (
         <p role="alert" className="mb-2 text-sm text-destructive">{moveError}</p>
@@ -136,7 +127,6 @@ export function TaskBoard({ tasks, isLoading, isError, onOpen, onCreate }: TaskB
             draggable={draggable}
             draggingId={draggingId}
             projects={projectById}
-            campaigns={campaignNameById}
             members={memberById}
             onOpen={onOpen}
             onCreate={creatable && onCreate ? onCreate : undefined}
@@ -149,7 +139,6 @@ export function TaskBoard({ tasks, isLoading, isError, onOpen, onCreate }: TaskB
             task={dragging}
             draggable={false}
             project={dragging.projectId ? projectById.get(dragging.projectId) : undefined}
-            campaignName={dragging.campaignId ? campaignNameById.get(dragging.campaignId) : undefined}
             assignee={dragging.assigneeId ? memberById.get(dragging.assigneeId) : undefined}
           />
         ) : null}

@@ -13,7 +13,6 @@ export interface TaskCardProps {
   draggable: boolean;
   placeholder?: boolean;
   project?: Project;
-  campaignName?: string;
   assignee?: Membership;
   onOpen?: (task: Task) => void;
   onComplete?: (task: Task) => void;
@@ -39,7 +38,7 @@ const PRIORITY_BAR: Record<Task["priority"], string> = {
 };
 
 export function TaskCard({
-  task, draggable, placeholder = false, project, campaignName, assignee, onOpen, onComplete,
+  task, draggable, placeholder = false, project, assignee, onOpen, onComplete,
 }: TaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: task.id,
@@ -189,25 +188,20 @@ export function TaskCard({
         <span className="flex min-w-0 flex-col">
           <span className="flex min-w-0 items-center gap-1.5" data-testid={`task-project-${task.id}`}>
             {project ? <ProjectAvatar project={project} size="sm" /> : null}
-            <span className="truncate text-xs text-muted-foreground">
+            <span className="truncate text-[8px] text-muted-foreground">
               {project?.name ?? t("tasks.noProject")}
             </span>
-          </span>
-          <span
-            className="truncate pt-1 pl-0.5 text-[11px] text-muted-foreground/80"
-            data-testid={`task-campaign-${task.id}`}
-          >
-            {campaignName ?? t("tasks.form.wholeProject")}
           </span>
         </span>
 
         {assignee ? (
           <span
-            className="flex shrink-0 items-center"
+            className="flex min-w-0 items-center gap-1.5"
             data-testid={`task-assignee-${task.id}`}
             title={assignee.name}
           >
             <MemberAvatar member={assignee} size="sm" />
+            <span className="truncate text-[8px] text-muted-foreground">{assignee.name}</span>
           </span>
         ) : (
           <span className="shrink-0 text-xs text-muted-foreground">

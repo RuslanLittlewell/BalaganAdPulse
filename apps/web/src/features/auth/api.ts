@@ -16,8 +16,6 @@ export interface ClientRegistrationBody {
   };
   project: {
     name: string;
-    niche?: string | null;
-    monthlyBudget?: number | null;
     budgetCurrency?: Currency;
   };
 }

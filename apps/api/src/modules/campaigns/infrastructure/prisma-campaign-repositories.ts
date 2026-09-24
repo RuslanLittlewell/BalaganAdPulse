@@ -120,14 +120,3 @@ export class PrismaProjectReach implements ProjectReach {
     return project !== null;
   }
 }
-
-export class PrismaCampaignInProject {
-  constructor(private readonly prisma: PrismaClient) {}
-
-  async isInProject(campaignId: string, projectId: string): Promise<boolean> {
-    const campaign = await this.prisma.campaign.findFirst({
-      where: { id: campaignId, projectId }, select: { id: true },
-    });
-    return campaign !== null;
-  }
-}

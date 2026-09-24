@@ -3,7 +3,7 @@ import request from "supertest";
 import { createApp } from "../../src/composition/app.js";
 import { resetDb, seedProject } from "../helpers/db.js";
 import { prisma } from "../../src/shared/infrastructure/prisma.js";
-import { grantAccess, signInAs } from "../helpers/auth.js";
+import { grantAccess, signInAs, signInAsOutsider } from "../helpers/auth.js";
 import { expectAudit } from "../helpers/audit.js";
 
 const app = createApp();
@@ -27,18 +27,11 @@ afterAll(async () => { await prisma.$disconnect(); });
 
 describe("Projects API", () => {
   it("creates a project bound to a client (201)", async () => {
-    const res = await project({ niche: "fitness", monthlyBudget: 1500 });
+    const res = await project({ budgetCurrency: "USD" });
 
     expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({ clientId, name: "Летний запуск", niche: "fitness" });
-    expect(res.body.monthlyBudget).toBe("1500");
+    expect(res.body).toMatchObject({ clientId, name: "Летний запуск", budgetCurrency: "USD" });
     await expectAudit({ action: "CREATE", entityType: "project", entityId: res.body.id, clientId, projectId: res.body.id });
-  });
-
-  it("keeps the budget exact, as a decimal rather than a float", async () => {
-    const res = await project({ monthlyBudget: 1234.56 });
-    const stored = await prisma.project.findUniqueOrThrow({ where: { id: res.body.id } });
-    expect(String(stored.monthlyBudget)).toBe("1234.56");
   });
 
   it("refuses a project without a client", async () => {
@@ -92,10 +85,10 @@ describe("Projects API", () => {
   it("updates a project", async () => {
     const created = await project();
     const res = await request(app).patch(`/api/projects/${created.body.id}`).set(auth)
-      .send({ name: "Осенний запуск", niche: "beauty" });
+      .send({ name: "Осенний запуск", budgetCurrency: "EUR" });
 
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ name: "Осенний запуск", niche: "beauty" });
+    expect(res.body).toMatchObject({ name: "Осенний запуск", budgetCurrency: "EUR" });
     await expectAudit({ action: "UPDATE", entityType: "project", entityId: created.body.id, clientId, projectId: created.body.id });
   });
 
@@ -162,13 +155,13 @@ describe("Projects API", () => {
   });
 
   it("changes the priority on its own, without touching the rest", async () => {
-    const created = await project({ niche: "fitness", monthlyBudget: 1500 });
+    const created = await project({ budgetCurrency: "USD" });
     const res = await request(app).patch(`/api/projects/${created.body.id}`).set(auth)
       .send({ priority: "URGENT" });
 
     expect(res.status).toBe(200);
     expect(res.body.priority).toBe("URGENT");
-    expect(res.body).toMatchObject({ niche: "fitness", name: "Летний запуск" });
+    expect(res.body).toMatchObject({ budgetCurrency: "USD", name: "Летний запуск" });
   });
 
   it("accepts every priority the interface offers", async () => {
@@ -237,13 +230,13 @@ describe("Projects API", () => {
   });
 });
 
-describe("the currency a budget is stated in", () => {
+describe("the currency a project's figures are stated in", () => {
   it("stores the currency named on creation", async () => {
     const created = await request(app).post("/api/projects").set(auth)
-      .send({ clientId, name: "Стоматология", monthlyBudget: 5000, budgetCurrency: "USD" });
+      .send({ clientId, name: "Стоматология", budgetCurrency: "USD" });
 
     expect(created.status).toBe(201);
-    expect(created.body).toMatchObject({ monthlyBudget: "5000", budgetCurrency: "USD" });
+    expect(created.body).toMatchObject({ budgetCurrency: "USD" });
   });
 
   it("defaults to the agency's own currency", async () => {
@@ -253,15 +246,15 @@ describe("the currency a budget is stated in", () => {
     expect(created.body.budgetCurrency).toBe("BYN");
   });
 
-  it("changes the currency without touching the amount", async () => {
+  it("changes the currency without touching the rest", async () => {
     const created = await request(app).post("/api/projects").set(auth)
-      .send({ clientId, name: "П", monthlyBudget: 300 });
+      .send({ clientId, name: "П" });
 
     const updated = await request(app).patch(`/api/projects/${created.body.id}`).set(auth)
       .send({ budgetCurrency: "EUR" });
 
     expect(updated.status).toBe(200);
-    expect(updated.body).toMatchObject({ monthlyBudget: "300", budgetCurrency: "EUR" });
+    expect(updated.body).toMatchObject({ name: "П", budgetCurrency: "EUR" });
   });
 
   it("400s a currency outside the four", async () => {
@@ -269,5 +262,75 @@ describe("the currency a budget is stated in", () => {
       .send({ clientId, name: "П", budgetCurrency: "GBP" });
 
     expect(created.status).toBe(400);
+  });
+});
+
+describe("assigning staff while creating a project", () => {
+  async function employee(name: string, role: "MANAGER" | "GUEST" | "ADMIN" | "CLIENT" = "MANAGER", status: "ACTIVE" | "SUSPENDED" = "ACTIVE") {
+    const signedIn = await signInAs(name, { role, status });
+    return { id: signedIn.membership!.id, auth: signedIn.auth };
+  }
+
+  async function nothingStored() {
+    expect(await prisma.project.count()).toBe(0);
+    expect(await prisma.clientAccess.count()).toBe(0);
+  }
+
+  it("lets each named employee reach the new project", async () => {
+    const first = await employee("First");
+    const second = await employee("Second", "GUEST");
+
+    const created = await project({ memberIds: [first.id, second.id] });
+
+    expect(created.status).toBe(201);
+    for (const one of [first, second]) {
+      const listed = await request(app).get("/api/projects").set(one.auth);
+      expect(listed.body.map((p: { id: string }) => p.id)).toEqual([created.body.id]);
+    }
+  });
+
+  it("grants that project alone, not the rest of its client", async () => {
+    const existing = await project({ name: "Старый" });
+    const staff = await employee("Staff");
+
+    const created = await project({ memberIds: [staff.id] });
+
+    const listed = await request(app).get(`/api/projects?clientId=${clientId}`).set(staff.auth);
+    expect(listed.body.map((p: { id: string }) => p.id)).toEqual([created.body.id]);
+    expect(listed.body.map((p: { id: string }) => p.id)).not.toContain(existing.body.id);
+  });
+
+  it("refuses a manager who names an employee, storing nothing", async () => {
+    const lead = await employee("Lead");
+    await grantAccess(lead.id, clientId);
+    const other = await employee("Other");
+
+    const res = await request(app).post("/api/projects").set(lead.auth)
+      .send({ clientId, name: "Чужой", memberIds: [other.id] });
+
+    expect(res.status).toBe(403);
+    expect(await prisma.project.count()).toBe(0);
+    expect(await prisma.clientAccess.count({ where: { membershipId: other.id } })).toBe(0);
+  });
+
+  it.each([
+    ["an admin", () => employee("Boss", "ADMIN")],
+    ["a client", () => employee("Customer", "CLIENT")],
+    ["a suspended manager", () => employee("Away", "MANAGER", "SUSPENDED")],
+    ["a member of another organization", async () => ({ id: (await signInAsOutsider()).membership.id })],
+  ])("refuses naming %s, storing nothing", async (_label, make) => {
+    const staff = await employee("Staff");
+    const ineligible = await make();
+
+    const res = await project({ memberIds: [staff.id, ineligible.id] });
+
+    expect(res.status).toBe(400);
+    await nothingStored();
+  });
+
+  it("refuses an id that is not a uuid", async () => {
+    const res = await project({ memberIds: ["nobody"] });
+    expect(res.status).toBe(400);
+    await nothingStored();
   });
 });

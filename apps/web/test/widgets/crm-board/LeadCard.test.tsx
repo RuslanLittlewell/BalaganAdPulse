@@ -3,9 +3,9 @@ import { LeadCard } from "@/widgets/crm-board/index.js";
 import type { Lead } from "@/entities/lead/index.js";
 
 const lead: Lead = {
-  id: "lead-1", orgId: "org-1", clientId: "client-1", name: "Анна",
+  id: "lead-1", orgId: "org-1", name: "Анна",
   company: "Скрытая компания", phone: "+375291112233", email: "anna@example.com",
-  website: null, source: "Рекомендация", notes: null,
+  website: null, source: "Рекомендация", notes: null, amount: null, service: null, telegram: null, messenger: null, tags: [],
   projectId: "project-1", project: { id: "project-1", clientId: "client-1", name: "Летний запуск" },
   campaignId: null, adId: null, origin: "MANUAL", ad: null, metaSource: null,
   assigneeId: "member-1", assignee: { id: "member-1", name: "Мария", image: null },
@@ -22,6 +22,20 @@ describe("LeadCard", () => {
     expect(screen.getByRole("link", { name: "anna@example.com" })).toBeInTheDocument();
     expect(screen.queryByText("Скрытая компания")).toBeNull();
     expect(screen.queryByText("+375291112233")).toBeNull();
+  });
+
+  it("shows its tags and not its source", () => {
+    render(<LeadCard lead={{ ...lead, tags: ["Срочно", "VIP"] }} />);
+
+    const tags = screen.getByTestId("lead-tags-lead-1");
+    expect(tags).toHaveTextContent("Срочно");
+    expect(tags).toHaveTextContent("VIP");
+    expect(screen.queryByText("Рекомендация")).toBeNull();
+  });
+
+  it("shows no tag row for a lead without tags", () => {
+    render(<LeadCard lead={lead} />);
+    expect(screen.queryByTestId("lead-tags-lead-1")).toBeNull();
   });
 
   it("uses a grab cursor while it can be dragged", () => {

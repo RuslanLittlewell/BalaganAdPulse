@@ -214,6 +214,30 @@ describe("typed invitation creation", () => {
     expect(invites.size).toBe(0);
   });
 
+  it("requires projects from a manager or guest invitation, however it names them", async () => {
+    const { useCases, invites } = fixture({ ownedProjectIds: ["project-1"] });
+    for (const role of ["MANAGER", "GUEST"]) {
+      await expect(useCases.create(admin, {
+        registrationType: "EMPLOYEE", role,
+      } as never)).rejects.toMatchObject({ category: "validation" });
+    }
+    expect(invites.size).toBe(0);
+  });
+
+  it("stores an admin invitation without projects", async () => {
+    const { useCases } = fixture({ ownedProjectIds: ["project-1"] });
+    const invite = await useCases.create(admin, { registrationType: "EMPLOYEE", role: "ADMIN" } as never);
+    expect(invite).toMatchObject({ role: "ADMIN", projectIds: [] });
+  });
+
+  it("refuses an admin invitation that names projects", async () => {
+    const { useCases, invites } = fixture({ ownedProjectIds: ["project-1"] });
+    await expect(useCases.create(admin, {
+      registrationType: "EMPLOYEE", role: "ADMIN", projectIds: ["project-1"],
+    } as never)).rejects.toMatchObject({ category: "validation" });
+    expect(invites.size).toBe(0);
+  });
+
   it("allows only an admin to grant ADMIN", async () => {
     const { useCases, invites } = fixture();
     await expect(useCases.create(manager, {
@@ -306,7 +330,7 @@ function clientInvite(overrides: Partial<Invite> = {}): Invite {
 
 const CLIENT_REGISTRATION = {
   client: { name: "Клиника", organization: "ООО Клиника", phone: "+375291112233" },
-  project: { name: "Стоматология", niche: "Медицина" },
+  project: { name: "Стоматология" },
 };
 
 describe("redeeming a client invitation", () => {

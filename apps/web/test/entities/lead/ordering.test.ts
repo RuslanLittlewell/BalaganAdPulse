@@ -1,9 +1,9 @@
 import { applyLeadMove, LEAD_STAGES, leadPlacementFor, leadPreviewFor, type Lead } from "@/entities/lead/index.js";
 
 const lead = (id: string, stage: Lead["stage"], position: number): Lead => ({
-  id, orgId: "org-1", clientId: null, name: id, company: null, phone: null, email: null,
-  website: null, source: null, notes: null, projectId: null, campaignId: null, adId: null,
-  assigneeId: null, project: null, assignee: null,
+  id, orgId: "org-1", name: id, company: null, phone: null, email: null,
+  website: null, source: null, notes: null, amount: null, service: null, telegram: null, messenger: null, tags: [], projectId: "project-1", campaignId: null, adId: null,
+  assigneeId: null, project: { id: "project-1", clientId: "client-1", name: "Летний запуск" }, assignee: null,
   origin: "MANUAL", ad: null, metaSource: null, stage, position,
   createdAt: "2026-09-05T00:00:00.000Z", updatedAt: "2026-09-05T00:00:00.000Z",
 });

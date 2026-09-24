@@ -32,10 +32,6 @@ export interface CampaignReference {
   readonly channel: Channel;
 }
 
-export interface ProjectCampaignReference extends CampaignReference {
-  readonly projectId: string;
-}
-
 export type CampaignView = Campaign & WithPerformance<Campaign>;
 export type AdSetView = AdSet & WithPerformance<AdSet>;
 export type AdView = Ad & WithPerformance<Ad>;
@@ -106,15 +102,6 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
       }
       const campaigns = await dependencies.campaigns.listReachableByProject(actor, projectId);
       return campaigns.map(({ id, name, channel }) => ({ id, name, channel }));
-    },
-
-    listOrganizationCampaignReferences: async (
-      actor: ActorContext,
-    ): Promise<ProjectCampaignReference[]> => {
-      assertCanRead(actor);
-      const campaigns = await dependencies.campaigns.listReachable(actor);
-      return campaigns.map(({ id, projectId, name, channel }) =>
-        ({ id, projectId, name, channel }));
     },
 
     listAdSets: async (

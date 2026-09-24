@@ -53,7 +53,7 @@ of their grants.
 
 A CLIENT member SHALL reach the client named by their grant and nothing else: its projects, campaigns, figures, client-visible tasks and its own CRM leads. Every other client, project, campaign, task or CRM lead and the agency CRM SHALL be answered as not found.
 
-A client SHALL be able to read the task module and raise a task on a project they reach. They SHALL NOT change or delete a task once raised or change its visibility. They SHALL be able to create, edit, move and delete leads on their own CRM board. They SHALL be able to create projects for their own client and edit the name, niche, monthly budget, currency and picture of their client's projects. They SHALL NOT delete a project, change its priority, manage its advertising connection or set its KPIs. Clients, campaigns and members SHALL remain read-only to them.
+A client SHALL be able to read the task module and raise a task on a project they reach. They SHALL NOT change or delete a task once raised or change its visibility. They SHALL be able to create, edit, move and delete leads on their own CRM board. They SHALL be able to create projects for their own client and edit the name, currency and picture of their client's projects. They SHALL NOT delete a project, change its priority, manage its advertising connection or set its KPIs. Clients, campaigns and members SHALL remain read-only to them.
 
 #### Scenario: A client's projects
 - **WHEN** a client opens the projects module
@@ -92,7 +92,7 @@ A client SHALL be able to read the task module and raise a task on a project the
 - **THEN** the answer is 404 and nothing is stored
 
 #### Scenario: A client edits a project
-- **WHEN** a client changes the name, niche, budget or currency of their client's project
+- **WHEN** a client changes the name or the currency of their client's project
 - **THEN** the change is stored and audited under their name
 
 #### Scenario: Agency-only project actions
@@ -158,29 +158,6 @@ authority is over its own client's people and nothing else.
 - **WHEN** a `CLIENT` or a `CLIENT_ADMIN` creates a project for their client or edits one
 - **THEN** it is allowed
 
-### Requirement: CRM board reach is enforced independently of task reach
-Every CRM request SHALL require an active membership. ADMIN SHALL reach every board in their organization. MANAGER and GUEST SHALL reach the agency board and client boards for which they hold a whole-client grant. A project-only grant SHALL NOT authorize a client-wide CRM board. CLIENT and CLIENT_ADMIN SHALL reach only the board of their own client. Board enumeration, lead queries, mutations, audit and realtime delivery SHALL enforce these same boundaries. Missing or unreachable board and lead identifiers SHALL return 404; missing authentication SHALL return 401. A customer with no valid client grant SHALL receive no board or leads.
-
-#### Scenario: Project-only employee access
-- **WHEN** a manager holds only a grant for a single project of client A
-- **THEN** client A's CRM is absent from their selector and a direct request for it returns 404
-
-#### Scenario: Customer attempts agency access
-- **WHEN** a customer supplies the agency board key or another client's lead id
-- **THEN** the API returns 404 and exposes no lead data
-
-#### Scenario: Staff share agency leads
-- **WHEN** two active managers open the agency CRM
-- **THEN** both see all agency leads regardless of who created them
-
-#### Scenario: Guest writes
-- **WHEN** a guest attempts a CRM mutation on a board they can read
-- **THEN** the API returns 403 and no change occurs
-
-#### Scenario: Organization boundary
-- **WHEN** an admin requests a lead or board in another organization
-- **THEN** the API returns 404
-
 ### Requirement: CRM write permissions are shared by API and UI
 The shared permission matrix SHALL permit ADMIN, MANAGER, CLIENT and CLIENT_ADMIN to create, read, edit, move and delete leads, and to create, rename, move and delete custom columns, on reachable boards. GUEST SHALL only read. Customers SHALL have no authority to create agency clients by winning leads. These lead permissions SHALL NOT widen permissions for tasks, clients, projects, campaigns or members.
 
@@ -195,3 +172,30 @@ The shared permission matrix SHALL permit ADMIN, MANAGER, CLIENT and CLIENT_ADMI
 #### Scenario: Guest columns
 - **WHEN** a guest tries to create or change a column on a board they can read
 - **THEN** the API responds 403 and nothing changes
+
+### Requirement: CRM board reach follows project reach
+Every CRM request SHALL require an active membership. A CRM board is a project's board, and a member SHALL reach it exactly when they reach the project: ADMIN SHALL reach every project board in their organization; MANAGER and GUEST SHALL reach the boards of projects they hold a grant for, either naming that project or covering its whole client; CLIENT and CLIENT_ADMIN SHALL reach only the boards of their own client's projects. Board enumeration, lead queries, mutations, audit and realtime delivery SHALL enforce these same boundaries. Missing or unreachable board and lead identifiers SHALL return 404; missing authentication SHALL return 401. A customer with no valid client grant SHALL receive no board or leads.
+
+#### Scenario: Project-only employee access
+- **WHEN** a manager holds only a grant for project A1 of client A, which also has project A2
+- **THEN** project A1's board is in their selector, project A2's is not, and a direct request for A2's board returns 404
+
+#### Scenario: Whole-client employee access
+- **WHEN** a manager holds a grant covering the whole of client A
+- **THEN** the boards of every project of client A are in their selector
+
+#### Scenario: Customer attempts another client's board
+- **WHEN** a customer supplies another client's project board or lead id
+- **THEN** the API returns 404 and exposes no lead data
+
+#### Scenario: Staff share a project's leads
+- **WHEN** two active managers who reach project A open its board
+- **THEN** both see all of project A's leads regardless of who created them
+
+#### Scenario: Guest writes
+- **WHEN** a guest attempts a CRM mutation on a board they can read
+- **THEN** the API returns 403 and no change occurs
+
+#### Scenario: Organization boundary
+- **WHEN** an admin requests a lead or board in another organization
+- **THEN** the API returns 404

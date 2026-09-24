@@ -10,7 +10,8 @@ cd "$app_dir"
 export APP_IMAGE
 
 docker compose --env-file .env -f "$compose_file" pull --policy missing app migrate
-docker compose --env-file .env -f "$compose_file" up -d db storage
+docker compose --env-file .env -f "$compose_file" up -d --wait db storage
+bash "$app_dir/backup.sh"
 docker compose --env-file .env -f "$compose_file" run --rm storage-init
 docker compose --env-file .env -f "$compose_file" run --rm migrate
 docker compose --env-file .env -f "$compose_file" up -d --remove-orphans app

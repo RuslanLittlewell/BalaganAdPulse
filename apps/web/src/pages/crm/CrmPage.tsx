@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { useCrmEvents, useLeadBoards, type Lead, type LeadAd } from "@/entities/lead/index.js";
-import { LeadFormDialog } from "@/features/lead-management/index.js";
+import { LeadCard } from "@/features/lead-management/index.js";
 import { useAuth } from "@/features/auth/index.js";
 import { t } from "@/shared/config/index.js";
 import { useModuleMemory } from "@/shared/lib/index.js";
@@ -16,8 +16,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Tabs,
 } from "@/shared/ui/index.js";
-import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/ui/tabs.js";
 import { CrmBoard } from "@/widgets/crm-board/index.js";
 import { CrmCalendar } from "@/widgets/crm-calendar/index.js";
 import { CreativePreviewDialog } from "@/widgets/creative-preview/index.js";
@@ -70,6 +70,7 @@ export function CrmPage() {
   }, [user, boards, chosen, board, restorable, remembered, rememberBoard, forgetBoard, setParams]);
 
   if (isError) return <EmptyState title={t("crm.loadFailed")} />;
+  if (boards && boards.length === 0) return <EmptyState title={t("crm.noBoards")} />;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
@@ -81,26 +82,31 @@ export function CrmPage() {
               <SelectTrigger id="crm-board" className="w-56"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {(boards ?? []).map((candidate) => (
-                  <SelectItem key={candidate.key} value={candidate.key}>{candidate.label}</SelectItem>
+                  <SelectItem key={candidate.key} value={candidate.key}>
+                    <span className="flex min-w-0 items-baseline gap-2">
+                      <span className="truncate">{candidate.label}</span>
+                      <span className="truncate text-xs text-muted-foreground">{candidate.clientName}</span>
+                    </span>
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-        ) : null}
+        ) : <div />}
 
         <Tabs
-          value={view}
-          onValueChange={(value) => {
-            if (!isView(value)) return;
-            setChosenView(value);
-            if (user) rememberCrmView(user.id, value);
+          items={[
+            { id: "board", label: t("crm.view.board") },
+            { id: "calendar", label: t("crm.view.calendar") },
+          ]}
+          activeId={view}
+          onSelect={(id) => {
+            if (!isView(id)) return;
+            setChosenView(id);
+            if (user) rememberCrmView(user.id, id);
           }}
-        >
-          <TabsList>
-            <TabsTrigger value="board">{t("crm.view.board")}</TabsTrigger>
-            <TabsTrigger value="calendar">{t("crm.view.calendar")}</TabsTrigger>
-          </TabsList>
-        </Tabs>
+          ariaLabel={t("crm.view.label")}
+        />
 
         {board?.capabilities.create ? (
           <Button type="button" onClick={() => setEditing({})}>
@@ -135,7 +141,7 @@ export function CrmPage() {
       </div>
 
       {board && editing ? (
-        <LeadFormDialog
+        <LeadCard
           boardKey={board.key}
           capabilities={board.capabilities}
           lead={editing.lead}

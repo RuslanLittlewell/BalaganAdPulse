@@ -54,10 +54,10 @@ export function PeriodControl() {
       {(["from", "to"] as const).map((side) => {
         const fieldError = error == null ? undefined : error;
         return (
-          <div key={side} className="flex w-36 flex-col gap-1">
+          <div key={side} className="flex w-37 flex-col gap-1">
             <Label
               htmlFor={`period-${side}`}
-              className="font-mono text-[11px] uppercase tracking-[.12em] text-muted-foreground"
+              className="font-mono text-[10px] uppercase tracking-[.12em] text-muted-foreground"
             >
               {t(side === "from" ? "period.from" : "period.to")}
             </Label>

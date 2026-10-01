@@ -29,6 +29,18 @@ describe("AppShell", () => {
     expect(screen.getByText("Header")).toBeInTheDocument();
     expect(screen.getByRole("main")).toHaveTextContent("Main");
   });
+
+  it("lays the animated backdrop behind the app, out of the accessibility tree", () => {
+    const { container } = render(
+      <NavCollapseProvider>
+        <AppShell sidebar={<nav>Nav</nav>} header={<header>Header</header>} moduleKey="dashboard">Main</AppShell>
+      </NavCollapseProvider>,
+    );
+
+    const backdrop = container.querySelector("[data-testid='app-backdrop']");
+    expect(backdrop).not.toBeNull();
+    expect(backdrop).toHaveAttribute("aria-hidden", "true");
+  });
 });
 
 describe("AppShell module transition", () => {

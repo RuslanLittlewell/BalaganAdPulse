@@ -138,7 +138,7 @@ export function MetaIntegration({ projectId }: { projectId: string }) {
   if (!allowed) return null;
   return (
     <section
-      className="flex flex-wrap w-min items-center justify-between gap-3 rounded-lg border border-border bg-card p-4"
+      className="flex flex-wrap w-min items-center justify-between gap-3 rounded-lg border border-border glass-card p-4"
       aria-label={t("meta.title")}
     >
       <div className="grid gap-1">

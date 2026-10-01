@@ -140,11 +140,7 @@ function Name({
   return (
     <TableHead
       scope="row"
-      className={cn(
-        "sticky left-0 z-10 overflow-hidden bg-background font-normal transition-colors",
-        "group-hover:bg-[color-mix(in_oklab,var(--muted)_50%,var(--background))]",
-        "group-has-[[aria-expanded=true]]:bg-[color-mix(in_oklab,var(--muted)_50%,var(--background))]",
-      )}
+      className="sticky left-0 z-10 overflow-hidden font-normal backdrop-blur-xl"
       style={{
         paddingLeft: depth === 0 ? undefined : `${depth * 1.5 + 0.75}rem`,
       }}
@@ -272,8 +268,8 @@ export function PerformanceTable({
           <col style={{ width: 40 }} />
         </colgroup>
         <TableHeader>
-          <TableRow className="bg-muted hover:bg-muted">
-            {showName && <TableHead scope="col" aria-label={heading} className="sticky left-0 z-10 bg-muted pr-3">
+          <TableRow className="bg-muted/50 hover:bg-muted/50">
+            {showName && <TableHead scope="col" aria-label={heading} className="sticky left-0 z-10 pr-3 backdrop-blur-xl">
               <span className="block truncate" title={heading}>{heading}</span>
               <span
                 role="separator"
@@ -317,7 +313,7 @@ export function PerformanceTable({
                 {column.label}
               </TableHead>
             ))}
-            <TableHead className="sticky right-0 z-20 bg-muted p-1">
+            <TableHead className="sticky right-0 z-20 p-1 backdrop-blur-xl">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon-sm" aria-label={t("table.columns")}>
@@ -346,10 +342,10 @@ export function PerformanceTable({
         <TableBody>{rows.map((row) => renderRow(row, 0))}</TableBody>
         {totals != null && (
           <TableFooter>
-            <TableRow aria-label={!showName ? t("metric.total") : undefined} className="bg-muted hover:bg-muted">
+            <TableRow aria-label={!showName ? t("metric.total") : undefined} className="bg-muted/50 hover:bg-muted/50">
               {showName && <TableHead
                 scope="row"
-                className="sticky left-0 z-10 truncate bg-muted font-medium"
+                className="sticky left-0 z-10 truncate font-medium backdrop-blur-xl"
               >
                 {t("metric.total")}
               </TableHead>}

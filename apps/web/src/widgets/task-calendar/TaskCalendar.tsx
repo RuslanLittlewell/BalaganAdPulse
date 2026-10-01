@@ -230,7 +230,7 @@ export function TaskCalendar({
           </p>
         ) : null}
 
-        <div ref={setScroller} className="min-h-0 flex-1 overflow-auto rounded-xl border border-border bg-card shadow-sm">
+        <div ref={setScroller} className="min-h-0 flex-1 overflow-auto rounded-xl border border-border glass-card shadow-sm">
           <div ref={setHeading} className="sticky top-0 z-20 grid min-w-[980px] grid-cols-[4rem_repeat(7,minmax(8.5rem,1fr))] border-b border-border bg-card/95 backdrop-blur">
             <div className="border-r border-border" />
             {days.map((day) => (
@@ -635,7 +635,7 @@ function CalendarTaskEvent({
         onOpen?.(task);
       }}
       className={cn(
-        "group rounded-lg border border-border bg-card text-left shadow-sm",
+        "group rounded-lg border border-border glass-card text-left shadow-sm",
         "transition-all hover:border-border hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
         floating ? "absolute left-1.5 right-1.5 z-10" : "relative",

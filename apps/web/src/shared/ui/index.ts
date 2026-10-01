@@ -38,3 +38,5 @@ export type { MetricCardProps } from "./MetricCard/MetricCard.js";
 export { Stepper, Step } from "./Stepper/index.js";
 export { LightRays } from "./LightRays/index.js";
 export type { RaysOrigin } from "./LightRays/index.js";
+export { GradientWaves } from "./GradientWaves/index.js";
+export type { GradientWavesProps } from "./GradientWaves/index.js";

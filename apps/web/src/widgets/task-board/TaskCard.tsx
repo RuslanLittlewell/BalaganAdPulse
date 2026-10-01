@@ -59,7 +59,7 @@ export function TaskCard({
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn(
-        "group relative shrink-0 overflow-hidden rounded-xl border border-border bg-card",
+        "group relative shrink-0 overflow-hidden rounded-xl border border-border glass-card",
         "py-3 pl-6 pr-3 text-left",
         "shadow-sm transition-all hover:border-border hover:shadow-md",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",

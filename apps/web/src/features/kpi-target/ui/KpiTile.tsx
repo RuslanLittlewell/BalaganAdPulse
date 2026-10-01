@@ -34,7 +34,7 @@ export function KpiTile({ scope, canEdit, figures, range, currency, preview = fa
     <div
       data-testid="kpi-tile"
       data-state={progress?.state}
-      className="flex h-full flex-col rounded-lg border border-border bg-card p-4"
+      className="flex h-full flex-col rounded-lg border border-border glass-card p-4"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

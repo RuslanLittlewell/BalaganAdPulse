@@ -2,6 +2,9 @@ import type { ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useNavCollapse } from "@/features/nav-collapse/index.js";
 import { GradientWaves } from "@/shared/ui/index.js";
+import { useTheme } from "@/shared/lib/index.js";
+
+const WAVE_COLOR = { light: "#0F766E", dark: "#c4a074" } as const;
 
 const GLASS =
   "overflow-hidden rounded-3xl border border-border/60 shadow-2xl backdrop-blur-3xl backdrop-saturate-150 dark:border-white/10";
@@ -21,6 +24,7 @@ export function AppShell({
 }: AppShellProps) {
   const { collapsed } = useNavCollapse();
   const reduce = useReducedMotion();
+  const waveColor = WAVE_COLOR[useTheme()];
   return (
     <div className="relative flex h-screen gap-6 overflow-hidden bg-background p-8 text-foreground">
       <div
@@ -30,9 +34,9 @@ export function AppShell({
       >
         <GradientWaves
           mouseInteraction={false}
-          horizonColor="#c4a074"
-          waveColor="#c4a074"
-          crestColor="#c4a074"
+          horizonColor={waveColor}
+          waveColor={waveColor}
+          crestColor={waveColor}
           turbulence={17}
           waveScale={0.65}
           parallaxStrength={0}

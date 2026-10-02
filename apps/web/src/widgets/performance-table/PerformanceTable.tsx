@@ -251,7 +251,7 @@ function Name({
   return (
     <TableHead
       scope="row"
-      className="sticky left-0 z-10 overflow-hidden bg-muted/50 font-normal"
+      className="sticky left-0 z-10 overflow-hidden bg-muted/50 font-normal shadow-[inset_0_1px_0_var(--border)] backdrop-blur-xl"
       style={{
         paddingLeft: depth === 0 ? undefined : `${depth * 1.5 + 0.75}rem`,
       }}
@@ -410,7 +410,7 @@ export function PerformanceTable({
             <TableHead
               scope="col"
               aria-label={heading}
-              className="sticky left-0 z-10 pr-3"
+              className="sticky left-0 z-10 pr-3 backdrop-blur-xl"
             >
               <span className="block truncate" title={heading}>
                 {heading}
@@ -502,7 +502,7 @@ export function PerformanceTable({
             <TableRow className="bg-muted/50 hover:bg-muted/50">
               <TableHead
                 scope="row"
-                className="sticky left-0 z-10 truncate font-medium"
+                className="sticky left-0 z-10 truncate font-medium shadow-[inset_0_1px_0_var(--border)] backdrop-blur-xl"
               >
                 {t("metric.total")}
               </TableHead>

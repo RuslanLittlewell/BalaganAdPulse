@@ -98,19 +98,7 @@ describe("Prisma project repository", () => {
 });
 
 describe("the currency a project's figures are stated in", () => {
-  it("stores the currency it was given", async () => {
-    const { unitOfWork, projects } = repository();
-    const { clientId } = await seedProject((await signInAs("Admin")).user.id, "Acme");
-
-    const created = await unitOfWork.run((context) => projects.create(context, {
-      id: "44444444-4444-4444-8444-444444444444", clientId, name: "Стоматология",
-      budgetCurrency: "USD", position: 1,
-    }));
-
-    expect(created.budgetCurrency).toBe("USD");
-  });
-
-  it("defaults to the agency's own currency when none is named", async () => {
+  it("stores a new project without a currency", async () => {
     const { unitOfWork, projects } = repository();
     const { clientId } = await seedProject((await signInAs("Admin")).user.id, "Acme");
 
@@ -118,19 +106,6 @@ describe("the currency a project's figures are stated in", () => {
       id: "55555555-5555-4555-8555-555555555555", clientId, name: "Без валюты", position: 1,
     }));
 
-    expect(created.budgetCurrency).toBe("BYN");
-  });
-
-  it("changes the currency without touching the rest", async () => {
-    const { unitOfWork, projects } = repository();
-    const { clientId } = await seedProject((await signInAs("Admin")).user.id, "Acme");
-    const created = await unitOfWork.run((context) => projects.create(context, {
-      id: "66666666-6666-4666-8666-666666666666", clientId, name: "П", position: 1,
-    }));
-
-    const updated = await unitOfWork.run((context) =>
-      projects.update(context, created.id, { budgetCurrency: "EUR" }));
-
-    expect(updated).toMatchObject({ name: "П", budgetCurrency: "EUR" });
+    expect(created.budgetCurrency).toBeNull();
   });
 });

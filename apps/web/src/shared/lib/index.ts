@@ -16,3 +16,4 @@ export * from "./navCollapse.js";
 export * from "./realtime.js";
 export * from "./moduleMemory.js";
 export * from "./drag-preview.js";
+export * from "./debounce.js";

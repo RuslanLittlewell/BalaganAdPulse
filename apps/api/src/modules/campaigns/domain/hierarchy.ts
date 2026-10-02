@@ -15,6 +15,7 @@ export function isDeliveryStatus(value: string): value is DeliveryStatus {
 }
 
 export interface Campaign {
+  readonly currency?: string | null;
   readonly id: string;
   readonly projectId: string;
   readonly name: string;

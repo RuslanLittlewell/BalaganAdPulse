@@ -9,14 +9,29 @@ const grouped = (value: number, digits: number) =>
 const present = (value: number | null): value is number =>
   value !== null && Number.isFinite(value);
 
-export const CURRENCY_SIGNS = { BYN: "Br", RUB: "₽", USD: "$", EUR: "€" } as const;
+const KNOWN_SIGNS: Readonly<Record<string, string>> = { BYN: "Br", RUB: "₽", USD: "$", EUR: "€" };
 
-export type Currency = keyof typeof CURRENCY_SIGNS;
+export type Currency = string | null;
+
+export function currencySign(currency: Currency): string | null {
+  if (currency == null) return null;
+  if (KNOWN_SIGNS[currency] != null) return KNOWN_SIGNS[currency];
+  try {
+    return new Intl.NumberFormat("ru-RU", { style: "currency", currency, currencyDisplay: "narrowSymbol" })
+      .formatToParts(0)
+      .find((part) => part.type === "currency")?.value ?? currency;
+  } catch {
+    return currency;
+  }
+}
+
+const withSign = (amount: string, currency: Currency) => {
+  const sign = currencySign(currency);
+  return sign == null ? amount : `${amount}${NBSP}${sign}`;
+};
 
 export function formatCurrency(value: number | null, currency: Currency = "RUB"): string {
-  return present(value)
-    ? `${grouped(Math.round(value), 0)}${NBSP}${CURRENCY_SIGNS[currency]}`
-    : MISSING;
+  return present(value) ? withSign(grouped(Math.round(value), 0), currency) : MISSING;
 }
 
 export function formatCount(value: number | null): string {
@@ -36,7 +51,7 @@ export function formatPercent(value: number | null): string {
 }
 
 export function formatRatio(value: number | null, currency: Currency = "RUB"): string {
-  return present(value) ? `${grouped(value, 2)}${NBSP}${CURRENCY_SIGNS[currency]}` : MISSING;
+  return present(value) ? withSign(grouped(value, 2), currency) : MISSING;
 }
 
 export function formatMultiple(value: number | null): string {

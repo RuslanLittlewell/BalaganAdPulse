@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { PlusIcon } from "lucide-react";
-import {
-  ApiError, CURRENCY_SIGNS, toSquarePng, type Currency,
-} from "@/shared/lib/index.js";
+import { ImageIcon, PlusIcon } from "lucide-react";
+import { ApiError, toSquarePng } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import {
   Button,
@@ -23,7 +21,6 @@ import {
   TextField,
 } from "@/shared/ui/index.js";
 import { useClients } from "@/entities/client/index.js";
-import { CURRENCIES, DEFAULT_CURRENCY } from "@/entities/project/index.js";
 import {
   ProjectAvatar,
   useCreateProject,
@@ -52,7 +49,6 @@ export interface ProjectFormDialogProps {
 interface Fields {
   clientId: string;
   name: string;
-  budgetCurrency: Currency;
 }
 
 const ASSIGNABLE_ROLES = ["MANAGER", "GUEST"];
@@ -86,7 +82,6 @@ function toInput(fields: Fields): ProjectInput {
   return {
     clientId: fields.clientId,
     name: fields.name.trim(),
-    budgetCurrency: fields.budgetCurrency,
   };
 }
 
@@ -108,6 +103,17 @@ export function ProjectFormDialog({
   const [confirming, setConfirming] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [logo, setLogo] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (logo == null) return;
+    const url = URL.createObjectURL(logo);
+    setLogoPreview(url);
+    return () => {
+      URL.revokeObjectURL(url);
+      setLogoPreview(null);
+    };
+  }, [logo]);
   const [failure, setFailure] = useState<string | null>(null);
   const [creatingClient, setCreatingClient] = useState(false);
   const [createdClientId, setCreatedClientId] = useState<string | null>(null);
@@ -125,7 +131,6 @@ export function ProjectFormDialog({
     defaultValues: {
       clientId: project?.clientId ?? clientId ?? ownClientId ?? "",
       name: project?.name ?? "",
-      budgetCurrency: project?.budgetCurrency ?? DEFAULT_CURRENCY,
     },
   });
 
@@ -183,9 +188,25 @@ export function ProjectFormDialog({
         </DialogHeader>
 
         <form noValidate className="grid gap-3" onSubmit={(event) => void submit(event)}>
-          <div className="grid gap-6 sm:grid-cols-[1fr_4fr]">
-          <div className="flex flex-col items-center gap-3 sm:border-r sm:border-border sm:pr-6">
-            {project != null && <ProjectAvatar project={project} size="xl" />}
+          <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_minmax(0,4fr)]">
+          <div className="flex min-w-0 flex-col items-center gap-3 sm:border-r sm:border-border sm:pr-6">
+            {logoPreview != null ? (
+              <img
+                src={logoPreview}
+                alt={t("project.logo.preview")}
+                className="size-[110px] shrink-0 rounded-md object-contain"
+              />
+            ) : project != null ? (
+              <ProjectAvatar project={project} size="xl" />
+            ) : (
+              <div
+                role="img"
+                aria-label={t("project.logo.empty")}
+                className="grid size-[110px] shrink-0 place-items-center rounded-md border-2 border-dashed border-border text-muted-foreground"
+              >
+                <ImageIcon aria-hidden className="size-8" />
+              </div>
+            )}
             <Button
               type="button"
               variant="outline"
@@ -195,9 +216,12 @@ export function ProjectFormDialog({
             >
               {t("project.logo.pick")}
             </Button>
-            {logo != null && (
-              <span className="min-w-0 max-w-full truncate text-xs text-muted-foreground">{logo.name}</span>
-            )}
+            <span
+              title={logo?.name}
+              className="block h-4 w-full truncate text-center text-xs text-muted-foreground"
+            >
+              {logo?.name}
+            </span>
             <input
               ref={fileRef}
               type="file"
@@ -267,25 +291,6 @@ export function ProjectFormDialog({
               )}
             </div>
             {mayAssignStaff && <StaffPicker chosen={memberIds} onChange={setMemberIds} />}
-            <div className="grid gap-1">
-              <Label htmlFor="project-currency">{t("project.currency.label")}</Label>
-              <Controller
-                control={control}
-                name="budgetCurrency"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="project-currency"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {CURRENCIES.map((currency) => (
-                        <SelectItem key={currency} value={currency}>
-                          {currency} {CURRENCY_SIGNS[currency]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
             </div>
           </div>
 

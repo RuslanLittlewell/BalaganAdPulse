@@ -74,7 +74,6 @@ export interface ClientRegistrationDetails {
   };
   readonly project: {
     readonly name: string;
-    readonly budgetCurrency?: string;
   };
 }
 

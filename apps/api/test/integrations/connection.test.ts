@@ -81,3 +81,35 @@ it("coalesces manual requests and allows an explicit retry after token failure",
   await grantAccess(guest.membership!.id, clientId);
   expect((await request(app).post(`${path()}/sync`).set(guest.auth)).status).toBe(403);
 });
+const billedIn = (currency: string) =>
+  fetcher.mockResolvedValue(new Response(JSON.stringify({ account_id: "123", currency, timezone_name: "Europe/Warsaw" })));
+const withFiguresIn = async (currency: string) => {
+  await prisma.project.update({ where: { id: projectId }, data: { budgetCurrency: currency } });
+  const campaign = await seedCampaign(projectId);
+  await prisma.campaignDailyMetric.create({ data: { campaignId: campaign.id, date: new Date("2026-09-01"), spend: "10" } });
+};
+it("gives a project with no currency the account's currency", async () => {
+  billedIn("USD");
+  expect((await request(app).put(path()).set(auth).send({ accountId: "123", token })).status).toBe(200);
+  expect((await prisma.project.findUniqueOrThrow({ where: { id: projectId } })).budgetCurrency).toBe("USD");
+});
+it("replaces the currency of a project that holds no figures yet", async () => {
+  await prisma.project.update({ where: { id: projectId }, data: { budgetCurrency: "EUR" } });
+  billedIn("PLN");
+  expect((await request(app).put(path()).set(auth).send({ accountId: "123", token })).status).toBe(200);
+  expect((await prisma.project.findUniqueOrThrow({ where: { id: projectId } })).budgetCurrency).toBe("PLN");
+});
+it("refuses an account billed in another currency than the figures the project holds", async () => {
+  await withFiguresIn("EUR");
+  billedIn("USD");
+  const response = await request(app).put(path()).set(auth).send({ accountId: "123", token });
+  expect(response.status).toBe(400);
+  expect(response.body.error.details).toEqual([{ code: "CURRENCY" }]);
+  expect((await prisma.project.findUniqueOrThrow({ where: { id: projectId } })).budgetCurrency).toBe("EUR");
+  expect(await prisma.projectIntegration.findUnique({ where: { projectId } })).toBeNull();
+});
+it("connects an account billed in the currency of the figures already held", async () => {
+  await withFiguresIn("USD");
+  billedIn("USD");
+  expect((await request(app).put(path()).set(auth).send({ accountId: "123", token })).status).toBe(200);
+});

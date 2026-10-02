@@ -139,3 +139,18 @@ describe("the period summary", () => {
     expect(within(dialog).getByRole("button", { name: "KPI" })).toHaveAttribute("aria-pressed", "false");
   });
 });
+
+it("keeps currency amounts in one card and aggregates only nonmonetary figures", async () => {
+  setup({ currency: null, currencyPerformances: [
+    { currency: "USD", performance },
+    { currency: "EUR", performance: { ...performance, spend: 40, cpc: 0.02, cpm: 0.4, cpa: 0.8 } },
+  ] });
+  expect(within(summary()).getByText("100")).toBeInTheDocument();
+  const dialog = await openDialog();
+  const spend = within(dialog).getByRole("button", { name: "Расход" });
+  expect(within(spend).getByText("1 500 $")).toBeInTheDocument();
+  expect(within(spend).getByText("40 €")).toBeInTheDocument();
+  const cpc = within(dialog).getByRole("button", { name: "CPC" });
+  expect(within(cpc).getByText("0,75 $")).toBeInTheDocument();
+  expect(within(cpc).getByText("0,02 €")).toBeInTheDocument();
+});

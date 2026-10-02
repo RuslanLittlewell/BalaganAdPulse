@@ -27,6 +27,7 @@ beforeEach(async () => {
       nextLeadsAt: now,
     },
   });
+  await prisma.project.update({ where: { id: projectId }, data: { budgetCurrency: "BYN" } });
 });
 
 afterAll(() => prisma.$disconnect());

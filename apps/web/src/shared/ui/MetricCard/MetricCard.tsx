@@ -3,8 +3,8 @@ import { cn } from "@/shared/lib/utils.js";
 
 export interface MetricCardProps {
   label: string;
-  value: string;
-  hint?: string;
+  value: ReactNode;
+  hint?: ReactNode;
   chart?: ReactNode;
   className?: string;
 }

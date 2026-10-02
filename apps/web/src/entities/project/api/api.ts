@@ -1,9 +1,5 @@
 import { http } from "@/shared/lib/index.js";
-import { CURRENCY_SIGNS, type Currency } from "@/shared/lib/index.js";
-
-export const CURRENCIES = Object.keys(CURRENCY_SIGNS) as Currency[];
-
-export const DEFAULT_CURRENCY: Currency = "BYN";
+import type { Currency } from "@/shared/lib/index.js";
 import type { ProjectPriority } from "../model/priority.js";
 
 export interface Project {
@@ -22,7 +18,6 @@ export interface Project {
 export interface ProjectInput {
   clientId?: string;
   name?: string;
-  budgetCurrency?: Currency;
   priority?: ProjectPriority;
   memberIds?: string[];
 }

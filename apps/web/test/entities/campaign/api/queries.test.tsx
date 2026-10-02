@@ -193,12 +193,12 @@ describe("useProjectDaily", () => {
 
 describe("summaries", () => {
   it("loads the agency total", async () => {
-    const seen = capturing("/api/summary", performance);
+    const seen = capturing("/api/summary", [{ currency: "BYN", performance }]);
 
     const { result } = renderHook(() => useAgencySummary(RANGE), { wrapper: hookWrapper() });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data?.spend).toBe(1000);
+    expect(result.current.data?.[0].performance.spend).toBe(1000);
     expect(seen[0].searchParams.get("from")).toBe("2026-08-01");
   });
 

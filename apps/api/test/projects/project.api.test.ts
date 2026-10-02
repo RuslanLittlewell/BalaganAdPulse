@@ -27,10 +27,10 @@ afterAll(async () => { await prisma.$disconnect(); });
 
 describe("Projects API", () => {
   it("creates a project bound to a client (201)", async () => {
-    const res = await project({ budgetCurrency: "USD" });
+    const res = await project();
 
     expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({ clientId, name: "Летний запуск", budgetCurrency: "USD" });
+    expect(res.body).toMatchObject({ clientId, name: "Летний запуск", budgetCurrency: null });
     await expectAudit({ action: "CREATE", entityType: "project", entityId: res.body.id, clientId, projectId: res.body.id });
   });
 
@@ -85,10 +85,10 @@ describe("Projects API", () => {
   it("updates a project", async () => {
     const created = await project();
     const res = await request(app).patch(`/api/projects/${created.body.id}`).set(auth)
-      .send({ name: "Осенний запуск", budgetCurrency: "EUR" });
+      .send({ name: "Осенний запуск" });
 
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ name: "Осенний запуск", budgetCurrency: "EUR" });
+    expect(res.body).toMatchObject({ name: "Осенний запуск" });
     await expectAudit({ action: "UPDATE", entityType: "project", entityId: created.body.id, clientId, projectId: created.body.id });
   });
 
@@ -155,7 +155,8 @@ describe("Projects API", () => {
   });
 
   it("changes the priority on its own, without touching the rest", async () => {
-    const created = await project({ budgetCurrency: "USD" });
+    const created = await project();
+    await prisma.project.update({ where: { id: created.body.id }, data: { budgetCurrency: "USD" } });
     const res = await request(app).patch(`/api/projects/${created.body.id}`).set(auth)
       .send({ priority: "URGENT" });
 
@@ -234,37 +235,34 @@ describe("Projects API", () => {
 });
 
 describe("the currency a project's figures are stated in", () => {
-  it("stores the currency named on creation", async () => {
+  it("creates a project without a currency, ignoring one that is named", async () => {
     const created = await request(app).post("/api/projects").set(auth)
       .send({ clientId, name: "Стоматология", budgetCurrency: "USD" });
 
     expect(created.status).toBe(201);
-    expect(created.body).toMatchObject({ budgetCurrency: "USD" });
+    expect(created.body.budgetCurrency).toBeNull();
   });
 
-  it("defaults to the agency's own currency", async () => {
-    const created = await request(app).post("/api/projects").set(auth)
-      .send({ clientId, name: "Без валюты" });
-
-    expect(created.body.budgetCurrency).toBe("BYN");
-  });
-
-  it("changes the currency without touching the rest", async () => {
+  it("ignores a currency sent while editing and keeps the one the integration gave", async () => {
     const created = await request(app).post("/api/projects").set(auth)
       .send({ clientId, name: "П" });
+    await prisma.project.update({ where: { id: created.body.id }, data: { budgetCurrency: "USD" } });
 
     const updated = await request(app).patch(`/api/projects/${created.body.id}`).set(auth)
-      .send({ budgetCurrency: "EUR" });
+      .send({ name: "П2", budgetCurrency: "EUR" });
 
     expect(updated.status).toBe(200);
-    expect(updated.body).toMatchObject({ name: "П", budgetCurrency: "EUR" });
+    expect(updated.body).toMatchObject({ name: "П2", budgetCurrency: "USD" });
   });
 
-  it("400s a currency outside the four", async () => {
+  it("reads back any currency an integration reported", async () => {
     const created = await request(app).post("/api/projects").set(auth)
-      .send({ clientId, name: "П", budgetCurrency: "GBP" });
+      .send({ clientId, name: "П" });
+    await prisma.project.update({ where: { id: created.body.id }, data: { budgetCurrency: "PLN" } });
 
-    expect(created.status).toBe(400);
+    const read = await request(app).get(`/api/projects/${created.body.id}`).set(auth);
+
+    expect(read.body.budgetCurrency).toBe("PLN");
   });
 });
 

@@ -359,21 +359,12 @@ enum ProjectPriority {
   @@map("project_priority")
 }
 
-enum Currency {
-  BYN
-  RUB
-  USD
-  EUR
-
-  @@map("currency")
-}
-
 model Project {
   id             String          @id @default(uuid())
   clientId       String          @map("client_id")
   client         Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
   name           String
-  budgetCurrency Currency        @default(BYN) @map("budget_currency")
+  budgetCurrency String?         @map("budget_currency") @db.VarChar(3)
   priority       ProjectPriority @default(NEW)
   image          String?
   avatarPath     String?         @map("avatar_path")

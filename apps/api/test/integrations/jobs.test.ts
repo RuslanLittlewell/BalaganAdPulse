@@ -22,6 +22,7 @@ beforeEach(async () => {
   const user = await signInAs();
   ({ projectId } = await seedProject(user.user.id));
   await prisma.projectIntegration.create({ data: { projectId, accountId: "123", currency: "BYN", timezone: "UTC", encryptedToken: "encrypted", revision: "v1", nextDailyAt: now, queuedAt: now } });
+  await prisma.project.update({ where: { id: projectId }, data: { budgetCurrency: "BYN" } });
 });
 it("claims once across workers and recovers an expired lease with fencing", async () => {
   const claims = await Promise.all([jobs.claim(now), jobs.claim(now)]);

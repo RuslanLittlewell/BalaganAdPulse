@@ -20,7 +20,9 @@ function reachableProjects(actor: ActorContext): Prisma.ProjectWhereInput {
 const toCampaign = (row: {
   id: string; projectId: string; name: string; channel: string; status: string;
   objective: string | null; externalId: string | null; position: number;
+  project?: { budgetCurrency: string | null };
 }): Campaign => ({
+  currency: row.project?.budgetCurrency ?? null,
   id: row.id,
   projectId: row.projectId,
   name: row.name,
@@ -52,6 +54,7 @@ export class PrismaCampaignRepository implements CampaignRepository {
   async listReachable(actor: ActorContext): Promise<Campaign[]> {
     const rows = await this.prisma.campaign.findMany({
       where: { project: reachableProjects(actor) },
+      include: { project: { select: { budgetCurrency: true } } },
       orderBy: [{ projectId: "asc" }, { position: "asc" }],
     });
     return rows.map(toCampaign);

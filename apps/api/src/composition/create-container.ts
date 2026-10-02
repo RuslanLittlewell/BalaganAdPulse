@@ -54,8 +54,7 @@ import {
   PrismaAuditRepository,
 } from "../modules/audit/infrastructure/prisma-audit-repository.js";
 import { AmbientRequestMetadata } from "../modules/audit/infrastructure/request-metadata.js";
-import { CURRENCIES, createProjectRouter, createProjectUseCases } from "../modules/projects/index.js";
-import type { Currency } from "../modules/projects/index.js";
+import { createProjectRouter, createProjectUseCases } from "../modules/projects/index.js";
 import { PrismaProjectRepository } from "../modules/projects/infrastructure/prisma-project-repository.js";
 import {
   createProjectGroupRouter,
@@ -158,9 +157,6 @@ export interface ApiContainer {
   readonly authenticate: (accessToken: string) => Promise<SessionPrincipal>;
 }
 
-const isCurrency = (value: string | undefined): value is Currency =>
-  value !== undefined && (CURRENCIES as readonly string[]).includes(value);
-
 export function createContainer(): ApiContainer {
   const unitOfWork = new PrismaUnitOfWork<Prisma.TransactionClient>(prisma);
   const clock = new SystemClock();
@@ -208,10 +204,9 @@ export function createContainer(): ApiContainer {
     },
     projectDirectory: {
       create: async (context, input) => {
-        const { clientId, budgetCurrency, ...details } = input;
+        const { clientId, ...details } = input;
         const created = await projectRepository.create(context, {
           ...details,
-          ...(isCurrency(budgetCurrency) ? { budgetCurrency } : {}),
           clientId,
           id: ids.generate(),
           position: await projectRepository.countForClient(clientId),

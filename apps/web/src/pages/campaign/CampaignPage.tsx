@@ -16,7 +16,6 @@ import {
   type DateRange,
 } from "@/entities/campaign/index.js";
 import {
-  DEFAULT_CURRENCY,
   useActiveCampaignId,
   useActiveProjectId,
   useProjects,
@@ -65,7 +64,7 @@ export function CampaignPage() {
 
   const currency =
     projects.data?.find((candidate) => candidate.id === projectId)
-      ?.budgetCurrency ?? DEFAULT_CURRENCY;
+      ?.budgetCurrency ?? null;
 
   const rows: PerformanceRow[] = (adSets.data ?? []).map((adSet) => ({
     id: adSet.id,

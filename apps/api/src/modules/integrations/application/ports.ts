@@ -48,12 +48,14 @@ export interface IntegrationRepository {
   save(context: TransactionContext, data: Account & { projectId: string; encryptedToken: string; nextDailyAt: Date; queuedAt: Date }, now: Date): Promise<Integration>;
   remove(context: TransactionContext, projectId: string): Promise<void>;
   queue(projectId: string, now: Date): Promise<void>;
+  holdsFigures(projectId: string): Promise<boolean>;
+  adoptCurrency(context: TransactionContext, projectId: string, currency: string): Promise<void>;
 }
 export interface IntegrationDependencies {
   repository: IntegrationRepository;
   provider: AccountProvider;
   cipher: CredentialCipher;
-  projects: { findReachable(actor: ActorContext, id: string): Promise<{ id: string; clientId: string; budgetCurrency: string } | null> };
+  projects: { findReachable(actor: ActorContext, id: string): Promise<{ id: string; clientId: string; budgetCurrency: string | null } | null> };
   ads: AdLocator;
   creatives: CreativeStore;
   files: CreativeFiles;

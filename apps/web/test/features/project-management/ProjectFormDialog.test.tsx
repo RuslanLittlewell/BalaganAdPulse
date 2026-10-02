@@ -19,7 +19,7 @@ describe("ProjectFormDialog", () => {
     setup();
     expect(screen.getByLabelText("Название проекта")).toBeInTheDocument();
     expect(await screen.findByLabelText("Клиент")).toBeInTheDocument();
-    expect(screen.getByLabelText("Валюта")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Валюта")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Логотип или картинка")).toHaveAttribute("accept", "image/*");
     expect(screen.queryByLabelText("Ниша")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Бюджет / мес.")).not.toBeInTheDocument();
@@ -107,25 +107,48 @@ describe("ProjectFormDialog", () => {
   });
 });
 
-describe("the currency a budget is stated in", () => {
-  it("offers the four currencies", async () => {
+describe("the logo preview", () => {
+  const logo = () => new File(["png"], "logo.png", { type: "image/png" });
+
+  it("holds the logo's place with a placeholder before anything is chosen", async () => {
+    setup();
+
+    expect(await screen.findByRole("img", { name: "Логотип не выбран" })).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "Превью логотипа" })).toBeNull();
+  });
+
+  it("shows the chosen picture in place of the placeholder", async () => {
     const user = userEvent.setup();
     setup();
 
-    await user.click(await screen.findByLabelText("Валюта"));
+    await user.upload(screen.getByLabelText("Логотип или картинка"), logo());
 
-    for (const sign of ["BYN", "RUB", "USD", "EUR"]) {
-      expect(await screen.findByRole("option", { name: new RegExp(sign) })).toBeInTheDocument();
-    }
+    const preview = await screen.findByRole("img", { name: "Превью логотипа" });
+    expect(preview.getAttribute("src")).toMatch(/^blob:/);
+    expect(screen.queryByRole("img", { name: "Логотип не выбран" })).toBeNull();
+    expect(screen.getByText("logo.png")).toBeInTheDocument();
   });
 
-  it("starts on the agency's own currency", async () => {
-    setup();
+  it("shows a newly chosen picture instead of the project's current one", async () => {
+    const user = userEvent.setup();
+    setup(
+      <ProjectFormDialog
+        project={aProject({ id: "p1", name: "Стоматология", image: "data:image/png;base64,AAA" })}
+        onClose={() => {}}
+      />,
+    );
+    expect(await screen.findByRole("img", { name: "Стоматология" })).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "Логотип не выбран" })).toBeNull();
 
-    expect(await screen.findByLabelText("Валюта")).toHaveTextContent("BYN");
+    await user.upload(screen.getByLabelText("Логотип или картинка"), logo());
+
+    expect(await screen.findByRole("img", { name: "Превью логотипа" })).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "Стоматология" })).toBeNull();
   });
+});
 
-  it("sends the currency chosen", async () => {
+describe("the currency a project's figures are stated in", () => {
+  it("is never asked for, and none is sent, because it comes from the integration", async () => {
     const user = userEvent.setup();
     let body: Record<string, unknown> | null = null;
     server.use(http.post("/api/projects", async ({ request }) => {
@@ -135,15 +158,15 @@ describe("the currency a budget is stated in", () => {
     setup(<ProjectFormDialog clientId="1" onClose={() => {}} />);
 
     await user.type(await screen.findByLabelText("Название проекта"), "Стоматология");
-    await user.click(screen.getByLabelText("Валюта"));
-    await user.click(await screen.findByRole("option", { name: /USD/ }));
+    expect(screen.queryByLabelText("Валюта")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Создать" }));
 
     await waitFor(() => expect(body).not.toBeNull());
-    expect(body).toMatchObject({ name: "Стоматология", budgetCurrency: "USD" });
+    expect(body).toMatchObject({ name: "Стоматология" });
+    expect(body).not.toHaveProperty("budgetCurrency");
   });
 
-  it("opens an existing project on the currency it was stated in", async () => {
+  it("offers no currency when editing a project that has one", async () => {
     setup(
       <ProjectFormDialog
         project={aProject({ id: "p1", budgetCurrency: "EUR" })}
@@ -151,7 +174,8 @@ describe("the currency a budget is stated in", () => {
       />,
     );
 
-    expect(await screen.findByLabelText("Валюта")).toHaveTextContent("EUR");
+    expect(await screen.findByLabelText("Название проекта")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Валюта")).toBeNull();
   });
 });
 

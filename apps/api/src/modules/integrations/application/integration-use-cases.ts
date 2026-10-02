@@ -25,8 +25,11 @@ export function createIntegrationUseCases(d: IntegrationDependencies) {
       try {
         const encryptedToken = d.cipher.encrypt(input.token, id);
         const account = await d.provider.account(input.accountId, input.token);
-        if (account.currency !== project.budgetCurrency) throw new MetaError("CURRENCY");
+        if (account.currency !== project.budgetCurrency && await d.repository.holdsFigures(id)) {
+          throw new MetaError("CURRENCY");
+        }
         return await d.unitOfWork.run(async (context) => {
+          await d.repository.adoptCurrency(context, id, account.currency);
           const row = await d.repository.save(context, { ...account, projectId: id, encryptedToken, queuedAt: d.clock.now(), nextDailyAt: nextMorning(d.clock.now()) }, d.clock.now());
           await d.audit.append(context, { action: "UPDATE", entityType: "project", entityId: id, projectId: id, clientId: project.clientId, summary: "Connected Meta advertising account" }, actor);
           return publicIntegration(row);

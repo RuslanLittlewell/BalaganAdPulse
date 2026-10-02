@@ -53,14 +53,14 @@ describe("a customer managing their client's projects", () => {
     expect(await prisma.project.count({ where: { name: "Чужой" } })).toBe(0);
   });
 
-  it("lets a customer edit the name, the currency and the picture of their client's project", async () => {
+  it("lets a customer edit the name and the picture of their client's project, not its currency", async () => {
     const auth = await customer("CLIENT_ADMIN");
 
     const updated = await request(app).patch(`/api/projects/${projectId}`).set(auth)
       .send({ name: "Клиника 2.0", budgetCurrency: "EUR" });
 
     expect(updated.status).toBe(200);
-    expect(updated.body).toMatchObject({ name: "Клиника 2.0", budgetCurrency: "EUR" });
+    expect(updated.body).toMatchObject({ name: "Клиника 2.0", budgetCurrency: null });
   });
 
   it("keeps deletion and priority with the agency", async () => {

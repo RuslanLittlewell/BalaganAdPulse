@@ -66,7 +66,10 @@ const campaignReference = z.object({
   channel: z.enum(CHANNELS),
 });
 
+const currencyPerformance = z.object({ currency: z.string().nullable(), performance });
+
 const channelSummary = z.object({
+  currency: z.string().nullable(),
   channel: z.enum(CHANNELS),
   campaigns: z.int(),
   performance,
@@ -74,6 +77,7 @@ const channelSummary = z.object({
 
 export const campaignComponents: ComponentDocs = {
   Performance: performance,
+  CurrencyPerformance: currencyPerformance,
   MeasuredDay: measuredDay,
   Campaign: campaign,
   AdSet: adSet,
@@ -211,9 +215,9 @@ export const summaryDoc: RouteDoc = {
       method: "get",
       path: "/channels",
       summary: "Sum performance per channel",
-      description: `${RANGE} Channels are ordered by spend, heaviest first.`,
+      description: `${RANGE} Each channel is split by currency.`,
       query: rangeSchema,
-      success: { status: 200, description: "One entry per channel that ran", schema: arrayOf(ref("ChannelSummary")) },
+      success: { status: 200, description: "One entry per channel and currency", schema: arrayOf(ref("ChannelSummary")) },
       errors: [400, 401, 403],
     },
     {
@@ -222,7 +226,7 @@ export const summaryDoc: RouteDoc = {
       summary: "Sum performance across everything this actor reaches",
       description: RANGE,
       query: rangeSchema,
-      success: { status: 200, description: "The agency's figures over the range", schema: ref("Performance") },
+      success: { status: 200, description: "The agency's figures over the range", schema: arrayOf(ref("CurrencyPerformance")) },
       errors: [400, 401, 403],
     },
   ],

@@ -36,7 +36,7 @@ The projects module SHALL offer customers the control to create a project and th
 
 #### Scenario: Editing without agency controls
 - **WHEN** a client edits their client's project
-- **THEN** they can change its name, currency and picture, and are offered no deletion and no priority choice
+- **THEN** they can change its name and picture, and are offered no deletion and no priority choice
 
 ### Requirement: Staff can be assigned to a project as it is created
 Creating a project SHALL accept an optional list of employees to assign. Each assigned employee SHALL be granted access to that project alone, in the same operation that creates it, so that they reach the project as soon as it exists. An employee SHALL be an active manager or guest of the creator's organization. Only a member who may manage members' access SHALL name employees; for anyone else a non-empty list SHALL be refused with 403. A list naming anyone who is not an eligible employee SHALL be refused with 400. When creation is refused, neither the project nor any grant SHALL be stored. An omitted or empty list SHALL leave project creation as it is.
@@ -73,41 +73,50 @@ The project form SHALL offer, when creating a project and only to members who ma
 
 ### Requirement: A project's figures are stated in a named currency
 
-A project SHALL carry the currency its measured figures are stated in: `BYN`, `RUB`, `USD`
-or `EUR`. Spend and every figure derived from it SHALL be shown in that currency rather than
-in a fixed one, so two projects billed differently are never added up as though they were
-the same money.
+A project SHALL carry the currency its measured figures are stated in, as an ISO 4217 code,
+and that currency SHALL come from the advertising integration that supplies the figures —
+never from a member. Spend and every figure derived from it SHALL be shown in that currency
+rather than in a fixed one, so two projects billed differently are never added up as though
+they were the same money.
 
-Every project SHALL carry a currency, whether or not any figures have been measured yet.
-New projects SHALL default to `BYN`.
-
-Currency SHALL NOT be inferred from anything else — not the client, not the locale. It is
-what the agency and the client agreed, and only they know it.
+A project SHALL have no currency until an integration supplies one. Creating or editing a
+project SHALL NOT accept a currency; a currency named in such a request SHALL be ignored.
+The project form and the client registration form SHALL offer no currency choice.
 
 #### Scenario: Creating a project
 
-- **WHEN** a member creates a project naming a currency
-- **THEN** it is stored, and the project reads back with it
+- **WHEN** a member creates a project
+- **THEN** it is stored without a currency, and the project reads back with none
 
 #### Scenario: Creating a project without naming a currency
 
 - **WHEN** a member creates a project naming no currency
-- **THEN** the project is stored with the default currency
+- **THEN** the project is stored without a currency
 
 #### Scenario: Changing the currency
 
-- **WHEN** a member changes a project's currency
-- **THEN** the new currency is stored and the project's other fields are unchanged
+- **WHEN** a member sends a currency while editing a project
+- **THEN** the currency is ignored and the project's currency is unchanged
 
 #### Scenario: An unknown currency
 
-- **WHEN** a request names a currency outside the four
-- **THEN** the API responds 400 and the project is unchanged
+- **WHEN** a request names any currency, known or not
+- **THEN** the currency is ignored and the request is otherwise handled as usual
 
 #### Scenario: Showing a project's figures
 
 - **WHEN** a project's measured figures are shown
 - **THEN** each amount appears in that project's own currency, not in a fixed one
+
+#### Scenario: A project with no currency yet
+
+- **WHEN** the figures of a project without a currency are shown
+- **THEN** amounts appear without a currency sign
+
+#### Scenario: No currency choice in the forms
+
+- **WHEN** a member opens the project form or a client opens the registration form
+- **THEN** no currency field is offered
 
 ### Requirement: A manager reaches the projects they create
 A manager SHALL be able to create a project whatever grants they hold, including none. The project SHALL belong to the manager's organization — the agency that enrolled them — under a client that organization holds, and every admin of that organization SHALL see it. Creating it SHALL grant the creating manager access to that project in the same operation, so they reach it as soon as it exists, even when they reached its client only through a grant naming another project. When creation is refused, neither the project nor the grant SHALL be stored. A manager holding no client SHALL create one from the project form, as a client created by a manager is already reachable by them.

@@ -21,7 +21,8 @@ export function DashboardPage() {
       <PerformanceSummary
         screen="dashboard"
         range={range}
-        performance={agency.data}
+        currencyPerformances={agency.data}
+        currency={null}
         kpi={managesAgencyKpi ? { scope: { kind: "organization" }, canEdit: true } : undefined}
       />
 

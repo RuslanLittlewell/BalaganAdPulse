@@ -81,39 +81,26 @@ describe("ClientRegistrationForm", () => {
     await firstStep(u);
 
     expect(await screen.findByLabelText("Название проекта")).toBeInTheDocument();
-    expect(screen.getByLabelText("Валюта")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Валюта")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Ниша")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Бюджет / мес.")).not.toBeInTheDocument();
   });
 
-  it("starts the project on the agency's own currency", async () => {
+  it("sends the project without a currency", async () => {
     const u = user();
-    open();
-
-    await firstStep(u);
-
-    expect(screen.getByLabelText("Валюта")).toHaveTextContent("BYN");
-  });
-
-  it("sends the currency the project is stated in", async () => {
-    const u = user();
-    let body: Record<string, unknown> | null = null;
+    let body: { project?: Record<string, unknown> } | null = null;
     server.use(mock.post("/api/auth/register", async ({ request }) => {
-      body = await request.json() as Record<string, unknown>;
+      body = await request.json() as { project?: Record<string, unknown> };
       return HttpResponse.json({ accessToken: "a", refreshToken: "r" }, { status: 201 });
     }));
     open();
 
     await firstStep(u);
     await u.type(screen.getByLabelText("Название проекта"), "Стоматология");
-    await u.click(screen.getByLabelText("Валюта"));
-    await u.click(await screen.findByRole("option", { name: /USD/ }));
     await u.click(screen.getByRole("button", { name: "Создать" }));
 
     await waitFor(() => expect(body).not.toBeNull());
-    expect(body).toMatchObject({
-      project: { name: "Стоматология", budgetCurrency: "USD" },
-    });
+    expect(body!.project).toEqual({ name: "Стоматология" });
   });
 
   it("puts the contact details on the account as well as on the company", async () => {

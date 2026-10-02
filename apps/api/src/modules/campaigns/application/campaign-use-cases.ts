@@ -20,7 +20,13 @@ export interface WithPerformance<T> {
   readonly performance: Performance;
 }
 
+export interface CurrencyPerformance {
+  readonly currency: string | null;
+  readonly performance: Performance;
+}
+
 export interface ChannelView {
+  readonly currency: string | null;
   readonly channel: Channel;
   readonly campaigns: number;
   readonly performance: Performance;
@@ -185,29 +191,30 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
       assertCanRead(actor);
       assertRange(range);
       const campaigns = await dependencies.campaigns.listReachable(actor);
-      const byChannel = new Map<Channel, MeasuredDay[]>();
-      const counts = new Map<Channel, number>();
+      const groups = new Map<string, { channel: Channel; currency: string | null; campaigns: number; days: MeasuredDay[] }>();
       for (const campaign of campaigns) {
-        const days = await dependencies.metrics.readCampaignRange(campaign.id, range.from, range.to);
-        byChannel.set(campaign.channel, [...(byChannel.get(campaign.channel) ?? []), ...days]);
-        counts.set(campaign.channel, (counts.get(campaign.channel) ?? 0) + 1);
+        const currency = campaign.currency ?? null;
+        const key = JSON.stringify([campaign.channel, currency]);
+        const group = groups.get(key) ?? { channel: campaign.channel, currency, campaigns: 0, days: [] };
+        group.days.push(...await dependencies.metrics.readCampaignRange(campaign.id, range.from, range.to));
+        group.campaigns += 1;
+        groups.set(key, group);
       }
-      return [...byChannel.entries()]
-        .map(([channel, days]) => ({
-          channel,
-          campaigns: counts.get(channel) ?? 0,
-          performance: performanceOf(days),
-        }))
-        .sort((a, b) => b.performance.spend - a.performance.spend);
+      return [...groups.values()].map(({ days, ...group }) => ({ ...group, performance: performanceOf(days) }))
+        .sort((a, b) => (a.currency ?? "").localeCompare(b.currency ?? "") || b.performance.spend - a.performance.spend);
     },
 
-    agencySummary: async (actor: ActorContext, range: DateRange): Promise<Performance> => {
+    agencySummary: async (actor: ActorContext, range: DateRange): Promise<CurrencyPerformance[]> => {
       assertCanRead(actor);
       assertRange(range);
       const campaigns = await dependencies.campaigns.listReachable(actor);
-      const days = await Promise.all(campaigns.map((campaign) =>
-        dependencies.metrics.readCampaignRange(campaign.id, range.from, range.to)));
-      return performanceOf(days.flat());
+      const groups = new Map<string | null, MeasuredDay[]>();
+      for (const campaign of campaigns) {
+        const currency = campaign.currency ?? null;
+        const days = await dependencies.metrics.readCampaignRange(campaign.id, range.from, range.to);
+        groups.set(currency, [...(groups.get(currency) ?? []), ...days]);
+      }
+      return [...groups].map(([currency, days]) => ({ currency, performance: performanceOf(days) }));
     },
   };
 }

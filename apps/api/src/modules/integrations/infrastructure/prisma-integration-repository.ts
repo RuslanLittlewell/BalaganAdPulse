@@ -18,6 +18,13 @@ export class PrismaIntegrationRepository implements IntegrationRepository {
   async remove(context: TransactionContext, projectId: string) {
     await this.unitOfWork.clientFor(context).projectIntegration.deleteMany({ where: { projectId } });
   }
+  async holdsFigures(projectId: string) {
+    const figure = await this.prisma.campaignDailyMetric.findFirst({ where: { campaign: { projectId } }, select: { date: true } });
+    return figure !== null;
+  }
+  async adoptCurrency(context: TransactionContext, projectId: string, currency: string) {
+    await this.unitOfWork.clientFor(context).project.update({ where: { id: projectId }, data: { budgetCurrency: currency } });
+  }
   async queue(projectId: string, now: Date) {
     await this.prisma.projectIntegration.updateMany({ where: { projectId, OR: [{ leaseUntil: null }, { leaseUntil: { lte: now } }], status: { not: "QUEUED" } }, data: { queuedAt: now, status: "QUEUED", retryCount: 0, lastError: null } });
     await this.prisma.projectIntegration.updateMany({ where: { projectId }, data: { leadsQueuedAt: now } });

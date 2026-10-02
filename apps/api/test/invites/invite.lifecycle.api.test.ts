@@ -96,9 +96,9 @@ describe("an admin invitation end to end", () => {
     expect(await prisma.invite.count()).toBe(0);
   });
 
-  it("still requires projects from a manager invitation", async () => {
+  it("still requires projects from a guest invitation", async () => {
     const created = await request(app).post("/api/invites").set(admin).send({
-      registrationType: "EMPLOYEE", role: "MANAGER",
+      registrationType: "EMPLOYEE", role: "GUEST",
     });
     expect(created.status).toBe(400);
   });

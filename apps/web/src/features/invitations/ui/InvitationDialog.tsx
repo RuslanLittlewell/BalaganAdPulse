@@ -46,7 +46,8 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
   const [created, setCreated] = useState<Invitation | null>(null);
 
   const isEmployee = registrationType === "EMPLOYEE";
-  const needsProjects = isEmployee && role !== "ADMIN";
+  const offersProjects = isEmployee && role !== "ADMIN";
+  const needsProjects = isEmployee && role === "GUEST";
   const isJoining = registrationType === "CLIENT_STAFF";
   const title = isEmployee
     ? t("invites.createEmployee")
@@ -75,7 +76,7 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
     try {
       setCreated(await create.mutateAsync(
         isEmployee
-          ? { registrationType: "EMPLOYEE", role, projectIds: needsProjects ? projectIds : [] }
+          ? { registrationType: "EMPLOYEE", role, projectIds: offersProjects ? projectIds : [] }
           : isJoining
             ? { registrationType: "CLIENT_STAFF", clientId: clientId as string }
             : { registrationType: "CLIENT" },
@@ -110,7 +111,7 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
                   </Select>
                 </div>
 
-                {needsProjects && (
+                {offersProjects && (
                   <fieldset className="flex flex-col gap-2">
                     <legend className={cn(LABEL_CLASS, "mb-2")}>{t("invites.projects")}</legend>
                     {projects.isPending && <Loader label={t("state.loading")} />}

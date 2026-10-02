@@ -139,10 +139,27 @@ describe("assigning staff while creating a project", () => {
 
   it("leaves staffing alone when nobody is named", async () => {
     const { useCases, grants, eligibilityChecks } = fixture();
-    await useCases.create(manager, { clientId: "c1", name: "A" });
-    await useCases.create(manager, { clientId: "c1", name: "B", memberIds: [] });
+    await useCases.create(admin, { clientId: "c1", name: "A" });
+    await useCases.create(admin, { clientId: "c1", name: "B", memberIds: [] });
     expect(grants).toEqual([]);
     expect(eligibilityChecks).toEqual([]);
+  });
+});
+
+describe("a manager creating a project", () => {
+  it("is granted the new project inside the creating transaction", async () => {
+    const { useCases, grants, context, eligibilityChecks } = fixture();
+    const created = await useCases.create(manager, { clientId: "c1", name: "Своё" });
+    expect(grants).toEqual([{ context, projectId: created.id, clientId: "c1", memberIds: ["m2"] }]);
+    expect(eligibilityChecks).toEqual([]);
+  });
+
+  it("stores neither project nor grant for a client out of reach", async () => {
+    const { useCases, projects, grants } = fixture([], []);
+    await expect(useCases.create(manager, { clientId: "c1", name: "Чужое" }))
+      .rejects.toMatchObject({ category: "not-found" });
+    expect(projects.size).toBe(0);
+    expect(grants).toEqual([]);
   });
 });
 

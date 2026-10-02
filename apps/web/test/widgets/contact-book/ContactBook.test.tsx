@@ -717,7 +717,7 @@ describe("inviting from the contact book", () => {
     });
   });
 
-  it("refuses an employee invitation with no project chosen", async () => {
+  it("refuses a guest invitation with no project chosen", async () => {
     const user = userEvent.setup();
     let posted = false;
     withDirectory();
@@ -731,6 +731,8 @@ describe("inviting from the contact book", () => {
 
     await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
     const form = await screen.findByRole("dialog", { name: "Пригласить сотрудника" });
+    await user.click(within(form).getByRole("combobox", { name: "Роль приглашения" }));
+    await user.click(await screen.findByRole("option", { name: "Гость" }));
     await user.click(within(form).getByRole("button", { name: "Создать приглашение" }));
 
     expect(await screen.findByText("Выберите хотя бы один проект")).toBeInTheDocument();

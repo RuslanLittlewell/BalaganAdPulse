@@ -203,10 +203,10 @@ describe("typed invitation creation", () => {
     expect(invites.size).toBe(0);
   });
 
-  it("requires an employee role and at least one organization-owned project", async () => {
+  it("requires an employee role and organization-owned projects", async () => {
     const { useCases, invites } = fixture({ ownedProjectIds: ["project-1"] });
     await expect(useCases.create(admin, {
-      registrationType: "EMPLOYEE", role: "MANAGER", projectIds: [],
+      registrationType: "EMPLOYEE", role: "GUEST", projectIds: [],
     } as never)).rejects.toMatchObject({ category: "validation" });
     await expect(useCases.create(admin, {
       registrationType: "EMPLOYEE", role: "MANAGER", projectIds: ["other-project"],
@@ -214,14 +214,20 @@ describe("typed invitation creation", () => {
     expect(invites.size).toBe(0);
   });
 
-  it("requires projects from a manager or guest invitation, however it names them", async () => {
+  it("requires projects from a guest invitation, however it names them", async () => {
     const { useCases, invites } = fixture({ ownedProjectIds: ["project-1"] });
-    for (const role of ["MANAGER", "GUEST"]) {
+    for (const projectIds of [undefined, []]) {
       await expect(useCases.create(admin, {
-        registrationType: "EMPLOYEE", role,
+        registrationType: "EMPLOYEE", role: "GUEST", projectIds,
       } as never)).rejects.toMatchObject({ category: "validation" });
     }
     expect(invites.size).toBe(0);
+  });
+
+  it("stores a manager invitation without projects", async () => {
+    const { useCases } = fixture({ ownedProjectIds: ["project-1"] });
+    const invite = await useCases.create(admin, { registrationType: "EMPLOYEE", role: "MANAGER" } as never);
+    expect(invite).toMatchObject({ role: "MANAGER", projectIds: [] });
   });
 
   it("stores an admin invitation without projects", async () => {
@@ -284,6 +290,15 @@ describe("employee invitation redemption", () => {
     const { useCases, transaction, grants } = fixture({ seed: [employeeInvite()] });
     await useCases.redeem(transaction, "EXISTING", "new@acme.com", "user-new", NOW);
     expect(grants).toEqual([{ membershipId: "membership-new", projectIds: ["project-1"] }]);
+  });
+
+  it("enrols a manager invited without projects and grants nothing", async () => {
+    const { useCases, transaction, grants, invites } = fixture({
+      seed: [employeeInvite({ role: "MANAGER", projectIds: [] })],
+    });
+    await useCases.redeem(transaction, "EXISTING", "new@acme.com", "user-new", NOW);
+    expect(grants.flatMap((grant) => grant.projectIds ?? [])).toEqual([]);
+    expect(invites.get("invite-existing")?.usedById).toBe("user-new");
   });
 
   it("rolls membership, grants and claim back when a project grant fails", async () => {

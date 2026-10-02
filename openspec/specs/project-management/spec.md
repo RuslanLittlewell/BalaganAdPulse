@@ -60,7 +60,7 @@ The project form SHALL offer, when creating a project and only to members who ma
 - **THEN** the API responds 400 and neither the project nor any grant is stored
 
 #### Scenario: Nobody is named
-- **WHEN** a manager or a client creates a project without naming employees
+- **WHEN** an admin or a client creates a project without naming employees
 - **THEN** the project is created as before and no grant is stored
 
 #### Scenario: Choosing employees in the form
@@ -108,3 +108,18 @@ what the agency and the client agreed, and only they know it.
 
 - **WHEN** a project's measured figures are shown
 - **THEN** each amount appears in that project's own currency, not in a fixed one
+
+### Requirement: A manager reaches the projects they create
+A manager SHALL be able to create a project whatever grants they hold, including none. The project SHALL belong to the manager's organization — the agency that enrolled them — under a client that organization holds, and every admin of that organization SHALL see it. Creating it SHALL grant the creating manager access to that project in the same operation, so they reach it as soon as it exists, even when they reached its client only through a grant naming another project. When creation is refused, neither the project nor the grant SHALL be stored. A manager holding no client SHALL create one from the project form, as a client created by a manager is already reachable by them.
+
+#### Scenario: A manager without projects starts one
+- **WHEN** a manager enrolled without projects creates a client from the project form and then a project for it
+- **THEN** the project is stored in their organization, opens for them, and an admin of that organization sees it in their projects list
+
+#### Scenario: A manager reaching a client through one project
+- **WHEN** a manager whose only grant names project A1 of client A creates project A2 for client A
+- **THEN** A2 is stored, the manager reaches both A1 and A2, and still reaches no other project of client A
+
+#### Scenario: Another agency
+- **WHEN** a manager creates a project naming a client of another organization
+- **THEN** the API responds 404 and nothing is stored

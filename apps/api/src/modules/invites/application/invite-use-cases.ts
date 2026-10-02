@@ -93,10 +93,13 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
             throw new AppError("validation", "An admin invitation carries no projects");
           }
         } else {
-          if (projectIds.length === 0) {
-            throw new AppError("validation", "Manager and guest invitations require at least one project");
+          if (input.role === "GUEST" && projectIds.length === 0) {
+            throw new AppError("validation", "A guest invitation requires at least one project");
           }
-          if (!(await dependencies.projects.allBelongToOrg(actor.orgId, projectIds))) {
+          if (
+            projectIds.length > 0 &&
+            !(await dependencies.projects.allBelongToOrg(actor.orgId, projectIds))
+          ) {
             throw new AppError("validation", "One or more invitation projects are invalid");
           }
         }

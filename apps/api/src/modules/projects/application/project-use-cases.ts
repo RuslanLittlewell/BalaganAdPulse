@@ -73,7 +73,8 @@ export function createProjectUseCases(dependencies: ProjectDependencies) {
           id: dependencies.ids.generate(),
           position: await dependencies.projects.countForClient(fields.clientId),
         });
-        if (staff.length > 0) await dependencies.staffing.grant(context, project, staff);
+        const granted = actor.role === "MANAGER" ? [...staff, actor.membershipId] : staff;
+        if (granted.length > 0) await dependencies.staffing.grant(context, project, granted);
         await dependencies.audit.append(context, audit("CREATE", project), actor);
         return project;
       });

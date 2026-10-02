@@ -13,7 +13,12 @@ export interface AppShellProps {
   children: ReactNode;
 }
 
-export function AppShell({ sidebar, header, moduleKey, children }: AppShellProps) {
+export function AppShell({
+  sidebar,
+  header,
+  moduleKey,
+  children,
+}: AppShellProps) {
   const { collapsed } = useNavCollapse();
   const reduce = useReducedMotion();
   return (
@@ -41,7 +46,9 @@ export function AppShell({ sidebar, header, moduleKey, children }: AppShellProps
       >
         {sidebar}
       </div>
-      <div className={`${GLASS} relative z-10 flex min-w-0 flex-1 flex-col bg-card/65`}>
+      <div
+        className={`${GLASS} relative z-10 flex min-w-0 flex-1 flex-col bg-card/65`}
+      >
         <div className="min-w-0">{header}</div>
         <main className="min-h-0 min-w-0 flex-1 overflow-auto p-4">
           <AnimatePresence mode="wait" initial={false}>

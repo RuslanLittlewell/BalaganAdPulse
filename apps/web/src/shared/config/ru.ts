@@ -19,7 +19,7 @@ export const ru = {
   "meta.leads.lastSuccess": "Проверка лидов:",
   "meta.leads.error.access": "Токен не может читать лиды. Выдайте ему права leads_retrieval, pages_manage_ads, pages_read_engagement, pages_show_list и ads_management, а в Business Manager откройте доступ к лидам страницы в Leads Access Manager. Проверка повторится автоматически в течение часа.",
   "meta.leads.error.provider": "Не удалось загрузить лиды из Meta. Повторим при следующей проверке.",
-  "brand.title": "AdPulse",
+  "brand.title": "Balagan",
   "nav.dashboard": "Дашборд", "nav.projects": "Проекты", "nav.tasks": "Задачи",
   "nav.crm": "CRM", "nav.reports": "Отчёты", "nav.archive": "Архив", "nav.sections": "Разделы",
   "nav.collapse": "Свернуть меню", "nav.expand": "Развернуть меню",

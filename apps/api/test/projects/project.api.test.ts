@@ -265,6 +265,52 @@ describe("the currency a project's figures are stated in", () => {
   });
 });
 
+describe("a manager creating a project", () => {
+  const ids = (body: Array<{ id: string }>) => body.map((p) => p.id).sort();
+
+  it("lets a manager without grants start a client and a project an admin sees", async () => {
+    const manager = await signInAs("Manager", { role: "MANAGER" });
+    expect((await request(app).get("/api/projects").set(manager.auth)).body).toEqual([]);
+
+    const client = await request(app).post("/api/clients").set(manager.auth).send({ name: "Новый" });
+    const created = await request(app).post("/api/projects").set(manager.auth)
+      .send({ clientId: client.body.id, name: "Своё" });
+
+    expect(created.status).toBe(201);
+    expect((await prisma.client.findUniqueOrThrow({ where: { id: client.body.id } })).orgId)
+      .toBe(manager.membership!.orgId);
+    expect(ids((await request(app).get("/api/projects").set(manager.auth)).body)).toEqual([created.body.id]);
+    expect(ids((await request(app).get("/api/projects").set(auth)).body)).toContain(created.body.id);
+  });
+
+  it("reaches a project it creates under a client reached through another project", async () => {
+    const first = await project({ name: "A1" });
+    const other = await project({ name: "A3" });
+    const manager = await signInAs("Manager", { role: "MANAGER" });
+    await grantAccess(manager.membership!.id, clientId, first.body.id);
+
+    const created = await request(app).post("/api/projects").set(manager.auth)
+      .send({ clientId, name: "A2" });
+
+    expect(created.status).toBe(201);
+    const listed = ids((await request(app).get("/api/projects").set(manager.auth)).body);
+    expect(listed).toEqual([first.body.id, created.body.id].sort());
+    expect(listed).not.toContain(other.body.id);
+  });
+
+  it("404s a client of another organization, storing nothing", async () => {
+    const foreign = (await signInAsOutsider()).client;
+    const manager = await signInAs("Manager", { role: "MANAGER" });
+
+    const res = await request(app).post("/api/projects").set(manager.auth)
+      .send({ clientId: foreign.id, name: "Чужое" });
+
+    expect(res.status).toBe(404);
+    expect(await prisma.project.count()).toBe(0);
+    expect(await prisma.clientAccess.count({ where: { membershipId: manager.membership!.id } })).toBe(0);
+  });
+});
+
 describe("assigning staff while creating a project", () => {
   async function employee(name: string, role: "MANAGER" | "GUEST" | "ADMIN" | "CLIENT" = "MANAGER", status: "ACTIVE" | "SUSPENDED" = "ACTIVE") {
     const signedIn = await signInAs(name, { role, status });

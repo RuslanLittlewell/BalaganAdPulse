@@ -27,6 +27,7 @@ export interface ProjectRowProps {
   selected: boolean;
   draggable: boolean;
   pinned: boolean;
+  collapsed?: boolean;
   sorting: boolean;
   mayPrioritise: boolean;
   onOpen: () => void;
@@ -41,6 +42,7 @@ export function ProjectRow({
   selected,
   draggable,
   pinned,
+  collapsed = false,
   sorting,
   mayPrioritise,
   onOpen,
@@ -71,11 +73,15 @@ export function ProjectRow({
               project={project}
               clientName={clientName}
               selected={selected}
+              collapsed={collapsed}
               onOpen={onOpen}
               onEdit={onEdit}
             />
           </ContextMenuTrigger>
           <ContextMenuContent>
+            {onEdit && (
+              <ContextMenuItem onSelect={onEdit}>{t("project.edit")}</ContextMenuItem>
+            )}
             <ContextMenuItem onSelect={onPin}>
               {t(pinned ? "projects.unpin" : "projects.pin")}
             </ContextMenuItem>

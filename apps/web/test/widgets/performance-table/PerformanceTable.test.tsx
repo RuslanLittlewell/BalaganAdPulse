@@ -251,3 +251,119 @@ describe("rows that contain rows", () => {
     expect(screen.queryByText("Приём сегодня")).toBeNull();
   });
 });
+
+const headerNames = () =>
+  screen.getAllByRole("columnheader").map((header) => header.getAttribute("aria-label")).filter(Boolean);
+
+describe("sizing a figure column", () => {
+  const handleOf = (label: string) =>
+    screen.getByRole("separator", { name: `Изменить ширину столбца «${label}»` });
+
+  it("offers every figure column a resize handle", () => {
+    render(<PerformanceTable tableKey="resize-all-test" heading="Кампания" rows={rows} />);
+
+    for (const label of ["Расход", "Показы", "CTR", "Частота"]) {
+      expect(handleOf(label)).toHaveAttribute("aria-valuenow", "128");
+    }
+  });
+
+  it("widens and narrows by keyboard, never below the minimum, and remembers it per table", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<PerformanceTable tableKey="resize-test" heading="Кампания" rows={rows} />);
+
+    handleOf("Расход").focus();
+    await user.keyboard("{ArrowRight}{ArrowRight}");
+    expect(handleOf("Расход")).toHaveAttribute("aria-valuenow", "148");
+
+    await user.keyboard("{Home}{ArrowLeft}");
+    expect(handleOf("Расход")).toHaveAttribute("aria-valuenow", "72");
+
+    await user.keyboard("{ArrowRight}");
+    unmount();
+    const again = render(<PerformanceTable tableKey="resize-test" heading="Кампания" rows={rows} />);
+    expect(handleOf("Расход")).toHaveAttribute("aria-valuenow", "82");
+    expect(handleOf("Показы")).toHaveAttribute("aria-valuenow", "128");
+
+    again.unmount();
+    render(<PerformanceTable tableKey="resize-other-test" heading="Кампания" rows={rows} />);
+    expect(handleOf("Расход")).toHaveAttribute("aria-valuenow", "128");
+  });
+});
+
+describe("ordering the figure columns", () => {
+  it("moves a column one place to the right in the header, the rows and the totals", async () => {
+    const user = userEvent.setup();
+    render(<PerformanceTable tableKey="order-test" heading="Кампания" rows={rows} totals={performance(1500)} />);
+    expect(headerNames().slice(0, 3)).toEqual(["Кампания", "Расход", "Показы"]);
+
+    await user.click(screen.getByRole("button", { name: "Сдвинуть столбец вправо «Расход»" }));
+
+    expect(headerNames().slice(0, 3)).toEqual(["Кампания", "Показы", "Расход"]);
+    const cells = within(screen.getByRole("row", { name: /Поиск \/ Москва/ })).getAllByRole("cell");
+    expect(cells[0]).toHaveTextContent("100 000");
+    expect(cells[1]).toHaveTextContent("1 000 ₽");
+    const totals = within(screen.getByRole("row", { name: /Итого/ })).getAllByRole("cell");
+    expect(totals[1]).toHaveTextContent("1 500 ₽");
+  });
+
+  it("moves a column back to the left", async () => {
+    const user = userEvent.setup();
+    render(<PerformanceTable tableKey="order-left-test" heading="Кампания" rows={rows} />);
+
+    await user.click(screen.getByRole("button", { name: "Сдвинуть столбец влево «Показы»" }));
+
+    expect(headerNames().slice(0, 3)).toEqual(["Кампания", "Показы", "Расход"]);
+  });
+
+  it("offers no move past either edge, and never moves the name column", () => {
+    render(<PerformanceTable tableKey="order-edge-test" heading="Кампания" rows={rows} />);
+
+    expect(screen.queryByRole("button", { name: "Сдвинуть столбец влево «Расход»" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Сдвинуть столбец вправо «Расход»" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Сдвинуть столбец вправо «Частота»" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /«Кампания»/ })).toBeNull();
+  });
+
+  it("remembers the order for the table", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<PerformanceTable tableKey="order-memory-test" heading="Кампания" rows={rows} />);
+    await user.click(screen.getByRole("button", { name: "Сдвинуть столбец вправо «Расход»" }));
+
+    unmount();
+    const again = render(<PerformanceTable tableKey="order-memory-test" heading="Кампания" rows={rows} />);
+    expect(headerNames().slice(0, 3)).toEqual(["Кампания", "Показы", "Расход"]);
+
+    again.unmount();
+    render(<PerformanceTable tableKey="order-memory-other-test" heading="Кампания" rows={rows} />);
+    expect(headerNames().slice(0, 3)).toEqual(["Кампания", "Расход", "Показы"]);
+  });
+
+  it("returns a hidden column to its place when it is shown again", async () => {
+    const user = userEvent.setup();
+    render(<PerformanceTable tableKey="order-hidden-test" heading="Кампания" rows={rows} />);
+    await user.click(screen.getByRole("button", { name: "Сдвинуть столбец вправо «Расход»" }));
+    await user.click(screen.getByRole("button", { name: "Сдвинуть столбец вправо «Расход»" }));
+    expect(headerNames().slice(0, 4)).toEqual(["Кампания", "Показы", "Охват", "Расход"]);
+
+    await user.click(screen.getByRole("button", { name: "Отображаемые столбцы" }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "Расход" }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "Расход" }));
+    await user.keyboard("{Escape}");
+
+    expect(headerNames().slice(0, 4)).toEqual(["Кампания", "Показы", "Охват", "Расход"]);
+  });
+
+  it("places a column the saved order does not know after the known ones", async () => {
+    const user = userEvent.setup();
+    const extraColumns = [{ id: "crm-new", label: "Лид (Новый)" }];
+    useColumnWidths.setState({
+      columnOrder: { "order-unknown-test": ["roas", "spend"] },
+      visibleColumns: { "order-unknown-test": ["name", "spend", "roas", "crm-new"] },
+    });
+    render(<PerformanceTable tableKey="order-unknown-test" heading="Кампания" rows={rows} extraColumns={extraColumns} />);
+
+    expect(headerNames()).toEqual(["Кампания", "ROAS", "Расход", "Лид (Новый)"]);
+    await user.click(screen.getByRole("button", { name: "Сдвинуть столбец влево «Лид (Новый)»" }));
+    expect(headerNames()).toEqual(["Кампания", "ROAS", "Лид (Новый)", "Расход"]);
+  });
+});

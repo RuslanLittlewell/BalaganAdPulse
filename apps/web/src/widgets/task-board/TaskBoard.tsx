@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   DndContext,
   DragOverlay,
@@ -133,16 +134,19 @@ export function TaskBoard({ tasks, isLoading, isError, onOpen, onCreate }: TaskB
           />
         ))}
       </div>
-      <DragOverlay>
-        {dragging ? (
-          <TaskCard
-            task={dragging}
-            draggable={false}
-            project={dragging.projectId ? projectById.get(dragging.projectId) : undefined}
-            assignee={dragging.assigneeId ? memberById.get(dragging.assigneeId) : undefined}
-          />
-        ) : null}
-      </DragOverlay>
+      {createPortal(
+        <DragOverlay>
+          {dragging ? (
+            <TaskCard
+              task={dragging}
+              draggable={false}
+              project={dragging.projectId ? projectById.get(dragging.projectId) : undefined}
+              assignee={dragging.assigneeId ? memberById.get(dragging.assigneeId) : undefined}
+            />
+          ) : null}
+        </DragOverlay>,
+        document.body,
+      )}
     </DndContext>
   );
 }

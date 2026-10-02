@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   DndContext,
   DragOverlay,
@@ -147,9 +148,12 @@ export function CrmBoard({ boardKey, busy = false, draggable = false, capabiliti
         ) : null}
       </div>
 
-      <DragOverlay>
-        {dragging ? <LeadCardOverlay lead={dragging} /> : null}
-      </DragOverlay>
+      {createPortal(
+        <DragOverlay>
+          {dragging ? <LeadCardOverlay lead={dragging} /> : null}
+        </DragOverlay>,
+        document.body,
+      )}
     </DndContext>
   );
 }

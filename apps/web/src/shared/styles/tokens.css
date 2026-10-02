@@ -213,6 +213,15 @@
   backdrop-filter: blur(24px) saturate(1.5);
 }
 
+@utility modal-surface {
+  background-color: var(--card);
+
+  @variant dark {
+    background-color: color-mix(in oklab, var(--card) 50%, transparent);
+    backdrop-filter: blur(24px) saturate(1.5);
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

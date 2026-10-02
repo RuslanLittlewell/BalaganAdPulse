@@ -90,7 +90,7 @@ afterEach(() => {
   resetProjects();
   useModuleMemory.setState({ boards: {}, projectPlaces: {}, taskCalendarZooms: {} });
   useSummaryTiles.setState({ layouts: {} });
-  useColumnWidths.setState({ nameWidths: {}, visibleColumns: {} });
+  useColumnWidths.setState({ nameWidths: {}, columnWidths: {}, columnOrder: {}, visibleColumns: {} });
 });
 afterAll(() => server.close());
 

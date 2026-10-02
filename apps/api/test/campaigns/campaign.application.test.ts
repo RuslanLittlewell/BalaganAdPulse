@@ -150,7 +150,7 @@ describe("summarising a parent", () => {
       campaignDays: { c1: [measured({ spend: 100 })], c2: [measured({ spend: 40 })] },
     });
 
-    expect(await useCases.agencySummary(admin, range)).toMatchObject({ spend: 140 });
+    expect(await useCases.agencySummary(admin, range)).toMatchObject([{ currency: null, performance: { spend: 140 } }]);
   });
 
   it("leaves out a project the member holds no grant over", async () => {
@@ -160,7 +160,7 @@ describe("summarising a parent", () => {
       campaignDays: { c1: [measured({ spend: 100 })], c2: [measured({ spend: 40 })] },
     });
 
-    expect(await useCases.agencySummary(admin, range)).toMatchObject({ spend: 100 });
+    expect(await useCases.agencySummary(admin, range)).toMatchObject([{ currency: null, performance: { spend: 100 } }]);
   });
 
   it("summarises an empty project to zero rather than to nothing", async () => {
@@ -237,8 +237,8 @@ describe("the agency's channels", () => {
     const channels = await useCases.channelSummary(admin, range);
 
     expect(channels).toEqual([
-      { channel: "YANDEX", campaigns: 2, performance: expect.objectContaining({ spend: 500, cpc: 4 }) },
-      { channel: "META", campaigns: 1, performance: expect.objectContaining({ spend: 250, cpc: 5 }) },
+      { currency: null, channel: "YANDEX", campaigns: 2, performance: expect.objectContaining({ spend: 500, cpc: 4 }) },
+      { currency: null, channel: "META", campaigns: 1, performance: expect.objectContaining({ spend: 250, cpc: 5 }) },
     ]);
   });
 
@@ -259,3 +259,18 @@ describe("the agency's channels", () => {
       .toEqual(["TELEGRAM"]);
   });
 });
+
+ it("keeps currencies separate in agency and channel totals and derived costs", async () => {
+   const useCases = fixture({
+     campaigns: [campaign({ id: "c1", currency: "USD" }), campaign({ id: "c2", currency: "EUR" }), campaign({ id: "c3", currency: "USD" })],
+     campaignDays: { c1: [measured({ spend: 100, clicks: 10 })], c2: [measured({ spend: 40, clicks: 20 })], c3: [measured({ spend: 50, clicks: 5 })] },
+   });
+   expect(await useCases.agencySummary(admin, range)).toEqual([
+     { currency: "USD", performance: expect.objectContaining({ spend: 150, cpc: 10 }) },
+     { currency: "EUR", performance: expect.objectContaining({ spend: 40, cpc: 2 }) },
+   ]);
+   expect(await useCases.channelSummary(admin, range)).toEqual([
+     { currency: "EUR", channel: "YANDEX", campaigns: 1, performance: expect.objectContaining({ spend: 40, cpc: 2 }) },
+     { currency: "USD", channel: "YANDEX", campaigns: 2, performance: expect.objectContaining({ spend: 150, cpc: 10 }) },
+   ]);
+ });

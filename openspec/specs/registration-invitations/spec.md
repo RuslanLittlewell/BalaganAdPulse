@@ -7,11 +7,29 @@ Registration invitations are backend-owned, typed, short-lived onboarding capabi
 
 ### Requirement: Every invitation has a registration type
 
-An invitation SHALL have exactly one registration type: `CLIENT` or `EMPLOYEE`. An employee invitation SHALL carry one of the employee roles `ADMIN`, `MANAGER`, or `GUEST` and one or more project identifiers; a client invitation SHALL carry neither.
+An invitation SHALL have exactly one registration type: `CLIENT` or `EMPLOYEE`. An employee invitation SHALL carry one of the employee roles `ADMIN`, `MANAGER`, or `GUEST`. A `GUEST` invitation SHALL carry one or more project identifiers. A `MANAGER` invitation MAY carry project identifiers or none; a manager enrolled without projects reaches nothing until they create a client or a project, or are granted one. An `ADMIN` invitation SHALL carry none, since an admin reaches the whole organization. A client invitation SHALL carry neither a role nor projects.
+
+The invitation dialog SHALL offer the project picker only while the chosen role is a manager or a guest, SHALL demand at least one project only for a guest, and SHALL send an admin invitation without projects.
 
 #### Scenario: Valid employee invitation input
-- **WHEN** an authorized actor creates an `EMPLOYEE` invitation with a valid role and projects in their organization
+- **WHEN** an authorized actor creates a `MANAGER` or `GUEST` invitation with projects in their organization
 - **THEN** the invitation is stored with that role and those projects
+
+#### Scenario: Admin invitation without projects
+- **WHEN** an admin creates an `ADMIN` invitation naming no projects
+- **THEN** the invitation is stored with the admin role and no projects, and redeeming it enrols an admin holding no access grants
+
+#### Scenario: Admin invitation naming projects
+- **WHEN** a caller creates an `ADMIN` invitation with project identifiers
+- **THEN** the API responds 400 and stores no invitation
+
+#### Scenario: Manager invitation without projects
+- **WHEN** an admin creates a `MANAGER` invitation naming no projects
+- **THEN** the invitation is stored with the manager role and no projects, and redeeming it enrols a manager of the admin's organization holding no access grants
+
+#### Scenario: Manager or guest invitation without projects
+- **WHEN** a caller creates a `GUEST` invitation naming no projects
+- **THEN** the API responds 400 and stores no invitation, while a `MANAGER` invitation naming no projects is stored
 
 #### Scenario: Employee project from another organization
 - **WHEN** an actor includes a project outside their organization
@@ -24,6 +42,18 @@ An invitation SHALL have exactly one registration type: `CLIENT` or `EMPLOYEE`. 
 #### Scenario: Employee invitation requests the client role
 - **WHEN** a caller creates an `EMPLOYEE` invitation with role `CLIENT`
 - **THEN** the API responds 400 and stores no invitation
+
+#### Scenario: The dialog for an admin
+- **WHEN** an admin chooses Администратор in the employee invitation dialog and creates the invitation
+- **THEN** no project picker is shown, no project is demanded, and the request names no projects
+
+#### Scenario: The dialog for a manager without projects
+- **WHEN** an admin chooses Менеджер in the employee invitation dialog, chooses no project and creates the invitation
+- **THEN** no project is demanded and the request names no projects
+
+#### Scenario: The dialog for a guest without projects
+- **WHEN** an admin chooses Гость in the employee invitation dialog, chooses no project and creates the invitation
+- **THEN** the dialog says a project must be chosen and sends no request
 
 ### Requirement: The backend generates short invitation links
 

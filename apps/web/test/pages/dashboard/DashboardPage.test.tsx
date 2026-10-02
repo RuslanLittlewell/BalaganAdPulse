@@ -25,7 +25,7 @@ const performance = (spend: number, extra = {}) => ({
 });
 
 const project = (id: string, name: string) => ({
-  id, clientId: "cl1", name, niche: null, monthlyBudget: null, budgetCurrency: "BYN", priority: "NEW",
+  id, clientId: "cl1", name, budgetCurrency: "BYN", priority: "NEW",
   image: null, avatarPath: null, position: 0, createdAt: "", updatedAt: "",
 });
 
@@ -34,10 +34,10 @@ function api(options: { projects?: unknown[]; agency?: unknown; channels?: unkno
     mock.get("/api/crm/project-stage-counts", () => HttpResponse.json(options.stageCounts ?? [])),
     mock.get("/api/projects", () =>
       HttpResponse.json(options.projects ?? [project("p1", "Клиника"), project("p2", "Автосалон")])),
-    mock.get("/api/summary", () => HttpResponse.json(options.agency ?? performance(4200))),
+    mock.get("/api/summary", () => HttpResponse.json(options.agency ?? [{ currency: "BYN", performance: performance(4200) }])),
     mock.get("/api/summary/channels", () => HttpResponse.json(options.channels ?? [
-      { channel: "YANDEX", campaigns: 3, performance: performance(3000) },
-      { channel: "META", campaigns: 1, performance: performance(1200) },
+      { currency: "BYN", channel: "YANDEX", campaigns: 3, performance: performance(3000) },
+      { currency: "BYN", channel: "META", campaigns: 1, performance: performance(1200) },
     ])),
     mock.get("/api/projects/:projectId/summary", ({ params }) =>
       HttpResponse.json(performance(params.projectId === "p1" ? 3000 : 1200))),
@@ -138,6 +138,26 @@ describe("DashboardPage", () => {
 
     expect(await screen.findByText("Яндекс Директ")).toBeInTheDocument();
     expect(screen.getByText("Meta")).toBeInTheDocument();
+  });
+
+  it("renders currencies inside one summary and separate channel rows", async () => {
+    api({ agency: [
+      { currency: "USD", performance: performance(100) },
+      { currency: "EUR", performance: performance(40) },
+    ], channels: [
+      { currency: "USD", channel: "META", campaigns: 1, performance: performance(100) },
+      { currency: "EUR", channel: "META", campaigns: 1, performance: performance(40) },
+    ] });
+    renderWithProviders(<DashboardPage />);
+    await screen.findAllByText("Meta");
+    await waitFor(() => expect(screen.getAllByRole("group", { name: "Показатели за период" })).toHaveLength(1));
+    const summary = screen.getByRole("group", { name: "Показатели за период" });
+    expect(within(summary).getByText("100")).toBeInTheDocument();
+    expect(within(summary).getByText("CPL 20,00 $" )).toBeInTheDocument();
+    expect(within(summary).getByText("CPL 20,00 €" )).toBeInTheDocument();
+    expect(screen.getByText("100 $")).toBeInTheDocument();
+    expect(screen.getByText("40 €")).toBeInTheDocument();
+    expect(screen.queryByText(/₽/)).not.toBeInTheDocument();
   });
 
   it("says so when no channel has been measured", async () => {

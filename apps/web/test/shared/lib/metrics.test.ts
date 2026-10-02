@@ -99,3 +99,19 @@ describe("chart paths", () => {
     expect(linePath([3], box)).toBe("M0,20 L100,20");
   });
 });
+
+describe("the currency an integration reports", () => {
+  it("shows an amount without a sign while the project has no currency", () => {
+    expect(formatCurrency(1500, null)).toBe(`1${NBSP}500`);
+    expect(formatRatio(2.5, null)).toBe("2,50");
+  });
+
+  it("signs a currency outside the four it always knew", () => {
+    expect(formatCurrency(1500, "PLN")).toBe(`1${NBSP}500${NBSP}zł`);
+    expect(formatCurrency(1500, "KZT")).toBe(`1${NBSP}500${NBSP}₸`);
+  });
+
+  it("falls back to the code for something Intl does not know", () => {
+    expect(formatCurrency(1500, "XQZ")).toBe(`1${NBSP}500${NBSP}XQZ`);
+  });
+});

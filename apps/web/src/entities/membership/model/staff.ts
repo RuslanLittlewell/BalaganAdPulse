@@ -37,6 +37,11 @@ export function loadStaff(): Promise<void> {
   return loading;
 }
 
+export function forgetMember(id: string): void {
+  const { members } = useStaffStore.getState();
+  if (members) useStaffStore.setState({ members: members.filter((member) => member.id !== id) });
+}
+
 export function resetStaff(): void {
   session += 1;
   loading = null;

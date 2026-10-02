@@ -24,7 +24,6 @@ export function createTaskRouter(useCases: TaskUseCases): Router {
     const only = (value: unknown) => (typeof value === "string" && value ? value : undefined);
     res.json(await useCases.list(actorOf(req), taskFilterSchema.parse({
       projectId: only(req.query.projectId),
-      campaignId: only(req.query.campaignId),
       dueFrom: only(req.query.dueFrom),
       dueTo: only(req.query.dueTo),
     })));

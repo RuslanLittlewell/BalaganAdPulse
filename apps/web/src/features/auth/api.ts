@@ -1,5 +1,4 @@
 import { http } from "@/shared/lib/index.js";
-import type { Currency } from "@/shared/lib/index.js";
 import type { TokenPair } from "@/shared/lib/index.js";
 import type { Role } from "@adpulse/access-policy";
 
@@ -16,9 +15,6 @@ export interface ClientRegistrationBody {
   };
   project: {
     name: string;
-    niche?: string | null;
-    monthlyBudget?: number | null;
-    budgetCurrency?: Currency;
   };
 }
 

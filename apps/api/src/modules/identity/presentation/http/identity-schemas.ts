@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { CURRENCIES } from "../../../projects/index.js";
 
 const email = z.string().trim().toLowerCase().pipe(z.email("invalid email"));
 const optionalText = z.string().trim().min(1).nullable().optional();
@@ -22,9 +21,6 @@ export const registerSchema = z.object({
   }).optional(),
   project: z.object({
     name: z.string().trim().min(1, "project name is required"),
-    niche: optionalText,
-    monthlyBudget: z.number().nonnegative().nullable().optional(),
-    budgetCurrency: z.enum(CURRENCIES).optional(),
   }).optional(),
 }).refine(
   (value) => (value.client === undefined) === (value.project === undefined),

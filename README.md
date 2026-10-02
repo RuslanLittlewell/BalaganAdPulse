@@ -214,11 +214,10 @@ transport-independent `AppError` and are mapped to the HTTP envelope in one plac
 **How the web app holds what the server sends.** Readings that depend on a period — figures,
 ad sets, ads, leads — are React Query queries, refetched when the screen that wants them is
 mounted, because a stale figure is worse than a request. The lists the whole session leans on
-— the staff, the projects, and the campaign names the task module names its work by — are
-zustand stores loaded once and read from everywhere: `StaffSync` and `ProjectsSync` fill
-theirs when the app starts, `CampaignNamesSync` fills its own when the task module is opened
-and drops it when the module is left. A store is refreshed by the mutations that change what
-it holds, so creating or renaming a project reaches every screen showing the list.
+— the staff and the projects — are zustand stores loaded once and read from everywhere:
+`StaffSync` and `ProjectsSync` fill theirs when the app starts. A store is refreshed by the
+mutations that change what it holds, so creating or renaming a project reaches every screen
+showing the list.
 
 Every client belongs to an organization. The business hierarchy is
 `Client → Project → Campaign → Ad set → Ad`, with measured figures stored per day at
@@ -241,14 +240,12 @@ inside one transaction, so a position is never duplicated or left with a gap.
 
 A task carries a title, a rich-text description and a priority of its own (`LOW`, `MEDIUM`,
 `HIGH`, `URGENT` — distinct from `ProjectPriority`, which describes a project by counting its
-tasks), and optionally a project, a campaign, a responsible member, a due date and a
-checklist.
+tasks), and optionally a project, a responsible member, a due date and a checklist.
 
 **A task may stand without a project** — the note a media buyer writes to themselves. Such a
-task carries no campaign and is never shared with a client, because both come from the
-project, and it is reached by the member who wrote it, the member responsible for it and any
-admin: the project's grants cannot answer for it. The board and the calendar show it as
-**Без проекта**.
+task is never shared with a client, because the client comes from the project, and it is
+reached by the member who wrote it, the member responsible for it and any admin: the
+project's grants cannot answer for it. The board and the calendar show it as **Без проекта**.
 
 **The form is composed rather than filled in.** It opens with the title, the description and
 the priority, and a row of controls under the title adds what this task actually needs:
@@ -284,14 +281,6 @@ in the audit trail. A monthly task due on the 31st falls on the last day of a mo
 short to hold it. An interval needs a due date to count from, and clearing the due date of a
 task while it repeats is refused.
 
-It may also name **one campaign of its own project**. Naming none means the work is about
-the project as a whole, shown as **Общий** — a statement rather than a gap, so nothing
-defaults a task onto a campaign. A campaign under another project is refused with 400,
-the same answer an unknown campaign gets, so a refusal never confirms what exists outside
-the caller's grants. Moving a task to another project releases a campaign the request did
-not re-state, and deleting a campaign leaves its tasks standing as Общий: work outlives
-the campaign it was about.
-
 Reading the board follows the same grants as the projects it draws from. Admins and
 managers write; guests read; a `CLIENT` member is refused the board entirely, because it
 carries the agency's internal notes about a customer's own work.
@@ -315,14 +304,12 @@ asking for a week.
 
 The board is not the only place work is visible. A **project** lists the tasks under it
 that are still in flight — `IDEA`, `IN_PROGRESS`, `NEEDS_FIX`, `IN_REVIEW`, everything
-but the two terminal stages — below its campaigns. A **campaign** lists the tasks naming
-it, at every stage, because its finished work is part of its history. Opening one from
-either list shows it read-only: the same description renderer the editor uses, with input
-turned off, and no control that writes. Those screens are for reading; the board is where
-work is managed.
+but the two terminal stages — below its campaigns. Opening one from that list shows it
+read-only: the same description renderer the editor uses, with input turned off, and no
+control that writes. That screen is for reading; the board is where work is managed.
 
-The task listing accepts `projectId` and `campaignId`; both narrow what the caller's
-grants already allow and neither can widen it.
+The task listing accepts `projectId`; it narrows what the caller's grants already allow and
+cannot widen it.
 
 The board is shared work, so it updates live. A committed task change is published to
 `/api/realtime`, a WebSocket sharing the HTTP server and authenticated by the same HttpOnly
@@ -445,7 +432,7 @@ ports, fixed clocks and deterministic identifiers.
 Every reading above is scoped to a range: `?from=YYYY-MM-DD&to=YYYY-MM-DD`, both
 endpoints included and both required.
 
-`name` is required on create; `niche`, `monthlyBudget` and `email` are optional.
+`name` is required on create; `email` is optional.
 Errors are normalized to a single shape:
 
 ```json

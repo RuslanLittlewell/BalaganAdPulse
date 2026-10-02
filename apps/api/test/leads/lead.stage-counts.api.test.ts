@@ -29,19 +29,18 @@ const counts = (query = SEPTEMBER, as = auth) => request(app).get(`/api/crm/proj
 
 type Seed = {
   stage?: "NEW" | "QUALIFIED" | "TARGET" | "PROPOSAL" | null;
-  project?: string | null;
-  board?: string | null;
+  project?: string;
   createdAt?: string;
   submittedAt?: string;
   columnId?: string;
 };
 
 let seeded = 0;
-function seedLead({ stage = "NEW", project = projectId, board = clientId, createdAt = "2026-09-10T12:00:00Z", submittedAt, columnId }: Seed = {}) {
+function seedLead({ stage = "NEW", project = projectId, createdAt = "2026-09-10T12:00:00Z", submittedAt, columnId }: Seed = {}) {
   seeded += 1;
   return prisma.lead.create({
     data: {
-      name: `Лид ${seeded}`, orgId, clientId: board, projectId: project, stage, columnId, createdAt: new Date(createdAt),
+      name: `Лид ${seeded}`, orgId, projectId: project, stage, columnId, createdAt: new Date(createdAt),
       ...(submittedAt ? {
         origin: "META" as const,
         metaSource: {
@@ -63,8 +62,8 @@ describe("period lead counts per project and fixed stage", () => {
   it("counts the leads that arrived in the range by the stage they are in now", async () => {
     const moved = await seedLead({ createdAt: "2026-09-05T08:00:00Z" });
     await seedLead({ createdAt: "2026-09-06T08:00:00Z" });
-    await seedLead({ stage: "TARGET", project: otherProjectId, board: null });
-    await request(app).patch(`/api/crm/boards/${clientId}/leads/${moved.id}/move`).set(auth).send({ stage: "PROPOSAL", position: 0 }).expect(200);
+    await seedLead({ stage: "TARGET", project: otherProjectId });
+    await request(app).patch(`/api/crm/boards/${projectId}/leads/${moved.id}/move`).set(auth).send({ stage: "PROPOSAL", position: 0 }).expect(200);
 
     const response = await counts();
 
@@ -92,24 +91,28 @@ describe("period lead counts per project and fixed stage", () => {
     expect(byProject((await counts()).body)).toEqual({ [projectId]: { NEW: 0, QUALIFIED: 1, TARGET: 0, PROPOSAL: 0 } });
   });
 
-  it("leaves out leads in custom columns and leads without a project", async () => {
-    const column = await prisma.leadColumn.create({ data: { orgId, clientId, name: "Встреча", position: 0 } });
+  it("leaves out leads in custom columns", async () => {
+    const column = await prisma.leadColumn.create({ data: { orgId, projectId, name: "Встреча", position: 0 } });
     await seedLead({ stage: null, columnId: column.id });
-    await seedLead({ project: null });
 
     expect((await counts()).body).toEqual([]);
   });
 
   it("counts only leads on boards the member reaches", async () => {
     await seedLead({ stage: "NEW" });
-    await seedLead({ stage: "TARGET", board: null });
+    await seedLead({ stage: "TARGET", project: otherProjectId });
+    const foreign = await seedProject("unused", "Чужой");
+    await seedLead({ stage: "QUALIFIED", project: foreign.projectId });
     const customer = await signInAs("Customer", { role: "CLIENT" });
     await grantAccess(customer.membership!.id, clientId);
     const manager = await signInAs("Manager", { role: "MANAGER" });
     await grantAccess(manager.membership!.id, clientId, projectId);
 
-    expect(byProject((await counts(SEPTEMBER, customer.auth)).body)).toEqual({ [projectId]: { NEW: 1, QUALIFIED: 0, TARGET: 0, PROPOSAL: 0 } });
-    expect(byProject((await counts(SEPTEMBER, manager.auth)).body)).toEqual({ [projectId]: { NEW: 0, QUALIFIED: 0, TARGET: 1, PROPOSAL: 0 } });
+    expect(byProject((await counts(SEPTEMBER, customer.auth)).body)).toEqual({
+      [projectId]: { NEW: 1, QUALIFIED: 0, TARGET: 0, PROPOSAL: 0 },
+      [otherProjectId]: { NEW: 0, QUALIFIED: 0, TARGET: 1, PROPOSAL: 0 },
+    });
+    expect(byProject((await counts(SEPTEMBER, manager.auth)).body)).toEqual({ [projectId]: { NEW: 1, QUALIFIED: 0, TARGET: 0, PROPOSAL: 0 } });
   });
 
   it("keeps other organizations apart", async () => {

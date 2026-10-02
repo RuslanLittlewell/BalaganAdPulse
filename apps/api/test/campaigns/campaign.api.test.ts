@@ -187,7 +187,27 @@ describe("summaries", () => {
   it("sums the agency from the projects the member reaches", async () => {
     const res = await request(app).get(`/api/summary${RANGE}`).set(auth);
     expect(res.status).toBe(200);
-    expect(res.body.spend).toBe(1000);
+    expect(res.body[0].performance.spend).toBe(1000);
+  });
+
+  it("separates actual project currencies in agency and channel summaries", async () => {
+    await prisma.project.update({ where: { id: projectId }, data: { budgetCurrency: "USD" } });
+    const secondProject = await seedProject("unused", "Europe");
+    await prisma.project.update({ where: { id: secondProject.projectId }, data: { budgetCurrency: "EUR" } });
+    const second = await seedCampaign(secondProject.projectId, "Европа", "YANDEX");
+    await prisma.campaignDailyMetric.create({ data: { campaignId: second.id, date: new Date("2026-08-02T00:00:00.000Z"), spend: 40, clicks: 20 } });
+    const summary = await request(app).get(`/api/summary${RANGE}`).set(auth);
+    expect(summary.status).toBe(200);
+    expect(summary.body).toEqual(expect.arrayContaining([
+      { currency: "USD", performance: expect.objectContaining({ spend: 1000, cpc: 0.5 }) },
+      { currency: "EUR", performance: expect.objectContaining({ spend: 40, cpc: 2 }) },
+    ]));
+    expect(summary.body).toHaveLength(2);
+    const channels = await request(app).get(`/api/summary/channels${RANGE}`).set(auth);
+    expect(channels.body).toEqual(expect.arrayContaining([
+      { currency: "USD", channel: "YANDEX", campaigns: 1, performance: expect.objectContaining({ spend: 1000 }) },
+      { currency: "EUR", channel: "YANDEX", campaigns: 1, performance: expect.objectContaining({ spend: 40 }) },
+    ]));
   });
 
   it("splits the agency by channel, biggest spend first", async () => {
@@ -200,15 +220,15 @@ describe("summaries", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual([
-      { channel: "META", campaigns: 1, performance: expect.objectContaining({ spend: 3000 }) },
-      { channel: "YANDEX", campaigns: 1, performance: expect.objectContaining({ spend: 1000 }) },
+      { currency: null, channel: "META", campaigns: 1, performance: expect.objectContaining({ spend: 3000 }) },
+      { currency: null, channel: "YANDEX", campaigns: 1, performance: expect.objectContaining({ spend: 1000 }) },
     ]);
   });
 
   it("leaves out a project the member holds no grant over", async () => {
     const manager = await signInAs("Manager", { role: "MANAGER" });
     const res = await request(app).get(`/api/summary${RANGE}`).set(manager.auth);
-    expect(res.body.spend).toBe(0);
+    expect(res.body).toEqual([]);
   });
 });
 
@@ -230,4 +250,20 @@ describe("the sheet is gone", () => {
       expect(res.status).toBe(404);
     },
   );
+});
+
+describe("a campaign's KPI in campaign responses", () => {
+  it("carries the campaign's own KPI, or null when it has none", async () => {
+    const bare = await seedCampaign(projectId, "Без KPI", "META");
+    await prisma.campaign.update({ where: { id: campaignId }, data: { kpiMetric: "CPA", kpiTarget: "12.5", kpiUpdatedAt: new Date() } });
+
+    const listed = await request(app).get(`/api/projects/${projectId}/campaigns${RANGE}`).set(auth);
+    const kpiOf = (id: string) => listed.body.find((campaign: { id: string }) => campaign.id === id).kpi;
+
+    expect(listed.status).toBe(200);
+    expect(kpiOf(campaignId)).toEqual({ metric: "CPA", target: "12.5000" });
+    expect(kpiOf(bare.id)).toBeNull();
+    const read = await request(app).get(`/api/campaigns/${campaignId}${RANGE}`).set(auth);
+    expect(read.body.kpi).toEqual({ metric: "CPA", target: "12.5000" });
+  });
 });

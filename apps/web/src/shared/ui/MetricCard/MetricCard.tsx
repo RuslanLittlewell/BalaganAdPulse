@@ -3,15 +3,15 @@ import { cn } from "@/shared/lib/utils.js";
 
 export interface MetricCardProps {
   label: string;
-  value: string;
-  hint?: string;
+  value: ReactNode;
+  hint?: ReactNode;
   chart?: ReactNode;
   className?: string;
 }
 
 export function MetricCard({ label, value, hint, chart, className }: MetricCardProps) {
   return (
-    <div className={cn("rounded-lg border border-border bg-card p-4", className)}>
+    <div className={cn("rounded-lg border border-border glass-card p-4", className)}>
       <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </div>

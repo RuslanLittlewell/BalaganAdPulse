@@ -33,16 +33,16 @@ describe("PUT /api/members/:id/access", () => {
     const res = await setAccess(manager.membership!.id, [{ clientId: acmeId }]);
     expect(res.status).toBe(200);
 
-    const clients = await request(app).get("/api/clients").set(manager.auth);
-    expect(clients.body.map((c: { id: string }) => c.id)).toEqual([acmeId]);
+    const projects = await request(app).get("/api/projects").set(manager.auth);
+    expect(projects.body.map((p: { id: string }) => p.id)).toEqual([acmeProjectId]);
   });
 
   it("replaces the whole set rather than adding to it", async () => {
     await grantAccess(manager.membership!.id, globexId);
     await setAccess(manager.membership!.id, [{ clientId: acmeId }]);
 
-    const clients = await request(app).get("/api/clients").set(manager.auth);
-    expect(clients.body.map((c: { id: string }) => c.id)).toEqual([acmeId]);
+    const projects = await request(app).get("/api/projects").set(manager.auth);
+    expect(projects.body.map((p: { id: string }) => p.id)).toEqual([acmeProjectId]);
   });
 
   it("withdraws every grant when given an empty list", async () => {
@@ -50,7 +50,7 @@ describe("PUT /api/members/:id/access", () => {
     const res = await setAccess(manager.membership!.id, []);
 
     expect(res.status).toBe(200);
-    expect((await request(app).get("/api/clients").set(manager.auth)).body).toEqual([]);
+    expect((await request(app).get("/api/projects").set(manager.auth)).body).toEqual([]);
   });
 
   it("grants one project of a client", async () => {
@@ -103,8 +103,8 @@ describe("PUT /api/members/:id/access", () => {
     await setAccess(manager.membership!.id, [{ clientId: acmeId }]);
     await setAccess(manager.membership!.id, [{ clientId: MISSING }]);
 
-    const clients = await request(app).get("/api/clients").set(manager.auth);
-    expect(clients.body.map((c: { id: string }) => c.id)).toEqual([acmeId]);
+    const projects = await request(app).get("/api/projects").set(manager.auth);
+    expect(projects.body.map((p: { id: string }) => p.id)).toEqual([acmeProjectId]);
   });
 });
 

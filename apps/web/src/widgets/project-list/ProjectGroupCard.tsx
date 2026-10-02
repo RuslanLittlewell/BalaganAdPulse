@@ -7,6 +7,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/shared/ui/index.js";
+import WarmTooltip from "@/shared/ui/WarmTooltip/WarmTooltip.js";
 import { t } from "@/shared/config/index.js";
 import { dragId } from "@/entities/project/index.js";
 
@@ -15,6 +16,7 @@ export interface ProjectGroupCardProps {
   name: string;
   projectIds: string[];
   draggable: boolean;
+  collapsed?: boolean;
   sorting: boolean;
   onDelete: () => void;
   children: ReactNode;
@@ -25,6 +27,7 @@ export function ProjectGroupCard({
   name,
   projectIds,
   draggable,
+  collapsed = false,
   sorting,
   onDelete,
   children,
@@ -52,9 +55,15 @@ export function ProjectGroupCard({
             data-drag-handle={draggable ? "group" : undefined}
             className={`px-1 py-1 ${draggable ? "cursor-grab" : ""}`}
           >
-            <span className="block truncate font-mono text-[11px] uppercase tracking-[.12em] text-muted-foreground">
-              {name}
-            </span>
+            {collapsed ? (
+              <WarmTooltip content={name} side="right">
+                <span tabIndex={0} aria-label={name} className="mx-auto block h-1 w-6 rounded-full bg-muted-foreground/40" />
+              </WarmTooltip>
+            ) : (
+              <span className="block truncate font-mono text-[11px] uppercase tracking-[.12em] text-muted-foreground">
+                {name}
+              </span>
+            )}
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>

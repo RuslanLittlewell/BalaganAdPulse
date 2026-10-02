@@ -1,7 +1,7 @@
 import { Avatar } from "@/shared/ui/index.js";
 import type { Project } from "../../api/api.js";
 
-const SIZES = { sm: "size-8", md: "size-10", lg: "size-14" } as const;
+const SIZES = { sm: "size-8", md: "size-10", lg: "size-14", xl: "size-[110px]" } as const;
 
 export interface ProjectAvatarProps {
   project: Project;

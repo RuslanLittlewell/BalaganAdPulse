@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { leadColumnsKey, leadsKey } from "./queries.js";
+import { leadActivityKey, leadColumnsKey, leadFilesKey, leadsKey } from "./queries.js";
 
 const REALTIME_PATH = "/api/realtime";
 
@@ -39,6 +39,8 @@ export function useCrmEvents(boardKey: string | undefined, options: CrmEventsOpt
     const refetch = () => {
       void queryClient.invalidateQueries({ queryKey: leadsKey(boardKey) });
       void queryClient.invalidateQueries({ queryKey: leadColumnsKey(boardKey) });
+      void queryClient.invalidateQueries({ queryKey: leadActivityKey(boardKey) });
+      void queryClient.invalidateQueries({ queryKey: leadFilesKey(boardKey) });
     };
 
     const scheduleRetry = () => {

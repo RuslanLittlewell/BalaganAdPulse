@@ -26,7 +26,6 @@ export const createTaskSchema = z.object({
   column: z.enum(TASK_COLUMNS).optional(),
   priority: z.enum(TASK_PRIORITIES),
   assigneeId: z.uuid().nullable().optional(),
-  campaignId: z.uuid().nullable().optional(),
   dueDate,
   dueTime,
   repeatEvery: z.enum(TASK_REPEATS).optional(),
@@ -39,7 +38,6 @@ export const updateTaskSchema = z.object({
   description,
   priority: z.enum(TASK_PRIORITIES).optional(),
   assigneeId: z.uuid().nullable().optional(),
-  campaignId: z.uuid().nullable().optional(),
   visibleToClient: z.boolean().optional(),
   dueDate,
   dueTime,
@@ -49,7 +47,6 @@ export const updateTaskSchema = z.object({
 
 export const taskFilterSchema = z.object({
   projectId: z.uuid().optional(),
-  campaignId: z.uuid().optional(),
   dueFrom: z.string().refine(isCalendarDay, "dueFrom must be a real YYYY-MM-DD calendar day").optional(),
   dueTo: z.string().refine(isCalendarDay, "dueTo must be a real YYYY-MM-DD calendar day").optional(),
 });

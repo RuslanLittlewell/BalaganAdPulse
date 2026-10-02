@@ -10,7 +10,7 @@ import type { NewProject, ProjectChange, ProjectRecord } from "../domain/project
 export interface ProjectRepository {
   create(
     context: TransactionContext,
-    input: NewProject & { id: string; position: number },
+    input: Omit<NewProject, "memberIds"> & { id: string; position: number },
   ): Promise<ProjectRecord>;
   countForClient(clientId: string): Promise<number>;
   listReachable(actor: ActorContext, clientId?: string): Promise<ProjectRecord[]>;
@@ -23,6 +23,15 @@ export interface ClientReach {
   isReachable(actor: ActorContext, clientId: string): Promise<boolean>;
 }
 
+export interface ProjectStaffing {
+  eligible(orgId: string, memberIds: readonly string[]): Promise<readonly string[]>;
+  grant(
+    context: TransactionContext,
+    project: { id: string; clientId: string },
+    memberIds: readonly string[],
+  ): Promise<void>;
+}
+
 export interface ProjectPictureStorage {
   read(projectId: string): Promise<Uint8Array | null>;
   write(projectId: string, png: Uint8Array): Promise<void>;
@@ -32,6 +41,7 @@ export interface ProjectDependencies {
   readonly projects: ProjectRepository;
   readonly clients: ClientReach;
   readonly pictures: ProjectPictureStorage;
+  readonly staffing: ProjectStaffing;
   readonly audit: AuditWriter;
   readonly ids: IdGenerator;
   readonly unitOfWork: UnitOfWork;

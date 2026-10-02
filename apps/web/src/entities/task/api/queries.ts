@@ -12,14 +12,13 @@ export type TaskEvent =
 
 export interface UseTasksOptions {
   projectId?: string;
-  campaignId?: string;
   enabled?: boolean;
 }
 
-export function useTasks({ projectId, campaignId, enabled = true }: UseTasksOptions = {}) {
+export function useTasks({ projectId, enabled = true }: UseTasksOptions = {}) {
   return useQuery({
-    queryKey: [...TASKS_KEY, projectId ?? null, campaignId ?? null],
-    queryFn: () => tasksApi.list(projectId, campaignId),
+    queryKey: [...TASKS_KEY, projectId ?? null],
+    queryFn: () => tasksApi.list(projectId),
     enabled,
   });
 }
@@ -118,21 +117,15 @@ export function useMoveTask() {
 
 export interface TaskListFilter {
   readonly projectId: string | null;
-  readonly campaignId: string | null;
 }
 
 function matchesFilter(filter: TaskListFilter, task: Task): boolean {
-  if (filter.projectId !== null && task.projectId !== filter.projectId) return false;
-  if (filter.campaignId !== null && task.campaignId !== filter.campaignId) return false;
-  return true;
+  return filter.projectId === null || task.projectId === filter.projectId;
 }
 
 export function filterOfKey(key: readonly unknown[]): TaskListFilter {
-  const [, projectId, campaignId] = key;
-  return {
-    projectId: typeof projectId === "string" ? projectId : null,
-    campaignId: typeof campaignId === "string" ? campaignId : null,
-  };
+  const [, projectId] = key;
+  return { projectId: typeof projectId === "string" ? projectId : null };
 }
 
 export function applyTaskEvent(

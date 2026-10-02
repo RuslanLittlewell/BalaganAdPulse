@@ -46,7 +46,6 @@ export function ProjectPerformanceTable({ range }: { range: DateRange }) {
   const rows: PerformanceRow[] = figures.map(({ project, performance, days }) => ({
     id: project.id,
     name: project.name,
-    note: project.niche ?? undefined,
     badge: days.length === 0 ? undefined : (
       <Sparkline
         values={days.map((day) => day.spend)}

@@ -74,7 +74,7 @@ export function AvatarEditorDialog({ open, initial, onClose, onSave }: Props) {
         >
           <aside
             className={
-              "sticky top-0 grid self-start gap-4 [&>img]:aspect-square [&>img]:w-full [&>img]:rounded-full [&>img]:bg-muted"
+              "sticky top-0 grid self-start gap-4 [&>img]:aspect-square [&>img]:w-full [&>img]:rounded-full"
             }
           >
             <AvatarPreview options={preview} />
@@ -94,7 +94,7 @@ export function AvatarEditorDialog({ open, initial, onClose, onSave }: Props) {
                 name={key}
                 render={({ field }) => (
                   <div className="grid gap-1">
-                    <Label htmlFor={key} className="text-xs text-muted-foreground">
+                    <Label htmlFor={key}>
                       {fieldLabels[key]}
                     </Label>
                     <Select value={field.value} onValueChange={field.onChange}>

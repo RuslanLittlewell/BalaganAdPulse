@@ -31,7 +31,7 @@ describe("a customer managing their client's projects", () => {
     await grantAccess(manager.membership!.id, clientId);
 
     const created = await request(app).post("/api/projects").set(auth)
-      .send({ clientId, name: "Имплантация", niche: "Медицина", monthlyBudget: 900, budgetCurrency: "USD" });
+      .send({ clientId, name: "Имплантация", budgetCurrency: "USD" });
 
     expect(created.status).toBe(201);
     expect(created.body).toMatchObject({ clientId, name: "Имплантация", priority: "NEW" });
@@ -53,14 +53,14 @@ describe("a customer managing their client's projects", () => {
     expect(await prisma.project.count({ where: { name: "Чужой" } })).toBe(0);
   });
 
-  it("lets a customer edit the name, niche, budget and currency of their client's project", async () => {
+  it("lets a customer edit the name and the picture of their client's project, not its currency", async () => {
     const auth = await customer("CLIENT_ADMIN");
 
     const updated = await request(app).patch(`/api/projects/${projectId}`).set(auth)
-      .send({ name: "Клиника 2.0", niche: "Стоматология", monthlyBudget: 1200, budgetCurrency: "EUR" });
+      .send({ name: "Клиника 2.0", budgetCurrency: "EUR" });
 
     expect(updated.status).toBe(200);
-    expect(updated.body).toMatchObject({ name: "Клиника 2.0", niche: "Стоматология", budgetCurrency: "EUR" });
+    expect(updated.body).toMatchObject({ name: "Клиника 2.0", budgetCurrency: null });
   });
 
   it("keeps deletion and priority with the agency", async () => {
@@ -78,9 +78,11 @@ describe("a customer managing their client's projects", () => {
     const auth = await customer("CLIENT_ADMIN");
     const campaign = await seedCampaign(projectId);
 
-    expect((await request(app).get(`/api/projects/${projectId}/integrations/meta`).set(auth)).status).toBe(403);
-    expect((await request(app).put(`/api/projects/${projectId}/integrations/meta`).set(auth).send({ accountId: "123", token: "secret" })).status).toBe(403);
-    expect((await request(app).post(`/api/projects/${projectId}/integrations/meta/sync`).set(auth)).status).toBe(403);
+    const someConnection = `/api/projects/${projectId}/integrations/00000000-0000-4000-8000-000000000000`;
+    expect((await request(app).get(`/api/projects/${projectId}/integrations`).set(auth)).status).toBe(403);
+    expect((await request(app).post(`/api/projects/${projectId}/integrations/meta`).set(auth).send({ accountId: "123", token: "secret" })).status).toBe(403);
+    expect((await request(app).patch(someConnection).set(auth).send({ leadsEnabled: false })).status).toBe(403);
+    expect((await request(app).post(`${someConnection}/sync`).set(auth)).status).toBe(403);
     expect((await request(app).put(`/api/projects/${projectId}/kpi`).set(auth).send({ metric: "CONVERSIONS", target: "10" })).status).toBe(403);
     expect((await request(app).put(`/api/campaigns/${campaign.id}/kpi`).set(auth).send({ metric: "CPA", target: "10" })).status).toBe(403);
     expect((await request(app).get(`/api/projects/${projectId}/kpi`).set(auth)).status).toBe(200);

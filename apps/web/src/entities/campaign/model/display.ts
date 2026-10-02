@@ -20,13 +20,7 @@ export function statusTone(status: DeliveryStatus): "positive" | "warning" | "da
   return "muted";
 }
 
-export type PerformanceTone = "danger" | "stable" | "profitable";
-
-export function performanceTone(performance: Performance): PerformanceTone {
-  if (performance.roas != null && performance.roas < 0.9) return "danger";
-  if (performance.roas != null && performance.roas > 1.2) return "profitable";
-  return "stable";
-}
+export type PerformanceTone = "idle" | "danger" | "stable" | "profitable";
 
 export interface MetricColumn {
   id: keyof Performance;

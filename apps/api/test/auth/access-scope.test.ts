@@ -55,36 +55,37 @@ describe("an admin reaches the whole organization", () => {
   });
 });
 
-describe("a manager reaches only what a grant names", () => {
-  it("lists exactly the granted clients", async () => {
-    const granted = await someoneElsesClient("Granted");
-    await someoneElsesClient("Ungranted");
-    const manager = await signInAs("Manager", { role: "MANAGER" });
-    await grantAccess(manager.membership!.id, granted.clientId);
-
-    const res = await request(app).get("/api/clients").set(manager.auth);
-    expect(res.body.map((c: { id: string }) => c.id)).toEqual([granted.clientId]);
-  });
-
-  it("returns nothing at all without any grant", async () => {
-    await someoneElsesClient();
-    const manager = await signInAs("Manager", { role: "MANAGER" });
-
-    const res = await request(app).get("/api/clients").set(manager.auth);
-    expect(res.body).toEqual([]);
-  });
-
-  it("answers 404 for an ungranted client, the same as for a missing one", async () => {
+describe("a manager reaches every client of the organization", () => {
+  it("lists every client, including ones entered by an admin", async () => {
+    const { auth } = await signInAs("Admin", { role: "ADMIN" });
+    const entered = await request(app).post("/api/clients").set(auth).send({ name: "Admin's" });
     const { clientId } = await someoneElsesClient();
     const manager = await signInAs("Manager", { role: "MANAGER" });
 
-    const ungranted = await request(app).get(`/api/clients/${clientId}`).set(manager.auth);
-    const missing = await request(app)
-      .get("/api/clients/00000000-0000-0000-0000-000000000000").set(manager.auth);
+    const res = await request(app).get("/api/clients").set(manager.auth);
+    expect(res.body.map((c: { id: string }) => c.id).sort())
+      .toEqual([entered.body.id, clientId].sort());
+  });
 
-    expect(ungranted.status).toBe(404);
-    expect(ungranted.status).toBe(missing.status);
-    expect(ungranted.body.error.message).toBe(missing.body.error.message);
+  it("reads a client it holds no grant for", async () => {
+    const { clientId } = await someoneElsesClient();
+    const manager = await signInAs("Manager", { role: "MANAGER" });
+    expect((await request(app).get(`/api/clients/${clientId}`).set(manager.auth)).status).toBe(200);
+  });
+
+  it("never reaches another organization's client", async () => {
+    const outsider = await signInAsOutsider();
+    const manager = await signInAs("Manager", { role: "MANAGER" });
+
+    expect((await request(app).get(`/api/clients/${outsider.client.id}`).set(manager.auth)).status).toBe(404);
+    expect((await request(app).get("/api/clients").set(manager.auth)).body).toEqual([]);
+  });
+
+  it("lists no project of a client it holds no grant for", async () => {
+    await someoneElsesClient();
+    const manager = await signInAs("Manager", { role: "MANAGER" });
+
+    expect((await request(app).get("/api/projects").set(manager.auth)).body).toEqual([]);
   });
 
   it("answers 404 for an ungranted project", async () => {
@@ -92,23 +93,56 @@ describe("a manager reaches only what a grant names", () => {
     const manager = await signInAs("Manager", { role: "MANAGER" });
     expect((await request(app).get(`/api/projects/${projectId}`).set(manager.auth)).status).toBe(404);
   });
+});
+
+describe("a guest reaches only what a grant names", () => {
+  it("lists exactly the granted clients", async () => {
+    const granted = await someoneElsesClient("Granted");
+    await someoneElsesClient("Ungranted");
+    const guest = await signInAs("Guest", { role: "GUEST" });
+    await grantAccess(guest.membership!.id, granted.clientId);
+
+    const res = await request(app).get("/api/clients").set(guest.auth);
+    expect(res.body.map((c: { id: string }) => c.id)).toEqual([granted.clientId]);
+  });
+
+  it("returns nothing at all without any grant", async () => {
+    await someoneElsesClient();
+    const guest = await signInAs("Guest", { role: "GUEST" });
+
+    const res = await request(app).get("/api/clients").set(guest.auth);
+    expect(res.body).toEqual([]);
+  });
+
+  it("answers 404 for an ungranted client, the same as for a missing one", async () => {
+    const { clientId } = await someoneElsesClient();
+    const guest = await signInAs("Guest", { role: "GUEST" });
+
+    const ungranted = await request(app).get(`/api/clients/${clientId}`).set(guest.auth);
+    const missing = await request(app)
+      .get("/api/clients/00000000-0000-0000-0000-000000000000").set(guest.auth);
+
+    expect(ungranted.status).toBe(404);
+    expect(ungranted.status).toBe(missing.status);
+    expect(ungranted.body.error.message).toBe(missing.body.error.message);
+  });
 
   it("reaches a client once it is granted", async () => {
     const { clientId } = await someoneElsesClient();
-    const manager = await signInAs("Manager", { role: "MANAGER" });
-    await grantAccess(manager.membership!.id, clientId);
+    const guest = await signInAs("Guest", { role: "GUEST" });
+    await grantAccess(guest.membership!.id, clientId);
 
-    expect((await request(app).get(`/api/clients/${clientId}`).set(manager.auth)).status).toBe(200);
+    expect((await request(app).get(`/api/clients/${clientId}`).set(guest.auth)).status).toBe(200);
   });
 
   it("stops reaching a client when the grant is withdrawn", async () => {
     const { clientId } = await someoneElsesClient();
-    const manager = await signInAs("Manager", { role: "MANAGER" });
-    await grantAccess(manager.membership!.id, clientId);
-    expect((await request(app).get(`/api/clients/${clientId}`).set(manager.auth)).status).toBe(200);
+    const guest = await signInAs("Guest", { role: "GUEST" });
+    await grantAccess(guest.membership!.id, clientId);
+    expect((await request(app).get(`/api/clients/${clientId}`).set(guest.auth)).status).toBe(200);
 
-    await prisma.clientAccess.deleteMany({ where: { membershipId: manager.membership!.id } });
-    expect((await request(app).get(`/api/clients/${clientId}`).set(manager.auth)).status).toBe(404);
+    await prisma.clientAccess.deleteMany({ where: { membershipId: guest.membership!.id } });
+    expect((await request(app).get(`/api/clients/${clientId}`).set(guest.auth)).status).toBe(404);
   });
 });
 

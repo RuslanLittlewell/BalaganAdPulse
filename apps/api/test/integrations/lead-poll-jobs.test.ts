@@ -27,13 +27,14 @@ beforeEach(async () => {
       nextLeadsAt: now,
     },
   });
+  await prisma.project.update({ where: { id: projectId }, data: { budgetCurrency: "BYN" } });
 });
 
 afterAll(() => prisma.$disconnect());
 
 describe("claiming lead polls", () => {
   it("starts existing connections waiting, with no coverage and a poll due at once", async () => {
-    const row = await prisma.projectIntegration.findUniqueOrThrow({ where: { projectId } });
+    const row = await prisma.projectIntegration.findFirstOrThrow({ where: { projectId } });
 
     expect(row).toMatchObject({ leadsStatus: "WAITING", leadsCoveredUntil: null, leadsLastSuccessAt: null, leadsLastError: null, leadsQueuedAt: null, nextSweepAt: null, leadsLeaseOwner: null, leadsLeaseUntil: null });
   });
@@ -47,27 +48,27 @@ describe("claiming lead polls", () => {
   });
 
   it("waits for the first successful advertising import", async () => {
-    await prisma.projectIntegration.update({ where: { projectId }, data: { lastSuccessAt: null, status: "RUNNING" } });
+    await prisma.projectIntegration.updateMany({ where: { projectId }, data: { lastSuccessAt: null, status: "RUNNING" } });
 
     expect(await jobs.claim(now)).toBeNull();
   });
 
   it("does not poll a connection waiting for a new token", async () => {
-    await prisma.projectIntegration.update({ where: { projectId }, data: { status: "AUTH_REQUIRED" } });
+    await prisma.projectIntegration.updateMany({ where: { projectId }, data: { status: "AUTH_REQUIRED" } });
 
     expect(await jobs.claim(now)).toBeNull();
   });
 
   it("does not poll before the next poll, a manual request or a sweep is due", async () => {
-    await prisma.projectIntegration.update({ where: { projectId }, data: { nextLeadsAt: new Date(now.getTime() + 60_000) } });
+    await prisma.projectIntegration.updateMany({ where: { projectId }, data: { nextLeadsAt: new Date(now.getTime() + 60_000) } });
     expect(await jobs.claim(now)).toBeNull();
 
-    await prisma.projectIntegration.update({ where: { projectId }, data: { leadsQueuedAt: now } });
+    await prisma.projectIntegration.updateMany({ where: { projectId }, data: { leadsQueuedAt: now } });
     expect(await jobs.claim(now)).not.toBeNull();
   });
 
   it("is claimed for a due sweep alone", async () => {
-    await prisma.projectIntegration.update({ where: { projectId }, data: { nextLeadsAt: new Date(now.getTime() + 60_000), nextSweepAt: now } });
+    await prisma.projectIntegration.updateMany({ where: { projectId }, data: { nextLeadsAt: new Date(now.getTime() + 60_000), nextSweepAt: now } });
 
     expect(await jobs.claim(now)).toMatchObject({ sweepDue: true, pollDue: false });
   });
@@ -83,10 +84,10 @@ describe("claiming lead polls", () => {
   });
 
   it("claims a lead poll while an advertising import holds its own lease", async () => {
-    await prisma.projectIntegration.update({ where: { projectId }, data: { status: "RUNNING", leaseOwner: "importer", leaseUntil: new Date(now.getTime() + 600_000) } });
+    await prisma.projectIntegration.updateMany({ where: { projectId }, data: { status: "RUNNING", leaseOwner: "importer", leaseUntil: new Date(now.getTime() + 600_000) } });
 
     expect(await jobs.claim(now)).not.toBeNull();
-    expect(await prisma.projectIntegration.findUniqueOrThrow({ where: { projectId } })).toMatchObject({ leaseOwner: "importer", status: "RUNNING" });
+    expect(await prisma.projectIntegration.findFirstOrThrow({ where: { projectId } })).toMatchObject({ leaseOwner: "importer", status: "RUNNING" });
   });
 });
 
@@ -111,10 +112,10 @@ it("applies the lead poll migration to populated integrations without changing t
 });
 
 describe("recording lead polls", () => {
-  const read = () => prisma.projectIntegration.findUniqueOrThrow({ where: { projectId } });
+  const read = () => prisma.projectIntegration.findFirstOrThrow({ where: { projectId } });
 
   it("advances coverage, schedules the next poll in ten minutes and releases the lease on success", async () => {
-    await prisma.projectIntegration.update({ where: { projectId }, data: { leadsQueuedAt: now, leadsLastError: "PROVIDER", leadsStatus: "ERROR" } });
+    await prisma.projectIntegration.updateMany({ where: { projectId }, data: { leadsQueuedAt: now, leadsLastError: "PROVIDER", leadsStatus: "ERROR" } });
     const job = (await jobs.claim(now))!;
 
     await unitOfWork.run(async (context) => {
@@ -131,7 +132,7 @@ describe("recording lead polls", () => {
   it("keeps coverage and the next poll after a sweep-only run", async () => {
     const covered = new Date(now.getTime() - 60_000);
     const nextLeadsAt = new Date(now.getTime() + 300_000);
-    await prisma.projectIntegration.update({ where: { projectId }, data: { leadsCoveredUntil: covered, nextLeadsAt, nextSweepAt: now } });
+    await prisma.projectIntegration.updateMany({ where: { projectId }, data: { leadsCoveredUntil: covered, nextLeadsAt, nextSweepAt: now } });
     const job = (await jobs.claim(now))!;
 
     await unitOfWork.run((context) => jobs.succeed(context, job, { polled: false, swept: true, coveredUntil: covered }, now));
@@ -140,10 +141,10 @@ describe("recording lead polls", () => {
   });
 
   it("keeps a sweep requested while the previous one ran", async () => {
-    await prisma.projectIntegration.update({ where: { projectId }, data: { nextSweepAt: now } });
+    await prisma.projectIntegration.updateMany({ where: { projectId }, data: { nextSweepAt: now } });
     const job = (await jobs.claim(now))!;
     const requestedAgain = new Date(now.getTime() + 1_000);
-    await prisma.projectIntegration.update({ where: { projectId }, data: { nextSweepAt: requestedAgain } });
+    await prisma.projectIntegration.updateMany({ where: { projectId }, data: { nextSweepAt: requestedAgain } });
 
     await unitOfWork.run((context) => jobs.succeed(context, job, { polled: true, swept: true, coveredUntil: now }, now));
 
@@ -155,16 +156,16 @@ describe("recording lead polls", () => {
     const holds = (at = now) => unitOfWork.run((context) => jobs.hold(context, job, at));
 
     expect(await holds(new Date(now.getTime() + 180_001))).toBe(false);
-    await prisma.projectIntegration.update({ where: { projectId }, data: { revision: "replaced" } });
+    await prisma.projectIntegration.updateMany({ where: { projectId }, data: { revision: "replaced" } });
     expect(await holds()).toBe(false);
-    await prisma.projectIntegration.update({ where: { projectId }, data: { revision: job.revision } });
+    await prisma.projectIntegration.updateMany({ where: { projectId }, data: { revision: job.revision } });
     expect(await holds()).toBe(true);
-    await prisma.projectIntegration.delete({ where: { projectId } });
+    await prisma.projectIntegration.deleteMany({ where: { projectId } });
     expect(await holds()).toBe(false);
   });
 
   it("marks only lead import as needing access, retries hourly and recovers", async () => {
-    await prisma.projectIntegration.update({ where: { projectId }, data: { nextSweepAt: now } });
+    await prisma.projectIntegration.updateMany({ where: { projectId }, data: { nextSweepAt: now } });
     const job = (await jobs.claim(now))!;
 
     await jobs.fail(job, new MetaError("ACCESS"), now);
@@ -202,7 +203,7 @@ describe("recording lead polls", () => {
 
   it("records nothing for a poll that lost its lease", async () => {
     const job = (await jobs.claim(now))!;
-    await prisma.projectIntegration.update({ where: { projectId }, data: { revision: "replaced" } });
+    await prisma.projectIntegration.updateMany({ where: { projectId }, data: { revision: "replaced" } });
 
     await jobs.fail(job, new MetaError("ACCESS"), now);
 
@@ -211,20 +212,21 @@ describe("recording lead polls", () => {
 });
 
 describe("choosing ads for the daily sweep", () => {
-  async function adWithLeads(target: string, externalId: string, date: string, conversions: number, channel: "META" | "GOOGLE" = "META") {
-    const campaign = await prisma.campaign.create({ data: { projectId: target, name: `Кампания ${externalId}`, channel, externalId: `c${externalId}`, position: 0 } });
+  async function adWithLeads(target: string, externalId: string, date: string, conversions: number, channel: "META" | "GOOGLE" = "META", sourceAccountId = "123") {
+    const campaign = await prisma.campaign.create({ data: { projectId: target, name: `Кампания ${externalId}`, channel, externalId: `c${externalId}`, sourceAccountId: channel === "META" ? sourceAccountId : null, position: 0 } });
     const adSet = await prisma.adSet.create({ data: { campaignId: campaign.id, name: `Группа ${externalId}`, externalId: `s${externalId}`, position: 0 } });
     const ad = await prisma.ad.create({ data: { adSetId: adSet.id, name: `Объявление ${externalId}`, externalId, position: 0 } });
     await prisma.adDailyMetric.create({ data: { adId: ad.id, date: new Date(`${date}T00:00:00Z`), conversions } });
   }
 
-  it("returns the project's Meta ads that recorded leads since the sweep window opened", async () => {
+  it("returns the connection's Meta ads that recorded leads since the sweep window opened", async () => {
     const other = await seedProject("unused", "Другой");
     await adWithLeads(projectId, "1", "2026-09-11", 2);
     await adWithLeads(projectId, "2", "2026-09-12", 0);
     await adWithLeads(projectId, "3", "2026-09-05", 4);
     await adWithLeads(other.projectId, "4", "2026-09-12", 1);
     await adWithLeads(projectId, "5", "2026-09-12", 1, "GOOGLE");
+    await adWithLeads(projectId, "6", "2026-09-12", 3, "META", "999");
     const job = (await jobs.claim(now))!;
 
     expect(await jobs.sweepAds(job, new Date("2026-09-10T10:00:00Z"))).toEqual([
@@ -235,38 +237,55 @@ describe("choosing ads for the daily sweep", () => {
 
 describe("what sets lead polling in motion", () => {
   it("requests a sweep when an advertising import commits", async () => {
-    await prisma.projectIntegration.update({ where: { projectId }, data: { queuedAt: now, status: "QUEUED" } });
+    await prisma.projectIntegration.updateMany({ where: { projectId }, data: { queuedAt: now, status: "QUEUED" } });
     const importJobs = new PrismaImportJobs(prisma);
     const job = (await importJobs.claim(now))!;
 
     await importJobs.complete(job, { from: "2026-08-13", to: "2026-09-12", campaigns: [], adSets: [], ads: [], campaignMetrics: [], adSetMetrics: [], adMetrics: [] }, now);
 
-    expect((await prisma.projectIntegration.findUniqueOrThrow({ where: { projectId } })).nextSweepAt).toEqual(now);
+    expect((await prisma.projectIntegration.findFirstOrThrow({ where: { projectId } })).nextSweepAt).toEqual(now);
   });
 
   it("queues a lead poll on manual refresh even while an advertising import runs", async () => {
-    await prisma.projectIntegration.update({ where: { projectId }, data: { status: "RUNNING", leaseOwner: "importer", leaseUntil: new Date(now.getTime() + 600_000) } });
+    await prisma.projectIntegration.updateMany({ where: { projectId }, data: { status: "RUNNING", leaseOwner: "importer", leaseUntil: new Date(now.getTime() + 600_000) } });
     const repository = new PrismaIntegrationRepository(prisma, unitOfWork);
 
-    await repository.queue(projectId, now);
+    await repository.queue((await prisma.projectIntegration.findFirstOrThrow({ where: { projectId } })).id, now);
 
-    expect(await prisma.projectIntegration.findUniqueOrThrow({ where: { projectId } })).toMatchObject({ leadsQueuedAt: now, status: "RUNNING" });
+    expect(await prisma.projectIntegration.findFirstOrThrow({ where: { projectId } })).toMatchObject({ leadsQueuedAt: now, status: "RUNNING" });
   });
 
   it("keeps the covered period when the token of the same account is replaced and starts over for another account", async () => {
     const covered = new Date(now.getTime() - 60_000);
-    await prisma.projectIntegration.update({ where: { projectId }, data: { leadsCoveredUntil: covered, leadsStatus: "ACCESS_REQUIRED", leadsLastError: "ACCESS", nextLeadsAt: new Date(now.getTime() + 3_600_000), leadsLastSuccessAt: covered } });
+    await prisma.projectIntegration.updateMany({ where: { projectId }, data: { leadsCoveredUntil: covered, leadsStatus: "ACCESS_REQUIRED", leadsLastError: "ACCESS", nextLeadsAt: new Date(now.getTime() + 3_600_000), leadsLastSuccessAt: covered } });
     const repository = new PrismaIntegrationRepository(prisma, unitOfWork);
     const account = { accountId: "123", currency: "BYN", timezone: "UTC", projectId, encryptedToken: "replaced", queuedAt: now, nextDailyAt: now };
+    const { id } = await prisma.projectIntegration.findFirstOrThrow({ where: { projectId } });
 
-    await unitOfWork.run((context) => repository.save(context, account, now));
-    expect(await prisma.projectIntegration.findUniqueOrThrow({ where: { projectId } })).toMatchObject({
+    await unitOfWork.run((context) => repository.replace(context, id, account, now));
+    expect(await prisma.projectIntegration.findFirstOrThrow({ where: { projectId } })).toMatchObject({
       leadsCoveredUntil: covered, leadsLastSuccessAt: covered, leadsStatus: "WAITING", leadsLastError: null, nextLeadsAt: now,
     });
 
-    await unitOfWork.run((context) => repository.save(context, { ...account, accountId: "456" }, now));
-    expect(await prisma.projectIntegration.findUniqueOrThrow({ where: { projectId } })).toMatchObject({
+    await unitOfWork.run((context) => repository.replace(context, id, { ...account, accountId: "456" }, now));
+    expect(await prisma.projectIntegration.findFirstOrThrow({ where: { projectId } })).toMatchObject({
       leadsCoveredUntil: null, leadsLastSuccessAt: null, leadsStatus: "WAITING", nextLeadsAt: now, nextSweepAt: null,
     });
+  });
+});
+
+describe("the lead import switch", () => {
+  it("is on for a connection, is not polled while off, and asks for a poll when switched back on", async () => {
+    const { id } = await prisma.projectIntegration.findFirstOrThrow({ where: { projectId } });
+    expect((await prisma.projectIntegration.findUniqueOrThrow({ where: { id } })).leadsEnabled).toBe(true);
+    const repository = new PrismaIntegrationRepository(prisma, unitOfWork);
+
+    await repository.setLeadsEnabled(id, false, now);
+    expect(await jobs.claim(now)).toBeNull();
+
+    const later = new Date(now.getTime() + 1000);
+    await repository.setLeadsEnabled(id, true, later);
+    expect(await prisma.projectIntegration.findUniqueOrThrow({ where: { id } })).toMatchObject({ leadsEnabled: true, leadsQueuedAt: later });
+    expect(await jobs.claim(later)).toMatchObject({ id, pollDue: true });
   });
 });

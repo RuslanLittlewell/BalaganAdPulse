@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { http as mock, HttpResponse } from "msw";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { clearTokens, writeTokens } from "@/shared/lib/index.js";
 import { makeAccessToken, server } from "@test/shared/index.js";
 import { App } from "@/app/App.js";
@@ -65,5 +66,20 @@ describe("App", () => {
 
     expect(await screen.findByRole("link", { name: "Проекты" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Вход" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the outgoing module visible while the incoming one fades in, instead of swapping instantly", async () => {
+    writeTokens({ accessToken: makeAccessToken(), refreshToken: "r" });
+
+    renderAppAt("/reports");
+    expect(await screen.findByRole("heading", { name: "Отчёты" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("link", { name: "Архив" }));
+
+    expect(screen.getByRole("heading", { name: "Отчёты" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Архив" })).not.toBeInTheDocument();
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Архив" })).toBeInTheDocument());
+    expect(screen.queryByRole("heading", { name: "Отчёты" })).not.toBeInTheDocument();
   });
 });

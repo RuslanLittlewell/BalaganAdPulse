@@ -14,11 +14,6 @@ beforeEach(() => {
     mock.get("/api/projects", () =>
       HttpResponse.json([aProject({ id: "project-1", name: "Летний запуск" })])),
     mock.get("/api/members", () => HttpResponse.json(members)),
-    mock.get("/api/campaigns/names", () => HttpResponse.json([
-      { id: "camp-1", projectId: "project-1", name: "Поиск / Москва", channel: "YANDEX" },
-    ])),
-    mock.get("/api/task-images/:id", () =>
-      HttpResponse.arrayBuffer(new ArrayBuffer(8), { headers: { "Content-Type": "image/png" } })),
   );
 });
 
@@ -41,19 +36,6 @@ describe("TaskPreviewDialog", () => {
     expect(await within(dialog).findByText("Срочный")).toBeInTheDocument();
     expect(await within(dialog).findByText("Летний запуск")).toBeInTheDocument();
     expect(await within(dialog).findByText("Пётр")).toBeInTheDocument();
-  });
-
-  it("names the campaign the work is about", async () => {
-    open(aTask({ projectId: "project-1", campaignId: "camp-1" }));
-
-    expect(await screen.findByText("Поиск / Москва")).toBeInTheDocument();
-  });
-
-  it("says Общий when the task names no campaign", async () => {
-    open(aTask({ projectId: "project-1", campaignId: null }));
-
-    const dialog = await screen.findByRole("dialog");
-    expect(await within(dialog).findByText("Общий")).toBeInTheDocument();
   });
 
   it("shows the description as written", async () => {

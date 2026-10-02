@@ -18,7 +18,7 @@ function harness(options: {
 } = {}) {
   const state = {
     actors: options.actors ?? { u1: actor() },
-    reach: options.reach ?? { m1: ["agency"] },
+    reach: options.reach ?? { m1: ["project-1"] },
   };
   const registry = createConnectionRegistry();
   const delivery = createLeadEventDelivery({
@@ -50,18 +50,18 @@ describe("delivering CRM changes", () => {
     const { delivery, listen } = harness();
     const send = listen("u1");
 
-    await delivery.deliver(changed("agency"));
+    await delivery.deliver(changed("project-1"));
 
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0][0]).toEqual({ kind: "crm.changed", orgId: "org1", board: "agency" });
+    expect(send.mock.calls[0][0]).toEqual({ kind: "crm.changed", orgId: "org1", board: "project-1" });
     expect(JSON.stringify(send.mock.calls[0][0])).not.toMatch(/@|\+\d|name/i);
   });
 
   it("says nothing to a member who cannot reach that board", async () => {
-    const { delivery, listen } = harness({ reach: { m1: ["agency"] } });
+    const { delivery, listen } = harness({ reach: { m1: ["project-1"] } });
     const send = listen("u1");
 
-    await delivery.deliver(changed("client-1"));
+    await delivery.deliver(changed("project-2"));
 
     expect(send).not.toHaveBeenCalled();
   });
@@ -70,7 +70,7 @@ describe("delivering CRM changes", () => {
     const { delivery, listen } = harness();
     const send = listen("u1");
 
-    await delivery.deliver(changed("agency", "org2"));
+    await delivery.deliver(changed("project-1", "org2"));
 
     expect(send).not.toHaveBeenCalled();
   });
@@ -80,20 +80,20 @@ describe("delivering CRM changes", () => {
     const send = listen("u1");
 
     state.actors.u1 = null;
-    await delivery.deliver(changed("agency"));
+    await delivery.deliver(changed("project-1"));
 
     expect(send).not.toHaveBeenCalled();
   });
 
   it("re-checks reach on every event, so a withdrawn grant stops delivery", async () => {
-    const { delivery, listen, state } = harness({ reach: { m1: ["agency", "client-1"] } });
+    const { delivery, listen, state } = harness({ reach: { m1: ["project-1", "project-2"] } });
     const send = listen("u1");
 
-    await delivery.deliver(changed("client-1"));
+    await delivery.deliver(changed("project-2"));
     expect(send).toHaveBeenCalledTimes(1);
 
-    state.reach.m1 = ["agency"];
-    await delivery.deliver(changed("client-1"));
+    state.reach.m1 = ["project-1"];
+    await delivery.deliver(changed("project-2"));
     expect(send).toHaveBeenCalledTimes(1);
   });
 
@@ -105,7 +105,7 @@ describe("delivering CRM changes", () => {
     registryThrows.mockImplementation(() => { throw new Error("socket is gone"); });
     const send = listen("u2");
 
-    await delivery.deliver(changed("agency"));
+    await delivery.deliver(changed("project-1"));
 
     expect(send).toHaveBeenCalledTimes(1);
   });

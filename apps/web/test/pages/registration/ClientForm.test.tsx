@@ -81,40 +81,26 @@ describe("ClientRegistrationForm", () => {
     await firstStep(u);
 
     expect(await screen.findByLabelText("Название проекта")).toBeInTheDocument();
-    expect(screen.getByLabelText("Ниша")).toBeInTheDocument();
-    expect(screen.getByLabelText("Бюджет / мес.")).toBeInTheDocument();
-    expect(screen.getByLabelText("Валюта")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Валюта")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Ниша")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Бюджет / мес.")).not.toBeInTheDocument();
   });
 
-  it("starts the project on the agency's own currency", async () => {
+  it("sends the project without a currency", async () => {
     const u = user();
-    open();
-
-    await firstStep(u);
-
-    expect(screen.getByLabelText("Валюта")).toHaveTextContent("BYN");
-  });
-
-  it("sends the budget with the currency it was stated in", async () => {
-    const u = user();
-    let body: Record<string, unknown> | null = null;
+    let body: { project?: Record<string, unknown> } | null = null;
     server.use(mock.post("/api/auth/register", async ({ request }) => {
-      body = await request.json() as Record<string, unknown>;
+      body = await request.json() as { project?: Record<string, unknown> };
       return HttpResponse.json({ accessToken: "a", refreshToken: "r" }, { status: 201 });
     }));
     open();
 
     await firstStep(u);
     await u.type(screen.getByLabelText("Название проекта"), "Стоматология");
-    await u.type(screen.getByLabelText("Бюджет / мес."), "5000");
-    await u.click(screen.getByLabelText("Валюта"));
-    await u.click(await screen.findByRole("option", { name: /USD/ }));
     await u.click(screen.getByRole("button", { name: "Создать" }));
 
     await waitFor(() => expect(body).not.toBeNull());
-    expect(body).toMatchObject({
-      project: { name: "Стоматология", monthlyBudget: 5000, budgetCurrency: "USD" },
-    });
+    expect(body!.project).toEqual({ name: "Стоматология" });
   });
 
   it("puts the contact details on the account as well as on the company", async () => {
@@ -135,24 +121,6 @@ describe("ClientRegistrationForm", () => {
       phone: "+375291112233",
       client: { phone: "+375291112233" },
     });
-  });
-
-  it("sends no amount when the budget is left empty", async () => {
-    const u = user();
-    let body: Record<string, unknown> | null = null;
-    server.use(mock.post("/api/auth/register", async ({ request }) => {
-      body = await request.json() as Record<string, unknown>;
-      return HttpResponse.json({ accessToken: "a", refreshToken: "r" }, { status: 201 });
-    }));
-    open();
-
-    await firstStep(u);
-    await u.type(screen.getByLabelText("Название проекта"), "Стоматология");
-    await u.click(screen.getByRole("button", { name: "Создать" }));
-
-    await waitFor(() => expect(body).not.toBeNull());
-    expect((body as unknown as { project: { monthlyBudget: unknown } }).project.monthlyBudget)
-      .toBeNull();
   });
 
   it("refuses to move on with no organisation", async () => {
@@ -205,14 +173,13 @@ describe("ClientRegistrationForm", () => {
 
     await firstStep(u);
     await u.type(screen.getByLabelText("Название проекта"), "Стоматология");
-    await u.type(screen.getByLabelText("Ниша"), "Медицина");
     await u.click(screen.getByRole("button", { name: "Создать" }));
 
     expect(bodies).toHaveLength(1);
     expect(bodies[0]).toMatchObject({
       name: "Иван", email: "ivan@clinic.by", inviteCode: "ABCDEFGH",
       client: { name: "Иван", organization: "ООО Клиника", phone: "+375291112233" },
-      project: { name: "Стоматология", niche: "Медицина" },
+      project: { name: "Стоматология" },
     });
   });
 

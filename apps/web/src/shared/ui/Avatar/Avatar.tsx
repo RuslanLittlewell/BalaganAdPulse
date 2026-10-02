@@ -6,6 +6,7 @@ const SIZES = {
   sm: { box: "size-8", text: "text-xs" },
   md: { box: "size-10", text: "text-sm" },
   lg: { box: "size-14", text: "text-lg" },
+  xl: { box: "size-[110px]", text: "text-3xl" },
 } as const;
 
 export interface AvatarProps {

@@ -5,6 +5,13 @@ import type { Task } from "./api.js";
 
 const REALTIME_PATH = "/api/realtime";
 
+const TASK_EVENT_KINDS = new Set<TaskEvent["kind"]>([
+  "task.created",
+  "task.updated",
+  "task.moved",
+  "task.deleted",
+]);
+
 export const TASK_EVENTS_BASE_DELAY_MS = 1_000;
 export const TASK_EVENTS_MAX_DELAY_MS = 15_000;
 
@@ -49,9 +56,9 @@ export function useTaskEvents(options: TaskEventsOptions = {}): void {
       socket = client;
 
       client.onmessage = (message: MessageEvent) => {
-        let payload: TaskEvent | { kind: "ready" };
+        let payload: TaskEvent | { kind: string };
         try {
-          payload = JSON.parse(String(message.data)) as TaskEvent | { kind: "ready" };
+          payload = JSON.parse(String(message.data)) as TaskEvent | { kind: string };
         } catch {
           return;
         }
@@ -61,7 +68,8 @@ export function useTaskEvents(options: TaskEventsOptions = {}): void {
           connectedBefore = true;
           return;
         }
-        apply(payload);
+        if (!TASK_EVENT_KINDS.has(payload.kind as TaskEvent["kind"])) return;
+        apply(payload as TaskEvent);
       };
 
       client.onclose = () => { if (socket === client) scheduleRetry(); };

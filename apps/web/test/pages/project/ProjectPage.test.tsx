@@ -10,9 +10,9 @@ const performance = (spend: number, extra = {}) => ({
   ctr: 2, cpc: 0.5, cpm: 10, cpa: 20, roas: 4, frequency: 2.5, ...extra,
 });
 
-const campaign = (id: string, name: string, channel: string, spend: number) => ({
+const campaign = (id: string, name: string, channel: string, spend: number, sourceAccountId: string | null = null) => ({
   id, projectId: "p1", name, channel, status: "ACTIVE", objective: null,
-  externalId: null, position: 0, performance: performance(spend),
+  externalId: null, sourceAccountId, position: 0, performance: performance(spend),
 });
 
 function CampaignDestination() {
@@ -34,7 +34,7 @@ function api(options: { campaigns?: unknown[]; tasks?: unknown[] } = {}) {
     mock.get("/api/members", () => HttpResponse.json([])),
     mock.get("/api/tasks", () => HttpResponse.json(options.tasks ?? [])),
     mock.get("/api/projects", () => HttpResponse.json([{
-      id: "p1", clientId: "cl1", name: "Клиника", niche: "Медицина", monthlyBudget: "300000.0000",
+      id: "p1", clientId: "cl1", name: "Клиника",
       budgetCurrency: "BYN",
       priority: "HIGH", image: null, avatarPath: null, position: 0, createdAt: "", updatedAt: "",
     }])),
@@ -279,5 +279,107 @@ describe("the work in flight under a project", () => {
 
     await screen.findByText("Нет задач в работе");
     expect(seen[0].searchParams.get("projectId")).toBe("p1");
+  });
+});
+
+describe("switching the campaigns by advertising account", () => {
+  const twoAccounts = [
+    campaign("c1", "Поиск / Москва", "META", 3000, "111"),
+    campaign("c2", "Лента / Россия", "META", 1200, "222"),
+  ];
+
+  it("offers a tab per account and none combining them, starting on the first", async () => {
+    api({ campaigns: twoAccounts });
+    renderWithProviders(<App />, route);
+
+    const tabs = await screen.findByRole("radiogroup", { name: "Источник кампаний" });
+    expect(within(tabs).getAllByRole("radio").map((tab) => tab.textContent)).toEqual(["Meta · 111", "Meta · 222"]);
+    expect(within(tabs).getByRole("radio", { name: "Meta · 111" })).toBeChecked();
+    expect(screen.getByText("Поиск / Москва")).toBeInTheDocument();
+    expect(screen.queryByText("Лента / Россия")).toBeNull();
+    expect(screen.queryByRole("row", { name: /Итого/ })).toBeNull();
+  });
+
+  it("lists only the chosen account's campaigns", async () => {
+    const user = userEvent.setup();
+    api({ campaigns: twoAccounts });
+    renderWithProviders(<App />, route);
+    await screen.findByText("Поиск / Москва");
+
+    await user.click(screen.getByRole("radio", { name: "Meta · 222" }));
+
+    expect(screen.queryByText("Поиск / Москва")).toBeNull();
+    expect(screen.getByText("Лента / Россия")).toBeInTheDocument();
+    expect(screen.queryByRole("row", { name: /Итого/ })).toBeNull();
+  });
+
+  it("offers a tab for a second connection that has no campaigns yet", async () => {
+    api({ campaigns: [campaign("c1", "Поиск / Москва", "META", 3000, "111")] });
+    server.use(mock.get("/api/projects/:projectId/integrations", () => HttpResponse.json([
+      { id: "i1", provider: "META", accountId: "111", currency: "BYN", timezone: "UTC", status: "SUCCESS", lastSuccessAt: null, lastError: null, nextDailyAt: "2026-09-09T06:00:00Z", leadsEnabled: true, leads: { status: "WAITING", lastSuccessAt: null, lastError: null } },
+      { id: "i2", provider: "META", accountId: "333", currency: "BYN", timezone: "UTC", status: "QUEUED", lastSuccessAt: null, lastError: null, nextDailyAt: "2026-09-09T06:00:00Z", leadsEnabled: true, leads: { status: "WAITING", lastSuccessAt: null, lastError: null } },
+    ])));
+    renderWithProviders(<App />, route);
+
+    expect(await screen.findByRole("radio", { name: "Meta · 333" })).toBeInTheDocument();
+  });
+
+  it("names each tab by its advertising system and keeps equal account numbers of two systems apart", async () => {
+    const user = userEvent.setup();
+    api({ campaigns: [
+      campaign("c1", "Поиск / Москва", "META", 3000, "111"),
+      campaign("c2", "Контекст", "GOOGLE", 1200, "111"),
+    ] });
+    renderWithProviders(<App />, route);
+
+    const tabs = await screen.findByRole("radiogroup", { name: "Источник кампаний" });
+    expect(within(tabs).getAllByRole("radio").map((tab) => tab.textContent)).toEqual(["Meta · 111", "Google Ads · 111"]);
+    await user.click(screen.getByRole("radio", { name: "Google Ads · 111" }));
+    expect(screen.getByText("Контекст")).toBeInTheDocument();
+    expect(screen.queryByText("Поиск / Москва")).toBeNull();
+  });
+
+  it("shows the one account's tab and every campaign with the totals", async () => {
+    api({ campaigns: [campaign("c1", "Поиск / Москва", "META", 3000, "111"), campaign("c2", "Лента / Россия", "META", 1200, "111")] });
+    renderWithProviders(<App />, route);
+
+    await screen.findByText("Лента / Россия");
+    const tabs = screen.getByRole("radiogroup", { name: "Источник кампаний" });
+    expect(within(tabs).getAllByRole("radio").map((tab) => tab.textContent)).toEqual(["Meta · 111"]);
+    expect(screen.getByText("Поиск / Москва")).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /Итого/ })).toBeInTheDocument();
+  });
+
+  it("shows no tabs without any account", async () => {
+    api();
+    renderWithProviders(<App />, route);
+
+    await screen.findByText("Лента / Россия");
+    expect(screen.queryByRole("radiogroup", { name: "Источник кампаний" })).toBeNull();
+  });
+});
+
+describe("each campaign's indicator", () => {
+  const toneOf = (name: string) =>
+    screen.getByRole("row", { name: new RegExp(name) }).querySelector("[data-tone]")?.getAttribute("data-tone");
+
+  it("follows the campaign's KPI, the project's in its absence, and greys out what is not running", async () => {
+    api({
+      campaigns: [
+        { ...campaign("c1", "Выполняет", "META", 1000), kpi: { metric: "CPA", target: "25.0000" } },
+        { ...campaign("c2", "Отстаёт", "META", 1000), kpi: { metric: "CPA", target: "10.0000" } },
+        campaign("c3", "По проекту", "META", 1000),
+        { ...campaign("c4", "На паузе", "META", 1000), status: "PAUSED", kpi: { metric: "CPA", target: "25.0000" } },
+      ],
+    });
+    server.use(mock.get("/api/projects/:projectId/kpi", () =>
+      HttpResponse.json({ metric: "CPA", target: "18.0000", updatedAt: "2026-09-01T00:00:00.000Z" })));
+    renderWithProviders(<App />, route);
+
+    await screen.findByText("Выполняет");
+    await waitFor(() => expect(toneOf("По проекту")).toBe("stable"));
+    expect(toneOf("Выполняет")).toBe("profitable");
+    expect(toneOf("Отстаёт")).toBe("danger");
+    expect(toneOf("На паузе")).toBe("idle");
   });
 });

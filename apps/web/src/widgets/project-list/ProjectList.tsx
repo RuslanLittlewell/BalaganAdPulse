@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, SearchIcon } from "lucide-react";
 import {
   DndContext,
   DragOverlay,
@@ -21,26 +21,24 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
   EmptyState,
+  Input,
   Loader,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
 } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
-import { projectPath, ROUTES } from "@/shared/lib/index.js";
+import { cn, projectPath, ROUTES, useDebouncedValue } from "@/shared/lib/index.js";
+import { WarmTooltipGroup } from "@/shared/ui/WarmTooltip/WarmTooltip.js";
 import { useClients } from "@/entities/client/index.js";
 import {
   EMPTY_LAYOUT,
   LIST_END,
-  PROJECT_PRIORITIES,
   arrangeProjects,
   dragId,
   moveInLayout,
   parseDragId,
   pinProject,
-  priorityLabel,
   unpinProject,
   useActiveProjectId,
   useCreateProjectGroup,
@@ -50,7 +48,6 @@ import {
   useSaveProjectLayout,
   useUpdateProject,
   type LayoutGroupItem,
-  type ProjectPriority,
 } from "@/entities/project/index.js";
 import { ProjectFormDialog } from "@/features/project-management/index.js";
 import { Can, useCan } from "@/features/permissions/index.js";
@@ -71,7 +68,11 @@ function ListEnd() {
   );
 }
 
-export function ProjectList() {
+const SEARCH_DELAY_MS = 300;
+
+const normalised = (text: string) => text.trim().toLocaleLowerCase("ru");
+
+export function ProjectList({ collapsed = false }: { collapsed?: boolean }) {
   const projectId = useActiveProjectId();
   const navigate = useNavigate();
   const projects = useProjects();
@@ -82,7 +83,8 @@ export function ProjectList() {
   const deleteGroup = useDeleteProjectGroup();
   const [creating, setCreating] = useState(false);
   const [grouping, setGrouping] = useState(false);
-  const [priorityFilter, setPriorityFilter] = useState<ProjectPriority | "ALL">("ALL");
+  const [search, setSearch] = useState("");
+  const query = normalised(useDebouncedValue(search, SEARCH_DELAY_MS));
   const [editingId, setEditingId] = useState<string | undefined>(undefined);
   const [problem, setProblem] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -104,12 +106,17 @@ export function ProjectList() {
     [stored.data, projects.data],
   );
 
-  const arrangeable = priorityFilter === "ALL";
-  const shown = (id: string) =>
-    byId.has(id) && (arrangeable || byId.get(id)?.priority === priorityFilter);
-
   const editing = projects.data?.find((project) => project.id === editingId);
   const clientName = (id: string) => clients.data?.find((client) => client.id === id)?.name ?? "";
+
+  const searching = query !== "";
+  const arrangeable = !searching && !collapsed;
+  const shown = (id: string) => {
+    const project = byId.get(id);
+    if (!project) return false;
+    if (!searching) return true;
+    return [project.name, clientName(project.clientId)].some((text) => normalised(text).includes(query));
+  };
 
   const activeKind = dragging ? parseDragId(dragging)?.kind ?? null : null;
 
@@ -124,6 +131,7 @@ export function ProjectList() {
         selected={project.id === projectId}
         draggable={arrangeable && !pinned}
         pinned={pinned}
+        collapsed={collapsed}
         sorting={activeKind === "project"}
         mayPrioritise={mayPrioritise}
         onOpen={() => { if (project.id !== projectId) navigate(projectPath(project.id)); }}
@@ -168,29 +176,43 @@ export function ProjectList() {
   }
 
   const pinned = layout.pinned.filter(shown);
-  const items = layout.items.filter(
-    (item) => item.type === "group" || shown(item.projectId),
+  const items = layout.items.filter((item) => item.type === "group"
+    ? !searching || item.projectIds.some(shown)
+    : shown(item.projectId));
+  const searchField = (
+    <Input
+      type="search"
+      className="focus-visible:ring-0"
+      value={search}
+      onChange={(event) => setSearch(event.target.value)}
+      placeholder={t("projects.search.placeholder")}
+      aria-label={t("projects.search")}
+    />
   );
+  const nothingFound = searching && projects.isSuccess && pinned.length === 0 && items.length === 0;
 
   return (
     <>
+      <WarmTooltipGroup>
       <div className="relative flex min-h-0 flex-col gap-2">
-        <Select
-          value={priorityFilter}
-          onValueChange={(value) => setPriorityFilter(value as ProjectPriority | "ALL")}
-        >
-          <SelectTrigger className="w-full" aria-label={t("projects.priorityFilter")}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">{t("projects.allPriorities")}</SelectItem>
-            {PROJECT_PRIORITIES.map((priority) => (
-              <SelectItem key={priority} value={priority}>
-                {priorityLabel(priority)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {collapsed ? (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant={searching ? "secondary" : "ghost"}
+                size="icon"
+                className="self-center"
+                aria-label={t("projects.search")}
+              >
+                <SearchIcon aria-hidden />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="right" align="start" className="w-64 p-1">
+              {searchField}
+            </PopoverContent>
+          </Popover>
+        ) : searchField}
 
         {problem != null && (
           <p role="alert" className="text-xs text-destructive">{problem}</p>
@@ -217,6 +239,10 @@ export function ProjectList() {
 
           {projects.isSuccess && projects.data.length === 0 && (
             <EmptyState compact title={t("projects.empty.title")} />
+          )}
+
+          {nothingFound && projects.data.length > 0 && (
+            <EmptyState compact title={t("projects.search.empty")} />
           )}
 
           {pinned.length > 0 && (
@@ -255,6 +281,7 @@ export function ProjectList() {
                           name={item.name}
                           projectIds={item.projectIds.filter(shown)}
                           draggable={arrangeable}
+                          collapsed={collapsed}
                           sorting={activeKind === "group"}
                           onDelete={() => removeGroup(item)}
                         >
@@ -281,7 +308,10 @@ export function ProjectList() {
           <Button
             type="button"
             size="icon"
-            className="absolute right-2 bottom-2 z-10 rounded-full shadow-md"
+            className={cn(
+              "absolute bottom-2 z-10 rounded-full shadow-md",
+              collapsed ? "left-1/2 -translate-x-1/2" : "right-2",
+            )}
             aria-label={t("projects.new")}
             onClick={() => setCreating(true)}
           >
@@ -289,6 +319,7 @@ export function ProjectList() {
           </Button>
         </Can>
       </div>
+      </WarmTooltipGroup>
 
       {grouping && (
         <GroupDialog

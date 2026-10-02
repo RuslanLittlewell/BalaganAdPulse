@@ -17,6 +17,7 @@ export function useCampaignReferences(projectId: string | undefined) {
     queryKey: ["projects", projectId, "campaigns", "names"],
     queryFn: () => campaignsApi.namesByProject(projectId as string),
     enabled: projectId != null,
+    staleTime: 5 * 60_000,
   });
 }
 

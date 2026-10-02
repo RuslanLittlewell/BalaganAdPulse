@@ -113,33 +113,41 @@ describe("PerformanceTable", () => {
     expect(screen.getByText("Пока нет кампаний")).toBeInTheDocument();
   });
 
-  it("keeps two columns, allows restoring hidden columns, and remembers the selection per table", async () => {
+  it("never offers the name column, keeps one figure beside it, and remembers the selection per table", async () => {
     const user = userEvent.setup();
     const { unmount } = render(
       <PerformanceTable tableKey="column-menu-test" heading="Кампания" rows={rows} totals={performance(1500)} />,
     );
     await user.click(screen.getByRole("button", { name: "Отображаемые столбцы" }));
+    expect(screen.queryByRole("menuitemcheckbox", { name: "Кампания" })).toBeNull();
     const items = screen.getAllByRole("menuitemcheckbox");
-    for (const item of items.slice(0, -2)) await user.click(item);
+    for (const item of items.slice(0, -1)) await user.click(item);
 
     const checked = screen.getAllByRole("menuitemcheckbox", { checked: true });
-    expect(checked).toHaveLength(2);
-    checked.forEach((item) => expect(item).toHaveAttribute("aria-disabled", "true"));
-    expect(screen.getByRole("menuitemcheckbox", { name: "Кампания" })).toHaveAttribute("aria-checked", "false");
-    await user.click(screen.getByRole("menuitemcheckbox", { name: "Кампания" }));
-    expect(screen.getAllByRole("menuitemcheckbox", { checked: true })).toHaveLength(3);
+    expect(checked).toHaveLength(1);
+    expect(checked[0]).toHaveAttribute("aria-disabled", "true");
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "Расход" }));
+    expect(screen.getAllByRole("menuitemcheckbox", { checked: true })).toHaveLength(2);
     await user.keyboard("{Escape}");
-    expect(screen.queryByRole("columnheader", { name: "Расход" })).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: "Показы" })).toBeNull();
     expect(screen.getByRole("columnheader", { name: "Кампания" })).toBeInTheDocument();
-    const stored = JSON.parse(localStorage.getItem("adpulse-performance-column-widths")!);
-    expect(stored.state.visibleColumns["column-menu-test"]).toHaveLength(3);
+    expect(screen.getByRole("columnheader", { name: "Расход" })).toBeInTheDocument();
 
     unmount();
     const remounted = render(<PerformanceTable tableKey="column-menu-test" heading="Кампания" rows={rows} />);
-    expect(screen.queryByRole("columnheader", { name: "Расход" })).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: "Показы" })).toBeNull();
     remounted.unmount();
     render(<PerformanceTable tableKey="other-table-test" heading="Проект" rows={rows} />);
+    expect(screen.getByRole("columnheader", { name: "Показы" })).toBeInTheDocument();
+  });
+
+  it("brings back the name column a choice saved earlier had hidden", () => {
+    useColumnWidths.setState({ visibleColumns: { "hidden-name-test": ["spend", "clicks"] } });
+    render(<PerformanceTable tableKey="hidden-name-test" heading="Проект" rows={rows} />);
+
+    expect(screen.getByRole("columnheader", { name: "Проект" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Расход" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Показы" })).toBeNull();
   });
 });
 
@@ -170,7 +178,7 @@ describe("extra columns a table is given", () => {
     expect(screen.getByRole("columnheader", { name: "Лид (Новый)" })).toBeInTheDocument();
   });
 
-  it("counts them toward the two columns a table keeps", async () => {
+  it("counts them as the figure a table keeps", async () => {
     const user = userEvent.setup();
     render(<PerformanceTable tableKey="extra-minimum-test" heading="Проект" rows={withExtras} extraColumns={extraColumns} />);
 
@@ -181,7 +189,7 @@ describe("extra columns a table is given", () => {
       if (item.getAttribute("aria-checked") === "true" && item.getAttribute("aria-disabled") !== "true") await user.click(item);
     }
 
-    expect(screen.getAllByRole("menuitemcheckbox", { checked: true })).toHaveLength(2);
+    expect(screen.getAllByRole("menuitemcheckbox", { checked: true })).toHaveLength(1);
     expect(screen.getByRole("menuitemcheckbox", { name: "Лид (Новый)" })).toHaveAttribute("aria-checked", "true");
   });
 });
@@ -249,5 +257,121 @@ describe("rows that contain rows", () => {
 
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByText("Приём сегодня")).toBeNull();
+  });
+});
+
+const headerNames = () =>
+  screen.getAllByRole("columnheader").map((header) => header.getAttribute("aria-label")).filter(Boolean);
+
+describe("sizing a figure column", () => {
+  const handleOf = (label: string) =>
+    screen.getByRole("separator", { name: `Изменить ширину столбца «${label}»` });
+
+  it("offers every figure column a resize handle", () => {
+    render(<PerformanceTable tableKey="resize-all-test" heading="Кампания" rows={rows} />);
+
+    for (const label of ["Расход", "Показы", "CTR", "Частота"]) {
+      expect(handleOf(label)).toHaveAttribute("aria-valuenow", "128");
+    }
+  });
+
+  it("widens and narrows by keyboard, never below the minimum, and remembers it per table", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<PerformanceTable tableKey="resize-test" heading="Кампания" rows={rows} />);
+
+    handleOf("Расход").focus();
+    await user.keyboard("{ArrowRight}{ArrowRight}");
+    expect(handleOf("Расход")).toHaveAttribute("aria-valuenow", "148");
+
+    await user.keyboard("{Home}{ArrowLeft}");
+    expect(handleOf("Расход")).toHaveAttribute("aria-valuenow", "72");
+
+    await user.keyboard("{ArrowRight}");
+    unmount();
+    const again = render(<PerformanceTable tableKey="resize-test" heading="Кампания" rows={rows} />);
+    expect(handleOf("Расход")).toHaveAttribute("aria-valuenow", "82");
+    expect(handleOf("Показы")).toHaveAttribute("aria-valuenow", "128");
+
+    again.unmount();
+    render(<PerformanceTable tableKey="resize-other-test" heading="Кампания" rows={rows} />);
+    expect(handleOf("Расход")).toHaveAttribute("aria-valuenow", "128");
+  });
+});
+
+describe("ordering the figure columns", () => {
+  it("moves a column one place to the right in the header, the rows and the totals", async () => {
+    const user = userEvent.setup();
+    render(<PerformanceTable tableKey="order-test" heading="Кампания" rows={rows} totals={performance(1500)} />);
+    expect(headerNames().slice(0, 3)).toEqual(["Кампания", "Расход", "Показы"]);
+
+    await user.click(screen.getByRole("button", { name: "Сдвинуть столбец вправо «Расход»" }));
+
+    expect(headerNames().slice(0, 3)).toEqual(["Кампания", "Показы", "Расход"]);
+    const cells = within(screen.getByRole("row", { name: /Поиск \/ Москва/ })).getAllByRole("cell");
+    expect(cells[0]).toHaveTextContent("100 000");
+    expect(cells[1]).toHaveTextContent("1 000 ₽");
+    const totals = within(screen.getByRole("row", { name: /Итого/ })).getAllByRole("cell");
+    expect(totals[1]).toHaveTextContent("1 500 ₽");
+  });
+
+  it("moves a column back to the left", async () => {
+    const user = userEvent.setup();
+    render(<PerformanceTable tableKey="order-left-test" heading="Кампания" rows={rows} />);
+
+    await user.click(screen.getByRole("button", { name: "Сдвинуть столбец влево «Показы»" }));
+
+    expect(headerNames().slice(0, 3)).toEqual(["Кампания", "Показы", "Расход"]);
+  });
+
+  it("offers no move past either edge, and never moves the name column", () => {
+    render(<PerformanceTable tableKey="order-edge-test" heading="Кампания" rows={rows} />);
+
+    expect(screen.queryByRole("button", { name: "Сдвинуть столбец влево «Расход»" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Сдвинуть столбец вправо «Расход»" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Сдвинуть столбец вправо «Частота»" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /«Кампания»/ })).toBeNull();
+  });
+
+  it("remembers the order for the table", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<PerformanceTable tableKey="order-memory-test" heading="Кампания" rows={rows} />);
+    await user.click(screen.getByRole("button", { name: "Сдвинуть столбец вправо «Расход»" }));
+
+    unmount();
+    const again = render(<PerformanceTable tableKey="order-memory-test" heading="Кампания" rows={rows} />);
+    expect(headerNames().slice(0, 3)).toEqual(["Кампания", "Показы", "Расход"]);
+
+    again.unmount();
+    render(<PerformanceTable tableKey="order-memory-other-test" heading="Кампания" rows={rows} />);
+    expect(headerNames().slice(0, 3)).toEqual(["Кампания", "Расход", "Показы"]);
+  });
+
+  it("returns a hidden column to its place when it is shown again", async () => {
+    const user = userEvent.setup();
+    render(<PerformanceTable tableKey="order-hidden-test" heading="Кампания" rows={rows} />);
+    await user.click(screen.getByRole("button", { name: "Сдвинуть столбец вправо «Расход»" }));
+    await user.click(screen.getByRole("button", { name: "Сдвинуть столбец вправо «Расход»" }));
+    expect(headerNames().slice(0, 4)).toEqual(["Кампания", "Показы", "Охват", "Расход"]);
+
+    await user.click(screen.getByRole("button", { name: "Отображаемые столбцы" }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "Расход" }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "Расход" }));
+    await user.keyboard("{Escape}");
+
+    expect(headerNames().slice(0, 4)).toEqual(["Кампания", "Показы", "Охват", "Расход"]);
+  });
+
+  it("places a column the saved order does not know after the known ones", async () => {
+    const user = userEvent.setup();
+    const extraColumns = [{ id: "crm-new", label: "Лид (Новый)" }];
+    useColumnWidths.setState({
+      columnOrder: { "order-unknown-test": ["roas", "spend"] },
+      visibleColumns: { "order-unknown-test": ["name", "spend", "roas", "crm-new"] },
+    });
+    render(<PerformanceTable tableKey="order-unknown-test" heading="Кампания" rows={rows} extraColumns={extraColumns} />);
+
+    expect(headerNames()).toEqual(["Кампания", "ROAS", "Расход", "Лид (Новый)"]);
+    await user.click(screen.getByRole("button", { name: "Сдвинуть столбец влево «Лид (Новый)»" }));
+    expect(headerNames()).toEqual(["Кампания", "ROAS", "Лид (Новый)", "Расход"]);
   });
 });

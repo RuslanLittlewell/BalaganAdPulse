@@ -232,12 +232,12 @@ function withDirectory() {
     http.get("/api/clients", () => HttpResponse.json([acme, bare])),
     http.get("/api/members", () => HttpResponse.json([member])),
     http.get("/api/projects", () => HttpResponse.json([
-      { id: "project-1", clientId: "1", name: "Летний запуск", niche: "Перформанс",
-        monthlyBudget: null, budgetCurrency: "BYN", priority: "NEW", image: "data:image/png;base64,AAA",
+      { id: "project-1", clientId: "1", name: "Летний запуск",
+        budgetCurrency: "BYN", priority: "NEW", image: "data:image/png;base64,AAA",
         avatarPath: null, position: 0, createdAt: "2026-09-01T00:00:00.000Z",
         updatedAt: "2026-09-01T00:00:00.000Z" },
-      { id: "project-2", clientId: "1", name: "Второй проект", niche: null,
-        monthlyBudget: null, budgetCurrency: "BYN", priority: "NEW", image: null,
+      { id: "project-2", clientId: "1", name: "Второй проект",
+        budgetCurrency: "BYN", priority: "NEW", image: null,
         avatarPath: null, position: 1, createdAt: "2026-09-01T00:00:00.000Z",
         updatedAt: "2026-09-01T00:00:00.000Z" },
     ])),
@@ -274,7 +274,7 @@ describe("choosing which directory to show", () => {
       renderWithProviders(<ContactBook open onClose={() => {}} />);
       await screen.findByRole("button", { name: /Acme/ });
 
-      await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+      await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
 
       expect(await screen.findByRole("button", { name: /Мария/ })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /Я/ })).toBeNull();
@@ -290,7 +290,7 @@ describe("choosing which directory to show", () => {
       renderWithProviders(<ContactBook open onClose={() => {}} />);
       await screen.findByRole("button", { name: /Acme/ });
 
-      await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+      await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
 
       expect(await screen.findByText("Сотрудников пока нет")).toBeInTheDocument();
     });
@@ -305,7 +305,7 @@ describe("choosing which directory to show", () => {
     async function openEmployee(user: ReturnType<typeof userEvent.setup>) {
       renderWithProviders(<ContactBook open onClose={() => {}} />);
       await screen.findByRole("button", { name: /Acme/ });
-      await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+      await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
       await user.click(await screen.findByRole("button", { name: /Мария/ }));
     }
 
@@ -452,7 +452,7 @@ describe("choosing which directory to show", () => {
       await screen.findByRole("button", { name: /Acme/ });
       expect(screen.queryByText("Приглашения")).toBeNull();
 
-      await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+      await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
       expect(screen.queryByText("Приглашения")).toBeNull();
     });
 
@@ -479,7 +479,7 @@ describe("choosing which directory to show", () => {
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
 
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
     await user.click(await screen.findByRole("button", { name: /Мария/ }));
 
     const details = await screen.findByTestId("employee-details");
@@ -493,7 +493,7 @@ describe("choosing which directory to show", () => {
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
 
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
 
     expect(await screen.findByRole("button", { name: /Мария/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Acme/ })).not.toBeInTheDocument();
@@ -624,14 +624,14 @@ describe("choosing which directory to show", () => {
     renderWithProviders(<ContactBook open onClose={() => {}} />);
 
     await screen.findByRole("heading", { name: "Контактная книга" });
-    expect(screen.queryByRole("tab", { name: "Сотрудники" })).toBeNull();
+    expect(screen.queryByRole("radio", { name: "Сотрудники" })).toBeNull();
   });
 
   it("still offers it to the agency", async () => {
     withDirectory();
     renderWithProviders(<ContactBook open onClose={() => {}} />);
 
-    expect(await screen.findByRole("tab", { name: "Сотрудники" })).toBeInTheDocument();
+    expect(await screen.findByRole("radio", { name: "Сотрудники" })).toBeInTheDocument();
   });
 
   it("carries no people block on the client card", async () => {
@@ -660,7 +660,7 @@ describe("choosing which directory to show", () => {
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
 
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
 
     expect(await screen.findByRole("button", { name: /Мария/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Заказчик/ })).not.toBeInTheDocument();
@@ -672,9 +672,9 @@ describe("choosing which directory to show", () => {
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
 
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
     await screen.findByRole("button", { name: /Мария/ });
-    await user.click(screen.getByRole("tab", { name: "Клиенты" }));
+    await user.click(screen.getByRole("radio", { name: "Клиенты" }));
 
     expect(await screen.findByRole("button", { name: /Acme/ })).toBeInTheDocument();
   });
@@ -686,7 +686,7 @@ describe("inviting from the contact book", () => {
     withDirectory();
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
 
     await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
 
@@ -704,7 +704,7 @@ describe("inviting from the contact book", () => {
     }));
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
 
     await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
     const form = await screen.findByRole("dialog", { name: "Пригласить сотрудника" });
@@ -717,7 +717,7 @@ describe("inviting from the contact book", () => {
     });
   });
 
-  it("refuses an employee invitation with no project chosen", async () => {
+  it("refuses a guest invitation with no project chosen", async () => {
     const user = userEvent.setup();
     let posted = false;
     withDirectory();
@@ -727,14 +727,67 @@ describe("inviting from the contact book", () => {
     }));
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
 
     await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
     const form = await screen.findByRole("dialog", { name: "Пригласить сотрудника" });
+    await user.click(within(form).getByRole("combobox", { name: "Роль приглашения" }));
+    await user.click(await screen.findByRole("option", { name: "Гость" }));
     await user.click(within(form).getByRole("button", { name: "Создать приглашение" }));
 
     expect(await screen.findByText("Выберите хотя бы один проект")).toBeInTheDocument();
     expect(posted).toBe(false);
+  });
+
+  it("invites an admin without asking for projects", async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | null = null;
+    withDirectory();
+    server.use(http.post("/api/invites", async ({ request }) => {
+      body = await request.json() as Record<string, unknown>;
+      return HttpResponse.json({ ...employeeInvite, role: "ADMIN", projectIds: [] }, { status: 201 });
+    }));
+    renderWithProviders(<ContactBook open onClose={() => {}} />);
+    await screen.findByRole("button", { name: /Acme/ });
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
+
+    await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
+    const form = await screen.findByRole("dialog", { name: "Пригласить сотрудника" });
+    await within(form).findByRole("checkbox", { name: "Летний запуск" });
+    await user.click(within(form).getByLabelText("Роль приглашения"));
+    await user.click(await screen.findByRole("option", { name: "Администратор" }));
+
+    expect(within(form).queryByRole("group", { name: "Проекты" })).not.toBeInTheDocument();
+    expect(within(form).queryByRole("checkbox", { name: "Летний запуск" })).not.toBeInTheDocument();
+
+    await user.click(within(form).getByRole("button", { name: "Создать приглашение" }));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ registrationType: "EMPLOYEE", role: "ADMIN", projectIds: [] });
+    expect(screen.queryByText("Выберите хотя бы один проект")).not.toBeInTheDocument();
+  });
+
+  it("sends no projects chosen before the role was switched to admin", async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | null = null;
+    withDirectory();
+    server.use(http.post("/api/invites", async ({ request }) => {
+      body = await request.json() as Record<string, unknown>;
+      return HttpResponse.json({ ...employeeInvite, role: "ADMIN", projectIds: [] }, { status: 201 });
+    }));
+    renderWithProviders(<ContactBook open onClose={() => {}} />);
+    await screen.findByRole("button", { name: /Acme/ });
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
+
+    await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
+    const form = await screen.findByRole("dialog", { name: "Пригласить сотрудника" });
+    await user.click(await within(form).findByRole("checkbox", { name: "Летний запуск" }));
+    await user.click(within(form).getByLabelText("Роль приглашения"));
+    await user.click(await screen.findByRole("option", { name: "Администратор" }));
+    await user.click(within(form).getByRole("button", { name: "Создать приглашение" }));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ role: "ADMIN", projectIds: [] });
   });
 
   it("creates a client invitation with no role and no projects", async () => {
@@ -768,7 +821,7 @@ describe("inviting from the contact book", () => {
     }));
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
     await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
 
     await user.click(await screen.findByRole("button", { name: "Отозвать ABCDEFGH" }));
@@ -786,7 +839,7 @@ describe("inviting from the contact book", () => {
     withDirectory();
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
     await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
 
     await user.click(await screen.findByRole("button", { name: "Скопировать ссылку" }));
@@ -801,7 +854,7 @@ describe("the employee pane's details", () => {
     withDirectory();
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
     await screen.findByRole("button", { name: /Мария/ });
     return user;
   };
@@ -887,7 +940,7 @@ describe("the invitation form's second step", () => {
     server.use(http.post("/api/invites", () => HttpResponse.json(employeeInvite, { status: 201 })));
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
     await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
     const form = await screen.findByRole("dialog", { name: "Пригласить сотрудника" });
     return { user, form };
@@ -939,18 +992,149 @@ describe("the invitation form's second step", () => {
 });
 
 describe("choosing projects to grant", () => {
-  it("draws each project as a card with its name and niche", async () => {
+  it("draws each project as a card with its name and picture", async () => {
     const user = userEvent.setup();
     withDirectory();
     renderWithProviders(<ContactBook open onClose={() => {}} />);
     await screen.findByRole("button", { name: /Acme/ });
-    await user.click(screen.getByRole("tab", { name: "Сотрудники" }));
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
     await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
     await screen.findByRole("dialog", { name: "Пригласить сотрудника" });
 
     const card = screen.getByTestId("invite-project-project-1");
     expect(card).toHaveTextContent("Летний запуск");
-    expect(card).toHaveTextContent("Перформанс");
     expect(within(card).getByRole("img", { name: "Летний запуск" })).toBeInTheDocument();
+  });
+});
+
+const asManager = () => server.use(http.get("/api/auth/me", () => HttpResponse.json({
+  user: { id: "u1", name: "Пётр", email: "petr@acme.by", image: null },
+  organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
+  role: "MANAGER",
+  clientIds: ["1"],
+})));
+
+describe("deleting a client", () => {
+  function withDeletableClients() {
+    let clients = [acme, bare];
+    const deleted: string[] = [];
+    server.use(
+      http.get("/api/clients", () => HttpResponse.json(clients)),
+      http.delete("/api/clients/:id", ({ params }) => {
+        deleted.push(String(params.id));
+        clients = clients.filter((client) => client.id !== params.id);
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    return deleted;
+  }
+
+  it("deletes the client after the admin confirms and shows the next one", async () => {
+    const user = userEvent.setup();
+    const deleted = withDeletableClients();
+    renderWithProviders(<ContactBook open onClose={() => {}} />);
+    await screen.findByRole("heading", { name: "Acme" });
+
+    await user.click(screen.getByRole("button", { name: "Удалить клиента" }));
+    const confirm = await screen.findByRole("alertdialog", { name: "Удалить клиента «Acme»?" });
+    await user.click(within(confirm).getByRole("button", { name: "Удалить" }));
+
+    await waitFor(() => expect(deleted).toEqual(["1"]));
+    expect(await screen.findByRole("heading", { name: "Борода" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Acme/ })).toBeNull();
+  });
+
+  it("deletes nothing when the admin cancels", async () => {
+    const user = userEvent.setup();
+    const deleted = withDeletableClients();
+    renderWithProviders(<ContactBook open onClose={() => {}} />);
+    await screen.findByRole("heading", { name: "Acme" });
+
+    await user.click(screen.getByRole("button", { name: "Удалить клиента" }));
+    const confirm = await screen.findByRole("alertdialog");
+    await user.click(within(confirm).getByRole("button", { name: "Отмена" }));
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(deleted).toEqual([]);
+    expect(screen.getByRole("heading", { name: "Acme" })).toBeInTheDocument();
+  });
+
+  it("offers a manager no delete control", async () => {
+    asManager();
+    await open();
+    expect(await screen.findByRole("heading", { name: "Acme" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Редактировать контакт" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Удалить клиента" })).toBeNull();
+  });
+
+  it("says so when the deletion fails and keeps the client", async () => {
+    const user = userEvent.setup();
+    withClients([acme, bare]);
+    server.use(http.delete("/api/clients/:id", () =>
+      HttpResponse.json({ error: { message: "Boom" } }, { status: 500 })));
+    renderWithProviders(<ContactBook open onClose={() => {}} />);
+    await screen.findByRole("heading", { name: "Acme" });
+
+    await user.click(screen.getByRole("button", { name: "Удалить клиента" }));
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Удалить" }));
+
+    expect(await screen.findByText("Не удалось удалить клиента")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Acme/ })).toBeInTheDocument();
+  });
+});
+
+describe("removing an employee", () => {
+  async function openEmployees(user: ReturnType<typeof userEvent.setup>) {
+    server.use(http.get("/api/members/:id/access", () => HttpResponse.json([])));
+    renderWithProviders(<ContactBook open onClose={() => {}} />);
+    await screen.findByRole("button", { name: /Acme/ });
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
+    await screen.findByTestId("employee-details");
+  }
+
+  it("removes the member after the admin confirms", async () => {
+    const user = userEvent.setup();
+    withDirectory();
+    let members = [member];
+    const removed: string[] = [];
+    server.use(
+      http.get("/api/members", () => HttpResponse.json(members)),
+      http.delete("/api/members/:id", ({ params }) => {
+        removed.push(String(params.id));
+        members = members.filter((one) => one.id !== params.id);
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    await openEmployees(user);
+
+    await user.click(screen.getByRole("button", { name: "Удалить сотрудника" }));
+    const confirm = await screen.findByRole("alertdialog", { name: "Удалить сотрудника «Мария»?" });
+    await user.click(within(confirm).getByRole("button", { name: "Удалить" }));
+
+    await waitFor(() => expect(removed).toEqual(["membership-2"]));
+    expect(await screen.findByText("Сотрудников пока нет")).toBeInTheDocument();
+  });
+
+  it("says so when the API refuses and keeps the member", async () => {
+    const user = userEvent.setup();
+    withDirectory();
+    server.use(http.delete("/api/members/:id", () =>
+      HttpResponse.json({ error: { message: "You cannot remove the last admin" } }, { status: 409 })));
+    await openEmployees(user);
+
+    await user.click(screen.getByRole("button", { name: "Удалить сотрудника" }));
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Удалить" }));
+
+    expect(await screen.findByText("Не удалось удалить сотрудника")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Мария/ })).toBeInTheDocument();
+  });
+
+  it("offers a manager no remove control", async () => {
+    const user = userEvent.setup();
+    withDirectory();
+    asManager();
+    await openEmployees(user);
+
+    expect(screen.queryByRole("button", { name: "Удалить сотрудника" })).toBeNull();
   });
 });

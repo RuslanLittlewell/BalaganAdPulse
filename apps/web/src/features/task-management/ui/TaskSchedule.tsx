@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CalendarIcon, XIcon } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { t } from "@/shared/config/index.js";
 import {
   Button,
@@ -36,7 +36,7 @@ export function TaskSchedule({
   const [picking, setPicking] = useState(false);
 
   return (
-    <div className="grid gap-3 sm:grid-cols-3" data-testid="task-form-schedule">
+    <div className="grid gap-3" data-testid="task-form-schedule">
       <div className="flex min-w-0 flex-col gap-2">
         <Label>{t("tasks.form.due")}</Label>
         <div className="flex gap-1">
@@ -61,17 +61,6 @@ export function TaskSchedule({
               </span>
             </Button>
           </DatePicker>
-          {dueDate === null ? null : (
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              aria-label={t("tasks.form.clearDue")}
-              onClick={() => onDueDateChange(null)}
-            >
-              <XIcon />
-            </Button>
-          )}
         </div>
       </div>
 
@@ -85,7 +74,7 @@ export function TaskSchedule({
               value={dueTime ?? ""}
               onChange={(event) => onDueTimeChange(event.target.value || null)}
               className={
-                "h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm " +
+                "h-10 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm " +
                 "shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] " +
                 "focus-visible:ring-ring/50"
               }

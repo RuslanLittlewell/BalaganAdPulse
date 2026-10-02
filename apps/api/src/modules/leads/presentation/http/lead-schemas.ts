@@ -1,12 +1,16 @@
 import { z } from 'zod';
-import { COLUMN_NAME_LIMIT, LEAD_STAGES } from '../../domain/lead.js';
+import { COLUMN_NAME_LIMIT, LEAD_STAGES, TAG_LENGTH_LIMIT, TAG_LIMIT } from '../../domain/lead.js';
 const optionalText=(limit:number)=>z.string().trim().max(limit).nullable().optional();
 const fields=z.object({
   name:z.string().trim().min(1).max(200),company:optionalText(200),phone:optionalText(50),
   email:z.union([z.string().trim().max(254).email(),z.literal('')]).nullable().optional(),
   website:z.union([z.url({protocol:/^https?$/}).max(2048),z.literal('')]).nullable().optional(),
   source:optionalText(200),notes:optionalText(10000),
-  projectId:z.uuid().nullable().optional(),campaignId:z.uuid().nullable().optional(),assigneeId:z.uuid().nullable().optional(),
+  service:optionalText(200),telegram:optionalText(100),messenger:optionalText(100),
+  amount:z.string().trim().regex(/^\d{1,14}(\.\d{1,4})?$/,'Amount must be a nonnegative number with at most four decimals').nullable().optional(),
+  tags:z.array(z.string().trim().min(1).max(TAG_LENGTH_LIMIT)).max(TAG_LIMIT)
+    .refine(tags=>new Set(tags.map(tag=>tag.toLowerCase())).size===tags.length,{message:'Tags must differ from each other'}).optional(),
+  campaignId:z.uuid().nullable().optional(),assigneeId:z.uuid().nullable().optional(),
 }).strict();
 export const leadContactSchemas={name:fields.shape.name,company:z.string().trim().max(200),phone:z.string().trim().max(50),email:z.string().trim().max(254).email()};
 const stage=z.union([z.enum(LEAD_STAGES),z.uuid()]);

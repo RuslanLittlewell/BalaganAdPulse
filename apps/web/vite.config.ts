@@ -43,7 +43,8 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: "./test/shared/setup.ts",
-    css: true,
+    css: false,
+    deps: { optimizer: { web: { enabled: true } } },
     env: { TZ: "Asia/Tokyo" },
   },
 });

@@ -26,8 +26,9 @@ const source = {
 
 describe("lead origin and Meta source persistence", () => {
   it("records a lead created without an origin as made by hand", async () => {
-    await signInAs();
-    const lead = await prisma.lead.create({ data: { name: "Hand-made", orgId: (await currentOrg()).id } });
+    const member = await signInAs();
+    const { projectId } = await seedProject(member.user.id);
+    const lead = await prisma.lead.create({ data: { name: "Hand-made", orgId: (await currentOrg()).id, projectId } });
 
     expect(lead.origin).toBe("MANUAL");
     expect(lead.adId).toBeNull();
@@ -35,10 +36,10 @@ describe("lead origin and Meta source persistence", () => {
 
   it("releases the ad link when the ad is deleted and leaves the lead standing", async () => {
     const member = await signInAs();
-    const { clientId, projectId } = await seedProject(member.user.id);
+    const { projectId } = await seedProject(member.user.id);
     const { campaign, ad } = await seedAd(projectId);
     const lead = await prisma.lead.create({
-      data: { name: "Анна", orgId: (await currentOrg()).id, clientId, projectId, campaignId: campaign.id, adId: ad.id, origin: "META" },
+      data: { name: "Анна", orgId: (await currentOrg()).id, projectId, campaignId: campaign.id, adId: ad.id, origin: "META" },
     });
 
     await prisma.ad.delete({ where: { id: ad.id } });
@@ -49,9 +50,9 @@ describe("lead origin and Meta source persistence", () => {
 
   it("deletes the Meta source together with its lead", async () => {
     const member = await signInAs();
-    const { clientId } = await seedProject(member.user.id);
+    const { projectId } = await seedProject(member.user.id);
     const lead = await prisma.lead.create({
-      data: { name: "Анна", orgId: (await currentOrg()).id, clientId, origin: "META", metaSource: { create: source } },
+      data: { name: "Анна", orgId: (await currentOrg()).id, projectId, origin: "META", metaSource: { create: source } },
     });
     expect(await prisma.leadMetaSource.findUnique({ where: { leadId: lead.id } })).toMatchObject({ formId: "f1", answersOmitted: false });
 
@@ -62,9 +63,9 @@ describe("lead origin and Meta source persistence", () => {
 
   it("keeps the Meta lead key after its lead is deleted", async () => {
     const member = await signInAs();
-    const { clientId } = await seedProject(member.user.id);
+    const { projectId } = await seedProject(member.user.id);
     const orgId = (await currentOrg()).id;
-    const lead = await prisma.lead.create({ data: { name: "Анна", orgId, clientId, origin: "META" } });
+    const lead = await prisma.lead.create({ data: { name: "Анна", orgId, projectId, origin: "META" } });
     await prisma.metaLead.create({ data: { orgId, externalId: "L1", leadId: lead.id } });
 
     await prisma.lead.delete({ where: { id: lead.id } });

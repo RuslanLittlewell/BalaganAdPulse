@@ -19,8 +19,8 @@ export class PrismaAdLocator implements AdLocator {
   async locate(actor: ActorContext, adId: string) {
     const row = await this.prisma.ad.findFirst({
       where: { id: adId, adSet: { campaign: { project: reachableProjects(actor) } } },
-      select: { externalId: true, adSet: { select: { campaign: { select: { projectId: true } } } } },
+      select: { externalId: true, adSet: { select: { campaign: { select: { projectId: true, sourceAccountId: true } } } } },
     });
-    return row && { projectId: row.adSet.campaign.projectId, externalId: row.externalId };
+    return row && { projectId: row.adSet.campaign.projectId, externalId: row.externalId, accountId: row.adSet.campaign.sourceAccountId };
   }
 }

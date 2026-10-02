@@ -4,7 +4,7 @@ import {
   cn, formatCount, formatCurrency, formatMultiple, formatPercent, formatRatio,
 } from "@/shared/lib/index.js";
 import type { Currency } from "@/shared/lib/index.js";
-import { EMPTY_PERFORMANCE, type Performance } from "@/entities/campaign/index.js";
+import { EMPTY_PERFORMANCE, type Performance, type CurrencyPerformance } from "@/entities/campaign/index.js";
 import type { KpiScope } from "@/entities/kpi/index.js";
 import { useAuth } from "@/features/auth/index.js";
 import { KpiTile } from "@/features/kpi-target/index.js";
@@ -19,6 +19,7 @@ export interface PerformanceSummaryProps {
   range: { from: string; to: string };
   performance?: Performance;
   currency?: Currency;
+  currencyPerformances?: CurrencyPerformance[];
   kpi?: { scope: KpiScope; canEdit: boolean };
   configurable?: boolean;
 }
@@ -33,9 +34,23 @@ const LABELS: Record<SummaryTile, string> = {
 };
 
 export function PerformanceSummary({
-  screen, range, performance, currency = "RUB", kpi, configurable = true,
+  screen, range, performance, currency = "RUB", currencyPerformances, kpi, configurable = true,
 }: PerformanceSummaryProps) {
-  const figures = performance ?? EMPTY_PERFORMANCE;
+  const groups = currencyPerformances?.length ? currencyPerformances : [{ currency, performance: performance ?? EMPTY_PERFORMANCE }];
+  const figures = currencyPerformances ? groups.reduce((total, group) => ({
+    ...total,
+    impressions: total.impressions + group.performance.impressions,
+    reach: total.reach + group.performance.reach,
+    clicks: total.clicks + group.performance.clicks,
+    conversions: total.conversions + group.performance.conversions,
+  }), { ...EMPTY_PERFORMANCE }) : performance ?? EMPTY_PERFORMANCE;
+  if (currencyPerformances) {
+    figures.ctr = figures.impressions ? figures.clicks * 100 / figures.impressions : null;
+    figures.frequency = figures.reach ? figures.impressions / figures.reach : null;
+  }
+  const monetary = (format: (p: Performance, currency: Currency) => string) => (
+    <>{groups.map((group) => <div key={group.currency ?? "unknown"}>{format(group.performance, group.currency)}</div>)}</>
+  );
   const { user } = useAuth();
   const layouts = useSummaryTiles((state) => state.layouts);
   const toggleTile = useSummaryTiles((state) => state.toggleTile);
@@ -48,8 +63,8 @@ export function PerformanceSummary({
   const render = (tile: SummaryTile, preview = false): ReactNode => {
     switch (tile) {
       case "spend":
-        return <MetricCard className="h-full" label={LABELS.spend} value={formatCurrency(figures.spend, currency)}
-          hint={`${t("metric.cpm")} ${formatRatio(figures.cpm, currency)}`} />;
+        return <MetricCard className="h-full" label={LABELS.spend} value={monetary((p, c) => formatCurrency(p.spend, c))}
+          hint={monetary((p, c) => `${t("metric.cpm")} ${formatRatio(p.cpm, c)}`)} />;
       case "impressions":
         return <MetricCard className="h-full" label={LABELS.impressions} value={formatCount(figures.impressions)}
           hint={`${t("metric.frequency")} ${formatMultiple(figures.frequency)}`} />;
@@ -58,12 +73,12 @@ export function PerformanceSummary({
           hint={`${t("metric.ctr")} ${formatPercent(figures.ctr)}`} />;
       case "conversions":
         return <MetricCard className="h-full" label={LABELS.conversions} value={formatCount(figures.conversions)}
-          hint={`${t("metric.cpa")} ${formatRatio(figures.cpa, currency)}`} />;
+          hint={monetary((p, c) => `${t("metric.cpa")} ${formatRatio(p.cpa, c)}`)} />;
       case "cpc":
-        return <MetricCard className="h-full" label={LABELS.cpc} value={formatRatio(figures.cpc, currency)}
+        return <MetricCard className="h-full" label={LABELS.cpc} value={monetary((p, c) => formatRatio(p.cpc, c))}
           hint={`${t("metric.reach")} ${formatCount(figures.reach)}`} />;
       case "kpi":
-        return kpi ? <KpiTile {...kpi} figures={figures} range={range} currency={currency} preview={preview} /> : null;
+        return kpi ? <KpiTile {...kpi} figures={figures} range={range} currency={currency} currencyFigures={currencyPerformances} preview={preview} /> : null;
     }
   };
 

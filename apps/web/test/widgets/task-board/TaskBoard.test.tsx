@@ -1,5 +1,6 @@
 import { http as mock, HttpResponse } from "msw";
 import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Routes, Route } from "react-router-dom";
 import { aTask, renderWithProviders, server } from "@test/shared/index.js";
 import { LoadedTaskBoard as TaskBoard } from "@test/shared/task-widgets.js";
@@ -75,6 +76,22 @@ describe("TaskBoard", () => {
     const card = await screen.findByTestId("task-card-task-1");
     expect(card).toHaveAttribute("data-draggable", "true");
     expect(screen.getByTestId("task-drag-task-1")).toBeInTheDocument();
+  });
+
+  it("carries the dragged card outside the board, so the page around it cannot shift it off the pointer", async () => {
+    const user = userEvent.setup();
+    server.use(mock.get("/api/tasks", () => HttpResponse.json([aTask({ id: "task-1", title: "Перетаскиваемая" })])));
+    const { container } = setup();
+
+    const handle = await screen.findByTestId("task-drag-task-1");
+    handle.focus();
+    await user.keyboard(" ");
+
+    await waitFor(() => expect(screen.getAllByText("Перетаскиваемая")).toHaveLength(2));
+    const carried = screen.getAllByText("Перетаскиваемая").find((title) => !container.contains(title));
+    expect(carried).toBeDefined();
+
+    await user.keyboard("{Escape}");
   });
 
   it("does not let a guest drag a card, but still lets them open it", async () => {

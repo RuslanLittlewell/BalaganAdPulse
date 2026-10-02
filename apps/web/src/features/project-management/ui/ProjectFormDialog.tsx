@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { PlusIcon } from "lucide-react";
-import {
-  ApiError, CURRENCY_SIGNS, isPartialDecimal, toSquarePng, type Currency,
-} from "@/shared/lib/index.js";
+import { ImageIcon, PlusIcon } from "lucide-react";
+import { ApiError, toSquarePng } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import {
   Button,
@@ -14,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
   Label,
+  MultiSelect,
   Select,
   SelectContent,
   SelectItem,
@@ -22,7 +21,6 @@ import {
   TextField,
 } from "@/shared/ui/index.js";
 import { useClients } from "@/entities/client/index.js";
-import { CURRENCIES, DEFAULT_CURRENCY } from "@/entities/project/index.js";
 import {
   ProjectAvatar,
   useCreateProject,
@@ -32,9 +30,10 @@ import {
   type Project,
   type ProjectInput,
 } from "@/entities/project/index.js";
+import { MemberAvatar, useMembers } from "@/entities/membership/index.js";
 import { isCustomer } from "@adpulse/access-policy";
 import { useAuth } from "@/features/auth/index.js";
-import { Can } from "@/features/permissions/index.js";
+import { Can, useCan } from "@/features/permissions/index.js";
 import { ClientFormDialog } from "@/features/client-management/index.js";
 
 const UPLOADED = JSON.stringify({ source: "upload" });
@@ -50,20 +49,39 @@ export interface ProjectFormDialogProps {
 interface Fields {
   clientId: string;
   name: string;
-  niche: string;
-  monthlyBudget: string;
-  budgetCurrency: Currency;
+}
+
+const ASSIGNABLE_ROLES = ["MANAGER", "GUEST"];
+
+function StaffPicker({ chosen, onChange }: { chosen: string[]; onChange: (next: string[]) => void }) {
+  const members = useMembers();
+  const assignable = (members.data ?? []).filter(
+    (member) => member.status === "ACTIVE" && ASSIGNABLE_ROLES.includes(member.role),
+  );
+
+  return (
+    <div className="grid gap-1">
+      <Label>{t("project.staff.label")}</Label>
+      <MultiSelect
+        items={assignable.map((member) => ({
+          value: member.id,
+          label: member.name,
+          icon: <MemberAvatar member={member} size="sm" />,
+        }))}
+        chosen={chosen}
+        onChange={onChange}
+        placeholder={t("project.staff.none")}
+        ariaLabel={t("project.staff.label")}
+        className="w-full"
+      />
+    </div>
+  );
 }
 
 function toInput(fields: Fields): ProjectInput {
-  const budget = Number(fields.monthlyBudget);
   return {
     clientId: fields.clientId,
     name: fields.name.trim(),
-    niche: fields.niche.trim() || null,
-    monthlyBudget:
-      fields.monthlyBudget.trim() && Number.isFinite(budget) ? budget : null,
-    budgetCurrency: fields.budgetCurrency,
   };
 }
 
@@ -85,9 +103,22 @@ export function ProjectFormDialog({
   const [confirming, setConfirming] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [logo, setLogo] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (logo == null) return;
+    const url = URL.createObjectURL(logo);
+    setLogoPreview(url);
+    return () => {
+      URL.revokeObjectURL(url);
+      setLogoPreview(null);
+    };
+  }, [logo]);
   const [failure, setFailure] = useState<string | null>(null);
   const [creatingClient, setCreatingClient] = useState(false);
   const [createdClientId, setCreatedClientId] = useState<string | null>(null);
+  const [memberIds, setMemberIds] = useState<string[]>([]);
+  const mayAssignStaff = useCan("update", "member") && !isEdit;
 
   const {
     register,
@@ -100,9 +131,6 @@ export function ProjectFormDialog({
     defaultValues: {
       clientId: project?.clientId ?? clientId ?? ownClientId ?? "",
       name: project?.name ?? "",
-      niche: project?.niche ?? "",
-      monthlyBudget: project?.monthlyBudget ?? "",
-      budgetCurrency: project?.budgetCurrency ?? DEFAULT_CURRENCY,
     },
   });
 
@@ -121,7 +149,10 @@ export function ProjectFormDialog({
     try {
       const saved = isEdit
         ? await update.mutateAsync({ id: project.id, body: toInput(fields) })
-        : await create.mutateAsync(toInput(fields));
+        : await create.mutateAsync({
+            ...toInput(fields),
+            ...(memberIds.length > 0 ? { memberIds } : {}),
+          });
 
       const withLogo = logo
         ? await saveAvatar.mutateAsync({
@@ -157,116 +188,40 @@ export function ProjectFormDialog({
         </DialogHeader>
 
         <form noValidate className="grid gap-3" onSubmit={(event) => void submit(event)}>
-          <TextField
-            compact
-            label={t("project.name.label")}
-            {...register("name", { required: t("project.name.required") })}
-            error={errors.name?.message}
-            autoFocus
-          />
-
-          <div className="grid gap-1">
-            <Label htmlFor="project-client" className="text-xs text-muted-foreground">
-              {t("project.client.label")}
-            </Label>
-            <div className="flex items-center gap-2">
-              <div className="min-w-0 flex-1">
-                <Controller
-                  control={control}
-                  name="clientId"
-                  rules={{ required: t("project.client.required") }}
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange} disabled={ownClientId != null}>
-                      <SelectTrigger id="project-client" className="w-full">
-                        <SelectValue placeholder={t("project.client.label")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(clients.data ?? []).map((client) => (
-                          <SelectItem key={client.id} value={client.id}>
-                            {client.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </div>
-              <Can action="create" resource="client">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="shrink-0"
-                  aria-label={t("clients.new")}
-                  onClick={() => setCreatingClient(true)}
-                >
-                  <PlusIcon aria-hidden="true" />
-                </Button>
-              </Can>
-            </div>
-            {errors.clientId != null && (
-              <p className="text-xs text-destructive">{errors.clientId.message}</p>
-            )}
-            {noClients && (
-              <p className="text-xs text-muted-foreground">{t("project.client.empty")}</p>
-            )}
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <TextField
-              compact
-              label={t("project.niche.label")}
-              {...register("niche")}
-              error={errors.niche?.message}
-            />
-            <Controller
-              control={control}
-              name="monthlyBudget"
-              render={({ field }) => (
-                <TextField
-                  compact
-                  label={t("project.budget.label")}
-                  {...field}
-                  onChange={(event) => {
-                    if (isPartialDecimal(event.target.value)) field.onChange(event);
-                  }}
-                  error={errors.monthlyBudget?.message}
-                  inputMode="decimal"
-                />
-              )}
-            />
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="project-currency">{t("project.currency.label")}</Label>
-              <Controller
-                control={control}
-                name="budgetCurrency"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="project-currency"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {CURRENCIES.map((currency) => (
-                        <SelectItem key={currency} value={currency}>
-                          {currency} {CURRENCY_SIGNS[currency]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+          <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_minmax(0,4fr)]">
+          <div className="flex min-w-0 flex-col items-center gap-3 sm:border-r sm:border-border sm:pr-6">
+            {logoPreview != null ? (
+              <img
+                src={logoPreview}
+                alt={t("project.logo.preview")}
+                className="size-[110px] shrink-0 rounded-md object-contain"
               />
-            </div>
-          </div>
-
-          <div className="grid gap-1">
-            <Label className="text-xs text-muted-foreground">{t("project.logo.label")}</Label>
-            <div className="flex items-center gap-3">
-              {project != null && <ProjectAvatar project={project} />}
-              <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
-                {t("project.logo.pick")}
-              </Button>
-              {logo != null && (
-                <span className="min-w-0 truncate text-xs text-muted-foreground">{logo.name}</span>
-              )}
-            </div>
+            ) : project != null ? (
+              <ProjectAvatar project={project} size="xl" />
+            ) : (
+              <div
+                role="img"
+                aria-label={t("project.logo.empty")}
+                className="grid size-[110px] shrink-0 place-items-center rounded-md border-2 border-dashed border-border text-muted-foreground"
+              >
+                <ImageIcon aria-hidden className="size-8" />
+              </div>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => fileRef.current?.click()}
+            >
+              {t("project.logo.pick")}
+            </Button>
+            <span
+              title={logo?.name}
+              className="block h-4 w-full truncate text-center text-xs text-muted-foreground"
+            >
+              {logo?.name}
+            </span>
             <input
               ref={fileRef}
               type="file"
@@ -281,25 +236,82 @@ export function ProjectFormDialog({
             />
           </div>
 
+            <div className="flex min-w-0 flex-col gap-3">
+            <TextField
+              compact
+              label={t("project.name.label")}
+              {...register("name", { required: t("project.name.required") })}
+              error={errors.name?.message}
+              autoFocus
+            />
+            <div className="grid gap-1">
+              <Label htmlFor="project-client">
+                {t("project.client.label")}
+              </Label>
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <Controller
+                    control={control}
+                    name="clientId"
+                    rules={{ required: t("project.client.required") }}
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange} disabled={ownClientId != null}>
+                        <SelectTrigger id="project-client" className="w-full">
+                          <SelectValue placeholder={t("project.client.label")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(clients.data ?? []).map((client) => (
+                            <SelectItem key={client.id} value={client.id}>
+                              {client.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+                <Can action="create" resource="client">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0"
+                    aria-label={t("clients.new")}
+                    onClick={() => setCreatingClient(true)}
+                  >
+                    <PlusIcon aria-hidden="true" />
+                  </Button>
+                </Can>
+              </div>
+              {errors.clientId != null && (
+                <p className="text-xs text-destructive">{errors.clientId.message}</p>
+              )}
+              {noClients && (
+                <p className="text-xs text-muted-foreground">{t("project.client.empty")}</p>
+              )}
+            </div>
+            {mayAssignStaff && <StaffPicker chosen={memberIds} onChange={setMemberIds} />}
+            </div>
+          </div>
+
           {failure != null && (
             <p role="alert" className="text-xs text-destructive">{failure}</p>
           )}
 
-          <DialogFooter className="sm:justify-between">
-            {isEdit ? (
-              <Can action="delete" resource="project">
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={() => setConfirming(true)}
-              >
-                {t("project.delete")}
-              </Button>
-              </Can>
-            ) : (
-              <span />
-            )}
+          <DialogFooter>
             <div className="flex items-center gap-2">
+              {isEdit && (
+                <Can action="delete" resource="project">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+                    onClick={() => setConfirming(true)}
+                  >
+                    {t("project.delete")}
+                  </Button>
+                </Can>
+              )}
               <Button type="button" variant="outline" onClick={onClose}>
                 {t("action.cancel")}
               </Button>

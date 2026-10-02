@@ -180,3 +180,16 @@ describe("the KPI target dialog", () => {
     expect(requests).toEqual([]);
   });
 });
+
+it("shows monetary KPI values by currency inside one tile", async () => {
+  kpi({ metric: "CPA", target: "20.0000" });
+  renderWithProviders(<KpiTile scope={{ kind: "project", id: "p1" }} canEdit={false} figures={figures()}
+    range={firstHalf} currency={null} currencyFigures={[
+      { currency: "USD", performance: figures({ cpa: 10 }) },
+      { currency: "EUR", performance: figures({ cpa: 25 }) },
+    ]} />);
+  expect(await screen.findByText("10,00 $")).toBeInTheDocument();
+  expect(screen.getByText("25,00 €")).toBeInTheDocument();
+  expect(screen.getAllByTestId("kpi-tile")).toHaveLength(1);
+  expect(within(tile()).getAllByRole("progressbar")).toHaveLength(2);
+});

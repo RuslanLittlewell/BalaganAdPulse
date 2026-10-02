@@ -59,24 +59,6 @@ describe("ProjectList", () => {
       .toEqual(["project-row-new", "project-row-critical", "project-row-idle"]);
   });
 
-  it("filters projects with the priority select", async () => {
-    server.use(mock.get("/api/projects", () => HttpResponse.json([
-      aProject({ id: "critical", name: "Критичный проект", priority: "CRITICAL" }),
-      aProject({ id: "idle", name: "Проект без задач", priority: "IDLE" }),
-    ])));
-    setup();
-
-    const filter = await screen.findByRole("combobox", { name: "Фильтр по приоритету" });
-    await userEvent.click(filter);
-    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
-      "Все приоритеты", "Очень важно", "Есть срочные задачи",
-      "В работе, ждём результата", "Нет задач", "Новый",
-    ]);
-    await userEvent.click(screen.getByRole("option", { name: "Нет задач" }));
-    expect(screen.queryByText("Критичный проект")).not.toBeInTheDocument();
-    expect(screen.getByText("Проект без задач")).toBeInTheDocument();
-  });
-
   it("offers an icon-only new-project button", async () => {
     server.use(mock.get("/api/projects", () => HttpResponse.json([])));
     setup();
@@ -105,7 +87,7 @@ describe("ProjectList", () => {
     server.use(
       mock.get("/api/clients", () => HttpResponse.json([aClient({ id: "1", name: "Acme" })])),
       mock.get("/api/projects", () =>
-        HttpResponse.json([aProject({ clientId: "1", name: "Летний запуск", niche: "fitness" })])),
+        HttpResponse.json([aProject({ clientId: "1", name: "Летний запуск" })])),
     );
     setup();
 
@@ -113,7 +95,6 @@ describe("ProjectList", () => {
 
     expect(await screen.findByRole("dialog", { name: "Редактирование проекта" })).toBeInTheDocument();
     expect(screen.getByLabelText("Название проекта")).toHaveValue("Летний запуск");
-    expect(screen.getByLabelText("Ниша")).toHaveValue("fitness");
   });
 
   it("keeps the row itself navigating, not editing", async () => {
@@ -253,5 +234,82 @@ describe("a customer's project list", () => {
     fireEvent.contextMenu(screen.getByText("Летний запуск"));
     expect(await screen.findByRole("menuitem", { name: "Закрепить" })).toBeInTheDocument();
     expect(screen.queryAllByRole("menuitemradio")).toEqual([]);
+  });
+});
+
+describe("searching the project list", () => {
+  const withProjects = () => server.use(
+    mock.get("/api/clients", () => HttpResponse.json([
+      aClient({ id: "1", name: "Acme" }),
+      aClient({ id: "2", name: "Стоматология Улыбка" }),
+    ])),
+    mock.get("/api/projects", () => HttpResponse.json([
+      aProject({ id: "summer", clientId: "1", name: "Летний запуск", priority: "CRITICAL" }),
+      aProject({ id: "autumn", clientId: "1", name: "Осенняя распродажа", priority: "IDLE" }),
+      aProject({ id: "implants", clientId: "2", name: "Имплантация", priority: "NEW" }),
+    ])),
+  );
+  const searchField = () => screen.getByRole("searchbox", { name: "Поиск проектов" });
+
+  it("offers a search field and no priority filter", async () => {
+    withProjects();
+    setup();
+    await screen.findByText("Летний запуск");
+
+    expect(searchField()).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Фильтр по приоритету" })).toBeNull();
+  });
+
+  it("narrows to the projects whose name matches, in any case, once typing pauses", async () => {
+    const user = userEvent.setup();
+    withProjects();
+    setup();
+    await screen.findByText("Летний запуск");
+
+    await user.type(searchField(), "  ЛЕТН ");
+    expect(screen.getByText("Осенняя распродажа")).toBeInTheDocument();
+
+    await waitFor(() => expect(screen.queryByText("Осенняя распродажа")).toBeNull());
+    expect(screen.getByText("Летний запуск")).toBeInTheDocument();
+    expect(screen.queryByText("Имплантация")).toBeNull();
+  });
+
+  it("finds a client's projects by the client's name", async () => {
+    const user = userEvent.setup();
+    withProjects();
+    setup();
+    await screen.findByText("Летний запуск");
+
+    await user.type(searchField(), "улыбка");
+
+    await waitFor(() => expect(screen.queryByText("Летний запуск")).toBeNull());
+    expect(screen.getByText("Имплантация")).toBeInTheDocument();
+  });
+
+  it("says so when nothing matches", async () => {
+    const user = userEvent.setup();
+    withProjects();
+    setup();
+    await screen.findByText("Летний запуск");
+
+    await user.type(searchField(), "нет такого");
+
+    expect(await screen.findByText("Ничего не найдено")).toBeInTheDocument();
+  });
+
+  it("stops dragging while searching and brings back the whole list when cleared", async () => {
+    const user = userEvent.setup();
+    withProjects();
+    setup();
+    await screen.findByText("Летний запуск");
+    expect(screen.getByTestId("project-row-summer")).toHaveAttribute("data-draggable", "true");
+
+    await user.type(searchField(), "летн");
+    await waitFor(() => expect(screen.queryByText("Имплантация")).toBeNull());
+    expect(screen.getByTestId("project-row-summer")).toHaveAttribute("data-draggable", "false");
+
+    await user.clear(searchField());
+    expect(await screen.findByText("Имплантация")).toBeInTheDocument();
+    expect(screen.getByTestId("project-row-summer")).toHaveAttribute("data-draggable", "true");
   });
 });

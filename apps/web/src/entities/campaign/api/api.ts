@@ -43,7 +43,9 @@ export interface Campaign {
   status: DeliveryStatus;
   objective: string | null;
   externalId: string | null;
+  sourceAccountId: string | null;
   position: number;
+  kpi: { metric: string; target: string } | null;
   performance: Performance;
 }
 
@@ -93,11 +95,14 @@ export interface CampaignReference {
   channel: Channel;
 }
 
-export interface ProjectCampaignReference extends CampaignReference {
-  projectId: string;
+
+export interface CurrencyPerformance {
+  currency: string | null;
+  performance: Performance;
 }
 
 export interface ChannelShare {
+  currency: string | null;
   channel: Channel;
   campaigns: number;
   performance: Performance;
@@ -108,7 +113,6 @@ export const campaignsApi = {
     http.get<Campaign[]>(scoped(`/projects/${projectId}/campaigns`, range)),
   namesByProject: (projectId: string) =>
     http.get<CampaignReference[]>(`/projects/${projectId}/campaigns/names`),
-  names: () => http.get<ProjectCampaignReference[]>("/campaigns/names"),
   get: (campaignId: string, range: DateRange) =>
     http.get<Campaign>(scoped(`/campaigns/${campaignId}`, range)),
   daily: (campaignId: string, range: DateRange) =>
@@ -121,7 +125,7 @@ export const campaignsApi = {
     http.get<MeasuredDay[]>(scoped(`/projects/${projectId}/daily`, range)),
   projectSummary: (projectId: string, range: DateRange) =>
     http.get<Performance>(scoped(`/projects/${projectId}/summary`, range)),
-  agencySummary: (range: DateRange) => http.get<Performance>(scoped("/summary", range)),
+  agencySummary: (range: DateRange) => http.get<CurrencyPerformance[]>(scoped("/summary", range)),
   adCreatives: (adId: string) => http.get<Creative[]>(`/ads/${adId}/creatives`),
   adPreview: (adId: string) => http.get<{ url: string }>(`/ads/${adId}/preview`),
   creativeFile: async (creativeId: string, part: "file" | "poster") => {

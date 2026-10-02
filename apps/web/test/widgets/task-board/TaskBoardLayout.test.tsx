@@ -70,8 +70,8 @@ describe("the card left behind while dragging", () => {
 });
 
 describe("what a card shows without being opened", () => {
-  const project = { id: "project-1", clientId: "c1", name: "Летний запуск", niche: null,
-    monthlyBudget: null, budgetCurrency: "BYN" as const, priority: "NEW" as const, image: null, avatarPath: null,
+  const project = { id: "project-1", clientId: "c1", name: "Летний запуск",
+    budgetCurrency: "BYN" as const, priority: "NEW" as const, image: null, avatarPath: null,
     position: 0, createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z" };
   const member = { id: "member-1", userId: "u1", name: "Пётр", email: "p@acme.com",
     image: null, phone: null, telegram: null, role: "MANAGER" as const, status: "ACTIVE" as const,
@@ -102,14 +102,14 @@ describe("what a card shows without being opened", () => {
     expect(footer.textContent).toContain("Л");
   });
 
-  it("shows the responsible member's avatar", () => {
+  it("shows the responsible member's avatar and name", () => {
     renderWithProviders(
       <TaskCard task={aTask({ assigneeId: "member-1" })} draggable={false} assignee={member} />,
       { route: "/tasks" },
     );
     const assignee = screen.getByTestId("task-assignee-task-1");
     expect(assignee).toHaveAttribute("title", "Пётр");
-    expect(assignee.textContent).toContain("П");
+    expect(assignee).toHaveTextContent("Пётр");
   });
 
   it("uses the member's picture when they have one", () => {
@@ -130,62 +130,6 @@ describe("what a card shows without being opened", () => {
     expect(screen.getByText("Без проекта")).toBeInTheDocument();
   });
 
-  it("names the campaign the work is about", () => {
-    renderWithProviders(
-      <TaskCard
-        task={aTask({ campaignId: "camp-1" })}
-        draggable={false}
-        project={project}
-        campaignName="Поиск / Москва"
-      />,
-      { route: "/tasks" },
-    );
-
-    expect(screen.getByTestId("task-campaign-task-1")).toHaveTextContent("Поиск / Москва");
-  });
-
-  it("says Общий when the task names no campaign", () => {
-    renderWithProviders(
-      <TaskCard task={aTask()} draggable={false} project={project} />,
-      { route: "/tasks" },
-    );
-
-    expect(screen.getByTestId("task-campaign-task-1")).toHaveTextContent("Общий");
-  });
-
-  it("carries the campaign through from the board", async () => {
-    server.use(
-      mock.get("/api/tasks", () => HttpResponse.json([
-        aTask({ projectId: "project-1", campaignId: "camp-1" }),
-      ])),
-      mock.get("/api/projects", () => HttpResponse.json([project])),
-      mock.get("/api/campaigns/names", () => HttpResponse.json([
-        { id: "camp-1", projectId: "project-1", name: "Поиск / Москва", channel: "YANDEX" },
-      ])),
-    );
-    board();
-
-    await waitFor(() => expect(screen.getByTestId("task-campaign-task-1"))
-      .toHaveTextContent("Поиск / Москва"));
-  });
-
-  it("asks for no campaign names when no task names one", async () => {
-    const asked: string[] = [];
-    server.use(
-      mock.get("/api/tasks", () => HttpResponse.json([aTask({ projectId: "project-1" })])),
-      mock.get("/api/projects", () => HttpResponse.json([project])),
-      mock.get("/api/projects/:projectId/campaigns/names", ({ params }) => {
-        asked.push(String(params.projectId));
-        return HttpResponse.json([]);
-      }),
-    );
-    board();
-
-    await screen.findByTestId("task-project-task-1");
-    await waitFor(() => expect(screen.getByTestId("task-campaign-task-1")).toBeInTheDocument());
-    expect(asked).toEqual([]);
-  });
-
   it("carries the project and the assignee through from the board", async () => {
     server.use(
       mock.get("/api/tasks", () => HttpResponse.json([
@@ -197,7 +141,7 @@ describe("what a card shows without being opened", () => {
     board();
 
     expect(await screen.findByTestId("task-project-task-1")).toHaveTextContent("Летний запуск");
-    expect(await screen.findByTestId("task-assignee-task-1")).toHaveAttribute("title", "Пётр");
+    expect(await screen.findByTestId("task-assignee-task-1")).toHaveTextContent("Пётр");
     expect(await screen.findByTestId("task-attachments-task-1")).toBeInTheDocument();
   });
 });

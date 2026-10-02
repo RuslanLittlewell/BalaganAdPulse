@@ -29,8 +29,6 @@ export interface LeadColumnInput {
   position?: number;
 }
 
-export const AGENCY_BOARD = "agency";
-
 export interface BoardCapabilities {
   create: boolean;
   update: boolean;
@@ -40,6 +38,7 @@ export interface BoardCapabilities {
 export interface LeadBoard {
   key: string;
   label: string;
+  clientName: string;
   capabilities: BoardCapabilities;
 }
 
@@ -87,7 +86,6 @@ export interface LeadAssignee {
 export interface Lead {
   id: string;
   orgId: string;
-  clientId: string | null;
   name: string;
   company: string | null;
   phone: string | null;
@@ -95,13 +93,18 @@ export interface Lead {
   website: string | null;
   source: string | null;
   notes: string | null;
-  projectId: string | null;
+  amount: string | null;
+  service: string | null;
+  telegram: string | null;
+  messenger: string | null;
+  tags: string[];
+  projectId: string;
   campaignId: string | null;
   assigneeId: string | null;
   adId: string | null;
   origin: LeadOrigin;
   ad: LeadAd | null;
-  project: LeadProject | null;
+  project: LeadProject;
   assignee: LeadAssignee | null;
   metaSource: LeadMetaSource | null;
   stage: string;
@@ -118,7 +121,11 @@ export interface LeadInput {
   website?: string | null;
   source?: string | null;
   notes?: string | null;
-  projectId?: string | null;
+  amount?: string | null;
+  service?: string | null;
+  telegram?: string | null;
+  messenger?: string | null;
+  tags?: string[];
   campaignId?: string | null;
   assigneeId?: string | null;
   stage?: string;
@@ -128,6 +135,32 @@ export interface LeadMove {
   stage: string;
   position: number;
 }
+
+export interface LeadFile {
+  id: string;
+  leadId: string;
+  name: string;
+  contentType: string;
+  bytes: number;
+  uploader: { id: string; name: string } | null;
+  createdAt: string;
+}
+
+export type LeadActivityField =
+  | "name" | "amount" | "assignee" | "company" | "tags" | "service" | "phone"
+  | "telegram" | "messenger" | "email" | "website" | "source" | "campaign" | "notes";
+
+interface ActivityBase {
+  id: string;
+  actor: { name: string } | null;
+  at: string;
+}
+
+export type LeadActivity =
+  | ActivityBase & { kind: "created" | "imported" }
+  | ActivityBase & { kind: "changed"; changes: { field: LeadActivityField; before: string; after: string }[] }
+  | ActivityBase & { kind: "moved"; stage: { from: string | null; to: string | null } }
+  | ActivityBase & { kind: "file-added" | "file-removed"; file: { name: string } };
 
 const board = (boardKey: string) => `/crm/boards/${encodeURIComponent(boardKey)}`;
 
@@ -149,4 +182,16 @@ export const leadsApi = {
   updateColumn: (boardKey: string, id: string, body: LeadColumnInput) =>
     http.patch<LeadColumn[]>(`${board(boardKey)}/columns/${id}`, body),
   removeColumn: (boardKey: string, id: string) => http.del(`${board(boardKey)}/columns/${id}`),
+  activity: (boardKey: string, id: string) =>
+    http.get<LeadActivity[]>(`${board(boardKey)}/leads/${id}/activity`),
+  files: (boardKey: string, id: string) => http.get<LeadFile[]>(`${board(boardKey)}/leads/${id}/files`),
+  attachFile: (boardKey: string, id: string, file: File) => {
+    const body = new FormData();
+    body.append("file", file);
+    return http.postForm<LeadFile>(`${board(boardKey)}/leads/${id}/files`, body);
+  },
+  downloadFile: (boardKey: string, id: string, fileId: string) =>
+    http.getBlob(`${board(boardKey)}/leads/${id}/files/${fileId}`),
+  removeFile: (boardKey: string, id: string, fileId: string) =>
+    http.del(`${board(boardKey)}/leads/${id}/files/${fileId}`),
 };

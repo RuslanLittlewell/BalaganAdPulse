@@ -8,8 +8,8 @@ import type { Lead } from "@/entities/lead/index.js";
 const TODAY = "2026-09-17";
 
 function calendar(leads: Lead[] = [], props: Partial<React.ComponentProps<typeof CrmCalendar>> = {}) {
-  server.use(mock.get("/api/crm/boards/agency/leads", () => HttpResponse.json(leads)));
-  return renderWithProviders(<CrmCalendar boardKey="agency" today={TODAY} {...props} />, { route: "/crm" });
+  server.use(mock.get("/api/crm/boards/project-1/leads", () => HttpResponse.json(leads)));
+  return renderWithProviders(<CrmCalendar boardKey="project-1" today={TODAY} {...props} />, { route: "/crm" });
 }
 
 const DAYS = ["понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье"];

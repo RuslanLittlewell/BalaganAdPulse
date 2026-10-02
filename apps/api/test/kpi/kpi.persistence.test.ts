@@ -49,6 +49,7 @@ describe("KPI storage", () => {
     const now = new Date("2026-09-14T06:00:00Z");
     const campaign = await prisma.campaign.create({ data: { projectId, name: "Old", channel: "META", externalId: "101", position: 0, kpiMetric: "CPA", kpiTarget: "20", kpiUpdatedAt: now } });
     await prisma.projectIntegration.create({ data: { projectId, accountId: "123", currency: "BYN", timezone: "UTC", encryptedToken: "e", revision: "v1", nextDailyAt: now, queuedAt: now } });
+    await prisma.project.update({ where: { id: projectId }, data: { budgetCurrency: "BYN" } });
     const jobs = new PrismaImportJobs(prisma);
     const job = (await jobs.claim(now))!;
 

@@ -1,21 +1,23 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { TaskBoard } from "@/widgets/task-board/index.js";
 import { TaskCalendar } from "@/widgets/task-calendar/index.js";
 import { TaskFormDialog, TaskPreviewDialog } from "@/features/task-management/index.js";
 import { Can, useCan } from "@/features/permissions/index.js";
 import { useAuth } from "@/features/auth/index.js";
-import { Button, ConfirmDialog, FadeContent } from "@/shared/ui/index.js";
-import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/ui/tabs.js";
+import { Button, ConfirmDialog, FadeContent, MultiSelect, Tabs } from "@/shared/ui/index.js";
 import { useModuleMemory } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import {
+  UNASSIGNED_TASK,
+  assigneeChoices,
+  tasksOfAssignees,
   useDeleteTask,
   useTaskEvents,
   useTasks,
   type Task,
   type TaskColumn,
 } from "@/entities/task/index.js";
-import { CampaignNamesSync } from "@/entities/campaign/index.js";
+import { MemberAvatar, useMembers } from "@/entities/membership/index.js";
 
 type Editing =
   | { mode: "closed" }
@@ -24,6 +26,8 @@ type Editing =
   | { mode: "read"; task: Task };
 
 const VIEWS = ["board", "calendar"] as const;
+
+const EMPTY: string[] = [];
 
 type View = (typeof VIEWS)[number];
 
@@ -37,6 +41,7 @@ export function TasksPage() {
   const [pendingDelete, setPendingDelete] = useState<Task | null>(null);
   const remove = useDeleteTask();
   const { data: tasks, isLoading, isError } = useTasks();
+  const { data: members } = useMembers();
   useTaskEvents();
 
   const userId = useAuth().user?.id ?? "";
@@ -45,40 +50,70 @@ export function TasksPage() {
   const [chosen, setChosen] = useState<View | null>(null);
   const view: View = chosen ?? (isView(remembered) ? remembered : "board");
 
+  const assignees = useModuleMemory((state) => state.taskAssignees[userId]) ?? EMPTY;
+  const rememberAssignees = useModuleMemory((state) => state.rememberTaskAssignees);
+
+  const choices = useMemo(
+    () => assigneeChoices(tasks ?? [], members ?? [], assignees),
+    [tasks, members, assignees],
+  );
+  const shown = useMemo(
+    () => tasksOfAssignees(tasks ?? [], assignees),
+    [tasks, assignees],
+  );
+
   const open = (task: Task) => setEditing({ mode: mayEdit ? "edit" : "read", task });
 
   return (
     <section className="flex h-full flex-col gap-4">
-      <header className="flex shrink-0 items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">{t("tasks.title")}</h1>
+      <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3 justify-self-start">
+          <MultiSelect
+            items={choices.map((choice) => ({
+              value: choice.id,
+              label: choice.id === UNASSIGNED_TASK
+                ? t("tasks.assignees.unassigned")
+                : choice.name,
+              icon: choice.member
+                ? <MemberAvatar member={choice.member} size="sm" />
+                : undefined,
+            }))}
+            chosen={assignees}
+            onChange={(next) => rememberAssignees(userId, next)}
+            placeholder={t("tasks.assignees.filter")}
+            ariaLabel={t("tasks.assignees.filterLabel")}
+            className="max-w-52"
+          />
+        </div>
 
         <Tabs
-          value={view}
-          onValueChange={(value) => {
-            if (!isView(value)) return;
-            setChosen(value);
-            if (userId) rememberTaskView(userId, value);
+          items={[
+            { id: "board", label: t("tasks.view.board") },
+            { id: "calendar", label: t("tasks.view.calendar") },
+          ]}
+          activeId={view}
+          onSelect={(id) => {
+            if (!isView(id)) return;
+            setChosen(id);
+            if (userId) rememberTaskView(userId, id);
           }}
-          className="ml-auto"
-        >
-          <TabsList>
-            <TabsTrigger value="board">{t("tasks.view.board")}</TabsTrigger>
-            <TabsTrigger value="calendar">{t("tasks.view.calendar")}</TabsTrigger>
-          </TabsList>
-        </Tabs>
+          ariaLabel={t("tasks.view.label")}
+          className="justify-self-center"
+        />
 
         <Can action="create" resource="task">
-          <Button onClick={() => setEditing({ mode: "create" })}>{t("tasks.create")}</Button>
+          <Button className="justify-self-end" onClick={() => setEditing({ mode: "create" })}>
+            {t("tasks.create")}
+          </Button>
         </Can>
       </header>
 
-      <CampaignNamesSync />
 
       <div className="min-h-0 flex-1">
         <FadeContent key={view} className="h-full">
           {view === "board" ? (
             <TaskBoard
-              tasks={tasks}
+              tasks={shown}
               isLoading={isLoading}
               isError={isError}
               onOpen={open}
@@ -86,7 +121,7 @@ export function TasksPage() {
             />
           ) : (
             <TaskCalendar
-              tasks={tasks}
+              tasks={shown}
               isLoading={isLoading}
               isError={isError}
               onOpen={open}

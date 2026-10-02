@@ -6,7 +6,7 @@ import type { ImportedMetric, Snapshot } from "../domain/snapshot.js";
 import { nextMorning } from "../application/schedule.js";
 
 const leaseUntil = (now: Date) => new Date(now.getTime() + 180_000);
-const owned = (job: Integration, now: Date) => ({ projectId: job.projectId, revision: job.revision, leaseOwner: job.leaseOwner, leaseUntil: { gt: now } });
+const owned = (job: Integration, now: Date) => ({ id: job.id, revision: job.revision, leaseOwner: job.leaseOwner, leaseUntil: { gt: now } });
 const metricData = ({ date, externalId: _externalId, ...data }: ImportedMetric, now: Date) => ({ ...data, date: new Date(`${date}T00:00:00Z`), syncedAt: now });
 
 export class PrismaImportJobs implements ImportJobs {
@@ -23,12 +23,12 @@ export class PrismaImportJobs implements ImportJobs {
     const candidate = await this.prisma.projectIntegration.findFirst({ where: available, orderBy: { nextDailyAt: "asc" } });
     if (!candidate) return null;
     const owner = randomUUID();
-    const claimed = await this.prisma.projectIntegration.updateMany({ where: { ...available, projectId: candidate.projectId, revision: candidate.revision, leaseOwner: candidate.leaseOwner }, data: {
+    const claimed = await this.prisma.projectIntegration.updateMany({ where: { ...available, id: candidate.id, revision: candidate.revision, leaseOwner: candidate.leaseOwner }, data: {
       status: "RUNNING", leaseOwner: owner, leaseUntil: leaseUntil(now), queuedAt: null,
       ...(candidate.nextDailyAt <= now ? { nextDailyAt: nextMorning(now) } : {}),
     } });
     if (!claimed.count) return null;
-    return this.prisma.projectIntegration.findFirst({ where: { projectId: candidate.projectId, leaseOwner: owner } });
+    return this.prisma.projectIntegration.findFirst({ where: { id: candidate.id, leaseOwner: owner } });
   }
 
   async renew(job: Integration, now: Date): Promise<boolean> {
@@ -50,7 +50,7 @@ export class PrismaImportJobs implements ImportJobs {
           if (campaignIds.has(row.id)) throw new MetaError("INVALID_DATA");
           const existing = await tx.campaign.findUnique({ where: { channel_externalId: { channel: "META", externalId: row.id } } });
           if (existing && existing.projectId !== job.projectId) throw new MetaError("CONFLICT");
-          const data = { name: row.name, status: row.status, objective: row.objective ?? null };
+          const data = { name: row.name, status: row.status, objective: row.objective ?? null, sourceAccountId: job.accountId };
           const saved = existing ? await tx.campaign.update({ where: { id: existing.id }, data }) : await tx.campaign.create({ data: { ...data, projectId: job.projectId, channel: "META", externalId: row.id, position: ++campaignPosition } });
           campaignIds.set(row.id, saved.id);
         }
@@ -87,7 +87,7 @@ export class PrismaImportJobs implements ImportJobs {
         for (let i = 0; i < campaignMetrics.length; i += 1000) await tx.campaignDailyMetric.createMany({ data: campaignMetrics.slice(i, i + 1000) });
         for (let i = 0; i < adSetMetrics.length; i += 1000) await tx.adSetDailyMetric.createMany({ data: adSetMetrics.slice(i, i + 1000) });
         for (let i = 0; i < adMetrics.length; i += 1000) await tx.adDailyMetric.createMany({ data: adMetrics.slice(i, i + 1000) });
-        await tx.projectIntegration.update({ where: { projectId: job.projectId }, data: { status: "SUCCESS", lastSuccessAt: now, lastError: null, retryCount: 0, leaseOwner: null, leaseUntil: null, nextSweepAt: now } });
+        await tx.projectIntegration.update({ where: { id: job.id }, data: { status: "SUCCESS", lastSuccessAt: now, lastError: null, retryCount: 0, leaseOwner: null, leaseUntil: null, nextSweepAt: now } });
         return true;
       }, { timeout: 60_000 });
     } catch (error) {

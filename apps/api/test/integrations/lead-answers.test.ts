@@ -93,4 +93,37 @@ describe("mapping Instant Form answers onto a lead", () => {
     expect(mapped.answersOmitted).toBe(true);
     expect(mapped.phone).toBe("+375291234567");
   });
+
+  it.each(["Phone", "phone", "tel", "Contact number", "Телефон", "Ваш номер телефона", "mobile_phone"])(
+    "takes the phone from a custom %s question when there is no standard one",
+    (question) => {
+      const mapped = mapLeadAnswers("L1", [answer("full_name", "Анна"), answer(question, "+375 (29) 123-45-67")]);
+      expect(mapped.phone).toBe("+375 (29) 123-45-67");
+      expect(mapped.answers).toContainEqual({ question, values: ["+375 (29) 123-45-67"] });
+    },
+  );
+
+  it("prefers the standard phone answers to a custom question", () => {
+    expect(mapLeadAnswers("L1", [answer("Phone", "+48 111 222 333"), answer("phone_number", "+375291234567")]).phone)
+      .toBe("+375291234567");
+    expect(mapLeadAnswers("L1", [answer("Phone", "+48 111 222 333"), answer("work_phone_number", "+375291234567")]).phone)
+      .toBe("+375291234567");
+  });
+
+  it("takes the first phone-like custom question in form order", () => {
+    expect(mapLeadAnswers("L1", [answer("tel", "+48 111 222 333"), answer("Phone", "+375291234567")]).phone)
+      .toBe("+48 111 222 333");
+  });
+
+  it("fills no phone from Telegram or from an answer that is not a phone number", () => {
+    expect(mapLeadAnswers("L1", [
+      answer("Telegram", "+375291234567"),
+      answer("number_of_employees", "50"),
+      answer("Phone", "позвоните вечером"),
+    ]).phone).toBeNull();
+  });
+
+  it("names a lead by a phone found in a custom question when nothing else names it", () => {
+    expect(mapLeadAnswers("L1", [answer("Телефон", "+375291234567")]).name).toBe("+375291234567");
+  });
 });

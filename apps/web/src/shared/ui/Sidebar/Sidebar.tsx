@@ -10,7 +10,7 @@ export interface SidebarProps {
 
 export function Sidebar({ header, children, action, footer }: SidebarProps) {
   return (
-    <aside className="flex h-full min-h-0 flex-col border-r border-sidebar-border bg-sidebar">
+    <aside className="flex h-full min-h-0 flex-col">
       {header != null && <div data-region="header">{header}</div>}
       <div className="min-h-0 flex-1 overflow-auto" data-region="list">
         {children}

@@ -30,9 +30,6 @@ export interface CampaignHttpRouters {
 
 export function createCampaignHttpRouters(useCases: CampaignUseCases): CampaignHttpRouters {
   const campaignRouter = Router();
-  campaignRouter.get("/names", handle(async (req, res) => {
-    res.json(await useCases.listOrganizationCampaignReferences(actorOf(req)));
-  }));
   campaignRouter.get("/:id", handle(async (req: Request<{ id: string }>, res) => {
     res.json(await useCases.readCampaign(actorOf(req), req.params.id, rangeOf(req)));
   }));

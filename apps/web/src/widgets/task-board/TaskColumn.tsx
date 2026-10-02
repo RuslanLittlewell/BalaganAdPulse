@@ -14,7 +14,6 @@ export interface TaskColumnProps {
   draggable: boolean;
   draggingId?: string | null;
   projects?: Map<string, Project>;
-  campaigns?: Map<string, string>;
   members?: Map<string, Membership>;
   onOpen?: (task: Task) => void;
   onCreate?: (column: Column) => void;
@@ -30,7 +29,7 @@ const ACCENT: Record<Column, string> = {
 };
 
 export function TaskColumnPanel({
-  column, tasks, draggable, draggingId, projects, campaigns, members, onOpen, onCreate,
+  column, tasks, draggable, draggingId, projects, members, onOpen, onCreate,
 }: TaskColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column });
 
@@ -80,7 +79,6 @@ export function TaskColumnPanel({
               draggable={draggable}
               placeholder={task.id === draggingId}
               project={task.projectId ? projects?.get(task.projectId) : undefined}
-              campaignName={task.campaignId ? campaigns?.get(task.campaignId) : undefined}
               assignee={task.assigneeId ? members?.get(task.assigneeId) : undefined}
               onOpen={onOpen}
             />

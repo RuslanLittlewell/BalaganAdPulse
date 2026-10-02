@@ -28,7 +28,7 @@ export interface AdLocator {
   locate(
     actor: ActorContext,
     adId: string,
-  ): Promise<{ projectId: string; externalId: string | null } | null>;
+  ): Promise<{ projectId: string; externalId: string | null; accountId: string | null } | null>;
 }
 export interface StoredFile {
   readonly key: string;
@@ -40,20 +40,26 @@ export interface CreativeFiles {
 }
 export interface LeadInbox {
   deliver(context: TransactionContext, delivery: LeadDelivery): Promise<{ created: number }>;
-  announce(target: { orgId: string; clientId: string }): void;
+  announce(target: { orgId: string; projectId: string }): void;
   link(projectId: string): Promise<void>;
 }
+export type ConnectionData = Account & { projectId: string; encryptedToken: string; nextDailyAt: Date; queuedAt: Date; leadsEnabled?: boolean };
 export interface IntegrationRepository {
-  read(projectId: string): Promise<Integration | null>;
-  save(context: TransactionContext, data: Account & { projectId: string; encryptedToken: string; nextDailyAt: Date; queuedAt: Date }, now: Date): Promise<Integration>;
-  remove(context: TransactionContext, projectId: string): Promise<void>;
-  queue(projectId: string, now: Date): Promise<void>;
+  list(projectId: string): Promise<Integration[]>;
+  read(projectId: string, id: string): Promise<Integration | null>;
+  add(context: TransactionContext, data: ConnectionData, now: Date): Promise<Integration>;
+  replace(context: TransactionContext, id: string, data: ConnectionData, now: Date): Promise<Integration>;
+  remove(context: TransactionContext, id: string): Promise<void>;
+  queue(id: string, now: Date): Promise<void>;
+  setLeadsEnabled(id: string, enabled: boolean, now: Date): Promise<void>;
+  holdsFigures(projectId: string): Promise<boolean>;
+  adoptCurrency(context: TransactionContext, projectId: string, currency: string): Promise<void>;
 }
 export interface IntegrationDependencies {
   repository: IntegrationRepository;
   provider: AccountProvider;
   cipher: CredentialCipher;
-  projects: { findReachable(actor: ActorContext, id: string): Promise<{ id: string; clientId: string; budgetCurrency: string } | null> };
+  projects: { findReachable(actor: ActorContext, id: string): Promise<{ id: string; clientId: string; budgetCurrency: string | null } | null> };
   ads: AdLocator;
   creatives: CreativeStore;
   files: CreativeFiles;

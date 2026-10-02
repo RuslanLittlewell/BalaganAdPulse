@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { XIcon } from "lucide-react";
 import { t } from "@/shared/config/index.js";
-import { Button, Input, Label } from "@/shared/ui/index.js";
+import { Button, Input } from "@/shared/ui/index.js";
+import SpringCheck from "@/shared/ui/SpringCheck/SpringCheck.js";
 import type { ChecklistItem } from "@/entities/task/index.js";
 
 export interface TaskChecklistProps {
@@ -34,7 +35,6 @@ export function TaskChecklist({
   return (
     <div className="flex flex-col gap-2" data-testid="task-checklist">
       <div className="flex items-center justify-between gap-2">
-        <Label>{t("tasks.checklist")}</Label>
         {items.length === 0 ? null : (
           <span className="text-xs text-muted-foreground">
             {`${ticked} ${t("tasks.checklist.of")} ${items.length}`}
@@ -42,24 +42,21 @@ export function TaskChecklist({
         )}
       </div>
 
-      <ul className="flex flex-col gap-1">
+      <ul className="flex flex-col">
         {items.map((item) => (
           <li key={item.id} className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id={`checklist-${item.id}`}
+            <SpringCheck
               checked={item.done}
-              onChange={(event) =>
-                onChange(item, { done: event.target.checked })
-              }
-              className="size-4 shrink-0 accent-primary"
+              onChange={(done) => onChange(item, { done })}
+              label={<span className="min-w-0 truncate">{item.title}</span>}
+              className="min-w-0 flex-1"
+              boxSize={18}
+              boxRadius={6}
+              fontSize={14}
+              color="var(--foreground)"
+              fillColor="var(--primary)"
+              checkColor="var(--primary-foreground)"
             />
-            <label
-              htmlFor={`checklist-${item.id}`}
-              className={`min-w-0 flex-1 truncate text-sm ${item.done ? "text-muted-foreground line-through" : ""}`}
-            >
-              {item.title}
-            </label>
             <Button
               type="button"
               variant="ghost"

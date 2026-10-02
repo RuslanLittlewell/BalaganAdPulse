@@ -11,7 +11,8 @@ import { createAdPreviewRouter, createIntegrationRouter } from "../modules/integ
 import { PrismaAdLocator } from "../modules/integrations/infrastructure/prisma-ad-locator.js";
 import { PrismaCreativeStore } from "../modules/integrations/infrastructure/prisma-creative-store.js";
 import { Router, type RequestHandler } from "express";
-import { createLeadIntake, createLeadUseCases, createLeadRouter } from '../modules/leads/index.js';
+import { createLeadFileUseCases, createLeadIntake, createLeadUseCases, createLeadRouter } from '../modules/leads/index.js';
+import { PrismaLeadFileRepository, S3LeadFileStorage } from '../modules/leads/infrastructure/prisma-lead-file-repository.js';
 import { createKpiRouter, createKpiUseCases } from '../modules/kpi/index.js';
 import { PrismaKpiRepository } from '../modules/kpi/infrastructure/prisma-kpi-repository.js';
 import type { LeadEvent } from '../modules/leads/index.js';
@@ -33,6 +34,7 @@ import { createIdentityHttpRouters } from "../modules/identity/presentation/http
 import {
   PrismaMembershipEnrolment,
   PrismaInvitationProjectAccess,
+  PrismaProjectStaffing,
   createActorResolution,
   createMemberRouter,
   createMemberUseCases,
@@ -52,8 +54,7 @@ import {
   PrismaAuditRepository,
 } from "../modules/audit/infrastructure/prisma-audit-repository.js";
 import { AmbientRequestMetadata } from "../modules/audit/infrastructure/request-metadata.js";
-import { CURRENCIES, createProjectRouter, createProjectUseCases } from "../modules/projects/index.js";
-import type { Currency } from "../modules/projects/index.js";
+import { createProjectRouter, createProjectUseCases } from "../modules/projects/index.js";
 import { PrismaProjectRepository } from "../modules/projects/infrastructure/prisma-project-repository.js";
 import {
   createProjectGroupRouter,
@@ -101,7 +102,6 @@ import type { Connection } from "../modules/realtime/index.js";
 import {
   PrismaAdRepository,
   PrismaAdSetRepository,
-  PrismaCampaignInProject,
   PrismaCampaignRepository,
   PrismaCreativeRepository,
   PrismaProjectReach,
@@ -157,9 +157,6 @@ export interface ApiContainer {
   readonly authenticate: (accessToken: string) => Promise<SessionPrincipal>;
 }
 
-const isCurrency = (value: string | undefined): value is Currency =>
-  value !== undefined && (CURRENCIES as readonly string[]).includes(value);
-
 export function createContainer(): ApiContainer {
   const unitOfWork = new PrismaUnitOfWork<Prisma.TransactionClient>(prisma);
   const clock = new SystemClock();
@@ -207,10 +204,9 @@ export function createContainer(): ApiContainer {
     },
     projectDirectory: {
       create: async (context, input) => {
-        const { clientId, budgetCurrency, ...details } = input;
+        const { clientId, ...details } = input;
         const created = await projectRepository.create(context, {
           ...details,
-          ...(isCurrency(budgetCurrency) ? { budgetCurrency } : {}),
           clientId,
           id: ids.generate(),
           position: await projectRepository.countForClient(clientId),
@@ -314,7 +310,6 @@ export function createContainer(): ApiContainer {
     images: new PrismaTaskImageRepository(prisma, unitOfWork),
     imageStorage: new S3TaskImageStorage(),
     projects: taskProjectReach,
-    campaigns: new PrismaCampaignInProject(prisma),
     members: new PrismaTaskMemberReach(prisma),
     audit,
     events: {
@@ -339,8 +334,10 @@ export function createContainer(): ApiContainer {
       console.error("Failed to deliver a CRM event:", error);
     });
   };
+  const leadFileStorage = new S3LeadFileStorage();
   const leads = createLeadUseCases({
     leads: leadRepository,
+    storage: leadFileStorage,
     audit,
     ids,
     unitOfWork,
@@ -360,6 +357,7 @@ export function createContainer(): ApiContainer {
         (await clients.reachableIds(actor)).includes(clientId),
     },
     pictures: new S3ProjectPictureStorage(),
+    staffing: new PrismaProjectStaffing(prisma, unitOfWork),
     audit,
     ids,
     unitOfWork,
@@ -390,7 +388,15 @@ export function createContainer(): ApiContainer {
     adCreativeRouter: campaignHttp.adCreativeRouter,
     summaryRouter: campaignHttp.summaryRouter,
     taskRouter: createTaskRouter(tasks),
-    leadRouter: createLeadRouter(leads),
+    leadRouter: createLeadRouter(leads, createLeadFileUseCases({
+      leads: leadRepository,
+      files: new PrismaLeadFileRepository(prisma, unitOfWork),
+      storage: leadFileStorage,
+      audit,
+      ids,
+      unitOfWork,
+      publish: publishLeadEvent,
+    })),
     kpiRouter: createKpiRouter(createKpiUseCases({
       kpis: new PrismaKpiRepository(prisma, unitOfWork),
       reach: { projects: projectRepository, campaigns: new PrismaCampaignRepository(prisma) },

@@ -9,7 +9,6 @@ import { currentOrg, signInAs } from "../helpers/auth.js";
 
 const unitOfWork = new PrismaUnitOfWork(prisma);
 let orgId: string;
-let clientId: string;
 let projectId: string;
 let publish: ReturnType<typeof vi.fn>;
 let intake: ReturnType<typeof createLeadIntake>;
@@ -18,7 +17,7 @@ beforeEach(async () => {
   await resetDb();
   const member = await signInAs();
   orgId = (await currentOrg()).id;
-  ({ clientId, projectId } = await seedProject(member.user.id));
+  ({ projectId } = await seedProject(member.user.id));
   publish = vi.fn();
   intake = createLeadIntake({
     intake: new PrismaLeadIntakeRepository(prisma, unitOfWork),
@@ -45,37 +44,38 @@ const incoming =(externalId: string, overrides: Partial<IncomingLead> = {}): Inc
   ...overrides,
 });
 
-const deliver = (leads: IncomingLead[], target = { orgId, clientId, projectId }) =>
+const deliver = (leads: IncomingLead[], target = { orgId, projectId }) =>
   unitOfWork.run((context) => intake.deliver(context, { ...target, leads }));
 
-const boardLeads = (board: string | null) =>
-  prisma.lead.findMany({ where: { orgId, clientId: board }, orderBy: [{ stage: "asc" }, { position: "asc" }] });
+const boardLeads = (board: string) =>
+  prisma.lead.findMany({ where: { orgId, projectId: board }, orderBy: [{ stage: "asc" }, { position: "asc" }] });
 
 describe("lead intake", () => {
-  it("places imported leads first in Новый лид on the project client's board, ahead of leads already there", async () => {
-    await prisma.lead.create({ data: { name: "Вручную", orgId, clientId, position: 0 } });
+  it("places imported leads first in Новый лид on the project's board, ahead of leads already there", async () => {
+    await prisma.lead.create({ data: { name: "Вручную", orgId, projectId, position: 0 } });
 
     const result = await deliver([incoming("L1"), incoming("L2")]);
 
     expect(result).toEqual({ created: 2 });
-    const rows = await boardLeads(clientId);
+    const rows = await boardLeads(projectId);
     expect(rows.map((row) => [row.name, row.stage, row.position])).toEqual([
       ["Лид L1", "NEW", 0], ["Лид L2", "NEW", 1], ["Вручную", "NEW", 2],
     ]);
     const imported = await prisma.lead.findFirstOrThrow({ where: { name: "Лид L1" }, include: { metaSource: true, metaKey: true } });
-    expect(imported).toMatchObject({ origin: "META", projectId, clientId, phone: "+375291234567" });
+    expect(imported).toMatchObject({ origin: "META", projectId, phone: "+375291234567" });
     expect(imported.metaSource).toMatchObject({ formId: "f1", campaignName: "Весна", adSetName: "Москва", adName: "Видео 1", adExternalId: "555" });
     expect(imported.metaKey).toMatchObject({ orgId, externalId: "L1" });
   });
 
-  it("never places a lead on the agency board or another client's board", async () => {
+  it("never places a lead on another project's board", async () => {
+    const sibling = await prisma.project.create({ data: { clientId: (await prisma.project.findUniqueOrThrow({ where: { id: projectId } })).clientId, name: "Соседний", position: 1 } });
     const other = await seedProject("unused", "Другой клиент");
 
     await deliver([incoming("L1")]);
 
-    expect(await boardLeads(null)).toEqual([]);
-    expect(await boardLeads(other.clientId)).toEqual([]);
-    expect(await boardLeads(clientId)).toHaveLength(1);
+    expect(await boardLeads(sibling.id)).toEqual([]);
+    expect(await boardLeads(other.projectId)).toEqual([]);
+    expect(await boardLeads(projectId)).toHaveLength(1);
   });
 
   it("skips a Meta lead already imported, in a later poll or twice in one", async () => {
@@ -83,7 +83,7 @@ describe("lead intake", () => {
     const again = await deliver([incoming("L1", { name: "Изменено" })]);
 
     expect(again).toEqual({ created: 0 });
-    expect((await boardLeads(clientId)).map((row) => row.name)).toEqual(["Лид L1"]);
+    expect((await boardLeads(projectId)).map((row) => row.name)).toEqual(["Лид L1"]);
   });
 
   it("does not bring back an imported lead a member deleted", async () => {
@@ -91,7 +91,7 @@ describe("lead intake", () => {
     await prisma.lead.deleteMany({ where: { orgId } });
 
     expect(await deliver([incoming("L1")])).toEqual({ created: 0 });
-    expect(await boardLeads(clientId)).toEqual([]);
+    expect(await boardLeads(projectId)).toEqual([]);
   });
 
   it("keeps one lead and contiguous positions under concurrent intake", async () => {
@@ -100,7 +100,7 @@ describe("lead intake", () => {
       deliver([incoming("L2"), incoming("L3")]),
     ]);
 
-    const rows = await boardLeads(clientId);
+    const rows = await boardLeads(projectId);
     expect(rows.map((row) => row.name).sort()).toEqual(["Лид L1", "Лид L2", "Лид L3"]);
     expect(rows.map((row) => row.position)).toEqual([0, 1, 2]);
     expect(await prisma.metaLead.count()).toBe(3);
@@ -114,18 +114,18 @@ describe("lead intake", () => {
 
   it("announces a board only when asked after the commit, and a rolled back intake leaves nothing", async () => {
     await expect(unitOfWork.run(async (context) => {
-      await intake.deliver(context, { orgId, clientId, projectId, leads: [incoming("L1")] });
+      await intake.deliver(context, { orgId, projectId, leads: [incoming("L1")] });
       expect(publish).not.toHaveBeenCalled();
       throw new Error("lost the lease");
     })).rejects.toThrow("lost the lease");
 
-    expect(await boardLeads(clientId)).toEqual([]);
+    expect(await boardLeads(projectId)).toEqual([]);
     expect(await prisma.metaLead.count()).toBe(0);
     expect(publish).not.toHaveBeenCalled();
 
     await deliver([incoming("L1")]);
-    intake.announce({ orgId, clientId });
-    expect(publish).toHaveBeenCalledExactlyOnceWith({ kind: "crm.changed", orgId, board: clientId });
+    intake.announce({ orgId, projectId });
+    expect(publish).toHaveBeenCalledExactlyOnceWith({ kind: "crm.changed", orgId, board: projectId });
   });
 });
 
@@ -162,7 +162,7 @@ describe("attribution of imported leads", () => {
     await intake.link(projectId);
 
     expect(await prisma.lead.findFirstOrThrow({ where: { orgId } })).toMatchObject({ campaignId: campaign.id, adId: ad.id });
-    expect(publish).toHaveBeenCalledExactlyOnceWith({ kind: "crm.changed", orgId, board: clientId });
+    expect(publish).toHaveBeenCalledExactlyOnceWith({ kind: "crm.changed", orgId, board: projectId });
   });
 
   it("releases links when the campaign and ad are removed locally, keeping the Meta names", async () => {
@@ -179,7 +179,7 @@ describe("attribution of imported leads", () => {
   });
 
   it("leaves hand-made leads of the project alone", async () => {
-    await prisma.lead.create({ data: { name: "Вручную", orgId, clientId, projectId } });
+    await prisma.lead.create({ data: { name: "Вручную", orgId, projectId } });
     await seedHierarchy();
 
     await intake.link(projectId);

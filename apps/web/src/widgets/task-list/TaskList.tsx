@@ -40,7 +40,7 @@ export function TaskList({ title, tasks, onOpen, empty }: TaskListProps) {
     );
   };
 
-  const cardClass = "flex h-full min-h-28 w-full flex-col rounded-lg border border-border bg-card p-3 text-left shadow-sm";
+  const cardClass = "flex h-full min-h-28 w-full flex-col rounded-lg border border-border glass-card p-3 text-left shadow-sm";
 
   return (
     <section className="flex flex-col gap-3">

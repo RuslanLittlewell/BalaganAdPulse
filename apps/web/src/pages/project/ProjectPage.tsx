@@ -1,8 +1,11 @@
-import { MetaIntegration } from "@/features/meta-integration/index.js";
-import { useState } from "react";
+import {
+  MetaIntegration,
+  useIntegrations,
+} from "@/features/meta-integration/index.js";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { HistoryIcon } from "lucide-react";
-import { Button, EmptyState, Skeleton } from "@/shared/ui/index.js";
+import { Button, EmptyState, Skeleton, Tabs } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
 import { projectPath } from "@/shared/lib/index.js";
 import { useClients } from "@/entities/client/index.js";
@@ -13,7 +16,6 @@ import {
 } from "@/entities/project/index.js";
 import {
   channelLabel,
-  performanceTone,
   statusLabel,
   useProjectCampaigns,
   useProjectSummary,
@@ -23,7 +25,9 @@ import {
   useTasks,
   type Task,
 } from "@/entities/task/index.js";
+import { useKpi } from "@/entities/kpi/index.js";
 import { PeriodControl, usePeriod } from "@/features/period/index.js";
+import { campaignTone } from "./campaignTone.js";
 import { TaskPreviewDialog } from "@/features/task-management/index.js";
 import { Can, useCan } from "@/features/permissions/index.js";
 import { TaskList } from "@/widgets/task-list/index.js";
@@ -34,6 +38,8 @@ import {
 } from "@/widgets/performance-table/index.js";
 import { ActivityLogModal } from "@/widgets/activity-log-modal/index.js";
 import type { AuditEventFilters } from "@/entities/audit-event/index.js";
+
+const sourceKey = (provider: string, accountId: string) => `${provider}:${accountId}`;
 
 function CampaignTablePlaceholder() {
   return (
@@ -59,11 +65,21 @@ export function ProjectPage() {
   const clients = useClients();
   const summary = useProjectSummary(projectId, range);
   const campaigns = useProjectCampaigns(projectId, range);
+  const projectKpi = useKpi(
+    projectId ? { kind: "project", id: projectId } : undefined,
+  );
   const [activityFilters, setActivityFilters] =
     useState<AuditEventFilters | null>(null);
   const [reading, setReading] = useState<Task | null>(null);
   const tasks = useTasks({ projectId, enabled: projectId != null });
   const editsProjectKpi = useCan("update", "kpi");
+  const managesIntegrations = useCan("update", "integration");
+  const integrations = useIntegrations(
+    projectId ?? "",
+    managesIntegrations && projectId != null,
+  );
+  const [source, setSource] = useState<string | null>(null);
+  useEffect(() => setSource(null), [projectId]);
 
   const inFlight = (tasks.data ?? []).filter((task) =>
     ACTIVE_TASK_COLUMNS.includes(task.column),
@@ -79,12 +95,37 @@ export function ProjectPage() {
   const clientName =
     clients.data?.find((client) => client.id === project.clientId)?.name ?? "";
 
-  const rows: PerformanceRow[] = (campaigns.data ?? []).map((campaign) => ({
+  const sources = new Map<string, string>();
+  for (const connection of integrations.data ?? []) {
+    sources.set(
+      sourceKey(connection.provider, connection.accountId),
+      `${t(`integrations.provider.${connection.provider}`)} · ${connection.accountId}`,
+    );
+  }
+  for (const campaign of campaigns.data ?? []) {
+    if (campaign.sourceAccountId == null) continue;
+    const key = sourceKey(campaign.channel, campaign.sourceAccountId);
+    if (!sources.has(key)) {
+      sources.set(key, `${channelLabel(campaign.channel)} · ${campaign.sourceAccountId}`);
+    }
+  }
+  const sourceKeys = [...sources.keys()];
+  const separated = sourceKeys.length > 1;
+  const chosen =
+    source != null && sources.has(source) ? source : sourceKeys[0];
+  const shown = (campaigns.data ?? []).filter(
+    (campaign) =>
+      !separated ||
+      (campaign.sourceAccountId != null &&
+        sourceKey(campaign.channel, campaign.sourceAccountId) === chosen),
+  );
+
+  const rows: PerformanceRow[] = shown.map((campaign) => ({
     id: campaign.id,
     name: campaign.name,
     note: `${channelLabel(campaign.channel)} · ${statusLabel(campaign.status)}`,
     performance: campaign.performance,
-    tone: performanceTone(campaign.performance),
+    tone: campaignTone(campaign, projectKpi.data, range),
   }));
 
   return (
@@ -138,17 +179,30 @@ export function ProjectPage() {
           }
         />
       ) : (
-        <PerformanceTable
-          tableKey="campaigns"
-          heading={t("campaigns.one")}
-          rows={rows}
-          totals={summary.data}
-          currency={project.budgetCurrency}
-          empty={campaigns.isSuccess ? t("campaigns.empty.title") : undefined}
-          onOpen={(campaignId) =>
-            navigate(`${projectPath(project.id, campaignId)}${location.search}`)
-          }
-        />
+        <div className="flex flex-col gap-3">
+          {sources.size > 0 && (
+            <Tabs
+              items={[...sources].map(([id, label]) => ({ id, label }))}
+              activeId={chosen}
+              onSelect={setSource}
+              ariaLabel={t("campaigns.sources")}
+              className="self-start"
+            />
+          )}
+          <PerformanceTable
+            tableKey="campaigns"
+            heading={t("campaigns.one")}
+            rows={rows}
+            totals={separated ? undefined : summary.data}
+            currency={project.budgetCurrency}
+            empty={campaigns.isSuccess ? t("campaigns.empty.title") : undefined}
+            onOpen={(campaignId) =>
+              navigate(
+                `${projectPath(project.id, campaignId)}${location.search}`,
+              )
+            }
+          />
+        </div>
       )}
 
       <TaskList

@@ -5,7 +5,10 @@ export interface Account {
 }
 
 export interface Integration extends Account {
+  id: string;
   projectId: string;
+  provider: string;
+  leadsEnabled: boolean;
   encryptedToken: string;
   revision: string;
   status: string;
@@ -36,9 +39,9 @@ export interface LeadPollJob extends Integration {
 
 export function publicIntegration(row: Integration | null) {
   if (!row) return null;
-  const { accountId, currency, timezone, status, lastSuccessAt, lastError, nextDailyAt } = row;
+  const { id, provider, accountId, currency, timezone, status, lastSuccessAt, lastError, nextDailyAt, leadsEnabled } = row;
   const leads = { status: row.leadsStatus, lastSuccessAt: row.leadsLastSuccessAt, lastError: row.leadsLastError };
-  return { accountId, currency, timezone, status, lastSuccessAt, lastError, nextDailyAt, leads };
+  return { id, provider, accountId, currency, timezone, status, lastSuccessAt, lastError, nextDailyAt, leadsEnabled, leads };
 }
 
 export class MetaError extends Error {

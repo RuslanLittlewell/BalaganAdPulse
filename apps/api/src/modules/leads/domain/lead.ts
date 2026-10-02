@@ -17,7 +17,8 @@ export function arrivalWindow(from: Date, to: Date): ArrivalWindow {
 export interface LeadColumnRecord {
   id: string;
   orgId: string;
-  clientId: string | null;
+  projectId: string;
+  clientId: string;
   name: string;
   afterStage: LeadStage | null;
   position: number;
@@ -43,6 +44,8 @@ export function boardColumns(custom: readonly LeadColumnRecord[]): BoardColumn[]
 }
 export const LEAD_ORIGINS = ['MANUAL', 'META'] as const;
 export type LeadOrigin = typeof LEAD_ORIGINS[number];
+export const TAG_LIMIT = 10;
+export const TAG_LENGTH_LIMIT = 30;
 export interface LeadFields {
   name: string;
   company?: string | null;
@@ -51,7 +54,11 @@ export interface LeadFields {
   website?: string | null;
   source?: string | null;
   notes?: string | null;
-  projectId?: string | null;
+  amount?: string | null;
+  service?: string | null;
+  telegram?: string | null;
+  messenger?: string | null;
+  tags?: string[];
   campaignId?: string | null;
   assigneeId?: string | null;
 }
@@ -73,14 +80,15 @@ export interface LeadAssignee { id: string; name: string; image: string | null }
 export interface LeadRecord extends LeadFields {
   id: string;
   orgId: string;
-  clientId: string | null;
-  projectId: string | null;
+  projectId: string;
   campaignId: string | null;
   assigneeId: string | null;
   adId: string | null;
+  amount: string | null;
+  tags: string[];
   origin: LeadOrigin;
   ad: LeadAd | null;
-  project: LeadProject | null;
+  project: LeadProject;
   assignee: LeadAssignee | null;
   metaSource: LeadMetaSource | null;
   stage: string;
@@ -88,4 +96,4 @@ export interface LeadRecord extends LeadFields {
   createdAt: Date;
   updatedAt: Date;
 }
-export interface LeadBoard { key: string; label: string }
+export interface LeadBoard { key: string; label: string; clientName: string }

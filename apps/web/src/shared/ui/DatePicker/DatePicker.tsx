@@ -31,7 +31,7 @@ export function DatePicker({
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent className="w-auto p-0" aria-label={labels.dialog}>
+      <PopoverContent className="w-auto bg-popover/50 p-0 backdrop-blur-xl backdrop-saturate-150" aria-label={labels.dialog}>
         <Calendar
           mode="single"
           required

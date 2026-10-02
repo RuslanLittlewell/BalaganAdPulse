@@ -58,8 +58,9 @@ describe("ProjectsPage", () => {
     expect(await screen.findByRole("heading", { name: "Летний запуск" })).toBeInTheDocument();
   });
 
-  it("shows the client and the niche beside the project name", async () => {
-    setup("/projects/p1", [aProject({ id: "p1", clientId: "1", name: "Летний запуск", niche: "fitness" })]);
-    expect(await screen.findByText("Acme · fitness")).toBeInTheDocument();
+  it("names the client the project belongs to, beside the project name", async () => {
+    setup("/projects/p1", [aProject({ id: "p1", clientId: "1", name: "Летний запуск" })]);
+    const heading = await screen.findByRole("heading", { name: "Летний запуск" });
+    expect(heading.parentElement).toHaveTextContent("Acme");
   });
 });

@@ -44,7 +44,6 @@ export interface Task {
   priority: TaskPriority;
   assigneeId: string | null;
   createdById: string | null;
-  campaignId: string | null;
   visibleToClient: boolean;
   position: number;
   dueDate: string | null;
@@ -63,7 +62,6 @@ export interface TaskInput {
   column?: TaskColumn;
   priority?: TaskPriority;
   assigneeId?: string | null;
-  campaignId?: string | null;
   visibleToClient?: boolean;
   dueDate?: string | null;
   dueTime?: string | null;
@@ -84,10 +82,9 @@ export interface TaskImage {
 }
 
 export const tasksApi = {
-  list: (projectId?: string, campaignId?: string) => {
+  list: (projectId?: string) => {
     const query = new URLSearchParams();
     if (projectId) query.set("projectId", projectId);
-    if (campaignId) query.set("campaignId", campaignId);
     const suffix = query.size === 0 ? "" : `?${query}`;
     return http.get<Task[]>(`/tasks${suffix}`);
   },

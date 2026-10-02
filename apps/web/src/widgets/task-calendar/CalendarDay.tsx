@@ -15,14 +15,13 @@ export interface CalendarDayProps {
   draggable: boolean;
   draggingId?: string | null;
   projects?: Map<string, Project>;
-  campaigns?: Map<string, string>;
   members?: Map<string, Membership>;
   onOpen?: (task: Task) => void;
   onComplete?: (task: Task) => void;
 }
 
 export function CalendarDay({
-  day, today, tasks, draggable, draggingId, projects, campaigns, members, onOpen, onComplete,
+  day, today, tasks, draggable, draggingId, projects, members, onOpen, onComplete,
 }: CalendarDayProps) {
   const { setNodeRef, isOver } = useDroppable({ id: day });
 
@@ -58,7 +57,6 @@ export function CalendarDay({
               draggable={draggable}
               placeholder={task.id === draggingId}
               project={task.projectId ? projects?.get(task.projectId) : undefined}
-              campaignName={task.campaignId ? campaigns?.get(task.campaignId) : undefined}
               assignee={task.assigneeId ? members?.get(task.assigneeId) : undefined}
               onOpen={onOpen}
               onComplete={onComplete}

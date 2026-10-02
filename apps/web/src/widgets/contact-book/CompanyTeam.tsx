@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { Button, EmptyState, Loader } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
-import { MemberAvatar, useClientMembers, type Membership } from "@/entities/membership/index.js";
+import {
+  MemberAvatar,
+  useClientMembers,
+  type Membership,
+} from "@/entities/membership/index.js";
 import { InvitationDialog } from "@/features/invitations/index.js";
 import { Can } from "@/features/permissions/index.js";
 
@@ -18,15 +22,21 @@ export function CompanyTeam({ clientId }: { clientId: string }) {
   const [inviting, setInviting] = useState(false);
 
   if (people.isPending) {
-    return <div className="grid place-items-center py-10"><Loader /></div>;
+    return (
+      <div className="grid place-items-center py-10">
+        <Loader />
+      </div>
+    );
   }
 
   const list = people.data ?? [];
 
   return (
-    <div className="flex min-h-[22rem] flex-col gap-4">
+    <div className="flex min-h-[22rem] flex-col gap-4 flex-1">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-foreground">{t("company.team")}</h3>
+        <h3 className="text-sm font-semibold text-foreground">
+          {t("company.team")}
+        </h3>
         <Can action="create" resource="invite">
           <Button size="sm" onClick={() => setInviting(true)}>
             {t("contacts.people.invite")}
@@ -46,7 +56,9 @@ export function CompanyTeam({ clientId }: { clientId: string }) {
             >
               <span className="flex min-w-0 items-center gap-2">
                 <MemberAvatar member={person} size="sm" />
-                <span className="min-w-0 truncate text-sm text-foreground">{person.name}</span>
+                <span className="min-w-0 truncate text-sm text-foreground">
+                  {person.name}
+                </span>
               </span>
               <Reachable value={person.email} />
               <Reachable value={person.phone} />

@@ -1006,3 +1006,135 @@ describe("choosing projects to grant", () => {
     expect(within(card).getByRole("img", { name: "Летний запуск" })).toBeInTheDocument();
   });
 });
+
+const asManager = () => server.use(http.get("/api/auth/me", () => HttpResponse.json({
+  user: { id: "u1", name: "Пётр", email: "petr@acme.by", image: null },
+  organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
+  role: "MANAGER",
+  clientIds: ["1"],
+})));
+
+describe("deleting a client", () => {
+  function withDeletableClients() {
+    let clients = [acme, bare];
+    const deleted: string[] = [];
+    server.use(
+      http.get("/api/clients", () => HttpResponse.json(clients)),
+      http.delete("/api/clients/:id", ({ params }) => {
+        deleted.push(String(params.id));
+        clients = clients.filter((client) => client.id !== params.id);
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    return deleted;
+  }
+
+  it("deletes the client after the admin confirms and shows the next one", async () => {
+    const user = userEvent.setup();
+    const deleted = withDeletableClients();
+    renderWithProviders(<ContactBook open onClose={() => {}} />);
+    await screen.findByRole("heading", { name: "Acme" });
+
+    await user.click(screen.getByRole("button", { name: "Удалить клиента" }));
+    const confirm = await screen.findByRole("alertdialog", { name: "Удалить клиента «Acme»?" });
+    await user.click(within(confirm).getByRole("button", { name: "Удалить" }));
+
+    await waitFor(() => expect(deleted).toEqual(["1"]));
+    expect(await screen.findByRole("heading", { name: "Борода" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Acme/ })).toBeNull();
+  });
+
+  it("deletes nothing when the admin cancels", async () => {
+    const user = userEvent.setup();
+    const deleted = withDeletableClients();
+    renderWithProviders(<ContactBook open onClose={() => {}} />);
+    await screen.findByRole("heading", { name: "Acme" });
+
+    await user.click(screen.getByRole("button", { name: "Удалить клиента" }));
+    const confirm = await screen.findByRole("alertdialog");
+    await user.click(within(confirm).getByRole("button", { name: "Отмена" }));
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(deleted).toEqual([]);
+    expect(screen.getByRole("heading", { name: "Acme" })).toBeInTheDocument();
+  });
+
+  it("offers a manager no delete control", async () => {
+    asManager();
+    await open();
+    expect(await screen.findByRole("heading", { name: "Acme" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Редактировать контакт" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Удалить клиента" })).toBeNull();
+  });
+
+  it("says so when the deletion fails and keeps the client", async () => {
+    const user = userEvent.setup();
+    withClients([acme, bare]);
+    server.use(http.delete("/api/clients/:id", () =>
+      HttpResponse.json({ error: { message: "Boom" } }, { status: 500 })));
+    renderWithProviders(<ContactBook open onClose={() => {}} />);
+    await screen.findByRole("heading", { name: "Acme" });
+
+    await user.click(screen.getByRole("button", { name: "Удалить клиента" }));
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Удалить" }));
+
+    expect(await screen.findByText("Не удалось удалить клиента")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Acme/ })).toBeInTheDocument();
+  });
+});
+
+describe("removing an employee", () => {
+  async function openEmployees(user: ReturnType<typeof userEvent.setup>) {
+    server.use(http.get("/api/members/:id/access", () => HttpResponse.json([])));
+    renderWithProviders(<ContactBook open onClose={() => {}} />);
+    await screen.findByRole("button", { name: /Acme/ });
+    await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
+    await screen.findByTestId("employee-details");
+  }
+
+  it("removes the member after the admin confirms", async () => {
+    const user = userEvent.setup();
+    withDirectory();
+    let members = [member];
+    const removed: string[] = [];
+    server.use(
+      http.get("/api/members", () => HttpResponse.json(members)),
+      http.delete("/api/members/:id", ({ params }) => {
+        removed.push(String(params.id));
+        members = members.filter((one) => one.id !== params.id);
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    await openEmployees(user);
+
+    await user.click(screen.getByRole("button", { name: "Удалить сотрудника" }));
+    const confirm = await screen.findByRole("alertdialog", { name: "Удалить сотрудника «Мария»?" });
+    await user.click(within(confirm).getByRole("button", { name: "Удалить" }));
+
+    await waitFor(() => expect(removed).toEqual(["membership-2"]));
+    expect(await screen.findByText("Сотрудников пока нет")).toBeInTheDocument();
+  });
+
+  it("says so when the API refuses and keeps the member", async () => {
+    const user = userEvent.setup();
+    withDirectory();
+    server.use(http.delete("/api/members/:id", () =>
+      HttpResponse.json({ error: { message: "You cannot remove the last admin" } }, { status: 409 })));
+    await openEmployees(user);
+
+    await user.click(screen.getByRole("button", { name: "Удалить сотрудника" }));
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Удалить" }));
+
+    expect(await screen.findByText("Не удалось удалить сотрудника")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Мария/ })).toBeInTheDocument();
+  });
+
+  it("offers a manager no remove control", async () => {
+    const user = userEvent.setup();
+    withDirectory();
+    asManager();
+    await openEmployees(user);
+
+    expect(screen.queryByRole("button", { name: "Удалить сотрудника" })).toBeNull();
+  });
+});

@@ -144,6 +144,9 @@ export function TaskFormDialog({
 }: TaskFormDialogProps) {
   const { data: projects } = useProjects();
   const { data: members } = useMembers();
+  const assignable = (members ?? []).filter(
+    (member) => member.status === "ACTIVE" || member.id === task?.assigneeId,
+  );
   const create = useCreateTask();
   const update = useUpdateTask();
   const checklist = useChecklistDraft(task?.checklist ?? []);
@@ -510,7 +513,7 @@ export function TaskFormDialog({
                                     />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {(members ?? []).map((member) => (
+                                    {assignable.map((member) => (
                                       <SelectItem
                                         key={member.id}
                                         value={member.id}

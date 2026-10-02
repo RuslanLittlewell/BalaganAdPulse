@@ -70,6 +70,34 @@ describe("TaskFormDialog", () => {
     expect(await screen.findByRole("option", { name: "Пётр" })).toBeInTheDocument();
   });
 
+  const withSuspended = () => server.use(mock.get("/api/members", () => HttpResponse.json([
+    ...members,
+    { ...members[0], id: "member-2", name: "Анна", role: "ADMIN" },
+    { ...members[0], id: "member-3", name: "Ушедший", status: "SUSPENDED" },
+  ])));
+
+  it("offers employees and admins but no suspended member", async () => {
+    withSuspended();
+    setup();
+    await openAssign();
+    await userEvent.click(await screen.findByLabelText("Ответственный"));
+
+    expect(await screen.findByRole("option", { name: "Пётр" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Анна" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Ушедший" })).toBeNull();
+  });
+
+  it("still shows a suspended member a task is already assigned to", async () => {
+    withSuspended();
+    renderWithProviders(
+      <TaskFormDialog task={aTask({ assigneeId: "member-3" })} onClose={() => {}} />,
+      { route: "/tasks" },
+    );
+    await openAssign();
+
+    expect(await screen.findByLabelText("Ответственный")).toHaveTextContent("Ушедший");
+  });
+
   it("offers the four priorities, defaulting to the middle one", async () => {
     setup();
     await userEvent.click(await screen.findByLabelText("Приоритет"));

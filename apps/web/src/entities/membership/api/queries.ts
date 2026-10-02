@@ -4,6 +4,7 @@ import {
   type ClientAccessGrant,
   type UpdateMemberInput,
 } from "./api.js";
+import { forgetMember } from "../model/staff.js";
 
 export const MEMBERS_KEY = ["members"] as const;
 
@@ -37,7 +38,10 @@ export function useDeleteMember() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: membersApi.remove,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: MEMBERS_KEY }),
+    onSuccess: (_, id) => {
+      forgetMember(id);
+      return queryClient.invalidateQueries({ queryKey: MEMBERS_KEY });
+    },
   });
 }
 

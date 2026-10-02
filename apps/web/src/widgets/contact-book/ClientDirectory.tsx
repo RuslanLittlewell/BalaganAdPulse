@@ -1,8 +1,16 @@
 import { useState } from "react";
-import { PencilIcon, PlusIcon } from "lucide-react";
-import { ClientAvatar, useClients, type Client } from "@/entities/client/index.js";
+import { PencilIcon, PlusIcon, Trash2 } from "lucide-react";
+import { ClientAvatar, useClients, useDeleteClient, type Client } from "@/entities/client/index.js";
+import { refreshProjects } from "@/entities/project/index.js";
 import { t } from "@/shared/config/index.js";
-import { Button, EmptyState, ListItem, Loader } from "@/shared/ui/index.js";
+import {
+  Button,
+  ConfirmDialog,
+  EmptyState,
+  ListItem,
+  Loader,
+  useAlerts,
+} from "@/shared/ui/index.js";
 import { Can } from "@/features/permissions/index.js";
 import { ContactAvatar } from "./ContactAvatar.js";
 import { ContactDetails } from "./ContactDetails.js";
@@ -14,6 +22,9 @@ export function ClientDirectory() {
   const clients = useClients();
   const [selectedId, setSelectedId] = useState<string>();
   const [mode, setMode] = useState<Mode>({ kind: "view" });
+  const [deleting, setDeleting] = useState<Client>();
+  const remove = useDeleteClient();
+  const { raise } = useAlerts();
   const list = clients.data ?? [];
   const selected = list.find((client) => client.id === selectedId) ?? list[0];
   const editing = mode.kind !== "view";
@@ -21,6 +32,17 @@ export function ClientDirectory() {
   function select(client: Client) {
     setSelectedId(client.id);
     setMode({ kind: "view" });
+  }
+
+  function confirmDelete(client: Client) {
+    remove.mutate(client.id, {
+      onSuccess: () => {
+        setSelectedId(undefined);
+        void refreshProjects();
+      },
+      onError: () => raise(t("contacts.delete.failed")),
+      onSettled: () => setDeleting(undefined),
+    });
   }
 
   if (clients.isPending) {
@@ -93,6 +115,18 @@ export function ClientDirectory() {
                 </Button>
                 </Can>
               )}
+              {selected != null && (
+                <Can action="delete" resource="client">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={t("contacts.delete")}
+                    onClick={() => setDeleting(selected)}
+                  >
+                    <Trash2 />
+                  </Button>
+                </Can>
+              )}
             </div>
           )}
         </div>
@@ -112,6 +146,17 @@ export function ClientDirectory() {
           />
         )}
       </div>
+
+      {deleting != null && (
+        <ConfirmDialog
+          open
+          title={`${t("contacts.delete")} «${deleting.name}»?`}
+          description={t("contacts.delete.body")}
+          pending={remove.isPending}
+          onConfirm={() => confirmDelete(deleting)}
+          onClose={() => setDeleting(undefined)}
+        />
+      )}
     </div>
   );
 }

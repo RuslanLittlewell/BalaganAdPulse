@@ -219,13 +219,16 @@ describe("Projects API", () => {
       expect((await request(app).get(`/api/projects/${second.id}`).set(manager.auth)).status).toBe(404);
     });
 
-    it("refuses creating a project under a client out of reach -> 404", async () => {
+    it("lets a manager create a project under an admin's client they hold no grant for", async () => {
       const admin = await signInAs("Admin", { role: "ADMIN" });
-      const { clientId } = await seedProject(admin.user.id, "Acme");
+      const { clientId, projectId } = await seedProject(admin.user.id, "Acme");
       const manager = await signInAs("Manager", { role: "MANAGER" });
 
       const res = await request(app).post("/api/projects").set(manager.auth).send({ clientId, name: "Mine" });
-      expect(res.status).toBe(404);
+      expect(res.status).toBe(201);
+      const listed = await request(app).get("/api/projects").set(manager.auth);
+      expect(listed.body.map((p: { id: string }) => p.id)).toEqual([res.body.id]);
+      expect(listed.body.map((p: { id: string }) => p.id)).not.toContain(projectId);
     });
   });
 });

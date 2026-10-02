@@ -1,9 +1,10 @@
-import { can } from "@adpulse/access-policy";
+import { can, isCustomer } from "@adpulse/access-policy";
 import { AppError } from "#shared/domain/index.js";
 import type { ActorContext } from "#shared/application/index.js";
 import type { SessionPrincipal } from "../../identity/index.js";
+import { discloses } from "../../presence/index.js";
 import { wouldStopBeingAdmin } from "../domain/member.js";
-import type { MemberChange } from "../domain/member.js";
+import type { MemberChange, MemberRecord } from "../domain/member.js";
 import type {
   AccessGrant,
   MemberDependencies,
@@ -42,6 +43,22 @@ export function createMemberUseCases(
     }
   };
 
+  const seesPictureOf = async (actor: ActorContext, member: MemberRecord): Promise<boolean> => {
+    const bothCustomers = isCustomer(actor.role) && isCustomer(member.role);
+    const [viewerClientIds, memberClientIds] = bothCustomers
+      ? await Promise.all([
+          dependencies.clients.reachableClientIds(actor),
+          dependencies.clients.reachableClientIds({
+            userId: member.userId, membershipId: member.id, orgId: member.orgId, role: member.role,
+          }),
+        ])
+      : [[], []];
+    return discloses(
+      { orgId: actor.orgId, role: actor.role, clientIds: viewerClientIds },
+      { orgId: member.orgId, role: member.role, clientIds: memberClientIds },
+    );
+  };
+
   return {
     resolveActor: async (principal: SessionPrincipal): Promise<ActorContext> => {
       const actor = await dependencies.memberships.findActiveByUserId(principal.id);
@@ -55,7 +72,8 @@ export function createMemberUseCases(
     },
 
     list: async (actor: ActorContext, kind?: MemberKind) => {
-      assertCan(actor, "read");
+      const listsColleagues = kind === "staff" && actor.role === "MANAGER";
+      if (!listsColleagues) assertCan(actor, "read");
       return dependencies.directory.listByOrg(actor.orgId, kind);
     },
 
@@ -68,8 +86,8 @@ export function createMemberUseCases(
     },
 
     avatar: async (actor: ActorContext, id: string): Promise<Uint8Array> => {
-      assertCan(actor, "read");
       const member = await reachable(actor, id);
+      if (!(await seesPictureOf(actor, member))) throw new AppError("not-found", "Member not found");
       const bytes = await dependencies.avatars.readAvatar(member.userId);
       if (!bytes) throw new AppError("not-found", "Member has no picture");
       return bytes;

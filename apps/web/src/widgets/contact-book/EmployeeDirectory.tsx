@@ -1,9 +1,22 @@
 import { useState } from "react";
-import { MemberAvatar, useMembers, type Membership } from "@/entities/membership/index.js";
+import {
+  MemberAvatar,
+  useDeleteMember,
+  useMembers,
+  type Membership,
+} from "@/entities/membership/index.js";
 import { EmployeeAccess } from "./EmployeeAccess.js";
 import { useAuth } from "@/features/auth/index.js";
 import { t } from "@/shared/config/index.js";
-import { EmptyState, ListItem, Loader } from "@/shared/ui/index.js";
+import {
+  Button,
+  ConfirmDialog,
+  EmptyState,
+  ListItem,
+  Loader,
+  useAlerts,
+} from "@/shared/ui/index.js";
+import { Can } from "@/features/permissions/index.js";
 
 export function EmployeeDirectory() {
   const members = useMembers();
@@ -11,6 +24,17 @@ export function EmployeeDirectory() {
   const [selectedId, setSelectedId] = useState<string>();
   const list = (members.data ?? []).filter((member) => member.userId !== user?.id);
   const selected = list.find((member) => member.id === selectedId) ?? list[0];
+  const [removing, setRemoving] = useState<Membership>();
+  const remove = useDeleteMember();
+  const { raise } = useAlerts();
+
+  function confirmRemove(member: Membership) {
+    remove.mutate(member.id, {
+      onSuccess: () => setSelectedId(undefined),
+      onError: () => raise(t("contacts.employees.remove.failed")),
+      onSettled: () => setRemoving(undefined),
+    });
+  }
 
   if (members.isPending) {
     return <div className="grid place-items-center py-10"><Loader /></div>;
@@ -33,9 +57,34 @@ export function EmployeeDirectory() {
       </div>
 
       <div className="max-h-[60vh] min-w-0 overflow-auto sm:border-l sm:border-border sm:pl-4">
+        {selected && (
+          <Can action="delete" resource="member">
+            <div className="flex justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+                onClick={() => setRemoving(selected)}
+              >
+                {t("contacts.employees.remove")}
+              </Button>
+            </div>
+          </Can>
+        )}
         {selected && <EmployeeDetails member={selected} />}
         {selected && <EmployeeAccess membershipId={selected.id} />}
       </div>
+
+      {removing != null && (
+        <ConfirmDialog
+          open
+          title={`${t("contacts.employees.remove")} «${removing.name}»?`}
+          description={t("contacts.employees.remove.body")}
+          pending={remove.isPending}
+          onConfirm={() => confirmRemove(removing)}
+          onClose={() => setRemoving(undefined)}
+        />
+      )}
     </div>
   );
 }

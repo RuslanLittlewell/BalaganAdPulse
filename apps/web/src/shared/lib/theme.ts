@@ -1,3 +1,5 @@
+import { useSyncExternalStore } from "react";
+
 export type Theme = "light" | "dark";
 
 const THEME_STORAGE_KEY = "adpulse.theme";
@@ -26,3 +28,18 @@ export function setTheme(theme: Theme): void {
 export function initializeTheme(): void {
   applyTheme(getPreferredTheme());
 }
+
+function currentTheme(): Theme {
+  return document.documentElement.classList.contains("dark") ? "dark" : "light";
+}
+
+function onThemeChange(notify: () => void): () => void {
+  const observer = new MutationObserver(notify);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+  return () => observer.disconnect();
+}
+
+export function useTheme(): Theme {
+  return useSyncExternalStore(onThemeChange, currentTheme, () => "light");
+}
+

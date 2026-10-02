@@ -180,13 +180,15 @@ export function ProjectPage() {
         />
       ) : (
         <div className="flex flex-col gap-3">
-          <Tabs
-            items={[...sources].map(([id, label]) => ({ id, label }))}
-            activeId={chosen}
-            onSelect={setSource}
-            ariaLabel={t("campaigns.sources")}
-            className="self-start"
-          />
+          {sources.size > 0 && (
+            <Tabs
+              items={[...sources].map(([id, label]) => ({ id, label }))}
+              activeId={chosen}
+              onSelect={setSource}
+              ariaLabel={t("campaigns.sources")}
+              className="self-start"
+            />
+          )}
           <PerformanceTable
             tableKey="campaigns"
             heading={t("campaigns.one")}

@@ -1,4 +1,5 @@
-import { applyTheme, getPreferredTheme, setTheme } from "@/shared/lib/theme.js";
+import { renderHook, waitFor } from "@testing-library/react";
+import { applyTheme, getPreferredTheme, setTheme, useTheme } from "@/shared/lib/theme.js";
 
 describe("theme", () => {
   beforeEach(() => {
@@ -26,5 +27,19 @@ describe("theme", () => {
 
     applyTheme("light");
     expect(document.documentElement).not.toHaveClass("dark");
+  });
+});
+
+describe("useTheme", () => {
+  it("follows the theme as it is switched", async () => {
+    setTheme("light");
+    const { result } = renderHook(() => useTheme());
+    expect(result.current).toBe("light");
+
+    setTheme("dark");
+    await waitFor(() => expect(result.current).toBe("dark"));
+
+    setTheme("light");
+    await waitFor(() => expect(result.current).toBe("light"));
   });
 });

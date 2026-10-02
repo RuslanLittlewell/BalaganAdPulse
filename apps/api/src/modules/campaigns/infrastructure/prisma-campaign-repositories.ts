@@ -19,7 +19,8 @@ function reachableProjects(actor: ActorContext): Prisma.ProjectWhereInput {
 
 const toCampaign = (row: {
   id: string; projectId: string; name: string; channel: string; status: string;
-  objective: string | null; externalId: string | null; position: number;
+  objective: string | null; externalId: string | null; sourceAccountId: string | null; position: number;
+  kpiMetric: string | null; kpiTarget: { toFixed(digits: number): string } | null;
   project?: { budgetCurrency: string | null };
 }): Campaign => ({
   currency: row.project?.budgetCurrency ?? null,
@@ -30,7 +31,9 @@ const toCampaign = (row: {
   status: row.status as Campaign["status"],
   objective: row.objective,
   externalId: row.externalId,
+  sourceAccountId: row.sourceAccountId,
   position: row.position,
+  kpi: row.kpiMetric && row.kpiTarget ? { metric: row.kpiMetric, target: row.kpiTarget.toFixed(4) } : null,
 });
 
 export class PrismaCampaignRepository implements CampaignRepository {

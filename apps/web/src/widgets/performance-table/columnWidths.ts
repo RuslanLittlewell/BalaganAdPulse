@@ -9,18 +9,17 @@ export const DEFAULT_COLUMN_WIDTH = 128;
 export const ALL_COLUMN_IDS = ["name", ...METRIC_COLUMNS.map((column) => column.id)];
 export const MIN_VISIBLE_COLUMNS = 2;
 
-export function isRequiredColumn(tableKey: string, columnId: string): boolean {
-  return tableKey === "ad-sets" && columnId === "name";
+export function isRequiredColumn(columnId: string): boolean {
+  return columnId === "name";
 }
 
 export function visibleColumnIds(
   saved: unknown,
-  tableKey = "performance",
   extraIds: readonly string[] = [],
 ): string[] {
   if (!Array.isArray(saved)) return ALL_COLUMN_IDS;
   const valid = [...ALL_COLUMN_IDS, ...extraIds]
-    .filter((id) => saved.includes(id) || isRequiredColumn(tableKey, id));
+    .filter((id) => saved.includes(id) || isRequiredColumn(id));
   return valid.length >= MIN_VISIBLE_COLUMNS ? valid : ALL_COLUMN_IDS;
 }
 
@@ -66,9 +65,9 @@ export const useColumnWidths = create<ColumnWidthsState>()(
       visibleColumns: {},
       toggleColumn: (tableKey, columnId, extraIds = []) => {
         const known = ALL_COLUMN_IDS.includes(columnId) || extraIds.includes(columnId);
-        if (!known || isRequiredColumn(tableKey, columnId)) return;
+        if (!known || isRequiredColumn(columnId)) return;
         set((state) => {
-          const current = visibleColumnIds(state.visibleColumns?.[tableKey], tableKey, extraIds);
+          const current = visibleColumnIds(state.visibleColumns?.[tableKey], extraIds);
           if (current.includes(columnId) && current.length <= MIN_VISIBLE_COLUMNS) return state;
           const next = current.includes(columnId)
             ? current.filter((id) => id !== columnId)

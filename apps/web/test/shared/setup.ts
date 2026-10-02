@@ -77,9 +77,9 @@ if (!Range.prototype.getBoundingClientRect) {
 }
 
 import { server } from "./server.js";
-import { resetStaff } from "@/entities/membership/index.js";
-import { resetProjects } from "@/entities/project/index.js";
-import { useModuleMemory } from "@/shared/lib/index.js";
+import { resetStaff } from "@/entities/membership/model/staff.js";
+import { resetProjects } from "@/entities/project/model/projects.js";
+import { useModuleMemory } from "@/shared/lib/moduleMemory.js";
 import { useSummaryTiles } from "@/widgets/agency-overview/summaryTiles.js";
 import { useColumnWidths } from "@/widgets/performance-table/columnWidths.js";
 

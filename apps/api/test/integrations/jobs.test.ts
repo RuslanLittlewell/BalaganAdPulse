@@ -40,9 +40,11 @@ it("imports the full hierarchy repeatedly, replaces corrected days and preserves
   let job = (await jobs.claim(now))!;
   expect(await jobs.complete(job, snapshot(), now)).toBe(true);
   const campaign = await prisma.campaign.findFirstOrThrow({ where: { externalId: "101" } });
+  expect(campaign.sourceAccountId).toBe("123");
+  expect((await prisma.campaign.findUniqueOrThrow({ where: { id: manual.id } })).sourceAccountId).toBeNull();
   await prisma.campaignDailyMetric.create({ data: { campaignId: campaign.id, date: new Date("2026-01-01"), spend: "99" } });
   await prisma.campaignDailyMetric.create({ data: { campaignId: manual.id, date: new Date("2026-09-07"), spend: "50" } });
-  await prisma.projectIntegration.update({ where: { projectId }, data: { queuedAt: now, status: "QUEUED" } });
+  await prisma.projectIntegration.updateMany({ where: { projectId }, data: { queuedAt: now, status: "QUEUED" } });
   job = (await jobs.claim(now))!;
   const changed = snapshot();
   changed.campaignMetrics[0].spend = "13.4567";
@@ -52,7 +54,7 @@ it("imports the full hierarchy repeatedly, replaces corrected days and preserves
   expect(await prisma.ad.count()).toBe(1);
   expect(String((await prisma.campaignDailyMetric.findUniqueOrThrow({ where: { campaignId_date: { campaignId: campaign.id, date: new Date("2026-09-07") } } })).spend)).toBe("13.4567");
   expect(await prisma.campaignDailyMetric.count()).toBe(3);
-  await prisma.projectIntegration.update({ where: { projectId }, data: { queuedAt: now, status: "QUEUED" } });
+  await prisma.projectIntegration.updateMany({ where: { projectId }, data: { queuedAt: now, status: "QUEUED" } });
   job = (await jobs.claim(now))!;
   changed.campaignMetrics = [];
   await jobs.complete(job, changed, now);
@@ -72,12 +74,12 @@ it("rolls back all changes on foreign external IDs or invalid hierarchy", async 
 });
 it("does not commit after replacement, disconnect, or currency changes", async () => {
   const job = (await jobs.claim(now))!;
-  await prisma.projectIntegration.update({ where: { projectId }, data: { revision: "new" } });
+  await prisma.projectIntegration.updateMany({ where: { projectId }, data: { revision: "new" } });
   expect(await jobs.complete(job, snapshot(), now)).toBe(false);
-  await prisma.projectIntegration.update({ where: { projectId }, data: { revision: job.revision } });
+  await prisma.projectIntegration.updateMany({ where: { projectId }, data: { revision: job.revision } });
   await prisma.project.update({ where: { id: projectId }, data: { budgetCurrency: "USD" } });
   await expect(jobs.complete(job, snapshot(), now)).rejects.toMatchObject({ code: "CURRENCY" });
-  await prisma.projectIntegration.delete({ where: { projectId } });
+  await prisma.projectIntegration.deleteMany({ where: { projectId } });
   expect(await jobs.complete(job, snapshot(), now)).toBe(false);
   expect(await prisma.campaign.count()).toBe(0);
 });
@@ -89,25 +91,25 @@ it("retries transient failures with bounded backoff and stops automatic token re
   expect(retry.retryCount).toBe(1);
   await jobs.fail(retry, new MetaError("TOKEN"), now);
   expect(await jobs.claim(new Date("2026-09-10"))).toBeNull();
-  expect((await prisma.projectIntegration.findUniqueOrThrow({ where: { projectId } })).lastError).toBe("TOKEN");
+  expect((await prisma.projectIntegration.findFirstOrThrow({ where: { projectId } })).lastError).toBe("TOKEN");
 });
 it("manual work before morning preserves the upcoming daily occurrence", async () => {
   const tomorrow = new Date("2026-09-09T06:00:00Z");
-  await prisma.projectIntegration.update({ where: { projectId }, data: { nextDailyAt: tomorrow } });
+  await prisma.projectIntegration.updateMany({ where: { projectId }, data: { nextDailyAt: tomorrow } });
   await jobs.complete((await jobs.claim(now))!, snapshot(), now);
-  expect((await prisma.projectIntegration.findUniqueOrThrow({ where: { projectId } })).nextDailyAt).toEqual(tomorrow);
+  expect((await prisma.projectIntegration.findFirstOrThrow({ where: { projectId } })).nextDailyAt).toEqual(tomorrow);
 });
 it("exhausts three retries and resumes at the next morning", async () => {
   let time = now;
   for (const delay of [60_000, 300_000, 900_000]) {
     const job = (await jobs.claim(time))!;
     await jobs.fail(job, new MetaError("PROVIDER"), time);
-    const row = await prisma.projectIntegration.findUniqueOrThrow({ where: { projectId } });
+    const row = await prisma.projectIntegration.findFirstOrThrow({ where: { projectId } });
     expect(row.queuedAt?.getTime()).toBe(time.getTime() + delay);
     time = row.queuedAt!;
   }
   await jobs.fail((await jobs.claim(time))!, new MetaError("PROVIDER"), time);
-  const failed = await prisma.projectIntegration.findUniqueOrThrow({ where: { projectId } });
+  const failed = await prisma.projectIntegration.findFirstOrThrow({ where: { projectId } });
   expect(failed).toMatchObject({ status: "ERROR", queuedAt: null, retryCount: 0 });
   expect(await jobs.claim(new Date(time.getTime() + 60_000))).toBeNull();
   expect(await jobs.claim(failed.nextDailyAt)).not.toBeNull();

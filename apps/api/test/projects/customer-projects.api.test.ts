@@ -78,9 +78,11 @@ describe("a customer managing their client's projects", () => {
     const auth = await customer("CLIENT_ADMIN");
     const campaign = await seedCampaign(projectId);
 
-    expect((await request(app).get(`/api/projects/${projectId}/integrations/meta`).set(auth)).status).toBe(403);
-    expect((await request(app).put(`/api/projects/${projectId}/integrations/meta`).set(auth).send({ accountId: "123", token: "secret" })).status).toBe(403);
-    expect((await request(app).post(`/api/projects/${projectId}/integrations/meta/sync`).set(auth)).status).toBe(403);
+    const someConnection = `/api/projects/${projectId}/integrations/00000000-0000-4000-8000-000000000000`;
+    expect((await request(app).get(`/api/projects/${projectId}/integrations`).set(auth)).status).toBe(403);
+    expect((await request(app).post(`/api/projects/${projectId}/integrations/meta`).set(auth).send({ accountId: "123", token: "secret" })).status).toBe(403);
+    expect((await request(app).patch(someConnection).set(auth).send({ leadsEnabled: false })).status).toBe(403);
+    expect((await request(app).post(`${someConnection}/sync`).set(auth)).status).toBe(403);
     expect((await request(app).put(`/api/projects/${projectId}/kpi`).set(auth).send({ metric: "CONVERSIONS", target: "10" })).status).toBe(403);
     expect((await request(app).put(`/api/campaigns/${campaign.id}/kpi`).set(auth).send({ metric: "CPA", target: "10" })).status).toBe(403);
     expect((await request(app).get(`/api/projects/${projectId}/kpi`).set(auth)).status).toBe(200);

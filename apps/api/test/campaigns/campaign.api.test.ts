@@ -251,3 +251,19 @@ describe("the sheet is gone", () => {
     },
   );
 });
+
+describe("a campaign's KPI in campaign responses", () => {
+  it("carries the campaign's own KPI, or null when it has none", async () => {
+    const bare = await seedCampaign(projectId, "Без KPI", "META");
+    await prisma.campaign.update({ where: { id: campaignId }, data: { kpiMetric: "CPA", kpiTarget: "12.5", kpiUpdatedAt: new Date() } });
+
+    const listed = await request(app).get(`/api/projects/${projectId}/campaigns${RANGE}`).set(auth);
+    const kpiOf = (id: string) => listed.body.find((campaign: { id: string }) => campaign.id === id).kpi;
+
+    expect(listed.status).toBe(200);
+    expect(kpiOf(campaignId)).toEqual({ metric: "CPA", target: "12.5000" });
+    expect(kpiOf(bare.id)).toBeNull();
+    const read = await request(app).get(`/api/campaigns/${campaignId}${RANGE}`).set(auth);
+    expect(read.body.kpi).toEqual({ metric: "CPA", target: "12.5000" });
+  });
+});

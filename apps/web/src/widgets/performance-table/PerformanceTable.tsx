@@ -207,6 +207,7 @@ function Name({
   onActivate?: () => void;
 }) {
   const toneClass = {
+    idle: "border-muted-foreground/40",
     danger: "border-red-500",
     stable: "border-blue-500",
     profitable: "border-emerald-500",
@@ -243,6 +244,7 @@ function Name({
       {row.badge != null && (
         <span className="max-w-[35%] overflow-hidden">{row.badge}</span>
       )}
+      {row.tone != null && <span className="sr-only">{t(`tone.${row.tone}`)}</span>}
     </>
   );
 
@@ -255,7 +257,7 @@ function Name({
       }}
     >
       {onActivate == null ? (
-        <span className={cn("flex items-center gap-2", marked)}>{body}</span>
+        <span className={cn("flex items-center gap-2", marked)} data-tone={row.tone}>{body}</span>
       ) : (
         <button
           type="button"
@@ -264,6 +266,7 @@ function Name({
             onActivate();
           }}
           aria-expanded={expandable ? expanded === true : undefined}
+          data-tone={row.tone}
           className={cn(
             "flex w-full items-center gap-2 rounded text-left hover:text-primary focus-visible:outline-2 focus-visible:outline-ring",
             marked,
@@ -306,8 +309,7 @@ export function PerformanceTable({
   );
   const toggleColumn = useColumnWidths((state) => state.toggleColumn);
   const extraIds = extraColumns.map((column) => column.id);
-  const visibleIds = visibleColumnIds(savedColumns, tableKey, extraIds);
-  const showName = visibleIds.includes("name");
+  const visibleIds = visibleColumnIds(savedColumns, extraIds);
   const allFigures: FigureColumn[] = [
     ...METRIC_COLUMNS.map((column) => ({
       id: column.id,
@@ -330,11 +332,8 @@ export function PerformanceTable({
   const widthOf = (id: string) => columnWidth(savedWidths?.[id]);
   const move = (id: string, direction: MoveDirection) =>
     moveColumn(tableKey, id, direction, shownFigureIds, figureIds);
-  const choices = [
-    { id: "name", label: heading },
-    ...METRIC_COLUMNS,
-    ...extraColumns,
-  ].filter((column) => !isRequiredColumn(tableKey, column.id));
+  const choices = [...METRIC_COLUMNS, ...extraColumns]
+    .filter((column) => !isRequiredColumn(column.id));
 
   const toggle = (id: string) => {
     const next = new Set(expanded);
@@ -365,28 +364,14 @@ export function PerformanceTable({
         <TableRow
           onClick={activate}
           className="group cursor-pointer"
-          tabIndex={!showName && activate != null ? 0 : undefined}
-          aria-label={!showName ? row.name : undefined}
-          aria-expanded={!showName && expandable ? isOpen : undefined}
-          onKeyDown={
-            !showName && activate != null
-              ? (event) => {
-                  if (event.key !== "Enter" && event.key !== " ") return;
-                  event.preventDefault();
-                  activate();
-                }
-              : undefined
-          }
         >
-          {showName && (
-            <Name
-              row={row}
-              depth={depth}
-              expandable={expandable}
-              expanded={expandable ? isOpen : undefined}
-              onActivate={activate}
-            />
-          )}
+          <Name
+            row={row}
+            depth={depth}
+            expandable={expandable}
+            expanded={expandable ? isOpen : undefined}
+            onActivate={activate}
+          />
           <Figures
             figures={figures}
             extra={row.extra ?? {}}
@@ -407,14 +392,14 @@ export function PerformanceTable({
         className="table-fixed text-sm"
         style={{
           width:
-            (showName ? nameWidth : 0) +
+            nameWidth +
             figures.reduce((sum, column) => sum + widthOf(column.id), 0) +
             40,
           minWidth: "100%",
         }}
       >
         <colgroup>
-          {showName && <col style={{ width: nameWidth }} />}
+          <col style={{ width: nameWidth }} />
           {figures.map((column) => (
             <col key={column.id} style={{ width: widthOf(column.id) }} />
           ))}
@@ -422,23 +407,21 @@ export function PerformanceTable({
         </colgroup>
         <TableHeader>
           <TableRow className="bg-muted/50 hover:bg-muted/50">
-            {showName && (
-              <TableHead
-                scope="col"
-                aria-label={heading}
-                className="sticky left-0 z-10 pr-3"
-              >
-                <span className="block truncate" title={heading}>
-                  {heading}
-                </span>
-                <ColumnResizer
-                  label={t("table.resizeName")}
-                  width={nameWidth}
-                  min={MIN_NAME_WIDTH}
-                  onResize={setNameWidth}
-                />
-              </TableHead>
-            )}
+            <TableHead
+              scope="col"
+              aria-label={heading}
+              className="sticky left-0 z-10 pr-3"
+            >
+              <span className="block truncate" title={heading}>
+                {heading}
+              </span>
+              <ColumnResizer
+                label={t("table.resizeName")}
+                width={nameWidth}
+                min={MIN_NAME_WIDTH}
+                onResize={setNameWidth}
+              />
+            </TableHead>
             {figures.map((column, index) => (
               <TableHead
                 key={column.id}
@@ -516,18 +499,13 @@ export function PerformanceTable({
         <TableBody>{rows.map((row) => renderRow(row, 0))}</TableBody>
         {totals != null && (
           <TableFooter>
-            <TableRow
-              aria-label={!showName ? t("metric.total") : undefined}
-              className="bg-muted/50 hover:bg-muted/50"
-            >
-              {showName && (
-                <TableHead
-                  scope="row"
-                  className="sticky left-0 z-10 truncate font-medium"
-                >
-                  {t("metric.total")}
-                </TableHead>
-              )}
+            <TableRow className="bg-muted/50 hover:bg-muted/50">
+              <TableHead
+                scope="row"
+                className="sticky left-0 z-10 truncate font-medium"
+              >
+                {t("metric.total")}
+              </TableHead>
               <Figures
                 figures={figures}
                 performance={totals}

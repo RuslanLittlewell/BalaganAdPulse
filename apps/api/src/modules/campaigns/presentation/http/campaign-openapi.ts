@@ -33,7 +33,9 @@ const campaign = z.object({
   status: z.enum(DELIVERY_STATUSES),
   objective: z.string().nullable(),
   externalId: z.string().nullable(),
+  sourceAccountId: z.string().nullable(),
   position: z.int(),
+  kpi: z.object({ metric: z.string(), target: z.string() }).nullable(),
   performance,
 });
 

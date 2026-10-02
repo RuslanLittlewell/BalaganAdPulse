@@ -43,7 +43,9 @@ export interface Campaign {
   status: DeliveryStatus;
   objective: string | null;
   externalId: string | null;
+  sourceAccountId: string | null;
   position: number;
+  kpi: { metric: string; target: string } | null;
   performance: Performance;
 }
 

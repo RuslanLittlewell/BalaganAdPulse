@@ -23,7 +23,9 @@ export interface Campaign {
   readonly status: DeliveryStatus;
   readonly objective: string | null;
   readonly externalId: string | null;
+  readonly sourceAccountId: string | null;
   readonly position: number;
+  readonly kpi: { readonly metric: string; readonly target: string } | null;
 }
 
 export interface AdSet {

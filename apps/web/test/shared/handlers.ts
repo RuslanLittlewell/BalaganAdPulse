@@ -13,7 +13,7 @@ export const defaultHandlers = [
     name: "Buyer", email: "buyer@acme.com", image: null, avatarPath: null,
   })),
   http.get("/api/clients", () => HttpResponse.json([])),
-  http.get("/api/projects/:projectId/integrations/meta", () => HttpResponse.json(null)),
+  http.get("/api/projects/:projectId/integrations", () => HttpResponse.json([])),
   http.get("/api/projects", () => HttpResponse.json([])),
   http.get("/api/project-layout", () => HttpResponse.json({ pinned: [], items: [] })),
   http.get("/api/projects/:projectId/campaigns", () => HttpResponse.json([])),

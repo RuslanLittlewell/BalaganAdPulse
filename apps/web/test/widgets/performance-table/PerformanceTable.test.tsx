@@ -113,33 +113,41 @@ describe("PerformanceTable", () => {
     expect(screen.getByText("Пока нет кампаний")).toBeInTheDocument();
   });
 
-  it("keeps two columns, allows restoring hidden columns, and remembers the selection per table", async () => {
+  it("never offers the name column, keeps one figure beside it, and remembers the selection per table", async () => {
     const user = userEvent.setup();
     const { unmount } = render(
       <PerformanceTable tableKey="column-menu-test" heading="Кампания" rows={rows} totals={performance(1500)} />,
     );
     await user.click(screen.getByRole("button", { name: "Отображаемые столбцы" }));
+    expect(screen.queryByRole("menuitemcheckbox", { name: "Кампания" })).toBeNull();
     const items = screen.getAllByRole("menuitemcheckbox");
-    for (const item of items.slice(0, -2)) await user.click(item);
+    for (const item of items.slice(0, -1)) await user.click(item);
 
     const checked = screen.getAllByRole("menuitemcheckbox", { checked: true });
-    expect(checked).toHaveLength(2);
-    checked.forEach((item) => expect(item).toHaveAttribute("aria-disabled", "true"));
-    expect(screen.getByRole("menuitemcheckbox", { name: "Кампания" })).toHaveAttribute("aria-checked", "false");
-    await user.click(screen.getByRole("menuitemcheckbox", { name: "Кампания" }));
-    expect(screen.getAllByRole("menuitemcheckbox", { checked: true })).toHaveLength(3);
+    expect(checked).toHaveLength(1);
+    expect(checked[0]).toHaveAttribute("aria-disabled", "true");
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "Расход" }));
+    expect(screen.getAllByRole("menuitemcheckbox", { checked: true })).toHaveLength(2);
     await user.keyboard("{Escape}");
-    expect(screen.queryByRole("columnheader", { name: "Расход" })).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: "Показы" })).toBeNull();
     expect(screen.getByRole("columnheader", { name: "Кампания" })).toBeInTheDocument();
-    const stored = JSON.parse(localStorage.getItem("adpulse-performance-column-widths")!);
-    expect(stored.state.visibleColumns["column-menu-test"]).toHaveLength(3);
+    expect(screen.getByRole("columnheader", { name: "Расход" })).toBeInTheDocument();
 
     unmount();
     const remounted = render(<PerformanceTable tableKey="column-menu-test" heading="Кампания" rows={rows} />);
-    expect(screen.queryByRole("columnheader", { name: "Расход" })).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: "Показы" })).toBeNull();
     remounted.unmount();
     render(<PerformanceTable tableKey="other-table-test" heading="Проект" rows={rows} />);
+    expect(screen.getByRole("columnheader", { name: "Показы" })).toBeInTheDocument();
+  });
+
+  it("brings back the name column a choice saved earlier had hidden", () => {
+    useColumnWidths.setState({ visibleColumns: { "hidden-name-test": ["spend", "clicks"] } });
+    render(<PerformanceTable tableKey="hidden-name-test" heading="Проект" rows={rows} />);
+
+    expect(screen.getByRole("columnheader", { name: "Проект" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Расход" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Показы" })).toBeNull();
   });
 });
 
@@ -170,7 +178,7 @@ describe("extra columns a table is given", () => {
     expect(screen.getByRole("columnheader", { name: "Лид (Новый)" })).toBeInTheDocument();
   });
 
-  it("counts them toward the two columns a table keeps", async () => {
+  it("counts them as the figure a table keeps", async () => {
     const user = userEvent.setup();
     render(<PerformanceTable tableKey="extra-minimum-test" heading="Проект" rows={withExtras} extraColumns={extraColumns} />);
 
@@ -181,7 +189,7 @@ describe("extra columns a table is given", () => {
       if (item.getAttribute("aria-checked") === "true" && item.getAttribute("aria-disabled") !== "true") await user.click(item);
     }
 
-    expect(screen.getAllByRole("menuitemcheckbox", { checked: true })).toHaveLength(2);
+    expect(screen.getAllByRole("menuitemcheckbox", { checked: true })).toHaveLength(1);
     expect(screen.getByRole("menuitemcheckbox", { name: "Лид (Новый)" })).toHaveAttribute("aria-checked", "true");
   });
 });

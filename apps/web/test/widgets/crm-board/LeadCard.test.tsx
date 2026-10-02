@@ -38,9 +38,12 @@ describe("LeadCard", () => {
     expect(screen.queryByTestId("lead-tags-lead-1")).toBeNull();
   });
 
-  it("uses a grab cursor while it can be dragged", () => {
-    render(<LeadCard lead={lead} draggable />);
-    expect(screen.getByTestId("lead-card-lead-1")).toHaveClass("cursor-grab");
-    expect(screen.getByTestId("lead-drag-lead-1")).toHaveClass("cursor-grab");
+  it("offers itself and its handle for dragging only when it may be dragged", () => {
+    const { rerender } = render(<LeadCard lead={lead} draggable />);
+    expect(screen.getByTestId("lead-card-lead-1")).toHaveAttribute("data-draggable", "true");
+    expect(screen.getByTestId("lead-drag-lead-1")).toBeInTheDocument();
+
+    rerender(<LeadCard lead={lead} />);
+    expect(screen.getByTestId("lead-card-lead-1")).not.toHaveAttribute("data-draggable");
   });
 });

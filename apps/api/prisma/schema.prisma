@@ -377,7 +377,7 @@ model Project {
   access         ClientAccess[]
   tasks          Task[]
   invitations    InviteProject[]
-  integration    ProjectIntegration?
+  integrations   ProjectIntegration[]
   placements     ProjectPlacement[]
   kpiMetric    KpiMetric?   @map("kpi_metric")
   kpiTarget    Decimal?     @map("kpi_target") @db.Decimal(18, 4)
@@ -498,6 +498,7 @@ model Campaign {
   status     DeliveryStatus        @default(ACTIVE)
   objective  String?
   externalId String?               @map("external_id")
+  sourceAccountId String?          @map("source_account_id")
   position   Int
   createdAt  DateTime              @default(now()) @map("created_at")
   updatedAt  DateTime              @updatedAt @map("updated_at")
@@ -682,9 +683,12 @@ model ProjectPlacement {
 }
 
 model ProjectIntegration {
-  projectId String @id @map("project_id")
+  id String @id @default(uuid())
+  projectId String @map("project_id")
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  provider String @default("META")
   accountId String @map("account_id")
+  leadsEnabled Boolean @default(true) @map("leads_enabled")
   encryptedToken String @map("encrypted_token")
   currency String
   timezone String
@@ -710,5 +714,7 @@ model ProjectIntegration {
   @@index([nextDailyAt])
   @@index([queuedAt])
   @@index([nextLeadsAt])
+  @@unique([projectId, accountId])
+  @@index([projectId])
   @@map("project_integration")
 }

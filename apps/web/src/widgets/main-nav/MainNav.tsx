@@ -42,7 +42,6 @@ const MODULES: Module[] = [
     to: ROUTES.reports,
     label: t("nav.reports"),
     icon: ChartColumnIcon,
-    agencyOnly: true,
   },
   {
     to: ROUTES.archive,

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckIcon, PlusIcon, RefreshCwIcon } from "lucide-react";
-import { ApiError, cn, http } from "@/shared/lib/index.js";
+import { CheckIcon, RefreshCwIcon } from "lucide-react";
+import { ApiError, http } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import {
+  AddTile,
   Button,
   Dialog,
   DialogContent,
@@ -130,7 +131,7 @@ export function MetaIntegration({ projectId }: { projectId: string }) {
   const connections = useIntegrations(projectId, allowed);
   const [choosing, setChoosing] = useState(false);
   const [adding, setAdding] = useState(false);
-  const square = useSquareByHeight<HTMLButtonElement>();
+  const square = useSquareByHeight<HTMLDivElement>();
   useRefreshOnImport(projectId, connections.data);
 
   if (!allowed) return null;
@@ -147,21 +148,14 @@ export function MetaIntegration({ projectId }: { projectId: string }) {
       {(connections.data ?? []).map((connection) => (
         <MetaConnectionCard key={connection.id} projectId={projectId} connection={connection} />
       ))}
-      <button
+      <AddTile
         ref={square.ref}
-        type="button"
-        aria-label={t("integrations.add")}
+        label={t("integrations.add")}
         style={{ width: square.side }}
         disabled={connections.isPending || connections.isError}
         onClick={() => setChoosing(true)}
-        className={cn(
-          "grid min-h-24 min-w-24 shrink-0 self-stretch place-items-center rounded-lg border-2 border-dashed border-border text-muted-foreground",
-          "transition-colors hover:border-primary hover:text-primary disabled:opacity-50",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        )}
-      >
-        <PlusIcon aria-hidden className="size-6" />
-      </button>
+        className="min-w-24 shrink-0 self-stretch"
+      />
       <ProviderDialog
         open={choosing}
         onClose={() => setChoosing(false)}

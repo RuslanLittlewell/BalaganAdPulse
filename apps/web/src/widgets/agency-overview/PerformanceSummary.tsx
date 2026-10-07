@@ -1,5 +1,4 @@
 import { useState, type ReactNode } from "react";
-import { Plus } from "lucide-react";
 import {
   cn, formatCount, formatCurrency, formatMultiple, formatPercent, formatRatio,
 } from "@/shared/lib/index.js";
@@ -9,7 +8,9 @@ import type { KpiScope } from "@/entities/kpi/index.js";
 import { useAuth } from "@/features/auth/index.js";
 import { KpiTile } from "@/features/kpi-target/index.js";
 import { t } from "@/shared/config/index.js";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, MetricCard } from "@/shared/ui/index.js";
+import {
+  AddTile, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, MetricCard, RollingNumber,
+} from "@/shared/ui/index.js";
 import {
   chosenTiles, MAX_SUMMARY_TILES, SUMMARY_TILES, useSummaryTiles, type SummaryScreen, type SummaryTile,
 } from "./summaryTiles.js";
@@ -48,7 +49,7 @@ export function PerformanceSummary({
     figures.ctr = figures.impressions ? figures.clicks * 100 / figures.impressions : null;
     figures.frequency = figures.reach ? figures.impressions / figures.reach : null;
   }
-  const monetary = (format: (p: Performance, currency: Currency) => string) => (
+  const monetary = (format: (p: Performance, currency: Currency) => ReactNode) => (
     <>{groups.map((group) => <div key={group.currency ?? "unknown"}>{format(group.performance, group.currency)}</div>)}</>
   );
   const { user } = useAuth();
@@ -63,7 +64,7 @@ export function PerformanceSummary({
   const render = (tile: SummaryTile, preview = false): ReactNode => {
     switch (tile) {
       case "spend":
-        return <MetricCard className="h-full" label={LABELS.spend} value={monetary((p, c) => formatCurrency(p.spend, c))}
+        return <MetricCard className="h-full" label={LABELS.spend} value={monetary((p, c) => <RollingNumber value={formatCurrency(p.spend, c)} />)}
           hint={monetary((p, c) => `${t("metric.cpm")} ${formatRatio(p.cpm, c)}`)} />;
       case "impressions":
         return <MetricCard className="h-full" label={LABELS.impressions} value={formatCount(figures.impressions)}
@@ -75,7 +76,7 @@ export function PerformanceSummary({
         return <MetricCard className="h-full" label={LABELS.conversions} value={formatCount(figures.conversions)}
           hint={monetary((p, c) => `${t("metric.cpa")} ${formatRatio(p.cpa, c)}`)} />;
       case "cpc":
-        return <MetricCard className="h-full" label={LABELS.cpc} value={monetary((p, c) => formatRatio(p.cpc, c))}
+        return <MetricCard className="h-full" label={LABELS.cpc} value={monetary((p, c) => <RollingNumber value={formatRatio(p.cpc, c)} />)}
           hint={`${t("metric.reach")} ${formatCount(figures.reach)}`} />;
       case "kpi":
         return kpi ? <KpiTile {...kpi} figures={figures} range={range} currency={currency} currencyFigures={currencyPerformances} preview={preview} /> : null;
@@ -93,18 +94,7 @@ export function PerformanceSummary({
           <div key={tile} data-testid="summary-tile" data-tile={tile}>{render(tile)}</div>
         ))}
         {configurable ? (
-          <button
-            type="button"
-            aria-label={t("summary.configure")}
-            onClick={() => setConfiguring(true)}
-            className={cn(
-              "grid min-h-24 place-items-center rounded-lg border-2 border-dashed border-border text-muted-foreground",
-              "transition-colors hover:border-primary hover:text-primary",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            )}
-          >
-            <Plus aria-hidden className="size-6" />
-          </button>
+          <AddTile label={t("summary.configure")} onClick={() => setConfiguring(true)} />
         ) : null}
       </div>
 

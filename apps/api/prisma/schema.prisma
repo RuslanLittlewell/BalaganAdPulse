@@ -84,6 +84,7 @@ model Membership {
   createdTasks   Task[]      @relation("TaskCreator")
   uploadedImages TaskImage[] @relation("TaskImageUploader")
   leadFiles      LeadFile[]  @relation("LeadFileUploader")
+  reports        MonthlyReport[] @relation("MonthlyReportCreator")
 
   @@unique([userId, orgId])
   @@index([orgId, role])
@@ -379,6 +380,7 @@ model Project {
   invitations    InviteProject[]
   integrations   ProjectIntegration[]
   placements     ProjectPlacement[]
+  reports        MonthlyReport[]
   kpiMetric    KpiMetric?   @map("kpi_metric")
   kpiTarget    Decimal?     @map("kpi_target") @db.Decimal(18, 4)
   kpiUpdatedAt DateTime?    @map("kpi_updated_at")
@@ -547,6 +549,7 @@ model Ad {
   metrics    AdDailyMetric[]
   creatives  AdCreative[]
   leads      Lead[]
+  reportPicks MonthlyReportAd[]
 
   @@index([adSetId, position])
   @@map("ad")
@@ -566,6 +569,7 @@ model AdCreative {
   bytes             Int?
   posterKey         String?      @map("poster_key")
   posterContentType String?      @map("poster_content_type")
+  quality           Int          @default(0)
   syncedAt          DateTime     @default(now()) @map("synced_at")
 
   @@unique([adId, externalId, position])
@@ -717,4 +721,50 @@ model ProjectIntegration {
   @@unique([projectId, accountId])
   @@index([projectId])
   @@map("project_integration")
+}
+
+enum ReportStatus {
+  DRAFT
+  PUBLISHED
+
+  @@map("report_status")
+}
+
+model MonthlyReport {
+  id                String            @id @default(uuid())
+  projectId         String            @map("project_id")
+  project           Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  month             DateTime          @db.Date
+  status            ReportStatus      @default(DRAFT)
+  currency          String?           @db.VarChar(3)
+  figures           Json
+  computedAt        DateTime          @map("computed_at")
+  leadsOverride     Int?              @map("leads_override")
+  messengerContacts Int?              @map("messenger_contacts")
+  conclusions       Json?
+  plan              Json?
+  publishedAt       DateTime?         @map("published_at")
+  coverKey          String?           @map("cover_key")
+  coverContentType  String?           @map("cover_content_type")
+  createdById       String?           @map("created_by_id")
+  createdBy         Membership?       @relation("MonthlyReportCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+  ads               MonthlyReportAd[]
+
+  @@unique([projectId, month])
+  @@map("monthly_report")
+}
+
+model MonthlyReportAd {
+  reportId String        @map("report_id")
+  report   MonthlyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  adId     String        @map("ad_id")
+  ad       Ad            @relation(fields: [adId], references: [id], onDelete: Cascade)
+  position Int
+
+  @@id([reportId, adId])
+  @@index([reportId, position])
+  @@index([adId])
+  @@map("monthly_report_ad")
 }

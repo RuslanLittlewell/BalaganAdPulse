@@ -21,6 +21,7 @@ export interface AccountProvider {
 
 export interface CreativeStore {
   list(adId: string): Promise<CreativeView[]>;
+  outdated(adId: string): Promise<boolean>;
   save(adId: string, creatives: readonly StoredCreative[]): Promise<CreativeView[]>;
 }
 

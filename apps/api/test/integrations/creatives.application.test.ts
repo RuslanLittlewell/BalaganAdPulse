@@ -29,7 +29,7 @@ function fixture(initial: CreativeView[] = [], connected = true) {
   });
   const dependencies = {
     ads: { locate: vi.fn(async () => ({ projectId: "p1", externalId: "meta-ad", accountId: "account" })) },
-    creatives: { list: vi.fn(async () => stored), save },
+    creatives: { list: vi.fn(async () => stored), outdated: vi.fn(async () => false), save },
     repository: { list: vi.fn(async () => connected ? [{ accountId: "account", encryptedToken: "cipher" }] : []) },
     cipher: { decrypt: vi.fn(() => "token") },
     provider: { adCreatives: provider },

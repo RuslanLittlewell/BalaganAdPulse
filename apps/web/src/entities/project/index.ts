@@ -7,6 +7,5 @@ export * from "./ui/project-header/ProjectHeader.js";
 export * from "./model/projects.js";
 export * from "./model/ProjectsSync.js";
 export * from "./model/selection.js";
-export * from "./model/SelectionSync.js";
 export * from "./model/priority.js";
 export * from "./model/layout.js";

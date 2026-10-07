@@ -27,6 +27,8 @@ export interface ImportedCreative {
   fileUrl?: string;
   posterUrl?: string;
 }
+export const CREATIVE_QUALITY = 1;
+
 export interface CreativeView {
   id: string;
   position: number;

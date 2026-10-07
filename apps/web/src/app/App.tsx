@@ -3,13 +3,14 @@ import { BrowserRouter, Navigate, Routes, Route, useLocation } from "react-route
 import { DashboardPage } from "@/pages/dashboard/index.js";
 import { ModulePage } from "@/pages/module/index.js";
 import { ProjectsPage } from "@/pages/projects/index.js";
+import { ReportsPage } from "@/pages/reports/index.js";
 import { LoginPage } from "@/pages/login/index.js";
 import { RegistrationPage } from "@/pages/registration/index.js";
 import { TasksPage } from "@/pages/tasks/index.js";
 import { CrmPage } from "@/pages/crm/index.js";
 import { AuthProvider, RequireAuth, SessionHeartbeat } from "@/features/auth/index.js";
 import { NavCollapseProvider } from "@/features/nav-collapse/index.js";
-import { ProjectsSync, SelectionSync } from "@/entities/project/index.js";
+import { ProjectsSync } from "@/entities/project/index.js";
 import { StaffSync } from "@/entities/membership/index.js";
 import { AppShell } from "@/widgets/app-shell/index.js";
 import { AppHeader } from "@/widgets/app-header/index.js";
@@ -25,7 +26,6 @@ function Dashboard() {
   return (
     <RequireAuth>
       <NavCollapseProvider>
-        <SelectionSync />
         <StaffSync />
         <ProjectsSync />
         <SessionHeartbeat />
@@ -35,7 +35,7 @@ function Dashboard() {
             <Route path={`${ROUTES.projects}/*`} element={<ProjectsPage />} />
             <Route path={ROUTES.tasks} element={<TasksPage />} />
             <Route path={ROUTES.crm} element={<CrmPage />} />
-            <Route path={ROUTES.reports} element={<ModulePage title={t("nav.reports")} />} />
+            <Route path={`${ROUTES.reports}/*`} element={<ReportsPage />} />
             <Route path={ROUTES.archive} element={<ModulePage title={t("nav.archive")} />} />
             <Route path="/clients/*" element={<Navigate to={ROUTES.projects} replace />} />
             <Route path="/team" element={<Navigate to={ROUTES.dashboard} replace />} />

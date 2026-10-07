@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { useLocation } from "react-router-dom";
 
 export interface Selection {
   projectId?: string;
@@ -13,14 +13,5 @@ export function parseSelection(pathname: string): Selection {
   return { projectId: match[1], campaignId: match[2] };
 }
 
-interface SelectionStore extends Selection {
-  select: (selection: Selection) => void;
-}
-
-export const useSelectionStore = create<SelectionStore>((set) => ({
-  ...parseSelection(typeof window === "undefined" ? "" : window.location.pathname),
-  select: ({ projectId, campaignId }) => set({ projectId, campaignId }),
-}));
-
-export const useActiveProjectId = () => useSelectionStore((state) => state.projectId);
-export const useActiveCampaignId = () => useSelectionStore((state) => state.campaignId);
+export const useActiveProjectId = () => parseSelection(useLocation().pathname).projectId;
+export const useActiveCampaignId = () => parseSelection(useLocation().pathname).campaignId;

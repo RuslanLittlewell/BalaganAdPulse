@@ -117,17 +117,19 @@ export function createIntegrationUseCases(d: IntegrationDependencies) {
       if (!found) throw new AppError("not-found", "Ad not found");
 
       const stored = await d.creatives.list(adId);
-      if (stored.length > 0 || found.externalId === null) return stored;
+      if (found.externalId === null) return stored;
+      if (stored.length > 0 && !(await d.creatives.outdated(adId))) return stored;
 
       const active = creativeLoads.get(adId);
       if (active) return active;
 
-      const loading = (async () => {
-        const integration = await integrationOf(found);
+      const ad = found;
+      const refreshed = async () => {
+        const integration = await integrationOf(ad);
         if (!integration) return stored;
 
-        const token = d.cipher.decrypt(integration.encryptedToken, found.projectId);
-        const read = await d.provider.adCreatives(found.externalId!, token, integration.accountId);
+        const token = d.cipher.decrypt(integration.encryptedToken, ad.projectId);
+        const read = await d.provider.adCreatives(ad.externalId!, token, integration.accountId);
         if (read.length === 0) return stored;
 
         const copied = await Promise.all((read as ImportedCreative[]).map(async ({
@@ -144,6 +146,14 @@ export function createIntegrationUseCases(d: IntegrationDependencies) {
           };
         }));
         return d.creatives.save(adId, copied);
+      };
+      const loading = (async () => {
+        try {
+          return await refreshed();
+        } catch (error) {
+          if (stored.length > 0) return stored;
+          throw error;
+        }
       })();
       creativeLoads.set(adId, loading);
       try {

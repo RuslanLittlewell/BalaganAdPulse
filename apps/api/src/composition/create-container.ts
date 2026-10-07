@@ -15,6 +15,10 @@ import { createLeadFileUseCases, createLeadIntake, createLeadUseCases, createLea
 import { PrismaLeadFileRepository, S3LeadFileStorage } from '../modules/leads/infrastructure/prisma-lead-file-repository.js';
 import { createKpiRouter, createKpiUseCases } from '../modules/kpi/index.js';
 import { PrismaKpiRepository } from '../modules/kpi/infrastructure/prisma-kpi-repository.js';
+import { createReportIndexRouter, createReportRouter, createReportUseCases } from '../modules/reports/index.js';
+import { PrismaReportRepository } from '../modules/reports/infrastructure/prisma-report-repository.js';
+import { PrismaReportMetrics } from '../modules/reports/infrastructure/prisma-report-metrics.js';
+import { S3ReportCoverStorage } from '../modules/reports/infrastructure/s3-report-cover-storage.js';
 import type { LeadEvent } from '../modules/leads/index.js';
 import { PrismaLeadRepository } from '../modules/leads/infrastructure/prisma-lead-repository.js';
 import { PrismaLeadIntakeRepository } from '../modules/leads/infrastructure/prisma-lead-intake-repository.js';
@@ -125,6 +129,8 @@ export interface ApiContainer {
   readonly importWorker: ReturnType<typeof createImportWorker>;
   readonly leadPollWorker: ReturnType<typeof createLeadPollWorker>;
   readonly kpiRouter: Router;
+  readonly reportRouter: Router;
+  readonly reportIndexRouter: Router;
   readonly leadRouter: Router;
   readonly documentationRouter: Router;
   readonly authRouter: Router;
@@ -362,6 +368,16 @@ export function createContainer(): ApiContainer {
     ids,
     unitOfWork,
   });
+  const reports = createReportUseCases({
+    reports: new PrismaReportRepository(prisma, unitOfWork),
+    projects: projectRepository,
+    metrics: new PrismaReportMetrics(prisma),
+    covers: new S3ReportCoverStorage(),
+    audit,
+    unitOfWork,
+    clock,
+    ids,
+  });
   return {
     importWorker: createImportWorker({ jobs: new PrismaImportJobs(prisma), cipher: new AesCredentialCipher(process.env.INTEGRATION_ENCRYPTION_KEY), provider: new GraphProvider(process.env.META_GRAPH_VERSION ?? "v22.0"), clock, leads: leadIntake }),
     leadPollWorker: createLeadPollWorker({ jobs: new PrismaLeadPollJobs(prisma, unitOfWork), cipher: new AesCredentialCipher(process.env.INTEGRATION_ENCRYPTION_KEY), provider: new GraphProvider(process.env.META_GRAPH_VERSION ?? "v22.0"), inbox: leadIntake, unitOfWork, clock }),
@@ -397,6 +413,8 @@ export function createContainer(): ApiContainer {
       unitOfWork,
       publish: publishLeadEvent,
     })),
+    reportRouter: createReportRouter(reports),
+    reportIndexRouter: createReportIndexRouter(reports),
     kpiRouter: createKpiRouter(createKpiUseCases({
       kpis: new PrismaKpiRepository(prisma, unitOfWork),
       reach: { projects: projectRepository, campaigns: new PrismaCampaignRepository(prisma) },

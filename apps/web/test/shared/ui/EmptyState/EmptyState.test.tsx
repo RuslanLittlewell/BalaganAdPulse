@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { EmptyState } from "@/shared/ui/EmptyState/EmptyState.js";
 
 describe("EmptyState", () => {
@@ -8,9 +9,18 @@ describe("EmptyState", () => {
     expect(screen.getByText("Add one from the sidebar")).toBeInTheDocument();
   });
 
-  it("renders an action below the description", () => {
-    render(<EmptyState title="Что-то пошло не так" action={<button type="button">Повторить</button>} />);
+  it("offers its action as a button below the description and runs it", async () => {
+    const onAction = vi.fn();
+    render(<EmptyState title="Что-то пошло не так" actionLabel="Повторить" onAction={onAction} />);
 
-    expect(screen.getByRole("button", { name: "Повторить" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Повторить" }));
+
+    expect(onAction).toHaveBeenCalledOnce();
+  });
+
+  it("shows no button when it is given no action", () => {
+    render(<EmptyState title="Что-то пошло не так" actionLabel="Повторить" />);
+
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 });

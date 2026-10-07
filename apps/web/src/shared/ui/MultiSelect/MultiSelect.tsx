@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/shared/lib/index.js";
-import { Button } from "../ui/button.js";
+import { Button } from "../Button/Button.js";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,

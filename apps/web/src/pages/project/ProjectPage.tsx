@@ -4,8 +4,7 @@ import {
 } from "@/features/meta-integration/index.js";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { HistoryIcon } from "lucide-react";
-import { Button, EmptyState, Skeleton, Tabs } from "@/shared/ui/index.js";
+import { EmptyState, Skeleton, Tabs } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
 import { projectPath } from "@/shared/lib/index.js";
 import { useClients } from "@/entities/client/index.js";
@@ -29,7 +28,7 @@ import { useKpi } from "@/entities/kpi/index.js";
 import { PeriodControl, usePeriod } from "@/features/period/index.js";
 import { campaignTone } from "./campaignTone.js";
 import { TaskPreviewDialog } from "@/features/task-management/index.js";
-import { Can, useCan } from "@/features/permissions/index.js";
+import { useCan } from "@/features/permissions/index.js";
 import { TaskList } from "@/widgets/task-list/index.js";
 import { PerformanceSummary } from "@/widgets/agency-overview/index.js";
 import {
@@ -73,6 +72,7 @@ export function ProjectPage() {
   const [reading, setReading] = useState<Task | null>(null);
   const tasks = useTasks({ projectId, enabled: projectId != null });
   const editsProjectKpi = useCan("update", "kpi");
+  const readsActivity = useCan("read", "audit");
   const managesIntegrations = useCan("update", "integration");
   const integrations = useIntegrations(
     projectId ?? "",
@@ -133,16 +133,10 @@ export function ProjectPage() {
       <ProjectHeader
         project={project}
         clientName={clientName}
-        actions={
-          <Can action="read" resource="audit">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setActivityFilters({ projectId: project.id })}
-            >
-              <HistoryIcon /> {t("activity.title")}
-            </Button>
-          </Can>
+        onShowActivity={
+          readsActivity
+            ? () => setActivityFilters({ projectId: project.id })
+            : undefined
         }
       />
 
@@ -168,15 +162,8 @@ export function ProjectPage() {
       ) : campaigns.isError ? (
         <EmptyState
           title={t("state.error.title")}
-          action={
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => campaigns.refetch()}
-            >
-              {t("state.retry")}
-            </Button>
-          }
+          actionLabel={t("state.retry")}
+          onAction={() => campaigns.refetch()}
         />
       ) : (
         <div className="flex flex-col gap-3">
@@ -193,6 +180,7 @@ export function ProjectPage() {
             tableKey="campaigns"
             heading={t("campaigns.one")}
             rows={rows}
+            visibleRows={10}
             totals={separated ? undefined : summary.data}
             currency={project.budgetCurrency}
             empty={campaigns.isSuccess ? t("campaigns.empty.title") : undefined}

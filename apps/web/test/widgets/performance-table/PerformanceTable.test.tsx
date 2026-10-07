@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PerformanceTable, type PerformanceRow } from "@/widgets/performance-table/index.js";
 import { useColumnWidths } from "@/widgets/performance-table/columnWidths.js";
@@ -373,5 +373,53 @@ describe("ordering the figure columns", () => {
     expect(headerNames()).toEqual(["Кампания", "ROAS", "Расход", "Лид (Новый)"]);
     await user.click(screen.getByRole("button", { name: "Сдвинуть столбец влево «Лид (Новый)»" }));
     expect(headerNames()).toEqual(["Кампания", "ROAS", "Лид (Новый)", "Расход"]);
+  });
+});
+
+describe("a table limited to a number of visible rows", () => {
+  const many = (count: number): PerformanceRow[] => Array.from({ length: count }, (_, index) => ({
+    id: `c${index + 1}`, name: `Кампания ${index + 1}`, note: "Meta", performance: performance(index + 1),
+  }));
+  const campaignRows = () => screen.getAllByRole("row", { name: /^Кампания \d+/ });
+
+  it("shows every row while they fit", () => {
+    render(<PerformanceTable heading="Кампания" rows={many(10)} visibleRows={10} />);
+
+    expect(campaignRows()).toHaveLength(10);
+    expect(screen.getByRole("table")).not.toHaveAttribute("aria-rowcount");
+  });
+
+  it("renders only a window of a longer list and still tells how many rows there are", () => {
+    render(<PerformanceTable heading="Кампания" rows={many(40)} visibleRows={10} totals={performance(820)} />);
+
+    expect(campaignRows()).toHaveLength(15);
+    expect(screen.getByRole("row", { name: /^Кампания 1\b/ })).toHaveAttribute("aria-rowindex", "2");
+    expect(screen.queryByRole("row", { name: /^Кампания 40\b/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("table")).toHaveAttribute("aria-rowcount", "42");
+    expect(screen.getByRole("row", { name: /Итого/ })).toHaveAttribute("aria-rowindex", "42");
+  });
+
+  it("moves the window along as the list scrolls", () => {
+    render(<PerformanceTable heading="Кампания" rows={many(40)} visibleRows={10} />);
+    const scroller = screen.getByRole("table").parentElement!;
+
+    Object.defineProperty(scroller, "scrollTop", { configurable: true, value: 53 * 25 });
+    fireEvent.scroll(scroller);
+
+    expect(screen.getByRole("row", { name: /^Кампания 40\b/ })).toHaveAttribute("aria-rowindex", "41");
+    expect(screen.getByRole("row", { name: /^Кампания 21\b/ })).toBeInTheDocument();
+    expect(screen.queryByRole("row", { name: /^Кампания 1\b/ })).not.toBeInTheDocument();
+  });
+
+  it("opens a row that came into view by scrolling", async () => {
+    const onOpen = vi.fn();
+    render(<PerformanceTable heading="Кампания" rows={many(40)} visibleRows={10} onOpen={onOpen} />);
+    const scroller = screen.getByRole("table").parentElement!;
+
+    Object.defineProperty(scroller, "scrollTop", { configurable: true, value: 53 * 30 });
+    fireEvent.scroll(scroller);
+    await userEvent.click(screen.getByRole("button", { name: /^Кампания 33\b/ }));
+
+    expect(onOpen).toHaveBeenCalledWith("c33");
   });
 });

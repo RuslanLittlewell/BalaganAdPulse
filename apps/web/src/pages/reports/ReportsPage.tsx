@@ -44,7 +44,7 @@ function ReportsList({ projects }: { projects: Project[] }) {
             </SelectContent>
           </Select>
           {creates ? (
-            <Button size="sm" onClick={() => setCreating(true)}><PlusIcon /> {t("report.new")}</Button>
+            <Button onClick={() => setCreating(true)}><PlusIcon /> {t("report.new")}</Button>
           ) : null}
         </div>
       </div>

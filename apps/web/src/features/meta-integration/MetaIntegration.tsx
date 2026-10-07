@@ -229,7 +229,8 @@ function MetaConnectionCard({ projectId, connection }: { projectId: string; conn
       setPending(false);
     }
   };
-  const leadFailure = leadFailureText(connection.leads.lastError);
+  const leads = connection.leadsEnabled ? connection.leads : null;
+  const leadFailure = leads && leadFailureText(leads.lastError);
 
   return (
     <section
@@ -246,9 +247,9 @@ function MetaConnectionCard({ projectId, connection }: { projectId: string; conn
         {connection.lastError && (
           <p role="alert" className="text-xs text-destructive">{failureText(connection.lastError)}</p>
         )}
-        {connection.leads.lastSuccessAt && (
+        {leads?.lastSuccessAt && (
           <p className="text-xs text-muted-foreground">
-            {t("meta.leads.lastSuccess")} {new Date(connection.leads.lastSuccessAt).toLocaleString("ru-RU")}
+            {t("meta.leads.lastSuccess")} {new Date(leads.lastSuccessAt).toLocaleString("ru-RU")}
           </p>
         )}
         {leadFailure && (

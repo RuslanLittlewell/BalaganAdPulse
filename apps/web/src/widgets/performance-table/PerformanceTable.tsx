@@ -1,4 +1,4 @@
-import { Fragment, useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode, type UIEvent } from "react";
 import {
   ChevronRightIcon,
   EllipsisVerticalIcon,
@@ -11,7 +11,6 @@ import {
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
   DropdownMenuLabel,
-  Table,
   TableBody,
   TableCell,
   TableFooter,
@@ -68,9 +67,70 @@ export interface PerformanceTableProps {
   onExpandedChange?: (ids: ReadonlySet<string>) => void;
   empty?: string;
   extraColumns?: readonly ExtraColumn[];
+  visibleRows?: number;
 }
 
 const NO_EXTRA_COLUMNS: readonly ExtraColumn[] = [];
+const ESTIMATED_ROW_HEIGHT = 53;
+const OVERSCAN = 5;
+
+interface ShownRow {
+  key: string;
+  row: PerformanceRow;
+  depth: number;
+}
+
+function shownRows(rows: readonly PerformanceRow[], expanded: ReadonlySet<string>, parent = "", depth = 0): ShownRow[] {
+  return rows.flatMap((row) => {
+    const key = `${parent}/${row.id}`;
+    return [
+      { key, row, depth },
+      ...(expanded.has(row.id) ? shownRows(row.children ?? [], expanded, key, depth + 1) : []),
+    ];
+  });
+}
+
+function useRowWindow(total: number, limit: number | undefined) {
+  const scroller = useRef<HTMLDivElement>(null);
+  const [rowHeight, setRowHeight] = useState(ESTIMATED_ROW_HEIGHT);
+  const [frame, setFrame] = useState(0);
+  const [first, setFirst] = useState(0);
+  const windowed = limit != null && total > limit;
+
+  useLayoutEffect(() => {
+    const element = scroller.current;
+    const table = element?.querySelector("table");
+    if (!windowed || !element || !table) return;
+    const measure = () => {
+      const row = element.querySelector("tbody tr[aria-rowindex]")?.getBoundingClientRect().height ?? 0;
+      if (row > 0) setRowHeight(row);
+      const head = element.querySelector("thead")?.getBoundingClientRect().height ?? 0;
+      const foot = element.querySelector("tfoot")?.getBoundingClientRect().height ?? 0;
+      setFrame(head + foot + element.offsetHeight - element.clientHeight);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(table);
+    return () => observer.disconnect();
+  }, [windowed]);
+
+  if (!windowed) {
+    return { scroller, windowed, start: 0, end: total, before: 0, after: 0 };
+  }
+  const start = Math.max(0, first - OVERSCAN);
+  const end = Math.min(total, first + limit + OVERSCAN);
+  return {
+    scroller,
+    windowed,
+    start,
+    end,
+    before: start * rowHeight,
+    after: (total - end) * rowHeight,
+    maxHeight: frame + limit * rowHeight,
+    onScroll: (event: UIEvent<HTMLDivElement>) =>
+      setFirst(Math.floor(event.currentTarget.scrollTop / rowHeight)),
+  };
+}
 
 interface FigureColumn {
   id: string;
@@ -289,8 +349,11 @@ export function PerformanceTable({
   onExpandedChange,
   empty,
   extraColumns = NO_EXTRA_COLUMNS,
+  visibleRows,
 }: PerformanceTableProps) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const shown = shownRows(rows, expanded);
+  const rowWindow = useRowWindow(shown.length, visibleRows);
   const savedWidth = useColumnWidths((state) => state.nameWidths?.[tableKey]);
   const nameWidth =
     typeof savedWidth === "number" && Number.isFinite(savedWidth)
@@ -350,46 +413,57 @@ export function PerformanceTable({
     );
   }
 
-  const renderRow = (row: PerformanceRow, depth: number): ReactNode => {
+  const spanned = figures.length + 2;
+  const renderRow = ({ key, row, depth }: ShownRow, index: number): ReactNode => {
     const expandable = row.expandable ?? row.children != null;
     const activate = expandable
       ? () => toggle(row.id)
       : onOpen != null
         ? () => onOpen(row.id)
         : undefined;
-    const isOpen = expanded.has(row.id);
 
     return (
-      <Fragment key={row.id}>
-        <TableRow
-          onClick={activate}
-          className="group cursor-pointer"
-        >
-          <Name
-            row={row}
-            depth={depth}
-            expandable={expandable}
-            expanded={expandable ? isOpen : undefined}
-            onActivate={activate}
-          />
-          <Figures
-            figures={figures}
-            extra={row.extra ?? {}}
-            performance={row.performance}
-            currency={row.currency ?? currency}
-          />
-          <TableCell aria-hidden />
-        </TableRow>
-        {isOpen &&
-          (row.children ?? []).map((child) => renderRow(child, depth + 1))}
-      </Fragment>
+      <TableRow
+        key={key}
+        aria-rowindex={rowWindow.windowed ? index + 2 : undefined}
+        onClick={activate}
+        className="group cursor-pointer"
+      >
+        <Name
+          row={row}
+          depth={depth}
+          expandable={expandable}
+          expanded={expandable ? expanded.has(row.id) : undefined}
+          onActivate={activate}
+        />
+        <Figures
+          figures={figures}
+          extra={row.extra ?? {}}
+          performance={row.performance}
+          currency={row.currency ?? currency}
+        />
+        <TableCell aria-hidden />
+      </TableRow>
     );
   };
+  const spacer = (height: number) =>
+    height > 0 ? (
+      <tr aria-hidden>
+        <td colSpan={spanned} className="p-0" style={{ height }} />
+      </tr>
+    ) : null;
 
   return (
-    <div className="min-h-0 overflow-auto rounded-lg border border-border">
-      <Table
-        className="table-fixed text-sm"
+    <div
+      ref={rowWindow.scroller}
+      onScroll={rowWindow.onScroll}
+      className="min-h-0 overflow-auto rounded-lg border border-border"
+      style={{ maxHeight: rowWindow.maxHeight }}
+    >
+      <table
+        data-slot="table"
+        aria-rowcount={rowWindow.windowed ? shown.length + (totals != null ? 2 : 1) : undefined}
+        className="w-full table-fixed caption-bottom text-sm"
         style={{
           width:
             nameWidth +
@@ -405,8 +479,8 @@ export function PerformanceTable({
           ))}
           <col style={{ width: 40 }} />
         </colgroup>
-        <TableHeader>
-          <TableRow className="bg-muted/50 hover:bg-muted/50">
+        <TableHeader className="sticky top-0 z-20 [&_th]:backdrop-blur-xl">
+          <TableRow aria-rowindex={rowWindow.windowed ? 1 : undefined} className="bg-muted/50 hover:bg-muted/50">
             <TableHead
               scope="col"
               aria-label={heading}
@@ -496,10 +570,14 @@ export function PerformanceTable({
             </TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody>{rows.map((row) => renderRow(row, 0))}</TableBody>
+        <TableBody>
+          {spacer(rowWindow.before)}
+          {shown.slice(rowWindow.start, rowWindow.end).map((entry, offset) => renderRow(entry, rowWindow.start + offset))}
+          {spacer(rowWindow.after)}
+        </TableBody>
         {totals != null && (
-          <TableFooter>
-            <TableRow className="bg-muted/50 hover:bg-muted/50">
+          <TableFooter className="sticky bottom-0 z-20 [&_th]:backdrop-blur-xl [&_td]:backdrop-blur-xl">
+            <TableRow aria-rowindex={rowWindow.windowed ? shown.length + 2 : undefined} className="bg-muted/50 hover:bg-muted/50">
               <TableHead
                 scope="row"
                 className="sticky left-0 z-10 truncate font-medium shadow-[inset_0_1px_0_var(--border)] backdrop-blur-xl"
@@ -515,7 +593,7 @@ export function PerformanceTable({
             </TableRow>
           </TableFooter>
         )}
-      </Table>
+      </table>
     </div>
   );
 }

@@ -1,5 +1,8 @@
 export * from "./ui/alert-dialog.js";
-export * from "./ui/button.js";
+export { buttonVariants } from "./ui/button.js";
+export { Button } from "./Button/Button.js";
+export { Specular } from "./Specular/index.js";
+export type { SpecularProps } from "./Specular/index.js";
 export * from "./ui/calendar.js";
 export * from "./ui/card.js";
 export * from "./ui/context-menu.js";

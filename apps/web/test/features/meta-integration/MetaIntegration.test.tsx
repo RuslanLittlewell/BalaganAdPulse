@@ -129,6 +129,16 @@ describe("the Meta panel at rest", () => {
     expect(screen.queryByText(/Лиды из форм/)).not.toBeInTheDocument();
   });
 
+  it("says nothing about leads while lead import is switched off, even after a failed check", async () => {
+    withLeads({ status: "ERROR", lastSuccessAt: "2026-09-13T09:00:00Z", lastError: "PROVIDER" }, { leadsEnabled: false });
+    renderWithProviders(<MetaIntegration projectId="p1" />);
+
+    const panel = await screen.findByRole("region", { name: "Meta · Facebook Ads" });
+    expect(await within(panel).findByText(/^Обновление:/)).toBeInTheDocument();
+    expect(within(panel).queryByText(/лид/i)).not.toBeInTheDocument();
+    expect(within(panel).queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("still asks for a new token when the advertising import was refused", async () => {
     withLeads({ status: "OK", lastSuccessAt: "2026-09-13T09:50:00Z", lastError: "TOKEN" }, { status: "AUTH_REQUIRED", lastError: "TOKEN" });
     renderWithProviders(<MetaIntegration projectId="p1" />);

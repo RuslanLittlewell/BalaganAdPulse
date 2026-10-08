@@ -40,6 +40,7 @@ export const ru = {
   "campaigns.title": "Кампании", "campaigns.one": "Кампания",
   "campaigns.empty.title": "Кампаний пока нет",
   "campaigns.loading": "Загрузка кампаний",
+  "campaigns.runningOnly": "Только активные", "campaigns.noneRunning": "Активных кампаний нет",
   "campaigns.empty.description": "Кампании появятся, когда будут подключены рекламные кабинеты",
   "metric.spend": "Расход", "metric.impressions": "Показы", "metric.reach": "Охват",
   "metric.clicks": "Клики", "metric.conversions": "Лиды",

@@ -1,7 +1,6 @@
-import type { Campaign, PerformanceTone } from "@/entities/campaign/index.js";
+import { isRunning, type Campaign, type PerformanceTone } from "@/entities/campaign/index.js";
 import { KPI_METRIC_IDS, kpiProgress, type KpiInput, type KpiMetric } from "@/entities/kpi/index.js";
 
-const RUNNING: readonly Campaign["status"][] = ["ACTIVE", "LEARNING"];
 const GOOD_FROM = 100;
 const MIDDLE_FROM = 80;
 
@@ -13,7 +12,7 @@ export function campaignTone(
   projectKpi: KpiInput | null | undefined,
   range: { from: string; to: string },
 ): PerformanceTone {
-  if (!RUNNING.includes(campaign.status)) return "idle";
+  if (!isRunning(campaign.status)) return "idle";
   const own = campaign.kpi && isMetric(campaign.kpi.metric)
     ? { metric: campaign.kpi.metric, target: campaign.kpi.target }
     : null;

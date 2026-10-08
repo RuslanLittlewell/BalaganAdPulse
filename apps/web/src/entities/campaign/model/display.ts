@@ -13,6 +13,12 @@ export function statusLabel(status: DeliveryStatus): string {
   return t(`status.${status}`);
 }
 
+const RUNNING_STATUSES: readonly DeliveryStatus[] = ["ACTIVE", "LEARNING"];
+
+export function isRunning(status: DeliveryStatus): boolean {
+  return RUNNING_STATUSES.includes(status);
+}
+
 export function statusTone(status: DeliveryStatus): "positive" | "warning" | "danger" | "muted" {
   if (status === "ACTIVE") return "positive";
   if (status === "LEARNING") return "warning";

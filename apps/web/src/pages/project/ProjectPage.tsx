@@ -4,7 +4,7 @@ import {
 } from "@/features/meta-integration/index.js";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { EmptyState, Skeleton, Tabs } from "@/shared/ui/index.js";
+import { EmptyState, Skeleton, Switch, Tabs } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
 import { projectPath } from "@/shared/lib/index.js";
 import { useClients } from "@/entities/client/index.js";
@@ -15,7 +15,9 @@ import {
 } from "@/entities/project/index.js";
 import {
   channelLabel,
+  isRunning,
   statusLabel,
+  totalPerformance,
   useProjectCampaigns,
   useProjectSummary,
 } from "@/entities/campaign/index.js";
@@ -79,7 +81,11 @@ export function ProjectPage() {
     managesIntegrations && projectId != null,
   );
   const [source, setSource] = useState<string | null>(null);
-  useEffect(() => setSource(null), [projectId]);
+  const [runningOnly, setRunningOnly] = useState(true);
+  useEffect(() => {
+    setSource(null);
+    setRunningOnly(true);
+  }, [projectId]);
 
   const inFlight = (tasks.data ?? []).filter((task) =>
     ACTIVE_TASK_COLUMNS.includes(task.column),
@@ -102,7 +108,8 @@ export function ProjectPage() {
       `${t(`integrations.provider.${connection.provider}`)} · ${connection.accountId}`,
     );
   }
-  for (const campaign of campaigns.data ?? []) {
+  const all = campaigns.data ?? [];
+  for (const campaign of all) {
     if (campaign.sourceAccountId == null) continue;
     const key = sourceKey(campaign.channel, campaign.sourceAccountId);
     if (!sources.has(key)) {
@@ -113,14 +120,18 @@ export function ProjectPage() {
   const separated = sourceKeys.length > 1;
   const chosen =
     source != null && sources.has(source) ? source : sourceKeys[0];
-  const shown = (campaigns.data ?? []).filter(
+  const inAccount = all.filter(
     (campaign) =>
       !separated ||
       (campaign.sourceAccountId != null &&
         sourceKey(campaign.channel, campaign.sourceAccountId) === chosen),
   );
+  const running = inAccount.filter((campaign) => isRunning(campaign.status));
+  const listed = runningOnly
+    ? running
+    : [...running, ...inAccount.filter((campaign) => !isRunning(campaign.status))];
 
-  const rows: PerformanceRow[] = shown.map((campaign) => ({
+  const rows: PerformanceRow[] = listed.map((campaign) => ({
     id: campaign.id,
     name: campaign.name,
     note: `${channelLabel(campaign.channel)} · ${statusLabel(campaign.status)}`,
@@ -167,23 +178,36 @@ export function ProjectPage() {
         />
       ) : (
         <div className="flex flex-col gap-3">
-          {sources.size > 0 && (
-            <Tabs
-              items={[...sources].map(([id, label]) => ({ id, label }))}
-              activeId={chosen}
-              onSelect={setSource}
-              ariaLabel={t("campaigns.sources")}
-              className="self-start"
-            />
+          {(sources.size > 0 || all.length > 0) && (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              {sources.size > 0 && (
+                <Tabs
+                  items={[...sources].map(([id, label]) => ({ id, label }))}
+                  activeId={chosen}
+                  onSelect={setSource}
+                  ariaLabel={t("campaigns.sources")}
+                />
+              )}
+              {all.length > 0 && (
+                <label className="ml-auto flex items-center gap-2 text-sm">
+                  <Switch checked={runningOnly} onCheckedChange={setRunningOnly} />
+                  {t("campaigns.runningOnly")}
+                </label>
+              )}
+            </div>
           )}
           <PerformanceTable
             tableKey="campaigns"
             heading={t("campaigns.one")}
             rows={rows}
             visibleRows={10}
-            totals={separated ? undefined : summary.data}
+            totals={totalPerformance(listed.map((campaign) => campaign.performance))}
             currency={project.budgetCurrency}
-            empty={campaigns.isSuccess ? t("campaigns.empty.title") : undefined}
+            empty={
+              campaigns.isSuccess
+                ? t(inAccount.length > 0 ? "campaigns.noneRunning" : "campaigns.empty.title")
+                : undefined
+            }
             onOpen={(campaignId) =>
               navigate(
                 `${projectPath(project.id, campaignId)}${location.search}`,

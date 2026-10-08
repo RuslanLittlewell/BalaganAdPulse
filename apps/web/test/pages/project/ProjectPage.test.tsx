@@ -1,7 +1,7 @@
 import { http as mock, HttpResponse } from "msw";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Route, Routes, useLocation } from "react-router-dom";
+import { Link, Route, Routes, useLocation } from "react-router-dom";
 import { aTask, renderWithProviders, server } from "@test/shared/index.js";
 import { ProjectPage } from "@/pages/project/index.js";
 
@@ -118,13 +118,13 @@ describe("ProjectPage", () => {
     expect(screen.queryByRole("menuitemcheckbox", { name: /^CRM/ })).toBeNull();
   });
 
-  it("shows the project's own total under the campaigns", async () => {
+  it("totals the listed campaigns under them, deriving ratios from the sums", async () => {
     api();
     renderWithProviders(<App />, route);
 
     const footer = await screen.findByRole("row", { name: /Итого/ });
     expect(within(footer).getByText("4 200 Br")).toBeInTheDocument();
-    expect(within(footer).getByText("3,00x")).toBeInTheDocument();
+    expect(within(footer).getByText("1,90x")).toBeInTheDocument();
   });
 
   it("opens a campaign when its row is chosen", async () => {
@@ -152,6 +152,7 @@ describe("ProjectPage", () => {
     renderWithProviders(<App />, route);
 
     expect(await screen.findByText("Кампаний пока нет")).toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "Только активные" })).toBeNull();
   });
 
   it("shows a placeholder instead of an empty table while campaigns load", async () => {
@@ -288,7 +289,7 @@ describe("switching the campaigns by advertising account", () => {
     campaign("c2", "Лента / Россия", "META", 1200, "222"),
   ];
 
-  it("offers a tab per account and none combining them, starting on the first", async () => {
+  it("offers a tab per account and none combining them, starting on the first, with its own total", async () => {
     api({ campaigns: twoAccounts });
     renderWithProviders(<App />, route);
 
@@ -297,10 +298,10 @@ describe("switching the campaigns by advertising account", () => {
     expect(within(tabs).getByRole("radio", { name: "Meta · 111" })).toBeChecked();
     expect(screen.getByText("Поиск / Москва")).toBeInTheDocument();
     expect(screen.queryByText("Лента / Россия")).toBeNull();
-    expect(screen.queryByRole("row", { name: /Итого/ })).toBeNull();
+    expect(within(screen.getByRole("row", { name: /Итого/ })).getByText("3 000 Br")).toBeInTheDocument();
   });
 
-  it("lists only the chosen account's campaigns", async () => {
+  it("lists only the chosen account's campaigns, with their total", async () => {
     const user = userEvent.setup();
     api({ campaigns: twoAccounts });
     renderWithProviders(<App />, route);
@@ -310,7 +311,7 @@ describe("switching the campaigns by advertising account", () => {
 
     expect(screen.queryByText("Поиск / Москва")).toBeNull();
     expect(screen.getByText("Лента / Россия")).toBeInTheDocument();
-    expect(screen.queryByRole("row", { name: /Итого/ })).toBeNull();
+    expect(within(screen.getByRole("row", { name: /Итого/ })).getByText("1 200 Br")).toBeInTheDocument();
   });
 
   it("offers a tab for a second connection that has no campaigns yet", async () => {
@@ -364,6 +365,7 @@ describe("each campaign's indicator", () => {
     screen.getByRole("row", { name: new RegExp(name) }).querySelector("[data-tone]")?.getAttribute("data-tone");
 
   it("follows the campaign's KPI, the project's in its absence, and greys out what is not running", async () => {
+    const user = userEvent.setup();
     api({
       campaigns: [
         { ...campaign("c1", "Выполняет", "META", 1000), kpi: { metric: "CPA", target: "25.0000" } },
@@ -377,9 +379,91 @@ describe("each campaign's indicator", () => {
     renderWithProviders(<App />, route);
 
     await screen.findByText("Выполняет");
+    await user.click(screen.getByRole("switch", { name: "Только активные" }));
     await waitFor(() => expect(toneOf("По проекту")).toBe("stable"));
     expect(toneOf("Выполняет")).toBe("profitable");
     expect(toneOf("Отстаёт")).toBe("danger");
     expect(toneOf("На паузе")).toBe("idle");
+  });
+});
+
+describe("showing only the running campaigns", () => {
+  const mixed = [
+    { ...campaign("c1", "Весна", "META", 100), status: "PAUSED" },
+    campaign("c2", "Лето", "META", 200),
+    { ...campaign("c3", "Осень", "META", 400), status: "ENDED" },
+    { ...campaign("c4", "Зима", "META", 800), status: "LEARNING" },
+    campaign("c5", "Оттепель", "META", 1600),
+  ];
+  const footer = () => screen.getByRole("row", { name: /Итого/ });
+  const listedNames = () =>
+    screen.getAllByText(/^(Весна|Лето|Осень|Зима|Оттепель)$/).map((name) => name.textContent);
+
+  it("lists only the running campaigns in their order, with their total, whenever a project is opened", async () => {
+    api({ campaigns: mixed });
+    renderWithProviders(<App />, route);
+
+    await screen.findByText("Лето");
+    expect(screen.getByRole("switch", { name: "Только активные" })).toBeChecked();
+    expect(listedNames()).toEqual(["Лето", "Зима", "Оттепель"]);
+    expect(within(footer()).getByText("2 600 Br")).toBeInTheDocument();
+    expect(within(footer()).getByText("4,62x")).toBeInTheDocument();
+  });
+
+  it("lists every campaign, running ones first, totalling them all once the switch is off", async () => {
+    const user = userEvent.setup();
+    api({ campaigns: mixed });
+    renderWithProviders(<App />, route);
+    await screen.findByText("Лето");
+
+    await user.click(screen.getByRole("switch", { name: "Только активные" }));
+
+    expect(listedNames()).toEqual(["Лето", "Зима", "Оттепель", "Весна", "Осень"]);
+    expect(within(footer()).getByText("3 100 Br")).toBeInTheDocument();
+    expect(within(footer()).getByText("6,45x")).toBeInTheDocument();
+  });
+
+  it("says so when nothing is running, and lists the rest once the switch is off", async () => {
+    const user = userEvent.setup();
+    api({ campaigns: [mixed[0], mixed[2]] });
+    renderWithProviders(<App />, route);
+
+    expect(await screen.findByText("Активных кампаний нет")).toBeInTheDocument();
+    expect(screen.queryByText("Кампаний пока нет")).toBeNull();
+
+    await user.click(screen.getByRole("switch", { name: "Только активные" }));
+
+    expect(listedNames()).toEqual(["Весна", "Осень"]);
+  });
+
+  it("narrows the chosen account's campaigns", async () => {
+    api({ campaigns: [
+      { ...campaign("c1", "Весна", "META", 100, "111"), status: "PAUSED" },
+      campaign("c2", "Лето", "META", 100, "111"),
+      campaign("c3", "Зима", "META", 100, "222"),
+    ] });
+    renderWithProviders(<App />, route);
+
+    await screen.findByText("Лето");
+    expect(listedNames()).toEqual(["Лето"]);
+  });
+
+  it("is on again when another project is opened", async () => {
+    const user = userEvent.setup();
+    api({ campaigns: mixed });
+    server.use(mock.get("/api/projects", () => HttpResponse.json(["p1", "p2"].map((id, position) => ({
+      id, clientId: "cl1", name: id === "p1" ? "Клиника" : "Салон", budgetCurrency: "BYN",
+      priority: "HIGH", image: null, avatarPath: null, position, createdAt: "", updatedAt: "",
+    })))));
+    renderWithProviders(<><App /><Link to="/projects/p2">Салон</Link></>, route);
+    await screen.findByText("Лето");
+    await user.click(screen.getByRole("switch", { name: "Только активные" }));
+    expect(screen.getByRole("switch", { name: "Только активные" })).not.toBeChecked();
+
+    await user.click(screen.getByRole("link", { name: "Салон" }));
+
+    expect(await screen.findByRole("heading", { name: "Салон" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Только активные" })).toBeChecked();
+    expect(listedNames()).toEqual(["Лето", "Зима", "Оттепель"]);
   });
 });

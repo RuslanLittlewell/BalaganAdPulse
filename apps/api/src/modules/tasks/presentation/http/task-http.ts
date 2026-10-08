@@ -1,7 +1,7 @@
 import { Router, type NextFunction, type Request, type RequestHandler, type Response } from "express";
 import { AppError } from "#shared/domain/index.js";
-import type { TaskUseCases } from "../../application/task-use-cases.js";
-import type { TaskImageUseCases } from "../../application/task-image-use-cases.js";
+import type { TaskUseCases } from "#modules/tasks/application/task-use-cases.js";
+import type { TaskImageUseCases } from "#modules/tasks/application/task-image-use-cases.js";
 import {
   createTaskSchema, moveTaskSchema, taskFilterSchema, updateTaskSchema,
 } from "./task-schemas.js";
@@ -24,7 +24,6 @@ export function createTaskRouter(useCases: TaskUseCases): Router {
     const only = (value: unknown) => (typeof value === "string" && value ? value : undefined);
     res.json(await useCases.list(actorOf(req), taskFilterSchema.parse({
       projectId: only(req.query.projectId),
-      campaignId: only(req.query.campaignId),
       dueFrom: only(req.query.dueFrom),
       dueTo: only(req.query.dueTo),
     })));

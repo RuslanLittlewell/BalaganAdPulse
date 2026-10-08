@@ -22,11 +22,16 @@ export const scryptGate = createGate({
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(SALT_BYTES);
-  const key = await scryptGate.run(() => scryptAsync(password, salt, KEY_BYTES, PARAMS));
+  const key = await scryptGate.run(() =>
+    scryptAsync(password, salt, KEY_BYTES, PARAMS),
+  );
   return `${salt.toString("hex")}:${key.toString("hex")}`;
 }
 
-export async function verifyPassword(password: string, stored: string): Promise<boolean> {
+export async function verifyPassword(
+  password: string,
+  stored: string,
+): Promise<boolean> {
   const [saltHex, keyHex] = stored.split(":");
   if (!saltHex || !keyHex) return false;
   const expected = Buffer.from(keyHex, "hex");
@@ -39,6 +44,10 @@ export async function verifyPassword(password: string, stored: string): Promise<
 
 export class PasswordAdapter implements PasswordPort {
   readonly dummyHash = `${"0123456789abcdef".repeat(2)}:${"0123456789abcdef".repeat(8)}`;
-  hash(plain: string): Promise<string> { return hashPassword(plain); }
-  verify(plain: string, hash: string): Promise<boolean> { return verifyPassword(plain, hash); }
+  hash(plain: string): Promise<string> {
+    return hashPassword(plain);
+  }
+  verify(plain: string, hash: string): Promise<boolean> {
+    return verifyPassword(plain, hash);
+  }
 }

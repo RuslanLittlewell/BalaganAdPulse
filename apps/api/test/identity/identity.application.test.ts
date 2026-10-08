@@ -7,9 +7,12 @@ import {
   type IdentityUser,
 } from "../../src/modules/identity/index.js";
 
-function fixture() {
+function fixture(options: { mail?: boolean } = {}) {
   const users = new Map<string, IdentityUser>();
   const sessions = new Map<string, { userId: string; expiresAt: Date }>();
+  const resets = new Map<string, { userId: string; tokenHash: string; expiresAt: Date }>();
+  const delivered: { email: string; name: string; token: string }[] = [];
+  let resetCount = 0;
   const redeemed: string[] = [];
   const context = {} as TransactionContext;
   const dependencies: IdentityDependencies = {
@@ -25,6 +28,11 @@ function fixture() {
       update: async (_tx, id, input) => {
         const user = users.get(id)!;
         const updated = { ...user, ...input };
+        users.set(id, updated);
+        return updated;
+      },
+      setPassword: async (_tx, id, passwordHash) => {
+        const updated = { ...users.get(id)!, passwordHash };
         users.set(id, updated);
         return updated;
       },
@@ -50,6 +58,9 @@ function fixture() {
       generateRefresh: () => `refresh-${sessions.size + 1}`,
       hashRefresh: (token) => `digest:${token}`,
       refreshExpiry: (now) => new Date(now.getTime() + 1_000),
+      generateReset: () => `reset-${++resetCount}`,
+      hashReset: (token) => `reset-digest:${token}`,
+      resetExpiry: (now) => new Date(now.getTime() + 3_600_000),
     },
     sessions: {
       save: async (_tx, value) => { sessions.set(value.tokenHash, { userId: value.userId, expiresAt: value.expiresAt }); },
@@ -59,6 +70,22 @@ function fixture() {
         return { ...value, user: users.get(value.userId)! };
       },
       revoke: async (_tx, tokenHash) => { sessions.delete(tokenHash); },
+      revokeAll: async (_tx, userId) => {
+        for (const [hash, session] of sessions) if (session.userId === userId) sessions.delete(hash);
+      },
+    },
+    resets: {
+      replace: async (_tx, value) => { resets.set(value.userId, value); },
+      find: async (tokenHash) => [...resets.values()].find((reset) => reset.tokenHash === tokenHash) ?? null,
+      consume: async (_tx, tokenHash) => {
+        const reset = [...resets.values()].find((candidate) => candidate.tokenHash === tokenHash);
+        if (reset) resets.delete(reset.userId);
+        return reset !== undefined;
+      },
+    },
+    resetLinks: {
+      available: options.mail ?? true,
+      deliver: (recipient, token) => { delivered.push({ ...recipient, token }); },
     },
     profiles: {
       readAvatar: async () => null,
@@ -67,7 +94,7 @@ function fixture() {
     clock: { now: () => new Date("2026-08-31T12:00:00.000Z") },
     unitOfWork: { run: (work) => work(context) },
   };
-  return { users, sessions, redeemed, useCases: createIdentityUseCases(dependencies) };
+  return { users, sessions, resets, delivered, redeemed, useCases: createIdentityUseCases(dependencies) };
 }
 
 describe("identity application use cases", () => {
@@ -127,5 +154,79 @@ describe("authenticate", () => {
       category: "unauthorized",
       message: "Authentication required",
     });
+  });
+});
+
+describe("password recovery", () => {
+  const registered = async (useCases: ReturnType<typeof fixture>["useCases"]) =>
+    useCases.register({ name: "Buyer", email: "buyer@acme.com", password: "secret123", inviteCode: "invite-1" });
+
+  it("mails a link to a registered email, keeping only its hash", async () => {
+    const { resets, delivered, useCases } = fixture();
+    await registered(useCases);
+
+    await useCases.requestPasswordReset("buyer@acme.com");
+
+    expect(delivered).toEqual([{ email: "buyer@acme.com", name: "Buyer", token: "reset-1" }]);
+    expect(resets.get("u1")).toEqual({
+      userId: "u1", tokenHash: "reset-digest:reset-1", expiresAt: new Date("2026-08-31T13:00:00.000Z"),
+    });
+  });
+
+  it("answers an unknown email the same way and mails nothing", async () => {
+    const { resets, delivered, useCases } = fixture();
+
+    await expect(useCases.requestPasswordReset("nobody@acme.com")).resolves.toBeUndefined();
+
+    expect(delivered).toEqual([]);
+    expect(resets.size).toBe(0);
+  });
+
+  it("says recovery is unavailable when mail is not set up, whoever asks", async () => {
+    const { delivered, useCases } = fixture({ mail: false });
+    await registered(useCases);
+
+    await expect(useCases.requestPasswordReset("buyer@acme.com"))
+      .rejects.toMatchObject({ category: "unavailable" });
+    await expect(useCases.requestPasswordReset("nobody@acme.com"))
+      .rejects.toMatchObject({ category: "unavailable" });
+    expect(delivered).toEqual([]);
+  });
+
+  it("lets only the newest link work", async () => {
+    const { useCases } = fixture();
+    await registered(useCases);
+    await useCases.requestPasswordReset("buyer@acme.com");
+    await useCases.requestPasswordReset("buyer@acme.com");
+
+    await expect(useCases.checkPasswordReset("reset-1")).rejects.toMatchObject({ category: "not-found" });
+    await expect(useCases.checkPasswordReset("reset-2")).resolves.toBeUndefined();
+  });
+
+  it("refuses a link once its hour is over", async () => {
+    const { resets, useCases } = fixture();
+    await registered(useCases);
+    await useCases.requestPasswordReset("buyer@acme.com");
+    resets.get("u1")!.expiresAt = new Date("2026-08-31T12:00:00.000Z");
+
+    await expect(useCases.checkPasswordReset("reset-1")).rejects.toMatchObject({
+      category: "not-found", message: "This password reset link is invalid or has expired",
+    });
+    await expect(useCases.resetPassword("reset-1", "changed123")).rejects.toMatchObject({ category: "not-found" });
+  });
+
+  it("sets the new password, ends every session and signs in, once", async () => {
+    const { users, sessions, useCases } = fixture();
+    await registered(useCases);
+    await useCases.login({ email: "buyer@acme.com", password: "secret123" });
+    expect(sessions.size).toBe(2);
+    await useCases.requestPasswordReset("buyer@acme.com");
+
+    const signedIn = await useCases.resetPassword("reset-1", "changed123");
+
+    expect(users.get("u1")?.passwordHash).toBe("hash:changed123");
+    expect([...sessions.keys()]).toEqual([`digest:${signedIn.refreshToken}`]);
+    expect(signedIn.accessToken).toBe("access:u1:Buyer");
+    await expect(useCases.resetPassword("reset-1", "another123")).rejects.toMatchObject({ category: "not-found" });
   });
 });

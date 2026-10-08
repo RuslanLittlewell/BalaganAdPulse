@@ -5,7 +5,6 @@ import { MemoryRouter } from "react-router-dom";
 import { createQueryClient } from "@/shared/lib/index.js";
 import { AuthProvider } from "@/features/auth/index.js";
 import { AlertsProvider } from "@/shared/ui/index.js";
-import { SelectionSync, useSelectionStore } from "@/entities/project/index.js";
 import { NavCollapseProvider } from "@/features/nav-collapse/index.js";
 import { writeTokens, clearTokens } from "@/shared/lib/index.js";
 import { makeAccessToken } from "./token.js";
@@ -22,8 +21,6 @@ export function renderWithProviders(ui: ReactElement, options?: RenderOptions) {
     writeTokens({ accessToken: makeAccessToken(), refreshToken: "test-refresh" });
   }
 
-  useSelectionStore.setState({ projectId: undefined, campaignId: undefined });
-
   const client = createQueryClient();
   return render(
     <QueryClientProvider client={client}>
@@ -31,7 +28,6 @@ export function renderWithProviders(ui: ReactElement, options?: RenderOptions) {
         <AlertsProvider>
         <AuthProvider>
           <NavCollapseProvider>
-            <SelectionSync />
             {ui}
           </NavCollapseProvider>
         </AuthProvider>

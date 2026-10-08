@@ -28,9 +28,9 @@ function fixture(initial: CreativeView[] = [], connected = true) {
     return stored;
   });
   const dependencies = {
-    ads: { locate: vi.fn(async () => ({ projectId: "p1", externalId: "meta-ad" })) },
-    creatives: { list: vi.fn(async () => stored), save },
-    repository: { read: vi.fn(async () => connected ? ({ accountId: "account", encryptedToken: "cipher" }) : null) },
+    ads: { locate: vi.fn(async () => ({ projectId: "p1", externalId: "meta-ad", accountId: "account" })) },
+    creatives: { list: vi.fn(async () => stored), outdated: vi.fn(async () => false), save },
+    repository: { list: vi.fn(async () => connected ? [{ accountId: "account", encryptedToken: "cipher" }] : []) },
     cipher: { decrypt: vi.fn(() => "token") },
     provider: { adCreatives: provider },
     files: { copy: vi.fn(async () => ({ key: "creatives/key", contentType: "image/jpeg", bytes: 42 })) },
@@ -80,5 +80,25 @@ describe("creative loading", () => {
     ]);
     expect(d.provider).toHaveBeenCalledOnce();
     expect(d.save).toHaveBeenCalledOnce();
+  });
+});
+
+describe("the connection an ad is read through", () => {
+  it("uses the credential of the account the ad's campaign came from", async () => {
+    const preview = vi.fn(async () => "https://preview.invalid/frame");
+    const decrypt = vi.fn((value: string) => `token-of-${value}`);
+    const service = createIntegrationUseCases({
+      ads: { locate: vi.fn(async () => ({ projectId: "p1", externalId: "meta-ad", accountId: "second" })) },
+      repository: { list: vi.fn(async () => [
+        { accountId: "first", encryptedToken: "first-cipher" },
+        { accountId: "second", encryptedToken: "second-cipher" },
+      ]) },
+      cipher: { decrypt },
+      provider: { preview },
+    } as unknown as IntegrationDependencies);
+
+    await service.adPreview(actor, "a1");
+
+    expect(preview).toHaveBeenCalledWith("meta-ad", "token-of-second-cipher");
   });
 });

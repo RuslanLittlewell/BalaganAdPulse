@@ -45,58 +45,58 @@ const signedInAs = (id: string) => server.use(mock.get("/api/auth/me", () => Htt
 
 describe("the CRM board a member last selected", () => {
   it("opens again when the member comes back to CRM from another module", async () => {
-    boards({ key: "agency", label: "Агентство" }, { key: "client-1", label: "Ромашка" });
+    boards({ key: "project-1", label: "Сайт" }, { key: "project-2", label: "Реклама" });
     renderWithProviders(<App />, { route: "/crm" });
 
     await userEvent.click(await screen.findByLabelText("Воронка"));
-    await userEvent.click(await screen.findByRole("option", { name: "Ромашка" }));
-    await waitFor(() => expect(screen.getByLabelText("Адрес")).toHaveTextContent("/crm?board=client-1"));
+    await userEvent.click(await screen.findByRole("option", { name: "Реклама" }));
+    await waitFor(() => expect(screen.getByLabelText("Адрес")).toHaveTextContent("/crm?board=project-2"));
 
     await userEvent.click(screen.getByRole("link", { name: "Задачи" }));
     await screen.findByRole("heading", { name: "Задачи" });
     await userEvent.click(screen.getByRole("link", { name: "CRM" }));
 
-    await waitFor(() => expect(screen.getByLabelText("Воронка")).toHaveTextContent("Ромашка"));
-    expect(screen.getByLabelText("Адрес")).toHaveTextContent("/crm?board=client-1");
+    await waitFor(() => expect(screen.getByLabelText("Воронка")).toHaveTextContent("Реклама"));
+    expect(screen.getByLabelText("Адрес")).toHaveTextContent("/crm?board=project-2");
   });
 
   it("survives a reload", async () => {
-    boards({ key: "agency", label: "Агентство" }, { key: "client-1", label: "Ромашка" });
-    useModuleMemory.setState({ boards: { "user-1": "client-1" } });
+    boards({ key: "project-1", label: "Сайт" }, { key: "project-2", label: "Реклама" });
+    useModuleMemory.setState({ boards: { "user-1": "project-2" } });
     renderWithProviders(<App />, { route: "/crm" });
 
-    await waitFor(() => expect(screen.getByLabelText("Воронка")).toHaveTextContent("Ромашка"));
-    expect(JSON.parse(localStorage.getItem("adpulse-module-memory")!).state.boards).toEqual({ "user-1": "client-1" });
+    await waitFor(() => expect(screen.getByLabelText("Воронка")).toHaveTextContent("Реклама"));
+    expect(JSON.parse(localStorage.getItem("adpulse-module-memory")!).state.boards).toEqual({ "user-1": "project-2" });
   });
 
   it("falls back to the default board and forgets a board the member no longer reaches", async () => {
-    boards({ key: "agency", label: "Агентство" }, { key: "client-1", label: "Ромашка" });
+    boards({ key: "project-1", label: "Сайт" }, { key: "project-2", label: "Реклама" });
     useModuleMemory.setState({ boards: { "user-1": "client-gone" } });
     renderWithProviders(<App />, { route: "/crm" });
 
-    await waitFor(() => expect(screen.getByLabelText("Воронка")).toHaveTextContent("Агентство"));
+    await waitFor(() => expect(screen.getByLabelText("Воронка")).toHaveTextContent("Сайт"));
     expect(screen.queryByText("Воронка недоступна")).not.toBeInTheDocument();
     await waitFor(() => expect(useModuleMemory.getState().boards["user-1"]).toBeUndefined());
   });
 
   it("does not open another person's remembered board", async () => {
-    boards({ key: "agency", label: "Агентство" }, { key: "client-1", label: "Ромашка" });
-    useModuleMemory.setState({ boards: { "user-1": "client-1" } });
+    boards({ key: "project-1", label: "Сайт" }, { key: "project-2", label: "Реклама" });
+    useModuleMemory.setState({ boards: { "user-1": "project-2" } });
     signedInAs("user-2");
     renderWithProviders(<App />, { route: "/crm" });
 
     const selector = await screen.findByLabelText("Воронка");
     await waitFor(() => expect(screen.getByLabelText("Адрес")).toHaveTextContent(/^\/crm$/));
-    expect(selector).toHaveTextContent("Агентство");
-    expect(useModuleMemory.getState().boards).toEqual({ "user-1": "client-1" });
+    expect(selector).toHaveTextContent("Сайт");
+    expect(useModuleMemory.getState().boards).toEqual({ "user-1": "project-2" });
   });
 
   it("lets a board in the address win and remembers it instead", async () => {
-    boards({ key: "agency", label: "Агентство" }, { key: "client-1", label: "Ромашка" }, { key: "client-2", label: "Лютик" });
-    useModuleMemory.setState({ boards: { "user-1": "client-1" } });
-    renderWithProviders(<App />, { route: "/crm?board=client-2" });
+    boards({ key: "project-1", label: "Сайт" }, { key: "project-2", label: "Реклама" }, { key: "project-3", label: "Лютик" });
+    useModuleMemory.setState({ boards: { "user-1": "project-2" } });
+    renderWithProviders(<App />, { route: "/crm?board=project-3" });
 
     await waitFor(() => expect(screen.getByLabelText("Воронка")).toHaveTextContent("Лютик"));
-    await waitFor(() => expect(useModuleMemory.getState().boards["user-1"]).toBe("client-2"));
+    await waitFor(() => expect(useModuleMemory.getState().boards["user-1"]).toBe("project-3"));
   });
 });

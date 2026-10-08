@@ -1,6 +1,6 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { AppError } from "#shared/domain/app-error.js";
-import type { ActorResolutionPort } from "../../application/actor-resolution-port.js";
+import type { ActorResolutionPort } from "#modules/members/application/actor-resolution-port.js";
 
 export function createActorResolution(members: ActorResolutionPort): RequestHandler {
   return function resolveActor(req: Request, _res: Response, next: NextFunction): void {

@@ -3,10 +3,10 @@
 A media buyer's dashboard. This repository hosts the backend REST API and, alongside
 it in the same monorepo, the React frontend.
 
-**Current phase:** Phase 12 — deployment to Render. Phase 11 made the repository
-deployable: a single production image serving both the API and the built SPA, with CI
-gating every push to `main`. CSV import and AI analysis are deliberately out of scope
-for now.
+It runs in production at <https://app.balagan.pro>, on a VPS the CI pipeline deploys to —
+see [Deployment](#deployment). Planning lives in [openspec/](openspec/); phases 1–12 are
+kept as history in [docs/archive/phases-1-12/](docs/archive/phases-1-12/). CSV import and
+AI analysis are deliberately out of scope for now.
 
 ## Upgrading an existing checkout
 
@@ -102,26 +102,58 @@ docker run --rm -p 3000:3000 \
 ```
 
 `NODE_ENV=production` makes the server refuse to start on the placeholder secrets
-from `.env.example`. Migrations are **not** applied on boot — they run as a
-pre-deploy step, so that a rolling deploy cannot mutate the schema underneath the
-instance still serving traffic.
+from `.env.example`. Migrations are **not** applied on boot — they run as a separate
+step before the running version is replaced, so a failed migration leaves it serving.
 
 The health endpoint is `GET /healthz`.
 
 ## Deployment
 
-AdPulse runs on Render, in Frankfurt: one web service (Starter) serving both the
-API and the built SPA, and one Basic-256mb Postgres. Both are declared in
-[render.yaml](render.yaml).
+AdPulse runs on one VPS (`45.87.219.63`) behind <https://app.balagan.pro>. Docker Compose,
+from [deploy/compose.prod.yml](deploy/compose.prod.yml), runs the production image — the
+API and the built SPA in one process — next to Postgres 16 and MinIO, whose data lives in
+Docker volumes on the server. nginx, configured from
+[deploy/nginx.conf](deploy/nginx.conf), forwards the domain to the app on
+`127.0.0.1:3100`, WebSocket upgrades included.
 
-### Credentials
+### How a deploy runs
 
-| Credential | Where it lives | Who sets it |
+Pushing to `production` deploys; `main` runs the same checks for pull requests but does
+not ship. In [ci.yml](.github/workflows/ci.yml) the `image` job builds the production
+image, proves it starts, and on a push publishes it as `ghcr.io/<repository>:<commit sha>`,
+an immutable tag. Once the `api`, `web`, `build` and `image` jobs pass, the `Deploy to VPS`
+job:
+
+1. signs in to the server as `adpulse-deploy`, checking its host key against
+   [deploy/known_hosts](deploy/known_hosts), and copies `compose.prod.yml`, `deploy.sh`
+   and `backup.sh` to `/opt/adpulse/`;
+2. runs [deploy/deploy.sh](deploy/deploy.sh) with that image, which pulls it, starts
+   Postgres and MinIO, takes a backup with [deploy/backup.sh](deploy/backup.sh), creates
+   the storage bucket if missing, applies migrations (`prisma migrate deploy` in the
+   `migrate` service), replaces the app and waits up to a minute for `/healthz`;
+3. checks `https://app.balagan.pro/healthz` from outside.
+
+A failed migration stops the script before the app is replaced, so the previous version
+keeps serving. Between the migration and the replacement the old version runs against the
+new schema, so migrations must stay backward-compatible with the version already running.
+There is no automatic rollback: to return to an earlier version, run on the server
+`APP_IMAGE=ghcr.io/<repository>:<earlier sha> /opt/adpulse/deploy.sh`, or revert and push.
+
+Backups are gzipped `pg_dump` files in `/opt/adpulse/backups`, one per deploy, kept for
+14 days. To take one by hand, run `/opt/adpulse/backup.sh`.
+
+### Configuration and secrets
+
+| What | Where it lives | Who sets it |
 |---|---|---|
-| `JWT_SECRET` | Render environment variable, `sync: false` | Operator, at Blueprint creation |
-| `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` | Render environment variables, `sync: false` | Operator, at Blueprint creation |
-| `RENDER_DEPLOY_HOOK_URL` | GitHub Actions repository secret | Operator, after the service exists |
-| `DATABASE_URL` | Injected by Render from the database | Nobody |
+| Postgres and MinIO credentials, `JWT_SECRET`, `INTEGRATION_ENCRYPTION_KEY`, `SEED_ADMIN_*`, `APP_URL`, `SMTP_*` | `/opt/adpulse/.env` on the server, passed whole to the app | Operator, by hand |
+| `PRODUCTION_VPS_SSH_KEY` — the private key of `adpulse-deploy` | GitHub Actions repository secret | Operator |
+| The server's host key | [deploy/known_hosts](deploy/known_hosts), in the repository | Operator, when the server changes |
+| Access to the image registry | The job's own `GITHUB_TOKEN`, used for one deploy and logged out | Nobody |
+
+CI never writes `/opt/adpulse/.env`, and the repository holds no production secret. In
+production `APP_URL` is `https://app.balagan.pro`; without it, or without `SMTP_USER` and
+`SMTP_PASSWORD`, asking for a password reset link answers 503.
 
 `JWT_SECRET` must be at least 32 characters, and the server refuses to start on the
 placeholder from `.env.example` when `NODE_ENV=production`. Generate one with:
@@ -130,46 +162,26 @@ placeholder from `.env.example` when `NODE_ENV=production`. Generate one with:
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 ```
 
-Deliberately **not** required: no Render API key, no container registry credentials,
-no database password handled by a person, and no production `DATABASE_URL` in GitHub.
-The deploy hook is the only credential this repository holds, and it reaches exactly
-one service.
+### Changing a secret
 
-### First deploy
+Edit `/opt/adpulse/.env` on the server, then re-run the latest `Deploy to VPS` job in
+GitHub Actions: it redeploys the same image and the app picks up the new values. Rotating
+`JWT_SECRET` invalidates every access token but not the refresh tokens, which are opaque
+and stored in the database, so clients recover on their next refresh without signing in
+again. To cut off registration instead, revoke the outstanding invitations — there is no
+shared code left to rotate.
 
-The deploy hook does not exist until the service does, so the order is fixed:
+### Seeding the first admin on the server
 
-1. Merge `render.yaml` to `main`.
-2. Create the Blueprint in Render. It prompts for `JWT_SECRET` and the `SEED_ADMIN_*`
-   values, creates the database and the service, and runs an initial deploy. This one is
-   not gated by CI, by construction. Run `npm run seed -w apps/api` once against the new
-   database before anyone tries to sign up — see
-   [Seeding the first admin](#seeding-the-first-admin).
-3. Copy the service's deploy hook URL into a GitHub Actions secret named
-   `RENDER_DEPLOY_HOOK_URL`.
-4. Every push to `main` from then on deploys through CI.
+A new database needs its first admin once, with `SEED_ADMIN_*` set in `/opt/adpulse/.env`:
 
-### Deploys after the first
+```bash
+cd /opt/adpulse
+APP_IMAGE=ghcr.io/<repository>:<deployed sha> docker compose --env-file .env \
+  -f compose.prod.yml run --rm app node --conditions=compiled dist/composition/seed-cli.js
+```
 
-Auto-deploy is off. The `Trigger deploy` job in
-[ci.yml](.github/workflows/ci.yml) POSTs the hook after the checks pass, on pushes
-to `main` only. If a job fails spuriously, re-running it in the Actions UI also re-runs
-the deploy job. To ship when CI itself is broken, use Render's Manual Deploy button.
-
-Migrations run as Render's pre-deploy command, `npx --no-install prisma migrate deploy`,
-inside the production image. A failure aborts the deploy and leaves the previous version
-serving. `--no-install` matters: without it, an image somehow missing the Prisma CLI would
-silently fetch a floating latest version from the network mid-deploy instead of failing.
-Because rolling deploys briefly run old and new code together, migrations must be
-backward-compatible with the version already running.
-
-### Rotating a secret
-
-Change it in the Render dashboard; Render redeploys. Rotating `JWT_SECRET` invalidates
-every access token but not the refresh tokens, which are opaque and stored in the
-database, so clients recover on their next refresh without signing in again. To cut off
-registration instead, revoke the outstanding invitations — there is no shared code left to
-rotate.
+See [Seeding the first admin](#seeding-the-first-admin) for what it does.
 
 ## Project structure
 
@@ -185,7 +197,9 @@ AdPulse/
         composition/        # the only place adapters are constructed and wired
           app.ts            # builds the Express app (no listen) — used by tests
           server.ts         # entry point
-          create-container.ts, create-routes.ts, seed-cli.ts
+          create-container.ts  # the order modules are wired in, and what the app is given
+          wiring/           # one wire… function per module, taking the shared kernel
+          create-routes.ts, seed-cli.ts
         modules/            # one directory per business capability
           identity/         # registration, login, tokens, profiles
           members/          # membership, roles, access grants, the session read
@@ -214,11 +228,10 @@ transport-independent `AppError` and are mapped to the HTTP envelope in one plac
 **How the web app holds what the server sends.** Readings that depend on a period — figures,
 ad sets, ads, leads — are React Query queries, refetched when the screen that wants them is
 mounted, because a stale figure is worse than a request. The lists the whole session leans on
-— the staff, the projects, and the campaign names the task module names its work by — are
-zustand stores loaded once and read from everywhere: `StaffSync` and `ProjectsSync` fill
-theirs when the app starts, `CampaignNamesSync` fills its own when the task module is opened
-and drops it when the module is left. A store is refreshed by the mutations that change what
-it holds, so creating or renaming a project reaches every screen showing the list.
+— the staff and the projects — are zustand stores loaded once and read from everywhere:
+`StaffSync` and `ProjectsSync` fill theirs when the app starts. A store is refreshed by the
+mutations that change what it holds, so creating or renaming a project reaches every screen
+showing the list.
 
 Every client belongs to an organization. The business hierarchy is
 `Client → Project → Campaign → Ad set → Ad`, with measured figures stored per day at
@@ -241,14 +254,12 @@ inside one transaction, so a position is never duplicated or left with a gap.
 
 A task carries a title, a rich-text description and a priority of its own (`LOW`, `MEDIUM`,
 `HIGH`, `URGENT` — distinct from `ProjectPriority`, which describes a project by counting its
-tasks), and optionally a project, a campaign, a responsible member, a due date and a
-checklist.
+tasks), and optionally a project, a responsible member, a due date and a checklist.
 
 **A task may stand without a project** — the note a media buyer writes to themselves. Such a
-task carries no campaign and is never shared with a client, because both come from the
-project, and it is reached by the member who wrote it, the member responsible for it and any
-admin: the project's grants cannot answer for it. The board and the calendar show it as
-**Без проекта**.
+task is never shared with a client, because the client comes from the project, and it is
+reached by the member who wrote it, the member responsible for it and any admin: the
+project's grants cannot answer for it. The board and the calendar show it as **Без проекта**.
 
 **The form is composed rather than filled in.** It opens with the title, the description and
 the priority, and a row of controls under the title adds what this task actually needs:
@@ -284,14 +295,6 @@ in the audit trail. A monthly task due on the 31st falls on the last day of a mo
 short to hold it. An interval needs a due date to count from, and clearing the due date of a
 task while it repeats is refused.
 
-It may also name **one campaign of its own project**. Naming none means the work is about
-the project as a whole, shown as **Общий** — a statement rather than a gap, so nothing
-defaults a task onto a campaign. A campaign under another project is refused with 400,
-the same answer an unknown campaign gets, so a refusal never confirms what exists outside
-the caller's grants. Moving a task to another project releases a campaign the request did
-not re-state, and deleting a campaign leaves its tasks standing as Общий: work outlives
-the campaign it was about.
-
 Reading the board follows the same grants as the projects it draws from. Admins and
 managers write; guests read; a `CLIENT` member is refused the board entirely, because it
 carries the agency's internal notes about a customer's own work.
@@ -315,14 +318,12 @@ asking for a week.
 
 The board is not the only place work is visible. A **project** lists the tasks under it
 that are still in flight — `IDEA`, `IN_PROGRESS`, `NEEDS_FIX`, `IN_REVIEW`, everything
-but the two terminal stages — below its campaigns. A **campaign** lists the tasks naming
-it, at every stage, because its finished work is part of its history. Opening one from
-either list shows it read-only: the same description renderer the editor uses, with input
-turned off, and no control that writes. Those screens are for reading; the board is where
-work is managed.
+but the two terminal stages — below its campaigns. Opening one from that list shows it
+read-only: the same description renderer the editor uses, with input turned off, and no
+control that writes. That screen is for reading; the board is where work is managed.
 
-The task listing accepts `projectId` and `campaignId`; both narrow what the caller's
-grants already allow and neither can widen it.
+The task listing accepts `projectId`; it narrows what the caller's grants already allow and
+cannot widen it.
 
 The board is shared work, so it updates live. A committed task change is published to
 `/api/realtime`, a WebSocket sharing the HTTP server and authenticated by the same HttpOnly
@@ -370,11 +371,13 @@ through the module's `index.ts`. Each module may contain `domain`, `application`
 `apps/api/src/composition`; reusable cross-module concepts belong in the deliberately
 small `apps/api/src/shared` kernel.
 
-The kernel is reached through the `#shared/*` subpath import rather than a chain of
-`../`: it maps to `src/shared/` for `tsx` and Vitest, and the `compiled` condition points
-the built server at `dist/shared/`, which is why `npm start` and the production image run
-`node --conditions=compiled`. Everything else stays relative on purpose — the architecture
-test reads those specifiers to enforce the rules below.
+The kernel and the modules are reached through the `#shared/*` and `#modules/*` subpath
+imports rather than a chain of `../`: they map to `src/shared/` and `src/modules/` for
+`tsx` and Vitest, and the `compiled` condition points the built server at `dist/`, which
+is why `npm start` and the production image run `node --conditions=compiled`. A relative
+import climbs at most one directory and stays inside its own module; anything further, or
+in another module, goes through an alias. The architecture test resolves both forms to
+enforce the rules below.
 
 Dependencies point inward: presentation and infrastructure may depend on application,
 and application may depend on domain. Domain and application code do not import Express,
@@ -445,7 +448,7 @@ ports, fixed clocks and deterministic identifiers.
 Every reading above is scoped to a range: `?from=YYYY-MM-DD&to=YYYY-MM-DD`, both
 endpoints included and both required.
 
-`name` is required on create; `niche`, `monthlyBudget` and `email` are optional.
+`name` is required on create; `email` is optional.
 Errors are normalized to a single shape:
 
 ```json
@@ -494,6 +497,23 @@ One environment variable is required, and the API refuses to start without it:
 
 In production, startup additionally rejects the `.env.example` placeholder and a
 `JWT_SECRET` shorter than 32 characters.
+
+A member who forgot their password asks for a link at `POST /auth/password-reset`; the
+answer is 202 whether or not an account uses the email, and only an existing account is
+mailed. The link carries a random token stored as a `sha256` digest; it works once, for
+one hour, and asking again replaces it. `POST /auth/password-reset/{token}` sets the new
+password, deletes every refresh token of the account and signs in. Mail goes over SMTP:
+
+| Variable | Purpose |
+|----------|---------|
+| `APP_URL` | Public address the link is built on; defaults to `http://localhost:5173` outside production |
+| `SMTP_USER`, `SMTP_PASSWORD` | SMTP account; for Gmail, an app password rather than the account's own |
+| `SMTP_HOST`, `SMTP_PORT` | Server, defaulting to `smtp.gmail.com` and 465 with TLS; any other port uses STARTTLS |
+| `MAIL_FROM` | Sender, defaulting to `Balagan BI <SMTP_USER>` |
+
+Without `SMTP_USER` and `SMTP_PASSWORD`, development writes the message, link included, to
+the API's log. In production, without them or without `APP_URL`, asking for a link
+answers **503**.
 
 ### Roles and membership
 

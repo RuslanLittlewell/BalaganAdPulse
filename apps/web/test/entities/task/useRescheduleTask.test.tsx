@@ -5,7 +5,7 @@ import { useRescheduleTask, type Task } from "@/entities/task/index.js";
 
 const task = (id: string, dueDate: string | null, dueTime: string | null = null): Task => ({
   id, projectId: "p1", orgId: "org1", title: id, description: null,
-  column: "IDEA", priority: "LOW", assigneeId: null, createdById: null, campaignId: null,
+  column: "IDEA", priority: "LOW", assigneeId: null, createdById: null,
   visibleToClient: false, position: 0, dueDate, dueTime, repeatEvery: "NONE", checklist: [],
   imageIds: [], createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
 });

@@ -37,4 +37,3 @@ export function createApp(options: AppOptions = {}) {
   return app;
 }
 
-export default createApp;

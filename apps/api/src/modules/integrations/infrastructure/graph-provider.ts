@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { AccountProvider } from "../application/ports.js";
 import { MetaError } from "../domain/integration.js";
 import type { ImportedCreative, ImportedEntity, ImportedMetric, ImportedStatus, PolledAd, Snapshot } from "../domain/snapshot.js";
-import type { IncomingLead } from "../../leads/index.js";
+import type { IncomingLead } from "#modules/leads/index.js";
 import { mapLeadAnswers } from "./meta-lead-answers.js";
 import { localDate, shiftDate } from "../application/schedule.js";
 
@@ -13,7 +13,8 @@ const entity = z.object({ id, name: z.string().min(1), effective_status: z.strin
 const action = z.object({ action_type: z.string(), value: z.string() });
 const metric = z.object({ campaign_id: id, adset_id: id.optional(), ad_id: id.optional(), date_start: z.iso.date(), spend: money.default("0"), impressions: count.default(0), reach: count.default(0), clicks: count.default(0), actions: z.array(action).default([]), action_values: z.array(action).default([]) });
 const link = z.string().min(1).max(2048);
-const attachment = z.object({ picture: link.optional(), video_id: id.optional(), name: z.string().optional(), description: z.string().optional() });
+const hash = z.string().min(1).max(200);
+const attachment = z.object({ picture: link.optional(), image_hash: hash.optional(), video_id: id.optional(), name: z.string().optional(), description: z.string().optional() });
 const assetFeed = z.object({
   videos: z.array(z.object({ video_id: id.optional(), thumbnail_url: link.optional() })).optional(),
   images: z.array(z.object({ hash: z.string().min(1).max(200).optional(), url: link.optional() })).optional(),
@@ -26,11 +27,12 @@ const creative = z.object({
   thumbnail_url: link.optional(),
   video_id: id.optional(),
   object_story_spec: z.object({
-    link_data: z.object({ name: z.string().optional(), message: z.string().optional(), picture: link.optional(), child_attachments: z.array(attachment).optional() }).optional(),
+    link_data: z.object({ name: z.string().optional(), message: z.string().optional(), picture: link.optional(), image_hash: hash.optional(), child_attachments: z.array(attachment).optional() }).optional(),
     video_data: z.object({ video_id: id.optional(), image_url: link.optional(), title: z.string().optional(), message: z.string().optional() }).optional(),
   }).optional(),
 });
-const video = z.object({ id, source: link.optional(), picture: link.optional() });
+const frame = z.object({ uri: link, width: z.number().int().min(0).optional(), height: z.number().int().min(0).optional() });
+const video = z.object({ id, source: link.optional(), picture: link.optional(), thumbnails: z.object({ data: z.array(frame) }).optional() });
 const named = z.object({ id, name: z.string().min(1) });
 const leadAd = z.object({ id, name: z.string().min(1), adset: named, campaign: named.extend({ objective: z.string().optional() }) });
 const LEAD_OBJECTIVES = new Set(["OUTCOME_LEADS", "LEAD_GENERATION"]);
@@ -89,8 +91,8 @@ function describe(adExternalId: string, row: unknown): PendingCreative[] {
   if (frames.length > 0) {
     return frames.map((frame, position) => frame.video_id
       ? { ...base, position, kind: "VIDEO" as const, videoId: frame.video_id, posterUrl: frame.picture }
-      : { ...base, position, kind: "IMAGE" as const, fileUrl: frame.picture })
-      .filter((entry) => entry.kind === "VIDEO" || entry.fileUrl !== undefined);
+      : { ...base, position, kind: "IMAGE" as const, fileUrl: frame.picture, imageHash: frame.image_hash })
+      .filter((entry) => entry.kind === "VIDEO" || entry.fileUrl !== undefined || entry.imageHash !== undefined);
   }
   const feed = value.asset_feed_spec;
   const feedVideos = distinctBy(feed?.videos ?? [], (asset) => asset.video_id);
@@ -119,9 +121,9 @@ function describe(adExternalId: string, row: unknown): PendingCreative[] {
     }];
   }
   const picture = value.image_url ?? linkData?.picture ?? videoData?.image_url;
-  if (picture) return [{ ...base, position: 0, kind: "IMAGE", fileUrl: picture }];
-  if (value.image_hash) {
-    return [{ ...base, position: 0, kind: "IMAGE", imageHash: value.image_hash, fileUrl: value.thumbnail_url }];
+  const imageHash = value.image_hash ?? linkData?.image_hash;
+  if (picture || imageHash) {
+    return [{ ...base, position: 0, kind: "IMAGE", imageHash, fileUrl: picture ?? value.thumbnail_url }];
   }
   return value.thumbnail_url
     ? [{ ...base, position: 0, kind: "IMAGE", fileUrl: value.thumbnail_url }]
@@ -226,12 +228,18 @@ export class GraphProvider implements AccountProvider {
     token: string,
     signal?: AbortSignal,
   ): Promise<{ source?: string; picture?: string }> {
-    try {
-      const result = video.safeParse(await this.request(videoId, token, { fields: "source,picture" }, signal));
-      return result.success ? { source: result.data.source, picture: result.data.picture } : {};
-    } catch {
-      return {};
+    for (const fields of ["source,picture,thumbnails{uri,width,height}", "source,picture"]) {
+      try {
+        const result = video.safeParse(await this.request(videoId, token, { fields }, signal));
+        if (!result.success) return {};
+        const frames = [...(result.data.thumbnails?.data ?? [])]
+          .sort((a, b) => (b.width ?? 0) * (b.height ?? 0) - (a.width ?? 0) * (a.height ?? 0));
+        return { source: result.data.source, picture: frames[0]?.uri ?? result.data.picture };
+      } catch {
+        if (signal?.aborted) return {};
+      }
     }
+    return {};
   }
 
   private async creativeOf(adId: string, token: string, signal?: AbortSignal): Promise<unknown | null> {

@@ -9,7 +9,7 @@ describe("client queries", () => {
     server.use(
       mock.get("/api/clients", () =>
         HttpResponse.json([
-          { id: "1", name: "Acme", niche: null, email: null, createdAt: "", updatedAt: "" },
+          { id: "1", name: "Acme", email: null, createdAt: "", updatedAt: "" },
         ]),
       ),
     );
@@ -25,7 +25,7 @@ describe("client queries", () => {
       mock.post("/api/clients", async ({ request }) => {
         received = await request.json();
         return HttpResponse.json(
-          { id: "2", name: "New", niche: null, email: null, createdAt: "", updatedAt: "" },
+          { id: "2", name: "New", email: null, createdAt: "", updatedAt: "" },
           { status: 201 },
         );
       }),

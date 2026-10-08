@@ -1,220 +1,22 @@
-import type React from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { CalendarClock, Check, GripVertical, ListChecks, Paperclip, Repeat } from "lucide-react";
-import type { Task } from "@/entities/task/index.js";
-import { MemberAvatar, type Membership } from "@/entities/membership/index.js";
-import { ProjectAvatar, type Project } from "@/entities/project/index.js";
-import { t } from "@/shared/config/index.js";
-import { cn } from "@/shared/lib/index.js";
+import { TaskCardView, type TaskCardViewProps } from "@/features/task-management/index.js";
 
-export interface TaskCardProps {
-  task: Task;
+export interface TaskCardProps extends Omit<TaskCardViewProps, "drag" | "style" | "ref"> {
   draggable: boolean;
-  placeholder?: boolean;
-  project?: Project;
-  campaignName?: string;
-  assignee?: Membership;
-  onOpen?: (task: Task) => void;
-  onComplete?: (task: Task) => void;
 }
 
-const PRIORITY_TONE: Record<Task["priority"], string> = {
-  LOW: "bg-muted text-muted-foreground",
-  MEDIUM: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200",
-  HIGH: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
-  URGENT: "bg-red-600 text-white dark:bg-red-700",
-};
-
-function shortDay(iso: string): string {
-  const [, month, day] = iso.split("-");
-  return `${day}.${month}`;
-}
-
-const PRIORITY_BAR: Record<Task["priority"], string> = {
-  LOW: "bg-border",
-  MEDIUM: "bg-sky-400",
-  HIGH: "bg-amber-400",
-  URGENT: "bg-red-500",
-};
-
-export function TaskCard({
-  task, draggable, placeholder = false, project, campaignName, assignee, onOpen, onComplete,
-}: TaskCardProps) {
+export function TaskCard({ draggable, ...card }: TaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
-    id: task.id,
+    id: card.task.id,
     disabled: !draggable,
   });
-  const attachments = task.imageIds.length;
-  const ticked = task.checklist.filter((item) => item.done).length;
-
-  const { onKeyDown: startKeyboardDrag, ...pointerListeners } = listeners ?? {};
-  const onHandleKeyDown = startKeyboardDrag as React.KeyboardEventHandler<HTMLButtonElement> | undefined;
-
-  function open() {
-    onOpen?.(task);
-  }
-
   return (
-    <article
+    <TaskCardView
+      {...card}
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      className={cn(
-        "group relative shrink-0 overflow-hidden rounded-xl border border-border bg-card",
-        "py-3 pl-6 pr-3 text-left",
-        "shadow-sm transition-all hover:border-border hover:shadow-md",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-        onOpen && "cursor-pointer",
-        placeholder && "border-dashed opacity-40 shadow-none",
-      )}
-      data-testid={`task-card-${task.id}`}
-      data-draggable={draggable ? "true" : undefined}
-      data-placeholder={placeholder ? "true" : undefined}
-      role="button"
-      tabIndex={0}
-      aria-label={`${t("tasks.open")}: ${task.title}`}
-      onClick={open}
-      onKeyDown={(event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        event.preventDefault();
-        open();
-      }}
-      {...(draggable ? pointerListeners : {})}
-    >
-      <span
-        aria-hidden
-        className={cn(
-          "absolute inset-y-0 left-0 w-1.5 transition-opacity group-hover:opacity-0",
-          PRIORITY_BAR[task.priority],
-        )}
-      />
-
-      {draggable ? (
-        <button
-          type="button"
-          aria-label={t("tasks.drag")}
-          data-testid={`task-drag-${task.id}`}
-          className={cn(
-            "absolute inset-y-0 left-0 grid w-5 place-items-center text-muted-foreground",
-            "opacity-0 transition-opacity hover:bg-muted focus-visible:opacity-100 group-hover:opacity-100",
-          )}
-          onClick={(event) => event.stopPropagation()}
-          onKeyDown={onHandleKeyDown}
-          {...attributes}
-        >
-          <GripVertical aria-hidden className="size-4" />
-        </button>
-      ) : null}
-
-      <div
-        className="flex items-start justify-between gap-2"
-        data-testid={`task-header-${task.id}`}
-      >
-        <h3 className="min-w-0 line-clamp-3 text-sm font-medium leading-snug">{task.title}</h3>
-        {onComplete && task.repeatEvery !== "NONE" ? (
-          <button
-            type="button"
-            aria-label={t("tasks.complete")}
-            title={t("tasks.complete")}
-            data-testid={`task-complete-${task.id}`}
-            className={cn(
-              "shrink-0 rounded-md p-1 text-muted-foreground transition-colors",
-              "hover:bg-emerald-100 hover:text-emerald-700",
-              "dark:hover:bg-emerald-950 dark:hover:text-emerald-300",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            )}
-            onClick={(event) => {
-              event.stopPropagation();
-              onComplete(task);
-            }}
-            onKeyDown={(event) => event.stopPropagation()}
-          >
-            <Check aria-hidden className="size-4" />
-          </button>
-        ) : null}
-        <span
-          data-testid={`task-priority-${task.id}`}
-          data-priority={task.priority}
-          className={cn(
-            "shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium leading-tight",
-            PRIORITY_TONE[task.priority],
-          )}
-        >
-          {t(`tasks.priority.${task.priority}`)}
-        </span>
-      </div>
-
-      {task.dueDate || task.checklist.length > 0 || attachments > 0 ? (
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          {task.dueDate ? (
-            <span
-              className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground"
-              data-testid={`task-due-${task.id}`}
-            >
-              <CalendarClock aria-hidden className="size-3" />
-              {shortDay(task.dueDate)}
-              {task.dueTime ? ` ${task.dueTime}` : ""}
-              {task.repeatEvery === "NONE" ? null : (
-                <Repeat aria-hidden={false} aria-label={t("tasks.repeats")} className="size-3" />
-              )}
-            </span>
-          ) : null}
-
-          {task.checklist.length > 0 ? (
-            <span
-              className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground"
-              data-testid={`task-checklist-${task.id}`}
-            >
-              <ListChecks aria-hidden className="size-3" />
-              {`${ticked}/${task.checklist.length}`}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
-
-      {attachments > 0 ? (
-        <div className="mt-2">
-          <span
-            className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground"
-            data-testid={`task-attachments-${task.id}`}
-            aria-label={`${t("tasks.attachments.count")}: ${attachments}`}
-          >
-            <Paperclip aria-hidden className="size-3" />
-            {attachments}
-          </span>
-        </div>
-      ) : null}
-
-      <footer className="mt-3 flex items-center justify-between gap-2 border-t border-border/60 pt-2.5">
-        <span className="flex min-w-0 flex-col">
-          <span className="flex min-w-0 items-center gap-1.5" data-testid={`task-project-${task.id}`}>
-            {project ? <ProjectAvatar project={project} size="sm" /> : null}
-            <span className="truncate text-xs text-muted-foreground">
-              {project?.name ?? t("tasks.noProject")}
-            </span>
-          </span>
-          <span
-            className="truncate pt-1 pl-0.5 text-[11px] text-muted-foreground/80"
-            data-testid={`task-campaign-${task.id}`}
-          >
-            {campaignName ?? t("tasks.form.wholeProject")}
-          </span>
-        </span>
-
-        {assignee ? (
-          <span
-            className="flex shrink-0 items-center"
-            data-testid={`task-assignee-${task.id}`}
-            title={assignee.name}
-          >
-            <MemberAvatar member={assignee} size="sm" />
-          </span>
-        ) : (
-          <span className="shrink-0 text-xs text-muted-foreground">
-            {t("tasks.form.unassigned")}
-          </span>
-        )}
-      </footer>
-    </article>
+      drag={draggable ? { attributes, listeners } : undefined}
+    />
   );
 }

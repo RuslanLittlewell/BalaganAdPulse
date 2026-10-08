@@ -9,6 +9,7 @@ describe("AppError", () => {
     ["forbidden", 403],
     ["not-found", 404],
     ["conflict", 409],
+    ["unavailable", 503],
   ] as const)("maps %s without transport state in the domain error", (category, status) => {
     const error = new AppError(category, "Deliberate message", { field: "name" });
     expect(error).not.toHaveProperty("status");

@@ -26,7 +26,7 @@ beforeEach(async () => {
   adId = ad.id;
   const lead = await prisma.lead.create({
     data: {
-      name: "Анна", phone: "+375291234567", orgId: (await currentOrg()).id, clientId, projectId, campaignId, adId,
+      name: "Анна", phone: "+375291234567", orgId: (await currentOrg()).id, projectId, campaignId, adId,
       origin: "META",
       metaSource: {
         create: {
@@ -65,16 +65,16 @@ const importedShape = () => ({
 
 describe("an imported lead", () => {
   it("carries its origin, ad and Meta source in reads and listings", async () => {
-    const read = await request(app).get(`${leads(clientId)}/${leadId}`).set(auth);
+    const read = await request(app).get(`${leads(projectId)}/${leadId}`).set(auth);
     expect(read.status).toBe(200);
     expect(read.body).toMatchObject(importedShape());
 
-    const listed = await request(app).get(leads(clientId)).set(auth);
+    const listed = await request(app).get(leads(projectId)).set(auth);
     expect(listed.body).toEqual([expect.objectContaining(importedShape())]);
   });
 
   it("reads a hand-made lead with no ad and no Meta source", async () => {
-    const created = await request(app).post(leads(clientId)).set(auth).send({ name: "Вручную" });
+    const created = await request(app).post(leads(projectId)).set(auth).send({ name: "Вручную" });
 
     expect(created.status).toBe(201);
     expect(created.body).toMatchObject({ origin: "MANUAL", ad: null, metaSource: null });
@@ -83,24 +83,24 @@ describe("an imported lead", () => {
   it("refuses a different campaign", async () => {
     const other = await seedCampaign(projectId, "Осень", "META");
 
-    const updated = await request(app).patch(`${leads(clientId)}/${leadId}`).set(auth).send({ campaignId: other.id });
+    const updated = await request(app).patch(`${leads(projectId)}/${leadId}`).set(auth).send({ campaignId: other.id });
 
     expect(updated.status).toBe(400);
     expect(await prisma.lead.findUniqueOrThrow({ where: { id: leadId } })).toMatchObject({ campaignId, adId });
   });
 
-  it("refuses a different or cleared project", async () => {
+  it("refuses any project named in a request", async () => {
     const other = await seedProject("unused", "Другой");
     await prisma.project.update({ where: { id: other.projectId }, data: { clientId } });
 
-    expect((await request(app).patch(`${leads(clientId)}/${leadId}`).set(auth).send({ projectId: other.projectId })).status).toBe(400);
-    expect((await request(app).patch(`${leads(clientId)}/${leadId}`).set(auth).send({ projectId: null })).status).toBe(400);
+    expect((await request(app).patch(`${leads(projectId)}/${leadId}`).set(auth).send({ projectId: other.projectId })).status).toBe(400);
+    expect((await request(app).patch(`${leads(projectId)}/${leadId}`).set(auth).send({ projectId: null })).status).toBe(400);
     expect(await prisma.lead.findUniqueOrThrow({ where: { id: leadId } })).toMatchObject({ projectId, campaignId, adId });
   });
 
-  it("accepts a save repeating its project and campaign and keeps the ad", async () => {
-    const updated = await request(app).patch(`${leads(clientId)}/${leadId}`).set(auth)
-      .send({ projectId, campaignId, notes: "Перезвонить", phone: "+375290000000" });
+  it("accepts a save repeating its campaign and keeps the ad", async () => {
+    const updated = await request(app).patch(`${leads(projectId)}/${leadId}`).set(auth)
+      .send({ campaignId, notes: "Перезвонить", phone: "+375290000000" });
 
     expect(updated.status).toBe(200);
     expect(updated.body).toMatchObject({ ...importedShape(), notes: "Перезвонить", phone: "+375290000000" });
@@ -109,14 +109,14 @@ describe("an imported lead", () => {
   it("keeps the source out of reach of the lead API", async () => {
     const attempts = [{ origin: "MANUAL" }, { adId: null }, { metaSource: null }];
     for (const body of attempts) {
-      expect((await request(app).patch(`${leads(clientId)}/${leadId}`).set(auth).send(body)).status).toBe(400);
+      expect((await request(app).patch(`${leads(projectId)}/${leadId}`).set(auth).send(body)).status).toBe(400);
     }
-    expect((await request(app).post(leads(clientId)).set(auth).send({ name: "Подделка", origin: "META" })).status).toBe(400);
+    expect((await request(app).post(leads(projectId)).set(auth).send({ name: "Подделка", origin: "META" })).status).toBe(400);
     expect(await prisma.leadMetaSource.count()).toBe(1);
   });
 
   it("keeps its ad and source through a move", async () => {
-    const moved = await request(app).patch(`${leads(clientId)}/${leadId}/move`).set(auth).send({ stage: "QUALIFIED", position: 0 });
+    const moved = await request(app).patch(`${leads(projectId)}/${leadId}/move`).set(auth).send({ stage: "QUALIFIED", position: 0 });
 
     expect(moved.status).toBe(200);
     expect(moved.body).toEqual([expect.objectContaining({ ...importedShape(), stage: "QUALIFIED" })]);

@@ -47,6 +47,24 @@ describe("typed invitation HTTP contracts", () => {
     })).status).toBe(400);
   });
 
+  it("enrols a manager invited without projects, holding no grants", async () => {
+    const created = await request(app).post("/api/invites").set(admin)
+      .send({ registrationType: "EMPLOYEE", role: "MANAGER" });
+    expect(created.status).toBe(201);
+    expect(created.body).toMatchObject({ role: "MANAGER", projectIds: [] });
+
+    const registered = await request(app).post("/api/auth/register").send({
+      name: "Олег", email: "oleg@agency.by", password: "hunter2hunter2",
+      inviteCode: created.body.code,
+    });
+
+    expect(registered.status).toBe(201);
+    const user = await prisma.user.findFirstOrThrow({ where: { email: "oleg@agency.by" } });
+    const membership = await prisma.membership.findFirstOrThrow({ where: { userId: user.id } });
+    expect(membership).toMatchObject({ role: "MANAGER", orgId: (await currentOrg()).id });
+    expect(await prisma.clientAccess.count({ where: { membershipId: membership.id } })).toBe(0);
+  });
+
   it("lists only pending invitations and filters by registration type", async () => {
     const org = await currentOrg();
     await prisma.invite.createMany({ data: [

@@ -41,7 +41,9 @@ see.
 ### Requirement: Admins manage membership
 
 Only an `ADMIN` SHALL list members, change a member's role, suspend or reactivate a
-member, or remove a member from the organization.
+member, or remove a member from the organization. A `MANAGER` SHALL additionally be able
+to list the organization's staff — its admins, managers and guests, never its customers —
+so that they can pick a colleague as responsible for a task.
 
 #### Scenario: Manager attempts to change a role
 - **WHEN** a manager calls `PATCH /api/members/:id`
@@ -52,6 +54,19 @@ member, or remove a member from the organization.
   organization
 - **THEN** the API responds 409 and the membership is unchanged
 
+#### Scenario: Manager lists the staff
+- **WHEN** a manager calls `GET /api/members?kind=staff`
+- **THEN** the organization's admins, managers and guests are returned, including the
+  manager, and no customer
+
+#### Scenario: Manager lists every member
+- **WHEN** a manager calls `GET /api/members` without `kind=staff`
+- **THEN** the API responds 403
+
+#### Scenario: Guest lists the staff
+- **WHEN** a guest calls `GET /api/members?kind=staff`
+- **THEN** the API responds 403
+
 ### Requirement: Removing a member preserves their history
 
 Removing a membership SHALL NOT delete the clients, projects, campaigns or audit events
@@ -60,41 +75,6 @@ associated with that member.
 #### Scenario: Member removed
 - **WHEN** an admin removes a manager who created several clients
 - **THEN** those clients and their data remain, and audit events still name that person
-
-### Requirement: Members are administered through the API alone
-
-The web interface SHALL offer one place to look at the organization's members — the
-contact book's employee directory — and that view SHALL be read-only. It SHALL NOT offer
-a control that changes a member's role or status, or removes them from the organization.
-
-The API SHALL continue to accept all three changes, with the rules it already enforces
-unchanged: only an admin may make them, an admin may not remove their own membership,
-and the last admin may not be removed. Removing the interface removes a way to ask, not
-a rule about who may.
-
-An address that named the removed section SHALL lead somewhere useful rather than to a
-blank screen.
-
-#### Scenario: Looking at the members
-
-- **WHEN** a member opens the contact book's employee pane
-- **THEN** each member is shown with their name, email and role, and no control changes
-  any of them
-
-#### Scenario: No navigation entry
-
-- **WHEN** any member looks at the main navigation
-- **THEN** it offers no Team section, whatever their role
-
-#### Scenario: An address that named the removed section
-
-- **WHEN** someone opens `/team` from a bookmark
-- **THEN** they are taken to the dashboard
-
-#### Scenario: The rules are unchanged
-
-- **WHEN** an admin changes a member's role through the API
-- **THEN** it is accepted exactly as before, and the same refusals apply
 
 ### Requirement: A person carries the ways of reaching them
 
@@ -190,3 +170,54 @@ to leave.
 
 - **WHEN** someone signs in after another member signed out on that browser
 - **THEN** they see their own clients, projects and tasks, never the previous member's
+
+### Requirement: Admins remove members from the contact book
+
+The web interface SHALL offer one place to look at the organization's members — the
+contact book's employee directory. For an `ADMIN` it SHALL offer a control that removes
+the member shown from the organization, after a confirmation naming that member. It SHALL
+NOT offer a control that changes a member's role or status, and SHALL offer no control at
+all to any other role.
+
+The API SHALL continue to accept role, status and removal changes, with the rules it
+already enforces unchanged: only an admin may make them, an admin may not remove their own
+membership, and the last admin may not be removed.
+
+An address that named the removed Team section SHALL lead somewhere useful rather than to
+a blank screen.
+
+#### Scenario: Looking at the members
+
+- **WHEN** a member opens the contact book's employee pane
+- **THEN** each member is shown with their name, email and role, and no control changes
+  their role or status
+
+#### Scenario: Admin removes a member
+
+- **WHEN** an admin chooses remove on an employee's card and confirms
+- **THEN** the membership is removed and the person disappears from the directory
+
+#### Scenario: Removal refused
+
+- **WHEN** the API refuses the removal
+- **THEN** the admin is told it failed and the person stays in the directory
+
+#### Scenario: Manager sees no remove control
+
+- **WHEN** a manager opens an employee's card
+- **THEN** no remove control is offered
+
+#### Scenario: No navigation entry
+
+- **WHEN** any member looks at the main navigation
+- **THEN** it offers no Team section, whatever their role
+
+#### Scenario: An address that named the removed section
+
+- **WHEN** someone opens `/team` from a bookmark
+- **THEN** they are taken to the dashboard
+
+#### Scenario: The rules are unchanged
+
+- **WHEN** an admin changes a member's role through the API
+- **THEN** it is accepted exactly as before, and the same refusals apply

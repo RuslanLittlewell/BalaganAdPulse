@@ -7,7 +7,7 @@ import {
 } from "../../src/modules/tasks/infrastructure/prisma-task-repository.js";
 import { prisma } from "../../src/shared/infrastructure/prisma.js";
 import { PrismaUnitOfWork } from "../../src/shared/infrastructure/prisma-unit-of-work.js";
-import { resetDb, seedCampaign, seedProject } from "../helpers/db.js";
+import { resetDb, seedProject } from "../helpers/db.js";
 import { currentOrg, grantAccess, signInAs, signInAsOutsider } from "../helpers/auth.js";
 
 beforeEach(resetDb);
@@ -187,80 +187,6 @@ describe("Prisma project and member reach", () => {
   });
 });
 
-describe("a task's campaign", () => {
-  it("stores a task against a campaign of its project", async () => {
-    const { unitOfWork, tasks } = adapters();
-    const { orgId, projectId } = await scenario();
-    const campaign = await seedCampaign(projectId, "Поиск / Москва");
-
-    const created = await unitOfWork.run((context) => tasks.create(context, {
-      id: uuid(1), projectId, orgId, title: "Переписать объявления",
-      column: "IDEA", priority: "HIGH", assigneeId: null, createdById: null,
-      campaignId: campaign.id, position: 0,
-    }));
-
-    expect(created.campaignId).toBe(campaign.id);
-  });
-
-  it("stores a task with no campaign", async () => {
-    const { unitOfWork, tasks } = adapters();
-    const { orgId, projectId } = await scenario();
-
-    const created = await unitOfWork.run((context) => tasks.create(context, {
-      id: uuid(2), projectId, orgId, title: "Согласовать бюджет",
-      column: "IDEA", priority: "LOW", assigneeId: null, createdById: null,
-      campaignId: null, position: 0,
-    }));
-
-    expect(created.campaignId).toBeNull();
-  });
-
-  it("attaches and releases a campaign on update", async () => {
-    const { unitOfWork, tasks } = adapters();
-    const { orgId, projectId } = await scenario();
-    const campaign = await seedCampaign(projectId, "Лента");
-    await seedTask(orgId, projectId, uuid(3), "IDEA", 0);
-
-    const attached = await unitOfWork.run((context) =>
-      tasks.update(context, uuid(3), { campaignId: campaign.id }));
-    expect(attached.campaignId).toBe(campaign.id);
-
-    const released = await unitOfWork.run((context) =>
-      tasks.update(context, uuid(3), { campaignId: null }));
-    expect(released.campaignId).toBeNull();
-  });
-
-  it("leaves the campaign alone when the update does not mention it", async () => {
-    const { unitOfWork, tasks } = adapters();
-    const { orgId, projectId } = await scenario();
-    const campaign = await seedCampaign(projectId, "Лента");
-    await prisma.task.create({
-      data: { id: uuid(4), orgId, projectId, title: "T", priority: "LOW",
-              column: "IDEA", position: 0, campaignId: campaign.id },
-    });
-
-    const renamed = await unitOfWork.run((context) =>
-      tasks.update(context, uuid(4), { title: "Другое" }));
-
-    expect(renamed.campaignId).toBe(campaign.id);
-  });
-
-  it("leaves tasks standing when their campaign is deleted", async () => {
-    const { orgId, projectId } = await scenario();
-    const campaign = await seedCampaign(projectId, "Лента");
-    await prisma.task.createMany({ data: [
-      { id: uuid(5), orgId, projectId, title: "A", priority: "LOW", column: "IDEA", position: 0, campaignId: campaign.id },
-      { id: uuid(6), orgId, projectId, title: "B", priority: "LOW", column: "IDEA", position: 1, campaignId: campaign.id },
-    ] });
-
-    await prisma.campaign.delete({ where: { id: campaign.id } });
-
-    const surviving = await prisma.task.findMany({ where: { projectId }, orderBy: { position: "asc" } });
-    expect(surviving.map((task) => task.title)).toEqual(["A", "B"]);
-    expect(surviving.every((task) => task.campaignId === null)).toBe(true);
-  });
-});
-
 describe("whether a task is shown to the client", () => {
   it("stores a task as the agency's own by default", async () => {
     const { unitOfWork, tasks } = adapters();
@@ -269,7 +195,7 @@ describe("whether a task is shown to the client", () => {
     const created = await unitOfWork.run((context) => tasks.create(context, {
       id: uuid(7), projectId, orgId, title: "Внутренняя заметка",
       column: "IDEA", priority: "LOW", assigneeId: null, createdById: null,
-      campaignId: null, visibleToClient: false, position: 0,
+      visibleToClient: false, position: 0,
     }));
 
     expect(created.visibleToClient).toBe(false);
@@ -282,7 +208,7 @@ describe("whether a task is shown to the client", () => {
     const created = await unitOfWork.run((context) => tasks.create(context, {
       id: uuid(8), projectId, orgId, title: "Заявка клиента",
       column: "IDEA", priority: "LOW", assigneeId: null, createdById: null,
-      campaignId: null, visibleToClient: true, position: 0,
+      visibleToClient: true, position: 0,
     }));
 
     expect(created.visibleToClient).toBe(true);

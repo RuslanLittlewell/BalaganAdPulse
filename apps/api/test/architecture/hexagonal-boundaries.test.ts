@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { LEGACY_ALLOW_LIST, LEGACY_SOURCE_INVENTORY } from "./legacy-inventory.js";
 import { analyseSourceText, checkSourceTree, listTypeScriptSources } from "./import-graph.js";
 
 const COMMENT = /^\s*(\/\/|\/\*|\{\s*\/\*)/;
@@ -12,13 +11,6 @@ const apiRoot = fileURLToPath(new URL("../..", import.meta.url));
 const sourceRoot = path.join(apiRoot, "src");
 
 describe("hexagonal architecture boundaries", () => {
-  it("keeps the legacy inventory complete and unique", () => {
-    const actual = listTypeScriptSources(sourceRoot).filter((file) => !file.startsWith("modules/") && !file.startsWith("shared/") && !file.startsWith("composition/"));
-    const inventory = LEGACY_SOURCE_INVENTORY.map(({ path: file }) => file).sort();
-    expect(new Set(inventory).size).toBe(inventory.length);
-    expect(inventory).toEqual(actual);
-  });
-
   it.each([
     ["modules/invites/domain/invite.ts", 'import "../application/create-invite.js";', "domain may not import application"],
     ["modules/invites/domain/invite.ts", 'import { z } from "zod";', "domain may not import zod"],
@@ -29,19 +21,23 @@ describe("hexagonal architecture boundaries", () => {
     ["modules/invites/presentation/http/routes.ts", 'import { PrismaInviteRepository } from "../../infrastructure/prisma/repository.js"; new PrismaInviteRepository();', "concrete adapters may only be constructed in composition"],
     ["modules/invites/presentation/http/routes.ts", 'import { AppError } from "../../../../shared/domain/index.js";', "the shared kernel is reached through #shared/, never relatively"],
     ["modules/invites/index.ts", 'import { AppError } from "../../shared/domain/index.js";', "the shared kernel is reached through #shared/, never relatively"],
+    ["modules/members/application/list.ts", 'import "#modules/invites/application/redeem.js";', "cross-module imports must use the public index"],
+    ["modules/invites/application/create-invite.ts", 'import "#modules/invites/infrastructure/prisma/repository.js";', "application may not import infrastructure"],
+    ["modules/invites/presentation/http/routes.ts", 'import "../../application/create-invite.js";', "a relative import climbs at most one directory; reach further through #modules/ or #shared/"],
+    ["modules/members/index.ts", 'import "../invites/index.js";', "another module is reached through #modules/, never relatively"],
+    ["composition/wiring/leads.ts", 'import "../../modules/leads/index.js";', "another module is reached through #modules/, never relatively"],
   ])("rejects %s: %s", (file, source, expected) => {
     expect(analyseSourceText(file, source)).toContain(expected);
   });
 
-  it("accepts the current tree through the shrinking legacy allow-list", () => {
-    expect(checkSourceTree(sourceRoot, LEGACY_ALLOW_LIST)).toEqual([]);
+  it("accepts the current tree", () => {
+    expect(checkSourceTree(sourceRoot)).toEqual([]);
   });
 
   it("leaves no source file outside modules, shared and composition", () => {
     const stragglers = listTypeScriptSources(sourceRoot).filter((file) =>
       !file.startsWith("modules/") && !file.startsWith("shared/") && !file.startsWith("composition/"));
     expect(stragglers).toEqual([]);
-    expect(LEGACY_ALLOW_LIST.size).toBe(0);
   });
 
   it("keeps no legacy service, controller or route file anywhere", () => {

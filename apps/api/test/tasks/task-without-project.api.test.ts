@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../../src/composition/app.js";
 import { prisma } from "../../src/shared/infrastructure/prisma.js";
-import { resetDb, seedCampaign, seedProject } from "../helpers/db.js";
+import { resetDb, seedProject } from "../helpers/db.js";
 import { grantAccess, signInAs } from "../helpers/auth.js";
 
 const app = createApp();
@@ -30,7 +30,7 @@ describe("a task with no project", () => {
     const res = await create();
 
     expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({ projectId: null, campaignId: null, column: "IDEA" });
+    expect(res.body).toMatchObject({ projectId: null, column: "IDEA" });
   });
 
   it("reads back with no project", async () => {
@@ -87,22 +87,6 @@ describe("a task with no project", () => {
 });
 
 describe("what a task with no project may not carry", () => {
-  it("refuses a campaign -> 400", async () => {
-    const campaign = await seedCampaign(projectId, "Поиск", "YANDEX");
-    const res = await create({ campaignId: campaign.id });
-
-    expect(res.status).toBe(400);
-    expect(await prisma.task.count()).toBe(0);
-  });
-
-  it("loses its campaign when its project is cleared", async () => {
-    const campaign = await seedCampaign(projectId, "Поиск", "YANDEX");
-    const created = await create({ projectId, campaignId: campaign.id });
-
-    const res = await patch(created.body.id, { projectId: null });
-    expect(res.body).toMatchObject({ projectId: null, campaignId: null });
-  });
-
   it("refuses being shared with the client -> 400", async () => {
     const created = await create();
     const res = await patch(created.body.id, { visibleToClient: true });

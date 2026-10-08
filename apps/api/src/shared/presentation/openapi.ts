@@ -131,11 +131,7 @@ export const ref = (name: string): JsonSchema => ({ $ref: `#/components/schemas/
 
 export const arrayOf = (items: JsonSchema): JsonSchema => ({ type: "array", items });
 
-export const nullableRef = (name: string): JsonSchema => ({
-  anyOf: [ref(name), { type: "null" }],
-});
-
-export function toJsonSchema(schema: z.ZodType): JsonSchema {
+function toJsonSchema(schema: z.ZodType): JsonSchema {
   const { $schema, ...rest } = z.toJSONSchema(schema, {
     target: "draft-2020-12",
     io: "input",
@@ -163,7 +159,7 @@ const pascal = (segment: string): string =>
 const singular = (segment: string): string =>
   segment.endsWith("s") && !segment.endsWith("ss") ? segment.slice(0, -1) : segment;
 
-export function operationId(method: HttpMethod, path: string): string {
+function operationId(method: HttpMethod, path: string): string {
   const segments = path.replace(/^\/api/, "").split("/").filter(Boolean);
   const named = segments.map((segment, index) => {
     if (segment.startsWith("{")) return `By${pascal(segment)}`;

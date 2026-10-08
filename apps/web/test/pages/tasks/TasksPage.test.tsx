@@ -27,8 +27,8 @@ describe("TasksPage", () => {
     server.use(mock.get("/api/tasks", () => HttpResponse.json([aTask({ title: "Написать бриф" })])));
     setup();
 
-    expect(await screen.findByRole("heading", { name: "Задачи", level: 1 })).toBeInTheDocument();
     expect(await screen.findByText("Написать бриф")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Идея", level: 2 })).toBeInTheDocument();
     expect(screen.queryByText("Модуль в разработке")).not.toBeInTheDocument();
   });
 
@@ -45,7 +45,6 @@ describe("TasksPage", () => {
     );
     setup();
 
-    await screen.findByRole("heading", { name: "Задачи", level: 1 });
     await waitFor(() =>
       expect(screen.queryByRole("button", { name: "Новая задача" })).not.toBeInTheDocument());
   });

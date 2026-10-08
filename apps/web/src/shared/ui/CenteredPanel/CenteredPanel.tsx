@@ -23,7 +23,7 @@ export function CenteredPanel({ title, children, wide = false, above }: Centered
       <div className="relative z-10 flex max-w-full flex-col items-center gap-6">
         {above}
         <Card
-          className={"relative z-10 " + (wide
+          className={"relative z-10 rounded-3xl shadow-2xl dark:border-white/10 " + (wide
             ? "w-[min(760px,calc(100vw-2rem))]"
             : "w-[min(420px,calc(100vw-2rem))]")}
         >

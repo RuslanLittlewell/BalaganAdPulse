@@ -1,26 +1,19 @@
-import type { Prisma, PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
 import type { ActorContext } from "#shared/application/index.js";
 import { getObject } from "#shared/infrastructure/storage.js";
 import type { Ad, AdSet, Campaign } from "../domain/hierarchy.js";
 import type {
   AdRepository, AdSetRepository, CampaignRepository, CreativeRepository, CreativeStorage, ProjectReach,
 } from "../application/ports.js";
-
-function reachableProjects(actor: ActorContext): Prisma.ProjectWhereInput {
-  if (actor.role === "ADMIN") return { client: { orgId: actor.orgId } };
-  return {
-    client: { orgId: actor.orgId },
-    OR: [
-      { client: { access: { some: { membershipId: actor.membershipId, projectId: null } } } },
-      { access: { some: { membershipId: actor.membershipId } } },
-    ],
-  };
-}
+import { reachableProjects } from "#shared/infrastructure/project-reach.js";
 
 const toCampaign = (row: {
   id: string; projectId: string; name: string; channel: string; status: string;
-  objective: string | null; externalId: string | null; position: number;
+  objective: string | null; externalId: string | null; sourceAccountId: string | null; position: number;
+  kpiMetric: string | null; kpiTarget: { toFixed(digits: number): string } | null;
+  project?: { budgetCurrency: string | null };
 }): Campaign => ({
+  currency: row.project?.budgetCurrency ?? null,
   id: row.id,
   projectId: row.projectId,
   name: row.name,
@@ -28,7 +21,9 @@ const toCampaign = (row: {
   status: row.status as Campaign["status"],
   objective: row.objective,
   externalId: row.externalId,
+  sourceAccountId: row.sourceAccountId,
   position: row.position,
+  kpi: row.kpiMetric && row.kpiTarget ? { metric: row.kpiMetric, target: row.kpiTarget.toFixed(4) } : null,
 });
 
 export class PrismaCampaignRepository implements CampaignRepository {
@@ -52,6 +47,7 @@ export class PrismaCampaignRepository implements CampaignRepository {
   async listReachable(actor: ActorContext): Promise<Campaign[]> {
     const rows = await this.prisma.campaign.findMany({
       where: { project: reachableProjects(actor) },
+      include: { project: { select: { budgetCurrency: true } } },
       orderBy: [{ projectId: "asc" }, { position: "asc" }],
     });
     return rows.map(toCampaign);
@@ -118,16 +114,5 @@ export class PrismaProjectReach implements ProjectReach {
       where: { id: projectId, ...reachableProjects(actor) }, select: { id: true },
     });
     return project !== null;
-  }
-}
-
-export class PrismaCampaignInProject {
-  constructor(private readonly prisma: PrismaClient) {}
-
-  async isInProject(campaignId: string, projectId: string): Promise<boolean> {
-    const campaign = await this.prisma.campaign.findFirst({
-      where: { id: campaignId, projectId }, select: { id: true },
-    });
-    return campaign !== null;
   }
 }

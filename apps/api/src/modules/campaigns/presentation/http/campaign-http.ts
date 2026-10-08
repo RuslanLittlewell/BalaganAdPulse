@@ -1,7 +1,7 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { AppError } from "#shared/domain/index.js";
-import type { CampaignUseCases } from "../../application/campaign-use-cases.js";
-import type { MeasuredDay } from "../../domain/metrics.js";
+import type { CampaignUseCases } from "#modules/campaigns/application/campaign-use-cases.js";
+import type { MeasuredDay } from "#modules/campaigns/domain/metrics.js";
 import { rangeSchema } from "./campaign-schemas.js";
 
 function actorOf(req: Request) {
@@ -30,9 +30,6 @@ export interface CampaignHttpRouters {
 
 export function createCampaignHttpRouters(useCases: CampaignUseCases): CampaignHttpRouters {
   const campaignRouter = Router();
-  campaignRouter.get("/names", handle(async (req, res) => {
-    res.json(await useCases.listOrganizationCampaignReferences(actorOf(req)));
-  }));
   campaignRouter.get("/:id", handle(async (req: Request<{ id: string }>, res) => {
     res.json(await useCases.readCampaign(actorOf(req), req.params.id, rangeOf(req)));
   }));

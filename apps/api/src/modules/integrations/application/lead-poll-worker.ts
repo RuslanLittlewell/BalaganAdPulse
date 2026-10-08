@@ -1,5 +1,5 @@
 import type { UnitOfWork } from "#shared/application/index.js";
-import type { IncomingLead } from "../../leads/index.js";
+import type { IncomingLead } from "#modules/leads/index.js";
 import { MetaError, type LeadPollJob } from "../domain/integration.js";
 import type { PolledAd } from "../domain/snapshot.js";
 import type { LeadPollJobs } from "./lead-poll-jobs.js";
@@ -52,11 +52,11 @@ export function createLeadPollWorker(d: {
     if (signal.aborted) return;
     const created = await d.unitOfWork.run(async (context) => {
       if (!await d.jobs.hold(context, job, d.clock.now())) return 0;
-      const delivered = await d.inbox.deliver(context, { orgId: job.orgId, clientId: job.clientId, projectId: job.projectId, leads: [...found.values()] });
+      const delivered = await d.inbox.deliver(context, { orgId: job.orgId, projectId: job.projectId, leads: [...found.values()] });
       await d.jobs.succeed(context, job, { polled: job.pollDue, swept: job.sweepDue, coveredUntil: job.pollDue ? start : job.leadsCoveredUntil }, d.clock.now());
       return delivered.created;
     });
-    if (created > 0) d.inbox.announce({ orgId: job.orgId, clientId: job.clientId });
+    if (created > 0) d.inbox.announce({ orgId: job.orgId, projectId: job.projectId });
   };
 
   const run = async () => {

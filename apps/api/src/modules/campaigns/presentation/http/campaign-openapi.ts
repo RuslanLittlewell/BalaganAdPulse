@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { arrayOf, ref, type ComponentDocs, type RouteDoc } from "#shared/presentation/openapi.js";
-import { CHANNELS, DELIVERY_STATUSES } from "../../domain/hierarchy.js";
+import { CHANNELS, DELIVERY_STATUSES } from "#modules/campaigns/domain/hierarchy.js";
 import { rangeSchema } from "./campaign-schemas.js";
 
 const measured = {
@@ -33,7 +33,9 @@ const campaign = z.object({
   status: z.enum(DELIVERY_STATUSES),
   objective: z.string().nullable(),
   externalId: z.string().nullable(),
+  sourceAccountId: z.string().nullable(),
   position: z.int(),
+  kpi: z.object({ metric: z.string(), target: z.string() }).nullable(),
   performance,
 });
 
@@ -66,14 +68,10 @@ const campaignReference = z.object({
   channel: z.enum(CHANNELS),
 });
 
-const projectCampaignReference = z.object({
-  id: z.uuid(),
-  projectId: z.uuid(),
-  name: z.string(),
-  channel: z.enum(CHANNELS),
-});
+const currencyPerformance = z.object({ currency: z.string().nullable(), performance });
 
 const channelSummary = z.object({
+  currency: z.string().nullable(),
   channel: z.enum(CHANNELS),
   campaigns: z.int(),
   performance,
@@ -81,12 +79,12 @@ const channelSummary = z.object({
 
 export const campaignComponents: ComponentDocs = {
   Performance: performance,
+  CurrencyPerformance: currencyPerformance,
   MeasuredDay: measuredDay,
   Campaign: campaign,
   AdSet: adSet,
   Ad: ad,
   CampaignReference: campaignReference,
-  ProjectCampaignReference: projectCampaignReference,
   ChannelSummary: channelSummary,
 };
 
@@ -96,14 +94,6 @@ export const campaignDoc: RouteDoc = {
   tag: "Campaigns",
   tagDescription: "The advertising hierarchy and the figures measured against it",
   operations: [
-    {
-      method: "get",
-      path: "/names",
-      summary: "Name every campaign the member reaches",
-      description: "Identity only, for pickers that span projects: no range and no figures. Each campaign names the project it belongs to.",
-      success: { status: 200, description: "The campaigns", schema: arrayOf(ref("ProjectCampaignReference")) },
-      errors: [401, 403],
-    },
     {
       method: "get",
       path: "/:id",
@@ -227,9 +217,9 @@ export const summaryDoc: RouteDoc = {
       method: "get",
       path: "/channels",
       summary: "Sum performance per channel",
-      description: `${RANGE} Channels are ordered by spend, heaviest first.`,
+      description: `${RANGE} Each channel is split by currency.`,
       query: rangeSchema,
-      success: { status: 200, description: "One entry per channel that ran", schema: arrayOf(ref("ChannelSummary")) },
+      success: { status: 200, description: "One entry per channel and currency", schema: arrayOf(ref("ChannelSummary")) },
       errors: [400, 401, 403],
     },
     {
@@ -238,7 +228,7 @@ export const summaryDoc: RouteDoc = {
       summary: "Sum performance across everything this actor reaches",
       description: RANGE,
       query: rangeSchema,
-      success: { status: 200, description: "The agency's figures over the range", schema: ref("Performance") },
+      success: { status: 200, description: "The agency's figures over the range", schema: arrayOf(ref("CurrencyPerformance")) },
       errors: [400, 401, 403],
     },
   ],

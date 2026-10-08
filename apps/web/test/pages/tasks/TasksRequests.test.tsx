@@ -7,14 +7,13 @@ import { ProjectsSync } from "@/entities/project/index.js";
 
 const project = aProject({ id: "project-1", name: "Летний запуск" });
 
-const counts = { projects: 0, tasks: 0, names: 0, projectNames: 0 };
+const counts = { projects: 0, tasks: 0, projectNames: 0 };
 
 let connections = 0;
 
 beforeEach(() => {
   counts.projects = 0;
   counts.tasks = 0;
-  counts.names = 0;
   counts.projectNames = 0;
   connections = 0;
   server.use(
@@ -28,14 +27,6 @@ beforeEach(() => {
       counts.tasks += 1;
       return HttpResponse.json([aTask({ projectId: "project-1", title: "Написать бриф" })]);
     }),
-    mock.get("/api/campaigns/names", () => {
-      counts.names += 1;
-      return HttpResponse.json([]);
-    }),
-    mock.get("/api/projects/:projectId/campaigns/names", () => {
-      counts.projectNames += 1;
-      return HttpResponse.json([]);
-    }),
   );
 });
 
@@ -43,12 +34,11 @@ const openModule = () =>
   renderWithProviders(<><ProjectsSync /><TasksPage /></>, { route: "/tasks" });
 
 describe("what the task module asks the server for", () => {
-  it("asks for the tasks and the campaign names once, and never per project", async () => {
+  it("asks for the tasks once, and never per project", async () => {
     openModule();
     await screen.findByText("Написать бриф");
 
     expect(counts.tasks).toBe(1);
-    expect(counts.names).toBe(1);
     expect(counts.projectNames).toBe(0);
   });
 
@@ -59,7 +49,6 @@ describe("what the task module asks the server for", () => {
 
     expect(counts.projects).toBe(1);
     expect(counts.tasks).toBe(1);
-    expect(counts.names).toBe(1);
     expect(counts.projectNames).toBe(0);
   });
 
@@ -68,10 +57,10 @@ describe("what the task module asks the server for", () => {
     await screen.findByText("Написать бриф");
     const before = { ...counts };
 
-    await userEvent.click(screen.getByRole("tab", { name: "Календарь" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Календарь" }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Следующая неделя" })).toBeInTheDocument());
-    await userEvent.click(screen.getByRole("tab", { name: "Канбан" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Канбан" }));
     await screen.findByRole("heading", { name: "Идея", level: 2 });
 
     expect(counts).toEqual(before);
@@ -82,10 +71,10 @@ describe("what the task module asks the server for", () => {
     await screen.findByText("Написать бриф");
     await waitFor(() => expect(connections).toBe(1));
 
-    await userEvent.click(screen.getByRole("tab", { name: "Календарь" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Календарь" }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Следующая неделя" })).toBeInTheDocument());
-    await userEvent.click(screen.getByRole("tab", { name: "Канбан" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Канбан" }));
     await screen.findByRole("heading", { name: "Идея", level: 2 });
 
     expect(connections).toBe(1);

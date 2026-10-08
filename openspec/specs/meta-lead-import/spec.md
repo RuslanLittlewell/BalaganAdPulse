@@ -7,7 +7,7 @@ Bring prospects who submit a Meta Instant Form on a connected project's ads into
 ## Requirements
 
 ### Requirement: Connected projects are polled for leads
-The server SHALL poll Meta for Instant Form leads of every connected project no less often than every fifteen minutes, using the project's saved credential and requiring no input beyond the existing connection. Only leads Meta attributes to an ad of the connected account SHALL be imported. Lead polling SHALL run independently of the daily advertising import: neither SHALL wait for, block or fail the other. At most one lead poll per project SHALL be active across all server instances. Polling SHALL survive process restarts and resume overdue work. A connection waiting for credential replacement SHALL NOT be polled.
+The server SHALL poll Meta for Instant Form leads of every connection whose lead import is switched on no less often than every fifteen minutes, using that connection's saved credential and requiring no input beyond the existing connection. Only leads Meta attributes to an ad of that connection's account SHALL be imported. Lead polling SHALL run independently of the daily advertising import: neither SHALL wait for, block or fail the other. At most one lead poll per connection SHALL be active across all server instances. Polling SHALL survive process restarts and resume overdue work. A connection waiting for credential replacement SHALL NOT be polled.
 
 A manual refresh of the connection SHALL also request an immediate lead poll.
 
@@ -61,19 +61,8 @@ A Meta lead SHALL create at most one CRM lead, identified by its Meta lead ident
 - **WHEN** a member deletes an imported lead and Meta still returns it on a later poll
 - **THEN** the lead is not recreated
 
-### Requirement: Imported leads land on the client's board
-Each imported lead SHALL be created on the CRM board of the client that owns the connected project, in stage `NEW`, after the leads already in that stage, naming that project. It SHALL never be placed on the agency board or another client's board. Leads imported by one poll SHALL be committed together with the advance of the covered period, so a poll either records all of its leads or none.
-
-#### Scenario: Board placement
-- **WHEN** a lead is imported for a project of client A
-- **THEN** it appears last in Новый лид on client A's board and on no other board
-
-#### Scenario: Partial failure
-- **WHEN** a poll fails after reading some leads
-- **THEN** none of them are created and the next poll imports them
-
 ### Requirement: Form answers fill the lead's contact details
-An imported lead's name SHALL be the prospect's full name answer, otherwise their first and last name answers joined, otherwise their phone, otherwise their email, otherwise the Meta lead identifier. Phone, email and company SHALL come from the corresponding standard form answers. An answer that is invalid or longer than the matching lead field allows SHALL be left out of that field rather than rejected or altered; the lead SHALL still be imported. Website, source text and notes SHALL start empty.
+An imported lead's name SHALL be the prospect's full name answer, otherwise their first and last name answers joined, otherwise their phone, otherwise their email, otherwise the Meta lead identifier. Email and company SHALL come from the corresponding standard form answers. The phone SHALL come from the standard phone answer, otherwise the standard work phone answer, otherwise the first custom question in form order whose name mentions a phone and whose answer looks like a phone number. A question name SHALL mention a phone when, split into words at every character that is not a letter or digit and compared without regard to case, one of its words contains `phone` or `телефон`, starts with `tel` without starting with `telegram`, or is `number`. An answer SHALL look like a phone number when it holds only digits, spaces, `+`, brackets, dots and dashes, and at least five digits. An answer that is invalid or longer than the matching lead field allows SHALL be left out of that field rather than rejected or altered; the lead SHALL still be imported. Website, source text and notes SHALL start empty.
 
 Every answer, including mapped ones, SHALL be kept on the lead in form order as question and values. At most 100 answers and 10000 characters of answer text SHALL be kept per lead; answers beyond those bounds SHALL be dropped and the lead SHALL indicate that answers were omitted. Contact values and answers SHALL NOT appear in logs, error details or realtime notifications.
 
@@ -90,8 +79,20 @@ Every answer, including mapped ones, SHALL be kept on the lead in form order as 
 - **THEN** the lead is imported without an email and the answer remains readable in the answers list
 
 #### Scenario: Custom question
-- **WHEN** a form asks a custom question
+- **WHEN** a form asks a custom question that does not mention a phone
 - **THEN** its question and answer are readable on the lead and no contact field is filled from it
+
+#### Scenario: A custom phone question
+- **WHEN** a form has no standard phone answer and asks `Phone`, `tel`, `Contact number` or `Телефон`, answered +375 (29) 123-45-67
+- **THEN** the lead's phone is +375 (29) 123-45-67 and the answer stays in the answers list
+
+#### Scenario: The standard answer wins
+- **WHEN** a form returns a standard phone number answer and a custom `Phone` question
+- **THEN** the lead's phone is the standard answer
+
+#### Scenario: Not a phone
+- **WHEN** a form's only phone-like questions are `Telegram` answered +375291234567 and `number_of_employees` answered 50
+- **THEN** the lead is imported without a phone
 
 ### Requirement: Imported leads are attributed to the advertising that produced them
 An imported lead SHALL record the connected account identifier, the form identifier, and the Meta identifiers and names of the campaign, ad set and ad as Meta reported them at import time, together with the moment the prospect submitted the form. These recorded values SHALL remain when the local campaign, ad set or ad is later removed or renamed.
@@ -142,4 +143,37 @@ Disconnecting a project SHALL stop lead polling and keep every imported lead, it
 
 #### Scenario: Leads after disconnect
 - **WHEN** a project is disconnected
-- **THEN** its imported leads remain on the client's board with their Meta source
+- **THEN** its imported leads remain on the project's board with their Meta source
+
+### Requirement: Imported leads land on the project's board
+Each imported lead SHALL be created on the CRM board of the connected project, in stage `NEW`, before the leads already in that stage. It SHALL never be placed on another project's board. Leads imported by one poll SHALL be committed together with the advance of the covered period, so a poll either records all of its leads or none. Leads claimed within one poll SHALL keep their relative order among themselves, all placed ahead of the leads that were already in `NEW`.
+
+#### Scenario: Board placement
+- **WHEN** a lead is imported for project A of a client that also has project B
+- **THEN** it appears first in Новый лид on project A's board and on no other board
+
+#### Scenario: A poll importing several leads
+- **WHEN** one poll imports two new leads for project A, which already had a lead in Новый лид
+- **THEN** both new leads are ahead of the existing one, in the order the poll returned them
+
+### Requirement: Lead import can be switched off per connection
+
+Each Meta connection SHALL carry a lead import switch, shown in its connection settings window
+to members who may manage integrations, and on by default. The window for a new connection
+SHALL show it on, and the connection SHALL be created with the chosen setting; for an existing
+connection, changing it SHALL take effect at once, without re-entering the token. While it is off the connection SHALL NOT be polled
+for leads; its advertising import SHALL continue and leads already imported SHALL remain.
+Switching it on SHALL request a lead poll at once. Changing the switch SHALL require the
+integration permission and project reach.
+
+#### Scenario: Switching lead import off
+- **WHEN** a member switches off lead import on a connection
+- **THEN** no further lead polls run for it, its campaigns keep updating, and existing leads stay on the board
+
+#### Scenario: Switching it back on
+- **WHEN** the member switches lead import on again
+- **THEN** a lead poll is requested immediately
+
+#### Scenario: A new connection
+- **WHEN** a member opens the window to connect a Meta account
+- **THEN** the lead import switch is on, and the account is connected with lead import on unless they switched it off

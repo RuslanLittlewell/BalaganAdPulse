@@ -6,7 +6,15 @@ import type { Snapshot } from "../domain/snapshot.js";
 export function createImportWorker(d: {
   jobs: ImportJobs;
   cipher: CredentialCipher;
-  provider: { snapshot(accountId: string, token: string, currency: string, now: Date, signal?: AbortSignal): Promise<Snapshot> };
+  provider: {
+    snapshot(
+      accountId: string,
+      token: string,
+      currency: string,
+      now: Date,
+      signal?: AbortSignal,
+    ): Promise<Snapshot>;
+  };
   clock: { now(): Date };
   leads: Pick<LeadInbox, "link">;
 }) {
@@ -18,27 +26,55 @@ export function createImportWorker(d: {
     const job = await d.jobs.claim(d.clock.now());
     if (!job) return false;
     controller = new AbortController();
-    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(15 * 60_000)]);
+    const signal = AbortSignal.any([
+      controller.signal,
+      AbortSignal.timeout(15 * 60_000),
+    ]);
     const heartbeat = setInterval(() => {
-      void d.jobs.renew(job, d.clock.now()).then((owned) => {
-        if (!owned) controller?.abort();
-      }).catch(() => { controller?.abort(); });
+      void d.jobs
+        .renew(job, d.clock.now())
+        .then((owned) => {
+          if (!owned) controller?.abort();
+        })
+        .catch(() => {
+          controller?.abort();
+        });
     }, 30_000);
     try {
       if (stopped) return false;
       const token = d.cipher.decrypt(job.encryptedToken, job.projectId);
-      const snapshot = await d.provider.snapshot(job.accountId, token, job.currency, d.clock.now(), signal);
-      if (signal.aborted || !await d.jobs.complete(job, snapshot, d.clock.now())) return true;
+      const snapshot = await d.provider.snapshot(
+        job.accountId,
+        token,
+        job.currency,
+        d.clock.now(),
+        signal,
+      );
+      if (
+        signal.aborted ||
+        !(await d.jobs.complete(job, snapshot, d.clock.now()))
+      )
+        return true;
       await d.leads.link(job.projectId).catch((error: unknown) => {
-        console.error("Linking imported leads failed:", error instanceof Error ? error.message : error);
+        console.error(
+          "Linking imported leads failed:",
+          error instanceof Error ? error.message : error,
+        );
       });
     } catch (error) {
       if (error instanceof MetaError) {
         console.error("Meta import failed:", error.code, error.detail);
       } else {
-        console.error("Meta import failed unexpectedly:", error instanceof Error ? error.message : error);
+        console.error(
+          "Meta import failed unexpectedly:",
+          error instanceof Error ? error.message : error,
+        );
       }
-      await d.jobs.fail(job, error instanceof MetaError ? error : new MetaError("PROVIDER"), d.clock.now());
+      await d.jobs.fail(
+        job,
+        error instanceof MetaError ? error : new MetaError("PROVIDER"),
+        d.clock.now(),
+      );
     } finally {
       clearInterval(heartbeat);
       controller = undefined;
@@ -48,11 +84,32 @@ export function createImportWorker(d: {
   const tick = () => {
     if (stopped || active) return;
     active = (async () => {
-      for (let i = 0; i < 20 && !stopped; i++) { if (!await run()) break; }
-    })().catch(() => { console.error("Meta import worker failed; pending work will be retried"); }).finally(() => { active = undefined; });
+      for (let i = 0; i < 20 && !stopped; i++) {
+        if (!(await run())) break;
+      }
+    })()
+      .catch(() => {
+        console.error(
+          "Meta import worker failed; pending work will be retried",
+        );
+      })
+      .finally(() => {
+        active = undefined;
+      });
   };
   return {
-    start() { if (polling) return; stopped = false; polling = setInterval(tick, 60_000); tick(); },
-    async stop() { stopped = true; clearInterval(polling); polling = undefined; controller?.abort(); await active; },
+    start() {
+      if (polling) return;
+      stopped = false;
+      polling = setInterval(tick, 60_000);
+      tick();
+    },
+    async stop() {
+      stopped = true;
+      clearInterval(polling);
+      polling = undefined;
+      controller?.abort();
+      await active;
+    },
   };
 }

@@ -17,7 +17,7 @@ export const createInviteSchema = z.discriminatedUnion("registrationType", [
   z.object({
     registrationType: z.literal("EMPLOYEE"),
     role: z.enum(["ADMIN", "MANAGER", "GUEST"]),
-    projectIds: z.array(z.uuid()).min(1),
+    projectIds: z.array(z.uuid()).optional(),
     ...common,
   }).strict(),
 ]);

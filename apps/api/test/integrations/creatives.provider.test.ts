@@ -367,3 +367,57 @@ it("keeps creative fields out of the daily snapshot", async () => {
   expect(adsRequest?.searchParams.get("fields")).not.toContain("creative");
   expect(fetcher.mock.calls.map(([url]) => (url as URL).pathname)).not.toContain("/v22.0/10");
 });
+
+it("takes a video's largest preview frame as its poster", async () => {
+  const { provider } = graph(
+    [ad({ id: "c40", video_id: "940", thumbnail_url: "https://cdn.invalid/creative-1080.jpg" })],
+    { 940: {
+      id: "940", source: "https://cdn.invalid/clip.mp4", picture: "https://cdn.invalid/tiny.jpg",
+      thumbnails: { data: [
+        { uri: "https://cdn.invalid/frame-130.jpg", width: 130, height: 73 },
+        { uri: "https://cdn.invalid/frame-1080.jpg", width: 1080, height: 1920 },
+        { uri: "https://cdn.invalid/frame-720.jpg", width: 720, height: 1280 },
+      ] },
+    } },
+  );
+
+  const creatives = await provider.adCreatives("10", "secret");
+
+  expect(creatives[0]).toMatchObject({ posterUrl: "https://cdn.invalid/frame-1080.jpg" });
+});
+
+it("asks a video for its preview frames", async () => {
+  const { provider, fetcher } = graph(
+    [ad({ id: "c41", video_id: "941" })],
+    { 941: { id: "941", source: "https://cdn.invalid/clip.mp4" } },
+  );
+
+  await provider.adCreatives("10", "secret");
+
+  const asked = fetcher.mock.calls.map(([url]) => url as URL).find((url) => url.pathname.endsWith("/941"));
+  expect(asked?.searchParams.get("fields")).toBe("source,picture,thumbnails{uri,width,height}");
+});
+
+it("looks up the original upload of a link image and of carousel frames by their hash", async () => {
+  const fetcher = vi.fn(async (url: URL) => {
+    if (url.pathname.endsWith("/adimages")) {
+      return json({ data: [
+        { hash: "h-link", url: "https://cdn.invalid/link-original.jpg" },
+        { hash: "h-frame", url: "https://cdn.invalid/frame-original.jpg" },
+      ] });
+    }
+    if (url.pathname.endsWith("/11")) {
+      return json({ id: "11", creative: { id: "c42", object_story_spec: { link_data: { picture: "https://cdn.invalid/link-scaled.jpg", image_hash: "h-link" } } } });
+    }
+    return json({ id: "12", creative: { id: "c43", object_story_spec: { link_data: { child_attachments: [
+      { picture: "https://cdn.invalid/frame-scaled.jpg", image_hash: "h-frame" },
+    ] } } } });
+  });
+  const provider = new GraphProvider("v22.0", fetcher);
+
+  const [linkImage] = await provider.adCreatives("11", "secret", "123");
+  const [frameImage] = await provider.adCreatives("12", "secret", "123");
+
+  expect(linkImage).toMatchObject({ kind: "IMAGE", fileUrl: "https://cdn.invalid/link-original.jpg" });
+  expect(frameImage).toMatchObject({ kind: "IMAGE", fileUrl: "https://cdn.invalid/frame-original.jpg" });
+});

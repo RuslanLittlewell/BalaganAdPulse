@@ -13,6 +13,12 @@ export function statusLabel(status: DeliveryStatus): string {
   return t(`status.${status}`);
 }
 
+const RUNNING_STATUSES: readonly DeliveryStatus[] = ["ACTIVE", "LEARNING"];
+
+export function isRunning(status: DeliveryStatus): boolean {
+  return RUNNING_STATUSES.includes(status);
+}
+
 export function statusTone(status: DeliveryStatus): "positive" | "warning" | "danger" | "muted" {
   if (status === "ACTIVE") return "positive";
   if (status === "LEARNING") return "warning";
@@ -20,13 +26,7 @@ export function statusTone(status: DeliveryStatus): "positive" | "warning" | "da
   return "muted";
 }
 
-export type PerformanceTone = "danger" | "stable" | "profitable";
-
-export function performanceTone(performance: Performance): PerformanceTone {
-  if (performance.roas != null && performance.roas < 0.9) return "danger";
-  if (performance.roas != null && performance.roas > 1.2) return "profitable";
-  return "stable";
-}
+export type PerformanceTone = "idle" | "danger" | "stable" | "profitable";
 
 export interface MetricColumn {
   id: keyof Performance;

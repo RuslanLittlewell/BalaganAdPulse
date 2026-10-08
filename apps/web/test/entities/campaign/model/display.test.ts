@@ -1,4 +1,4 @@
-import { METRIC_COLUMNS, channelLabel, performanceTone, statusLabel } from "@/entities/campaign/index.js";
+import { METRIC_COLUMNS, channelLabel, statusLabel } from "@/entities/campaign/index.js";
 import { CHANNELS, DELIVERY_STATUSES } from "@/entities/campaign/index.js";
 
 const performance = {
@@ -17,18 +17,6 @@ describe("channel and status names", () => {
     expect(DELIVERY_STATUSES.map(statusLabel)).toEqual([
       "Активна", "Обучение", "Пауза", "Отклонена", "Завершена",
     ]);
-  });
-});
-
-describe("campaign performance tone", () => {
-  it.each([
-    [0.6, "danger"],
-    [0.9, "stable"],
-    [1.2, "stable"],
-    [1.21, "profitable"],
-    [null, "stable"],
-  ] as const)("maps ROAS %s to %s", (roas, tone) => {
-    expect(performanceTone({ ...performance, roas })).toBe(tone);
   });
 });
 

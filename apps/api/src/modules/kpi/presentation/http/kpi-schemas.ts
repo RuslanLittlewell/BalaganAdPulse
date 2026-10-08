@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { KPI_METRICS } from '../../domain/kpi.js';
+import { KPI_METRICS } from '#modules/kpi/domain/kpi.js';
 
 export const kpiInputSchema = z.object({
   metric: z.enum(KPI_METRICS),

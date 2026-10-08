@@ -2,7 +2,7 @@ import { applyMove, placementFor, previewFor, resolveDrop, type Task } from "@/e
 
 const task = (id: string, column: Task["column"], position: number): Task => ({
   id, projectId: "p1", orgId: "org1", title: id, description: null,
-  column, priority: "LOW", assigneeId: null, createdById: null, campaignId: null, visibleToClient: false,
+  column, priority: "LOW", assigneeId: null, createdById: null, visibleToClient: false,
   position, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds: [],
   createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
 });

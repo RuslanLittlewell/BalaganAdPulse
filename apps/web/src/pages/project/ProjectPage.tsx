@@ -1,8 +1,10 @@
-import { MetaIntegration } from "@/features/meta-integration/index.js";
-import { useState } from "react";
+import {
+  MetaIntegration,
+  useIntegrations,
+} from "@/features/meta-integration/index.js";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { HistoryIcon } from "lucide-react";
-import { Button, EmptyState, Skeleton } from "@/shared/ui/index.js";
+import { EmptyState, Skeleton, Switch, Tabs } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
 import { projectPath } from "@/shared/lib/index.js";
 import { useClients } from "@/entities/client/index.js";
@@ -13,19 +15,23 @@ import {
 } from "@/entities/project/index.js";
 import {
   channelLabel,
-  performanceTone,
+  isRunning,
   statusLabel,
+  totalPerformance,
   useProjectCampaigns,
   useProjectSummary,
 } from "@/entities/campaign/index.js";
-import {
-  ACTIVE_TASK_COLUMNS,
-  useTasks,
-  type Task,
-} from "@/entities/task/index.js";
+import { ACTIVE_TASK_COLUMNS, useTasks } from "@/entities/task/index.js";
+import { useKpi } from "@/entities/kpi/index.js";
 import { PeriodControl, usePeriod } from "@/features/period/index.js";
-import { TaskPreviewDialog } from "@/features/task-management/index.js";
-import { Can, useCan } from "@/features/permissions/index.js";
+import { campaignTone } from "./campaignTone.js";
+import {
+  TaskDialogs,
+  type OpenedTask,
+} from "@/features/task-management/index.js";
+import { useCan } from "@/features/permissions/index.js";
+import { useAuth } from "@/features/auth/index.js";
+import { useMembers } from "@/entities/membership/index.js";
 import { TaskList } from "@/widgets/task-list/index.js";
 import { PerformanceSummary } from "@/widgets/agency-overview/index.js";
 import {
@@ -34,6 +40,8 @@ import {
 } from "@/widgets/performance-table/index.js";
 import { ActivityLogModal } from "@/widgets/activity-log-modal/index.js";
 import type { AuditEventFilters } from "@/entities/audit-event/index.js";
+
+const sourceKey = (provider: string, accountId: string) => `${provider}:${accountId}`;
 
 function CampaignTablePlaceholder() {
   return (
@@ -59,11 +67,29 @@ export function ProjectPage() {
   const clients = useClients();
   const summary = useProjectSummary(projectId, range);
   const campaigns = useProjectCampaigns(projectId, range);
+  const projectKpi = useKpi(
+    projectId ? { kind: "project", id: projectId } : undefined,
+  );
   const [activityFilters, setActivityFilters] =
     useState<AuditEventFilters | null>(null);
-  const [reading, setReading] = useState<Task | null>(null);
+  const [opened, setOpened] = useState<OpenedTask>({ mode: "closed" });
   const tasks = useTasks({ projectId, enabled: projectId != null });
+  const raisesTasks = useCan("create", "task");
+  const { user } = useAuth();
+  const members = useMembers();
   const editsProjectKpi = useCan("update", "kpi");
+  const readsActivity = useCan("read", "audit");
+  const managesIntegrations = useCan("update", "integration");
+  const integrations = useIntegrations(
+    projectId ?? "",
+    managesIntegrations && projectId != null,
+  );
+  const [source, setSource] = useState<string | null>(null);
+  const [runningOnly, setRunningOnly] = useState(true);
+  useEffect(() => {
+    setSource(null);
+    setRunningOnly(true);
+  }, [projectId]);
 
   const inFlight = (tasks.data ?? []).filter((task) =>
     ACTIVE_TASK_COLUMNS.includes(task.column),
@@ -76,15 +102,49 @@ export function ProjectPage() {
   );
   if (!project) return <EmptyState title={t("project.notFound.title")} />;
 
+  const me = members.data?.find(
+    (member) => member.userId === user?.id && member.status === "ACTIVE",
+  );
+
   const clientName =
     clients.data?.find((client) => client.id === project.clientId)?.name ?? "";
 
-  const rows: PerformanceRow[] = (campaigns.data ?? []).map((campaign) => ({
+  const sources = new Map<string, string>();
+  for (const connection of integrations.data ?? []) {
+    sources.set(
+      sourceKey(connection.provider, connection.accountId),
+      `${t(`integrations.provider.${connection.provider}`)} · ${connection.accountId}`,
+    );
+  }
+  const all = campaigns.data ?? [];
+  for (const campaign of all) {
+    if (campaign.sourceAccountId == null) continue;
+    const key = sourceKey(campaign.channel, campaign.sourceAccountId);
+    if (!sources.has(key)) {
+      sources.set(key, `${channelLabel(campaign.channel)} · ${campaign.sourceAccountId}`);
+    }
+  }
+  const sourceKeys = [...sources.keys()];
+  const separated = sourceKeys.length > 1;
+  const chosen =
+    source != null && sources.has(source) ? source : sourceKeys[0];
+  const inAccount = all.filter(
+    (campaign) =>
+      !separated ||
+      (campaign.sourceAccountId != null &&
+        sourceKey(campaign.channel, campaign.sourceAccountId) === chosen),
+  );
+  const running = inAccount.filter((campaign) => isRunning(campaign.status));
+  const listed = runningOnly
+    ? running
+    : [...running, ...inAccount.filter((campaign) => !isRunning(campaign.status))];
+
+  const rows: PerformanceRow[] = listed.map((campaign) => ({
     id: campaign.id,
     name: campaign.name,
     note: `${channelLabel(campaign.channel)} · ${statusLabel(campaign.status)}`,
     performance: campaign.performance,
-    tone: performanceTone(campaign.performance),
+    tone: campaignTone(campaign, projectKpi.data, range),
   }));
 
   return (
@@ -92,16 +152,10 @@ export function ProjectPage() {
       <ProjectHeader
         project={project}
         clientName={clientName}
-        actions={
-          <Can action="read" resource="audit">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setActivityFilters({ projectId: project.id })}
-            >
-              <HistoryIcon /> {t("activity.title")}
-            </Button>
-          </Can>
+        onShowActivity={
+          readsActivity
+            ? () => setActivityFilters({ projectId: project.id })
+            : undefined
         }
       />
 
@@ -127,40 +181,71 @@ export function ProjectPage() {
       ) : campaigns.isError ? (
         <EmptyState
           title={t("state.error.title")}
-          action={
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => campaigns.refetch()}
-            >
-              {t("state.retry")}
-            </Button>
-          }
+          actionLabel={t("state.retry")}
+          onAction={() => campaigns.refetch()}
         />
       ) : (
-        <PerformanceTable
-          tableKey="campaigns"
-          heading={t("campaigns.one")}
-          rows={rows}
-          totals={summary.data}
-          currency={project.budgetCurrency}
-          empty={campaigns.isSuccess ? t("campaigns.empty.title") : undefined}
-          onOpen={(campaignId) =>
-            navigate(`${projectPath(project.id, campaignId)}${location.search}`)
-          }
-        />
+        <div className="flex flex-col gap-3">
+          {(sources.size > 0 || all.length > 0) && (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              {sources.size > 0 && (
+                <Tabs
+                  items={[...sources].map(([id, label]) => ({ id, label }))}
+                  activeId={chosen}
+                  onSelect={setSource}
+                  ariaLabel={t("campaigns.sources")}
+                />
+              )}
+              {all.length > 0 && (
+                <label className="ml-auto flex items-center gap-2 text-sm">
+                  <Switch checked={runningOnly} onCheckedChange={setRunningOnly} />
+                  {t("campaigns.runningOnly")}
+                </label>
+              )}
+            </div>
+          )}
+          <PerformanceTable
+            tableKey="campaigns"
+            heading={t("campaigns.one")}
+            rows={rows}
+            visibleRows={10}
+            totals={totalPerformance(listed.map((campaign) => campaign.performance))}
+            currency={project.budgetCurrency}
+            empty={
+              campaigns.isSuccess
+                ? t(inAccount.length > 0 ? "campaigns.noneRunning" : "campaigns.empty.title")
+                : undefined
+            }
+            onOpen={(campaignId) =>
+              navigate(
+                `${projectPath(project.id, campaignId)}${location.search}`,
+              )
+            }
+          />
+        </div>
       )}
 
       <TaskList
         title={t("tasks.inFlight.title")}
         tasks={inFlight}
         empty={t("tasks.inFlight.empty")}
-        onOpen={setReading}
+        onOpen={(task) => setOpened({ mode: "open", task })}
+        onCreate={
+          raisesTasks
+            ? () =>
+                setOpened({
+                  mode: "create",
+                  projectId: project.id,
+                  assigneeId: me?.id,
+                })
+            : undefined
+        }
       />
 
-      {reading ? (
-        <TaskPreviewDialog task={reading} onClose={() => setReading(null)} />
-      ) : null}
+      <TaskDialogs
+        opened={opened}
+        onClose={() => setOpened({ mode: "closed" })}
+      />
 
       <ActivityLogModal
         open={activityFilters != null}

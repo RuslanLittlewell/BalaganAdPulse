@@ -17,7 +17,7 @@ export interface RequestContext {
 
 const storage = new AsyncLocalStorage<RequestContext>();
 
-export function runWithRequestContext<T>(
+function runWithRequestContext<T>(
   context: RequestContext,
   callback: () => T,
 ): T {

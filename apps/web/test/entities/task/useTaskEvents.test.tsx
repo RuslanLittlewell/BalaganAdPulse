@@ -5,7 +5,7 @@ import type { Task } from "@/entities/task/index.js";
 
 const task = (id: string, column: Task["column"], position: number): Task => ({
   id, projectId: "p1", orgId: "org1", title: id, description: null,
-  column, priority: "LOW", assigneeId: null, createdById: null, campaignId: null, visibleToClient: false, position, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds: [],
+  column, priority: "LOW", assigneeId: null, createdById: null, visibleToClient: false, position, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds: [],
   createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
 });
 
@@ -91,6 +91,19 @@ describe("subscribing to the board", () => {
     latest().accept();
 
     act(() => { latest().onmessage?.({ data: "not json" }); });
+
+    expect(read(wrapper)).toEqual(board);
+  });
+
+  it("ignores an event kind from another feed sharing the socket", async () => {
+    const { wrapper } = setup();
+    await waitFor(() => expect(FakeSocket.opened).toHaveLength(1));
+    latest().accept();
+    latest().ready();
+
+    expect(() => {
+      latest().deliver({ kind: "crm.changed", orgId: "org1", board: "b1" });
+    }).not.toThrow();
 
     expect(read(wrapper)).toEqual(board);
   });

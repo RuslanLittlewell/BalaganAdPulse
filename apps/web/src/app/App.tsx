@@ -1,40 +1,42 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route, useLocation } from "react-router-dom";
 import { DashboardPage } from "@/pages/dashboard/index.js";
 import { ModulePage } from "@/pages/module/index.js";
 import { ProjectsPage } from "@/pages/projects/index.js";
+import { ReportsPage } from "@/pages/reports/index.js";
 import { LoginPage } from "@/pages/login/index.js";
 import { RegistrationPage } from "@/pages/registration/index.js";
+import { RequestResetPage, ResetPasswordPage } from "@/pages/password-reset/index.js";
 import { TasksPage } from "@/pages/tasks/index.js";
 import { CrmPage } from "@/pages/crm/index.js";
 import { AuthProvider, RequireAuth, SessionHeartbeat } from "@/features/auth/index.js";
 import { NavCollapseProvider } from "@/features/nav-collapse/index.js";
-import { ProjectsSync, SelectionSync } from "@/entities/project/index.js";
+import { ProjectsSync } from "@/entities/project/index.js";
 import { StaffSync } from "@/entities/membership/index.js";
 import { AppShell } from "@/widgets/app-shell/index.js";
 import { AppHeader } from "@/widgets/app-header/index.js";
 import { MainNav } from "@/widgets/main-nav/index.js";
 import { AlertsProvider } from "@/shared/ui/index.js";
-import { createQueryClient, ROUTES } from "@/shared/lib/index.js";
+import { createQueryClient, moduleKeyFromPathname, ROUTES } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 
 const queryClient = createQueryClient();
 
 function Dashboard() {
+  const location = useLocation();
   return (
     <RequireAuth>
       <NavCollapseProvider>
-        <SelectionSync />
         <StaffSync />
         <ProjectsSync />
         <SessionHeartbeat />
-        <AppShell sidebar={<MainNav />} header={<AppHeader />}>
-          <Routes>
+        <AppShell sidebar={<MainNav />} header={<AppHeader />} moduleKey={moduleKeyFromPathname(location.pathname)}>
+          <Routes location={location}>
             <Route path={ROUTES.dashboard} element={<DashboardPage />} />
             <Route path={`${ROUTES.projects}/*`} element={<ProjectsPage />} />
             <Route path={ROUTES.tasks} element={<TasksPage />} />
             <Route path={ROUTES.crm} element={<CrmPage />} />
-            <Route path={ROUTES.reports} element={<ModulePage title={t("nav.reports")} />} />
+            <Route path={`${ROUTES.reports}/*`} element={<ReportsPage />} />
             <Route path={ROUTES.archive} element={<ModulePage title={t("nav.archive")} />} />
             <Route path="/clients/*" element={<Navigate to={ROUTES.projects} replace />} />
             <Route path="/team" element={<Navigate to={ROUTES.dashboard} replace />} />
@@ -55,6 +57,8 @@ export function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<Navigate to="/login" replace />} />
             <Route path="/regustration/:code" element={<RegistrationPage />} />
+            <Route path="/password-reset" element={<RequestResetPage />} />
+            <Route path="/password-reset/:token" element={<ResetPasswordPage />} />
             <Route path="/*" element={<Dashboard />} />
           </Routes>
         </AuthProvider>

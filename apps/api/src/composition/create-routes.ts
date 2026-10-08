@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { NotFoundError } from "#shared/presentation/http-errors.js";
+import { AppError } from "#shared/domain/index.js";
 import type { ApiContainer } from "./create-container.js";
 
 export const ROUTE_MOUNTS = [
@@ -16,6 +16,8 @@ export const ROUTE_MOUNTS = [
   { id: "members", path: "/api/members" },
   { id: "audit", path: "/api/audit" },
   { id: "project-metrics", path: "/api/projects/:projectId" },
+  { id: "reports", path: "/api/projects/:projectId/reports" },
+  { id: "report-index", path: "/api/reports" },
   { id: "integrations", path: "/api/projects" },
   { id: "projects", path: "/api/projects" },
   { id: "project-layout", path: "/api/project-layout" },
@@ -57,6 +59,8 @@ export function createRoutes(container: ApiContainer): Router {
     container.memberRouter,
     container.auditRouter,
     container.projectMetricRouter,
+    container.reportRouter,
+    container.reportIndexRouter,
     container.integrationRouter,
     container.projectRouter,
     container.projectLayoutRouter,
@@ -71,7 +75,8 @@ export function createRoutes(container: ApiContainer): Router {
     container.leadRouter,
     container.taskImageRouter,
     container.kpiRouter,
-    (_request: unknown, _response: unknown, next: (error: Error) => void) => next(new NotFoundError("Endpoint not found")),
+    (_request: unknown, _response: unknown, next: (error: Error) => void) =>
+      next(new AppError("not-found", "Endpoint not found")),
   ];
   ROUTE_MOUNTS.forEach(({ path }, index) => router.use(path, handlers[index]));
   return router;

@@ -67,11 +67,10 @@ export function useProjects(clientId?: string): ProjectsResult {
 
   const common = { isFetching: status === "loading", refetch: refreshProjects } as const;
 
-  if (status === "failed") {
-    return { ...common, data: undefined, isPending: false, isSuccess: false, isError: true };
-  }
-  if (status !== "ready" || projects === undefined) {
-    return { ...common, data: undefined, isPending: true, isSuccess: false, isError: false };
+  if (projects === undefined) {
+    return status === "failed"
+      ? { ...common, data: undefined, isPending: false, isSuccess: false, isError: true }
+      : { ...common, data: undefined, isPending: true, isSuccess: false, isError: false };
   }
   return {
     ...common,

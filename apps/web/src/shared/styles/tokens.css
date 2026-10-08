@@ -4,10 +4,6 @@
 
 @custom-variant dark (&:is(.dark *));
 
-.Toastify__toast-container {
-  --toastify-font-family: var(--font-sans);
-}
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -40,45 +36,75 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: 6px;
+  --radius-md: 8px;
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+@theme {
+  --spacing: 0.2rem;
+  --text-xs: 0.625rem;
+  --text-xs--line-height: 0.875rem;
+  --text-sm: 0.75rem;
+  --text-sm--line-height: 1.125rem;
+  --text-base: 0.875rem;
+  --text-base--line-height: 1.375rem;
+  --text-lg: 1rem;
+  --text-lg--line-height: 1.625rem;
+  --text-xl: 1.125rem;
+  --text-xl--line-height: 1.625rem;
+  --text-2xl: 1.375rem;
+  --text-2xl--line-height: 1.875rem;
+  --text-3xl: 1.75rem;
+  --text-3xl--line-height: 2.125rem;
+  --text-4xl: 2.125rem;
+  --text-4xl--line-height: 2.375rem;
+  --text-5xl: 2.875rem;
+  --text-5xl--line-height: 1;
+  --text-6xl: 3.625rem;
+  --text-6xl--line-height: 1;
+  --text-7xl: 4.375rem;
+  --text-7xl--line-height: 1;
+  --text-8xl: 5.875rem;
+  --text-8xl--line-height: 1;
+  --text-9xl: 7.875rem;
+  --text-9xl--line-height: 1;
+}
+
 :root {
-  --background: oklch(0.96 0.003 286);
-  --foreground: oklch(0.141 0.005 285.823);
-  --card: oklch(0.98 0.002 286);
-  --card-foreground: oklch(0.141 0.005 285.823);
-  --popover: oklch(0.98 0.002 286);
-  --popover-foreground: oklch(0.141 0.005 285.823);
-  --primary: #082f68;
-  --primary-foreground: #f4f6fa;
-  --secondary: oklch(0.935 0.004 286);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.935 0.004 286);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.935 0.004 286);
-  --accent-foreground: oklch(0.21 0.006 285.885);
+  --background: #F4F8F7;
+  --foreground: #18332F;
+  --card: #FFFFFF;
+  --card-foreground: #18332F;
+  --popover: #FFFFFF;
+  --popover-foreground: #18332F;
+  --primary: #0F766E;
+  --primary-foreground: #FFFFFF;
+  --secondary: #E8F5F1;
+  --secondary-foreground: #18332F;
+  --muted: #E8F5F1;
+  --muted-foreground: #536D66;
+  --accent: #E8F5F1;
+  --accent-foreground: #18332F;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.83 0.008 286);
-  --input: oklch(0.83 0.008 286);
-  --ring: oklch(0.705 0.015 286.067);
+  --border: #DCE7E3;
+  --input: #DCE7E3;
+  --ring: #0F766E;
   --chart-1: oklch(0.811 0.111 293.571);
   --chart-2: oklch(0.606 0.25 292.717);
   --chart-3: oklch(0.541 0.281 293.009);
   --chart-4: oklch(0.491 0.27 292.581);
   --chart-5: oklch(0.432 0.232 292.759);
   --radius: 0.875rem;
-  --sidebar: oklch(0.97 0.003 286);
-  --sidebar-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-primary: oklch(0.541 0.281 293.009);
-  --sidebar-primary-foreground: oklch(0.969 0.016 293.756);
-  --sidebar-accent: oklch(0.935 0.004 286);
-  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
-  --sidebar-border: oklch(0.83 0.008 286);
-  --sidebar-ring: oklch(0.705 0.015 286.067);
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #18332F;
+  --sidebar-primary: #0F766E;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #E8F5F1;
+  --sidebar-accent-foreground: #18332F;
+  --sidebar-border: #DCE7E3;
+  --sidebar-ring: #0F766E;
 
   /* Compatibility tokens used by the existing CSS Modules. */
   --color-bg: var(--background);
@@ -124,21 +150,21 @@
        Palladian                #EEE9DF   the text
        Oatmeal                  #C9C1B1   secondary text
        Blue Fantastic           #2C3B4D   raised surfaces
-       Burning Flame            #FFB162   the accent
+       Burning Flame            #C4A074   the accent
        Truffle Trouble          #A35139   destructive
-       Abyssal Anchorfish Blue  #1B2632   the ground
+       Abyssal Anchorfish Blue  #131B2D   the ground
      Two navies between Abyssal and Blue Fantastic are interpolated, because six
      colours cannot carry ground / card / border / input on their own without the
      surfaces collapsing into each other. */
-  --background: #1b2632;
+  --background: #131b2d;
   --foreground: #eee9df;
-  --card: #212d3b;
+  --card: #1a2438;
   --card-foreground: #eee9df;
-  --popover: #212d3b;
+  --popover: #1a2438;
   --popover-foreground: #eee9df;
-  --primary: #ffb162;
-  /* Dark ink on the flame: white on #FFB162 is 1.5:1 and unreadable. */
-  --primary-foreground: #1b2632;
+  --primary: #c4a074;
+  /* Dark ink on the flame: white on #C4A074 is 2.4:1 and unreadable. */
+  --primary-foreground: #131b2d;
   --secondary: #2c3b4d;
   --secondary-foreground: #eee9df;
   --muted: #2c3b4d;
@@ -148,22 +174,22 @@
   --destructive: #a35139;
   --border: #35465c;
   --input: #3f536c;
-  --ring: #ffb162;
+  --ring: #c4a074;
   /* Series colours: the two brand hues first, then neutrals and the blues, so
      adjacent series stay apart on the dark ground. */
-  --chart-1: #ffb162;
+  --chart-1: #c4a074;
   --chart-2: #7fa6c8;
   --chart-3: #c9c1b1;
   --chart-4: #a35139;
   --chart-5: #4e6b87;
-  --sidebar: #212d3b;
+  --sidebar: #1a2438;
   --sidebar-foreground: #eee9df;
-  --sidebar-primary: #ffb162;
-  --sidebar-primary-foreground: #1b2632;
+  --sidebar-primary: #c4a074;
+  --sidebar-primary-foreground: #131b2d;
   --sidebar-accent: #2c3b4d;
   --sidebar-accent-foreground: #eee9df;
   --sidebar-border: #35465c;
-  --sidebar-ring: #ffb162;
+  --sidebar-ring: #c4a074;
 
   --priority-critical: #f87171;
   --priority-urgent: #fb923c;
@@ -174,12 +200,26 @@
   /* Client swatches, pulled into the palette's temperature. All five are light
      enough to carry the ground colour as ink, and far enough apart in hue that
      two clients never read as the same circle. */
-  --color-avatar-1: #ffb162;
+  --color-avatar-1: #c4a074;
   --color-avatar-2: #7fa6c8;
   --color-avatar-3: #c9c1b1;
   --color-avatar-4: #e0876a;
   --color-avatar-5: #8fb3a0;
-  --color-avatar-ink: #1b2632;
+  --color-avatar-ink: #131b2d;
+}
+
+@utility glass-card {
+  background-color: color-mix(in oklab, var(--card) 50%, transparent);
+  backdrop-filter: blur(24px) saturate(1.5);
+}
+
+@utility modal-surface {
+  background-color: var(--card);
+
+  @variant dark {
+    background-color: color-mix(in oklab, var(--card) 50%, transparent);
+    backdrop-filter: blur(24px) saturate(1.5);
+  }
 }
 
 @layer base {

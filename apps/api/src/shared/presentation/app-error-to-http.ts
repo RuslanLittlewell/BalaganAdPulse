@@ -6,6 +6,7 @@ const statusByCategory: Readonly<Record<AppErrorCategory, number>> = {
   forbidden: 403,
   "not-found": 404,
   conflict: 409,
+  unavailable: 503,
 };
 
 export function appErrorToHttp(error: AppError) {

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { NotFoundError } from "#shared/presentation/http-errors.js";
+import { AppError } from "#shared/domain/index.js";
 import type { ApiContainer } from "./create-container.js";
 
 export const ROUTE_MOUNTS = [
@@ -75,7 +75,8 @@ export function createRoutes(container: ApiContainer): Router {
     container.leadRouter,
     container.taskImageRouter,
     container.kpiRouter,
-    (_request: unknown, _response: unknown, next: (error: Error) => void) => next(new NotFoundError("Endpoint not found")),
+    (_request: unknown, _response: unknown, next: (error: Error) => void) =>
+      next(new AppError("not-found", "Endpoint not found")),
   ];
   ROUTE_MOUNTS.forEach(({ path }, index) => router.use(path, handlers[index]));
   return router;

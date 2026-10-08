@@ -3,8 +3,9 @@ import type { ActorContext, TransactionContext } from '#shared/application/index
 import type { PrismaUnitOfWork } from '#shared/infrastructure/prisma-unit-of-work.js';
 import type { LeadRepository } from '../application/ports.js';
 import { LEAD_STAGES, placementOf, type ArrivalWindow, type LeadAnswer, type LeadColumnRecord, type LeadRecord, type LeadStage, type ProjectStageCounts } from '../domain/lead.js';
+import { reachableProjects } from '#shared/infrastructure/project-reach.js';
 
-export const leadInclude = {
+const leadInclude = {
   ad:{select:{id:true,name:true,externalId:true}},
   project:{select:{id:true,clientId:true,name:true}},
   assignee:{select:{id:true,user:{select:{name:true,image:true}}}},
@@ -15,18 +16,7 @@ const columnInclude = {project:{select:{clientId:true}}} satisfies Prisma.LeadCo
 type ColumnRow = Prisma.LeadColumnGetPayload<{include:typeof columnInclude}>;
 const toColumnRecord = ({project, ...column}: ColumnRow): LeadColumnRecord => ({...column, clientId:project.clientId});
 
-export function reachableProjects(actor: ActorContext): Prisma.ProjectWhereInput {
-  if (actor.role === 'ADMIN') return {client:{orgId:actor.orgId}};
-  return {
-    client:{orgId:actor.orgId},
-    OR:[
-      {client:{access:{some:{membershipId:actor.membershipId, projectId:null}}}},
-      {access:{some:{membershipId:actor.membershipId}}},
-    ],
-  };
-}
-
-export function toLeadRecord({metaSource, columnId, assignee, amount, ...lead}: LeadRow): LeadRecord {
+function toLeadRecord({metaSource, columnId, assignee, amount, ...lead}: LeadRow): LeadRecord {
   return {...lead, amount:amount === null ? null : amount.toFixed(4), assignee:assignee&&{id:assignee.id,name:assignee.user.name,image:assignee.user.image}, stage: lead.stage ?? columnId ?? 'NEW', metaSource: metaSource && {
     accountId:metaSource.accountId, formId:metaSource.formId,
     campaign:{externalId:metaSource.campaignExternalId, name:metaSource.campaignName},

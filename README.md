@@ -3,10 +3,10 @@
 A media buyer's dashboard. This repository hosts the backend REST API and, alongside
 it in the same monorepo, the React frontend.
 
-**Current phase:** Phase 12 — deployment to Render. Phase 11 made the repository
-deployable: a single production image serving both the API and the built SPA, with CI
-gating every push to `main`. CSV import and AI analysis are deliberately out of scope
-for now.
+It runs in production at <https://app.balagan.pro>, on a VPS the CI pipeline deploys to —
+see [Deployment](#deployment). Planning lives in [openspec/](openspec/); phases 1–12 are
+kept as history in [docs/archive/phases-1-12/](docs/archive/phases-1-12/). CSV import and
+AI analysis are deliberately out of scope for now.
 
 ## Upgrading an existing checkout
 
@@ -102,27 +102,58 @@ docker run --rm -p 3000:3000 \
 ```
 
 `NODE_ENV=production` makes the server refuse to start on the placeholder secrets
-from `.env.example`. Migrations are **not** applied on boot — they run as a
-pre-deploy step, so that a rolling deploy cannot mutate the schema underneath the
-instance still serving traffic.
+from `.env.example`. Migrations are **not** applied on boot — they run as a separate
+step before the running version is replaced, so a failed migration leaves it serving.
 
 The health endpoint is `GET /healthz`.
 
 ## Deployment
 
-AdPulse runs on Render, in Frankfurt: one web service (Starter) serving both the
-API and the built SPA, and one Basic-256mb Postgres. Both are declared in
-[render.yaml](render.yaml).
+AdPulse runs on one VPS (`45.87.219.63`) behind <https://app.balagan.pro>. Docker Compose,
+from [deploy/compose.prod.yml](deploy/compose.prod.yml), runs the production image — the
+API and the built SPA in one process — next to Postgres 16 and MinIO, whose data lives in
+Docker volumes on the server. nginx, configured from
+[deploy/nginx.conf](deploy/nginx.conf), forwards the domain to the app on
+`127.0.0.1:3100`, WebSocket upgrades included.
 
-### Credentials
+### How a deploy runs
 
-| Credential | Where it lives | Who sets it |
+Pushing to `production` deploys; `main` runs the same checks for pull requests but does
+not ship. In [ci.yml](.github/workflows/ci.yml) the `image` job builds the production
+image, proves it starts, and on a push publishes it as `ghcr.io/<repository>:<commit sha>`,
+an immutable tag. Once the `api`, `web`, `build` and `image` jobs pass, the `Deploy to VPS`
+job:
+
+1. signs in to the server as `adpulse-deploy`, checking its host key against
+   [deploy/known_hosts](deploy/known_hosts), and copies `compose.prod.yml`, `deploy.sh`
+   and `backup.sh` to `/opt/adpulse/`;
+2. runs [deploy/deploy.sh](deploy/deploy.sh) with that image, which pulls it, starts
+   Postgres and MinIO, takes a backup with [deploy/backup.sh](deploy/backup.sh), creates
+   the storage bucket if missing, applies migrations (`prisma migrate deploy` in the
+   `migrate` service), replaces the app and waits up to a minute for `/healthz`;
+3. checks `https://app.balagan.pro/healthz` from outside.
+
+A failed migration stops the script before the app is replaced, so the previous version
+keeps serving. Between the migration and the replacement the old version runs against the
+new schema, so migrations must stay backward-compatible with the version already running.
+There is no automatic rollback: to return to an earlier version, run on the server
+`APP_IMAGE=ghcr.io/<repository>:<earlier sha> /opt/adpulse/deploy.sh`, or revert and push.
+
+Backups are gzipped `pg_dump` files in `/opt/adpulse/backups`, one per deploy, kept for
+14 days. To take one by hand, run `/opt/adpulse/backup.sh`.
+
+### Configuration and secrets
+
+| What | Where it lives | Who sets it |
 |---|---|---|
-| `JWT_SECRET` | Render environment variable, `sync: false` | Operator, at Blueprint creation |
-| `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` | Render environment variables, `sync: false` | Operator, at Blueprint creation |
-| `APP_URL`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM` | Render environment variables, `sync: false` | Operator, before password recovery is used |
-| `RENDER_DEPLOY_HOOK_URL` | GitHub Actions repository secret | Operator, after the service exists |
-| `DATABASE_URL` | Injected by Render from the database | Nobody |
+| Postgres and MinIO credentials, `JWT_SECRET`, `INTEGRATION_ENCRYPTION_KEY`, `SEED_ADMIN_*`, `APP_URL`, `SMTP_*` | `/opt/adpulse/.env` on the server, passed whole to the app | Operator, by hand |
+| `PRODUCTION_VPS_SSH_KEY` — the private key of `adpulse-deploy` | GitHub Actions repository secret | Operator |
+| The server's host key | [deploy/known_hosts](deploy/known_hosts), in the repository | Operator, when the server changes |
+| Access to the image registry | The job's own `GITHUB_TOKEN`, used for one deploy and logged out | Nobody |
+
+CI never writes `/opt/adpulse/.env`, and the repository holds no production secret. In
+production `APP_URL` is `https://app.balagan.pro`; without it, or without `SMTP_USER` and
+`SMTP_PASSWORD`, asking for a password reset link answers 503.
 
 `JWT_SECRET` must be at least 32 characters, and the server refuses to start on the
 placeholder from `.env.example` when `NODE_ENV=production`. Generate one with:
@@ -131,46 +162,26 @@ placeholder from `.env.example` when `NODE_ENV=production`. Generate one with:
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 ```
 
-Deliberately **not** required: no Render API key, no container registry credentials,
-no database password handled by a person, and no production `DATABASE_URL` in GitHub.
-The deploy hook is the only credential this repository holds, and it reaches exactly
-one service.
+### Changing a secret
 
-### First deploy
+Edit `/opt/adpulse/.env` on the server, then re-run the latest `Deploy to VPS` job in
+GitHub Actions: it redeploys the same image and the app picks up the new values. Rotating
+`JWT_SECRET` invalidates every access token but not the refresh tokens, which are opaque
+and stored in the database, so clients recover on their next refresh without signing in
+again. To cut off registration instead, revoke the outstanding invitations — there is no
+shared code left to rotate.
 
-The deploy hook does not exist until the service does, so the order is fixed:
+### Seeding the first admin on the server
 
-1. Merge `render.yaml` to `main`.
-2. Create the Blueprint in Render. It prompts for `JWT_SECRET` and the `SEED_ADMIN_*`
-   values, creates the database and the service, and runs an initial deploy. This one is
-   not gated by CI, by construction. Run `npm run seed -w apps/api` once against the new
-   database before anyone tries to sign up — see
-   [Seeding the first admin](#seeding-the-first-admin).
-3. Copy the service's deploy hook URL into a GitHub Actions secret named
-   `RENDER_DEPLOY_HOOK_URL`.
-4. Every push to `main` from then on deploys through CI.
+A new database needs its first admin once, with `SEED_ADMIN_*` set in `/opt/adpulse/.env`:
 
-### Deploys after the first
+```bash
+cd /opt/adpulse
+APP_IMAGE=ghcr.io/<repository>:<deployed sha> docker compose --env-file .env \
+  -f compose.prod.yml run --rm app node --conditions=compiled dist/composition/seed-cli.js
+```
 
-Auto-deploy is off. The `Trigger deploy` job in
-[ci.yml](.github/workflows/ci.yml) POSTs the hook after the checks pass, on pushes
-to `main` only. If a job fails spuriously, re-running it in the Actions UI also re-runs
-the deploy job. To ship when CI itself is broken, use Render's Manual Deploy button.
-
-Migrations run as Render's pre-deploy command, `npx --no-install prisma migrate deploy`,
-inside the production image. A failure aborts the deploy and leaves the previous version
-serving. `--no-install` matters: without it, an image somehow missing the Prisma CLI would
-silently fetch a floating latest version from the network mid-deploy instead of failing.
-Because rolling deploys briefly run old and new code together, migrations must be
-backward-compatible with the version already running.
-
-### Rotating a secret
-
-Change it in the Render dashboard; Render redeploys. Rotating `JWT_SECRET` invalidates
-every access token but not the refresh tokens, which are opaque and stored in the
-database, so clients recover on their next refresh without signing in again. To cut off
-registration instead, revoke the outstanding invitations — there is no shared code left to
-rotate.
+See [Seeding the first admin](#seeding-the-first-admin) for what it does.
 
 ## Project structure
 
@@ -186,7 +197,9 @@ AdPulse/
         composition/        # the only place adapters are constructed and wired
           app.ts            # builds the Express app (no listen) — used by tests
           server.ts         # entry point
-          create-container.ts, create-routes.ts, seed-cli.ts
+          create-container.ts  # the order modules are wired in, and what the app is given
+          wiring/           # one wire… function per module, taking the shared kernel
+          create-routes.ts, seed-cli.ts
         modules/            # one directory per business capability
           identity/         # registration, login, tokens, profiles
           members/          # membership, roles, access grants, the session read
@@ -358,11 +371,13 @@ through the module's `index.ts`. Each module may contain `domain`, `application`
 `apps/api/src/composition`; reusable cross-module concepts belong in the deliberately
 small `apps/api/src/shared` kernel.
 
-The kernel is reached through the `#shared/*` subpath import rather than a chain of
-`../`: it maps to `src/shared/` for `tsx` and Vitest, and the `compiled` condition points
-the built server at `dist/shared/`, which is why `npm start` and the production image run
-`node --conditions=compiled`. Everything else stays relative on purpose — the architecture
-test reads those specifiers to enforce the rules below.
+The kernel and the modules are reached through the `#shared/*` and `#modules/*` subpath
+imports rather than a chain of `../`: they map to `src/shared/` and `src/modules/` for
+`tsx` and Vitest, and the `compiled` condition points the built server at `dist/`, which
+is why `npm start` and the production image run `node --conditions=compiled`. A relative
+import climbs at most one directory and stays inside its own module; anything further, or
+in another module, goes through an alias. The architecture test resolves both forms to
+enforce the rules below.
 
 Dependencies point inward: presentation and infrastructure may depend on application,
 and application may depend on domain. Domain and application code do not import Express,

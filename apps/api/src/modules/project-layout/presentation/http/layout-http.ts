@@ -1,6 +1,6 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { AppError } from "#shared/domain/index.js";
-import type { ProjectLayoutUseCases } from "../../application/layout-use-cases.js";
+import type { ProjectLayoutUseCases } from "#modules/project-layout/application/layout-use-cases.js";
 import { groupSchema, layoutSchema } from "./layout-schemas.js";
 
 function actorOf(req: Request) {

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { ROLES } from "@adpulse/access-policy";
 import { arrayOf, ref, type ComponentDocs, type RouteDoc } from "#shared/presentation/openapi.js";
-import { MEMBER_KINDS } from "../../application/ports.js";
+import { MEMBER_KINDS } from "#modules/members/application/ports.js";
 import { setAccessSchema, updateMemberSchema } from "./member-schemas.js";
 
 const member = z.object({

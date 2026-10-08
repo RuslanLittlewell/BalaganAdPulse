@@ -1,10 +1,9 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
-import { ValidationError } from "#shared/presentation/http-errors.js";
 import { AppError } from "#shared/domain/index.js";
 import { avatarUpload } from "#shared/presentation/avatar-upload.js";
 import { assertAvatarPath, assertAvatarPng } from "#shared/presentation/avatar.js";
 import { createRateLimit } from "#shared/presentation/rate-limit.js";
-import type { IdentityUseCases } from "../../application/identity-use-cases.js";
+import type { IdentityUseCases } from "#modules/identity/application/identity-use-cases.js";
 import {
   loginSchema, passwordResetRequestSchema, passwordResetSchema, refreshSchema, registerSchema, updateProfileSchema,
 } from "./identity-schemas.js";
@@ -75,7 +74,7 @@ export function createIdentityHttpRouters(
     setAuthCookies(res, tokens); res.json(tokens);
   }));
   userRouter.put("/avatar", avatarUpload.single("image"), handle(async (req, res) => {
-    if (!req.file) throw new ValidationError("Avatar PNG is required");
+    if (!req.file) throw new AppError("validation", "Avatar PNG is required");
     const avatarPath = String(req.body.avatarPath ?? "");
     assertAvatarPng(req.file.buffer); assertAvatarPath(avatarPath);
     await useCases.saveAvatar(userId(req), req.file.buffer, avatarPath);

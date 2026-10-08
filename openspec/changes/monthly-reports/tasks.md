@@ -49,3 +49,7 @@
 - [x] 7.4 Draw the agency logo on the PDF cover, use the cover picture before the first ad's, fit dark-panel titles; tests for the deck model.
 - [x] 7.5 Run `npm test` and `npm run test:web` until green; `openspec validate monthly-reports --strict`.
 - [x] 7.6 Turn the cover block into a dropzone for staff (drop or click to choose, keyboard reachable, drag state exposed) beside the stacked headline figures; web tests.
+
+## 8. One way to read a report
+
+- [x] 8.1 Drop `GET /api/projects/:projectId/reports/:reportId` and the use case behind it, leaving `GET /api/reports/:id`; move its API tests there and keep the check that a report named under another project answers 404.

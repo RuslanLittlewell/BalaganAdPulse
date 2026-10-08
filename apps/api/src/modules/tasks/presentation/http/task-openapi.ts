@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { arrayOf, ref, type ComponentDocs, type RouteDoc } from "#shared/presentation/openapi.js";
-import { MAX_TASK_IMAGE_BYTES } from "../../domain/image.js";
-import { TASK_COLUMNS, TASK_PRIORITIES } from "../../domain/board.js";
-import { TASK_REPEATS } from "../../domain/schedule.js";
+import { MAX_TASK_IMAGE_BYTES } from "#modules/tasks/domain/image.js";
+import { TASK_COLUMNS, TASK_PRIORITIES } from "#modules/tasks/domain/board.js";
+import { TASK_REPEATS } from "#modules/tasks/domain/schedule.js";
 import { createTaskSchema, moveTaskSchema, updateTaskSchema } from "./task-schemas.js";
 
 const task = z.object({

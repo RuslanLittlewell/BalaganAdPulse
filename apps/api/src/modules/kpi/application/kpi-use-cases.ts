@@ -1,7 +1,7 @@
 import { can } from '@adpulse/access-policy';
 import { AppError } from '#shared/domain/index.js';
 import type { ActorContext, UnitOfWork } from '#shared/application/index.js';
-import type { AuditWriter } from '../../audit/index.js';
+import type { AuditWriter } from '#modules/audit/index.js';
 import { normalizeTarget, type Kpi, type KpiInput, type KpiLevel, type KpiOwner } from '../domain/kpi.js';
 import type { KpiReach, KpiRepository } from './ports.js';
 

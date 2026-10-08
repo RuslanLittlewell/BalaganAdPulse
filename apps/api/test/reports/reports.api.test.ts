@@ -117,7 +117,7 @@ describe("stored figures", () => {
     await request(app).patch(`${reports()}/${id}`).set(admin).send({ messengerContacts: 12, leadsOverride: 9 });
 
     await record(month, "300.0000", 30);
-    expect((await request(app).get(`${reports()}/${id}`).set(admin)).body).toMatchObject({ spend: "100.0000", computedLeads: 10 });
+    expect((await request(app).get(`/api/reports/${id}`).set(admin)).body).toMatchObject({ spend: "100.0000", computedLeads: 10 });
 
     const refreshed = await request(app).post(`${reports()}/${id}/refresh`).set(admin);
     expect(refreshed.status).toBe(200);
@@ -185,7 +185,7 @@ describe("hand-entered parts", () => {
     for (const adIds of [[idle], [first, first], ["a", "b", "c", "d", "e", "f", "g"]]) {
       expect((await request(app).patch(`${reports()}/${id}`).set(admin).send({ adIds })).status).toBe(400);
     }
-    expect((await request(app).get(`${reports()}/${id}`).set(admin)).body.ads.map((entry: { adId: string }) => entry.adId)).toEqual([first, second]);
+    expect((await request(app).get(`/api/reports/${id}`).set(admin)).body.ads.map((entry: { adId: string }) => entry.adId)).toEqual([first, second]);
   });
 
   it.each([{ leadsOverride: -1 }, { leadsOverride: 1.5 }, { messengerContacts: "12" }, { conclusions: "text" }, { status: "PUBLISHED" }])(
@@ -207,8 +207,8 @@ describe("publishing and reach", () => {
       const listed = await request(app).get(reports()).set(reader);
       expect(listed.body.reports.map((entry: { id: string }) => entry.id)).toEqual([published.id]);
       expect(listed.body.available).toEqual([]);
-      expect((await request(app).get(`${reports()}/${draft.id}`).set(reader)).status).toBe(404);
-      const read = await request(app).get(`${reports()}/${published.id}`).set(reader);
+      expect((await request(app).get(`/api/reports/${draft.id}`).set(reader)).status).toBe(404);
+      const read = await request(app).get(`/api/reports/${published.id}`).set(reader);
       expect(read.status).toBe(200);
       expect(read.body).not.toHaveProperty("computedLeads");
       expect(read.body).not.toHaveProperty("runningAds");
@@ -239,7 +239,7 @@ describe("publishing and reach", () => {
       }
       expect((await request(app).delete(`${reports()}/${id}`).set(reader)).status).toBe(403);
     }
-    expect((await request(app).get(`${reports()}/${id}`).set(admin)).body).toMatchObject({ status: "PUBLISHED", messengerContacts: null });
+    expect((await request(app).get(`/api/reports/${id}`).set(admin)).body).toMatchObject({ status: "PUBLISHED", messengerContacts: null });
 
     const manager = await member("MANAGER");
     expect((await request(app).patch(`${reports()}/${id}`).set(manager).send({ messengerContacts: 3 })).status).toBe(200);
@@ -253,11 +253,11 @@ describe("publishing and reach", () => {
 
     for (const auth of [stranger.auth, outsider.auth]) {
       expect((await request(app).get(reports()).set(auth)).status).toBe(404);
-      expect((await request(app).get(`${reports()}/${id}`).set(auth)).status).toBe(404);
+      expect((await request(app).get(`/api/reports/${id}`).set(auth)).status).toBe(404);
       expect((await generate(before, auth)).status).toBe(404);
     }
     const other = await seedProject(stranger.user.id, "Other");
-    expect((await request(app).get(`${reports(other.projectId)}/${id}`).set(admin)).status).toBe(404);
+    expect((await request(app).post(`${reports(other.projectId)}/${id}/refresh`).set(admin)).status).toBe(404);
   });
 
   it("deletes a report so its month can be generated again", async () => {
@@ -326,7 +326,7 @@ describe("the cover picture", () => {
 
   it("is uploaded by staff, served to readers and removed", async () => {
     const { id } = (await generate()).body;
-    expect((await request(app).get(`${reports()}/${id}`).set(admin)).body.hasCover).toBe(false);
+    expect((await request(app).get(`/api/reports/${id}`).set(admin)).body.hasCover).toBe(false);
 
     const uploaded = await request(app).put(cover(id)).set(admin).attach("image", png, { filename: "cover.png", contentType: "image/png" });
     expect(uploaded.status).toBe(200);
@@ -356,7 +356,7 @@ describe("the cover picture", () => {
     const huge = Buffer.concat([png, Buffer.alloc(10 * 1024 * 1024)]);
     expect((await request(app).put(cover(id)).set(admin).attach("image", huge, { filename: "big.png", contentType: "image/png" })).status).toBe(400);
     expect((await request(app).put(cover(id)).set(admin)).status).toBe(400);
-    expect((await request(app).get(`${reports()}/${id}`).set(admin)).body.hasCover).toBe(false);
+    expect((await request(app).get(`/api/reports/${id}`).set(admin)).body.hasCover).toBe(false);
   });
 
   it("is changed by staff alone and hidden with the draft", async () => {

@@ -1,7 +1,7 @@
 import { can } from "@adpulse/access-policy";
 import { AppError } from "#shared/domain/index.js";
 import type { ActorContext, Clock, IdGenerator, UnitOfWork } from "#shared/application/index.js";
-import type { AuditWriter } from "../../audit/index.js";
+import type { AuditWriter } from "#modules/audit/index.js";
 import { costPerLead } from "../domain/money.js";
 import { addMonths, hasEnded, monthsBetween, recentEnded, type Month } from "../domain/month.js";
 import {
@@ -189,11 +189,6 @@ export function createReportUseCases(d: ReportDependencies) {
         return report;
       });
       return describe(actor, created);
-    },
-
-    async read(actor: ActorContext, projectId: string, id: string) {
-      const { report } = await reportOf(actor, projectId, id);
-      return describe(actor, report);
     },
 
     async refresh(actor: ActorContext, projectId: string, id: string) {

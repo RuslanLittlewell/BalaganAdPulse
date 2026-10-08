@@ -1,5 +1,5 @@
 export const MAX_LEAD_FILE_BYTES = 20 * 1024 * 1024;
-export const LEAD_FILE_NAME_LIMIT = 255;
+const LEAD_FILE_NAME_LIMIT = 255;
 
 export interface LeadFileRecord {
   id: string;

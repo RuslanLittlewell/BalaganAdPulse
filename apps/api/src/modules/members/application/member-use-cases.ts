@@ -1,8 +1,8 @@
 import { can, isCustomer } from "@adpulse/access-policy";
 import { AppError } from "#shared/domain/index.js";
 import type { ActorContext } from "#shared/application/index.js";
-import type { SessionPrincipal } from "../../identity/index.js";
-import { discloses } from "../../presence/index.js";
+import type { SessionPrincipal } from "#modules/identity/index.js";
+import { discloses } from "#modules/presence/index.js";
 import { wouldStopBeingAdmin } from "../domain/member.js";
 import type { MemberChange, MemberRecord } from "../domain/member.js";
 import type {

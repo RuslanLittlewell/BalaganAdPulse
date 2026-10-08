@@ -1,6 +1,6 @@
 import type { ActorContext, TransactionContext, UnitOfWork } from "#shared/application/index.js";
-import type { AuditWriter } from "../../audit/index.js";
-import type { LeadDelivery } from "../../leads/index.js";
+import type { AuditWriter } from "#modules/audit/index.js";
+import type { LeadDelivery } from "#modules/leads/index.js";
 import type { Account, Integration } from "../domain/integration.js";
 import type { CreativeKind, CreativeView, ImportedCreative, StoredCreative } from "../domain/snapshot.js";
 

@@ -1,6 +1,6 @@
 import { isLeadStage, LEAD_STAGE_NAMES } from './lead.js';
 
-export const TRACKED_FIELDS = [
+const TRACKED_FIELDS = [
   'name', 'amount', 'assignee', 'company', 'tags', 'service', 'phone',
   'telegram', 'messenger', 'email', 'website', 'source', 'campaign', 'notes',
 ] as const;

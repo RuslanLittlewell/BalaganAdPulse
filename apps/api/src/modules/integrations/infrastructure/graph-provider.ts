@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { AccountProvider } from "../application/ports.js";
 import { MetaError } from "../domain/integration.js";
 import type { ImportedCreative, ImportedEntity, ImportedMetric, ImportedStatus, PolledAd, Snapshot } from "../domain/snapshot.js";
-import type { IncomingLead } from "../../leads/index.js";
+import type { IncomingLead } from "#modules/leads/index.js";
 import { mapLeadAnswers } from "./meta-lead-answers.js";
 import { localDate, shiftDate } from "../application/schedule.js";
 

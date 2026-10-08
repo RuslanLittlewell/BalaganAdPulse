@@ -1,8 +1,8 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { AppError } from "#shared/domain/index.js";
-import { INVALID_INVITE } from "../../application/invite-use-cases.js";
+import { INVALID_INVITE } from "#modules/invites/application/invite-use-cases.js";
 import { createRateLimit } from "#shared/presentation/rate-limit.js";
-import type { InviteUseCases } from "../../application/invite-use-cases.js";
+import type { InviteUseCases } from "#modules/invites/application/invite-use-cases.js";
 import {
   createInviteSchema,
   listInvitesQuerySchema,

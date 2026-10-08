@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { avatarUploadBody } from "#shared/presentation/avatar.js";
 import { arrayOf, ref, type ComponentDocs, type RouteDoc } from "#shared/presentation/openapi.js";
-import { PROJECT_PRIORITIES } from "../../domain/project.js";
+import { PROJECT_PRIORITIES } from "#modules/projects/domain/project.js";
 import { createProjectSchema, updateProjectSchema } from "./project-schemas.js";
 
 const project = z.object({

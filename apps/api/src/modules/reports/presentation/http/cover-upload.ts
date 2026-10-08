@@ -1,7 +1,7 @@
 import multer from "multer";
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { AppError } from "#shared/domain/index.js";
-import { MAX_COVER_BYTES } from "../../domain/cover.js";
+import { MAX_COVER_BYTES } from "#modules/reports/domain/cover.js";
 
 const receive = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_COVER_BYTES, files: 1 } }).single("image");
 

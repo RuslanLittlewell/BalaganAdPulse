@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import { leadContactSchemas, type LeadAnswer } from "../../leads/index.js";
+import { leadContactSchemas, type LeadAnswer } from "#modules/leads/index.js";
 
 const MAX_ANSWERS = 100;
 const MAX_ANSWER_TEXT = 10_000;

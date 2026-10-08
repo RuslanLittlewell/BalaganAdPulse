@@ -1,11 +1,5 @@
 export type Month = string;
 
-const MONTH = /^(\d{4})-(0[1-9]|1[0-2])$/;
-
-export function isMonth(value: string): value is Month {
-  return MONTH.test(value);
-}
-
 export function addMonths(month: Month, count: number): Month {
   const [year, index] = month.split("-").map(Number);
   const shifted = new Date(Date.UTC(year!, index! - 1 + count, 1));
@@ -18,10 +12,6 @@ export function monthOf(date: Date): Month {
 
 export function firstDay(month: Month): Date {
   return new Date(`${month}-01T00:00:00.000Z`);
-}
-
-export function lastDay(month: Month): Date {
-  return new Date(firstDay(addMonths(month, 1)).getTime() - 86_400_000);
 }
 
 export function monthsBetween(from: Month, to: Month): Month[] {

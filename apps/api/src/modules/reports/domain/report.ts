@@ -4,9 +4,9 @@ import { addMonths, monthsBetween, type Month } from "./month.js";
 export const REPORT_STATUSES = ["DRAFT", "PUBLISHED"] as const;
 export type ReportStatus = (typeof REPORT_STATUSES)[number];
 
-export const SUGGESTED_ADS = 3;
+const SUGGESTED_ADS = 3;
 export const MAX_CHOSEN_ADS = 6;
-export const TREND_MONTHS = 6;
+const TREND_MONTHS = 6;
 export const AVAILABLE_MONTHS = 12;
 
 export interface MonthTotals {

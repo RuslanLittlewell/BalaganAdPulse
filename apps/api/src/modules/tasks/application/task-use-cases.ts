@@ -1,6 +1,6 @@
 import { can, isCustomer } from "@adpulse/access-policy";
 import { AppError } from "#shared/domain/index.js";
-import type { ActorContext, TransactionContext } from "#shared/application/index.js";
+import type { ActorContext } from "#shared/application/index.js";
 import {
   DEFAULT_TASK_COLUMN,
   isTaskColumn,

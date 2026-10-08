@@ -1,4 +1,4 @@
-import { ValidationError } from "./http-errors.js";
+import { AppError } from "#shared/domain/index.js";
 import type { JsonSchema } from "./openapi.js";
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -7,18 +7,18 @@ const MAX_AVATAR_PATH_CHARS = 10_000;
 
 export function assertAvatarPng(png: Buffer): void {
   if (png.length === 0 || png.length > MAX_AVATAR_BYTES || !png.subarray(0, 8).equals(PNG_SIGNATURE)) {
-    throw new ValidationError("Avatar must be a PNG image up to 1 MB");
+    throw new AppError("validation", "Avatar must be a PNG image up to 1 MB");
   }
 }
 
 export function assertAvatarPath(avatarPath: string): void {
   if (!avatarPath || avatarPath.length > MAX_AVATAR_PATH_CHARS) {
-    throw new ValidationError("Avatar configuration is invalid");
+    throw new AppError("validation", "Avatar configuration is invalid");
   }
   try {
     JSON.parse(avatarPath);
   } catch {
-    throw new ValidationError("Avatar configuration is invalid");
+    throw new AppError("validation", "Avatar configuration is invalid");
   }
 }
 

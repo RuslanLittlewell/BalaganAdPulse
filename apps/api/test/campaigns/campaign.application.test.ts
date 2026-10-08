@@ -52,9 +52,6 @@ function fixture(options: {
     creativeFiles: { read: async () => ({ body: new Uint8Array(), contentType: "image/png" }) },
     projects: { isReachable: async (_actor, projectId) => reachable.includes(projectId) },
     metrics: {
-      recordCampaignDay: async () => undefined,
-      recordAdSetDay: async () => undefined,
-      recordAdDay: async () => undefined,
       readCampaignRange: async (id) => options.campaignDays?.[id] ?? [],
       readAdSetRange: async (id) => options.adSetDays?.[id] ?? [],
       readAdRange: async (id) => options.adDays?.[id] ?? [],

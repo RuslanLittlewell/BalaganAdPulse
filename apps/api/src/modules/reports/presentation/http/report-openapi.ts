@@ -10,7 +10,6 @@ export const reportDoc: RouteDoc = {
   operations: [
     { method: "get", path: "/", summary: "List the project's reports, newest month first, and the ended months staff may still generate", success: { status: 200, description: "The reports", schema: reportListSchema }, errors: [401, 404] },
     { method: "post", path: "/", summary: "Generate the report for a month that has ended", body: generateSchema, success: { status: 201, description: "The new draft", schema: reportSchema }, errors: [400, 401, 403, 404, 409] },
-    { method: "get", path: "/:reportId", summary: "Read a report", success: report, errors: [401, 404] },
     { method: "patch", path: "/:reportId", summary: "Correct leads, set messenger contacts, conclusions, plan or the chosen ads", body: editSchema, success: report, errors: [400, 401, 403, 404] },
     { method: "delete", path: "/:reportId", summary: "Delete a report", success: { status: 204, description: "The report is gone" }, errors: [401, 403, 404] },
     { method: "put", path: "/:reportId/cover", summary: "Upload the report's cover picture: a JPEG, PNG or WebP image up to 10 MB", bodyType: "multipart/form-data", body: { type: "object", properties: { image: { type: "string", format: "binary" } }, required: ["image"] }, success: report, errors: [400, 401, 403, 404] },

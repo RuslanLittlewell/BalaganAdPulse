@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { arrayOf, ref, type ComponentDocs, type RouteDoc } from "#shared/presentation/openapi.js";
-import { CHANNELS, DELIVERY_STATUSES } from "../../domain/hierarchy.js";
+import { CHANNELS, DELIVERY_STATUSES } from "#modules/campaigns/domain/hierarchy.js";
 import { rangeSchema } from "./campaign-schemas.js";
 
 const measured = {

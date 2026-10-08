@@ -24,9 +24,21 @@ function importsFrom(source: string): string[] {
   return imports;
 }
 
-function resolveRelative(file: string, specifier: string): string {
-  const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(file), specifier));
-  return resolved.replace(/\.js$/, ".ts");
+const ALIASES = { "#modules/": "modules/", "#shared/": "shared/" } as const;
+
+function resolveSpecifier(file: string, specifier: string): string | undefined {
+  const alias = Object.entries(ALIASES).find(([prefix]) => specifier.startsWith(prefix));
+  const resolved = alias
+    ? alias[1] + specifier.slice(alias[0].length)
+    : specifier.startsWith(".")
+      ? path.posix.normalize(path.posix.join(path.posix.dirname(file), specifier))
+      : undefined;
+  return resolved?.replace(/\.js$/, ".ts");
+}
+
+function areaOf(file: string): string {
+  const parts = file.split("/");
+  return parts[0] === "modules" ? parts.slice(0, 2).join("/") : parts[0];
 }
 
 export function analyseSourceText(file: string, source: string): string[] {
@@ -37,6 +49,13 @@ export function analyseSourceText(file: string, source: string): string[] {
     if (/^(\.\.\/)+shared\//.test(specifier)) {
       errors.push("the shared kernel is reached through #shared/, never relatively");
     }
+    if (/^(\.\.\/){2,}/.test(specifier)) {
+      errors.push("a relative import climbs at most one directory; reach further through #modules/ or #shared/");
+    }
+    const target = specifier.startsWith(".") ? resolveSpecifier(file, specifier) : undefined;
+    if (target?.startsWith("modules/") && areaOf(target) !== areaOf(file)) {
+      errors.push("another module is reached through #modules/, never relatively");
+    }
   }
   if (!location?.layer && !file.startsWith("composition/")) return errors;
 
@@ -44,8 +63,8 @@ export function analyseSourceText(file: string, source: string): string[] {
     if (location?.layer && forbiddenPackages[location.layer]?.some((rule) => rule.test(specifier))) {
       errors.push(`${location.layer} may not import ${specifier}`);
     }
-    if (!specifier.startsWith(".")) continue;
-    const target = resolveRelative(file, specifier);
+    const target = resolveSpecifier(file, specifier);
+    if (!target) continue;
     const targetLocation = moduleLocation(target);
     if (!location || !targetLocation) continue;
 
@@ -82,9 +101,9 @@ export function listTypeScriptSources(root: string): string[] {
   return result.sort();
 }
 
-export function checkSourceTree(root: string, legacyAllowList: ReadonlySet<string>): string[] {
+export function checkSourceTree(root: string): string[] {
   return listTypeScriptSources(root).flatMap((file) => {
-    if (legacyAllowList.has(file) || file.endsWith(".d.ts")) return [];
+    if (file.endsWith(".d.ts")) return [];
     const source = readFileSync(path.join(root, file), "utf8");
     return analyseSourceText(file, source).map((error) => `${file}: ${error}`);
   });

@@ -24,11 +24,18 @@ const figures = (partial: Record<string, number> = {}) => ({
   spend: 0, impressions: 0, reach: 0, clicks: 0, conversions: 0, revenue: 0, ...partial,
 });
 
-describe("recording a day of measured figures", () => {
-  it("stores what the platform reported", async () => {
-    await repository.recordCampaignDay(campaignId, day("2026-08-01"), figures({
+const recordCampaignDay = (id: string, date: Date, partial?: Record<string, number>) =>
+  prisma.campaignDailyMetric.create({ data: { campaignId: id, date, ...figures(partial) } });
+const recordAdSetDay = (id: string, date: Date, partial?: Record<string, number>) =>
+  prisma.adSetDailyMetric.create({ data: { adSetId: id, date, ...figures(partial) } });
+const recordAdDay = (id: string, date: Date, partial?: Record<string, number>) =>
+  prisma.adDailyMetric.create({ data: { adId: id, date, ...figures(partial) } });
+
+describe("a day of measured figures", () => {
+  it("reads back what the platform reported", async () => {
+    await recordCampaignDay(campaignId, day("2026-08-01"), {
       spend: 1200.5, impressions: 40000, reach: 15000, clicks: 800, conversions: 24, revenue: 4800,
-    }));
+    });
 
     const [stored] = await repository.readCampaignRange(campaignId, day("2026-08-01"), day("2026-08-01"));
 
@@ -38,24 +45,21 @@ describe("recording a day of measured figures", () => {
     });
   });
 
-  it("replaces a day already recorded rather than adding to it", async () => {
-    await repository.recordCampaignDay(campaignId, day("2026-08-01"), figures({ spend: 100, clicks: 10 }));
-    await repository.recordCampaignDay(campaignId, day("2026-08-01"), figures({ spend: 140, clicks: 13 }));
+  it("is stored at most once per campaign and date", async () => {
+    await recordCampaignDay(campaignId, day("2026-08-01"), { spend: 100 });
 
-    const rows = await repository.readCampaignRange(campaignId, day("2026-08-01"), day("2026-08-01"));
-
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ spend: 140, clicks: 13 });
+    await expect(recordCampaignDay(campaignId, day("2026-08-01"), { spend: 140 })).rejects.toThrow();
+    expect(await repository.readCampaignRange(campaignId, day("2026-08-01"), day("2026-08-01"))).toHaveLength(1);
   });
 });
 
 describe("reading a range", () => {
   beforeEach(async () => {
-    await repository.recordCampaignDay(campaignId, day("2026-07-31"), figures({ spend: 999 }));
-    await repository.recordCampaignDay(campaignId, day("2026-08-01"), figures({ spend: 100 }));
-    await repository.recordCampaignDay(campaignId, day("2026-08-03"), figures({ spend: 40 }));
-    await repository.recordCampaignDay(campaignId, day("2026-08-05"), figures({ spend: 7 }));
-    await repository.recordCampaignDay(campaignId, day("2026-08-06"), figures({ spend: 888 }));
+    await recordCampaignDay(campaignId, day("2026-07-31"), { spend: 999 });
+    await recordCampaignDay(campaignId, day("2026-08-01"), { spend: 100 });
+    await recordCampaignDay(campaignId, day("2026-08-03"), { spend: 40 });
+    await recordCampaignDay(campaignId, day("2026-08-05"), { spend: 7 });
+    await recordCampaignDay(campaignId, day("2026-08-06"), { spend: 888 });
   });
 
   it("includes both endpoints and nothing outside them", async () => {
@@ -72,7 +76,7 @@ describe("reading a range", () => {
     const other = await prisma.campaign.create({
       data: { projectId, name: "Их кампания", channel: "META", position: 0 },
     });
-    await repository.recordCampaignDay(other.id, day("2026-08-01"), figures({ spend: 5000 }));
+    await recordCampaignDay(other.id, day("2026-08-01"), { spend: 5000 });
 
     const rows = await repository.readCampaignRange(campaignId, day("2026-08-01"), day("2026-08-05"));
 
@@ -89,8 +93,8 @@ describe("the hierarchy beneath a campaign", () => {
       data: { adSetId: adSet.id, name: "Приём в день обращения", position: 0 },
     });
 
-    await repository.recordAdSetDay(adSet.id, day("2026-08-01"), figures({ spend: 60 }));
-    await repository.recordAdDay(ad.id, day("2026-08-01"), figures({ spend: 25 }));
+    await recordAdSetDay(adSet.id, day("2026-08-01"), { spend: 60 });
+    await recordAdDay(ad.id, day("2026-08-01"), { spend: 25 });
 
     expect(await repository.readAdSetRange(adSet.id, day("2026-08-01"), day("2026-08-01")))
       .toMatchObject([{ spend: 60 }]);
@@ -101,9 +105,9 @@ describe("the hierarchy beneath a campaign", () => {
   it("takes the ad sets, ads and their figures with a deleted campaign", async () => {
     const adSet = await prisma.adSet.create({ data: { campaignId, name: "Группа", position: 0 } });
     const ad = await prisma.ad.create({ data: { adSetId: adSet.id, name: "Объявление", position: 0 } });
-    await repository.recordCampaignDay(campaignId, day("2026-08-01"), figures({ spend: 10 }));
-    await repository.recordAdSetDay(adSet.id, day("2026-08-01"), figures({ spend: 6 }));
-    await repository.recordAdDay(ad.id, day("2026-08-01"), figures({ spend: 3 }));
+    await recordCampaignDay(campaignId, day("2026-08-01"), { spend: 10 });
+    await recordAdSetDay(adSet.id, day("2026-08-01"), { spend: 6 });
+    await recordAdDay(ad.id, day("2026-08-01"), { spend: 3 });
 
     await prisma.campaign.delete({ where: { id: campaignId } });
 

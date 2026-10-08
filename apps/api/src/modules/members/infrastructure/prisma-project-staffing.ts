@@ -1,7 +1,7 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import type { TransactionContext } from "#shared/application/index.js";
 import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
-import type { ProjectStaffing } from "../../projects/index.js";
+import type { ProjectStaffing } from "#modules/projects/index.js";
 
 export class PrismaProjectStaffing implements ProjectStaffing {
   constructor(

@@ -1,21 +1,11 @@
-import type { Prisma, PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
 import type { ActorContext } from "#shared/application/index.js";
 import { getObject } from "#shared/infrastructure/storage.js";
 import type { Ad, AdSet, Campaign } from "../domain/hierarchy.js";
 import type {
   AdRepository, AdSetRepository, CampaignRepository, CreativeRepository, CreativeStorage, ProjectReach,
 } from "../application/ports.js";
-
-function reachableProjects(actor: ActorContext): Prisma.ProjectWhereInput {
-  if (actor.role === "ADMIN") return { client: { orgId: actor.orgId } };
-  return {
-    client: { orgId: actor.orgId },
-    OR: [
-      { client: { access: { some: { membershipId: actor.membershipId, projectId: null } } } },
-      { access: { some: { membershipId: actor.membershipId } } },
-    ],
-  };
-}
+import { reachableProjects } from "#shared/infrastructure/project-reach.js";
 
 const toCampaign = (row: {
   id: string; projectId: string; name: string; channel: string; status: string;

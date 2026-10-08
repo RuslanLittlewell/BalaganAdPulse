@@ -1,132 +1,22 @@
-import { PrismaImportJobs } from "../modules/integrations/infrastructure/prisma-import-jobs.js";
-import { createImportWorker } from "../modules/integrations/application/import-worker.js";
-import { createLeadPollWorker } from "../modules/integrations/application/lead-poll-worker.js";
-import { PrismaLeadPollJobs } from "../modules/integrations/infrastructure/prisma-lead-poll-jobs.js";
-import { createIntegrationUseCases } from "../modules/integrations/application/integration-use-cases.js";
-import { PrismaIntegrationRepository } from "../modules/integrations/infrastructure/prisma-integration-repository.js";
-import { AesCredentialCipher } from "../modules/integrations/infrastructure/credential-cipher.js";
-import { S3CreativeFiles } from "../modules/integrations/infrastructure/creative-files.js";
-import { GraphProvider } from "../modules/integrations/infrastructure/graph-provider.js";
-import { createAdPreviewRouter, createIntegrationRouter } from "../modules/integrations/presentation/http/integration-http.js";
-import { PrismaAdLocator } from "../modules/integrations/infrastructure/prisma-ad-locator.js";
-import { PrismaCreativeStore } from "../modules/integrations/infrastructure/prisma-creative-store.js";
 import { Router, type RequestHandler } from "express";
-import { createLeadFileUseCases, createLeadIntake, createLeadUseCases, createLeadRouter } from '../modules/leads/index.js';
-import { PrismaLeadFileRepository, S3LeadFileStorage } from '../modules/leads/infrastructure/prisma-lead-file-repository.js';
-import { createKpiRouter, createKpiUseCases } from '../modules/kpi/index.js';
-import { PrismaKpiRepository } from '../modules/kpi/infrastructure/prisma-kpi-repository.js';
-import { createReportIndexRouter, createReportRouter, createReportUseCases } from '../modules/reports/index.js';
-import { PrismaReportRepository } from '../modules/reports/infrastructure/prisma-report-repository.js';
-import { PrismaReportMetrics } from '../modules/reports/infrastructure/prisma-report-metrics.js';
-import { S3ReportCoverStorage } from '../modules/reports/infrastructure/s3-report-cover-storage.js';
-import type { LeadEvent } from '../modules/leads/index.js';
-import { PrismaLeadRepository } from '../modules/leads/infrastructure/prisma-lead-repository.js';
-import { PrismaLeadIntakeRepository } from '../modules/leads/infrastructure/prisma-lead-intake-repository.js';
-import type { Prisma } from "@prisma/client";
 import { config } from "#shared/infrastructure/config.js";
 import { requestContext } from "#shared/presentation/request-context.js";
+import { createAuditRouter } from "#modules/audit/index.js";
+import type { SessionPrincipal } from "#modules/identity/index.js";
+import type { createImportWorker } from "#modules/integrations/application/import-worker.js";
+import type { createLeadPollWorker } from "#modules/integrations/application/lead-poll-worker.js";
+import type { PresenceRegistry } from "#modules/presence/index.js";
+import type { Connection, ConnectionRegistry } from "#modules/realtime/index.js";
 import { apiDocument, createDocumentationRouter } from "./openapi.js";
-import { prisma } from "#shared/infrastructure/prisma.js";
-import { createIdentityUseCases } from "../modules/identity/index.js";
-import { PasswordAdapter } from "../modules/identity/infrastructure/password-adapter.js";
-import {
-  PrismaPasswordResetRepository, PrismaRefreshSessionRepository, PrismaUserRepository,
-} from "../modules/identity/infrastructure/prisma-identity-repositories.js";
-import { ResetLinkMailer } from "../modules/identity/infrastructure/reset-link-mailer.js";
-import { LogMailTransport, SmtpMailTransport } from "#shared/infrastructure/mail.js";
-import { ProfileStorageAdapter } from "../modules/identity/infrastructure/profile-storage-adapter.js";
-import { TokenAdapter } from "../modules/identity/infrastructure/token-adapter.js";
-import { createAuthentication } from "../modules/identity/presentation/http/authentication.js";
-import type { SessionPrincipal } from "../modules/identity/index.js";
-import { createIdentityHttpRouters } from "../modules/identity/presentation/http/identity-http.js";
-import {
-  PrismaMembershipEnrolment,
-  PrismaInvitationProjectAccess,
-  PrismaProjectStaffing,
-  createActorResolution,
-  createMemberRouter,
-  createMemberUseCases,
-  createSessionRouter,
-} from "../modules/members/index.js";
-import { PrismaAccessRepository } from "../modules/members/infrastructure/prisma-access-repository.js";
-import { PrismaMemberDirectory } from "../modules/members/infrastructure/prisma-member-directory.js";
-import { PrismaMembershipDirectory } from "../modules/members/infrastructure/prisma-membership-directory.js";
-import { PrismaOrganizationDirectory } from "../modules/members/infrastructure/prisma-organization-directory.js";
-import { createClientRouter, createClientUseCases } from "../modules/clients/index.js";
-import { S3ClientPictureStorage } from "../modules/clients/infrastructure/client-picture-storage.js";
-import { PrismaClientRepository } from "../modules/clients/infrastructure/prisma-client-repository.js";
-import { createAuditReader, createAuditRouter, createAuditWriter } from "../modules/audit/index.js";
-import {
-  PrismaActorSnapshots,
-  PrismaAuditReach,
-  PrismaAuditRepository,
-} from "../modules/audit/infrastructure/prisma-audit-repository.js";
-import { AmbientRequestMetadata } from "../modules/audit/infrastructure/request-metadata.js";
-import { createProjectRouter, createProjectUseCases } from "../modules/projects/index.js";
-import { PrismaProjectRepository } from "../modules/projects/infrastructure/prisma-project-repository.js";
-import {
-  createProjectGroupRouter,
-  createProjectLayoutRouter,
-  createProjectLayoutUseCases,
-} from "../modules/project-layout/index.js";
-import {
-  PrismaLayoutProjectReach,
-  PrismaProjectLayoutRepository,
-} from "../modules/project-layout/infrastructure/prisma-project-layout-repository.js";
-import { S3ProjectPictureStorage } from "../modules/projects/infrastructure/project-picture-storage.js";
-import { createCampaignHttpRouters, createCampaignUseCases } from "../modules/campaigns/index.js";
-import {
-  createTaskImageRouter,
-  createTaskImageUseCases,
-  createTaskRouter,
-  createTaskUseCases,
-} from "../modules/tasks/index.js";
-import type { TaskEvent } from "../modules/tasks/index.js";
-import {
-  PrismaTaskImageRepository,
-  S3TaskImageStorage,
-} from "../modules/tasks/infrastructure/prisma-task-image-repository.js";
-import { taskImageUpload } from "../modules/tasks/presentation/http/task-image-upload.js";
-import {
-  PrismaTaskMemberReach,
-  PrismaTaskProjectReach,
-  PrismaTaskRepository,
-} from "../modules/tasks/infrastructure/prisma-task-repository.js";
-import { S3MemberAvatarStorage } from "../modules/members/infrastructure/member-avatar-storage.js";
-import {
-  createConnectionRegistry,
-  createLeadEventDelivery,
-  createTaskEventDelivery,
-} from "../modules/realtime/index.js";
-import type { ConnectionRegistry } from "../modules/realtime/index.js";
-import {
-  createPresenceRegistry,
-  createPresenceService,
-  createPresenceTouch,
-} from "../modules/presence/index.js";
-import type { PresenceRegistry } from "../modules/presence/index.js";
-import { createPresenceDelivery } from "../modules/realtime/index.js";
-import type { Connection } from "../modules/realtime/index.js";
-import {
-  PrismaAdRepository,
-  PrismaAdSetRepository,
-  PrismaCampaignRepository,
-  PrismaCreativeRepository,
-  PrismaProjectReach,
-  S3CreativeStorage,
-} from "../modules/campaigns/infrastructure/prisma-campaign-repositories.js";
-import { PrismaMetricRepository } from "../modules/campaigns/infrastructure/prisma-metric-repository.js";
-import {
-  CryptoInvitationCodeGenerator,
-  createInviteRouter,
-  createRegistrationResolverRouter,
-  createInviteUseCases,
-} from "../modules/invites/index.js";
-import { PrismaInviteRepository } from "../modules/invites/infrastructure/prisma-invite-repository.js";
-import { PrismaInvitationProjectReach } from "../modules/invites/infrastructure/prisma-invitation-project-reach.js";
-import { RandomIdGenerator } from "#shared/infrastructure/id-generator.js";
-import { SystemClock } from "#shared/infrastructure/clock.js";
-import { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
+import { wireCampaignsAndIntegrations } from "./wiring/campaigns-integrations.js";
+import { wireClientsAndProjects } from "./wiring/clients-projects.js";
+import { wireIdentity } from "./wiring/identity.js";
+import { wireInvites } from "./wiring/invites.js";
+import { createKernel } from "./wiring/kernel.js";
+import { wireLeads } from "./wiring/leads.js";
+import { wireMembersAndPresence } from "./wiring/members-presence.js";
+import { wireReportsAndKpi } from "./wiring/reports-kpi.js";
+import { wireTasks } from "./wiring/tasks.js";
 
 export interface ApiContainer {
   readonly integrationRouter: Router;
@@ -168,279 +58,66 @@ export interface ApiContainer {
 }
 
 export function createContainer(): ApiContainer {
-  const unitOfWork = new PrismaUnitOfWork<Prisma.TransactionClient>(prisma);
-  const clock = new SystemClock();
-  const ids = new RandomIdGenerator();
-  const auditDependencies = {
-    events: new PrismaAuditRepository(prisma, unitOfWork),
-    reach: new PrismaAuditReach(prisma),
-    metadata: new AmbientRequestMetadata(),
-    snapshots: new PrismaActorSnapshots(unitOfWork),
-  };
-  const audit = createAuditWriter(auditDependencies);
-  const auditReader = createAuditReader(auditDependencies);
-  const clientRepository = new PrismaClientRepository(prisma, unitOfWork);
-  const projectRepository = new PrismaProjectRepository(prisma, unitOfWork);
-  const projectLayout = createProjectLayoutUseCases({
-    layouts: new PrismaProjectLayoutRepository(prisma, unitOfWork),
-    projects: new PrismaLayoutProjectReach(prisma),
-    ids,
-    unitOfWork,
+  const kernel = createKernel();
+  const catalog = wireClientsAndProjects(kernel);
+  const invites = wireInvites(kernel, catalog);
+  const people = wireMembersAndPresence(kernel, catalog);
+  const identity = wireIdentity(kernel, { redeem: invites.redeem, signedOut: people.leave });
+  const leads = wireLeads(kernel, people);
+  const advertising = wireCampaignsAndIntegrations(kernel, {
+    projectRepository: catalog.projectRepository,
+    leadIntake: leads.leadIntake,
   });
-  const clients = createClientUseCases({
-    clients: clientRepository,
-    pictures: new S3ClientPictureStorage(),
-    audit,
-    ids,
-    unitOfWork,
+  const tasks = wireTasks(kernel, people);
+  const reporting = wireReportsAndKpi(kernel, {
+    projectRepository: catalog.projectRepository,
+    campaignRepository: advertising.campaignRepository,
   });
-  const invites = createInviteUseCases({
-    invites: new PrismaInviteRepository(prisma, unitOfWork),
-    memberships: new PrismaMembershipEnrolment(unitOfWork),
-    projects: new PrismaInvitationProjectReach(prisma),
-    clients: {
-      isReachable: async (actor, clientId) =>
-        (await clients.reachableIds(actor)).includes(clientId),
-    },
-    projectAccess: new PrismaInvitationProjectAccess(unitOfWork),
-    clientDirectory: {
-      create: async (context, input) => {
-        const { orgId, ...contact } = input;
-        const created = await clientRepository.create(
-          context, { ...contact, id: ids.generate(), orgId }, undefined,
-        );
-        return created.id;
-      },
-    },
-    projectDirectory: {
-      create: async (context, input) => {
-        const { clientId, ...details } = input;
-        const created = await projectRepository.create(context, {
-          ...details,
-          clientId,
-          id: ids.generate(),
-          position: await projectRepository.countForClient(clientId),
-        });
-        return created.id;
-      },
-    },
-    clock,
-    ids,
-    codes: new CryptoInvitationCodeGenerator(),
-    unitOfWork,
-  });
-  const mail = config.mail
-    ? new SmtpMailTransport(config.mail)
-    : config.production ? null : new LogMailTransport();
-  const identity = createIdentityUseCases({
-    users: new PrismaUserRepository(prisma, unitOfWork),
-    invitations: { redeem: invites.redeem },
-    passwords: new PasswordAdapter(),
-    tokens: new TokenAdapter(),
-    sessions: new PrismaRefreshSessionRepository(prisma, unitOfWork),
-    resets: new PrismaPasswordResetRepository(prisma, unitOfWork),
-    resetLinks: new ResetLinkMailer(mail, config.appUrl),
-    profiles: new ProfileStorageAdapter(),
-    clock,
-    unitOfWork,
-  });
-  const users = new PrismaUserRepository(prisma, unitOfWork);
-  const memberDirectory = new PrismaMemberDirectory(prisma, unitOfWork);
-  const members = createMemberUseCases({
-    memberships: new PrismaMembershipDirectory(prisma),
-    organizations: new PrismaOrganizationDirectory(prisma),
-    users: {
-      findById: async (id) => {
-        const user = await users.findById(id);
-        return user && { id: user.id, name: user.name, email: user.email, image: user.image };
-      },
-    },
-    clients: { reachableClientIds: clients.reachableIds },
-    directory: memberDirectory,
-    access: new PrismaAccessRepository(prisma, unitOfWork),
-    avatars: new S3MemberAvatarStorage(),
-    unitOfWork,
-  });
-  const connections = createConnectionRegistry();
-  const presence = createPresenceRegistry();
-  const presenceDelivery = createPresenceDelivery({
-    connections,
-    presence,
-    members,
-    clients: { reachableIds: clients.reachableIds },
-  });
-  const presenceService = createPresenceService({
-    registry: presence,
-    profiles: {
-      describe: async (actor) => {
-        const [member, clientIds] = await Promise.all([
-          memberDirectory.findInOrg(actor.orgId, actor.membershipId),
-          clients.reachableIds(actor),
-        ]);
-        return { image: member?.image ?? null, clientIds };
-      },
-    },
-    announce: {
-      joined: (person) => {
-        void presenceDelivery.deliverJoined(person).catch((error: unknown) => {
-          console.error("Failed to announce an arrival:", error);
-        });
-      },
-      left: (person) => {
-        void presenceDelivery.deliverLeft(person).catch((error: unknown) => {
-          console.error("Failed to announce a departure:", error);
-        });
-      },
-    },
-  });
-  const identityHttp = createIdentityHttpRouters(identity, {
-    signedOut: (userId) => { presenceService.leave(userId); },
-  });
-  const integrations = createIntegrationUseCases({
-    repository: new PrismaIntegrationRepository(prisma, unitOfWork),
-    cipher: new AesCredentialCipher(process.env.INTEGRATION_ENCRYPTION_KEY),
-    provider: new GraphProvider(process.env.META_GRAPH_VERSION ?? "v22.0"),
-    projects: projectRepository, ads: new PrismaAdLocator(prisma),
-    creatives: new PrismaCreativeStore(prisma), files: new S3CreativeFiles(),
-    clock, unitOfWork, audit,
-  });
-  const campaigns = createCampaignUseCases({
-    campaigns: new PrismaCampaignRepository(prisma),
-    adSets: new PrismaAdSetRepository(prisma),
-    ads: new PrismaAdRepository(prisma),
-    creatives: new PrismaCreativeRepository(prisma),
-    creativeFiles: new S3CreativeStorage(),
-    projects: new PrismaProjectReach(prisma),
-    metrics: new PrismaMetricRepository(prisma),
-  });
-  const campaignHttp = createCampaignHttpRouters(campaigns);
-  const taskProjectReach = new PrismaTaskProjectReach(prisma);
-  const taskEventDelivery = createTaskEventDelivery({
-    registry: connections,
-    members,
-    projects: taskProjectReach,
-  });
-  const taskDependencies = {
-    tasks: new PrismaTaskRepository(prisma, unitOfWork),
-    images: new PrismaTaskImageRepository(prisma, unitOfWork),
-    imageStorage: new S3TaskImageStorage(),
-    projects: taskProjectReach,
-    members: new PrismaTaskMemberReach(prisma),
-    audit,
-    events: {
-      publish: (event: TaskEvent) => {
-        void taskEventDelivery.deliver(event).catch((error: unknown) => {
-          console.error("Failed to deliver task event:", error);
-        });
-      },
-    },
-    ids,
-    unitOfWork,
-  };
-  const tasks = createTaskUseCases(taskDependencies);
-  const leadRepository = new PrismaLeadRepository(prisma, unitOfWork);
-  const leadEventDelivery = createLeadEventDelivery({
-    registry: connections,
-    members,
-    boards: leadRepository,
-  });
-  const publishLeadEvent = (event: LeadEvent) => {
-    void leadEventDelivery.deliver(event).catch((error: unknown) => {
-      console.error("Failed to deliver a CRM event:", error);
-    });
-  };
-  const leadFileStorage = new S3LeadFileStorage();
-  const leads = createLeadUseCases({
-    leads: leadRepository,
-    storage: leadFileStorage,
-    audit,
-    ids,
-    unitOfWork,
-    publish: publishLeadEvent,
-  });
-  const leadIntake = createLeadIntake({
-    intake: new PrismaLeadIntakeRepository(prisma, unitOfWork),
-    ids,
-    unitOfWork,
-    publish: publishLeadEvent,
-  });
-  const taskImages = createTaskImageUseCases(taskDependencies);
-  const projects = createProjectUseCases({
-    projects: projectRepository,
-    clients: {
-      isReachable: async (actor, clientId) =>
-        (await clients.reachableIds(actor)).includes(clientId),
-    },
-    pictures: new S3ProjectPictureStorage(),
-    staffing: new PrismaProjectStaffing(prisma, unitOfWork),
-    audit,
-    ids,
-    unitOfWork,
-  });
-  const reports = createReportUseCases({
-    reports: new PrismaReportRepository(prisma, unitOfWork),
-    projects: projectRepository,
-    metrics: new PrismaReportMetrics(prisma),
-    covers: new S3ReportCoverStorage(),
-    audit,
-    unitOfWork,
-    clock,
-    ids,
-  });
+
   return {
-    importWorker: createImportWorker({ jobs: new PrismaImportJobs(prisma), cipher: new AesCredentialCipher(process.env.INTEGRATION_ENCRYPTION_KEY), provider: new GraphProvider(process.env.META_GRAPH_VERSION ?? "v22.0"), clock, leads: leadIntake }),
-    leadPollWorker: createLeadPollWorker({ jobs: new PrismaLeadPollJobs(prisma, unitOfWork), cipher: new AesCredentialCipher(process.env.INTEGRATION_ENCRYPTION_KEY), provider: new GraphProvider(process.env.META_GRAPH_VERSION ?? "v22.0"), inbox: leadIntake, unitOfWork, clock }),
     documentationRouter: config.documentation ? createDocumentationRouter(apiDocument()) : Router(),
-    authRouter: identityHttp.authRouter,
-    authentication: createAuthentication(identity),
-    actorResolution: createActorResolution(members),
     requestContext,
-    sessionRouter: createSessionRouter(members),
-    userRouter: identityHttp.userRouter,
-    inviteRouter: createInviteRouter(invites),
-    registrationResolverRouter: createRegistrationResolverRouter(invites),
-    memberRouter: createMemberRouter(members),
-    auditRouter: createAuditRouter(auditReader),
-    projectMetricRouter: campaignHttp.projectMetricRouter,
-    integrationRouter: createIntegrationRouter(integrations),
-    adPreviewRouter: createAdPreviewRouter(integrations),
-    projectRouter: createProjectRouter(projects),
-    projectLayoutRouter: createProjectLayoutRouter(projectLayout),
-    projectGroupRouter: createProjectGroupRouter(projectLayout),
-    clientRouter: createClientRouter(clients),
-    campaignRouter: campaignHttp.campaignRouter,
-    adSetRouter: campaignHttp.adSetRouter,
-    adCreativeRouter: campaignHttp.adCreativeRouter,
-    summaryRouter: campaignHttp.summaryRouter,
-    taskRouter: createTaskRouter(tasks),
-    leadRouter: createLeadRouter(leads, createLeadFileUseCases({
-      leads: leadRepository,
-      files: new PrismaLeadFileRepository(prisma, unitOfWork),
-      storage: leadFileStorage,
-      audit,
-      ids,
-      unitOfWork,
-      publish: publishLeadEvent,
-    })),
-    reportRouter: createReportRouter(reports),
-    reportIndexRouter: createReportIndexRouter(reports),
-    kpiRouter: createKpiRouter(createKpiUseCases({
-      kpis: new PrismaKpiRepository(prisma, unitOfWork),
-      reach: { projects: projectRepository, campaigns: new PrismaCampaignRepository(prisma) },
-      audit,
-      unitOfWork,
-      clock,
-    })),
-    taskImageRouter: createTaskImageRouter(taskImages, taskImageUpload.single("image")),
-    connections,
-    presence,
-    presenceTouch: createPresenceTouch(presenceService),
-    greetPresence: (connection: Connection) => {
-      void presenceDelivery.greet(connection).catch((error: unknown) => {
-        console.error("Failed to hand over the presence roster:", error);
-      });
-    },
-    sweepPresence: () => { presenceService.sweep(); },
-    authenticate: (token: string) => identity.authenticate(token),
+    auditRouter: createAuditRouter(kernel.auditReader),
+    connections: kernel.connections,
+
+    authRouter: identity.authRouter,
+    userRouter: identity.userRouter,
+    authentication: identity.authentication,
+    authenticate: identity.authenticate,
+
+    actorResolution: people.actorResolution,
+    sessionRouter: people.sessionRouter,
+    memberRouter: people.memberRouter,
+    presence: people.presence,
+    presenceTouch: people.presenceTouch,
+    greetPresence: people.greetPresence,
+    sweepPresence: people.sweepPresence,
+
+    inviteRouter: invites.inviteRouter,
+    registrationResolverRouter: invites.registrationResolverRouter,
+
+    clientRouter: catalog.clientRouter,
+    projectRouter: catalog.projectRouter,
+    projectLayoutRouter: catalog.projectLayoutRouter,
+    projectGroupRouter: catalog.projectGroupRouter,
+
+    campaignRouter: advertising.campaignRouter,
+    adSetRouter: advertising.adSetRouter,
+    adCreativeRouter: advertising.adCreativeRouter,
+    projectMetricRouter: advertising.projectMetricRouter,
+    summaryRouter: advertising.summaryRouter,
+    integrationRouter: advertising.integrationRouter,
+    adPreviewRouter: advertising.adPreviewRouter,
+    importWorker: advertising.importWorker,
+    leadPollWorker: advertising.leadPollWorker,
+
+    taskRouter: tasks.taskRouter,
+    taskImageRouter: tasks.taskImageRouter,
+
+    leadRouter: leads.leadRouter,
+
+    reportRouter: reporting.reportRouter,
+    reportIndexRouter: reporting.reportIndexRouter,
+    kpiRouter: reporting.kpiRouter,
   };
 }

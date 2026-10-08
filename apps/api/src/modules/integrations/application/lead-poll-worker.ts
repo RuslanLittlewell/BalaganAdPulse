@@ -1,5 +1,5 @@
 import type { UnitOfWork } from "#shared/application/index.js";
-import type { IncomingLead } from "../../leads/index.js";
+import type { IncomingLead } from "#modules/leads/index.js";
 import { MetaError, type LeadPollJob } from "../domain/integration.js";
 import type { PolledAd } from "../domain/snapshot.js";
 import type { LeadPollJobs } from "./lead-poll-jobs.js";

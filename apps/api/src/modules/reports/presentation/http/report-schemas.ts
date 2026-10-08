@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MAX_CHOSEN_ADS, REPORT_STATUSES } from "../../domain/report.js";
+import { MAX_CHOSEN_ADS, REPORT_STATUSES } from "#modules/reports/domain/report.js";
 
 const count = z.number().int().min(0).max(1_000_000);
 const document = z.record(z.string(), z.unknown());

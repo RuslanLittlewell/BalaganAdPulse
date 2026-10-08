@@ -2,17 +2,9 @@ export const CHANNELS = ["META", "GOOGLE", "YANDEX", "VK", "TIKTOK", "LINKEDIN",
 
 export type Channel = (typeof CHANNELS)[number];
 
-export function isChannel(value: string): value is Channel {
-  return (CHANNELS as readonly string[]).includes(value);
-}
-
 export const DELIVERY_STATUSES = ["ACTIVE", "LEARNING", "PAUSED", "REJECTED", "ENDED"] as const;
 
 export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number];
-
-export function isDeliveryStatus(value: string): value is DeliveryStatus {
-  return (DELIVERY_STATUSES as readonly string[]).includes(value);
-}
 
 export interface Campaign {
   readonly currency?: string | null;
@@ -49,7 +41,7 @@ export interface Ad {
   readonly position: number;
 }
 
-export const CREATIVE_KINDS = ["IMAGE", "VIDEO"] as const;
+const CREATIVE_KINDS = ["IMAGE", "VIDEO"] as const;
 
 export type CreativeKind = (typeof CREATIVE_KINDS)[number];
 

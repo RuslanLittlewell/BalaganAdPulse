@@ -1,7 +1,7 @@
 import { can, type Action } from '@adpulse/access-policy';
 import { AppError } from '#shared/domain/index.js';
 import type { ActorContext, IdGenerator, UnitOfWork, TransactionContext } from '#shared/application/index.js';
-import type { AuditWriter } from '../../audit/index.js';
+import type { AuditWriter } from '#modules/audit/index.js';
 import { arrivalWindow, boardColumns, customColumnOf, CUSTOM_COLUMN_LIMIT, isLeadStage, LEAD_STAGE_NAMES, LEAD_STAGES, type BoardColumn, type LeadColumnRecord, type LeadFields, type LeadRecord, type LeadStage } from '../domain/lead.js';
 import { buildActivity, campaignIdsIn } from '../domain/lead-activity.js';
 import type { LeadFileStorage, LeadRepository, LeadEvent } from './ports.js';

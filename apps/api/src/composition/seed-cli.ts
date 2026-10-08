@@ -1,5 +1,5 @@
 import { prisma } from "#shared/infrastructure/prisma.js";
-import { hashPassword } from "../modules/identity/infrastructure/password-adapter.js";
+import { hashPassword } from "#modules/identity/infrastructure/password-adapter.js";
 
 const MIN_PASSWORD_LENGTH = 8;
 

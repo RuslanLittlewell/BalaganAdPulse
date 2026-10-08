@@ -1,9 +1,7 @@
 name: CI
 
-# No `paths:` filter, deliberately. Render's checksPass trigger counts a
-# skipped check as a pass, so a path-filtered workflow would wave untested
-# commits straight into production. Pushes to `production` are what deploy;
-# `main` still runs the full suite for PR feedback but no longer ships.
+# Pushes to `production` are what deploy; `main` still runs the full suite for
+# PR feedback but no longer ships.
 on:
   pull_request:
     branches: [main]
@@ -39,7 +37,6 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/adpulse_test?schema=public
       JWT_SECRET: ci-secret-not-used-outside-tests
-      INVITE_CODE: ci-invite-not-used-outside-tests
       INTEGRATION_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       S3_ENDPOINT: http://localhost:9000
       S3_REGION: us-east-1
@@ -147,7 +144,6 @@ jobs:
           docker run -d --name adpulse-ci --network host \
             -e DATABASE_URL="postgresql://postgres:postgres@localhost:5432/adpulse?schema=public" \
             -e JWT_SECRET="ci-image-check-secret-at-least-32-chars" \
-            -e INVITE_CODE="ci-image-check-invite" \
             -e NODE_ENV=production \
             -e PORT=3000 \
             adpulse-api:ci

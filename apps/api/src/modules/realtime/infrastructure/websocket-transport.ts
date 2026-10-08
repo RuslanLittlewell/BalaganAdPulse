@@ -1,8 +1,8 @@
 import type { IncomingMessage, Server } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer } from "ws";
-import { ACCESS_COOKIE } from "../../identity/index.js";
-import type { SessionPrincipal } from "../../identity/index.js";
+import { ACCESS_COOKIE } from "#modules/identity/index.js";
+import type { SessionPrincipal } from "#modules/identity/index.js";
 import type { Connection, ConnectionRegistry, RealtimeEvent } from "../application/connection-registry.js";
 
 export const REALTIME_PATH = "/api/realtime";

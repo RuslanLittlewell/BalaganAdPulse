@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PROJECT_PRIORITIES } from "../../domain/project.js";
+import { PROJECT_PRIORITIES } from "#modules/projects/domain/project.js";
 
 const projectFieldsSchema = z.object({
   clientId: z.uuid("clientId must be a uuid"),

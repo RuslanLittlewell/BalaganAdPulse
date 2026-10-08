@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { TASK_COLUMNS, TASK_PRIORITIES } from "../../domain/board.js";
-import { TASK_REPEATS, isCalendarDay, isTimeOfDay } from "../../domain/schedule.js";
+import { TASK_COLUMNS, TASK_PRIORITIES } from "#modules/tasks/domain/board.js";
+import { TASK_REPEATS, isCalendarDay, isTimeOfDay } from "#modules/tasks/domain/schedule.js";
 
 const description = z.unknown().nullable().optional();
 

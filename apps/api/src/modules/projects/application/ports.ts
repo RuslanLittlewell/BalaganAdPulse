@@ -4,7 +4,7 @@ import type {
   TransactionContext,
   UnitOfWork,
 } from "#shared/application/index.js";
-import type { AuditWriter } from "../../audit/index.js";
+import type { AuditWriter } from "#modules/audit/index.js";
 import type { NewProject, ProjectChange, ProjectRecord } from "../domain/project.js";
 
 export interface ProjectRepository {

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { arrayOf, ref, type ComponentDocs, type RouteDoc } from '#shared/presentation/openapi.js';
-import { LEAD_ORIGINS, LEAD_STAGES } from '../../domain/lead.js';
+import { LEAD_ORIGINS, LEAD_STAGES } from '#modules/leads/domain/lead.js';
 import {createLeadSchema,updateLeadSchema,moveLeadSchema,createColumnSchema,updateColumnSchema,stageCountsQuerySchema} from './lead-schemas.js';
 const metaEntity=z.object({externalId:z.string(),name:z.string()});
 const metaSource=z.object({accountId:z.string(),formId:z.string(),campaign:metaEntity,adSet:metaEntity,ad:metaEntity,submittedAt:z.iso.datetime(),answers:z.array(z.object({question:z.string(),values:z.array(z.string())})),answersOmitted:z.boolean()});

@@ -54,11 +54,12 @@ descriptions are Tiptap JSON, edited with the shared rich text editor.
 - **A `reports` module** in `apps/api/src/modules/reports` with the usual domain /
   application / infrastructure / presentation layers. Routes:
   `GET /projects/:projectId/reports`, `POST /projects/:projectId/reports` (`{ month:
-  "2026-08" }`), `GET|PATCH|DELETE /projects/:projectId/reports/:reportId`,
+  "2026-08" }`), `PATCH|DELETE /projects/:projectId/reports/:reportId`,
   `POST …/:reportId/refresh`, `POST …/:reportId/publish`, `POST …/:reportId/unpublish`.
   Across projects: `GET /reports?projectId=` lists reports of every reachable project with
-  their `projectId`, and `GET /reports/:id` reads one without knowing its project; actions
-  keep the project-scoped paths. The project list answers `available`: up to twelve most
+  their `projectId`, and `GET /reports/:id` is the one way to read a report; actions keep
+  the project-scoped paths, and naming a report under a project it does not belong to
+  answers 404. The project list answers `available`: up to twelve most
   recent ended months without a report, newest first, empty for those who cannot create.
   Reach goes through the project repository; drafts answer 404 when `can(actor, "update",
   "report")` is false. Mutations write audit events in their transaction.

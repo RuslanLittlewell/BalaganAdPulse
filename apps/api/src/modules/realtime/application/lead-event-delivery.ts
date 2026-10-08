@@ -1,6 +1,6 @@
 import { can } from "@adpulse/access-policy";
 import type { ActorContext } from "#shared/application/index.js";
-import type { LeadEvent } from "../../leads/index.js";
+import type { LeadEvent } from "#modules/leads/index.js";
 import type { Connection, ConnectionRegistry } from "./connection-registry.js";
 import type { DeliveryActorResolution } from "./task-event-delivery.js";
 

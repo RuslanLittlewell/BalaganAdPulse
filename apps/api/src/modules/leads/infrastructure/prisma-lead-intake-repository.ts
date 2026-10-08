@@ -1,11 +1,11 @@
-import type { Prisma, PrismaClient } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import type { TransactionContext } from '#shared/application/index.js';
 import type { PrismaUnitOfWork } from '#shared/infrastructure/prisma-unit-of-work.js';
 import type { ImportedLeadInput, LeadIntakeRepository } from '../application/lead-intake.js';
 import type { LeadMetaSource } from '../domain/lead.js';
 
 export class PrismaLeadIntakeRepository implements LeadIntakeRepository {
-  constructor(private readonly prisma: PrismaClient, private readonly uow: PrismaUnitOfWork<Prisma.TransactionClient>) {}
+  constructor(private readonly uow: PrismaUnitOfWork<Prisma.TransactionClient>) {}
   private tx(context: TransactionContext) {
     return this.uow.clientFor<Prisma.TransactionClient>(context);
   }

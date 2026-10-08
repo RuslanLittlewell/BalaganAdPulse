@@ -3,6 +3,7 @@ import type { ActorContext, TransactionContext } from "#shared/application/index
 import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
 import type { NewProject, ProjectChange, ProjectRecord } from "../domain/project.js";
 import type { ProjectRepository } from "../application/ports.js";
+import { reachableProjects } from "#shared/infrastructure/project-reach.js";
 
 function toDomain(row: ProjectRow): ProjectRecord {
   return {
@@ -10,17 +11,6 @@ function toDomain(row: ProjectRow): ProjectRecord {
     budgetCurrency: row.budgetCurrency,
     priority: row.priority, image: row.image, avatarPath: row.avatarPath,
     position: row.position, createdAt: row.createdAt, updatedAt: row.updatedAt,
-  };
-}
-
-function reachFilter(actor: ActorContext): Prisma.ProjectWhereInput {
-  if (actor.role === "ADMIN") return { client: { orgId: actor.orgId } };
-  return {
-    client: { orgId: actor.orgId },
-    OR: [
-      { client: { access: { some: { membershipId: actor.membershipId, projectId: null } } } },
-      { access: { some: { membershipId: actor.membershipId } } },
-    ],
   };
 }
 
@@ -47,14 +37,14 @@ export class PrismaProjectRepository implements ProjectRepository {
 
   async listReachable(actor: ActorContext, clientId?: string): Promise<ProjectRecord[]> {
     const rows = await this.prisma.project.findMany({
-      where: { ...reachFilter(actor), ...(clientId ? { clientId } : {}) },
+      where: { ...reachableProjects(actor), ...(clientId ? { clientId } : {}) },
       orderBy: [{ clientId: "asc" }, { position: "asc" }],
     });
     return rows.map(toDomain);
   }
 
   async findReachable(actor: ActorContext, id: string): Promise<ProjectRecord | null> {
-    const row = await this.prisma.project.findFirst({ where: { id, ...reachFilter(actor) } });
+    const row = await this.prisma.project.findFirst({ where: { id, ...reachableProjects(actor) } });
     return row && toDomain(row);
   }
 

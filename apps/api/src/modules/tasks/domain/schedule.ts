@@ -2,7 +2,7 @@ export const TASK_REPEATS = ["NONE", "DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"] a
 
 export type TaskRepeat = (typeof TASK_REPEATS)[number];
 
-export const DEFAULT_TASK_REPEAT: TaskRepeat = "NONE";
+const DEFAULT_TASK_REPEAT: TaskRepeat = "NONE";
 
 const CALENDAR_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_OF_DAY = /^([01]\d|2[0-3]):[0-5]\d$/;

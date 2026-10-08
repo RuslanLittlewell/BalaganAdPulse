@@ -1,15 +1,15 @@
 import { Router } from "express";
 import { z } from "zod";
 import { AppError } from "#shared/domain/index.js";
-import type { createIntegrationUseCases } from "../../application/integration-use-cases.js";
+import type { createIntegrationUseCases } from "#modules/integrations/application/integration-use-cases.js";
 
-export const connectionSchema = z.object({
+const connectionSchema = z.object({
   accountId: z.string().trim().regex(/^(act_)?[0-9]{1,30}$/).transform((value) => value.replace(/^act_/, "")),
   token: z.string().trim().min(1).max(8192).regex(/^\S+$/),
 });
 
-export const settingsSchema = z.object({ leadsEnabled: z.boolean() });
-export const newConnectionSchema = connectionSchema.extend({ leadsEnabled: z.boolean().optional() });
+const settingsSchema = z.object({ leadsEnabled: z.boolean() });
+const newConnectionSchema = connectionSchema.extend({ leadsEnabled: z.boolean().optional() });
 
 export function createIntegrationRouter(service: ReturnType<typeof createIntegrationUseCases>) {
   const router = Router();

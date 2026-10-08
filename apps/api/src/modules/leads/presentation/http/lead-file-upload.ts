@@ -1,7 +1,7 @@
 import multer from 'multer';
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { AppError } from '#shared/domain/index.js';
-import { MAX_LEAD_FILE_BYTES } from '../../domain/lead-file.js';
+import { MAX_LEAD_FILE_BYTES } from '#modules/leads/domain/lead-file.js';
 
 const receive = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_LEAD_FILE_BYTES, files: 1 } }).single('file');
 

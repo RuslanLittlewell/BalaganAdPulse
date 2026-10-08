@@ -1,13 +1,13 @@
 const SCALE = 10_000n;
 
-export function toUnits(amount: string): bigint {
+function toUnits(amount: string): bigint {
   const negative = amount.startsWith("-");
   const [whole, fraction = ""] = amount.replace(/^[-+]/, "").split(".");
   const units = BigInt(whole || "0") * SCALE + BigInt(fraction.padEnd(4, "0").slice(0, 4));
   return negative ? -units : units;
 }
 
-export function fromUnits(units: bigint): string {
+function fromUnits(units: bigint): string {
   const sign = units < 0n ? "-" : "";
   const magnitude = units < 0n ? -units : units;
   return `${sign}${magnitude / SCALE}.${String(magnitude % SCALE).padStart(4, "0")}`;
@@ -30,8 +30,4 @@ export function relativeChange(current: string, previous: string): string | null
   const before = toUnits(previous);
   if (before === 0n) return null;
   return fromUnits(divideRounded((toUnits(current) - before) * SCALE, before));
-}
-
-export function sumAmounts(amounts: readonly string[]): string {
-  return fromUnits(amounts.reduce((total, amount) => total + toUnits(amount), 0n));
 }

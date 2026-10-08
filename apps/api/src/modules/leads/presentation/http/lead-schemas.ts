@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { COLUMN_NAME_LIMIT, LEAD_STAGES, TAG_LENGTH_LIMIT, TAG_LIMIT } from '../../domain/lead.js';
+import { COLUMN_NAME_LIMIT, LEAD_STAGES, TAG_LENGTH_LIMIT, TAG_LIMIT } from '#modules/leads/domain/lead.js';
 const optionalText=(limit:number)=>z.string().trim().max(limit).nullable().optional();
 const fields=z.object({
   name:z.string().trim().min(1).max(200),company:optionalText(200),phone:optionalText(50),

@@ -1,7 +1,7 @@
 import { can } from '@adpulse/access-policy';
 import { AppError } from '#shared/domain/index.js';
 import type { ActorContext, IdGenerator, UnitOfWork } from '#shared/application/index.js';
-import type { AuditWriter } from '../../audit/index.js';
+import type { AuditWriter } from '#modules/audit/index.js';
 import { fileNameOf, MAX_LEAD_FILE_BYTES, safeContentType, type LeadFileRecord } from '../domain/lead-file.js';
 import type { LeadEvent, LeadFileRepository, LeadFileStorage, LeadRepository } from './ports.js';
 

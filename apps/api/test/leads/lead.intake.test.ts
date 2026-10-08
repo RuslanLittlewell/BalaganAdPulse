@@ -20,7 +20,7 @@ beforeEach(async () => {
   ({ projectId } = await seedProject(member.user.id));
   publish = vi.fn();
   intake = createLeadIntake({
-    intake: new PrismaLeadIntakeRepository(prisma, unitOfWork),
+    intake: new PrismaLeadIntakeRepository(unitOfWork),
     ids: new RandomIdGenerator(),
     unitOfWork,
     publish,

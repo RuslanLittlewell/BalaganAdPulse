@@ -1,6 +1,6 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { AppError } from "#shared/domain/index.js";
-import type { ReportUseCases } from "../../application/report-use-cases.js";
+import type { ReportUseCases } from "#modules/reports/application/report-use-cases.js";
 import { coverUpload } from "./cover-upload.js";
 import { editSchema, generateSchema, listQuerySchema } from "./report-schemas.js";
 
@@ -25,9 +25,6 @@ export function createReportRouter(reports: ReportUseCases): Router {
     const actor = actorOf(req);
     const { month } = generateSchema.parse(req.body);
     res.status(201).json(await reports.generate(actor, req.params.projectId, month));
-  }));
-  router.get("/:reportId", handle(async (req: ReportRequest, res) => {
-    res.json(await reports.read(actorOf(req), req.params.projectId, req.params.reportId));
   }));
   router.patch("/:reportId", handle(async (req: ReportRequest, res) => {
     const actor = actorOf(req);

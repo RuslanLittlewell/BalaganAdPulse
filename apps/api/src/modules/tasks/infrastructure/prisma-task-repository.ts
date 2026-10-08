@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import type { PrismaClient, Task as TaskRow } from "@prisma/client";
 import type { ActorContext, TransactionContext } from "#shared/application/index.js";
 import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
-import { TASK_COLUMNS, type TaskColumn } from "../domain/board.js";
+import type { TaskColumn } from "../domain/board.js";
 import { dateToDay, dayToDate } from "../domain/schedule.js";
 import type {
   MemberReach,
@@ -14,6 +14,7 @@ import type {
   TaskRecord,
   TaskRepository,
 } from "../application/ports.js";
+import { grantedProjects, reachableProjects } from "#shared/infrastructure/project-reach.js";
 
 type ChecklistRow = { id: string; title: string; done: boolean; position: number };
 
@@ -42,22 +43,15 @@ const WITH_IMAGES = {
   },
 } as const;
 
-const grantedProject = (actor: ActorContext): Prisma.ProjectWhereInput => ({
-  OR: [
-    { client: { access: { some: { membershipId: actor.membershipId, projectId: null } } } },
-    { access: { some: { membershipId: actor.membershipId } } },
-  ],
-});
-
 function visibleTo(actor: ActorContext): Prisma.TaskWhereInput {
   if (actor.role === "ADMIN") return { orgId: actor.orgId };
   if (isCustomer(actor.role)) {
-    return { orgId: actor.orgId, visibleToClient: true, project: grantedProject(actor) };
+    return { orgId: actor.orgId, visibleToClient: true, project: grantedProjects(actor) };
   }
   return {
     orgId: actor.orgId,
     OR: [
-      { project: grantedProject(actor), assigneeId: actor.membershipId },
+      { project: grantedProjects(actor), assigneeId: actor.membershipId },
       {
         projectId: null,
         OR: [{ createdById: actor.membershipId }, { assigneeId: actor.membershipId }],
@@ -221,17 +215,8 @@ export class PrismaTaskProjectReach implements ProjectReach {
   constructor(private readonly prisma: PrismaClient) {}
 
   async contextFor(actor: ActorContext, projectId: string) {
-    const filter: Prisma.ProjectWhereInput = actor.role === "ADMIN"
-      ? { client: { orgId: actor.orgId } }
-      : {
-          client: { orgId: actor.orgId },
-          OR: [
-            { client: { access: { some: { membershipId: actor.membershipId, projectId: null } } } },
-            { access: { some: { membershipId: actor.membershipId } } },
-          ],
-        };
     const project = await this.prisma.project.findFirst({
-      where: { id: projectId, ...filter }, select: { clientId: true },
+      where: { id: projectId, ...reachableProjects(actor) }, select: { clientId: true },
     });
     return project && { clientId: project.clientId };
   }
@@ -249,4 +234,3 @@ export class PrismaTaskMemberReach implements MemberReach {
   }
 }
 
-export { TASK_COLUMNS };

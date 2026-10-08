@@ -28,6 +28,10 @@ export const registerSchema = z.object({
 );
 export const loginSchema = z.object({ email, password: z.string().min(1, "password is required") });
 export const refreshSchema = z.object({ refreshToken: z.string().min(1, "refreshToken is required") });
+export const passwordResetRequestSchema = z.object({ email });
+export const passwordResetSchema = z.object({
+  password: z.string().min(8, "password must be at least 8 characters"),
+});
 export const updateProfileSchema = z.object({
   name: z.string().trim().min(1, "name is required"),
   phone: optionalText,

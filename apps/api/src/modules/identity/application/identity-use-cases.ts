@@ -40,6 +40,15 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
     };
   };
 
+  const usableReset = async (token: string) => {
+    const tokenHash = dependencies.tokens.hashReset(token);
+    const reset = await dependencies.resets.find(tokenHash);
+    if (!reset || reset.expiresAt <= dependencies.clock.now()) {
+      throw new AppError("not-found", "This password reset link is invalid or has expired");
+    }
+    return { ...reset, tokenHash };
+  };
+
   return {
     authenticate: async (accessToken: string) => {
       try {
@@ -72,6 +81,38 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
       const matches = await dependencies.passwords.verify(input.password, user?.passwordHash ?? dependencies.passwords.dummyHash);
       if (!user || !matches) throw new AppError("unauthorized", "Invalid email or password");
       return dependencies.unitOfWork.run((context) => issueTokenPair(context, user));
+    },
+
+    requestPasswordReset: async (email: string) => {
+      if (!dependencies.resetLinks.available) {
+        throw new AppError("unavailable", "Password recovery is not available");
+      }
+      const user = await dependencies.users.findByEmail(email);
+      if (!user) return;
+      const token = dependencies.tokens.generateReset();
+      await dependencies.unitOfWork.run((context) => dependencies.resets.replace(context, {
+        userId: user.id,
+        tokenHash: dependencies.tokens.hashReset(token),
+        expiresAt: dependencies.tokens.resetExpiry(dependencies.clock.now()),
+      }));
+      dependencies.resetLinks.deliver({ email: user.email, name: user.name }, token);
+    },
+
+    checkPasswordReset: async (token: string) => {
+      await usableReset(token);
+    },
+
+    resetPassword: async (token: string, password: string) => {
+      const reset = await usableReset(token);
+      const passwordHash = await dependencies.passwords.hash(password);
+      return dependencies.unitOfWork.run(async (context) => {
+        if (!await dependencies.resets.consume(context, reset.tokenHash)) {
+          throw new AppError("not-found", "This password reset link is invalid or has expired");
+        }
+        const user = await dependencies.users.setPassword(context, reset.userId, passwordHash);
+        await dependencies.sessions.revokeAll(context, user.id);
+        return issueTokenPair(context, user);
+      });
     },
 
     refresh: async (refreshToken: string) => {

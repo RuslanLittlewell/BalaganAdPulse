@@ -6,6 +6,7 @@ import { ProjectsPage } from "@/pages/projects/index.js";
 import { ReportsPage } from "@/pages/reports/index.js";
 import { LoginPage } from "@/pages/login/index.js";
 import { RegistrationPage } from "@/pages/registration/index.js";
+import { RequestResetPage, ResetPasswordPage } from "@/pages/password-reset/index.js";
 import { TasksPage } from "@/pages/tasks/index.js";
 import { CrmPage } from "@/pages/crm/index.js";
 import { AuthProvider, RequireAuth, SessionHeartbeat } from "@/features/auth/index.js";
@@ -56,6 +57,8 @@ export function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<Navigate to="/login" replace />} />
             <Route path="/regustration/:code" element={<RegistrationPage />} />
+            <Route path="/password-reset" element={<RequestResetPage />} />
+            <Route path="/password-reset/:token" element={<ResetPasswordPage />} />
             <Route path="/*" element={<Dashboard />} />
           </Routes>
         </AuthProvider>

@@ -22,6 +22,7 @@ interface AuthValue {
   clientIds: string[];
   login: (body: LoginBody) => Promise<void>;
   register: (body: RegisterBody) => Promise<void>;
+  resetPassword: (token: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (body: UpdateProfileBody) => Promise<void>;
   loadProfile: () => Promise<UserProfile>;
@@ -81,6 +82,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     register: async (body) => {
       writeTokens(await authApi.register(body));
+      queryClient.clear();
+      await loadSession();
+    },
+    resetPassword: async (token, password) => {
+      writeTokens(await authApi.resetPassword(token, password));
       queryClient.clear();
       await loadSession();
     },

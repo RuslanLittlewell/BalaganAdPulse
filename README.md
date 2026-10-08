@@ -120,6 +120,7 @@ API and the built SPA, and one Basic-256mb Postgres. Both are declared in
 |---|---|---|
 | `JWT_SECRET` | Render environment variable, `sync: false` | Operator, at Blueprint creation |
 | `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` | Render environment variables, `sync: false` | Operator, at Blueprint creation |
+| `APP_URL`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM` | Render environment variables, `sync: false` | Operator, before password recovery is used |
 | `RENDER_DEPLOY_HOOK_URL` | GitHub Actions repository secret | Operator, after the service exists |
 | `DATABASE_URL` | Injected by Render from the database | Nobody |
 
@@ -481,6 +482,23 @@ One environment variable is required, and the API refuses to start without it:
 
 In production, startup additionally rejects the `.env.example` placeholder and a
 `JWT_SECRET` shorter than 32 characters.
+
+A member who forgot their password asks for a link at `POST /auth/password-reset`; the
+answer is 202 whether or not an account uses the email, and only an existing account is
+mailed. The link carries a random token stored as a `sha256` digest; it works once, for
+one hour, and asking again replaces it. `POST /auth/password-reset/{token}` sets the new
+password, deletes every refresh token of the account and signs in. Mail goes over SMTP:
+
+| Variable | Purpose |
+|----------|---------|
+| `APP_URL` | Public address the link is built on; defaults to `http://localhost:5173` outside production |
+| `SMTP_USER`, `SMTP_PASSWORD` | SMTP account; for Gmail, an app password rather than the account's own |
+| `SMTP_HOST`, `SMTP_PORT` | Server, defaulting to `smtp.gmail.com` and 465 with TLS; any other port uses STARTTLS |
+| `MAIL_FROM` | Sender, defaulting to `Balagan BI <SMTP_USER>` |
+
+Without `SMTP_USER` and `SMTP_PASSWORD`, development writes the message, link included, to
+the API's log. In production, without them or without `APP_URL`, asking for a link
+answers **503**.
 
 ### Roles and membership
 

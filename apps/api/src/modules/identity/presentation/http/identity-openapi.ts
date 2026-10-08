@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { avatarUploadBody } from "#shared/presentation/avatar.js";
 import { ref, type ComponentDocs, type RouteDoc } from "#shared/presentation/openapi.js";
-import { loginSchema, refreshSchema, registerSchema, updateProfileSchema } from "./identity-schemas.js";
+import {
+  loginSchema, passwordResetRequestSchema, passwordResetSchema, refreshSchema, registerSchema, updateProfileSchema,
+} from "./identity-schemas.js";
 
 const tokenPair = z.object({
   accessToken: z.string(),
@@ -47,6 +49,34 @@ export const authDoc: RouteDoc = {
       body: loginSchema,
       success: { status: 200, description: "The session, also set as cookies", schema: ref("TokenPair") },
       errors: [400, 401, 429],
+    },
+    {
+      method: "post",
+      path: "/password-reset",
+      summary: "Ask for a password reset link",
+      description: "Emails a link to set a new password when an account uses the address. The answer is the same either way.",
+      open: true,
+      body: passwordResetRequestSchema,
+      success: { status: 202, description: "The request is taken; a link is sent if an account uses the email" },
+      errors: [400, 429, 503],
+    },
+    {
+      method: "get",
+      path: "/password-reset/:token",
+      summary: "Check a password reset link",
+      open: true,
+      success: { status: 204, description: "The link can still set a password" },
+      errors: [404, 429],
+    },
+    {
+      method: "post",
+      path: "/password-reset/:token",
+      summary: "Set a new password with a reset link",
+      description: "Replaces the password, ends every other session and signs in.",
+      open: true,
+      body: passwordResetSchema,
+      success: { status: 200, description: "The new session, also set as cookies", schema: ref("TokenPair") },
+      errors: [400, 404, 429],
     },
     {
       method: "post",

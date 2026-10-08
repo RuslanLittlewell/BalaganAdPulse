@@ -2,7 +2,7 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 import { AppError } from "#shared/domain/index.js";
 import type { TransactionContext } from "#shared/application/index.js";
 import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
-import type { RefreshSessionRepository, UserRepository } from "../application/ports.js";
+import type { PasswordResetRepository, RefreshSessionRepository, UserRepository } from "../application/ports.js";
 
 export class PrismaUserRepository implements UserRepository {
   constructor(
@@ -28,6 +28,10 @@ export class PrismaUserRepository implements UserRepository {
     return this.unitOfWork.clientFor<Prisma.TransactionClient>(context).user.update({ where: { id }, data: input });
   }
 
+  setPassword(context: TransactionContext, id: string, passwordHash: string) {
+    return this.unitOfWork.clientFor<Prisma.TransactionClient>(context).user.update({ where: { id }, data: { passwordHash } });
+  }
+
   setAvatar(context: TransactionContext, id: string, input: { image: string; avatarPath: string }): Promise<void> {
     return this.unitOfWork.clientFor<Prisma.TransactionClient>(context).user.update({ where: { id }, data: input }).then(() => undefined);
   }
@@ -49,5 +53,32 @@ export class PrismaRefreshSessionRepository implements RefreshSessionRepository 
 
   revoke(context: TransactionContext, tokenHash: string): Promise<void> {
     return this.unitOfWork.clientFor<Prisma.TransactionClient>(context).refreshToken.deleteMany({ where: { tokenHash } }).then(() => undefined);
+  }
+
+  revokeAll(context: TransactionContext, userId: string): Promise<void> {
+    return this.unitOfWork.clientFor<Prisma.TransactionClient>(context).refreshToken.deleteMany({ where: { userId } }).then(() => undefined);
+  }
+}
+
+export class PrismaPasswordResetRepository implements PasswordResetRepository {
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly unitOfWork: PrismaUnitOfWork<Prisma.TransactionClient>,
+  ) {}
+
+  replace(context: TransactionContext, value: { userId: string; tokenHash: string; expiresAt: Date }): Promise<void> {
+    const { userId, ...link } = value;
+    return this.unitOfWork.clientFor<Prisma.TransactionClient>(context).passwordReset
+      .upsert({ where: { userId }, create: value, update: link })
+      .then(() => undefined);
+  }
+
+  find(tokenHash: string) {
+    return this.prisma.passwordReset.findUnique({ where: { tokenHash }, select: { userId: true, expiresAt: true } });
+  }
+
+  async consume(context: TransactionContext, tokenHash: string): Promise<boolean> {
+    const { count } = await this.unitOfWork.clientFor<Prisma.TransactionClient>(context).passwordReset.deleteMany({ where: { tokenHash } });
+    return count > 0;
   }
 }

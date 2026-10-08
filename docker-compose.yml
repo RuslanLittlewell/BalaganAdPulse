@@ -71,6 +71,12 @@ services:
       S3_ACCESS_KEY: "${S3_ACCESS_KEY:-adpulse}"
       S3_SECRET_KEY: "${S3_SECRET_KEY:-adpulse-local-secret}"
       S3_BUCKET: "${S3_BUCKET:-adpulse-avatars}"
+      APP_URL: "${APP_URL:-http://localhost:5173}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-}"
+      MAIL_FROM: "${MAIL_FROM:-}"
     ports:
       - "3000:3000"
     volumes:

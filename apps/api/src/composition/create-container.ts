@@ -29,7 +29,11 @@ import { apiDocument, createDocumentationRouter } from "./openapi.js";
 import { prisma } from "#shared/infrastructure/prisma.js";
 import { createIdentityUseCases } from "../modules/identity/index.js";
 import { PasswordAdapter } from "../modules/identity/infrastructure/password-adapter.js";
-import { PrismaRefreshSessionRepository, PrismaUserRepository } from "../modules/identity/infrastructure/prisma-identity-repositories.js";
+import {
+  PrismaPasswordResetRepository, PrismaRefreshSessionRepository, PrismaUserRepository,
+} from "../modules/identity/infrastructure/prisma-identity-repositories.js";
+import { ResetLinkMailer } from "../modules/identity/infrastructure/reset-link-mailer.js";
+import { LogMailTransport, SmtpMailTransport } from "#shared/infrastructure/mail.js";
 import { ProfileStorageAdapter } from "../modules/identity/infrastructure/profile-storage-adapter.js";
 import { TokenAdapter } from "../modules/identity/infrastructure/token-adapter.js";
 import { createAuthentication } from "../modules/identity/presentation/http/authentication.js";
@@ -225,12 +229,17 @@ export function createContainer(): ApiContainer {
     codes: new CryptoInvitationCodeGenerator(),
     unitOfWork,
   });
+  const mail = config.mail
+    ? new SmtpMailTransport(config.mail)
+    : config.production ? null : new LogMailTransport();
   const identity = createIdentityUseCases({
     users: new PrismaUserRepository(prisma, unitOfWork),
     invitations: { redeem: invites.redeem },
     passwords: new PasswordAdapter(),
     tokens: new TokenAdapter(),
     sessions: new PrismaRefreshSessionRepository(prisma, unitOfWork),
+    resets: new PrismaPasswordResetRepository(prisma, unitOfWork),
+    resetLinks: new ResetLinkMailer(mail, config.appUrl),
     profiles: new ProfileStorageAdapter(),
     clock,
     unitOfWork,

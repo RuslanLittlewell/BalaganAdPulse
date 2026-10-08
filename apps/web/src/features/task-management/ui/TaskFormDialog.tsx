@@ -53,6 +53,8 @@ import { TaskSchedule } from "./TaskSchedule.js";
 export interface TaskFormDialogProps {
   task?: Task;
   column?: TaskColumn;
+  projectId?: string;
+  assigneeId?: string;
   onClose: () => void;
   onDelete?: (task: Task) => void;
 }
@@ -139,6 +141,8 @@ function Block({
 export function TaskFormDialog({
   task,
   column,
+  projectId: givenProject,
+  assigneeId: givenAssignee,
   onClose,
   onDelete,
 }: TaskFormDialogProps) {
@@ -188,10 +192,10 @@ export function TaskFormDialog({
     formState: { errors },
   } = useForm<FormValues>({
     defaultValues: {
-      projectId: task?.projectId ?? NO_PROJECT,
+      projectId: (task ? task.projectId : givenProject) ?? NO_PROJECT,
       title: task?.title ?? "",
       priority: task?.priority ?? "MEDIUM",
-      assigneeId: task?.assigneeId ?? UNASSIGNED,
+      assigneeId: (task ? task.assigneeId : givenAssignee) ?? UNASSIGNED,
       visibleToClient: task?.visibleToClient ?? false,
       dueDate: task?.dueDate ?? null,
       dueTime: task?.dueTime ?? null,

@@ -1,6 +1,10 @@
 export { TaskFormDialog } from "./ui/TaskFormDialog.js";
 export type { TaskFormDialogProps } from "./ui/TaskFormDialog.js";
 export { TaskPreviewDialog } from "./ui/TaskPreviewDialog.js";
+export { TaskDialogs } from "./ui/TaskDialogs.js";
+export { TaskCardView } from "./ui/TaskCardView.js";
+export type { TaskCardDrag, TaskCardViewProps } from "./ui/TaskCardView.js";
+export type { OpenedTask, TaskDialogsProps } from "./ui/TaskDialogs.js";
 export type { TaskPreviewDialogProps } from "./ui/TaskPreviewDialog.js";
 export { TaskDescriptionEditor } from "./ui/TaskDescriptionEditor.js";
 export { TaskImage } from "./ui/TaskImageNode.js";

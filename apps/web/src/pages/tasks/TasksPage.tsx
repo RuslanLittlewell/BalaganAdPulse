@@ -1,29 +1,21 @@
 import { useMemo, useState } from "react";
 import { TaskBoard } from "@/widgets/task-board/index.js";
 import { TaskCalendar } from "@/widgets/task-calendar/index.js";
-import { TaskFormDialog, TaskPreviewDialog } from "@/features/task-management/index.js";
-import { Can, useCan } from "@/features/permissions/index.js";
+import { TaskDialogs, type OpenedTask } from "@/features/task-management/index.js";
+import { Can } from "@/features/permissions/index.js";
 import { useAuth } from "@/features/auth/index.js";
-import { Button, ConfirmDialog, FadeContent, MultiSelect, Tabs } from "@/shared/ui/index.js";
+import { Button, FadeContent, MultiSelect, Tabs } from "@/shared/ui/index.js";
 import { useModuleMemory } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import {
   UNASSIGNED_TASK,
   assigneeChoices,
   tasksOfAssignees,
-  useDeleteTask,
   useTaskEvents,
   useTasks,
   type Task,
-  type TaskColumn,
 } from "@/entities/task/index.js";
 import { MemberAvatar, useMembers } from "@/entities/membership/index.js";
-
-type Editing =
-  | { mode: "closed" }
-  | { mode: "create"; column?: TaskColumn }
-  | { mode: "edit"; task: Task }
-  | { mode: "read"; task: Task };
 
 const VIEWS = ["board", "calendar"] as const;
 
@@ -36,10 +28,7 @@ function isView(value: string | undefined): value is View {
 }
 
 export function TasksPage() {
-  const [editing, setEditing] = useState<Editing>({ mode: "closed" });
-  const mayEdit = useCan("update", "task");
-  const [pendingDelete, setPendingDelete] = useState<Task | null>(null);
-  const remove = useDeleteTask();
+  const [opened, setOpened] = useState<OpenedTask>({ mode: "closed" });
   const { data: tasks, isLoading, isError } = useTasks();
   const { data: members } = useMembers();
   useTaskEvents();
@@ -62,7 +51,7 @@ export function TasksPage() {
     [tasks, assignees],
   );
 
-  const open = (task: Task) => setEditing({ mode: mayEdit ? "edit" : "read", task });
+  const open = (task: Task) => setOpened({ mode: "open", task });
 
   return (
     <section className="flex h-full flex-col gap-4">
@@ -102,7 +91,7 @@ export function TasksPage() {
         />
 
         <Can action="create" resource="task">
-          <Button className="justify-self-end" onClick={() => setEditing({ mode: "create" })}>
+          <Button className="justify-self-end" onClick={() => setOpened({ mode: "create" })}>
             {t("tasks.create")}
           </Button>
         </Can>
@@ -117,7 +106,7 @@ export function TasksPage() {
               isLoading={isLoading}
               isError={isError}
               onOpen={open}
-              onCreate={(column) => setEditing({ mode: "create", column })}
+              onCreate={(column) => setOpened({ mode: "create", column })}
             />
           ) : (
             <TaskCalendar
@@ -130,29 +119,7 @@ export function TasksPage() {
         </FadeContent>
       </div>
 
-      {editing.mode === "read" ? (
-        <TaskPreviewDialog task={editing.task} onClose={() => setEditing({ mode: "closed" })} />
-      ) : null}
-
-      {editing.mode === "create" || editing.mode === "edit" ? (
-        <TaskFormDialog
-          task={editing.mode === "edit" ? editing.task : undefined}
-          column={editing.mode === "create" ? editing.column : undefined}
-          onClose={() => setEditing({ mode: "closed" })}
-          onDelete={(task) => { setEditing({ mode: "closed" }); setPendingDelete(task); }}
-        />
-      ) : null}
-
-      {pendingDelete ? (
-        <ConfirmDialog
-          open
-          title={t("tasks.delete.title")}
-          description={t("tasks.delete.description")}
-          confirmLabel={t("tasks.delete.confirm")}
-          onConfirm={() => { remove.mutate(pendingDelete.id); setPendingDelete(null); }}
-          onClose={() => setPendingDelete(null)}
-        />
-      ) : null}
+      <TaskDialogs opened={opened} onClose={() => setOpened({ mode: "closed" })} />
     </section>
   );
 }

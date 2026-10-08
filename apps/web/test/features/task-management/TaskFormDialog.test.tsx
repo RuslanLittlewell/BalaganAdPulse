@@ -379,6 +379,47 @@ describe("creating into a chosen column", () => {
   });
 });
 
+describe("a new task given a project and a responsible member", () => {
+  const raise = () => renderWithProviders(
+    <TaskFormDialog projectId="project-1" assigneeId="member-1" onClose={() => {}} />,
+    { route: "/projects/project-1" },
+  );
+
+  it("opens with both named in the assignment block, which the row no longer offers", async () => {
+    raise();
+
+    await waitFor(() => expect(screen.getByLabelText("Проект")).toHaveTextContent("Летний запуск"));
+    await waitFor(() => expect(screen.getByLabelText("Ответственный")).toHaveTextContent("Пётр"));
+    expect(screen.queryByRole("button", { name: "Назначить" })).toBeNull();
+  });
+
+  it("sends both with the task", async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | null = null;
+    server.use(mock.post("/api/tasks", async ({ request }) => {
+      body = await request.json() as Record<string, unknown>;
+      return HttpResponse.json({}, { status: 201 });
+    }));
+    raise();
+
+    await user.type(await screen.findByLabelText("Название"), "Собрать отчёт");
+    await user.click(screen.getByRole("button", { name: "Создать задачу" }));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ title: "Собрать отчёт", projectId: "project-1", assigneeId: "member-1" });
+  });
+
+  it("does not override the task being edited", async () => {
+    renderWithProviders(
+      <TaskFormDialog task={aTask({ projectId: null, assigneeId: null })} projectId="project-1" assigneeId="member-1" onClose={() => {}} />,
+      { route: "/tasks" },
+    );
+
+    expect(await screen.findByRole("button", { name: "Назначить" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Проект")).toBeNull();
+  });
+});
+
 describe("the dialog's controls", () => {
   it("offers a cancel button that closes without saving", async () => {
     const user = userEvent.setup();

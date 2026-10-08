@@ -104,7 +104,10 @@ describe("TaskBoard", () => {
       })),
       mock.get("/api/tasks", () => HttpResponse.json([aTask({ title: "Только чтение" })])),
     );
-    setup();
+    renderWithProviders(
+      <Routes><Route path="*" element={<TaskBoard onOpen={() => {}} />} /></Routes>,
+      { route: "/tasks" },
+    );
 
     const card = await screen.findByTestId("task-card-task-1");
     await waitFor(() => expect(card).not.toHaveAttribute("data-draggable"));

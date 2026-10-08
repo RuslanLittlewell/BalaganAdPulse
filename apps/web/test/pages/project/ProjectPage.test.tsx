@@ -249,16 +249,102 @@ describe("the work in flight under a project", () => {
     expect(screen.queryByText("Отложенное")).not.toBeInTheDocument();
   });
 
-  it("says so when nothing is in flight", async () => {
+  const asGuest = () => server.use(mock.get("/api/auth/me", () => HttpResponse.json({
+    user: { id: "user-3", name: "Гость", email: "guest@acme.com", image: null },
+    organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
+    role: "GUEST",
+    clientIds: ["cl1"],
+  })));
+
+  it("says so when nothing is in flight to a member who may not add a task", async () => {
     api({ tasks: [aTask({ id: "t5", projectId: "p1", title: "Старый отчёт", column: "DONE" })] });
+    asGuest();
     renderWithProviders(<App />, route);
 
     expect(await screen.findByText("Нет задач в работе")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Новая задача" })).toBeNull();
   });
 
-  it("opens a task read-only when its row is chosen", async () => {
+  it("offers only a new task in place of an empty list to a member who may add one", async () => {
+    api({ tasks: [aTask({ id: "t5", projectId: "p1", title: "Старый отчёт", column: "DONE" })] });
+    renderWithProviders(<App />, route);
+
+    expect(await screen.findByRole("button", { name: "Новая задача" })).toBeInTheDocument();
+    expect(screen.queryByText("Нет задач в работе")).toBeNull();
+  });
+
+  it("offers a new task after the tasks in flight", async () => {
+    api({ tasks: board });
+    renderWithProviders(<App />, route);
+
+    await screen.findByText("Переписать объявления");
+    const items = within(screen.getByRole("list")).getAllByRole("listitem");
+    expect(items).toHaveLength(5);
+    expect(within(items[4]).getByRole("button", { name: "Новая задача" })).toBeInTheDocument();
+  });
+
+  const editableBoard = () => {
+    let stored = [...board];
+    server.use(
+      mock.get("/api/tasks", () => HttpResponse.json(stored)),
+      mock.patch("/api/tasks/:id", async ({ params, request }) => {
+        const body = await request.json() as Record<string, unknown>;
+        stored = stored.map((task) => task.id === params.id ? { ...task, title: String(body.title) } : task);
+        return HttpResponse.json(stored.find((task) => task.id === params.id));
+      }),
+      mock.delete("/api/tasks/:id", ({ params }) => {
+        stored = stored.filter((task) => task.id !== params.id);
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+  };
+
+  it("opens a task in its form, as the task module does, for a member who may change it", async () => {
     const user = userEvent.setup();
     api({ tasks: board });
+    renderWithProviders(<App />, route);
+
+    await user.click(await screen.findByRole("button", { name: /Переписать объявления/ }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Редактировать" });
+    expect(within(dialog).getByLabelText("Название")).toHaveValue("Переписать объявления");
+    expect(within(dialog).getByRole("button", { name: "Сохранить" })).toBeInTheDocument();
+  });
+
+  it("shows a change saved from the project in its list", async () => {
+    const user = userEvent.setup();
+    api();
+    editableBoard();
+    renderWithProviders(<App />, route);
+
+    await user.click(await screen.findByRole("button", { name: /Переписать объявления/ }));
+    const title = within(await screen.findByRole("dialog")).getByLabelText("Название");
+    await user.clear(title);
+    await user.type(title, "Переписать заголовки");
+    await user.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    expect(await screen.findByRole("button", { name: /Переписать заголовки/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Переписать объявления/ })).toBeNull();
+  });
+
+  it("deletes a task from the project after confirmation", async () => {
+    const user = userEvent.setup();
+    api();
+    editableBoard();
+    renderWithProviders(<App />, route);
+
+    await user.click(await screen.findByRole("button", { name: /Переписать объявления/ }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Удалить" }));
+    await user.click(await screen.findByRole("button", { name: "Удалить задачу" }));
+
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Переписать объявления/ })).toBeNull());
+    expect(screen.getByRole("button", { name: /Собрать семантику/ })).toBeInTheDocument();
+  });
+
+  it("opens a task read-only for a member who may not change it", async () => {
+    const user = userEvent.setup();
+    api({ tasks: board });
+    asGuest();
     renderWithProviders(<App />, route);
 
     await user.click(await screen.findByRole("button", { name: /Переписать объявления/ }));
@@ -267,6 +353,71 @@ describe("the work in flight under a project", () => {
     expect(within(dialog).getByRole("heading", { name: "Переписать объявления" }))
       .toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "Сохранить" })).not.toBeInTheDocument();
+  });
+
+  const staff = [
+    { id: "m-1", userId: "user-1", name: "Buyer", email: "buyer@acme.com", image: null, phone: null, telegram: null, role: "ADMIN", status: "ACTIVE", createdAt: "2026-09-01T00:00:00.000Z" },
+    { id: "m-2", userId: "user-2", name: "Коллега", email: "colleague@acme.com", image: null, phone: null, telegram: null, role: "MANAGER", status: "ACTIVE", createdAt: "2026-09-01T00:00:00.000Z" },
+  ];
+
+  it("raises a task under the project for the member who raises it", async () => {
+    const user = userEvent.setup();
+    const stored: ReturnType<typeof aTask>[] = [];
+    let body: Record<string, unknown> | null = null;
+    api();
+    server.use(
+      mock.get("/api/members", () => HttpResponse.json(staff)),
+      mock.get("/api/tasks", () => HttpResponse.json(stored)),
+      mock.post("/api/tasks", async ({ request }) => {
+        body = await request.json() as Record<string, unknown>;
+        const task = aTask({ id: "t-new", projectId: "p1", title: String(body.title), column: "IDEA", assigneeId: String(body.assigneeId) });
+        stored.push(task);
+        return HttpResponse.json(task, { status: 201 });
+      }),
+    );
+    renderWithProviders(<App />, route);
+
+    await user.click(await screen.findByRole("button", { name: "Новая задача" }));
+    const dialog = await screen.findByRole("dialog");
+    await waitFor(() => expect(within(dialog).getByLabelText("Проект")).toHaveTextContent("Клиника"));
+    expect(within(dialog).getByLabelText("Ответственный")).toHaveTextContent("Buyer");
+    await user.type(within(dialog).getByLabelText("Название"), "Обновить креативы");
+    await user.click(within(dialog).getByRole("button", { name: "Создать задачу" }));
+
+    expect(await screen.findByRole("button", { name: /Обновить креативы/ })).toBeInTheDocument();
+    expect(body).toMatchObject({ title: "Обновить креативы", projectId: "p1", assigneeId: "m-1" });
+  });
+
+  it("lets the task be given to a colleague before it is saved", async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | null = null;
+    api();
+    server.use(
+      mock.get("/api/members", () => HttpResponse.json(staff)),
+      mock.post("/api/tasks", async ({ request }) => {
+        body = await request.json() as Record<string, unknown>;
+        return HttpResponse.json(aTask({ id: "t-new", projectId: "p1" }), { status: 201 });
+      }),
+    );
+    renderWithProviders(<App />, route);
+
+    await user.click(await screen.findByRole("button", { name: "Новая задача" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Название"), "Проверить пиксель");
+    await user.click(within(dialog).getByLabelText("Ответственный"));
+    await user.click(await screen.findByRole("option", { name: "Коллега" }));
+    await user.click(within(dialog).getByRole("button", { name: "Создать задачу" }));
+
+    await waitFor(() => expect(body).toMatchObject({ projectId: "p1", assigneeId: "m-2" }));
+  });
+
+  it("offers a guest no new task beside the tasks in flight", async () => {
+    api({ tasks: board });
+    asGuest();
+    renderWithProviders(<App />, route);
+
+    await screen.findByText("Переписать объявления");
+    expect(screen.queryByRole("button", { name: "Новая задача" })).toBeNull();
   });
 
   it("asks only for this project's tasks", async () => {
@@ -278,8 +429,7 @@ describe("the work in flight under a project", () => {
     }));
     renderWithProviders(<App />, route);
 
-    await screen.findByText("Нет задач в работе");
-    expect(seen[0].searchParams.get("projectId")).toBe("p1");
+    await waitFor(() => expect(seen[0]?.searchParams.get("projectId")).toBe("p1"));
   });
 });
 

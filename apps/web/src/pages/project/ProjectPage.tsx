@@ -21,16 +21,17 @@ import {
   useProjectCampaigns,
   useProjectSummary,
 } from "@/entities/campaign/index.js";
-import {
-  ACTIVE_TASK_COLUMNS,
-  useTasks,
-  type Task,
-} from "@/entities/task/index.js";
+import { ACTIVE_TASK_COLUMNS, useTasks } from "@/entities/task/index.js";
 import { useKpi } from "@/entities/kpi/index.js";
 import { PeriodControl, usePeriod } from "@/features/period/index.js";
 import { campaignTone } from "./campaignTone.js";
-import { TaskPreviewDialog } from "@/features/task-management/index.js";
+import {
+  TaskDialogs,
+  type OpenedTask,
+} from "@/features/task-management/index.js";
 import { useCan } from "@/features/permissions/index.js";
+import { useAuth } from "@/features/auth/index.js";
+import { useMembers } from "@/entities/membership/index.js";
 import { TaskList } from "@/widgets/task-list/index.js";
 import { PerformanceSummary } from "@/widgets/agency-overview/index.js";
 import {
@@ -71,8 +72,11 @@ export function ProjectPage() {
   );
   const [activityFilters, setActivityFilters] =
     useState<AuditEventFilters | null>(null);
-  const [reading, setReading] = useState<Task | null>(null);
+  const [opened, setOpened] = useState<OpenedTask>({ mode: "closed" });
   const tasks = useTasks({ projectId, enabled: projectId != null });
+  const raisesTasks = useCan("create", "task");
+  const { user } = useAuth();
+  const members = useMembers();
   const editsProjectKpi = useCan("update", "kpi");
   const readsActivity = useCan("read", "audit");
   const managesIntegrations = useCan("update", "integration");
@@ -97,6 +101,10 @@ export function ProjectPage() {
     (candidate) => candidate.id === projectId,
   );
   if (!project) return <EmptyState title={t("project.notFound.title")} />;
+
+  const me = members.data?.find(
+    (member) => member.userId === user?.id && member.status === "ACTIVE",
+  );
 
   const clientName =
     clients.data?.find((client) => client.id === project.clientId)?.name ?? "";
@@ -221,12 +229,23 @@ export function ProjectPage() {
         title={t("tasks.inFlight.title")}
         tasks={inFlight}
         empty={t("tasks.inFlight.empty")}
-        onOpen={setReading}
+        onOpen={(task) => setOpened({ mode: "open", task })}
+        onCreate={
+          raisesTasks
+            ? () =>
+                setOpened({
+                  mode: "create",
+                  projectId: project.id,
+                  assigneeId: me?.id,
+                })
+            : undefined
+        }
       />
 
-      {reading ? (
-        <TaskPreviewDialog task={reading} onClose={() => setReading(null)} />
-      ) : null}
+      <TaskDialogs
+        opened={opened}
+        onClose={() => setOpened({ mode: "closed" })}
+      />
 
       <ActivityLogModal
         open={activityFilters != null}

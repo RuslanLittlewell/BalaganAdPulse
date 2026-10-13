@@ -3,7 +3,7 @@ import {
   useIntegrations,
 } from "@/features/meta-integration/index.js";
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   EmptyState,
   Skeleton,
@@ -12,7 +12,7 @@ import {
   useAlerts,
 } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
-import { projectPath } from "@/shared/lib/index.js";
+import { projectDocumentsPath, projectPath } from "@/shared/lib/index.js";
 import { useClients } from "@/entities/client/index.js";
 import {
   ProjectHeader,
@@ -49,6 +49,7 @@ import {
   type PerformanceRow,
 } from "@/widgets/performance-table/index.js";
 import { ActivityLogModal } from "@/widgets/activity-log-modal/index.js";
+import { ProjectDocuments } from "@/widgets/project-documents/index.js";
 import type { AuditEventFilters } from "@/entities/audit-event/index.js";
 
 const sourceKey = (provider: string, accountId: string) => `${provider}:${accountId}`;
@@ -98,6 +99,10 @@ export function ProjectPage() {
   const arrangesSummary = useCan("update", "project-summary");
   const { raise } = useAlerts();
   const readsActivity = useCan("read", "audit");
+  const readsDocuments = useCan("read", "project-document");
+  const { documentId } = useParams<{ documentId?: string }>();
+  const inDocuments =
+    readsDocuments && /\/documents(\/|$)/.test(location.pathname);
   const managesIntegrations = useCan("update", "integration");
   const integrations = useIntegrations(
     projectId ?? "",
@@ -178,99 +183,133 @@ export function ProjectPage() {
         }
       />
 
-      <MetaIntegration key={project.id} projectId={project.id} />
-
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-2">
-        <h2 className="text-sm font-semibold text-foreground">
-          {t("project.metrics")}
-        </h2>
-        <PeriodControl />
-      </div>
-
-      <PerformanceSummary
-        tiles={tiles.data?.tiles ?? []}
-        onTilesChange={
-          arrangesSummary && tiles.data
-            ? (next) =>
-                chooseTiles.mutate(next, {
-                  onError: () => raise(t("summary.notSaved")),
-                })
-            : undefined
-        }
-        range={range}
-        performance={summary.data}
-        currency={project.budgetCurrency}
-        kpi={{
-          scope: { kind: "project", id: project.id },
-          canEdit: editsProjectKpi,
-        }}
-      />
-
-      {campaigns.isPending ? (
-        <CampaignTablePlaceholder />
-      ) : campaigns.isError ? (
-        <EmptyState
-          title={t("state.error.title")}
-          actionLabel={t("state.retry")}
-          onAction={() => campaigns.refetch()}
-        />
-      ) : (
-        <div className="flex flex-col gap-3">
-          {(sources.size > 0 || all.length > 0) && (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              {sources.size > 0 && (
-                <Tabs
-                  items={[...sources].map(([id, label]) => ({ id, label }))}
-                  activeId={chosen}
-                  onSelect={setSource}
-                  ariaLabel={t("campaigns.sources")}
-                />
-              )}
-              {all.length > 0 && (
-                <label className="ml-auto flex items-center gap-2 text-sm">
-                  <Switch checked={runningOnly} onCheckedChange={setRunningOnly} />
-                  {t("campaigns.runningOnly")}
-                </label>
-              )}
-            </div>
-          )}
-          <PerformanceTable
-            tableKey="campaigns"
-            heading={t("campaigns.one")}
-            rows={rows}
-            visibleRows={10}
-            totals={totalPerformance(listed.map((campaign) => campaign.performance))}
-            currency={project.budgetCurrency}
-            empty={
-              campaigns.isSuccess
-                ? t(inAccount.length > 0 ? "campaigns.noneRunning" : "campaigns.empty.title")
-                : undefined
-            }
-            onOpen={(campaignId) =>
+      {readsDocuments ? (
+        <div className="border-b border-border pb-4">
+          <Tabs
+            items={[
+              { id: "overview", label: t("project.tab.overview") },
+              { id: "documents", label: t("project.tab.documents") },
+            ]}
+            activeId={inDocuments ? "documents" : "overview"}
+            onSelect={(id) =>
               navigate(
-                `${projectPath(project.id, campaignId)}${location.search}`,
+                `${id === "documents" ? projectDocumentsPath(project.id) : projectPath(project.id)}${location.search}`,
               )
             }
+            ariaLabel={t("project.sections")}
           />
         </div>
-      )}
+      ) : null}
 
-      <TaskList
-        title={t("tasks.inFlight.title")}
-        tasks={inFlight}
-        empty={t("tasks.inFlight.empty")}
-        onOpen={(task) => setOpened({ mode: "open", task })}
-        onCreate={
-          raisesTasks
-            ? () =>
-                setOpened({
-                  mode: "create",
-                  projectId: project.id,
-                  assigneeId: me?.id,
-                })
-            : undefined
-        }
-      />
+      {inDocuments ? (
+        <ProjectDocuments
+          key={project.id}
+          projectId={project.id}
+          documentId={documentId}
+          onOpen={(id) =>
+            navigate(`${projectDocumentsPath(project.id, id)}${location.search}`)
+          }
+          onClose={() =>
+            navigate(`${projectDocumentsPath(project.id)}${location.search}`)
+          }
+        />
+      ) : (
+        <>
+          <MetaIntegration key={project.id} projectId={project.id} />
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-2">
+            <h2 className="text-sm font-semibold text-foreground">
+              {t("project.metrics")}
+            </h2>
+            <PeriodControl />
+          </div>
+
+          <PerformanceSummary
+            tiles={tiles.data?.tiles ?? []}
+            onTilesChange={
+              arrangesSummary && tiles.data
+                ? (next) =>
+                    chooseTiles.mutate(next, {
+                      onError: () => raise(t("summary.notSaved")),
+                    })
+                : undefined
+            }
+            range={range}
+            performance={summary.data}
+            currency={project.budgetCurrency}
+            kpi={{
+              scope: { kind: "project", id: project.id },
+              canEdit: editsProjectKpi,
+            }}
+          />
+
+          {campaigns.isPending ? (
+            <CampaignTablePlaceholder />
+          ) : campaigns.isError ? (
+            <EmptyState
+              title={t("state.error.title")}
+              actionLabel={t("state.retry")}
+              onAction={() => campaigns.refetch()}
+            />
+          ) : (
+            <div className="flex flex-col gap-3">
+              {(sources.size > 0 || all.length > 0) && (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  {sources.size > 0 && (
+                    <Tabs
+                      items={[...sources].map(([id, label]) => ({ id, label }))}
+                      activeId={chosen}
+                      onSelect={setSource}
+                      ariaLabel={t("campaigns.sources")}
+                    />
+                  )}
+                  {all.length > 0 && (
+                    <label className="ml-auto flex items-center gap-2 text-sm">
+                      <Switch checked={runningOnly} onCheckedChange={setRunningOnly} />
+                      {t("campaigns.runningOnly")}
+                    </label>
+                  )}
+                </div>
+              )}
+              <PerformanceTable
+                tableKey="campaigns"
+                heading={t("campaigns.one")}
+                rows={rows}
+                visibleRows={10}
+                totals={totalPerformance(listed.map((campaign) => campaign.performance))}
+                currency={project.budgetCurrency}
+                empty={
+                  campaigns.isSuccess
+                    ? t(inAccount.length > 0 ? "campaigns.noneRunning" : "campaigns.empty.title")
+                    : undefined
+                }
+                onOpen={(campaignId) =>
+                  navigate(
+                    `${projectPath(project.id, campaignId)}${location.search}`,
+                  )
+                }
+              />
+            </div>
+          )}
+
+          <TaskList
+            title={t("tasks.inFlight.title")}
+            tasks={inFlight}
+            empty={t("tasks.inFlight.empty")}
+            onOpen={(task) => setOpened({ mode: "open", task })}
+            onCreate={
+              raisesTasks
+                ? () =>
+                    setOpened({
+                      mode: "create",
+                      projectId: project.id,
+                      assigneeId: me?.id,
+                    })
+                : undefined
+            }
+          />
+        </>
+      )}
 
       <TaskDialogs
         opened={opened}

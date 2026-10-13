@@ -88,6 +88,8 @@ export function ProjectsPage() {
           <Routes>
             <Route path="/" element={<ProjectsHome />} />
             <Route path=":projectId" element={<ProjectPage />} />
+            <Route path=":projectId/documents" element={<ProjectPage />} />
+            <Route path=":projectId/documents/:documentId" element={<ProjectPage />} />
             <Route path=":projectId/campaigns/:campaignId" element={<CampaignPage />} />
           </Routes>
         </div>

@@ -17,6 +17,7 @@ import { wireLeads } from "./wiring/leads.js";
 import { wireMembersAndPresence } from "./wiring/members-presence.js";
 import { wireReportsAndKpi } from "./wiring/reports-kpi.js";
 import { wireSummaryTiles } from "./wiring/summary-tiles.js";
+import { wireProjectDocuments } from "./wiring/project-documents.js";
 import { wireTasks } from "./wiring/tasks.js";
 
 export interface ApiContainer {
@@ -25,6 +26,7 @@ export interface ApiContainer {
   readonly leadPollWorker: ReturnType<typeof createLeadPollWorker>;
   readonly kpiRouter: Router;
   readonly summaryTileRouter: Router;
+  readonly projectDocumentRouter: Router;
   readonly reportRouter: Router;
   readonly reportIndexRouter: Router;
   readonly leadRouter: Router;
@@ -76,6 +78,7 @@ export function createContainer(): ApiContainer {
     campaignRepository: advertising.campaignRepository,
   });
   const summaries = wireSummaryTiles(kernel, { projectRepository: catalog.projectRepository });
+  const notebook = wireProjectDocuments(kernel, { projectRepository: catalog.projectRepository });
 
   return {
     documentationRouter: config.documentation ? createDocumentationRouter(apiDocument()) : Router(),
@@ -124,5 +127,6 @@ export function createContainer(): ApiContainer {
     kpiRouter: reporting.kpiRouter,
 
     summaryTileRouter: summaries.summaryTileRouter,
+    projectDocumentRouter: notebook.projectDocumentRouter,
   };
 }

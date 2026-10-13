@@ -17,6 +17,7 @@ const expectedMounts = [
   "/api/audit",
   "/api/projects/:projectId",
   "/api/projects/:projectId/reports",
+  "/api/projects/:projectId/documents",
   "/api/reports",
   "/api/projects",
   "/api/projects",

@@ -93,6 +93,13 @@ describe("can", () => {
       expectRow("update", "project-priority", ["ADMIN", "MANAGER"]);
     });
 
+    it("keep their documents for the agency, written by admins and managers", () => {
+      expectRow("read", "project-document", ["ADMIN", "MANAGER", "GUEST"]);
+      for (const action of ["create", "update", "delete"] as const) {
+        expectRow(action, "project-document", ["ADMIN", "MANAGER"]);
+      }
+    });
+
     it("show everyone the summary that admins and managers choose for them", () => {
       expectRow("read", "project-summary", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"]);
       expectRow("update", "project-summary", ["ADMIN", "MANAGER"]);

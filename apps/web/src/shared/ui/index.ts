@@ -26,6 +26,8 @@ export * from "./DatePicker/DatePicker.js";
 export * from "./FadeContent/FadeContent.js";
 export { dayLabel, fromIso, toIso } from "./DatePicker/month.js";
 export * from "./EmptyState/EmptyState.js";
+export * from "./EditorToolbarButton/EditorToolbarButton.js";
+export { RICH_TEXT_CLASS } from "./RichText/richText.js";
 export * from "./CopyButton/CopyButton.js";
 export * from "./ListItem/ListItem.js";
 export * from "./Loader/Loader.js";

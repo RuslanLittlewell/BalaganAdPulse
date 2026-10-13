@@ -55,12 +55,14 @@ model Membership {
   projectGroups     ProjectGroup[]
   projectPlacements ProjectPlacement[]
 
-  assignedTasks  Task[]          @relation("TaskAssignee")
-  assignedLeads  Lead[]          @relation("LeadAssignee")
-  createdTasks   Task[]          @relation("TaskCreator")
-  uploadedImages TaskImage[]     @relation("TaskImageUploader")
-  leadFiles      LeadFile[]      @relation("LeadFileUploader")
-  reports        MonthlyReport[] @relation("MonthlyReportCreator")
+  assignedTasks     Task[]            @relation("TaskAssignee")
+  assignedLeads     Lead[]            @relation("LeadAssignee")
+  createdTasks      Task[]            @relation("TaskCreator")
+  uploadedImages    TaskImage[]       @relation("TaskImageUploader")
+  leadFiles         LeadFile[]        @relation("LeadFileUploader")
+  reports           MonthlyReport[]   @relation("MonthlyReportCreator")
+  authoredDocuments ProjectDocument[] @relation("ProjectDocumentAuthor")
+  editedDocuments   ProjectDocument[] @relation("ProjectDocumentEditor")
 
   @@unique([userId, orgId])
   @@index([orgId, role])

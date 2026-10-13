@@ -28,6 +28,7 @@ import { mountPath } from "./create-routes.js";
 import { leadDoc, leadComponents } from '#modules/leads/presentation/http/lead-openapi.js';
 import { kpiDoc } from '#modules/kpi/index.js';
 import { summaryTileDoc } from "#modules/summary-tiles/index.js";
+import { projectDocumentComponents, projectDocumentDoc } from "#modules/project-documents/index.js";
 import { reportDoc, reportIndexDoc } from '#modules/reports/index.js';
 
 const require = createRequire(import.meta.url);
@@ -106,6 +107,7 @@ export function apiDocument(): OpenApiDocument {
       { mount: mountPath("task-images"), ...taskImageDoc },
       { mount: mountPath("kpi"), ...kpiDoc },
       { mount: mountPath("summary-tiles"), ...summaryTileDoc },
+      { mount: mountPath("project-documents"), ...projectDocumentDoc },
     ],
     components: mergeComponents(
       identityComponents,
@@ -117,6 +119,7 @@ export function apiDocument(): OpenApiDocument {
       projectComponents,
       campaignComponents,
       taskComponents,
+      projectDocumentComponents,
     ),
   });
 }

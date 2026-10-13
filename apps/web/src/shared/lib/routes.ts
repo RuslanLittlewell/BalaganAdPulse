@@ -12,6 +12,11 @@ export function projectPath(clientId: string, campaignId?: string): string {
   return campaignId ? `${base}/campaigns/${campaignId}` : base;
 }
 
+export function projectDocumentsPath(projectId: string, documentId?: string): string {
+  const base = `${projectPath(projectId)}/documents`;
+  return documentId ? `${base}/${documentId}` : base;
+}
+
 export function reportPath(reportId: string): string {
   return `${ROUTES.reports}/${reportId}`;
 }

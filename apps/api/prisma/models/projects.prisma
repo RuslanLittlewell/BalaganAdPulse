@@ -41,6 +41,7 @@ model Project {
   integrations   ProjectIntegration[]
   placements     ProjectPlacement[]
   reports        MonthlyReport[]
+  documents      ProjectDocument[]
   kpiMetric      KpiMetric?           @map("kpi_metric")
   kpiTarget      Decimal?             @map("kpi_target") @db.Decimal(18, 4)
   kpiUpdatedAt   DateTime?            @map("kpi_updated_at")

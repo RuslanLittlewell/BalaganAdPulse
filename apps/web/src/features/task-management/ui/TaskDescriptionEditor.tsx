@@ -17,8 +17,8 @@ import { TaskImage } from "./TaskImageNode.js";
 import { taskImagesApi } from "@/entities/task/index.js";
 import { t } from "@/shared/config/index.js";
 import { ApiError, cn } from "@/shared/lib/index.js";
-import { Button, Separator } from "@/shared/ui/index.js";
-import WarmTooltip, { WarmTooltipGroup } from "@/shared/ui/WarmTooltip/WarmTooltip.js";
+import { EditorToolbarButton, RICH_TEXT_CLASS, Separator } from "@/shared/ui/index.js";
+import { WarmTooltipGroup } from "@/shared/ui/WarmTooltip/WarmTooltip.js";
 
 export interface TaskDescriptionEditorProps {
   className?: string;
@@ -34,51 +34,6 @@ export interface TaskDescriptionEditorHandle {
 const MAX_BYTES = 10 * 1024 * 1024;
 const ACCEPTED = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 
-const EDITOR_CONTENT_CLASS = [
-  "p-3 outline-none",
-  "[&_p]:my-1",
-  "[&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5",
-  "[&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5",
-  "[&_li]:my-0.5",
-  "[&_blockquote]:my-2 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-muted-foreground",
-  "[&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-sm",
-  "[&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-muted [&_pre]:p-3 [&_pre]:font-mono [&_pre]:text-sm",
-  "[&_pre>code]:bg-transparent [&_pre>code]:p-0",
-  "[&_h1]:mt-4 [&_h1]:mb-2 [&_h1]:text-2xl [&_h1]:font-bold",
-  "[&_h2]:mt-3 [&_h2]:mb-2 [&_h2]:text-xl [&_h2]:font-bold",
-  "[&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:text-lg [&_h3]:font-semibold",
-  "[&_hr]:my-4 [&_hr]:border-border",
-].join(" ");
-
-function ToolbarButton({
-  label,
-  active = false,
-  disabled = false,
-  onClick,
-  children,
-}: {
-  label: string;
-  active?: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <WarmTooltip content={label} side="bottom" disabled={disabled}>
-      <Button
-        type="button"
-        variant={active ? "secondary" : "ghost"}
-        size="icon-sm"
-        aria-label={label}
-        aria-pressed={active}
-        disabled={disabled}
-        onClick={onClick}
-      >
-        {children}
-      </Button>
-    </WarmTooltip>
-  );
-}
 
 function EditorToolbar({ editor }: { editor: Editor }) {
   return (
@@ -87,68 +42,68 @@ function EditorToolbar({ editor }: { editor: Editor }) {
         className="flex flex-wrap items-center gap-1 border-b p-1"
         data-testid="task-description-toolbar"
       >
-        <ToolbarButton
+        <EditorToolbarButton
           label={t("tasks.editor.bold")}
           active={editor.isActive("bold")}
           onClick={() => editor.chain().focus().toggleBold().run()}
         >
           <Bold />
-        </ToolbarButton>
-        <ToolbarButton
+        </EditorToolbarButton>
+        <EditorToolbarButton
           label={t("tasks.editor.italic")}
           active={editor.isActive("italic")}
           onClick={() => editor.chain().focus().toggleItalic().run()}
         >
           <Italic />
-        </ToolbarButton>
-        <ToolbarButton
+        </EditorToolbarButton>
+        <EditorToolbarButton
           label={t("tasks.editor.strike")}
           active={editor.isActive("strike")}
           onClick={() => editor.chain().focus().toggleStrike().run()}
         >
           <Strikethrough />
-        </ToolbarButton>
+        </EditorToolbarButton>
 
         <Separator orientation="vertical" className="mx-1 h-5" />
 
-        <ToolbarButton
+        <EditorToolbarButton
           label={t("tasks.editor.bulletList")}
           active={editor.isActive("bulletList")}
           onClick={() => editor.chain().focus().toggleBulletList().run()}
         >
           <List />
-        </ToolbarButton>
-        <ToolbarButton
+        </EditorToolbarButton>
+        <EditorToolbarButton
           label={t("tasks.editor.orderedList")}
           active={editor.isActive("orderedList")}
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
         >
           <ListOrdered />
-        </ToolbarButton>
-        <ToolbarButton
+        </EditorToolbarButton>
+        <EditorToolbarButton
           label={t("tasks.editor.blockquote")}
           active={editor.isActive("blockquote")}
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
         >
           <Quote />
-        </ToolbarButton>
+        </EditorToolbarButton>
 
         <Separator orientation="vertical" className="mx-1 h-5" />
 
-        <ToolbarButton
+        <EditorToolbarButton
           label={t("tasks.editor.undo")}
           disabled={!editor.can().undo()}
           onClick={() => editor.chain().focus().undo().run()}
         >
           <Undo2 />
-        </ToolbarButton>
-        <ToolbarButton
+        </EditorToolbarButton>
+        <EditorToolbarButton
           label={t("tasks.editor.redo")}
           disabled={!editor.can().redo()}
           onClick={() => editor.chain().focus().redo().run()}
         >
           <Redo2 />
-        </ToolbarButton>
+        </EditorToolbarButton>
       </div>
     </WarmTooltipGroup>
   );
@@ -188,7 +143,7 @@ export const TaskDescriptionEditor = forwardRef<
     editorProps: {
       attributes: {
         "aria-label": t("tasks.form.description"),
-        class: EDITOR_CONTENT_CLASS,
+        class: RICH_TEXT_CLASS,
       },
       handlePaste: (_view, event) =>
         editable ? insertFrom(event.clipboardData?.files) : false,

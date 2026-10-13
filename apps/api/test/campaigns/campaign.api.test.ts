@@ -49,11 +49,23 @@ describe("GET /api/campaigns/:id", () => {
     });
   });
 
+  it("returns the results it measured and their cost beside the leads", async () => {
+    const counted = await seedCampaign(projectId, "Переписки", "META");
+    await prisma.campaignDailyMetric.create({
+      data: { campaignId: counted.id, date: new Date("2026-08-02T00:00:00.000Z"), spend: 220.58, conversions: 2, results: 56 },
+    });
+
+    const res = await request(app).get(`/api/campaigns/${counted.id}${RANGE}`).set(auth);
+
+    expect(res.body.performance).toMatchObject({ conversions: 2, results: 56 });
+    expect(res.body.performance.costPerResult).toBeCloseTo(220.58 / 56, 10);
+  });
+
   it("reports a ratio with no divisor as null", async () => {
     const empty = await seedCampaign(projectId, "Без данных", "META");
     const res = await request(app).get(`/api/campaigns/${empty.id}${RANGE}`).set(auth);
 
-    expect(res.body.performance).toMatchObject({ spend: 0, cpc: null, ctr: null, roas: null });
+    expect(res.body.performance).toMatchObject({ spend: 0, cpc: null, ctr: null, roas: null, costPerResult: null });
   });
 
   it("counts only the days inside the range", async () => {

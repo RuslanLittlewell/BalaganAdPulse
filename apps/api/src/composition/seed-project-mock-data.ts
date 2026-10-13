@@ -66,6 +66,7 @@ export async function seedProjectMockData(projectId: string): Promise<{
         const reach = Math.round(impressions * (0.68 + campaignIndex * 0.015));
         const clicks = Math.round(impressions * (0.012 + campaignIndex * 0.0018));
         const conversions = Math.max(1, Math.round(clicks * 0.055 * definition.conversionFactor));
+        const results = Math.round(conversions * 1.6);
         const revenue = spend * definition.resultFactor;
         const date = utcDate(2026, 8, day);
 
@@ -79,6 +80,7 @@ export async function seedProjectMockData(projectId: string): Promise<{
             reach,
             clicks,
             conversions,
+            results,
             revenue: revenue.toFixed(4),
           },
           update: {
@@ -87,6 +89,7 @@ export async function seedProjectMockData(projectId: string): Promise<{
             reach,
             clicks,
             conversions,
+            results,
             revenue: revenue.toFixed(4),
             syncedAt: new Date(),
           },

@@ -9,6 +9,7 @@ interface StoredRow {
   reach: number;
   clicks: number;
   conversions: number;
+  results: number;
   revenue: Prisma.Decimal;
 }
 
@@ -19,6 +20,7 @@ const toMeasured = (row: StoredRow): MeasuredDay => ({
   reach: row.reach,
   clicks: row.clicks,
   conversions: row.conversions,
+  results: row.results,
   revenue: row.revenue.toNumber(),
 });
 

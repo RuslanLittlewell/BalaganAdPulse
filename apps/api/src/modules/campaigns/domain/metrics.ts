@@ -4,11 +4,12 @@ export interface Measured {
   readonly reach: number;
   readonly clicks: number;
   readonly conversions: number;
+  readonly results: number;
   readonly revenue: number;
 }
 
 export const EMPTY_MEASURED: Measured = {
-  spend: 0, impressions: 0, reach: 0, clicks: 0, conversions: 0, revenue: 0,
+  spend: 0, impressions: 0, reach: 0, clicks: 0, conversions: 0, results: 0, revenue: 0,
 };
 
 export interface MeasuredDay extends Measured {
@@ -34,6 +35,7 @@ export function sumMeasured(days: readonly Measured[]): Measured {
     reach: total.reach + day.reach,
     clicks: total.clicks + day.clicks,
     conversions: total.conversions + day.conversions,
+    results: total.results + day.results,
     revenue: total.revenue + day.revenue,
   }), EMPTY_MEASURED);
 }
@@ -43,6 +45,7 @@ export interface Derived {
   readonly cpc: number | null;
   readonly cpm: number | null;
   readonly cpa: number | null;
+  readonly costPerResult: number | null;
   readonly roas: number | null;
   readonly frequency: number | null;
 }
@@ -56,6 +59,7 @@ export function derive(measured: Measured): Derived {
     cpc: ratio(measured.spend, measured.clicks),
     cpm: ratio(measured.spend * 1000, measured.impressions),
     cpa: ratio(measured.spend, measured.conversions),
+    costPerResult: ratio(measured.spend, measured.results),
     roas: ratio(measured.revenue, measured.spend),
     frequency: ratio(measured.impressions, measured.reach),
   };

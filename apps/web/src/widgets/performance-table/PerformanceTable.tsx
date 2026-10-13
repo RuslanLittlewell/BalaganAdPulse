@@ -269,7 +269,7 @@ function Name({
   const toneClass = {
     idle: "border-muted-foreground/40",
     danger: "border-red-500",
-    stable: "border-blue-500",
+    stable: "border-amber-400",
     profitable: "border-emerald-500",
   }[row.tone ?? "stable"];
   const marked =

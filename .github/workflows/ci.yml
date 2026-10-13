@@ -67,7 +67,7 @@ jobs:
           curl -fsS localhost:9000/minio/health/live >/dev/null
           docker run --rm --network host --entrypoint /bin/sh bitnamilegacy/minio-client:2025.7.21-debian-12-r3 -c \
             'mc alias set local http://localhost:9000 adpulse adpulse-local-secret && mc mb --ignore-existing local/adpulse-avatars'
-      - run: npx prisma generate --schema apps/api/prisma/schema.prisma
+      - run: npx prisma generate --schema apps/api/prisma
       - run: npm test -w apps/api
       - name: Storage logs on failure
         if: failure()
@@ -102,7 +102,7 @@ jobs:
       - run: npm ci
       - name: Build shared access policy
         run: npm run build:policy
-      - run: npx prisma generate --schema apps/api/prisma/schema.prisma
+      - run: npx prisma generate --schema apps/api/prisma
       - run: npm run build -w apps/api
       - run: npm run build -w @adpulse/web
 

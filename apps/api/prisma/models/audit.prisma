@@ -1,0 +1,36 @@
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+
+  @@map("audit_action")
+}
+
+model AuditEvent {
+  id         String       @id @default(uuid())
+  orgId      String       @map("org_id")
+  actorId    String?      @map("actor_id")
+  actorName  String       @map("actor_name")
+  actorEmail String       @map("actor_email")
+  actorRole  Role         @map("actor_role")
+  action     AuditAction
+  entityType String       @map("entity_type")
+  entityId   String       @map("entity_id")
+  clientId   String?      @map("client_id")
+  projectId  String?      @map("project_id")
+  campaignId String?      @map("campaign_id")
+  summary    String
+  changes    Json?
+  requestId  String?      @map("request_id")
+  ip         String?
+  userAgent  String?      @map("user_agent")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  actor      Membership?  @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, createdAt(sort: Desc)])
+  @@index([projectId, createdAt(sort: Desc)])
+  @@index([clientId, createdAt(sort: Desc)])
+  @@index([entityType, entityId, createdAt(sort: Desc)])
+  @@map("audit_event")
+}

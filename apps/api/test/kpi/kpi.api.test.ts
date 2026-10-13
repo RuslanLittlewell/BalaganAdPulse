@@ -45,6 +45,13 @@ describe("setting, reading and clearing a KPI", () => {
     expect(cleared.body).toBeNull();
   });
 
+  it.each(["RESULTS", "COST_PER_RESULT"])("accepts %s as a metric", async (metric) => {
+    const res = await request(app).put(projectKpi()).set(admin).send({ metric, target: "60" });
+
+    expect(res.status).toBe(200);
+    expect((await request(app).get(projectKpi()).set(admin)).body).toMatchObject({ metric, target: "60.0000" });
+  });
+
   it("keeps the levels independent", async () => {
     await request(app).put(projectKpi()).set(admin).send({ metric: "SPEND", target: "1000" });
 

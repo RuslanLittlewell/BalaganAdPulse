@@ -9,6 +9,7 @@ const measured = {
   reach: z.number(),
   clicks: z.number(),
   conversions: z.number(),
+  results: z.number(),
   revenue: z.number(),
 };
 
@@ -17,6 +18,7 @@ const derived = {
   cpc: z.number().nullable(),
   cpm: z.number().nullable(),
   cpa: z.number().nullable(),
+  costPerResult: z.number().nullable(),
   roas: z.number().nullable(),
   frequency: z.number().nullable(),
 };

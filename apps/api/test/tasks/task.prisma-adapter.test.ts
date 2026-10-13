@@ -282,7 +282,7 @@ describe("whose tasks a member sees", () => {
     await make(uuid(3), { assigneeId: null });
     await make(uuid(4), { visibleToClient: true, createdById: customer.membership!.id });
 
-    return { admin, manager, other, customer };
+    return { admin, manager, other, customer, projectId, orgId: org.id };
   }
 
   it("shows an admin everything in the organization", async () => {
@@ -305,6 +305,26 @@ describe("whose tasks a member sees", () => {
 
     expect((await tasks.listReachable(manager.actor!)).map((t) => t.id)).not.toContain(uuid(3));
     expect((await tasks.listReachable(admin.actor!)).map((t) => t.id)).toContain(uuid(3));
+  });
+
+  it("shows a manager the task they created while nobody is responsible for it", async () => {
+    const { unitOfWork, tasks } = adapters();
+    const { manager, other, projectId, orgId } = await board();
+    await prisma.task.create({
+      data: {
+        id: uuid(5), orgId, projectId, title: "own", priority: "LOW",
+        column: "IDEA", position: 1, createdById: manager.membership!.id,
+      },
+    });
+
+    expect((await tasks.listReachable(manager.actor!)).map((t) => t.id)).toEqual([uuid(1), uuid(5)]);
+    expect(await tasks.findReachable(other.actor!, uuid(5))).toBeNull();
+
+    await unitOfWork.run((context) =>
+      tasks.update(context, uuid(5), { assigneeId: other.membership!.id }));
+
+    expect(await tasks.findReachable(manager.actor!, uuid(5))).toBeNull();
+    expect(await tasks.findReachable(other.actor!, uuid(5))).not.toBeNull();
   });
 
   it("shows a manager a task once an admin makes them responsible", async () => {

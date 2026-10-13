@@ -51,7 +51,13 @@ function visibleTo(actor: ActorContext): Prisma.TaskWhereInput {
   return {
     orgId: actor.orgId,
     OR: [
-      { project: grantedProjects(actor), assigneeId: actor.membershipId },
+      {
+        project: grantedProjects(actor),
+        OR: [
+          { assigneeId: actor.membershipId },
+          { assigneeId: null, createdById: actor.membershipId },
+        ],
+      },
       {
         projectId: null,
         OR: [{ createdById: actor.membershipId }, { assigneeId: actor.membershipId }],

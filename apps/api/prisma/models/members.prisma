@@ -1,0 +1,83 @@
+enum Role {
+  ADMIN
+  MANAGER
+  GUEST
+  CLIENT
+  CLIENT_ADMIN
+
+  @@map("role")
+}
+
+enum MembershipStatus {
+  ACTIVE
+  SUSPENDED
+
+  @@map("membership_status")
+}
+
+model Organization {
+  leads        Lead[]
+  leadColumns  LeadColumn[]
+  id           String       @id @default(uuid())
+  name         String
+  slug         String       @unique
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  members      Membership[]
+  clients      Client[]
+  invites      Invite[]
+  auditEvents  AuditEvent[]
+  tasks        Task[]
+  metaLeads    MetaLead[]
+  leadFiles    LeadFile[]
+  kpiMetric    KpiMetric?   @map("kpi_metric")
+  kpiTarget    Decimal?     @map("kpi_target") @db.Decimal(18, 4)
+  kpiUpdatedAt DateTime?    @map("kpi_updated_at")
+
+  @@map("organization")
+}
+
+model Membership {
+  id             String           @id @default(uuid())
+  userId         String           @map("user_id")
+  orgId          String           @map("org_id")
+  role           Role
+  status         MembershipStatus @default(ACTIVE)
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  dashboardTiles SummaryTile[]    @default([CONVERSIONS]) @map("dashboard_tiles")
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org            Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  invites        Invite[]         @relation("InviteCreator")
+  access         ClientAccess[]
+  auditEvents    AuditEvent[]
+
+  projectGroups     ProjectGroup[]
+  projectPlacements ProjectPlacement[]
+
+  assignedTasks  Task[]          @relation("TaskAssignee")
+  assignedLeads  Lead[]          @relation("LeadAssignee")
+  createdTasks   Task[]          @relation("TaskCreator")
+  uploadedImages TaskImage[]     @relation("TaskImageUploader")
+  leadFiles      LeadFile[]      @relation("LeadFileUploader")
+  reports        MonthlyReport[] @relation("MonthlyReportCreator")
+
+  @@unique([userId, orgId])
+  @@index([orgId, role])
+  @@map("membership")
+}
+
+model ClientAccess {
+  id           String     @id @default(uuid())
+  membershipId String     @map("membership_id")
+  clientId     String     @map("client_id")
+  projectId    String?    @map("project_id")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  membership   Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  client       Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  project      Project?   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, clientId, projectId])
+  @@index([clientId])
+  @@map("client_access")
+}

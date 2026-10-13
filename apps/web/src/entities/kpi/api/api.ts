@@ -1,8 +1,8 @@
 import { http } from "@/shared/lib/index.js";
 
 export const KPI_METRIC_IDS = [
-  "SPEND", "IMPRESSIONS", "REACH", "CLICKS", "CONVERSIONS", "REVENUE",
-  "CTR", "CPC", "CPM", "CPA", "ROAS", "FREQUENCY",
+  "SPEND", "IMPRESSIONS", "REACH", "CLICKS", "CONVERSIONS", "RESULTS", "REVENUE",
+  "CTR", "CPC", "CPM", "CPA", "COST_PER_RESULT", "ROAS", "FREQUENCY",
 ] as const;
 
 export type KpiMetric = (typeof KPI_METRIC_IDS)[number];

@@ -17,6 +17,7 @@ export const RESOURCES = [
   "integration",
   "kpi",
   "project-priority",
+  "project-summary",
   "report",
 ] as const;
 export type Resource = (typeof RESOURCES)[number];
@@ -57,6 +58,7 @@ const MATRIX: Readonly<Record<Resource, ResourcePolicy>> = {
   client: { read: EVERYONE, create: STAFF, update: STAFF, delete: ADMINS },
   project: { read: EVERYONE, create: STAFF_AND_CUSTOMERS, update: STAFF_AND_CUSTOMERS, delete: ADMINS },
   "project-priority": { read: EVERYONE, create: NOBODY, update: STAFF, delete: NOBODY },
+  "project-summary": { read: EVERYONE, create: NOBODY, update: STAFF, delete: NOBODY },
   integration: { read: STAFF, create: STAFF, update: STAFF, delete: STAFF },
   kpi: { read: EVERYONE, create: STAFF, update: STAFF, delete: STAFF },
   report: { read: EVERYONE, create: STAFF, update: STAFF, delete: STAFF },

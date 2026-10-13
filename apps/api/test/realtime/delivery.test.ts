@@ -100,13 +100,36 @@ describe("who receives a task event", () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  it("withholds a task nobody is responsible for from a manager", async () => {
+  it("withholds a task nobody is responsible for from a manager who did not create it", async () => {
+    const { delivery, connect } = harness({
+      actors: { u1: actor({ role: "MANAGER", membershipId: "m1" }) },
+    });
+    const send = connect("u1");
+
+    await delivery.deliver(taskMoved({ ...task, createdById: "m2" }));
+
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("delivers a task nobody is responsible for to the manager who created it", async () => {
     const { delivery, connect } = harness({
       actors: { u1: actor({ role: "MANAGER", membershipId: "m1" }) },
     });
     const send = connect("u1");
 
     await delivery.deliver(taskMoved(task));
+    await delivery.deliver(taskDeleted(task));
+
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it("withholds a task its creator handed to a colleague", async () => {
+    const { delivery, connect } = harness({
+      actors: { u1: actor({ role: "MANAGER", membershipId: "m1" }) },
+    });
+    const send = connect("u1");
+
+    await delivery.deliver(taskMoved({ ...task, assigneeId: "m2" }));
 
     expect(send).not.toHaveBeenCalled();
   });

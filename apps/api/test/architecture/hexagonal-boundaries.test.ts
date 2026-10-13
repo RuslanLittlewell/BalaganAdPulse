@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -86,8 +86,13 @@ describe("source conventions", () => {
   });
 
   it("keeps the Prisma schema free of comments", () => {
-    const schema = readFileSync(path.join(apiRoot, "prisma/schema.prisma"), "utf8");
-    expect(commented(schema)).toBe(0);
+    const schemaRoot = path.join(apiRoot, "prisma");
+    const files = readdirSync(schemaRoot, { recursive: true, encoding: "utf8" })
+      .filter((file) => file.endsWith(".prisma"));
+    expect(files).toContain("schema.prisma");
+    expect(files.length).toBeGreaterThan(1);
+    const offenders = files.filter((file) => commented(readFileSync(path.join(schemaRoot, file), "utf8")) > 0);
+    expect(offenders).toEqual([]);
   });
 
   it("catches a comment wherever one is written", () => {

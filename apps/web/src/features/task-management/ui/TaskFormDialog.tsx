@@ -23,6 +23,7 @@ import {
   useAlerts,
 } from "@/shared/ui/index.js";
 import { Can, useCan } from "@/features/permissions/index.js";
+import { useAuth } from "@/features/auth/index.js";
 import { ProjectAvatar, useProjects } from "@/entities/project/index.js";
 import { MemberAvatar, useMembers } from "@/entities/membership/index.js";
 import {
@@ -148,9 +149,14 @@ export function TaskFormDialog({
 }: TaskFormDialogProps) {
   const { data: projects } = useProjects();
   const { data: members } = useMembers();
+  const { user } = useAuth();
   const assignable = (members ?? []).filter(
     (member) => member.status === "ACTIVE" || member.id === task?.assigneeId,
   );
+  const ownMembershipId = assignable.find(
+    (member) => member.userId === user?.id && member.status === "ACTIVE",
+  )?.id;
+  const startingAssignee = task ? task.assigneeId : givenAssignee ?? ownMembershipId;
   const create = useCreateTask();
   const update = useUpdateTask();
   const checklist = useChecklistDraft(task?.checklist ?? []);
@@ -188,6 +194,7 @@ export function TaskFormDialog({
     register,
     setError,
     setValue,
+    getFieldState,
     watch,
     formState: { errors },
   } = useForm<FormValues>({
@@ -195,7 +202,7 @@ export function TaskFormDialog({
       projectId: (task ? task.projectId : givenProject) ?? NO_PROJECT,
       title: task?.title ?? "",
       priority: task?.priority ?? "MEDIUM",
-      assigneeId: (task ? task.assigneeId : givenAssignee) ?? UNASSIGNED,
+      assigneeId: startingAssignee ?? UNASSIGNED,
       visibleToClient: task?.visibleToClient ?? false,
       dueDate: task?.dueDate ?? null,
       dueTime: task?.dueTime ?? null,
@@ -207,6 +214,11 @@ export function TaskFormDialog({
 
   const projectId = watch("projectId");
   const assigneeId = watch("assigneeId");
+
+  useEffect(() => {
+    if (startingAssignee == null || getFieldState("assigneeId").isDirty) return;
+    if (assigneeId === UNASSIGNED) setValue("assigneeId", startingAssignee);
+  }, [startingAssignee]);
   const dueDate = watch("dueDate");
   const dueTime = watch("dueTime");
   const repeatEvery = watch("repeatEvery");

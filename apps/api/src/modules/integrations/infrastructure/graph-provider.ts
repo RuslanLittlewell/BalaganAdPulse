@@ -11,7 +11,18 @@ const money = z.string().regex(/^\d{1,14}(\.\d{1,4})?$/);
 const count = z.string().regex(/^\d+$/).transform(Number).pipe(z.number().int().min(0).max(2147483647));
 const entity = z.object({ id, name: z.string().min(1), effective_status: z.string(), campaign_id: id.optional(), adset_id: id.optional(), objective: z.string().optional() });
 const action = z.object({ action_type: z.string(), value: z.string() });
+const resultValue = z.object({ value: z.string().regex(/^\d{1,10}(\.\d+)?$/), attribution_windows: z.array(z.string()).default([]) });
+const result = z.object({ indicator: z.string().optional(), values: z.array(resultValue).default([]) });
 const metric = z.object({ campaign_id: id, adset_id: id.optional(), ad_id: id.optional(), date_start: z.iso.date(), spend: money.default("0"), impressions: count.default(0), reach: count.default(0), clicks: count.default(0), actions: z.array(action).default([]), action_values: z.array(action).default([]) });
+const resultRow = z.object({ campaign_id: id.optional(), adset_id: id.optional(), ad_id: id.optional(), date_start: z.iso.date(), results: z.array(result).default([]) });
+
+function resultsOf(reported: readonly z.infer<typeof result>[]): number {
+  const total = reported.reduce((sum, entry) => {
+    const chosen = entry.values.find((value) => value.attribution_windows.includes("default")) ?? entry.values[0];
+    return sum + Number(chosen?.value ?? 0);
+  }, 0);
+  return Math.min(Math.round(total), 2147483647);
+}
 const link = z.string().min(1).max(2048);
 const hash = z.string().min(1).max(200);
 const attachment = z.object({ picture: link.optional(), image_hash: hash.optional(), video_id: id.optional(), name: z.string().optional(), description: z.string().optional() });
@@ -291,6 +302,7 @@ export class GraphProvider implements AccountProvider {
 
   private async metrics(accountId: string, token: string, level: "campaign" | "adset" | "ad", from: string, to: string, signal?: AbortSignal): Promise<ImportedMetric[]> {
     const rows = await this.pages(`act_${accountId}/insights`, token, { level, time_increment: "1", time_range: JSON.stringify({ since: from, until: to }), fields: [...new Set([`${level}_id`, "campaign_id", "date_start", "spend", "impressions", "reach", "clicks", "actions", "action_values"])].join(",") }, signal);
+    const results = await this.results(accountId, token, level, from, to, signal);
     const seen = new Set<string>();
     return rows.map((row) => {
       const parsed = metric.safeParse(row);
@@ -304,8 +316,23 @@ export class GraphProvider implements AccountProvider {
       const conversions = count.safeParse(data.actions.find((item) => item.action_type === "lead")?.value ?? "0");
       const revenue = money.safeParse(data.action_values.find((item) => item.action_type === "purchase")?.value ?? "0");
       if (!conversions.success || !revenue.success) throw new MetaError("INVALID_DATA");
-      return { externalId, date: data.date_start, spend: data.spend, impressions: data.impressions, reach: data.reach, clicks: data.clicks, conversions: conversions.data, revenue: revenue.data };
+      return { externalId, date: data.date_start, spend: data.spend, impressions: data.impressions, reach: data.reach, clicks: data.clicks, conversions: conversions.data, results: results.get(key) ?? 0, revenue: revenue.data };
     });
+  }
+
+  private async results(accountId: string, token: string, level: "campaign" | "adset" | "ad", from: string, to: string, signal?: AbortSignal): Promise<Map<string, number>> {
+    const rows = await this.pages(`act_${accountId}/insights`, token, { level, time_increment: "1", time_range: JSON.stringify({ since: from, until: to }), fields: `${level}_id,date_start,results` }, signal);
+    const found = new Map<string, number>();
+    for (const row of rows) {
+      const parsed = resultRow.safeParse(row);
+      if (!parsed.success) throw new MetaError("INVALID_DATA");
+      const externalId = parsed.data[`${level}_id`];
+      if (!externalId) throw new MetaError("INVALID_DATA");
+      const key = `${externalId}/${parsed.data.date_start}`;
+      if (found.has(key)) throw new MetaError("INVALID_DATA");
+      found.set(key, resultsOf(parsed.data.results));
+    }
+    return found;
   }
 
   private async originals(

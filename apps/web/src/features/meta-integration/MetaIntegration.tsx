@@ -136,36 +136,39 @@ export function MetaIntegration({ projectId }: { projectId: string }) {
 
   if (!allowed) return null;
   return (
-    <div className="flex flex-wrap items-stretch gap-3">
-      {connections.isError && (
-        <section className="flex items-center gap-3 rounded-lg border border-border glass-card p-4">
-          <p role="alert" className="text-xs text-destructive">{t("meta.error.read")}</p>
-          <Button variant="outline" size="sm" onClick={() => void connections.refetch()}>
-            {t("state.retry")}
-          </Button>
-        </section>
-      )}
-      {(connections.data ?? []).map((connection) => (
-        <MetaConnectionCard key={connection.id} projectId={projectId} connection={connection} />
-      ))}
-      <AddTile
-        ref={square.ref}
-        label={t("integrations.add")}
-        style={{ width: square.side }}
-        disabled={connections.isPending || connections.isError}
-        onClick={() => setChoosing(true)}
-        className="min-w-24 shrink-0 self-stretch"
-      />
-      <ProviderDialog
-        open={choosing}
-        onClose={() => setChoosing(false)}
-        onChoose={() => {
-          setChoosing(false);
-          setAdding(true);
-        }}
-      />
-      {adding && <MetaConnectionForm projectId={projectId} onClose={() => setAdding(false)} />}
-    </div>
+    <section className="flex flex-col gap-3">
+      <h2 className="text-sm font-semibold text-foreground">{t("integrations.title")}</h2>
+      <div className="flex flex-wrap items-stretch gap-3">
+        {connections.isError && (
+          <section className="flex items-center gap-3 rounded-lg border border-border glass-card p-4">
+            <p role="alert" className="text-xs text-destructive">{t("meta.error.read")}</p>
+            <Button variant="outline" size="sm" onClick={() => void connections.refetch()}>
+              {t("state.retry")}
+            </Button>
+          </section>
+        )}
+        {(connections.data ?? []).map((connection) => (
+          <MetaConnectionCard key={connection.id} projectId={projectId} connection={connection} />
+        ))}
+        <AddTile
+          ref={square.ref}
+          label={t("integrations.add")}
+          style={{ width: square.side }}
+          disabled={connections.isPending || connections.isError}
+          onClick={() => setChoosing(true)}
+          className="min-w-24 shrink-0 self-stretch"
+        />
+        <ProviderDialog
+          open={choosing}
+          onClose={() => setChoosing(false)}
+          onChoose={() => {
+            setChoosing(false);
+            setAdding(true);
+          }}
+        />
+        {adding && <MetaConnectionForm projectId={projectId} onClose={() => setAdding(false)} />}
+      </div>
+    </section>
   );
 }
 

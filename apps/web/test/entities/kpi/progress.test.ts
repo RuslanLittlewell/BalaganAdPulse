@@ -3,26 +3,27 @@ import { isLowerBetter, isMonthly, KPI_METRICS, kpiProgress, targetForRange } fr
 
 const september = { from: "2026-09-01", to: "2026-09-30" };
 const figures = (values: Partial<Record<string, number | null>> = {}) => ({
-  spend: 0, impressions: 0, reach: 0, clicks: 0, conversions: 0, revenue: 0,
-  ctr: null, cpc: null, cpm: null, cpa: null, roas: null, frequency: null,
+  spend: 0, impressions: 0, reach: 0, clicks: 0, conversions: 0, results: 0, revenue: 0,
+  ctr: null, cpc: null, cpm: null, cpa: null, costPerResult: null, roas: null, frequency: null,
   ...values,
 });
 
 describe("the KPI metric catalogue", () => {
-  it("offers twelve metrics in a fixed order", () => {
+  it("offers fourteen metrics in a fixed order", () => {
     expect(KPI_METRICS.map((metric) => metric.id)).toEqual([
-      "SPEND", "IMPRESSIONS", "REACH", "CLICKS", "CONVERSIONS", "REVENUE", "CTR", "CPC", "CPM", "CPA", "ROAS", "FREQUENCY",
+      "SPEND", "IMPRESSIONS", "REACH", "CLICKS", "CONVERSIONS", "RESULTS", "REVENUE",
+      "CTR", "CPC", "CPM", "CPA", "COST_PER_RESULT", "ROAS", "FREQUENCY",
     ]);
   });
 
   it("treats summable metrics as monthly and the rest as values", () => {
     expect(KPI_METRICS.filter((metric) => isMonthly(metric.id)).map((metric) => metric.id))
-      .toEqual(["SPEND", "IMPRESSIONS", "REACH", "CLICKS", "CONVERSIONS", "REVENUE"]);
+      .toEqual(["SPEND", "IMPRESSIONS", "REACH", "CLICKS", "CONVERSIONS", "RESULTS", "REVENUE"]);
   });
 
   it("knows which metrics are better lower", () => {
     expect(KPI_METRICS.filter((metric) => isLowerBetter(metric.id)).map((metric) => metric.id))
-      .toEqual(["CPC", "CPM", "CPA", "FREQUENCY"]);
+      .toEqual(["CPC", "CPM", "CPA", "COST_PER_RESULT", "FREQUENCY"]);
   });
 });
 
@@ -72,6 +73,19 @@ describe("progress against a KPI", () => {
 
     const behind = kpiProgress(figures({ cpa: 25 }), { metric: "CPA", target: "20.0000" }, september);
     expect(behind).toEqual({ actual: 25, target: 20, percent: 80, state: "behind" });
+  });
+
+  it("judges results against a monthly target", () => {
+    const progress = kpiProgress(figures({ results: 56 }), { metric: "RESULTS", target: "60.0000" }, september);
+    expect(progress.state).toBe("behind");
+    expect(progress.percent).toBeCloseTo(93.333, 2);
+  });
+
+  it("meets a cost per result at or below its target", () => {
+    expect(kpiProgress(figures({ costPerResult: 3.94 }), { metric: "COST_PER_RESULT", target: "5.0000" }, september).state)
+      .toBe("exceeded");
+    expect(kpiProgress(figures({ costPerResult: null }), { metric: "COST_PER_RESULT", target: "5.0000" }, september).state)
+      .toBe("unmeasured");
   });
 
   it("is not measurable when the ratio has no value for the period", () => {

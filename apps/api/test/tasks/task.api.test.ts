@@ -130,6 +130,37 @@ describe("GET /api/tasks", () => {
     expect((await request(app).get("/api/tasks").set(manager.auth)).body).toEqual([]);
   });
 
+  it("shows a manager the task they created with nobody responsible, and no colleague", async () => {
+    const manager = await signInAs("Manager", { role: "MANAGER" });
+    const colleague = await signInAs("Colleague", { role: "MANAGER" });
+    await grantAccess(manager.membership!.id, clientId);
+    await grantAccess(colleague.membership!.id, clientId);
+    const created = await create({ title: "Mine, unassigned" }, manager.auth);
+    expect(created.body.assigneeId).toBeNull();
+
+    const board = await request(app).get("/api/tasks").set(manager.auth);
+    expect(board.body.map((task: { title: string }) => task.title)).toEqual(["Mine, unassigned"]);
+    const inProject = await request(app).get(`/api/tasks?projectId=${projectId}`).set(manager.auth);
+    expect(inProject.body).toHaveLength(1);
+    expect((await request(app).get(`/api/tasks/${created.body.id}`).set(manager.auth)).status).toBe(200);
+    expect((await request(app).get("/api/tasks").set(colleague.auth)).body).toEqual([]);
+    expect((await request(app).get(`/api/tasks/${created.body.id}`).set(colleague.auth)).status).toBe(404);
+  });
+
+  it("moves an unassigned task from its creator to whoever is made responsible", async () => {
+    const manager = await signInAs("Manager", { role: "MANAGER" });
+    const colleague = await signInAs("Colleague", { role: "MANAGER" });
+    await grantAccess(manager.membership!.id, clientId);
+    await grantAccess(colleague.membership!.id, clientId);
+    const created = await create({ title: "Handed on" }, manager.auth);
+
+    await request(app).patch(`/api/tasks/${created.body.id}`).set(admin)
+      .send({ assigneeId: colleague.membership!.id });
+
+    expect((await request(app).get("/api/tasks").set(manager.auth)).body).toEqual([]);
+    expect((await request(app).get("/api/tasks").set(colleague.auth)).body).toHaveLength(1);
+  });
+
   it("lets a guest read the board", async () => {
     const guest = await signInAs("Guest", { role: "GUEST" });
     await grantAccess(guest.membership!.id, clientId);

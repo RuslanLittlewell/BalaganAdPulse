@@ -33,6 +33,7 @@ const expectedMounts = [
   "/api/task-images",
   "/api",
   "/api",
+  "/api",
 ];
 
 describe("API composition", () => {

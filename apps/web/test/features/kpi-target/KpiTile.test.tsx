@@ -5,8 +5,8 @@ import { renderWithProviders, server } from "@test/shared/index.js";
 import { KpiTile } from "@/features/kpi-target/index.js";
 
 const figures = (values: Record<string, number | null> = {}) => ({
-  spend: 1500, impressions: 100000, reach: 40000, clicks: 2000, conversions: 45, revenue: 4000,
-  ctr: 2, cpc: 0.75, cpm: 15, cpa: 25, roas: 2.67, frequency: 2.5, ...values,
+  spend: 1500, impressions: 100000, reach: 40000, clicks: 2000, conversions: 45, results: 75, revenue: 4000,
+  ctr: 2, cpc: 0.75, cpm: 15, cpa: 25, costPerResult: 20, roas: 2.67, frequency: 2.5, ...values,
 });
 const firstHalf = { from: "2026-09-01", to: "2026-09-15" };
 const path = "/api/projects/p1/kpi";

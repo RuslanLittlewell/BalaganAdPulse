@@ -3,8 +3,8 @@ import { campaignTone } from "@/pages/project/campaignTone.js";
 const SEPTEMBER = { from: "2026-09-01", to: "2026-09-30" };
 
 const performance = {
-  spend: 1000, impressions: 100000, reach: 40000, clicks: 2000, conversions: 30, revenue: 4000,
-  ctr: 2, cpc: 0.5, cpm: 10, cpa: 10, roas: 4, frequency: 2.5,
+  spend: 1000, impressions: 100000, reach: 40000, clicks: 2000, conversions: 30, results: 50, revenue: 4000,
+  ctr: 2, cpc: 0.5, cpm: 10, cpa: 10, costPerResult: 20, roas: 4, frequency: 2.5,
 };
 
 const campaign = (overrides: Partial<Parameters<typeof campaignTone>[0]> = {}) => ({

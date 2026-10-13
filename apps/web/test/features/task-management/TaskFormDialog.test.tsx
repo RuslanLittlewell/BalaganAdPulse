@@ -420,6 +420,78 @@ describe("a new task given a project and a responsible member", () => {
   });
 });
 
+describe("a new task's responsible member", () => {
+  const me = { ...members[0], id: "member-me", userId: "user-1", name: "Я сам" };
+  const signedInAmongStaff = () => server.use(mock.get("/api/members", () => HttpResponse.json([...members, me])));
+
+  it("starts with the member filling in the form, shown in the assignment block", async () => {
+    signedInAmongStaff();
+    setup();
+
+    await waitFor(() => expect(screen.getByLabelText("Ответственный")).toHaveTextContent("Я сам"));
+    expect(screen.queryByRole("button", { name: "Назначить" })).toBeNull();
+  });
+
+  it("is sent as chosen when nobody touched it", async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | null = null;
+    server.use(mock.post("/api/tasks", async ({ request }) => {
+      body = await request.json() as Record<string, unknown>;
+      return HttpResponse.json({}, { status: 201 });
+    }));
+    signedInAmongStaff();
+    setup();
+
+    await waitFor(() => expect(screen.getByLabelText("Ответственный")).toHaveTextContent("Я сам"));
+    await user.type(screen.getByLabelText("Название"), "Собрать отчёт");
+    await user.click(screen.getByRole("button", { name: "Создать задачу" }));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ assigneeId: "member-me", projectId: null });
+  });
+
+  it("can be cleared by removing the assignment block", async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | null = null;
+    server.use(mock.post("/api/tasks", async ({ request }) => {
+      body = await request.json() as Record<string, unknown>;
+      return HttpResponse.json({}, { status: 201 });
+    }));
+    signedInAmongStaff();
+    setup();
+
+    await waitFor(() => expect(screen.getByLabelText("Ответственный")).toHaveTextContent("Я сам"));
+    await user.click(screen.getByRole("button", { name: "Убрать назначение" }));
+    await user.type(screen.getByLabelText("Название"), "Ничья");
+    await user.click(screen.getByRole("button", { name: "Создать задачу" }));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ assigneeId: null });
+  });
+
+  it("yields to the responsible member the form was opened for", async () => {
+    signedInAmongStaff();
+    renderWithProviders(<TaskFormDialog assigneeId="member-1" onClose={() => {}} />, { route: "/tasks" });
+
+    await waitFor(() => expect(screen.getByLabelText("Ответственный")).toHaveTextContent("Пётр"));
+  });
+
+  it("starts bare for a member the picker does not offer", async () => {
+    setup();
+
+    expect(await screen.findByRole("button", { name: "Назначить" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Ответственный")).toBeNull();
+  });
+
+  it("does not change the task being edited", async () => {
+    signedInAmongStaff();
+    renderWithProviders(<TaskFormDialog task={aTask({ projectId: null, assigneeId: null })} onClose={() => {}} />, { route: "/tasks" });
+
+    expect(await screen.findByRole("button", { name: "Назначить" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Ответственный")).toBeNull();
+  });
+});
+
 describe("the dialog's controls", () => {
   it("offers a cancel button that closes without saving", async () => {
     const user = userEvent.setup();

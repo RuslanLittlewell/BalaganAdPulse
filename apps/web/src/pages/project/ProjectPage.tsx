@@ -4,7 +4,13 @@ import {
 } from "@/features/meta-integration/index.js";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { EmptyState, Skeleton, Switch, Tabs } from "@/shared/ui/index.js";
+import {
+  EmptyState,
+  Skeleton,
+  Switch,
+  Tabs,
+  useAlerts,
+} from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
 import { projectPath } from "@/shared/lib/index.js";
 import { useClients } from "@/entities/client/index.js";
@@ -23,6 +29,10 @@ import {
 } from "@/entities/campaign/index.js";
 import { ACTIVE_TASK_COLUMNS, useTasks } from "@/entities/task/index.js";
 import { useKpi } from "@/entities/kpi/index.js";
+import {
+  useChooseSummaryTiles,
+  useSummaryTiles,
+} from "@/entities/summary-tiles/index.js";
 import { PeriodControl, usePeriod } from "@/features/period/index.js";
 import { campaignTone } from "./campaignTone.js";
 import {
@@ -70,6 +80,13 @@ export function ProjectPage() {
   const projectKpi = useKpi(
     projectId ? { kind: "project", id: projectId } : undefined,
   );
+  const tiles = useSummaryTiles(
+    projectId ? { kind: "project", id: projectId } : undefined,
+  );
+  const chooseTiles = useChooseSummaryTiles({
+    kind: "project",
+    id: projectId ?? "",
+  });
   const [activityFilters, setActivityFilters] =
     useState<AuditEventFilters | null>(null);
   const [opened, setOpened] = useState<OpenedTask>({ mode: "closed" });
@@ -78,6 +95,8 @@ export function ProjectPage() {
   const { user } = useAuth();
   const members = useMembers();
   const editsProjectKpi = useCan("update", "kpi");
+  const arrangesSummary = useCan("update", "project-summary");
+  const { raise } = useAlerts();
   const readsActivity = useCan("read", "audit");
   const managesIntegrations = useCan("update", "integration");
   const integrations = useIntegrations(
@@ -161,12 +180,23 @@ export function ProjectPage() {
 
       <MetaIntegration key={project.id} projectId={project.id} />
 
-      <div className="flex flex-wrap items-center justify-end gap-3 border-t pt-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-2">
+        <h2 className="text-sm font-semibold text-foreground">
+          {t("project.metrics")}
+        </h2>
         <PeriodControl />
       </div>
 
       <PerformanceSummary
-        screen="project"
+        tiles={tiles.data?.tiles ?? []}
+        onTilesChange={
+          arrangesSummary && tiles.data
+            ? (next) =>
+                chooseTiles.mutate(next, {
+                  onError: () => raise(t("summary.notSaved")),
+                })
+            : undefined
+        }
         range={range}
         performance={summary.data}
         currency={project.budgetCurrency}

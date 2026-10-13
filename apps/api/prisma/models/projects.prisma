@@ -1,0 +1,51 @@
+enum ProjectPriority {
+  CRITICAL
+  URGENT
+  WAITING
+  IDLE
+  NEW
+
+  @@map("project_priority")
+}
+
+enum SummaryTile {
+  SPEND
+  IMPRESSIONS
+  CLICKS
+  CONVERSIONS
+  RESULTS
+  CPC
+  KPI
+
+  @@map("summary_tile")
+}
+
+model Project {
+  id             String               @id @default(uuid())
+  clientId       String               @map("client_id")
+  client         Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name           String
+  budgetCurrency String?              @map("budget_currency") @db.VarChar(3)
+  priority       ProjectPriority      @default(NEW)
+  image          String?
+  avatarPath     String?              @map("avatar_path")
+  position       Int
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+  campaigns      Campaign[]
+  leads          Lead[]
+  leadColumns    LeadColumn[]
+  access         ClientAccess[]
+  tasks          Task[]
+  invitations    InviteProject[]
+  integrations   ProjectIntegration[]
+  placements     ProjectPlacement[]
+  reports        MonthlyReport[]
+  kpiMetric      KpiMetric?           @map("kpi_metric")
+  kpiTarget      Decimal?             @map("kpi_target") @db.Decimal(18, 4)
+  kpiUpdatedAt   DateTime?            @map("kpi_updated_at")
+  summaryTiles   SummaryTile[]        @default([]) @map("summary_tiles")
+
+  @@index([clientId, position])
+  @@map("project")
+}

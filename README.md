@@ -49,7 +49,7 @@ app on `http://localhost:5173`. The `api` container runs `prisma migrate deploy`
 startup, so the stack comes up fully migrated with no manual steps. Postgres data lives
 in the named volume `adpulse_pgdata` and survives container restarts.
 
-**After changing `schema.prisma`, restart the `api` container** — `docker compose restart
+**After changing the Prisma schema, restart the `api` container** — `docker compose restart
 api`. It regenerates the Prisma client and applies migrations on start, but a container
 that is already running keeps the client it generated last time. Running `prisma generate`
 on the host does not help: the container's `node_modules` is its own volume, so a client
@@ -192,7 +192,10 @@ AdPulse/
   docker/postgres/init.sql  # creates the adpulse_test database
   apps/
     api/                    # backend
-      prisma/schema.prisma  # Organizations, memberships, grants, audit and business data
+      prisma.config.ts      # points the Prisma CLI at prisma/, so every command reads all of it
+      prisma/schema.prisma  # the generator and the datasource
+      prisma/models/        # one file of models and enums per module, named after it
+      prisma/migrations/
       src/
         composition/        # the only place adapters are constructed and wired
           app.ts            # builds the Express app (no listen) — used by tests

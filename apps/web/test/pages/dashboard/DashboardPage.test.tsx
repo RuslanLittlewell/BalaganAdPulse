@@ -95,6 +95,54 @@ describe("DashboardPage", () => {
     expect(within(guestDialog).queryByRole("button", { name: "KPI" })).not.toBeInTheDocument();
   });
 
+  it("shows the tiles the member keeps on the server, whatever the browser holds", async () => {
+    api();
+    localStorage.setItem("adpulse-summary-tiles", JSON.stringify({
+      version: 1, state: { layouts: { "user-1": { dashboard: ["cpc"] } } },
+    }));
+    server.use(mock.get("/api/dashboard/summary-tiles", () => HttpResponse.json({ tiles: ["SPEND", "CLICKS"] })));
+    renderWithProviders(<DashboardPage />);
+
+    const summary = await screen.findByRole("group", { name: "Показатели за период" });
+    await waitFor(() => expect(within(summary).getAllByTestId("summary-tile").map((tile) => tile.getAttribute("data-tile")))
+      .toEqual(["SPEND", "CLICKS"]));
+  });
+
+  it("saves a change of tiles to the server", async () => {
+    localStorage.removeItem("adpulse-summary-tiles");
+    api();
+    server.use(mock.get("/api/organization/kpi", () => HttpResponse.json(null)));
+    let saved: unknown = null;
+    server.use(mock.put("/api/dashboard/summary-tiles", async ({ request }) => {
+      const body = await request.json() as { tiles: string[] };
+      saved = body;
+      return HttpResponse.json(body);
+    }));
+    renderWithProviders(<DashboardPage />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Настроить показатели" }));
+    const dialog = await screen.findByRole("dialog", { name: "Показатели за период" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Расход" }));
+
+    await waitFor(() => expect(saved).toEqual({ tiles: ["SPEND", "CONVERSIONS"] }));
+    expect(localStorage.getItem("adpulse-summary-tiles")).toBeNull();
+  });
+
+  it("undoes a change the server refuses and says it was not saved", async () => {
+    api();
+    server.use(mock.get("/api/organization/kpi", () => HttpResponse.json(null)));
+    server.use(mock.put("/api/dashboard/summary-tiles", () =>
+      HttpResponse.json({ error: { message: "Boom" } }, { status: 500 })));
+    renderWithProviders(<DashboardPage />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Настроить показатели" }));
+    const dialog = await screen.findByRole("dialog", { name: "Показатели за период" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Расход" }));
+
+    expect(await screen.findByText("Не удалось сохранить показатели")).toBeInTheDocument();
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: "Расход" })).toHaveAttribute("aria-pressed", "false"));
+  });
+
   it("lists every project with its own figures", async () => {
     api();
     renderWithProviders(<DashboardPage />);

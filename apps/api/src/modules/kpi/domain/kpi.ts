@@ -1,4 +1,4 @@
-export const KPI_METRICS = ['SPEND', 'IMPRESSIONS', 'REACH', 'CLICKS', 'CONVERSIONS', 'REVENUE', 'CTR', 'CPC', 'CPM', 'CPA', 'ROAS', 'FREQUENCY'] as const;
+export const KPI_METRICS = ['SPEND', 'IMPRESSIONS', 'REACH', 'CLICKS', 'CONVERSIONS', 'RESULTS', 'REVENUE', 'CTR', 'CPC', 'CPM', 'CPA', 'COST_PER_RESULT', 'ROAS', 'FREQUENCY'] as const;
 export type KpiMetric = typeof KPI_METRICS[number];
 
 export interface KpiInput {

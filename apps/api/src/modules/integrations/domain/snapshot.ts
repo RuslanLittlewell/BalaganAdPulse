@@ -14,6 +14,7 @@ export interface ImportedMetric {
   reach: number;
   clicks: number;
   conversions: number;
+  results: number;
   revenue: string;
 }
 export type CreativeKind = "IMAGE" | "VIDEO";

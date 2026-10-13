@@ -7,7 +7,7 @@ the stack, layout and commands.
 ## Conventions
 
 - **No comments** — the codebase carries none, and none are to be added: not in
-  TypeScript, not in `schema.prisma`, not in configs. A comment you were about to
+  TypeScript, not in the Prisma schema files, not in configs. A comment you were about to
   write is a name that should have been clearer, a function that should have been
   smaller, or a decision that belongs in `openspec/` or a commit message. The two
   exceptions are machine-read directives (`/// <reference …>`, pragmas) and files

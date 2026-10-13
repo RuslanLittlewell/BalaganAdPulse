@@ -22,8 +22,13 @@ describe("custom date range", () => {
 });
 
 describe("range shortcuts", () => {
-  it("offers seven days, this month and the previous month in that order", () => {
-    expect(SHORTCUTS).toEqual(["7d", "month", "prevMonth"]);
+  it("offers yesterday, seven days, this month and the previous month in that order", () => {
+    expect(SHORTCUTS).toEqual(["yesterday", "7d", "month", "prevMonth"]);
+  });
+
+  it("covers yesterday alone, across a month boundary too", () => {
+    expect(shortcutRange("yesterday", TODAY)).toEqual({ from: "2026-08-16", to: "2026-08-16" });
+    expect(shortcutRange("yesterday", "2026-03-01")).toEqual({ from: "2026-02-28", to: "2026-02-28" });
   });
 
   it("ends the seven-day and current-month shortcuts on today", () => {

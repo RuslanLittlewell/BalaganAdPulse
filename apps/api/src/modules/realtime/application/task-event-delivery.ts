@@ -25,6 +25,7 @@ function sees(actor: ActorContext, event: TaskEvent): boolean {
   if (event.projectId === null) {
     return held.assigneeId === actor.membershipId || held.createdById === actor.membershipId;
   }
+  if (held.assigneeId === null) return held.createdById === actor.membershipId;
   return held.assigneeId === actor.membershipId;
 }
 

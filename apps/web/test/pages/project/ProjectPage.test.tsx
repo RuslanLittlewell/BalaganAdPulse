@@ -29,7 +29,7 @@ function App() {
   );
 }
 
-function api(options: { campaigns?: unknown[]; tasks?: unknown[] } = {}) {
+function api(options: { campaigns?: unknown[]; tasks?: unknown[]; summaryTiles?: string[] } = {}) {
   server.use(
     mock.get("/api/members", () => HttpResponse.json([])),
     mock.get("/api/tasks", () => HttpResponse.json(options.tasks ?? [])),
@@ -39,6 +39,8 @@ function api(options: { campaigns?: unknown[]; tasks?: unknown[] } = {}) {
       priority: "HIGH", image: null, avatarPath: null, position: 0, createdAt: "", updatedAt: "",
     }])),
     mock.get("/api/clients", () => HttpResponse.json([{ id: "cl1", name: "Acme", orgId: "o1" }])),
+    mock.get("/api/projects/:projectId/summary-tiles", () =>
+      HttpResponse.json({ tiles: options.summaryTiles ?? ["CONVERSIONS"] })),
     mock.get("/api/projects/:projectId/summary", () => HttpResponse.json(performance(4200, { roas: 3 }))),
     mock.get("/api/projects/:projectId/campaigns", () => HttpResponse.json(options.campaigns ?? [
       campaign("c1", "Поиск / Москва", "YANDEX", 3000),
@@ -49,33 +51,75 @@ function api(options: { campaigns?: unknown[]; tasks?: unknown[] } = {}) {
 
 const route = { route: "/projects/p1" };
 
+const signedInAs = (role: string) => server.use(mock.get("/api/auth/me", () => HttpResponse.json({
+  user: { id: "user-9", name: "Участник", email: "member@acme.com", image: null },
+  organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
+  role,
+  clientIds: ["cl1"],
+})));
+
+const projectKpi = () => server.use(mock.get("/api/projects/p1/kpi", () =>
+  HttpResponse.json({ metric: "CONVERSIONS", target: "100.0000", updatedAt: "2026-09-14T10:00:00.000Z" })));
+
+const shownTiles = () => within(screen.getByRole("group", { name: "Показатели за период" }))
+  .queryAllByTestId("summary-tile").map((tile) => tile.getAttribute("data-tile"));
+
 describe("ProjectPage", () => {
-  it("shows a client the project's KPI without letting them change it", async () => {
-    api();
-    server.use(
-      mock.get("/api/auth/me", () => HttpResponse.json({
-        user: { id: "user-9", name: "Клиент", email: "client@acme.com", image: null },
-        organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
-        role: "CLIENT_ADMIN",
-        clientIds: ["cl1"],
-      })),
-      mock.get("/api/projects/p1/kpi", () => HttpResponse.json({ metric: "CONVERSIONS", target: "100.0000", updatedAt: "2026-09-14T10:00:00.000Z" })),
-    );
+  it("shows a client the project's tiles and KPI without letting them change either", async () => {
+    api({ summaryTiles: ["CONVERSIONS", "KPI"] });
+    signedInAs("CLIENT_ADMIN");
+    projectKpi();
     renderWithProviders(<App />, route);
 
-    await userEvent.click(await screen.findByRole("button", { name: "Настроить показатели" }));
-    const dialog = await screen.findByRole("dialog", { name: "Показатели за период" });
-    await userEvent.click(within(dialog).getByRole("button", { name: "KPI" }));
-    await userEvent.keyboard("{Escape}");
-
-    const summary = screen.getByRole("group", { name: "Показатели за период" });
+    const summary = await screen.findByRole("group", { name: "Показатели за период" });
     expect(await within(summary).findByText("KPI · Лиды")).toBeInTheDocument();
     expect(within(summary).queryByRole("button", { name: "Изменить цель" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Настроить показатели" })).not.toBeInTheDocument();
   });
 
-  it("offers the project's KPI in its summary", async () => {
+  it("titles the integrations and the metrics for a member who manages integrations", async () => {
     api();
-    server.use(mock.get("/api/projects/p1/kpi", () => HttpResponse.json({ metric: "CONVERSIONS", target: "100.0000", updatedAt: "2026-09-14T10:00:00.000Z" })));
+    renderWithProviders(<App />, route);
+
+    expect(await screen.findByRole("heading", { name: "Интеграции", level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Метрики", level: 2 })).toBeInTheDocument();
+  });
+
+  it("titles only the metrics for a guest, who sees no integrations", async () => {
+    api();
+    signedInAs("GUEST");
+    renderWithProviders(<App />, route);
+
+    expect(await screen.findByRole("heading", { name: "Метрики", level: 2 })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Интеграции" })).not.toBeInTheDocument();
+  });
+
+  it("starts a project nobody has configured with no tile, only the placeholder", async () => {
+    api({ summaryTiles: [] });
+    renderWithProviders(<App />, route);
+
+    expect(await screen.findByRole("button", { name: "Настроить показатели" })).toBeInTheDocument();
+    expect(shownTiles()).toEqual([]);
+  });
+
+  it("shows a guest the tiles chosen for the project, with nothing to configure", async () => {
+    api({ summaryTiles: ["SPEND", "CLICKS"] });
+    signedInAs("GUEST");
+    renderWithProviders(<App />, route);
+
+    await waitFor(() => expect(shownTiles()).toEqual(["SPEND", "CLICKS"]));
+    expect(screen.queryByRole("button", { name: "Настроить показатели" })).not.toBeInTheDocument();
+  });
+
+  it("offers the project's KPI in its summary and saves the choice to the project", async () => {
+    api();
+    projectKpi();
+    let saved: unknown = null;
+    server.use(mock.put("/api/projects/p1/summary-tiles", async ({ request }) => {
+      const body = await request.json() as { tiles: string[] };
+      saved = body;
+      return HttpResponse.json(body);
+    }));
     renderWithProviders(<App />, route);
 
     await userEvent.click(await screen.findByRole("button", { name: "Настроить показатели" }));
@@ -86,6 +130,22 @@ describe("ProjectPage", () => {
     const summary = screen.getByRole("group", { name: "Показатели за период" });
     expect(await within(summary).findByText("KPI · Лиды")).toBeInTheDocument();
     expect(within(summary).getByRole("button", { name: "Изменить цель" })).toBeInTheDocument();
+    await waitFor(() => expect(saved).toEqual({ tiles: ["CONVERSIONS", "KPI"] }));
+  });
+
+  it("undoes a choice the server refuses and says it was not saved", async () => {
+    api();
+    server.use(mock.put("/api/projects/p1/summary-tiles", () =>
+      HttpResponse.json({ error: { message: "Your role may not choose a project's summary" } }, { status: 403 })));
+    renderWithProviders(<App />, route);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Настроить показатели" }));
+    const dialog = await screen.findByRole("dialog", { name: "Показатели за период" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Клики" }));
+    await userEvent.keyboard("{Escape}");
+
+    expect(await screen.findByText("Не удалось сохранить показатели")).toBeInTheDocument();
+    await waitFor(() => expect(shownTiles()).toEqual(["CONVERSIONS"]));
   });
 
   it("shows the project's figures for the period", async () => {

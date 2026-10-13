@@ -7,6 +7,7 @@ const days: MeasuredDay[] = [1, 2, 3].map((day) => ({
   date: `2026-09-0${day}`,
   spend: day * 100,
   conversions: day * 2,
+  results: day * 3,
   impressions: 0, reach: 0, clicks: 0, revenue: 0,
 }));
 

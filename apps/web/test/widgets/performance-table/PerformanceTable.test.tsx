@@ -4,8 +4,8 @@ import { PerformanceTable, type PerformanceRow } from "@/widgets/performance-tab
 import { useColumnWidths } from "@/widgets/performance-table/columnWidths.js";
 
 const performance = (spend: number, extra = {}) => ({
-  spend, impressions: 100000, reach: 40000, clicks: 2000, conversions: 50, revenue: 4000,
-  ctr: 2, cpc: 0.5, cpm: 10, cpa: 20, roas: 4, frequency: 2.5, ...extra,
+  spend, impressions: 100000, reach: 40000, clicks: 2000, conversions: 50, results: 80, revenue: 4000,
+  ctr: 2, cpc: 0.5, cpm: 10, cpa: 20, costPerResult: 12.5, roas: 4, frequency: 2.5, ...extra,
 });
 
 const rows: PerformanceRow[] = [
@@ -70,6 +70,26 @@ describe("PerformanceTable", () => {
     expect(screen.getByRole("menuitemcheckbox", { name: "CPL" })).toBeInTheDocument();
     expect(screen.queryByRole("menuitemcheckbox", { name: "Конверсии" })).toBeNull();
     expect(screen.queryByRole("menuitemcheckbox", { name: "CPA" })).toBeNull();
+  });
+
+  it("shows results and their cost beside leads", () => {
+    render(<PerformanceTable tableKey="results-test" heading="Кампания" rows={rows} />);
+
+    const headers = screen.getAllByRole("columnheader").map((header) => header.textContent);
+    expect(headers.indexOf("Результаты")).toBe(headers.indexOf("Лиды") + 1);
+    expect(screen.getByRole("columnheader", { name: "Цена результата" })).toBeInTheDocument();
+    const row = screen.getByRole("row", { name: /Поиск \/ Москва/ });
+    expect(within(row).getByText("80")).toBeInTheDocument();
+  });
+
+  it("offers results in the chooser but keeps them hidden from a choice saved before they existed", async () => {
+    const user = userEvent.setup();
+    useColumnWidths.setState({ visibleColumns: { "saved-before-results": ["name", "spend", "conversions"] } });
+    render(<PerformanceTable tableKey="saved-before-results" heading="Кампания" rows={rows} />);
+
+    expect(screen.queryByRole("columnheader", { name: "Результаты" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Отображаемые столбцы" }));
+    expect(screen.getByRole("menuitemcheckbox", { name: "Результаты" })).toHaveAttribute("aria-checked", "false");
   });
 
   it("keeps a column choice saved before the lead columns were renamed", () => {

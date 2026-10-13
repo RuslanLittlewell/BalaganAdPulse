@@ -1,0 +1,18 @@
+enum KpiMetric {
+  SPEND
+  IMPRESSIONS
+  REACH
+  CLICKS
+  CONVERSIONS
+  RESULTS
+  REVENUE
+  CTR
+  CPC
+  CPM
+  CPA
+  COST_PER_RESULT
+  ROAS
+  FREQUENCY
+
+  @@map("kpi_metric")
+}

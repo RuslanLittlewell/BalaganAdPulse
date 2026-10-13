@@ -1,7 +1,7 @@
 import type { Measured, Performance } from "../api/api.js";
 
 const NOTHING_MEASURED: Measured = {
-  spend: 0, impressions: 0, reach: 0, clicks: 0, conversions: 0, revenue: 0,
+  spend: 0, impressions: 0, reach: 0, clicks: 0, conversions: 0, results: 0, revenue: 0,
 };
 
 const ratio = (dividend: number, divisor: number): number | null =>
@@ -14,6 +14,7 @@ export function totalPerformance(performances: readonly Performance[]): Performa
     reach: total.reach + performance.reach,
     clicks: total.clicks + performance.clicks,
     conversions: total.conversions + performance.conversions,
+    results: total.results + performance.results,
     revenue: total.revenue + performance.revenue,
   }), NOTHING_MEASURED);
   return {
@@ -22,6 +23,7 @@ export function totalPerformance(performances: readonly Performance[]): Performa
     cpc: ratio(measured.spend, measured.clicks),
     cpm: ratio(measured.spend * 1000, measured.impressions),
     cpa: ratio(measured.spend, measured.conversions),
+    costPerResult: ratio(measured.spend, measured.results),
     roas: ratio(measured.revenue, measured.spend),
     frequency: ratio(measured.impressions, measured.reach),
   };

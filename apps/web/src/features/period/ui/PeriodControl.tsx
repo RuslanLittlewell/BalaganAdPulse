@@ -33,7 +33,7 @@ export function PeriodControl() {
 
   return (
     <div role="group" aria-label={t("period.label")} className="flex flex-wrap items-start gap-2">
-      <div className="flex items-center gap-1 self-end">
+      <div className="flex items-center self-end">
         {SHORTCUTS.map((shortcut) => {
           const preset = shortcutRange(shortcut);
           const active = preset.from === range.from && preset.to === range.to;

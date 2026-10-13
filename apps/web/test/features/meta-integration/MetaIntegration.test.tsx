@@ -223,7 +223,7 @@ describe("the lead import switch", () => {
     renderWithProviders(<MetaIntegration projectId="p1" />);
     await openNewMeta();
 
-    const toggle = screen.getByRole("switch", { name: "Загружать лиды" });
+    const toggle = screen.getByRole("switch", { name: "Загружать лиды для CRM" });
     expect(toggle).toBeChecked();
     await userEvent.click(toggle);
     await userEvent.type(screen.getByLabelText("Account ID"), "123");
@@ -244,7 +244,7 @@ describe("the lead import switch", () => {
     renderWithProviders(<MetaIntegration projectId="p1" />);
     await userEvent.click(await screen.findByRole("button", { name: "Meta API" }));
 
-    const toggle = screen.getByRole("switch", { name: "Загружать лиды" });
+    const toggle = screen.getByRole("switch", { name: "Загружать лиды для CRM" });
     expect(toggle).toBeChecked();
     await userEvent.click(toggle);
 

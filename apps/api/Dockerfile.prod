@@ -35,7 +35,7 @@ COPY --from=deps /app/ ./
 COPY apps/api ./apps/api
 COPY apps/web ./apps/web
 COPY packages ./packages
-RUN npx prisma generate --schema apps/api/prisma/schema.prisma
+RUN npx prisma generate --schema apps/api/prisma
 # Both apps import the permission matrix, so it is built before either.
 RUN npm run build -w @adpulse/access-policy
 RUN npm run build -w apps/api
@@ -63,6 +63,7 @@ COPY --from=build /app/packages/access-policy/dist /app/packages/access-policy/d
 COPY --from=build /app/apps/api/dist /app/apps/api/dist
 COPY --from=build /app/apps/web/dist /app/apps/web/dist
 COPY apps/api/prisma /app/apps/api/prisma
+COPY apps/api/prisma.config.ts /app/apps/api/
 USER node
 EXPOSE 3000
 CMD ["node", "--conditions=compiled", "dist/composition/server.js"]

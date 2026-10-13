@@ -4,7 +4,6 @@ import userEvent from "@testing-library/user-event";
 import { Route, Routes, useLocation } from "react-router-dom";
 import { aTask, renderWithProviders, server } from "@test/shared/index.js";
 import { CampaignPage } from "@/pages/campaign/index.js";
-import { useSummaryTiles } from "@/widgets/agency-overview/summaryTiles.js";
 
 const performance = (spend: number, extra = {}) => ({
   spend, impressions: 100000, reach: 40000, clicks: 2000, conversions: 50, revenue: 4000,
@@ -29,7 +28,7 @@ function App() {
   );
 }
 
-function api(options: { adSets?: unknown[]; ads?: unknown[]; days?: unknown[] } = {}) {
+function api(options: { adSets?: unknown[]; ads?: unknown[]; days?: unknown[]; summaryTiles?: string[] } = {}) {
   const creativeRequests: string[] = [];
   server.use(
     mock.get("/api/members", () => HttpResponse.json([])),
@@ -39,6 +38,8 @@ function api(options: { adSets?: unknown[]; ads?: unknown[]; days?: unknown[] } 
       createdAt: "", updatedAt: "",
     }])),
     mock.get("/api/campaigns/names", () => HttpResponse.json([])),
+    mock.get("/api/projects/p1/summary-tiles", () =>
+      HttpResponse.json({ tiles: options.summaryTiles ?? ["CONVERSIONS"] })),
     mock.get("/api/campaigns/:campaignId/daily", () =>
       HttpResponse.json(options.days ?? [day("2026-08-01", 400), day("2026-08-02", 900)])),
     mock.get("/api/campaigns/:campaignId/ad-sets", () => HttpResponse.json(options.adSets ?? [
@@ -110,20 +111,19 @@ describe("CampaignPage", () => {
     expect(await within(summary).findByText(/^CPL 20,00\sBr$/)).toBeInTheDocument();
   });
 
-  it("shows the tiles chosen on the project page and nothing to configure", async () => {
-    api();
+  it("shows the tiles chosen for its project and nothing to configure", async () => {
+    api({ summaryTiles: ["CLICKS", "CONVERSIONS", "KPI"] });
     server.use(mock.get("/api/projects/:projectId/kpi", () => HttpResponse.json(null)));
-    useSummaryTiles.setState({ layouts: { "user-1": { project: ["clicks", "conversions", "kpi"], campaign: ["spend"] } as never } });
     renderWithProviders(<App />, route);
 
     const summary = await screen.findByRole("group", { name: "Показатели за период" });
     await waitFor(() => expect(within(summary).getAllByTestId("summary-tile").map((tile) => tile.getAttribute("data-tile")))
-      .toEqual(["clicks", "conversions", "kpi"]));
+      .toEqual(["CLICKS", "CONVERSIONS", "KPI"]));
     expect(screen.queryByRole("button", { name: "Настроить показатели" })).not.toBeInTheDocument();
   });
 
   it("shows the project's KPI against the campaign's figures, with nothing to change it", async () => {
-    api();
+    api({ summaryTiles: ["KPI"] });
     let campaignKpiAsked = false;
     server.use(
       mock.get("/api/projects/p1/kpi", () =>
@@ -133,7 +133,6 @@ describe("CampaignPage", () => {
         return HttpResponse.json(null);
       }),
     );
-    useSummaryTiles.setState({ layouts: { "user-1": { project: ["kpi"] } } });
     renderWithProviders(<App />, { route: "/projects/p1/campaigns/c1?from=2026-09-01&to=2026-09-30" });
 
     const tile = await screen.findByTestId("kpi-tile");

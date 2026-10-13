@@ -34,14 +34,14 @@ const recordAdDay = (id: string, date: Date, partial?: Record<string, number>) =
 describe("a day of measured figures", () => {
   it("reads back what the platform reported", async () => {
     await recordCampaignDay(campaignId, day("2026-08-01"), {
-      spend: 1200.5, impressions: 40000, reach: 15000, clicks: 800, conversions: 24, revenue: 4800,
+      spend: 1200.5, impressions: 40000, reach: 15000, clicks: 800, conversions: 24, results: 31, revenue: 4800,
     });
 
     const [stored] = await repository.readCampaignRange(campaignId, day("2026-08-01"), day("2026-08-01"));
 
     expect(stored).toEqual({
       date: day("2026-08-01"),
-      spend: 1200.5, impressions: 40000, reach: 15000, clicks: 800, conversions: 24, revenue: 4800,
+      spend: 1200.5, impressions: 40000, reach: 15000, clicks: 800, conversions: 24, results: 31, revenue: 4800,
     });
   });
 

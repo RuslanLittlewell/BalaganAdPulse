@@ -17,6 +17,7 @@ export interface Measured {
   reach: number;
   clicks: number;
   conversions: number;
+  results: number;
   revenue: number;
 }
 
@@ -25,6 +26,7 @@ export interface Derived {
   cpc: number | null;
   cpm: number | null;
   cpa: number | null;
+  costPerResult: number | null;
   roas: number | null;
   frequency: number | null;
 }

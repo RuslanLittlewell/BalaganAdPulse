@@ -20,6 +20,7 @@ import {
   useActiveProjectId,
   useProjects,
 } from "@/entities/project/index.js";
+import { useSummaryTiles } from "@/entities/summary-tiles/index.js";
 import { PeriodControl, usePeriod } from "@/features/period/index.js";
 import { PerformanceSummary } from "@/widgets/agency-overview/index.js";
 import { DailyChart } from "@/widgets/campaign-overview/index.js";
@@ -52,6 +53,9 @@ export function CampaignPage() {
   const days = useCampaignDaily(campaignId, range);
   const adSets = useAdSets(campaignId, range);
   const projects = useProjects();
+  const projectTiles = useSummaryTiles(
+    projectId ? { kind: "project", id: projectId } : undefined,
+  );
   const [openSets, setOpenSets] = useState<ReadonlySet<string>>(new Set());
   const [previewing, setPreviewing] = useState<{
     adSetId: string;
@@ -119,8 +123,7 @@ export function CampaignPage() {
       </header>
 
       <PerformanceSummary
-        screen="project"
-        configurable={false}
+        tiles={projectTiles.data?.tiles ?? []}
         range={range}
         performance={campaign.data?.performance}
         currency={currency}

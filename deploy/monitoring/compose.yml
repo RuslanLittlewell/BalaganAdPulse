@@ -1,0 +1,34 @@
+name: monitoring
+
+services:
+  hub:
+    image: henrygd/beszel:0.21.0
+    restart: unless-stopped
+    environment:
+      APP_URL: http://localhost:8090
+      USER_EMAIL: ${BESZEL_USER_EMAIL}
+      USER_PASSWORD: ${BESZEL_USER_PASSWORD}
+    ports:
+      - "127.0.0.1:8090:8090"
+    volumes:
+      - hub_data:/beszel_data
+      - agent_socket:/beszel_socket
+
+  agent:
+    image: henrygd/beszel-agent:0.21.0
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      LISTEN: /beszel_socket/beszel.sock
+      KEY: ${BESZEL_HUB_PUBLIC_KEY:-}
+      DOCKER_IMAGE_CHECK: "false"
+      SKIP_GPU: "true"
+    volumes:
+      - agent_data:/var/lib/beszel-agent
+      - agent_socket:/beszel_socket
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+volumes:
+  hub_data:
+  agent_data:
+  agent_socket:

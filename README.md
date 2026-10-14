@@ -130,7 +130,8 @@ job:
 2. runs [deploy/deploy.sh](deploy/deploy.sh) with that image, which pulls it, starts
    Postgres and MinIO, takes a backup with [deploy/backup.sh](deploy/backup.sh), creates
    the storage bucket if missing, applies migrations (`prisma migrate deploy` in the
-   `migrate` service), replaces the app and waits up to a minute for `/healthz`;
+   `migrate` service), replaces the app, waits up to a minute for `/healthz` and, once it
+   answers, removes every other app image from the server;
 3. checks `https://app.balagan.pro/healthz` from outside.
 
 A failed migration stops the script before the app is replaced, so the previous version
@@ -138,6 +139,12 @@ keeps serving. Between the migration and the replacement the old version runs ag
 new schema, so migrations must stay backward-compatible with the version already running.
 There is no automatic rollback: to return to an earlier version, run on the server
 `APP_IMAGE=ghcr.io/<repository>:<earlier sha> /opt/adpulse/deploy.sh`, or revert and push.
+
+The server keeps only the image it is running. Each image is about 1.7 GB, and before
+superseded ones were removed they filled the disk, which took down Postgres, MinIO and
+nginx at once. So a rollback on the server pulls the earlier image from the registry
+again: sign in first with `docker login ghcr.io` using a token that can read packages.
+A failed deploy removes nothing, so the version it tried to replace stays on the server.
 
 Backups are gzipped `pg_dump` files in `/opt/adpulse/backups`, one per deploy, kept for
 14 days. To take one by hand, run `/opt/adpulse/backup.sh`.
@@ -182,6 +189,53 @@ APP_IMAGE=ghcr.io/<repository>:<deployed sha> docker compose --env-file .env \
 ```
 
 See [Seeding the first admin](#seeding-the-first-admin) for what it does.
+
+### Monitoring
+
+[Beszel](https://beszel.dev) watches the server: CPU, memory, disk, network traffic and each
+container, as charts and as alerts. It runs from
+[deploy/monitoring/compose.yml](deploy/monitoring/compose.yml) as a Compose project of its
+own in `/opt/monitoring`, apart from the app, so a deploy never restarts it. The hub and its
+agent take about 30 MB of memory together; the agent reads the Docker socket to report on
+containers.
+
+The hub listens on `127.0.0.1` only. Open it through a tunnel, then go to
+<http://localhost:8090> and sign in with `BESZEL_USER_EMAIL` and `BESZEL_USER_PASSWORD` from
+`/opt/monitoring/.env`:
+
+```bash
+ssh -L 8090:127.0.0.1:8090 root@45.87.219.63
+```
+
+To install it, or to apply a change to it:
+
+```bash
+ssh root@45.87.219.63 install -d -m 700 /opt/monitoring
+scp deploy/monitoring/compose.yml deploy/monitoring/setup.sh root@45.87.219.63:/opt/monitoring/
+ssh root@45.87.219.63 BESZEL_USER_EMAIL=<email> bash /opt/monitoring/setup.sh
+```
+
+The first run writes `/opt/monitoring/.env` with a generated password. Every run starts the
+hub, pairs the agent with it over a unix socket, registers the server and sets its alerts, so
+a threshold is changed in [deploy/monitoring/setup.sh](deploy/monitoring/setup.sh) and the
+script run again:
+
+| Alert | Fires when |
+|---|---|
+| Disk | usage stays above 80% for 10 minutes |
+| Memory | usage stays above 85% for 10 minutes — the server has no swap |
+| CPU | usage stays above 85% for 10 minutes |
+| LoadAvg5 | the 5-minute load average stays above 2 for 10 minutes — the server has one vCPU |
+| Bandwidth | traffic stays above 10 MB/s for 5 minutes |
+| ContainerHealth | a container stays unhealthy for 5 minutes |
+| Status | the agent stops reporting for 2 minutes |
+
+Alerts reach Telegram. Create a bot with [@BotFather](https://t.me/BotFather), find the chat
+id, add `BESZEL_NOTIFY_URL="telegram://<bot token>@telegram?chats=<chat id>"` to
+`/opt/monitoring/.env` and run the script again; it sends a test message.
+
+The hub runs on the server it watches, so it cannot report that server going down. An
+external check of <https://app.balagan.pro/healthz> covers that.
 
 ## Project structure
 

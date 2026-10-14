@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TASK_COLUMNS, tasksApi, type Task, type TaskColumn, type TaskInput, type TaskMove } from "./api.js";
 import type { QueryClient } from "@tanstack/react-query";
+import { endKeepingLength, nextOccurrence } from "../lib/schedule.js";
 
 export const TASKS_KEY = ["tasks"] as const;
 
@@ -67,7 +68,13 @@ export function useRescheduleTask() {
         if (!tasks) continue;
         qc.setQueryData<Task[]>(key, tasks.map((task) =>
           (task.id === id
-            ? { ...task, dueDate, ...(dueTime === undefined ? {} : { dueTime }) }
+            ? {
+                ...task,
+                dueDate,
+                ...(dueTime === undefined
+                  ? {}
+                  : { dueTime, endTime: endKeepingLength(task.dueTime, task.endTime, dueTime) }),
+              }
             : task)));
       }
       await qc.cancelQueries({ queryKey: TASKS_KEY });
@@ -80,10 +87,31 @@ export function useRescheduleTask() {
   });
 }
 
+function completed(task: Task): Task {
+  if (task.repeatEvery === "NONE" || task.dueDate === null) return task;
+  return {
+    ...task,
+    dueDate: nextOccurrence(task.dueDate, task.repeatEvery),
+    checklist: task.checklist.map((item) => (item.done ? { ...item, done: false } : item)),
+  };
+}
+
 export function useCompleteTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => tasksApi.complete(id),
+    onMutate: async (id) => {
+      const snapshots = qc.getQueriesData<Task[]>({ queryKey: TASKS_KEY });
+      for (const [key, tasks] of snapshots) {
+        if (!tasks) continue;
+        qc.setQueryData<Task[]>(key, tasks.map((task) => (task.id === id ? completed(task) : task)));
+      }
+      await qc.cancelQueries({ queryKey: TASKS_KEY });
+      return { snapshots };
+    },
+    onError: (_error, _id, context) => {
+      for (const [key, tasks] of context?.snapshots ?? []) qc.setQueryData(key, tasks);
+    },
     onSuccess: (task) => writeTask(qc, task),
   });
 }

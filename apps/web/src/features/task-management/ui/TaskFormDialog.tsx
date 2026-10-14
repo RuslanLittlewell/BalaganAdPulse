@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
   Label,
+  MultiSelect,
   Select,
   SelectContent,
   SelectItem,
@@ -25,11 +26,19 @@ import {
 import { Can, useCan } from "@/features/permissions/index.js";
 import { useAuth } from "@/features/auth/index.js";
 import { ProjectAvatar, useProjects } from "@/entities/project/index.js";
-import { MemberAvatar, useMembers } from "@/entities/membership/index.js";
 import {
+  MemberAvatar,
+  useClientMembers,
+  useMembers,
+  type Membership,
+} from "@/entities/membership/index.js";
+import {
+  TASK_COLUMNS,
   TASK_PRIORITIES,
   collectImageIds,
+  endsAfterStart,
   useCreateTask,
+  useMoveTask,
   useUpdateTask,
   type Task,
   type TaskColumn,
@@ -55,7 +64,7 @@ export interface TaskFormDialogProps {
   task?: Task;
   column?: TaskColumn;
   projectId?: string;
-  assigneeId?: string;
+  participantIds?: string[];
   onClose: () => void;
   onDelete?: (task: Task) => void;
 }
@@ -64,20 +73,19 @@ interface FormValues {
   projectId: string;
   title: string;
   priority: Task["priority"];
-  assigneeId: string;
+  column: TaskColumn;
+  participantIds: string[];
   visibleToClient: boolean;
   dueDate: string | null;
   dueTime: string | null;
+  endTime: string | null;
   repeatEvery: TaskRepeat;
 }
-
-const UNASSIGNED = "";
 
 const NO_PROJECT = "__no_project__";
 
 const EMPTY = {
   noProject: NO_PROJECT,
-  unassigned: UNASSIGNED,
 };
 
 const messageOf = (error: unknown) =>
@@ -89,10 +97,11 @@ const FORM_FIELDS = [
   "projectId",
   "title",
   "priority",
-  "assigneeId",
+  "participantIds",
   "visibleToClient",
   "dueDate",
   "dueTime",
+  "endTime",
   "repeatEvery",
 ] as const satisfies readonly (keyof FormValues)[];
 
@@ -139,26 +148,29 @@ function Block({
   );
 }
 
+const CUSTOMER_ROLES: readonly Membership["role"][] = ["CLIENT", "CLIENT_ADMIN"];
+
+function isCustomerMember(member: Membership): boolean {
+  return CUSTOMER_ROLES.includes(member.role);
+}
+
 export function TaskFormDialog({
   task,
   column,
   projectId: givenProject,
-  assigneeId: givenAssignee,
+  participantIds: givenParticipants,
   onClose,
   onDelete,
 }: TaskFormDialogProps) {
   const { data: projects } = useProjects();
   const { data: members } = useMembers();
   const { user } = useAuth();
-  const assignable = (members ?? []).filter(
-    (member) => member.status === "ACTIVE" || member.id === task?.assigneeId,
-  );
-  const ownMembershipId = assignable.find(
+  const ownMembershipId = (members ?? []).find(
     (member) => member.userId === user?.id && member.status === "ACTIVE",
   )?.id;
-  const startingAssignee = task ? task.assigneeId : givenAssignee ?? ownMembershipId;
   const create = useCreateTask();
   const update = useUpdateTask();
+  const move = useMoveTask();
   const checklist = useChecklistDraft(task?.checklist ?? []);
   const [description, setDescription] = useState<unknown | null>(
     task?.description ?? null,
@@ -193,6 +205,7 @@ export function TaskFormDialog({
     handleSubmit,
     register,
     setError,
+    clearErrors,
     setValue,
     getFieldState,
     watch,
@@ -202,26 +215,53 @@ export function TaskFormDialog({
       projectId: (task ? task.projectId : givenProject) ?? NO_PROJECT,
       title: task?.title ?? "",
       priority: task?.priority ?? "MEDIUM",
-      assigneeId: startingAssignee ?? UNASSIGNED,
+      column: task?.column ?? column ?? "IDEA",
+      participantIds: task?.participantIds ?? givenParticipants ?? [],
       visibleToClient: task?.visibleToClient ?? false,
       dueDate: task?.dueDate ?? null,
       dueTime: task?.dueTime ?? null,
+      endTime: task?.endTime ?? null,
       repeatEvery: task?.repeatEvery ?? "NONE",
     },
   });
 
   const mayShareWithClient = useCan("update", "member");
+  const movesTasks = useCan("update", "task");
 
   const projectId = watch("projectId");
-  const assigneeId = watch("assigneeId");
+  const participantIds = watch("participantIds");
 
   useEffect(() => {
-    if (startingAssignee == null || getFieldState("assigneeId").isDirty) return;
-    if (assigneeId === UNASSIGNED) setValue("assigneeId", startingAssignee);
-  }, [startingAssignee]);
+    if (task || givenParticipants || !ownMembershipId || !movesTasks) return;
+    if (getFieldState("participantIds").isDirty || participantIds.length > 0) return;
+    setValue("participantIds", [ownMembershipId]);
+  }, [ownMembershipId, movesTasks]);
   const dueDate = watch("dueDate");
   const dueTime = watch("dueTime");
+  const endTime = watch("endTime");
   const repeatEvery = watch("repeatEvery");
+
+  const chosenProject = (projects ?? []).find((project) => project.id === projectId);
+  const { data: projectPeople } = useClientMembers(
+    movesTasks && chosenProject ? chosenProject.clientId : undefined,
+    chosenProject?.id,
+  );
+  const clientPeople = chosenProject
+    ? (projectPeople ?? []).filter((member) => isCustomerMember(member) && member.status === "ACTIVE")
+    : [];
+  const offeredPeople = [
+    ...(members ?? []).filter((member) => member.status === "ACTIVE" || participantIds.includes(member.id)),
+    ...clientPeople,
+  ];
+
+  useEffect(() => {
+    if (!members) return;
+    const staff = new Set(members.map((member) => member.id));
+    if (projectId !== NO_PROJECT && !projectPeople) return;
+    const reaching = new Set((projectId === NO_PROJECT ? [] : projectPeople ?? []).map((member) => member.id));
+    const kept = participantIds.filter((id) => staff.has(id) || reaching.has(id));
+    if (kept.length !== participantIds.length) setValue("participantIds", kept);
+  }, [projectId, projectPeople, members]);
 
   const shown = shownBlocks(
     opened,
@@ -230,7 +270,7 @@ export function TaskFormDialog({
         checklistLength: checklist.items.length,
         dueDate,
         projectId,
-        assigneeId,
+        participantCount: participantIds.length,
       },
       EMPTY,
     ),
@@ -248,34 +288,56 @@ export function TaskFormDialog({
     if (block === "dates") {
       setValue("dueDate", null);
       setValue("dueTime", null);
+      setValue("endTime", null);
       setValue("repeatEvery", "NONE");
     }
     if (block === "checklist") checklist.clear();
     if (block === "assign") {
       setValue("projectId", NO_PROJECT);
-      setValue("assigneeId", UNASSIGNED);
+      setValue("participantIds", []);
     }
   };
 
+  const creationColumn = (chosen: TaskColumn) => {
+    const created = movesTasks ? chosen : column;
+    return created ? { column: created } : {};
+  };
+
   const onSubmit = handleSubmit(async (values) => {
+    if (
+      values.dueDate !== null && values.dueTime !== null && values.endTime !== null
+      && !endsAfterStart(values.dueTime, values.endTime)
+    ) {
+      setError("endTime", { message: t("tasks.form.endBeforeStart") });
+      return;
+    }
     const body: TaskInput = {
       projectId: values.projectId === NO_PROJECT ? null : values.projectId,
       title: values.title,
       priority: values.priority,
-      assigneeId: values.assigneeId === UNASSIGNED ? null : values.assigneeId,
       ...(mayShareWithClient && values.projectId !== NO_PROJECT
         ? { visibleToClient: values.visibleToClient }
         : {}),
       dueDate: values.dueDate,
       dueTime: values.dueDate === null ? null : values.dueTime,
+      endTime: values.dueDate === null || values.dueTime === null ? null : values.endTime,
       repeatEvery: values.dueDate === null ? "NONE" : values.repeatEvery,
       checklist: checklist.items.map((item) => ({
         title: item.title,
         done: item.done,
       })),
       description,
-      ...(column && !task ? { column } : {}),
+      ...(task ? {} : creationColumn(values.column)),
+      ...(movesTasks ? { participantIds: values.participantIds } : {}),
     };
+    if (task && movesTasks && values.column !== task.column) {
+      try {
+        await move.mutateAsync({ id: task.id, body: { column: values.column, position: 0 } });
+      } catch {
+        raise(t("tasks.moveFailed"));
+        return;
+      }
+    }
     try {
       if (task) await update.mutateAsync({ id: task.id, body });
       else await create.mutateAsync(body);
@@ -319,6 +381,34 @@ export function TaskFormDialog({
           </DialogTitle>
           <div className="flex shrink-0 flex-col gap-1">
             <div className="flex items-center gap-2">
+              {movesTasks ? (
+                <>
+                  <Label
+                    htmlFor="task-column"
+                    className="whitespace-nowrap text-sm font-normal text-muted-foreground"
+                  >
+                    {t("tasks.form.column")}
+                  </Label>
+                  <Controller
+                    control={control}
+                    name="column"
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger id="task-column" className="w-40">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TASK_COLUMNS.map((stage) => (
+                            <SelectItem key={stage} value={stage}>
+                              {t(`tasks.column.${stage}`)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </>
+              ) : null}
               <Label
                 htmlFor="task-priority"
                 className="whitespace-nowrap text-sm font-normal text-muted-foreground"
@@ -444,17 +534,24 @@ export function TaskFormDialog({
                         <TaskSchedule
                           dueDate={dueDate}
                           dueTime={dueTime}
+                          endTime={endTime}
                           repeatEvery={repeatEvery}
                           today={toIso(new Date())}
                           onDueDateChange={(value) => {
                             setValue("dueDate", value);
                             if (value !== null) return;
                             setValue("dueTime", null);
+                            setValue("endTime", null);
                             setValue("repeatEvery", "NONE");
                           }}
                           onDueTimeChange={(value) =>
                             setValue("dueTime", value)
                           }
+                          onEndTimeChange={(value) => {
+                            setValue("endTime", value);
+                            clearErrors("endTime");
+                          }}
+                          endError={errors.endTime?.message}
                           onRepeatChange={(value) =>
                             setValue("repeatEvery", value)
                           }
@@ -508,49 +605,31 @@ export function TaskFormDialog({
                             <FieldError message={errors.projectId?.message} />
                           </div>
 
-                          <div className="flex min-w-0 flex-col gap-2">
-                            <Label htmlFor="task-assignee">
-                              {t("tasks.form.assignee")}
-                            </Label>
-                            <Controller
-                              control={control}
-                              name="assigneeId"
-                              render={({ field }) => (
-                                <Select
-                                  value={field.value}
-                                  onValueChange={field.onChange}
-                                >
-                                  <SelectTrigger
-                                    id="task-assignee"
-                                    className="w-full"
-                                  >
-                                    <SelectValue
-                                      placeholder={t("tasks.form.unassigned")}
-                                    />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {assignable.map((member) => (
-                                      <SelectItem
-                                        key={member.id}
-                                        value={member.id}
-                                      >
-                                        <span className="flex min-w-0 items-center gap-2">
-                                          <MemberAvatar
-                                            member={member}
-                                            size="sm"
-                                          />
-                                          <span className="truncate">
-                                            {member.name}
-                                          </span>
-                                        </span>
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              )}
-                            />
-                            <FieldError message={errors.assigneeId?.message} />
-                          </div>
+                          {movesTasks ? (
+                            <div className="flex min-w-0 flex-col gap-2">
+                              <Label>{t("tasks.form.participants")}</Label>
+                              <MultiSelect
+                                items={offeredPeople.map((member) => ({
+                                  value: member.id,
+                                  label: member.name,
+                                  icon: <MemberAvatar member={member} size="sm" />,
+                                }))}
+                                chosen={participantIds}
+                                onChange={(next) =>
+                                  setValue("participantIds", next, { shouldDirty: true })
+                                }
+                                placeholder={t("tasks.form.nobody")}
+                                ariaLabel={t("tasks.form.participants")}
+                                className="w-full"
+                              />
+                              {clientPeople.length > 0 ? (
+                                <p className="text-xs text-muted-foreground">
+                                  {t("tasks.form.clientPeopleNote")}
+                                </p>
+                              ) : null}
+                              <FieldError message={errors.participantIds?.message} />
+                            </div>
+                          ) : null}
                         </div>
                       ) : null}
                     </Block>

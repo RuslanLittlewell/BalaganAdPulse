@@ -1,12 +1,14 @@
 import type React from "react";
 import type { CSSProperties, Ref } from "react";
 import type { DraggableAttributes, DraggableSyntheticListeners } from "@dnd-kit/core";
-import { CalendarClock, Check, GripVertical, ListChecks, Paperclip, Repeat } from "lucide-react";
-import type { Task } from "@/entities/task/index.js";
-import { MemberAvatar, type Membership } from "@/entities/membership/index.js";
+import { CalendarClock, GripVertical, ListChecks, Paperclip, Repeat } from "lucide-react";
+import { timeRange, type Task } from "@/entities/task/index.js";
+import type { Membership } from "@/entities/membership/index.js";
 import { ProjectAvatar, type Project } from "@/entities/project/index.js";
 import { t } from "@/shared/config/index.js";
 import { cn } from "@/shared/lib/index.js";
+import { TaskParticipants } from "./TaskParticipants.js";
+import { TaskDoneCheck } from "./TaskDoneCheck.js";
 
 export interface TaskCardDrag {
   attributes: DraggableAttributes;
@@ -16,7 +18,7 @@ export interface TaskCardDrag {
 export interface TaskCardViewProps {
   task: Task;
   project?: Project;
-  assignee?: Membership;
+  people?: readonly Membership[];
   drag?: TaskCardDrag;
   placeholder?: boolean;
   showColumn?: boolean;
@@ -24,7 +26,7 @@ export interface TaskCardViewProps {
   style?: CSSProperties;
   ref?: Ref<HTMLElement>;
   onOpen?: (task: Task) => void;
-  onComplete?: (task: Task) => void;
+  onToggleDone?: (task: Task) => void;
 }
 
 const PRIORITY_TONE: Record<Task["priority"], string> = {
@@ -47,7 +49,7 @@ const PRIORITY_BAR: Record<Task["priority"], string> = {
 };
 
 export function TaskCardView({
-  task, project, assignee, drag, placeholder = false, showColumn = false, className, style, ref, onOpen, onComplete,
+  task, project, people = [], drag, placeholder = false, showColumn = false, className, style, ref, onOpen, onToggleDone,
 }: TaskCardViewProps) {
   const attachments = task.imageIds.length;
   const ticked = task.checklist.filter((item) => item.done).length;
@@ -115,28 +117,10 @@ export function TaskCardView({
         className="flex items-start justify-between gap-2"
         data-testid={`task-header-${task.id}`}
       >
-        <h3 className="min-w-0 line-clamp-3 text-sm font-medium leading-snug">{task.title}</h3>
-        {onComplete && task.repeatEvery !== "NONE" ? (
-          <button
-            type="button"
-            aria-label={t("tasks.complete")}
-            title={t("tasks.complete")}
-            data-testid={`task-complete-${task.id}`}
-            className={cn(
-              "shrink-0 rounded-md p-1 text-muted-foreground transition-colors",
-              "hover:bg-emerald-100 hover:text-emerald-700",
-              "dark:hover:bg-emerald-950 dark:hover:text-emerald-300",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            )}
-            onClick={(event) => {
-              event.stopPropagation();
-              onComplete(task);
-            }}
-            onKeyDown={(event) => event.stopPropagation()}
-          >
-            <Check aria-hidden className="size-4" />
-          </button>
-        ) : null}
+        <span className="flex min-w-0 items-start gap-2">
+          {onToggleDone ? <TaskDoneCheck task={task} onToggle={onToggleDone} /> : null}
+          <h3 className="min-w-0 line-clamp-3 text-sm font-medium leading-snug">{task.title}</h3>
+        </span>
         <span
           data-testid={`task-priority-${task.id}`}
           data-priority={task.priority}
@@ -163,7 +147,7 @@ export function TaskCardView({
             >
               <CalendarClock aria-hidden className="size-3" />
               {shortDay(task.dueDate)}
-              {task.dueTime ? ` ${task.dueTime}` : ""}
+              {task.dueTime ? ` ${timeRange(task)}` : ""}
               {task.repeatEvery === "NONE" ? null : (
                 <Repeat aria-hidden={false} aria-label={t("tasks.repeats")} className="size-3" />
               )}
@@ -207,20 +191,7 @@ export function TaskCardView({
           </span>
         </span>
 
-        {assignee ? (
-          <span
-            className="flex min-w-0 items-center gap-1.5"
-            data-testid={`task-assignee-${task.id}`}
-            title={assignee.name}
-          >
-            <MemberAvatar member={assignee} size="sm" />
-            <span className="truncate text-[8px] text-muted-foreground">{assignee.name}</span>
-          </span>
-        ) : (
-          <span className="shrink-0 text-xs text-muted-foreground">
-            {t("tasks.form.unassigned")}
-          </span>
-        )}
+        <TaskParticipants task={task} people={people} />
       </footer>
     </article>
   );

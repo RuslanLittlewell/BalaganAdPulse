@@ -8,14 +8,18 @@ import { Button, FadeContent, MultiSelect, Tabs } from "@/shared/ui/index.js";
 import { useModuleMemory } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import {
-  UNASSIGNED_TASK,
-  assigneeChoices,
-  tasksOfAssignees,
+  NO_PARTICIPANTS,
+  NO_PROJECT_TASK,
+  participantChoices,
+  projectChoices,
+  tasksOfParticipants,
+  tasksOfProjects,
   useTaskEvents,
   useTasks,
   type Task,
 } from "@/entities/task/index.js";
 import { MemberAvatar, useMembers } from "@/entities/membership/index.js";
+import { ProjectAvatar, useProjects } from "@/entities/project/index.js";
 
 const VIEWS = ["board", "calendar"] as const;
 
@@ -31,6 +35,7 @@ export function TasksPage() {
   const [opened, setOpened] = useState<OpenedTask>({ mode: "closed" });
   const { data: tasks, isLoading, isError } = useTasks();
   const { data: members } = useMembers();
+  const { data: projects } = useProjects();
   useTaskEvents();
 
   const userId = useAuth().user?.id ?? "";
@@ -39,16 +44,22 @@ export function TasksPage() {
   const [chosen, setChosen] = useState<View | null>(null);
   const view: View = chosen ?? (isView(remembered) ? remembered : "board");
 
-  const assignees = useModuleMemory((state) => state.taskAssignees[userId]) ?? EMPTY;
-  const rememberAssignees = useModuleMemory((state) => state.rememberTaskAssignees);
+  const chosenPeople = useModuleMemory((state) => state.taskParticipants[userId]) ?? EMPTY;
+  const rememberPeople = useModuleMemory((state) => state.rememberTaskParticipants);
+  const chosenProjects = useModuleMemory((state) => state.taskProjects[userId]) ?? EMPTY;
+  const rememberProjects = useModuleMemory((state) => state.rememberTaskProjects);
 
   const choices = useMemo(
-    () => assigneeChoices(tasks ?? [], members ?? [], assignees),
-    [tasks, members, assignees],
+    () => participantChoices(tasks ?? [], members ?? [], chosenPeople),
+    [tasks, members, chosenPeople],
+  );
+  const projectOptions = useMemo(
+    () => projectChoices(tasks ?? [], projects ?? [], chosenProjects),
+    [tasks, projects, chosenProjects],
   );
   const shown = useMemo(
-    () => tasksOfAssignees(tasks ?? [], assignees),
-    [tasks, assignees],
+    () => tasksOfProjects(tasksOfParticipants(tasks ?? [], chosenPeople), chosenProjects),
+    [tasks, chosenPeople, chosenProjects],
   );
 
   const open = (task: Task) => setOpened({ mode: "open", task });
@@ -60,17 +71,31 @@ export function TasksPage() {
           <MultiSelect
             items={choices.map((choice) => ({
               value: choice.id,
-              label: choice.id === UNASSIGNED_TASK
-                ? t("tasks.assignees.unassigned")
+              label: choice.id === NO_PARTICIPANTS
+                ? t("tasks.participants.nobody")
                 : choice.name,
               icon: choice.member
                 ? <MemberAvatar member={choice.member} size="sm" />
                 : undefined,
             }))}
-            chosen={assignees}
-            onChange={(next) => rememberAssignees(userId, next)}
-            placeholder={t("tasks.assignees.filter")}
-            ariaLabel={t("tasks.assignees.filterLabel")}
+            chosen={chosenPeople}
+            onChange={(next) => rememberPeople(userId, next)}
+            placeholder={t("tasks.participants.filter")}
+            ariaLabel={t("tasks.participants.filterLabel")}
+            className="max-w-52"
+          />
+          <MultiSelect
+            items={projectOptions.map((choice) => ({
+              value: choice.id,
+              label: choice.id === NO_PROJECT_TASK ? t("tasks.noProject") : choice.name,
+              icon: choice.project
+                ? <ProjectAvatar project={choice.project} size="sm" />
+                : undefined,
+            }))}
+            chosen={chosenProjects}
+            onChange={(next) => rememberProjects(userId, next)}
+            placeholder={t("tasks.projects.filter")}
+            ariaLabel={t("tasks.projects.filterLabel")}
             className="max-w-52"
           />
         </div>

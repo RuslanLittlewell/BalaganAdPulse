@@ -19,14 +19,15 @@ function handle<TRequest extends Request>(
 const memberQuerySchema = z.object({
   kind: z.enum(MEMBER_KINDS).optional(),
   clientId: z.uuid().optional(),
+  projectId: z.uuid().optional(),
 });
 
 export function createMemberRouter(useCases: MemberUseCases): Router {
   const router = Router();
   router.get("/", handle(async (req, res) => {
-    const { kind, clientId } = memberQuerySchema.parse(req.query);
+    const { kind, clientId, projectId } = memberQuerySchema.parse(req.query);
     res.json(clientId
-      ? await useCases.listOfClient(actorOf(req), clientId)
+      ? await useCases.listOfClient(actorOf(req), clientId, projectId)
       : await useCases.list(actorOf(req), kind));
   }));
   router.get("/:id/avatar", handle(async (req: Request<{ id: string }>, res) => {

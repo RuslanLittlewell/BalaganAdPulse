@@ -6,12 +6,11 @@ export interface BlockValues {
   checklistLength: number;
   dueDate: string | null;
   projectId: string;
-  assigneeId: string;
+  participantCount: number;
 }
 
 export interface BlockPlaceholders {
   noProject: string;
-  unassigned: string;
 }
 
 export function filledBlocks(values: BlockValues, empty: BlockPlaceholders): TaskBlock[] {
@@ -19,7 +18,7 @@ export function filledBlocks(values: BlockValues, empty: BlockPlaceholders): Tas
     if (block === "checklist") return values.checklistLength > 0;
     if (block === "dates") return values.dueDate !== null;
     return values.projectId !== empty.noProject
-      || values.assigneeId !== empty.unassigned;
+      || values.participantCount > 0;
   });
 }
 

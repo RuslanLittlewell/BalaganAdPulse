@@ -17,7 +17,7 @@ import { TaskImage } from "./TaskImageNode.js";
 import { taskImagesApi } from "@/entities/task/index.js";
 import { t } from "@/shared/config/index.js";
 import { ApiError, cn } from "@/shared/lib/index.js";
-import { EditorToolbarButton, RICH_TEXT_CLASS, Separator } from "@/shared/ui/index.js";
+import { EditorToolbarButton, RICH_TEXT_CLASS, Separator, followLink } from "@/shared/ui/index.js";
 import { WarmTooltipGroup } from "@/shared/ui/WarmTooltip/WarmTooltip.js";
 
 export interface TaskDescriptionEditorProps {
@@ -129,7 +129,7 @@ export const TaskDescriptionEditor = forwardRef<
       Link.configure({
         autolink: true,
         linkOnPaste: true,
-        openOnClick: !editable,
+        openOnClick: false,
         HTMLAttributes: {
           class: "text-primary underline underline-offset-4",
           rel: "noopener noreferrer",
@@ -221,7 +221,8 @@ export const TaskDescriptionEditor = forwardRef<
   return (
     <div
       className={cn("rounded-md border", className)}
-      onClick={() => {
+      onClick={(event) => {
+        if (followLink(event)) return;
         if (editable) editor?.commands.focus();
       }}
       onDrop={handleDrop}

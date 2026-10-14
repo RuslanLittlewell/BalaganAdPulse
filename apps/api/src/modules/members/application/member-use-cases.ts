@@ -77,12 +77,12 @@ export function createMemberUseCases(
       return dependencies.directory.listByOrg(actor.orgId, kind);
     },
 
-    listOfClient: async (actor: ActorContext, clientId: string) => {
-      assertCan(actor, "read");
+    listOfClient: async (actor: ActorContext, clientId: string, projectId?: string) => {
+      if (actor.role !== "MANAGER") assertCan(actor, "read");
       if (!(await dependencies.clients.reachableClientIds(actor)).includes(clientId)) {
         throw new AppError("not-found", "Client not found");
       }
-      return dependencies.directory.listByClient(actor.orgId, clientId);
+      return dependencies.directory.listByClient(actor.orgId, clientId, projectId);
     },
 
     avatar: async (actor: ActorContext, id: string): Promise<Uint8Array> => {

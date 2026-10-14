@@ -303,7 +303,7 @@ export function ProjectPage() {
                     setOpened({
                       mode: "create",
                       projectId: project.id,
-                      assigneeId: me?.id,
+                      participantIds: me ? [me.id] : undefined,
                     })
                 : undefined
             }

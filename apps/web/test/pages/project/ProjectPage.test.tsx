@@ -430,7 +430,7 @@ describe("the work in flight under a project", () => {
       mock.get("/api/tasks", () => HttpResponse.json(stored)),
       mock.post("/api/tasks", async ({ request }) => {
         body = await request.json() as Record<string, unknown>;
-        const task = aTask({ id: "t-new", projectId: "p1", title: String(body.title), column: "IDEA", assigneeId: String(body.assigneeId) });
+        const task = aTask({ id: "t-new", projectId: "p1", title: String(body.title), column: "IDEA", participantIds: body.participantIds as string[] });
         stored.push(task);
         return HttpResponse.json(task, { status: 201 });
       }),
@@ -440,12 +440,12 @@ describe("the work in flight under a project", () => {
     await user.click(await screen.findByRole("button", { name: "Новая задача" }));
     const dialog = await screen.findByRole("dialog");
     await waitFor(() => expect(within(dialog).getByLabelText("Проект")).toHaveTextContent("Клиника"));
-    expect(within(dialog).getByLabelText("Ответственный")).toHaveTextContent("Buyer");
+    expect(within(dialog).getByRole("button", { name: "Участники" })).toHaveTextContent("Buyer");
     await user.type(within(dialog).getByLabelText("Название"), "Обновить креативы");
     await user.click(within(dialog).getByRole("button", { name: "Создать задачу" }));
 
     expect(await screen.findByRole("button", { name: /Обновить креативы/ })).toBeInTheDocument();
-    expect(body).toMatchObject({ title: "Обновить креативы", projectId: "p1", assigneeId: "m-1" });
+    expect(body).toMatchObject({ title: "Обновить креативы", projectId: "p1", participantIds: ["m-1"] });
   });
 
   it("lets the task be given to a colleague before it is saved", async () => {
@@ -464,11 +464,13 @@ describe("the work in flight under a project", () => {
     await user.click(await screen.findByRole("button", { name: "Новая задача" }));
     const dialog = await screen.findByRole("dialog");
     await user.type(within(dialog).getByLabelText("Название"), "Проверить пиксель");
-    await user.click(within(dialog).getByLabelText("Ответственный"));
-    await user.click(await screen.findByRole("option", { name: "Коллега" }));
+    await user.click(within(dialog).getByRole("button", { name: "Участники" }));
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Коллега" }));
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Buyer" }));
+    await user.keyboard("{Escape}");
     await user.click(within(dialog).getByRole("button", { name: "Создать задачу" }));
 
-    await waitFor(() => expect(body).toMatchObject({ projectId: "p1", assigneeId: "m-2" }));
+    await waitFor(() => expect(body).toMatchObject({ projectId: "p1", participantIds: ["m-2"] }));
   });
 
   it("offers a guest no new task beside the tasks in flight", async () => {

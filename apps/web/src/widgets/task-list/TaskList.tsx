@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { AddTile } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
 import { useMembers } from "@/entities/membership/index.js";
 import { useProjects } from "@/entities/project/index.js";
-import type { Task } from "@/entities/task/index.js";
-import { TaskCardView } from "@/features/task-management/index.js";
+import { participantsOf, type Task } from "@/entities/task/index.js";
+import { useCan } from "@/features/permissions/index.js";
+import { TaskCardView, useDoneToggle } from "@/features/task-management/index.js";
 
 export interface TaskListProps {
   title: string;
@@ -16,10 +18,14 @@ export interface TaskListProps {
 export function TaskList({ title, tasks, onOpen, onCreate, empty }: TaskListProps) {
   const { data: members } = useMembers();
   const { data: projects } = useProjects();
+  const updatable = useCan("update", "task");
+  const [failure, setFailure] = useState<string | null>(null);
+  const toggleDone = useDoneToggle(setFailure);
 
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+      {failure ? <p role="alert" className="text-sm text-destructive">{failure}</p> : null}
       {tasks.length === 0 && onCreate == null ? (
         <p className="rounded-lg border border-border p-6 text-center text-sm text-muted-foreground">
           {empty ?? t("tasks.empty")}
@@ -31,10 +37,13 @@ export function TaskList({ title, tasks, onOpen, onCreate, empty }: TaskListProp
               <TaskCardView
                 task={task}
                 project={projects?.find((project) => project.id === task.projectId)}
-                assignee={members?.find((member) => member.id === task.assigneeId)}
+                people={participantsOf(task, members)}
                 showColumn
                 className="h-full"
                 onOpen={onOpen}
+                onToggleDone={updatable
+                  ? (held) => { setFailure(null); toggleDone(held); }
+                  : undefined}
               />
             </li>
           ))}

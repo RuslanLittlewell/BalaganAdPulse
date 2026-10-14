@@ -194,9 +194,10 @@ What a member sees on the board SHALL be narrowed by whose work it is, not only 
 projects they reach:
 
 - An `ADMIN` SHALL see every task in the organization.
-- A `MANAGER` or `GUEST` SHALL see only the tasks they are responsible for. There is no
-  exception: a task nobody is responsible for is seen by admins alone until one of them
-  makes somebody responsible for it.
+- A `MANAGER` or `GUEST` SHALL see the tasks they are responsible for, and the tasks
+  nobody is responsible for that they created. A task nobody is responsible for is
+  otherwise seen by admins alone; once somebody is made responsible for it, it is seen
+  by that member and no longer by its creator.
 - A `CLIENT` or `CLIENT_ADMIN` SHALL see only the tasks marked visible to the client, on
   the projects they reach. The two customer roles see the same work: the second
   administers people, not tasks.
@@ -215,7 +216,21 @@ board cannot be used to learn that somebody else's work exists.
 #### Scenario: A task nobody is responsible for
 
 - **WHEN** a task on a granted project has no responsible member
-- **THEN** no manager or guest sees it, and every admin does
+- **THEN** the manager or guest who created it sees it, no other manager or guest does,
+  and every admin does
+
+#### Scenario: Creating a task with nobody responsible
+
+- **WHEN** a manager creates a task on a granted project, leaves nobody responsible and
+  opens the board
+- **THEN** the task is on their board, they can open it by its address, and their other
+  open boards receive it live
+
+#### Scenario: A task the creator left unassigned is handed on
+
+- **WHEN** an admin makes a colleague responsible for a task a manager created with nobody
+  responsible
+- **THEN** it leaves the creator's board and appears on the colleague's
 
 #### Scenario: An admin hands a task to a manager
 
@@ -308,12 +323,18 @@ Marking a task visible SHALL NOT change who is responsible for it or which stage
 ### Requirement: A task may carry a due date
 
 A task SHALL optionally carry a due date: a calendar day, and on that day an optional time
-of day. A task SHALL NOT carry a time of day without a day. The day SHALL be the same
-calendar day for every member whatever their machine's clock or time zone, and the time of
-day SHALL be read as the agency's wall clock rather than converted for the reader.
+of day it starts at and, when it has one, an optional time of day it ends at. A task SHALL NOT
+carry a time of day without a day, nor an end without a start, and its end SHALL be later than
+its start on the same day, at the latest 24:00, the end of that day. The day SHALL be the same calendar day for every member whatever their
+machine's clock or time zone, and the times of day SHALL be read as the agency's wall clock
+rather than converted for the reader.
 
 Setting, changing and clearing the due date SHALL be permitted at any time, and SHALL leave
-the task's column and position untouched.
+the task's column and position untouched. Clearing the start SHALL clear the end. Changing the
+start of a task that has an end, without naming a new end, SHALL keep the task's length, and
+SHALL be refused when that would carry the end past the end of the day.
+
+Wherever a task's time of day is shown, its end SHALL be shown with it, as 12:00–13:00.
 
 #### Scenario: A task without a due date
 
@@ -328,18 +349,66 @@ the task's column and position untouched.
 #### Scenario: A day with a time
 
 - **WHEN** a member sets a task's due date to 25 September at 12:00
-- **THEN** the task reads back as due on 25 September at 12:00
+- **THEN** the task reads back as due on 25 September at 12:00, with no end
+
+#### Scenario: A time with an end
+
+- **WHEN** a member sets a task's due date to 25 September from 12:00 to 13:30
+- **THEN** the task reads back as due on 25 September from 12:00 to 13:30, and its card shows
+  25.09 12:00–13:30
 
 #### Scenario: A time without a day
 
 - **WHEN** a request names a time of day for a task that has no due date and names no day
 - **THEN** the API responds 400 and the task's due date is unchanged
 
+#### Scenario: An end without a start
+
+- **WHEN** a request names an end for a task that has a day and no start
+- **THEN** the API responds 400 and the task is unchanged
+
+#### Scenario: An end before the start
+
+- **WHEN** a request sets a task from 12:00 to 11:00, or from 12:00 to 12:00
+- **THEN** the API responds 400 and the task is unchanged
+
+#### Scenario: Until the end of the day
+
+- **WHEN** a member sets a task from 22:00 to 24:00
+- **THEN** the task reads back as due from 22:00 to 24:00
+
+#### Scenario: Past the end of the day
+
+- **WHEN** a request names an end of 24:30 or 01:00 for a task starting at 23:00
+- **THEN** the API responds 400 and the task is unchanged
+
+#### Scenario: Moving the start keeps the length
+
+- **WHEN** a member moves the start of a task due from 12:00 to 13:30 to 15:00 without naming an
+  end
+- **THEN** the task is due from 15:00 to 16:30
+
+#### Scenario: Moving the start past the end of the day
+
+- **WHEN** a member moves the start of a task due from 12:00 to 14:00 to 23:00 without naming an
+  end
+- **THEN** the API responds 400 and the task is unchanged
+
+#### Scenario: Clearing the start
+
+- **WHEN** a member clears the time of day of a task due from 12:00 to 13:00
+- **THEN** the task is stored with its day, no start and no end
+
 #### Scenario: Clearing the due date
 
 - **WHEN** a member clears the due date of a task that had one
-- **THEN** the task is stored with no due date and no time of day, and keeps its column and
-  position
+- **THEN** the task is stored with no due date, no time of day and no end, and keeps its column
+  and position
+
+#### Scenario: The times survive completion
+
+- **WHEN** a member completes a task repeating weekly, due Wednesday from 12:00 to 13:00
+- **THEN** it is due the next Wednesday from 12:00 to 13:00
 
 #### Scenario: The day does not drift
 
@@ -474,9 +543,17 @@ not have SHALL fall on that month's last day.
 
 ### Requirement: A task is composed from the blocks of content it is given
 
-The task form SHALL open showing only a title, a description and a priority. The checklist,
-the dates and the block that names a project and a responsible member SHALL NOT be shown
-until they are asked for.
+The task form SHALL open showing only a title, a description, a priority and, to a member
+permitted to change tasks, the task's stage. The checklist, the dates and the block that names a
+project and a responsible member SHALL NOT be shown until they are asked for, unless the new task
+already carries a value for them.
+
+A new task SHALL start with the member filling in the form as its responsible member
+whenever the responsible-member picker offers them, unless the form was opened for
+another responsible member. The `Назначить` block is then shown from the start with them
+chosen, and they MAY pick somebody else, clear the field or remove the block before
+saving. A member the picker does not offer, such as a customer, SHALL start with nobody
+responsible.
 
 A row of controls under the title SHALL offer each block a task does not yet show —
 `Чек-лист`, `Даты` and `Назначить`. Choosing one SHALL show that block and SHALL take it out
@@ -495,11 +572,23 @@ place and SHALL NOT be part of the row.
 Whether the task is visible to the client SHALL NOT be a block: it belongs in the dialog's
 footer, next to the controls that act on the task as a whole.
 
+#### Scenario: A new task starts with its creator responsible
+
+- **WHEN** a manager opens the form to create a task
+- **THEN** the title, the description, the priority and the stage are shown, the `Назначить`
+  block is shown with the manager chosen as responsible and no project, and no checklist or due
+  date is
+
+#### Scenario: Saving without touching the responsible member
+
+- **WHEN** a manager creates a task without changing who is responsible
+- **THEN** the task is stored with the manager as its responsible member
+
 #### Scenario: A new task starts bare
 
-- **WHEN** a member opens the form to create a task
-- **THEN** the title, the description and the priority are shown, and no checklist, due date,
-  project or responsible member is
+- **WHEN** a client opens the form to create a task
+- **THEN** the title, the description and the priority are shown, and no stage, checklist, due
+  date, project or responsible member is
 
 #### Scenario: Adding a block
 
@@ -696,29 +785,8 @@ be left out: the list answers "what is being worked on", not "what has ever exis
 #### Scenario: A project with nothing in flight
 
 - **WHEN** every task under a project is done or archived
-- **THEN** the project says there is no work in flight rather than showing an empty table
-
-### Requirement: A task can be read from its project without being changed
-
-Opening a task from a project's list SHALL show it read-only: its title, description as
-written, stage, priority, project and responsible member, with no control that edits, moves
-or deletes it. The description SHALL render the same content the editor would show,
-including the images it references.
-
-This screen is for reading; the board is where work is managed. A read-only view SHALL be
-offered whatever the member's role, since it grants nothing beyond what listing the task
-already did.
-
-#### Scenario: Opening a task from a project
-
-- **WHEN** a member opens a task from the project's list
-- **THEN** the task's title, description, stage, priority and responsible member are shown,
-  and no control changes any of them
-
-#### Scenario: Closing the view
-
-- **WHEN** the member closes the dialog
-- **THEN** the list is still shown, unchanged
+- **THEN** the project says there is no work in flight rather than showing an empty table,
+  unless the member may create tasks, who is offered the Новая задача tile in its place
 
 ### Requirement: The task module can be narrowed to chosen responsible members
 
@@ -825,3 +893,311 @@ is no longer offered SHALL still show that member as selected.
 #### Scenario: Suspended members are not offered
 - **WHEN** a member opens the responsible-member picker and a colleague is suspended
 - **THEN** that colleague is not offered
+
+### Requirement: A task can be raised from its project
+
+The list of a project's work in flight SHALL offer a Новая задача tile to a member who may
+create tasks, after the tasks it lists, or alone in place of the note that nothing is in
+flight. It SHALL NOT be offered to anyone else. Choosing it SHALL open the task form
+for a new task that already names that project and, when the member is among the
+responsible members the form offers, names the member themselves as responsible; the
+`Назначить` block SHALL therefore be shown from the start. Both SHALL stay changeable before
+the task is saved. A task saved this way SHALL appear in the project's list while it is in
+flight.
+
+#### Scenario: Raising a task for oneself
+
+- **WHEN** a manager chooses Новая задача under a project, enters a title and saves
+- **THEN** the task is stored under that project with the manager responsible for it, and
+  appears in the project's work in flight
+
+#### Scenario: The form opens assigned
+
+- **WHEN** a manager chooses Новая задача under a project
+- **THEN** the form shows the `Назначить` block naming that project and the manager, and
+  does not offer `Назначить` in the row
+
+#### Scenario: Giving it to a colleague
+
+- **WHEN** the manager picks a colleague as responsible before saving
+- **THEN** the task is stored with the colleague responsible for it
+
+#### Scenario: The tile follows the tasks
+
+- **WHEN** a manager opens a project with two tasks in flight
+- **THEN** the Новая задача tile comes after both tasks
+
+#### Scenario: The tile in place of an empty list
+
+- **WHEN** a manager opens a project with nothing in flight
+- **THEN** the Новая задача tile is shown alone, without the note that nothing is in flight
+
+#### Scenario: A member who may not create tasks
+
+- **WHEN** a guest opens a project
+- **THEN** its work in flight offers no Новая задача tile
+
+### Requirement: A task opens from its project as it does in the task module
+
+Choosing a task in a project's list of work in flight SHALL open it exactly as choosing it on
+the task board does: in the task form, where it can be changed, saved and deleted after
+confirmation, for a member who may update tasks; read-only, with no control that changes
+it, for anyone else. A change saved there SHALL show in the project's list at once, and a
+task deleted or moved out of the in-flight stages SHALL leave it.
+
+#### Scenario: A manager opens a task from a project
+
+- **WHEN** a manager chooses a task in a project's work in flight
+- **THEN** the task form opens holding that task's values
+
+#### Scenario: Saving a change
+
+- **WHEN** the manager renames the task in that form and saves
+- **THEN** the project's list shows the new title
+
+#### Scenario: Deleting from the project
+
+- **WHEN** the manager deletes the task from that form and confirms
+- **THEN** the task is deleted and leaves the project's list
+
+#### Scenario: A guest opens a task from a project
+
+- **WHEN** a guest chooses a task in a project's work in flight
+- **THEN** the task is shown read-only, with no control that changes it
+
+### Requirement: A task in flight is shown as the board shows it
+
+Each task in a project's list of work in flight SHALL be shown on the same card as on the
+task board — its title, priority, due date with its time of day and a mark when it
+repeats, checklist progress, attachments, project and responsible member — with its stage
+added, since the list has no columns to show it, and with no control for dragging it.
+Cards SHALL take the height their content needs.
+
+#### Scenario: A task with everything
+
+- **WHEN** a task in flight is due on 2 October at 14:00 every day, has 2 of 3 checklist
+  items ticked and 2 attachments
+- **THEN** its card shows 02.10 14:00 with a repeat mark, 2/3 and 2 attachments, beside its
+  title, priority, stage and responsible member
+
+#### Scenario: A bare task
+
+- **WHEN** a task in flight has no due date, checklist or attachments
+- **THEN** its card shows nothing standing in for them
+
+#### Scenario: Nothing to drag
+
+- **WHEN** a manager looks at a project's work in flight
+- **THEN** no card offers a control for dragging it
+
+### Requirement: A task is closed and reopened from its card
+
+Every task card — on the board, in the calendar and in a project's list of work in flight —
+SHALL carry a Готово checkbox for a member permitted to change tasks, and SHALL carry none for
+anyone else. The checkbox SHALL be ticked exactly when the task is in `DONE`, SHALL expose that
+state and the task's title in its accessible name, and SHALL be reachable and toggled from the
+keyboard. Toggling it SHALL NOT open the task or start dragging its card.
+
+- Ticking it on a task that does not repeat SHALL move the task to the first position of `DONE`,
+  as one move that obeys every rule a dragged move does: it is atomic, renumbers both columns,
+  is audited, and is refused for a member who may not change tasks.
+- Unticking it on a task in `DONE` SHALL move the task to the first position of `IN_PROGRESS`
+  the same way.
+- Ticking it on a repeating task that is not in `DONE` SHALL complete the task into its next
+  occurrence, leaving it in its column and the checkbox unticked. This SHALL be the only
+  completion control a card offers.
+
+The card SHALL be drawn in its new state immediately, without waiting for the response, and a
+refused change SHALL restore it and tell the member it did not happen.
+
+#### Scenario: Closing a task from the board
+
+- **WHEN** a manager ticks Готово on a task sitting third in `IN_PROGRESS`
+- **THEN** the task is first in `DONE` with its checkbox ticked, and the cards that were below it
+  in `IN_PROGRESS` move up by one
+
+#### Scenario: Reopening a task
+
+- **WHEN** a manager unticks Готово on a task in `DONE`
+- **THEN** the task is first in `IN_PROGRESS` with its checkbox unticked
+
+#### Scenario: Closing a task from the calendar
+
+- **WHEN** a manager ticks Готово on a calendar card of a task that does not repeat
+- **THEN** the task is in `DONE`, stays on its day, and its checkbox is ticked
+
+#### Scenario: Closing a task from a project
+
+- **WHEN** a manager ticks Готово on a task in a project's list of work in flight
+- **THEN** the task is in `DONE` and leaves the list
+
+#### Scenario: Completing a weekly call
+
+- **WHEN** a manager ticks Готово on a call repeating weekly, due Wednesday, sitting in
+  `IN_PROGRESS`
+- **THEN** the call is due the next Wednesday, stays where it was in `IN_PROGRESS`, and its
+  checkbox is unticked
+
+#### Scenario: A guest sees no checkbox
+
+- **WHEN** a guest opens the board, the calendar or a project
+- **THEN** no card carries a Готово checkbox
+
+#### Scenario: The change is refused
+
+- **WHEN** the server refuses a tick
+- **THEN** the card returns to where it was with its checkbox as it was, and the member is told
+  the change did not happen
+
+#### Scenario: Ticking does not open the task
+
+- **WHEN** a manager ticks Готово on a card
+- **THEN** the task form does not open
+
+#### Scenario: From the keyboard
+
+- **WHEN** a manager moves focus to a card's Готово checkbox and presses Space
+- **THEN** the task is closed exactly as a click would close it
+
+#### Scenario: The move is recorded
+
+- **WHEN** a manager closes a task with its checkbox
+- **THEN** an audit event records that member, that task, and the move into `DONE`
+
+### Requirement: The task module can be narrowed to chosen projects
+
+The task module SHALL offer, next to the responsible-member filter, a filter by project choosing
+any number of projects at once. Choosing none SHALL mean the module shows everything it otherwise
+would; choosing one or more SHALL show only the tasks of those projects.
+
+The filter SHALL list the projects of the tasks the member can already see, not every project of
+the organization, so the list answers whose work is on this board. Each SHALL be shown by name
+with its avatar. A Без проекта entry SHALL be offered while a task with no project is visible,
+and choosing it SHALL include those tasks. A project that is chosen SHALL stay listed even when no
+visible task belongs to it any more, so it can be unchosen.
+
+The filter SHALL belong to the module rather than to one of its views: it SHALL narrow the board
+and the calendar alike, and switching between them SHALL keep it. It SHALL combine with the
+responsible-member filter, a task being shown only when it passes both. It SHALL narrow only what
+reach and the own-work rule already allow, and SHALL NOT widen it.
+
+The chosen projects SHALL be remembered for the member who chose them, survive leaving the module
+and reloading the app, and SHALL NOT be shown to another member.
+
+#### Scenario: Narrowing to one project
+
+- **WHEN** a member whose board carries tasks of several projects chooses Сайт in the filter
+- **THEN** only the tasks of Сайт are shown
+
+#### Scenario: Narrowing to several projects
+
+- **WHEN** the member chooses Магазин as well
+- **THEN** the tasks of both projects are shown, and no others
+
+#### Scenario: Choosing nothing shows everything
+
+- **WHEN** no project is chosen in the filter
+- **THEN** every task the member would otherwise see is shown
+
+#### Scenario: The list names the projects on the board
+
+- **WHEN** a member opens the filter
+- **THEN** it lists, each with its avatar, the projects of the tasks that member can see, and
+  no other project
+
+#### Scenario: Tasks with no project
+
+- **WHEN** a task with no project is visible and the member chooses Без проекта
+- **THEN** the tasks with no project are shown
+
+#### Scenario: Nothing without a project
+
+- **WHEN** every visible task belongs to a project
+- **THEN** the filter offers no Без проекта entry
+
+#### Scenario: With a responsible member chosen
+
+- **WHEN** a member chooses Сайт in the project filter and Мария in the responsible-member filter
+- **THEN** only the tasks of Сайт that Мария is responsible for are shown
+
+#### Scenario: The same filter on the calendar
+
+- **WHEN** a member narrows the board to Сайт and switches to the calendar
+- **THEN** the calendar shows the tasks of Сайт alone, with the filter still chosen
+
+#### Scenario: The last task of a chosen project leaves
+
+- **WHEN** the only visible task of a chosen project is deleted
+- **THEN** the project is still listed and chosen, and can be unchosen
+
+#### Scenario: The filter survives a reload
+
+- **WHEN** a member chooses Сайт and reloads the app
+- **THEN** Сайт is still chosen and the module is still narrowed to it
+
+#### Scenario: Another member's own filter
+
+- **WHEN** a second member opens the task module on the same browser
+- **THEN** their project filter is their own, unaffected by what the first member chose
+
+### Requirement: The task form shows and changes the task's stage
+
+The task form's header SHALL offer, next to the priority, an Этап select to a member permitted to
+change tasks, and to nobody else. It SHALL list the six stages in the board's order and SHALL show
+the task's current stage; for a new task it SHALL show the stage the task will be created in — the
+column the form was opened from, or `IDEA`.
+
+The chosen stage SHALL take effect when the task is saved and not before, exactly as a change to
+the title does. Saving an existing task with another stage chosen SHALL move it to the first
+position of that stage, as one move that obeys every rule a dragged move does; saving it with its
+stage unchanged SHALL leave its column and position untouched. A new task SHALL be created in the
+stage chosen. A refused move SHALL leave the task where it was, keep the form open and tell the
+member the move did not happen.
+
+#### Scenario: The current stage is shown
+
+- **WHEN** a manager opens a task sitting in `IN_PROGRESS`
+- **THEN** the form's header shows Этап: В работе, next to the priority
+
+#### Scenario: Every stage is offered
+
+- **WHEN** a manager opens the Этап select
+- **THEN** it lists Идея, В работе, На исправление, На проверке, Готово and Архив, in the board's
+  order
+
+#### Scenario: Moving a task from its form
+
+- **WHEN** a manager chooses На проверке for a task in `IN_PROGRESS` and saves
+- **THEN** the task is first in `IN_REVIEW`, and the cards that were below it in `IN_PROGRESS`
+  move up by one
+
+#### Scenario: Saving without changing the stage
+
+- **WHEN** a manager renames a task sitting third in `IN_PROGRESS` and saves
+- **THEN** the task is still third in `IN_PROGRESS`
+
+#### Scenario: Closing without saving
+
+- **WHEN** a manager chooses Готово and closes the form without saving
+- **THEN** the task is in the stage it was in
+
+#### Scenario: A new task from a column
+
+- **WHEN** a manager opens the form from the `NEEDS_FIX` column's add control
+- **THEN** Этап shows На исправление, and the task saved from it is created in `NEEDS_FIX`
+
+#### Scenario: Choosing a stage for a new task
+
+- **WHEN** a manager creating a task chooses В работе and saves
+- **THEN** the task is created in `IN_PROGRESS`
+
+#### Scenario: A client is not offered it
+
+- **WHEN** a client opens the form to raise a task
+- **THEN** no Этап select is shown, and the task is created in `IDEA`
+
+#### Scenario: The move is refused
+
+- **WHEN** the server refuses the move of a task whose stage was changed in its form
+- **THEN** the task stays in its stage, the form stays open, and the member is told the move did
+  not happen

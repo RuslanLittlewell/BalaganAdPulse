@@ -83,12 +83,12 @@ describe("adding a block", () => {
     expect(offered()).toEqual(["Чек-лист", "Назначить"]);
   });
 
-  it("shows the project and the responsible member together", async () => {
+  it("shows the project and the participants together", async () => {
     creating();
     await userEvent.click(await screen.findByRole("button", { name: "Назначить" }));
 
     expect(screen.getByRole("combobox", { name: "Проект" })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Ответственный" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Участники" })).toBeInTheDocument();
     expect(offered()).toEqual(["Чек-лист", "Даты"]);
   });
 });
@@ -108,10 +108,10 @@ describe("a task that already carries a value", () => {
   });
 
   it("shows the assignment a task already has", async () => {
-    edit({ assigneeId: "member-1" });
+    edit({ participantIds: ["member-1"] });
     await screen.findByLabelText("Название");
 
-    expect(screen.getByRole("combobox", { name: "Ответственный" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Участники" })).toBeInTheDocument();
     expect(offered()).toEqual(["Чек-лист", "Даты"]);
   });
 
@@ -136,12 +136,12 @@ describe("removing a block", () => {
     }));
   });
 
-  it("leaves the task with nobody responsible", async () => {
-    edit({ projectId: null, assigneeId: "member-1" });
+  it("leaves the task with nobody taking part", async () => {
+    edit({ projectId: null, participantIds: ["member-1"] });
     await userEvent.click(await screen.findByRole("button", { name: "Убрать назначение" }));
     await save();
 
-    await waitFor(() => expect(sent).toMatchObject({ assigneeId: null }));
+    await waitFor(() => expect(sent).toMatchObject({ participantIds: [] }));
   });
 
   it("empties the checklist", async () => {

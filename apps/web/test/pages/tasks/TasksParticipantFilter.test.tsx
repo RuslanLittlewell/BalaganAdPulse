@@ -13,9 +13,10 @@ const members = [
 const today = new Date().toISOString().slice(0, 10);
 
 const board = [
-  aTask({ id: "t1", title: "Пишет Пётр", assigneeId: "m1", dueDate: today }),
-  aTask({ id: "t2", title: "Пишет Анна", assigneeId: "m2", dueDate: today }),
-  aTask({ id: "t3", title: "Ничей", assigneeId: null, dueDate: today }),
+  aTask({ id: "t1", title: "Пишет Пётр", participantIds: ["m1"], dueDate: today }),
+  aTask({ id: "t2", title: "Пишет Анна", participantIds: ["m2"], dueDate: today }),
+  aTask({ id: "t3", title: "Ничей", dueDate: today }),
+  aTask({ id: "t4", title: "Вдвоём", participantIds: ["m1", "m2"], dueDate: today }),
 ];
 
 function serve(tasks = board) {
@@ -27,21 +28,21 @@ function serve(tasks = board) {
 }
 
 beforeEach(() => {
-  useModuleMemory.setState({ taskViews: {}, taskAssignees: {} });
+  useModuleMemory.setState({ taskViews: {}, taskParticipants: {} });
   serve();
 });
 
 const setup = () => renderWithProviders(<TasksPage />, { route: "/tasks" });
 
-const filter = () => screen.getByRole("button", { name: "Фильтр по ответственным" });
+const filter = () => screen.getByRole("button", { name: "Фильтр по участникам" });
 const openFilter = async (user: ReturnType<typeof userEvent.setup>) => user.click(filter());
 const choose = async (user: ReturnType<typeof userEvent.setup>, name: string) =>
   user.click(await screen.findByRole("menuitemcheckbox", { name }));
 
 const shown = () =>
-  ["Пишет Пётр", "Пишет Анна", "Ничей"].filter((title) => screen.queryByText(title) !== null);
+  ["Пишет Пётр", "Пишет Анна", "Ничей", "Вдвоём"].filter((title) => screen.queryByText(title) !== null);
 
-describe("narrowing the task module to chosen members", () => {
+describe("narrowing the task module to chosen participants", () => {
   it("offers the filter in the module's header", async () => {
     setup();
     await screen.findByText("Пишет Пётр");
@@ -53,7 +54,7 @@ describe("narrowing the task module to chosen members", () => {
     setup();
     await screen.findByText("Пишет Пётр");
 
-    expect(shown()).toEqual(["Пишет Пётр", "Пишет Анна", "Ничей"]);
+    expect(shown()).toEqual(["Пишет Пётр", "Пишет Анна", "Ничей", "Вдвоём"]);
   });
 
   it("shows one chosen member's work alone", async () => {
@@ -64,7 +65,7 @@ describe("narrowing the task module to chosen members", () => {
     await openFilter(user);
     await choose(user, "Пётр");
 
-    await waitFor(() => expect(shown()).toEqual(["Пишет Пётр"]));
+    await waitFor(() => expect(shown()).toEqual(["Пишет Пётр", "Вдвоём"]));
   });
 
   it("shows the work of everyone chosen", async () => {
@@ -76,7 +77,7 @@ describe("narrowing the task module to chosen members", () => {
     await choose(user, "Пётр");
     await choose(user, "Анна");
 
-    await waitFor(() => expect(shown()).toEqual(["Пишет Пётр", "Пишет Анна"]));
+    await waitFor(() => expect(shown()).toEqual(["Пишет Пётр", "Пишет Анна", "Вдвоём"]));
   });
 
   it("shows everything again once the last chosen member is unchosen", async () => {
@@ -86,26 +87,26 @@ describe("narrowing the task module to chosen members", () => {
 
     await openFilter(user);
     await choose(user, "Пётр");
-    await waitFor(() => expect(shown()).toEqual(["Пишет Пётр"]));
+    await waitFor(() => expect(shown()).toEqual(["Пишет Пётр", "Вдвоём"]));
     await choose(user, "Пётр");
 
-    await waitFor(() => expect(shown()).toEqual(["Пишет Пётр", "Пишет Анна", "Ничей"]));
+    await waitFor(() => expect(shown()).toEqual(["Пишет Пётр", "Пишет Анна", "Ничей", "Вдвоём"]));
   });
 
-  it("picks out the work nobody holds", async () => {
+  it("picks out the work nobody takes part in", async () => {
     const user = userEvent.setup();
     setup();
     await screen.findByText("Ничей");
 
     await openFilter(user);
-    await choose(user, "Не назначен");
+    await choose(user, "Без участников");
 
     await waitFor(() => expect(shown()).toEqual(["Ничей"]));
   });
 
   it("lists the members whose work is on the board, and nobody else", async () => {
     const user = userEvent.setup();
-    serve([aTask({ id: "t1", title: "Пишет Пётр", assigneeId: "m1" })]);
+    serve([aTask({ id: "t1", title: "Пишет Пётр", participantIds: ["m1"] })]);
     setup();
     await screen.findByText("Пишет Пётр");
 
@@ -113,7 +114,7 @@ describe("narrowing the task module to chosen members", () => {
 
     expect(await screen.findByRole("menuitemcheckbox", { name: "Пётр" })).toBeInTheDocument();
     expect(screen.queryByRole("menuitemcheckbox", { name: "Анна" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("menuitemcheckbox", { name: "Не назначен" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitemcheckbox", { name: "Без участников" })).not.toBeInTheDocument();
   });
 });
 
@@ -130,7 +131,7 @@ describe("the filter belongs to the module, not to one of its views", () => {
 
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Следующая неделя" })).toBeInTheDocument());
-    expect(shown()).toEqual(["Пишет Пётр"]);
+    expect(shown()).toEqual(["Пишет Пётр", "Вдвоём"]);
   });
 
   it("keeps the choice while the views are switched", async () => {
@@ -148,14 +149,14 @@ describe("the filter belongs to the module, not to one of its views", () => {
     await screen.findByRole("heading", { name: "Идея", level: 2 });
 
     expect(filter()).toHaveTextContent("Пётр");
-    expect(shown()).toEqual(["Пишет Пётр"]);
+    expect(shown()).toEqual(["Пишет Пётр", "Вдвоём"]);
   });
 });
 
 describe("the filter cannot widen what a member sees", () => {
   it("offers a manager only the people their own board already carries", async () => {
     const user = userEvent.setup();
-    serve([aTask({ id: "t1", title: "Пишет Пётр", assigneeId: "m1" })]);
+    serve([aTask({ id: "t1", title: "Пишет Пётр", participantIds: ["m1"] })]);
     server.use(mock.get("/api/auth/me", () => HttpResponse.json({
       user: { id: "u1", name: "Пётр", email: "p@acme.com", image: null },
       organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
@@ -182,22 +183,22 @@ describe("remembering whose work was chosen", () => {
     await choose(user, "Пётр");
 
     await waitFor(() =>
-      expect(useModuleMemory.getState().taskAssignees["user-1"]).toEqual(["m1"]));
+      expect(useModuleMemory.getState().taskParticipants["user-1"]).toEqual(["m1"]));
   });
 
   it("opens the module on the filter it was left with", async () => {
-    useModuleMemory.setState({ taskViews: {}, taskAssignees: { "user-1": ["m2"] } });
+    useModuleMemory.setState({ taskViews: {}, taskParticipants: { "user-1": ["m2"] } });
     setup();
 
     await screen.findByText("Пишет Анна");
-    await waitFor(() => expect(shown()).toEqual(["Пишет Анна"]));
+    await waitFor(() => expect(shown()).toEqual(["Пишет Анна", "Вдвоём"]));
   });
 
   it("leaves another member's filter alone", async () => {
-    useModuleMemory.setState({ taskViews: {}, taskAssignees: { "somebody-else": ["m2"] } });
+    useModuleMemory.setState({ taskViews: {}, taskParticipants: { "somebody-else": ["m2"] } });
     setup();
 
     await screen.findByText("Пишет Пётр");
-    expect(shown()).toEqual(["Пишет Пётр", "Пишет Анна", "Ничей"]);
+    expect(shown()).toEqual(["Пишет Пётр", "Пишет Анна", "Ничей", "Вдвоём"]);
   });
 });

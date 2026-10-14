@@ -128,12 +128,12 @@ describe("completing a repeating task", () => {
     const member = await signInAs("Member", { role: "MANAGER" });
     const created = await create({
       dueDate: "2026-09-16", repeatEvery: "WEEKLY", priority: "HIGH",
-      assigneeId: member.membership!.id, description: { type: "doc", content: [] },
+      participantIds: [member.membership!.id], description: { type: "doc", content: [] },
     });
     const res = await complete(created.body.id);
 
     expect(res.body).toMatchObject({
-      title: "Созвон", priority: "HIGH", assigneeId: member.membership!.id, projectId,
+      title: "Созвон", priority: "HIGH", participantIds: [member.membership!.id], projectId,
       description: { type: "doc", content: [] },
     });
   });
@@ -161,7 +161,7 @@ describe("completing a repeating task", () => {
     const guest = await signInAs("Guest", { role: "GUEST" });
     await grantAccess(guest.membership!.id, clientId);
     const created = await create({
-      dueDate: "2026-09-16", repeatEvery: "WEEKLY", assigneeId: guest.membership!.id,
+      dueDate: "2026-09-16", repeatEvery: "WEEKLY", participantIds: [guest.membership!.id],
     });
 
     expect((await complete(created.body.id, guest.auth)).status).toBe(403);

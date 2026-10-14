@@ -5,11 +5,11 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import {
   CalendarClock,
-  Check,
   ChevronLeft,
   ChevronRight,
   ListChecks,
@@ -19,13 +19,13 @@ import {
   ZoomOut,
 } from "lucide-react";
 import {
-  useCompleteTask,
+  participantsOf,
+  timeRange,
   useRescheduleTask,
   type Task,
 } from "@/entities/task/index.js";
 import {
   useMembers,
-  MemberAvatar,
   type Membership,
 } from "@/entities/membership/index.js";
 import {
@@ -35,25 +35,26 @@ import {
 } from "@/entities/project/index.js";
 import { useAuth } from "@/features/auth/index.js";
 import { useCan } from "@/features/permissions/index.js";
+import { TaskDoneCheck, TaskParticipants, useDoneToggle } from "@/features/task-management/index.js";
 import { t } from "@/shared/config/index.js";
 import { cn, useModuleMemory } from "@/shared/lib/index.js";
+import WarmTooltip, { WarmTooltipGroup } from "@/shared/ui/WarmTooltip/WarmTooltip.js";
 import {
   Button,
   EmptyState,
   Loader,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
   toIso,
 } from "@/shared/ui/index.js";
 import {
   CALENDAR_HOUR_HEIGHT,
   CALENDAR_START_HOUR,
   HOURS_PER_DAY,
+  MINUTES_PER_HOUR,
   dayAndMonth,
   dayTitle,
+  layoutDay,
   minutesFromTop,
+  startKeepingWithinDay,
   shiftWeek,
   startOfWeek,
   tasksOfDay,
@@ -73,6 +74,7 @@ export interface TaskCalendarProps {
 }
 
 const EVENT_HEIGHT = 76;
+const SHORTEST_EVENT = 18;
 const HOURS = Array.from({ length: HOURS_PER_DAY }, (_, hour) => hour);
 const ZOOM_LEVELS = 5;
 const LARGEST_ZOOM = ZOOM_LEVELS - 1;
@@ -104,13 +106,17 @@ export function TaskCalendar({
 }: TaskCalendarProps) {
   const now = today ?? toIso(new Date());
   const reschedule = useRescheduleTask();
-  const complete = useCompleteTask();
   const draggable = useCan("update", "task");
   const { data: projects } = useProjects();
   const { data: members } = useMembers();
 
   const [weekStart, setWeekStart] = useState(() => startOfWeek(now));
   const [moveError, setMoveError] = useState<string | null>(null);
+  const toggleDone = useDoneToggle(setMoveError);
+  const toggleTask = useCallback((task: Task) => {
+    setMoveError(null);
+    toggleDone(task);
+  }, [toggleDone]);
 
   const { user } = useAuth();
   const rememberedZoom = useModuleMemory((state) => (user ? state.taskCalendarZooms[user.id] : undefined));
@@ -170,7 +176,7 @@ export function TaskCalendar({
   if (isError) return <EmptyState title={t("tasks.loadFailed")} />;
 
   return (
-    <TooltipProvider delayDuration={200}>
+    <WarmTooltipGroup>
       <div className="flex h-full min-h-0 flex-col gap-3">
         <header className="flex shrink-0 items-center gap-2">
           <Button
@@ -281,7 +287,7 @@ export function TaskCalendar({
 
             {days.map((day) => {
               const dayTasks = tasksOfDay(board, day);
-              const timed = dayTasks.filter((task) => task.dueTime !== null);
+              const timed = layoutDay(dayTasks.filter((task) => task.dueTime !== null));
               const untimed = dayTasks.filter((task) => task.dueTime === null);
 
               return (
@@ -308,12 +314,13 @@ export function TaskCalendar({
                         }}
                       />
                     ))}
-                    {timed.map((task) => (
+                    {timed.map(({ task, start, end, lane, lanes }) => (
                       <CalendarTaskEvent
                         key={task.id}
                         task={task}
                         draggable={draggable}
                         floating
+                        span={{ start, end, lane, lanes }}
                         hourHeight={hourHeight}
                         compact={compact}
                         project={
@@ -321,22 +328,10 @@ export function TaskCalendar({
                             ? projectById.get(task.projectId)
                             : undefined
                         }
-                        assignee={
-                          task.assigneeId
-                            ? memberById.get(task.assigneeId)
-                            : undefined
-                        }
+                        people={participantsOf(task, memberById)}
                         onOpen={onOpen}
                         onDrop={rescheduleTask}
-                        onComplete={
-                          draggable && task.repeatEvery !== "NONE"
-                            ? (held) =>
-                                complete.mutate(held.id, {
-                                  onError: () =>
-                                    setMoveError(t("tasks.completeFailed")),
-                                })
-                            : undefined
-                        }
+                        onToggleDone={draggable ? toggleTask : undefined}
                       />
                     ))}
                   </div>
@@ -355,22 +350,10 @@ export function TaskCalendar({
                             ? projectById.get(task.projectId)
                             : undefined
                         }
-                        assignee={
-                          task.assigneeId
-                            ? memberById.get(task.assigneeId)
-                            : undefined
-                        }
+                        people={participantsOf(task, memberById)}
                         onOpen={onOpen}
                         onDrop={rescheduleTask}
-                        onComplete={
-                          draggable && task.repeatEvery !== "NONE"
-                            ? (held) =>
-                                complete.mutate(held.id, {
-                                  onError: () =>
-                                    setMoveError(t("tasks.completeFailed")),
-                                })
-                            : undefined
-                        }
+                        onToggleDone={draggable ? toggleTask : undefined}
                       />
                     ))}
                   </div>
@@ -380,34 +363,43 @@ export function TaskCalendar({
           </div>
         </div>
       </div>
-    </TooltipProvider>
+    </WarmTooltipGroup>
   );
+}
+
+interface EventSpan {
+  start: number;
+  end: number;
+  lane: number;
+  lanes: number;
 }
 
 interface CalendarTaskEventProps {
   task: Task;
   draggable: boolean;
   floating: boolean;
+  span?: EventSpan;
   hourHeight: number;
   compact: boolean;
   project?: Project;
-  assignee?: Membership;
+  people: readonly Membership[];
   onOpen?: (task: Task) => void;
   onDrop: (task: Task, dueDate: string, dueTime: string) => void;
-  onComplete?: (task: Task) => void;
+  onToggleDone?: (task: Task) => void;
 }
 
 function CalendarTaskEvent({
   task,
   draggable,
   floating,
+  span,
   hourHeight,
-  compact,
+  compact: gridCompact,
   project,
-  assignee,
+  people,
   onOpen,
   onDrop,
-  onComplete,
+  onToggleDone,
 }: CalendarTaskEventProps) {
   const eventRef = useRef<HTMLElement | null>(null);
   const pointerOffsetRef = useRef(0);
@@ -423,7 +415,14 @@ function CalendarTaskEvent({
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const top = topOfTime(task.dueTime, hourHeight) ?? 0;
-  const eventHeight = compact ? Math.max(hourHeight - 2, 18) : EVENT_HEIGHT;
+  const drawnHeight = span
+    ? Math.max(
+        Math.min(((span.end - span.start) / MINUTES_PER_HOUR) * hourHeight, HOURS_PER_DAY * hourHeight - top) - 2,
+        SHORTEST_EVENT,
+      )
+    : null;
+  const compact = drawnHeight === null ? gridCompact : drawnHeight < EVENT_HEIGHT;
+  const eventHeight = drawnHeight ?? (compact ? Math.max(hourHeight - 2, SHORTEST_EVENT) : EVENT_HEIGHT);
 
   const cleanupDrag = useCallback(
     (finalTop?: number) => {
@@ -516,7 +515,8 @@ function CalendarTaskEvent({
       return;
     }
 
-    const dueTime = timeOfMinutes(minutesFromTop(targetTop, hourHeight));
+    const dueTime = timeOfMinutes(startKeepingWithinDay(task, minutesFromTop(targetTop, hourHeight)));
+    const settledTop = topOfTime(dueTime, hourHeight) ?? targetTop;
     if (dueDate !== task.dueDate) {
       if (ghostRef.current) ghostRef.current.style.opacity = "1";
       document.body.style.cursor = "";
@@ -524,7 +524,7 @@ function CalendarTaskEvent({
       hasDraggedRef.current = false;
       settleTimerRef.current = setTimeout(() => cleanupDrag(top), 1000);
     } else {
-      cleanupDrag(targetTop);
+      cleanupDrag(settledTop);
     }
     onDrop(task, dueDate, dueTime);
   }, [cleanupDrag, hourHeight, onDrop, onOpen, task, top]);
@@ -618,6 +618,14 @@ function CalendarTaskEvent({
 
   const ticked = task.checklist.filter((item) => item.done).length;
   const attachments = task.imageIds.length;
+  const placement: CSSProperties | undefined = floating
+    ? {
+        top,
+        height: eventHeight,
+        left: `calc(6px + (100% - 12px) * ${(span?.lane ?? 0) / (span?.lanes ?? 1)})`,
+        width: `calc((100% - 12px) / ${span?.lanes ?? 1} - 2px)`,
+      }
+    : undefined;
 
   const card = (
     <article
@@ -628,6 +636,8 @@ function CalendarTaskEvent({
       data-testid={`task-card-${task.id}`}
       data-draggable={draggable ? "true" : undefined}
       data-compact={compact ? "true" : undefined}
+      data-lane={span ? span.lane : undefined}
+      data-lanes={span ? span.lanes : undefined}
       onMouseDown={handleMouseDown}
       onKeyDown={(event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
@@ -638,10 +648,10 @@ function CalendarTaskEvent({
         "group rounded-lg border border-border glass-card text-left shadow-sm",
         "transition-all hover:border-border hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
-        floating ? "absolute left-1.5 right-1.5 z-10" : "relative",
-        compact ? "overflow-hidden py-0.5 pl-3 pr-1.5" : "py-2 pl-4 pr-2",
+        compact ? "relative h-full w-full" : floating ? "absolute z-10" : "relative",
+        compact ? "overflow-hidden py-0.5 pl-3 pr-1.5" : "flex flex-col overflow-hidden py-2 pl-4 pr-2",
       )}
-      style={floating ? { top, minHeight: eventHeight } : undefined}
+      style={compact ? undefined : placement}
     >
       <span
         aria-hidden
@@ -652,40 +662,23 @@ function CalendarTaskEvent({
       />
       {compact ? (
         <div className="flex min-w-0 items-center gap-1.5 text-[11px] leading-tight">
+          {onToggleDone ? <TaskDoneCheck task={task} size={11} onToggle={onToggleDone} /> : null}
           <h3 className="min-w-0 truncate font-medium">{task.title}</h3>
-          <span className="shrink-0 text-muted-foreground">{task.dueTime ?? t("tasks.form.noTime")}</span>
+          <span className="shrink-0 text-muted-foreground">{timeRange(task) ?? t("tasks.form.noTime")}</span>
         </div>
       ) : (
         <>
-        <div className="flex min-w-0 items-start justify-between gap-2">
+        <div className="flex min-h-0 min-w-0 shrink items-start gap-1.5 overflow-hidden">
+          {onToggleDone ? <TaskDoneCheck task={task} size={14} onToggle={onToggleDone} /> : null}
           <h3 className="min-w-0 line-clamp-2 text-xs font-medium leading-snug">
             {task.title}
           </h3>
-          {onComplete ? (
-            <button
-              type="button"
-              aria-label={t("tasks.complete")}
-              title={t("tasks.complete")}
-              className={cn(
-                "shrink-0 rounded-md p-1 text-muted-foreground transition-colors",
-                "hover:bg-emerald-100 hover:text-emerald-700",
-                "dark:hover:bg-emerald-950 dark:hover:text-emerald-300",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              )}
-              onClick={(event) => {
-                event.stopPropagation();
-                onComplete(task);
-              }}
-            >
-              <Check aria-hidden className="size-3.5" />
-            </button>
-          ) : null}
         </div>
 
-        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
+        <div className="mb-1 mt-1 flex min-h-0 min-w-0 shrink flex-wrap items-center gap-1 overflow-hidden text-[11px] text-muted-foreground">
           <span className="inline-flex items-center gap-1">
             <CalendarClock aria-hidden className="size-3" />
-            {task.dueTime ?? t("tasks.form.noTime")}
+            {timeRange(task) ?? t("tasks.form.noTime")}
             {task.repeatEvery === "NONE" ? null : (
               <Repeat
                 aria-hidden={false}
@@ -711,23 +704,14 @@ function CalendarTaskEvent({
           ) : null}
         </div>
 
-        <footer className="mt-1 flex min-w-0 items-center justify-between gap-2 border-t border-border/50 pt-1.5">
+        <footer className="mt-auto flex min-w-0 shrink-0 items-center justify-between gap-2 border-t border-border/50 pt-1.5">
           <span className="flex min-w-0 items-center gap-1.5">
             {project ? <ProjectAvatar project={project} size="sm" /> : null}
             <span className="truncate text-[11px] text-muted-foreground">
               {project?.name ?? t("tasks.noProject")}
             </span>
           </span>
-          {assignee ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span data-testid={`task-assignee-${task.id}`} aria-label={assignee.name} className="shrink-0">
-                <MemberAvatar member={assignee} size="sm" />
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>{assignee.name}</TooltipContent>
-          </Tooltip>
-        ) : null}
+          <TaskParticipants task={task} people={people} />
         </footer>
         </>
       )}
@@ -737,16 +721,19 @@ function CalendarTaskEvent({
   if (!compact) return card;
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>{card}</TooltipTrigger>
-      <TooltipContent side="right" className="max-w-64">
-        <div className="flex flex-col gap-0.5">
+    <WarmTooltip
+      side="right"
+      style={floating ? { ...placement, position: "absolute", zIndex: 10 } : { display: "flex", width: "100%" }}
+      content={
+        <span className="flex max-w-64 flex-col gap-0.5 text-left">
           <span className="font-medium">{task.title}</span>
-          <span>{task.dueTime ?? t("tasks.form.noTime")}</span>
+          <span>{timeRange(task) ?? t("tasks.form.noTime")}</span>
           {project ? <span>{project.name}</span> : null}
-          {assignee ? <span>{assignee.name}</span> : null}
-        </div>
-      </TooltipContent>
-    </Tooltip>
+          {people.length > 0 ? <span>{people.map((member) => member.name).join(", ")}</span> : null}
+        </span>
+      }
+    >
+      {card}
+    </WarmTooltip>
   );
 }

@@ -1,5 +1,6 @@
 export const RICH_TEXT_CLASS = [
-  "p-3 outline-none",
+  "p-3 text-sm outline-none",
+  "[&_a]:cursor-pointer",
   "[&_p]:my-1",
   "[&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5",
   "[&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5",
@@ -13,3 +14,18 @@ export const RICH_TEXT_CLASS = [
   "[&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:text-lg [&_h3]:font-semibold",
   "[&_hr]:my-4 [&_hr]:border-border",
 ].join(" ");
+
+export interface LinkClick {
+  readonly target: EventTarget | null;
+  readonly button: number;
+  preventDefault(): void;
+}
+
+export function followLink(event: LinkClick): boolean {
+  if (event.button !== 0) return false;
+  const anchor = event.target instanceof Element ? event.target.closest("a[href]") : null;
+  if (!(anchor instanceof HTMLAnchorElement)) return false;
+  event.preventDefault();
+  window.open(anchor.href, "_blank", "noopener,noreferrer");
+  return true;
+}

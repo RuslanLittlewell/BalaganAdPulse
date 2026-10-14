@@ -11,8 +11,9 @@ const customer: ActorContext = { ...admin, membershipId: "m4", role: "CLIENT" };
 
 const task = (partial: Partial<TaskRecord> = {}): TaskRecord => ({
   id: "t1", projectId: "p1", orgId: "org1", title: "Write the brief", description: null,
-  column: "IDEA", priority: "MEDIUM", assigneeId: null, createdById: "m1",
-  visibleToClient: false, position: 0,
+  column: "IDEA", priority: "MEDIUM", createdById: "m1",
+  participantIds: [], visibleToClient: false, position: 0,
+  dueDate: null, dueTime: null, endTime: null, repeatEvery: "NONE", checklist: [], imageIds: [],
   createdAt: new Date("2026-09-01T00:00:00.000Z"), updatedAt: new Date("2026-09-01T00:00:00.000Z"),
   ...partial,
 });
@@ -37,7 +38,7 @@ function fixture(options: {
   const owns = (actor: ActorContext, candidate: TaskRecord) => {
     if (actor.role === "ADMIN") return true;
     if (actor.role === "CLIENT") return candidate.visibleToClient;
-    return candidate.assigneeId === actor.membershipId;
+    return candidate.participantIds.includes(actor.membershipId);
   };
 
   const useCases = createTaskUseCases({
@@ -91,7 +92,12 @@ function fixture(options: {
       contextFor: async (_actor, projectId) =>
         reachableProjects.includes(projectId) ? { clientId: "c1" } : null,
     },
-    members: { isAssignable: async (_actor, membershipId) => assignable.includes(membershipId) },
+    members: {
+      isAssignable: async (_actor, membershipId) => assignable.includes(membershipId),
+      describe: async (_actor, membershipIds) => membershipIds
+        .filter((id) => assignable.includes(id))
+        .map((id) => ({ id, customer: false, active: true, reachesProject: true })),
+    },
     audit: { append: async (_tx, event) => { audit.push(event as never); } },
     events: {
       publish: (event: TaskEvent) => { published.push(event); journal.push(`publish:${event.kind}`); },
@@ -128,7 +134,7 @@ describe("reading the board", () => {
   });
 
   it("lets a guest read the board", async () => {
-    const { useCases } = fixture({ tasks: [task({ assigneeId: "m3" })] });
+    const { useCases } = fixture({ tasks: [task({ participantIds: ["m3"] })] });
     await expect(useCases.list(guest)).resolves.toHaveLength(1);
   });
 
@@ -177,17 +183,17 @@ describe("creating a task", () => {
       .rejects.toMatchObject({ category: "validation" });
   });
 
-  it("refuses an assignee who is not an active member here", async () => {
+  it("refuses a participant who is not a member here", async () => {
     const { useCases, tasks } = fixture({ assignable: [] });
-    await expect(useCases.create(admin, { projectId: "p1", title: "T", priority: "LOW", assigneeId: "m9" }))
+    await expect(useCases.create(admin, { projectId: "p1", title: "T", priority: "LOW", participantIds: ["m9"] }))
       .rejects.toMatchObject({ category: "validation" });
     expect(tasks.size).toBe(0);
   });
 
-  it("accepts an assignee who is one", async () => {
+  it("accepts a participant who is one", async () => {
     const { useCases } = fixture();
-    const created = await useCases.create(admin, { projectId: "p1", title: "T", priority: "LOW", assigneeId: "m2" });
-    expect(created.assigneeId).toBe("m2");
+    const created = await useCases.create(admin, { projectId: "p1", title: "T", priority: "LOW", participantIds: ["m2"] });
+    expect(created.participantIds).toEqual(["m2"]);
   });
 
   it("refuses a guest", async () => {
@@ -213,10 +219,10 @@ describe("changing a task", () => {
     expect(tasks.get("t1")).toMatchObject({ title: "Renamed", position: 3, column: "IN_REVIEW" });
   });
 
-  it("clears the assignee", async () => {
-    const { useCases, tasks } = fixture({ tasks: [task({ assigneeId: "m2" })] });
-    await useCases.update(admin, "t1", { assigneeId: null });
-    expect(tasks.get("t1")!.assigneeId).toBeNull();
+  it("clears the participants", async () => {
+    const { useCases, tasks } = fixture({ tasks: [task({ participantIds: ["m2"] })] });
+    await useCases.update(admin, "t1", { participantIds: [] });
+    expect(tasks.get("t1")!.participantIds).toEqual([]);
   });
 
   it("moves it to another reachable project", async () => {
@@ -232,7 +238,7 @@ describe("changing a task", () => {
   });
 
   it("refuses a guest", async () => {
-    const { useCases } = fixture({ tasks: [task({ assigneeId: "m3" })] });
+    const { useCases } = fixture({ tasks: [task({ participantIds: ["m3"] })] });
     await expect(useCases.update(guest, "t1", { title: "x" }))
       .rejects.toMatchObject({ category: "forbidden" });
   });
@@ -255,12 +261,12 @@ describe("deleting a task", () => {
   });
 
   it("is permitted to a manager as well as an admin", async () => {
-    const { useCases } = fixture({ tasks: [task({ assigneeId: "m2" })] });
+    const { useCases } = fixture({ tasks: [task({ participantIds: ["m2"] })] });
     await expect(useCases.delete(manager, "t1")).resolves.toBeUndefined();
   });
 
   it("is refused to a guest", async () => {
-    const { useCases, tasks } = fixture({ tasks: [task({ assigneeId: "m3" })] });
+    const { useCases, tasks } = fixture({ tasks: [task({ participantIds: ["m3"] })] });
     await expect(useCases.delete(guest, "t1")).rejects.toMatchObject({ category: "forbidden" });
     expect(tasks.has("t1")).toBe(true);
   });
@@ -307,7 +313,7 @@ describe("moving a card", () => {
   });
 
   it("refuses a guest and moves nothing", async () => {
-    const { useCases, orders } = fixture({ tasks: [task({ assigneeId: "m3" })] });
+    const { useCases, orders } = fixture({ tasks: [task({ participantIds: ["m3"] })] });
     await expect(useCases.move(guest, "t1", { column: "DONE", position: 0 }))
       .rejects.toMatchObject({ category: "forbidden" });
     expect(orders).toEqual([]);
@@ -435,7 +441,7 @@ describe("whether a task is shown to the client", () => {
   });
 
   it("refuses a manager who tries to share one", async () => {
-    const { useCases, tasks } = fixture({ tasks: [task({ assigneeId: "m2" })] });
+    const { useCases, tasks } = fixture({ tasks: [task({ participantIds: ["m2"] })] });
 
     await expect(useCases.update(manager, "t1", { visibleToClient: true }))
       .rejects.toMatchObject({ category: "forbidden" });
@@ -450,20 +456,20 @@ describe("whether a task is shown to the client", () => {
   });
 
   it("lets a manager edit everything else about a task", async () => {
-    const { useCases } = fixture({ tasks: [task({ assigneeId: "m2" })] });
+    const { useCases } = fixture({ tasks: [task({ participantIds: ["m2"] })] });
 
     const updated = await useCases.update(manager, "t1", { title: "Другое", priority: "HIGH" });
 
     expect(updated).toMatchObject({ title: "Другое", priority: "HIGH" });
   });
 
-  it("leaves the responsible member and the stage alone when sharing", async () => {
+  it("leaves the participants and the stage alone when sharing", async () => {
     const { useCases } = fixture({
-      tasks: [task({ assigneeId: "m2", column: "IN_REVIEW", priority: "HIGH" })],
+      tasks: [task({ participantIds: ["m2"], column: "IN_REVIEW", priority: "HIGH" })],
     });
 
     const shared = await useCases.update(admin, "t1", { visibleToClient: true });
 
-    expect(shared).toMatchObject({ assigneeId: "m2", column: "IN_REVIEW", priority: "HIGH" });
+    expect(shared).toMatchObject({ participantIds: ["m2"], column: "IN_REVIEW", priority: "HIGH" });
   });
 });

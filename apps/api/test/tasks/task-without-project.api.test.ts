@@ -116,7 +116,7 @@ describe("who reaches a task with no project", () => {
 
   it("is reached by the member it was given to", async () => {
     const manager = await signInAs("Manager", { role: "MANAGER" });
-    const created = await create({ assigneeId: manager.membership!.id });
+    const created = await create({ participantIds: [manager.membership!.id] });
 
     expect((await request(app).get(`/api/tasks/${created.body.id}`).set(manager.auth)).status)
       .toBe(200);

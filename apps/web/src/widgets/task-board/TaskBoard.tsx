@@ -15,6 +15,7 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import {
   TASK_COLUMNS,
+  participantsOf,
   previewFor,
   resolveDrop,
   useMoveTask,
@@ -24,6 +25,7 @@ import {
 import { useMembers } from "@/entities/membership/index.js";
 import { useProjects } from "@/entities/project/index.js";
 import { useCan } from "@/features/permissions/index.js";
+import { useDoneToggle } from "@/features/task-management/index.js";
 import { t } from "@/shared/config/index.js";
 import { useDragPreview } from "@/shared/lib/index.js";
 import { EmptyState, Loader } from "@/shared/ui/index.js";
@@ -46,6 +48,7 @@ export function TaskBoard({ tasks, isLoading, isError, onOpen, onCreate }: TaskB
   const { data: projects } = useProjects();
   const { data: members } = useMembers();
   const [moveError, setMoveError] = useState<string | null>(null);
+  const toggleDone = useDoneToggle(setMoveError);
 
   const drag = useDragPreview(tasks);
   const { board, draggingId } = drag;
@@ -130,6 +133,7 @@ export function TaskBoard({ tasks, isLoading, isError, onOpen, onCreate }: TaskB
             projects={projectById}
             members={memberById}
             onOpen={onOpen}
+            onToggleDone={draggable ? (task) => { setMoveError(null); toggleDone(task); } : undefined}
             onCreate={creatable && onCreate ? onCreate : undefined}
           />
         ))}
@@ -141,7 +145,7 @@ export function TaskBoard({ tasks, isLoading, isError, onOpen, onCreate }: TaskB
               task={dragging}
               draggable={false}
               project={dragging.projectId ? projectById.get(dragging.projectId) : undefined}
-              assignee={dragging.assigneeId ? memberById.get(dragging.assigneeId) : undefined}
+              people={participantsOf(dragging, memberById)}
             />
           ) : null}
         </DragOverlay>,

@@ -5,8 +5,8 @@ import { useRescheduleTask, type Task } from "@/entities/task/index.js";
 
 const task = (id: string, dueDate: string | null, dueTime: string | null = null): Task => ({
   id, projectId: "p1", orgId: "org1", title: id, description: null,
-  column: "IDEA", priority: "LOW", assigneeId: null, createdById: null,
-  visibleToClient: false, position: 0, dueDate, dueTime, repeatEvery: "NONE", checklist: [],
+  column: "IDEA", priority: "LOW", createdById: null,
+  visibleToClient: false, position: 0, dueDate, dueTime, endTime: null, participantIds: [], repeatEvery: "NONE", checklist: [],
   imageIds: [], createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
 });
 
@@ -21,6 +21,20 @@ const read = (wrapper: ReturnType<typeof hookWrapper>) =>
   wrapper.client.getQueryData<Task[]>(["tasks", null]) ?? [];
 
 describe("useRescheduleTask", () => {
+  it("moves the end with the start before the server answers, keeping the length", async () => {
+    server.use(mock.patch("/api/tasks/a", async () => {
+      await delay(50);
+      return HttpResponse.json({ ...task("a", "2026-09-17", "15:00"), endTime: "16:30" });
+    }));
+    const wrapper = hookWrapper();
+    wrapper.client.setQueryData(["tasks", null], [{ ...task("a", "2026-09-16", "12:00"), endTime: "13:30" }]);
+    const { result } = renderHook(() => useRescheduleTask(), { wrapper });
+
+    act(() => { result.current.mutate({ id: "a", dueDate: "2026-09-17", dueTime: "15:00" }); });
+
+    expect(read(wrapper)[0]).toMatchObject({ dueDate: "2026-09-17", dueTime: "15:00", endTime: "16:30" });
+  });
+
   it("moves the card to its new day before the server answers", async () => {
     server.use(mock.patch("/api/tasks/a", async () => {
       await delay(50);

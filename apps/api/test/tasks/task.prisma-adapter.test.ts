@@ -32,9 +32,12 @@ async function scenario() {
   return { admin, clientId, projectId, orgId: org.id };
 }
 
-async function assigned(orgId: string, projectId: string, id: string, assigneeId: string) {
+async function assigned(orgId: string, projectId: string, id: string, participantId: string) {
   return prisma.task.create({
-    data: { id, orgId, projectId, title: id, priority: "LOW", column: "IDEA", position: 0, assigneeId },
+    data: {
+      id, orgId, projectId, title: id, priority: "LOW", column: "IDEA", position: 0,
+      participants: { create: { membershipId: participantId } },
+    },
   });
 }
 
@@ -52,7 +55,7 @@ describe("Prisma task repository", () => {
 
     const created = await unitOfWork.run((context) => tasks.create(context, {
       id: uuid(1), projectId, orgId, title: "T", description,
-      column: "IDEA", priority: "HIGH", assigneeId: null, createdById: null, position: 0,
+      column: "IDEA", priority: "HIGH", createdById: null, participantIds: [], position: 0,
     }));
     expect(created).toMatchObject({ title: "T", column: "IDEA", priority: "HIGH", description });
   });
@@ -169,21 +172,42 @@ describe("Prisma project and member reach", () => {
     expect(await projects.contextFor(manager.actor!, projectId)).toBeNull();
   });
 
-  it("accepts an active member of the same organization as assignable", async () => {
+  it("describes an active member of the same organization", async () => {
     const { members } = adapters();
     const { admin } = await scenario();
     const member = await signInAs("Member", { role: "MANAGER" });
-    expect(await members.isAssignable(admin.actor!, member.membership!.id)).toBe(true);
+    expect(await members.describe(admin.actor!, [member.membership!.id], null)).toEqual([
+      { id: member.membership!.id, customer: false, active: true, reachesProject: false },
+    ]);
   });
 
-  it("refuses a suspended member and one from another organization", async () => {
+  it("marks a suspended member and leaves out one from another organization", async () => {
     const { members } = adapters();
     const { admin } = await scenario();
     const dormant = await signInAs("Dormant", { role: "MANAGER", status: "SUSPENDED" });
     const outsider = await signInAsOutsider();
 
-    expect(await members.isAssignable(admin.actor!, dormant.membership!.id)).toBe(false);
-    expect(await members.isAssignable(admin.actor!, outsider.membership.id)).toBe(false);
+    expect(await members.describe(admin.actor!, [dormant.membership!.id, outsider.membership.id], null))
+      .toEqual([{ id: dormant.membership!.id, customer: false, active: false, reachesProject: false }]);
+  });
+
+  it("tells whether a client's person reaches a project", async () => {
+    const { members } = adapters();
+    const { admin, clientId, projectId } = await scenario();
+    const whole = await signInAs("Whole", { role: "CLIENT" });
+    const elsewhere = await signInAs("Elsewhere", { role: "CLIENT" });
+    await grantAccess(whole.membership!.id, clientId);
+    const other = await seedProject(admin.user.id, "Other");
+    await grantAccess(elsewhere.membership!.id, other.clientId, other.projectId);
+
+    const described = await members.describe(
+      admin.actor!, [whole.membership!.id, elsewhere.membership!.id], projectId,
+    );
+
+    expect(described).toEqual(expect.arrayContaining([
+      { id: whole.membership!.id, customer: true, active: true, reachesProject: true },
+      { id: elsewhere.membership!.id, customer: true, active: true, reachesProject: false },
+    ]));
   });
 });
 
@@ -194,7 +218,7 @@ describe("whether a task is shown to the client", () => {
 
     const created = await unitOfWork.run((context) => tasks.create(context, {
       id: uuid(7), projectId, orgId, title: "Внутренняя заметка",
-      column: "IDEA", priority: "LOW", assigneeId: null, createdById: null,
+      column: "IDEA", priority: "LOW", createdById: null, participantIds: [],
       visibleToClient: false, position: 0,
     }));
 
@@ -207,7 +231,7 @@ describe("whether a task is shown to the client", () => {
 
     const created = await unitOfWork.run((context) => tasks.create(context, {
       id: uuid(8), projectId, orgId, title: "Заявка клиента",
-      column: "IDEA", priority: "LOW", assigneeId: null, createdById: null,
+      column: "IDEA", priority: "LOW", createdById: null, participantIds: [],
       visibleToClient: true, position: 0,
     }));
 
@@ -228,19 +252,20 @@ describe("whether a task is shown to the client", () => {
     expect(taken.visibleToClient).toBe(false);
   });
 
-  it("leaves the responsible member and the stage untouched when sharing", async () => {
+  it("leaves the participants and the stage untouched when sharing", async () => {
     const { unitOfWork, tasks } = adapters();
     const { admin, orgId, projectId } = await scenario();
     await prisma.task.create({
       data: { id: uuid(10), orgId, projectId, title: "T", priority: "HIGH",
-              column: "IN_REVIEW", position: 3, assigneeId: admin.membership!.id },
+              column: "IN_REVIEW", position: 3,
+              participants: { create: { membershipId: admin.membership!.id } } },
     });
 
     const shared = await unitOfWork.run((context) =>
       tasks.update(context, uuid(10), { visibleToClient: true }));
 
     expect(shared).toMatchObject({
-      assigneeId: admin.membership!.id, column: "IN_REVIEW", priority: "HIGH", position: 3,
+      participantIds: [admin.membership!.id], column: "IN_REVIEW", priority: "HIGH", position: 3,
     });
   });
 
@@ -277,9 +302,9 @@ describe("whose tasks a member sees", () => {
         position: 0, ...data,
       },
     });
-    await make(uuid(1), { assigneeId: manager.membership!.id });
-    await make(uuid(2), { assigneeId: other.membership!.id });
-    await make(uuid(3), { assigneeId: null });
+    await make(uuid(1), { participants: { create: { membershipId: manager.membership!.id } } });
+    await make(uuid(2), { participants: { create: { membershipId: other.membership!.id } } });
+    await make(uuid(3), {});
     await make(uuid(4), { visibleToClient: true, createdById: customer.membership!.id });
 
     return { admin, manager, other, customer, projectId, orgId: org.id };
@@ -292,14 +317,14 @@ describe("whose tasks a member sees", () => {
     expect(await tasks.listReachable(admin.actor!)).toHaveLength(4);
   });
 
-  it("shows a manager only what they are responsible for", async () => {
+  it("shows a manager only what they take part in", async () => {
     const { tasks } = adapters();
     const { manager } = await board();
 
     expect((await tasks.listReachable(manager.actor!)).map((t) => t.id)).toEqual([uuid(1)]);
   });
 
-  it("hides a task nobody is responsible for from a manager", async () => {
+  it("hides a task nobody takes part in from a manager who did not create it", async () => {
     const { tasks } = adapters();
     const { manager, admin } = await board();
 
@@ -307,7 +332,7 @@ describe("whose tasks a member sees", () => {
     expect((await tasks.listReachable(admin.actor!)).map((t) => t.id)).toContain(uuid(3));
   });
 
-  it("shows a manager the task they created while nobody is responsible for it", async () => {
+  it("shows a manager the task they created while nobody takes part in it", async () => {
     const { unitOfWork, tasks } = adapters();
     const { manager, other, projectId, orgId } = await board();
     await prisma.task.create({
@@ -321,18 +346,18 @@ describe("whose tasks a member sees", () => {
     expect(await tasks.findReachable(other.actor!, uuid(5))).toBeNull();
 
     await unitOfWork.run((context) =>
-      tasks.update(context, uuid(5), { assigneeId: other.membership!.id }));
+      tasks.update(context, uuid(5), { participantIds: [other.membership!.id] }));
 
     expect(await tasks.findReachable(manager.actor!, uuid(5))).toBeNull();
     expect(await tasks.findReachable(other.actor!, uuid(5))).not.toBeNull();
   });
 
-  it("shows a manager a task once an admin makes them responsible", async () => {
+  it("shows a manager a task once an admin names them on it", async () => {
     const { unitOfWork, tasks } = adapters();
     const { manager } = await board();
 
     await unitOfWork.run((context) =>
-      tasks.update(context, uuid(3), { assigneeId: manager.membership!.id }));
+      tasks.update(context, uuid(3), { participantIds: [manager.membership!.id] }));
 
     expect((await tasks.listReachable(manager.actor!)).map((t) => t.id)).toContain(uuid(3));
   });
@@ -369,7 +394,8 @@ describe("whose tasks a member sees", () => {
     await prisma.task.create({
       data: {
         id: uuid(5), orgId: org.id, projectId: elsewhere.projectId, title: "Их",
-        priority: "LOW", column: "IDEA", position: 0, assigneeId: manager.membership!.id,
+        priority: "LOW", column: "IDEA", position: 0,
+        participants: { create: { membershipId: manager.membership!.id } },
       },
     });
 

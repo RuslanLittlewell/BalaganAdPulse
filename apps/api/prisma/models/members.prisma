@@ -58,6 +58,7 @@ model Membership {
   assignedTasks     Task[]            @relation("TaskAssignee")
   assignedLeads     Lead[]            @relation("LeadAssignee")
   createdTasks      Task[]            @relation("TaskCreator")
+  taskParticipation TaskParticipant[]
   uploadedImages    TaskImage[]       @relation("TaskImageUploader")
   leadFiles         LeadFile[]        @relation("LeadFileUploader")
   reports           MonthlyReport[]   @relation("MonthlyReportCreator")

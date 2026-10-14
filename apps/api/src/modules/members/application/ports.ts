@@ -37,7 +37,7 @@ export type MemberKind = (typeof MEMBER_KINDS)[number];
 
 export interface MemberDirectory {
   listByOrg(orgId: string, kind?: MemberKind): Promise<MemberRecord[]>;
-  listByClient(orgId: string, clientId: string): Promise<MemberRecord[]>;
+  listByClient(orgId: string, clientId: string, projectId?: string): Promise<MemberRecord[]>;
   findInOrg(orgId: string, id: string): Promise<MemberRecord | null>;
   update(context: TransactionContext, id: string, change: MemberChange): Promise<MemberRecord>;
   remove(context: TransactionContext, id: string): Promise<void>;

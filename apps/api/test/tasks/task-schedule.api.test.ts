@@ -112,7 +112,7 @@ describe("a task's due date", () => {
   it("is refused to a guest -> 403", async () => {
     const guest = await signInAs("Guest", { role: "GUEST" });
     await grantAccess(guest.membership!.id, clientId);
-    const created = await create({ assigneeId: guest.membership!.id });
+    const created = await create({ participantIds: [guest.membership!.id] });
     const res = await request(app).patch(`/api/tasks/${created.body.id}`)
       .set(guest.auth).send({ dueDate: "2026-09-25" });
     expect(res.status).toBe(403);

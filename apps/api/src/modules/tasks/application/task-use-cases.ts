@@ -11,7 +11,9 @@ import {
 } from "../domain/board.js";
 import { collectImageIds } from "../domain/description.js";
 import {
+  MINUTES_PER_DAY,
   UNSCHEDULED,
+  minutesOf,
   nextOccurrence,
   rescheduled,
   type TaskRepeat,
@@ -28,9 +30,10 @@ export interface CreateTaskInput {
   readonly description?: TaskDescription | null;
   readonly column?: TaskColumn;
   readonly priority: TaskPriority;
-  readonly assigneeId?: string | null;
+  readonly participantIds?: readonly string[];
   readonly dueDate?: string | null;
   readonly dueTime?: string | null;
+  readonly endTime?: string | null;
   readonly repeatEvery?: TaskRepeat;
   readonly checklist?: readonly { title: string; done?: boolean }[];
 }
@@ -67,13 +70,6 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
     return context;
   };
 
-  const assertAssignable = async (actor: ActorContext, assigneeId: string | null | undefined) => {
-    if (!assigneeId) return;
-    if (!(await dependencies.members.isAssignable(actor, assigneeId))) {
-      throw new AppError("validation", "That member cannot be made responsible for this task");
-    }
-  };
-
   const assertMayShare = (visibleToClient: boolean, projectId: string | null) => {
     if (visibleToClient && projectId === null) {
       throw new AppError("validation", "A task with no project concerns no client");
@@ -84,6 +80,39 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
     if (visibleToClient === undefined) return;
     if (actor.role !== "ADMIN") {
       throw new AppError("forbidden", "Only an admin decides what the client is shown");
+    }
+  };
+
+  const assertCustomerNamesNobody = (actor: ActorContext, participantIds: readonly string[]) => {
+    if (isCustomer(actor.role) && participantIds.length > 0) {
+      throw new AppError("forbidden", "A customer raises a task and names nobody on it");
+    }
+  };
+
+  const assertParticipants = async (actor: ActorContext, named: {
+    readonly projectId: string | null;
+    readonly participantIds: readonly string[];
+    readonly previous: readonly string[];
+  }) => {
+    const ids = named.participantIds;
+    if (new Set(ids).size !== ids.length) {
+      throw new AppError("validation", "A member is named on a task only once");
+    }
+    if (ids.length === 0) return;
+    const members = new Map(
+      (await dependencies.members.describe(actor, ids, named.projectId)).map((member) => [member.id, member]),
+    );
+    for (const id of ids) {
+      const member = members.get(id);
+      if (!member) {
+        throw new AppError("validation", "Only a member of the organization can be named on a task");
+      }
+      if (!member.active && !named.previous.includes(id)) {
+        throw new AppError("validation", "A suspended member cannot be named on a task");
+      }
+      if (member.customer && !(named.projectId !== null && member.reachesProject)) {
+        throw new AppError("validation", "A client's person is named only on a task about a project they reach");
+      }
     }
   };
 
@@ -105,6 +134,16 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
     }
     if (schedule.repeatEvery !== "NONE" && schedule.dueDate === null) {
       throw new AppError("validation", "A repeating task needs a due date to count from");
+    }
+    if (schedule.endTime === null) return;
+    if (schedule.dueTime === null) {
+      throw new AppError("validation", "An end needs a time of day to start from");
+    }
+    if (minutesOf(schedule.endTime) <= minutesOf(schedule.dueTime)) {
+      throw new AppError("validation", "A task must end after it starts");
+    }
+    if (minutesOf(schedule.endTime) > MINUTES_PER_DAY) {
+      throw new AppError("validation", "A task must end by the end of its day");
     }
   };
 
@@ -129,8 +168,10 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
       assertColumn(input.column);
       const projectId = input.projectId ?? null;
       const context = await projectContext(actor, projectId);
-      await assertAssignable(actor, input.assigneeId);
       assertMayShare(isCustomer(actor.role), projectId);
+      const participantIds = input.participantIds ?? [];
+      assertCustomerNamesNobody(actor, participantIds);
+      await assertParticipants(actor, { projectId, participantIds, previous: [] });
 
       const column = input.column ?? DEFAULT_TASK_COLUMN;
       const schedule = rescheduled(UNSCHEDULED, input);
@@ -149,7 +190,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
           column,
           ...schedule,
           priority: input.priority,
-          assigneeId: input.assigneeId ?? null,
+          participantIds,
           createdById: actor.membershipId,
           visibleToClient: isCustomer(actor.role),
           position: await dependencies.tasks.countInColumn(actor.orgId, column),
@@ -176,8 +217,14 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
       assertTitle(input.title);
       const projectId = input.projectId === undefined ? task.projectId : input.projectId;
       const context = await projectContext(actor, projectId);
-      await assertAssignable(actor, input.assigneeId);
       assertMayShare(input.visibleToClient ?? task.visibleToClient, projectId);
+      if (input.participantIds !== undefined || input.projectId !== undefined) {
+        await assertParticipants(actor, {
+          projectId,
+          participantIds: input.participantIds ?? task.participantIds,
+          previous: task.participantIds,
+        });
+      }
 
       const schedule = rescheduled(task, input);
       assertSchedule(schedule);

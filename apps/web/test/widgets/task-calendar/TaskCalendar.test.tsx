@@ -185,16 +185,17 @@ describe("zooming the hour grid", () => {
   });
 });
 
-describe("the assignee on a calendar card", () => {
-  it("names the assignee in a tooltip when their picture is hovered", async () => {
+describe("the participants on a calendar card", () => {
+  it("names a participant in a tooltip when their picture is hovered", async () => {
     server.use(mock.get("/api/members", () => HttpResponse.json([{
       id: "member-1", userId: "user-1", name: "Мария", email: "maria@example.com",
       image: null, phone: null, telegram: null, role: "MANAGER", status: "ACTIVE",
       createdAt: "2026-09-05T00:00:00.000Z",
     }])));
-    calendar([aTask({ id: "assigned", title: "Созвон", dueDate: TODAY, dueTime: "10:00", assigneeId: "member-1" })]);
+    calendar([aTask({ id: "assigned", title: "Созвон", dueDate: TODAY, dueTime: "10:00", participantIds: ["member-1"] })]);
 
-    await userEvent.hover(await screen.findByTestId("task-assignee-assigned"));
+    const people = await screen.findByTestId("task-participants-assigned");
+    await userEvent.hover(within(people).getByRole("img", { name: "Мария" }));
 
     expect(await screen.findByRole("tooltip")).toHaveTextContent("Мария");
   });
@@ -210,10 +211,10 @@ describe("the details of a compact card", () => {
       }])),
       mock.get("/api/projects", () => HttpResponse.json([aProject({ id: "project-1", name: "Сайт" })])),
     );
-    calendar([aTask({ id: "busy", title: "Созвон с клиентом", dueDate: TODAY, dueTime: "10:00", projectId: "project-1", assigneeId: "member-1" })]);
+    calendar([aTask({ id: "busy", title: "Созвон с клиентом", dueDate: TODAY, dueTime: "10:00", projectId: "project-1", participantIds: ["member-1"] })]);
   }
 
-  it("tells the title, time, project and assignee on hover", async () => {
+  it("tells the title, time, project and participants on hover", async () => {
     staffed();
     await screen.findByTestId("task-card-busy");
     for (let step = 0; step < 4; step++) await userEvent.click(screen.getByRole("button", { name: "Уменьшить масштаб" }));

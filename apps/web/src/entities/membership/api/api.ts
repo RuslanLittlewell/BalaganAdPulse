@@ -29,8 +29,10 @@ export interface ClientAccessGrant {
 
 export const membersApi = {
   list: () => http.get<Membership[]>("/members?kind=staff"),
-  listOfClient: (clientId: string) =>
-    http.get<Membership[]>(`/members?clientId=${clientId}`),
+  listOfClient: (clientId: string, projectId?: string) =>
+    http.get<Membership[]>(
+      `/members?clientId=${clientId}${projectId ? `&projectId=${projectId}` : ""}`,
+    ),
   update: (id: string, body: UpdateMemberInput) =>
     http.patch<Membership>(`/members/${id}`, body),
   remove: (id: string) => http.del(`/members/${id}`),

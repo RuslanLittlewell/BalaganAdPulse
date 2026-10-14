@@ -304,24 +304,47 @@ browser, so they return to the one they left; someone else signing in on the sam
 gets their own.
 
 The board is a Kanban of work under a project. Six fixed columns, drawn left to right:
-**Идея, Архив, В работе, На исправление, На проверке, Готово**. Cards are dragged between
+**Идея, В работе, На исправление, На проверке, Готово, Архив**. Cards are dragged between
 columns and reordered within one; the move is applied to the board before the server
 answers and rolled back if it is refused. Both affected columns are renumbered densely
 inside one transaction, so a position is never duplicated or left with a gap.
 
+**A task is closed from its card.** Every card — on the board, in the calendar and in a
+project's work in flight — carries a **Готово** checkbox for whoever may change tasks, ticked
+exactly while the task is in Готово. Ticking it moves the task to the top of Готово, unticking
+it moves it back to the top of В работе, both through the same move a drag makes; on a
+repeating task it completes the occurrence instead. The form's header carries **Этап** next to
+the priority, listing the six stages; a stage chosen there is applied when the task is saved,
+as a move to the top of that stage, and a new task is created in it.
+
+The module can be narrowed by participant and by project at once, both lists naming only what
+the board already carries (with **Без участников** and **Без проекта** for the work that has
+neither); a participant chosen keeps every task they take part in. Both choices narrow the board
+and the calendar alike and are remembered per person in that browser.
+
 A task carries a title, a rich-text description and a priority of its own (`LOW`, `MEDIUM`,
 `HIGH`, `URGENT` — distinct from `ProjectPriority`, which describes a project by counting its
-tasks), and optionally a project, a responsible member, a due date and a checklist.
+tasks), and optionally a project, its participants, a due date and a checklist.
+
+**A task has participants, not one responsible member.** Everybody named in **Участники** sees
+the task on their board and in their calendar, and a new task starts with the member filling the
+form among them. The list is given whole with the task (`participantIds`) and stored in the
+`task_participant` join; a member removed from the organization leaves every list. Staff can be
+named on any task, and the client's people on a task about a project they reach — they still see
+it only when it is marked **Видно клиенту**. Being named grants no right to change a task. A call
+is simply a task with a time of day that repeats. The `assignee_id` column still exists, unread
+and unwritten, until a later migration drops it; every former responsible member was carried
+over as a participant.
 
 **A task may stand without a project** — the note a media buyer writes to themselves. Such a
 task is never shared with a client, because the client comes from the project, and it is
-reached by the member who wrote it, the member responsible for it and any admin: the
+reached by the member who wrote it, its participants and any admin: the
 project's grants cannot answer for it. The board and the calendar show it as **Без проекта**.
 
 **The form is composed rather than filled in.** It opens with the title, the description and
 the priority, and a row of controls under the title adds what this task actually needs:
-**Чек-лист**, **Даты**, **Назначить** — the last carrying the project, the campaign and the
-responsible member together, because they answer one question. Whatever order the blocks were
+**Чек-лист**, **Даты**, **Назначить** — the last carrying the project and the participants
+together, because they answer one question. Whatever order the blocks were
 added in, they are shown in that order, each separated from the next by a line and carrying
 its remove control at its right edge. A block a task already fills is shown from the start and
 is not offered again; removing a block clears what it held, so what the form shows and what
@@ -335,6 +358,15 @@ reader whatever their machine's clock, and 12:00 is the agency's wall clock rath
 instant to convert. A time of day without a day is refused, by the use case and by a `CHECK`
 constraint both.
 
+A task with a start may also carry the time it ends, `end_time`, on the same day and later than
+the start. `24:00` is a valid end — the end of that day — and nothing later is. The form asks
+for **Начало** and **Окончание** in two time fields; a browser's time field cannot hold `24:00`,
+so `00:00` in **Окончание** stands for midnight and is stored as `24:00`, and an end before the
+start is pointed out before anything is sent. Moving the start without naming an end
+keeps the task's length, so the calendar's day-and-time reschedule never needs to know the end;
+a move that would carry the end past midnight is refused. Clearing the start clears the end.
+Wherever the time is shown it reads as a range, `12:00–13:30`.
+
 **A checklist** is a property of the task, like its title: a list of items, each ticked or
 not, given whole when the task is created and when it is updated. Adding, ticking and
 removing an item changes the form; the change reaches the server when the task is saved, and
@@ -344,8 +376,8 @@ one the task has. Items ride on the task as it is read, so a board costs one que
 go with the task when it is deleted. The card shows the progress as `1/3`.
 
 **A repeating task** carries an interval — `DAILY`, `WEEKLY`, `BIWEEKLY` or `MONTHLY` — and
-offers **Выполнено**. Completing it moves that same task's due date on by its interval,
-counted from its own date rather than from today, keeps its time of day, unticks its
+is completed from its **Готово** checkbox. Completing it moves that same task's due date on by
+its interval, counted from its own date rather than from today, keeps its start and end, unticks its
 checklist and leaves the card exactly where it sits on the board: completion moves a task in
 time, never on the board. No second task is created, so the record of past occurrences lives
 in the audit trail. A monthly task due on the 31st falls on the last day of a month too
@@ -367,9 +399,18 @@ it can be found and reclaimed later.
 **The calendar** shows one week at a time, Monday to Sunday, with the week named, today
 marked and navigation to the previous week, the next one and back to today. It holds only
 tasks that have a due date — a task without one is found on the board — and within a day it
-puts the timed tasks first, earliest first, then those with no time. Dragging a card into
-another day gives the task that day and keeps its time; the card moves before the server
-answers and returns to its own day if the move is refused. `GET /api/tasks` accepts
+puts the timed tasks first, earliest first, then those with no time. A timed task occupies its
+time in the hour grid, from its start to its end, or one hour when it has none; an hour is tall
+enough at the default scale for a full card, and a card too short for one shows its title and
+time on one line. Tasks whose times overlap are laid out side by side, dividing the day's width,
+each taking the leftmost place no overlapping card holds, so no card covers another;
+back-to-back tasks keep the full width. The grid opens at 06:00 and shows the small hours last,
+so midnight is a line inside it rather than its bottom.
+
+Dragging a card into another day gives the task that day and starts it where it is dropped,
+keeping its length; a drop that would carry the end past midnight is pulled back so the task
+ends at midnight. The card moves before the server answers and returns to where it was if the
+move is refused. `GET /api/tasks` accepts
 `dueFrom` and `dueTo`, though the calendar filters the board it already holds rather than
 asking for a week.
 
@@ -637,9 +678,9 @@ Reach decides which projects a member may look at. Whose work it is decides what
 inside them, and can only narrow it further:
 
 - `ADMIN` — every task in the organization.
-- `MANAGER`, `GUEST` — only the tasks they are responsible for. A task nobody is
-  responsible for is on the admin's board alone, which is the point: a client's request
-  waits there until an admin reads it and hands it to somebody.
+- `MANAGER`, `GUEST` — only the tasks they take part in, and the tasks nobody takes part in
+  that they created. Any other task nobody takes part in is on the admin's board alone, which
+  is the point: a client's request waits there until an admin reads it and names somebody.
 - `CLIENT` — only the tasks marked as shown to them.
 
 A task raised by a client is marked shown to them when it is created; anything the agency

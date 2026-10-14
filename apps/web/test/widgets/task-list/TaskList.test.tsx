@@ -30,7 +30,7 @@ describe("TaskList", () => {
         title="Задачи"
         onOpen={() => {}}
         tasks={[aTask({
-          id: "t1", title: "Исправить креативы", column: "IN_REVIEW", priority: "URGENT", assigneeId: "member-1",
+          id: "t1", title: "Исправить креативы", column: "IN_REVIEW", priority: "URGENT", participantIds: ["member-1"],
           dueDate: "2026-10-02", dueTime: "14:00", repeatEvery: "DAILY",
           checklist: [
             { id: "c1", title: "Баннер", done: true, position: 0 },
@@ -44,7 +44,7 @@ describe("TaskList", () => {
     );
 
     const card = await screen.findByRole("button", { name: /Исправить креативы/ });
-    expect(await within(card).findByText("Пётр")).toBeInTheDocument();
+    expect(await within(card).findByRole("img", { name: "Пётр" })).toBeInTheDocument();
     expect(within(card).getByText("Срочный")).toBeInTheDocument();
     expect(within(card).getByText("На проверке")).toBeInTheDocument();
     expect(within(card).getByText("02.10 14:00")).toBeInTheDocument();

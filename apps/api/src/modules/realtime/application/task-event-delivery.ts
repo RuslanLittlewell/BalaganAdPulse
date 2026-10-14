@@ -22,11 +22,9 @@ function sees(actor: ActorContext, event: TaskEvent): boolean {
   if (actor.role === "ADMIN") return true;
   const held = event.kind === "task.deleted" ? event : event.task;
   if (isCustomer(actor.role)) return held.visibleToClient && event.projectId !== null;
-  if (event.projectId === null) {
-    return held.assigneeId === actor.membershipId || held.createdById === actor.membershipId;
-  }
-  if (held.assigneeId === null) return held.createdById === actor.membershipId;
-  return held.assigneeId === actor.membershipId;
+  if (held.participantIds.includes(actor.membershipId)) return true;
+  if (held.createdById !== actor.membershipId) return false;
+  return event.projectId === null || held.participantIds.length === 0;
 }
 
 export function createTaskEventDelivery(dependencies: TaskEventDeliveryDependencies) {

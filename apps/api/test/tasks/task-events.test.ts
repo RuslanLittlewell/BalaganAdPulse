@@ -9,7 +9,7 @@ import type { TaskRecord } from "../../src/modules/tasks/index.js";
 
 const task: TaskRecord = {
   id: "t1", projectId: "p1", orgId: "org1", title: "Write the brief", description: null,
-  column: "IDEA", priority: "MEDIUM", assigneeId: null, createdById: "m1", position: 0,
+  column: "IDEA", priority: "MEDIUM", createdById: "m1", participantIds: [], position: 0,
   imageIds: [], createdAt: new Date("2026-09-01T00:00:00.000Z"),
   updatedAt: new Date("2026-09-01T00:00:00.000Z"),
 };
@@ -34,11 +34,11 @@ describe("task events", () => {
   });
 
   it("carries the identifier and who could see it, on delete", () => {
-    const event = taskDeleted({ ...task, assigneeId: "m7", visibleToClient: true });
+    const event = taskDeleted({ ...task, participantIds: ["m7"], visibleToClient: true });
 
     expect(event).toEqual({
       kind: "task.deleted", orgId: "org1", projectId: "p1", taskId: "t1",
-      assigneeId: "m7", createdById: task.createdById, visibleToClient: true,
+      createdById: task.createdById, participantIds: ["m7"], visibleToClient: true,
     });
     expect(event).not.toHaveProperty("task");
   });

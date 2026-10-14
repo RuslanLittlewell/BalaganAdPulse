@@ -61,15 +61,15 @@ describe("the blocks a task is composed from", () => {
     expect(screen.getByText("Приоритет")).toBeInTheDocument();
 
     expect(screen.queryByLabelText("Проект")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Ответственный")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Участники" })).not.toBeInTheDocument();
   });
 
-  it("brings the project and the responsible member in one block", async () => {
+  it("brings the project and the participants in one block", async () => {
     creating();
     await open("Назначить");
 
     expect(await screen.findByLabelText("Проект")).toBeInTheDocument();
-    expect(screen.getByLabelText("Ответственный")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Участники" })).toBeInTheDocument();
     expect(offered()).toEqual(["Чек-лист", "Даты"]);
   });
 
@@ -109,14 +109,12 @@ describe("a task the form saves without a project", () => {
     await waitFor(() => expect(sent).toMatchObject({ title: "Заметка", projectId: null }));
   });
 
-  it("clears the project and the responsible member together", async () => {
-    edit({ assigneeId: "member-1" });
+  it("clears the project and the participants together", async () => {
+    edit({ participantIds: ["member-1"] });
     await userEvent.click(await screen.findByRole("button", { name: "Убрать назначение" }));
     await save();
 
-    await waitFor(() => expect(sent).toMatchObject({
-      projectId: null, assigneeId: null,
-    }));
+    await waitFor(() => expect(sent).toMatchObject({ projectId: null, participantIds: [] }));
   });
 
   it("shows the assignment block for a task that has a project", async () => {

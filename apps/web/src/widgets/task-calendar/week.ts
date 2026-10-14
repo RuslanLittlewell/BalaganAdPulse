@@ -1,7 +1,7 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const HOURS_PER_DAY = 24;
 export const MINUTES_PER_HOUR = 60;
-export const CALENDAR_HOUR_HEIGHT = 56;
+export const CALENDAR_HOUR_HEIGHT = 80;
 export const CALENDAR_SNAP_MINUTES = 15;
 export const CALENDAR_START_HOUR = 6;
 
@@ -126,4 +126,74 @@ export function topOfTime(time: string | null, hourHeight = CALENDAR_HOUR_HEIGHT
     (minutes - (CALENDAR_START_HOUR * MINUTES_PER_HOUR) + (HOURS_PER_DAY * MINUTES_PER_HOUR)) %
     (HOURS_PER_DAY * MINUTES_PER_HOUR);
   return (displayedMinutes / MINUTES_PER_HOUR) * hourHeight;
+}
+
+const MINUTES_PER_DAY = HOURS_PER_DAY * MINUTES_PER_HOUR;
+
+export const DEFAULT_TASK_MINUTES = 60;
+
+export interface TimedTask {
+  readonly dueTime: string | null;
+  readonly endTime: string | null;
+}
+
+export interface PlacedTask<T> {
+  readonly task: T;
+  readonly start: number;
+  readonly end: number;
+  readonly lane: number;
+  readonly lanes: number;
+}
+
+function endMinutes(endTime: string | null): number | null {
+  if (endTime === "24:00") return MINUTES_PER_DAY;
+  return minutesOfTime(endTime);
+}
+
+export function spanOfTask(task: TimedTask): { start: number; end: number } | null {
+  const start = minutesOfTime(task.dueTime);
+  if (start === null) return null;
+  const end = endMinutes(task.endTime);
+  return {
+    start,
+    end: end !== null && end > start ? end : Math.min(start + DEFAULT_TASK_MINUTES, MINUTES_PER_DAY),
+  };
+}
+
+export function layoutDay<T extends TimedTask>(tasks: readonly T[]): PlacedTask<T>[] {
+  const spans = tasks
+    .flatMap((task) => {
+      const span = spanOfTask(task);
+      return span ? [{ task, ...span }] : [];
+    })
+    .sort((a, b) => a.start - b.start || (b.end - b.start) - (a.end - a.start));
+
+  const placed: PlacedTask<T>[] = [];
+  let cluster: { task: T; start: number; end: number; lane: number }[] = [];
+  let laneEnds: number[] = [];
+  let clusterEnd = 0;
+
+  const close = () => {
+    for (const item of cluster) placed.push({ ...item, lanes: laneEnds.length });
+    cluster = [];
+    laneEnds = [];
+  };
+
+  for (const span of spans) {
+    if (cluster.length > 0 && span.start >= clusterEnd) close();
+    const free = laneEnds.findIndex((end) => end <= span.start);
+    const lane = free === -1 ? laneEnds.length : free;
+    laneEnds[lane] = span.end;
+    clusterEnd = cluster.length === 0 ? span.end : Math.max(clusterEnd, span.end);
+    cluster.push({ ...span, lane });
+  }
+  close();
+
+  return placed;
+}
+
+export function startKeepingWithinDay(task: TimedTask, start: number): number {
+  const span = spanOfTask(task);
+  if (span === null || task.endTime === null) return start;
+  return Math.min(start, MINUTES_PER_DAY - (span.end - span.start));
 }

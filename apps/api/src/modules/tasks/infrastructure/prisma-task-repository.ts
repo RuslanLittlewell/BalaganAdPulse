@@ -7,6 +7,7 @@ import type { TaskColumn } from "../domain/board.js";
 import { dateToDay, dayToDate } from "../domain/schedule.js";
 import type {
   MemberReach,
+  NamedMember,
   NewTask,
   ProjectReach,
   TaskChange,
@@ -18,17 +19,22 @@ import { grantedProjects, reachableProjects } from "#shared/infrastructure/proje
 
 type ChecklistRow = { id: string; title: string; done: boolean; position: number };
 
-type RowWithImages = TaskRow & { images?: { id: string }[]; checklist?: ChecklistRow[] };
+type RowWithImages = TaskRow & {
+  images?: { id: string }[];
+  checklist?: ChecklistRow[];
+  participants?: { membershipId: string }[];
+};
 
 function toDomain(row: RowWithImages): TaskRecord {
   return {
     id: row.id, projectId: row.projectId, orgId: row.orgId, title: row.title,
     description: row.description ?? null, column: row.column, priority: row.priority,
-    assigneeId: row.assigneeId, createdById: row.createdById,
+    createdById: row.createdById,
+    participantIds: (row.participants ?? []).map((participant) => participant.membershipId),
     visibleToClient: row.visibleToClient,
     position: row.position,
     dueDate: row.dueDate === null ? null : dateToDay(row.dueDate),
-    dueTime: row.dueTime, repeatEvery: row.repeatEvery,
+    dueTime: row.dueTime, endTime: row.endTime, repeatEvery: row.repeatEvery,
     checklist: row.checklist ?? [],
     imageIds: (row.images ?? []).map((image) => image.id),
     createdAt: row.createdAt, updatedAt: row.updatedAt,
@@ -41,7 +47,12 @@ const WITH_IMAGES = {
     select: { id: true, title: true, done: true, position: true },
     orderBy: { position: "asc" },
   },
+  participants: { select: { membershipId: true }, orderBy: { membershipId: "asc" } },
 } as const;
+
+function namedIn(actor: ActorContext): Prisma.TaskWhereInput {
+  return { participants: { some: { membershipId: actor.membershipId } } };
+}
 
 function visibleTo(actor: ActorContext): Prisma.TaskWhereInput {
   if (actor.role === "ADMIN") return { orgId: actor.orgId };
@@ -53,14 +64,11 @@ function visibleTo(actor: ActorContext): Prisma.TaskWhereInput {
     OR: [
       {
         project: grantedProjects(actor),
-        OR: [
-          { assigneeId: actor.membershipId },
-          { assigneeId: null, createdById: actor.membershipId },
-        ],
+        OR: [namedIn(actor), { participants: { none: {} }, createdById: actor.membershipId }],
       },
       {
         projectId: null,
-        OR: [{ createdById: actor.membershipId }, { assigneeId: actor.membershipId }],
+        OR: [namedIn(actor), { createdById: actor.membershipId }],
       },
     ],
   };
@@ -82,7 +90,7 @@ export class PrismaTaskRepository implements TaskRepository {
   }
 
   async create(context: TransactionContext, input: NewTask): Promise<TaskRecord> {
-    const { checklist = [], ...task } = input;
+    const { checklist = [], participantIds = [], ...task } = input;
     const row = await this.client(context).task.create({
       include: WITH_IMAGES,
       data: {
@@ -98,6 +106,9 @@ export class PrismaTaskRepository implements TaskRepository {
                 id: item.id, title: item.title, done: item.done, position: index,
               })),
             },
+        participants: participantIds.length === 0
+          ? undefined
+          : { create: participantIds.map((membershipId) => ({ membershipId })) },
       },
     });
     return toDomain(row);
@@ -142,7 +153,14 @@ export class PrismaTaskRepository implements TaskRepository {
         ...(input.projectId === undefined ? {} : { projectId: input.projectId }),
         ...(input.title === undefined ? {} : { title: input.title }),
         ...(input.priority === undefined ? {} : { priority: input.priority }),
-        ...(input.assigneeId === undefined ? {} : { assigneeId: input.assigneeId }),
+        ...(input.participantIds === undefined
+          ? {}
+          : {
+              participants: {
+                deleteMany: {},
+                create: input.participantIds.map((membershipId) => ({ membershipId })),
+              },
+            }),
         ...(input.visibleToClient === undefined
           ? {}
           : { visibleToClient: input.visibleToClient }),
@@ -150,6 +168,7 @@ export class PrismaTaskRepository implements TaskRepository {
           ? {}
           : { dueDate: input.dueDate === null ? null : dayToDate(input.dueDate) }),
         ...(input.dueTime === undefined ? {} : { dueTime: input.dueTime }),
+        ...(input.endTime === undefined ? {} : { endTime: input.endTime }),
         ...(input.repeatEvery === undefined ? {} : { repeatEvery: input.repeatEvery }),
         ...(input.description === undefined
           ? {}
@@ -231,12 +250,27 @@ export class PrismaTaskProjectReach implements ProjectReach {
 export class PrismaTaskMemberReach implements MemberReach {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async isAssignable(actor: ActorContext, membershipId: string): Promise<boolean> {
-    const membership = await this.prisma.membership.findFirst({
-      where: { id: membershipId, orgId: actor.orgId, status: "ACTIVE" },
-      select: { id: true },
+  async describe(
+    actor: ActorContext,
+    membershipIds: readonly string[],
+    projectId: string | null,
+  ): Promise<NamedMember[]> {
+    if (membershipIds.length === 0) return [];
+    const project = projectId === null
+      ? null
+      : await this.prisma.project.findUnique({ where: { id: projectId }, select: { clientId: true } });
+    const rows = await this.prisma.membership.findMany({
+      where: { id: { in: [...membershipIds] }, orgId: actor.orgId },
+      select: { id: true, role: true, status: true, access: { select: { clientId: true, projectId: true } } },
     });
-    return membership !== null;
+    return rows.map((row) => ({
+      id: row.id,
+      customer: isCustomer(row.role),
+      active: row.status === "ACTIVE",
+      reachesProject: project !== null && row.access.some((grant) =>
+        grant.projectId === projectId
+        || (grant.projectId === null && grant.clientId === project.clientId)),
+    }));
   }
 }
 

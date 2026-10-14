@@ -26,12 +26,13 @@ export interface TaskRecord {
   readonly description: TaskDescription | null;
   readonly column: TaskColumn;
   readonly priority: TaskPriority;
-  readonly assigneeId: string | null;
   readonly createdById: string | null;
+  readonly participantIds: readonly string[];
   readonly visibleToClient: boolean;
   readonly position: number;
   readonly dueDate: string | null;
   readonly dueTime: string | null;
+  readonly endTime: string | null;
   readonly repeatEvery: TaskRepeat;
   readonly checklist: readonly ChecklistItemRecord[];
   readonly imageIds: readonly string[];
@@ -47,12 +48,13 @@ export interface NewTask {
   readonly description?: TaskDescription | null;
   readonly column: TaskColumn;
   readonly priority: TaskPriority;
-  readonly assigneeId: string | null;
   readonly createdById: string | null;
+  readonly participantIds: readonly string[];
   readonly visibleToClient: boolean;
   readonly position: number;
   readonly dueDate: string | null;
   readonly dueTime: string | null;
+  readonly endTime: string | null;
   readonly repeatEvery: TaskRepeat;
   readonly checklist: readonly { id: string; title: string; done: boolean }[];
 }
@@ -62,10 +64,11 @@ export interface TaskChange {
   readonly title?: string;
   readonly description?: TaskDescription | null;
   readonly priority?: TaskPriority;
-  readonly assigneeId?: string | null;
+  readonly participantIds?: readonly string[];
   readonly visibleToClient?: boolean;
   readonly dueDate?: string | null;
   readonly dueTime?: string | null;
+  readonly endTime?: string | null;
   readonly repeatEvery?: TaskRepeat;
   readonly checklist?: readonly { title: string; done?: boolean }[];
 }
@@ -97,8 +100,19 @@ export interface ProjectReach {
   contextFor(actor: ActorContext, projectId: string): Promise<{ clientId: string } | null>;
 }
 
+export interface NamedMember {
+  readonly id: string;
+  readonly customer: boolean;
+  readonly active: boolean;
+  readonly reachesProject: boolean;
+}
+
 export interface MemberReach {
-  isAssignable(actor: ActorContext, membershipId: string): Promise<boolean>;
+  describe(
+    actor: ActorContext,
+    membershipIds: readonly string[],
+    projectId: string | null,
+  ): Promise<NamedMember[]>;
 }
 
 export interface TaskDependencies {

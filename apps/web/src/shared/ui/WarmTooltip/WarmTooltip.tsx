@@ -64,6 +64,7 @@ export interface WarmTooltipProps {
   longPress?: number;
   disabled?: boolean;
   className?: string;
+  style?: CSSProperties;
 }
 
 type Phase = 'closed' | 'open' | 'closing';
@@ -122,8 +123,8 @@ interface TriggerState {
   suppressClick: boolean;
 }
 
-type TriggerProps = Required<Omit<WarmTooltipProps, 'delay' | 'warmWindow' | 'shortcut'>> &
-  Pick<WarmTooltipProps, 'delay' | 'warmWindow' | 'shortcut'>;
+type TriggerProps = Required<Omit<WarmTooltipProps, 'delay' | 'warmWindow' | 'shortcut' | 'style'>> &
+  Pick<WarmTooltipProps, 'delay' | 'warmWindow' | 'shortcut' | 'style'>;
 
 const EASE_OUT: [number, number, number, number] = [0.23, 1, 0.32, 1];
 const LEAN_SPRING = { stiffness: 260, damping: 22, mass: 0.4 };
@@ -501,7 +502,8 @@ const Trigger: React.FC<TriggerProps> = ({
   showFuse,
   longPress,
   disabled,
-  className
+  className,
+  style
 }) => {
   const group = useContext(GroupContext) as GroupApi;
   const id = useId();
@@ -644,6 +646,7 @@ const Trigger: React.FC<TriggerProps> = ({
       data-pressing={pressing ? '' : undefined}
       style={
         {
+          ...style,
           '--wt-surface': surfaceColor,
           '--wt-fuse-ms': `${t.current.press0 ? longPress : coldDelay}ms`,
           '--wt-ease-out': 'cubic-bezier(0.23, 1, 0.32, 1)'
@@ -683,7 +686,8 @@ const WarmTooltip: React.FC<WarmTooltipProps> = ({
   showFuse = false,
   longPress = 500,
   disabled = false,
-  className = ''
+  className = '',
+  style
 }) => {
   const context = useContext(GroupContext);
   const props = {
@@ -705,7 +709,8 @@ const WarmTooltip: React.FC<WarmTooltipProps> = ({
     showFuse,
     longPress,
     disabled,
-    className
+    className,
+    style
   };
   if (context) return <Trigger {...props} />;
   return (

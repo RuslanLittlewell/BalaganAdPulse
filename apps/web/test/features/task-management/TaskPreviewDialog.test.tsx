@@ -30,7 +30,7 @@ describe("TaskPreviewDialog", () => {
   });
 
   it("shows the priority, the project and the responsible member", async () => {
-    open(aTask({ priority: "URGENT", projectId: "project-1", assigneeId: "member-1" }));
+    open(aTask({ priority: "URGENT", projectId: "project-1", participantIds: ["member-1"] }));
 
     const dialog = await screen.findByRole("dialog");
     expect(await within(dialog).findByText("Срочный")).toBeInTheDocument();
@@ -55,7 +55,7 @@ describe("TaskPreviewDialog", () => {
 
   it("carries no control that changes the task", async () => {
     open(aTask({
-      projectId: "project-1", assigneeId: "member-1",
+      projectId: "project-1", participantIds: ["member-1"],
       description: {
         type: "doc",
         content: [{ type: "paragraph", content: [{ type: "text", text: "Текст" }] }],

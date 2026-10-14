@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { t } from "@/shared/config/index.js";
 import { cn } from "@/shared/lib/index.js";
-import { EditorToolbarButton, RICH_TEXT_CLASS, Separator } from "@/shared/ui/index.js";
+import { EditorToolbarButton, RICH_TEXT_CLASS, Separator, followLink } from "@/shared/ui/index.js";
 import { WarmTooltipGroup } from "@/shared/ui/WarmTooltip/WarmTooltip.js";
 
 export interface DocumentEditorProps {
@@ -135,7 +135,7 @@ export function DocumentEditor({ value, editable, onChange }: DocumentEditorProp
       Link.configure({
         autolink: true,
         linkOnPaste: true,
-        openOnClick: !editable,
+        openOnClick: false,
         HTMLAttributes: {
           class: "text-primary underline underline-offset-4",
           rel: "noopener noreferrer",
@@ -157,7 +157,8 @@ export function DocumentEditor({ value, editable, onChange }: DocumentEditorProp
   return (
     <div
       className="rounded-md border"
-      onClick={() => {
+      onClick={(event) => {
+        if (followLink(event)) return;
         if (editable) editor?.commands.focus();
       }}
     >

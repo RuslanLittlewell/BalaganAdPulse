@@ -43,7 +43,7 @@ describe("TaskFormDialog", () => {
     await openAssign();
     await openAssign();
     expect(await screen.findByLabelText("Проект")).toBeInTheDocument();
-    expect(screen.getByLabelText("Ответственный")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Участники" })).toBeInTheDocument();
   });
 
   it("refuses a blank title and sends nothing", async () => {
@@ -63,11 +63,11 @@ describe("TaskFormDialog", () => {
     expect(await screen.findByRole("option", { name: "Летний запуск" })).toBeInTheDocument();
   });
 
-  it("lists the members who can be made responsible", async () => {
+  it("lists the members who can be named", async () => {
     setup();
     await openAssign();
-    await userEvent.click(await screen.findByLabelText("Ответственный"));
-    expect(await screen.findByRole("option", { name: "Пётр" })).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("button", { name: "Участники" }));
+    expect(await screen.findByRole("menuitemcheckbox", { name: "Пётр" })).toBeInTheDocument();
   });
 
   const withSuspended = () => server.use(mock.get("/api/members", () => HttpResponse.json([
@@ -80,22 +80,22 @@ describe("TaskFormDialog", () => {
     withSuspended();
     setup();
     await openAssign();
-    await userEvent.click(await screen.findByLabelText("Ответственный"));
+    await userEvent.click(await screen.findByRole("button", { name: "Участники" }));
 
-    expect(await screen.findByRole("option", { name: "Пётр" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Анна" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "Ушедший" })).toBeNull();
+    expect(await screen.findByRole("menuitemcheckbox", { name: "Пётр" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitemcheckbox", { name: "Анна" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitemcheckbox", { name: "Ушедший" })).toBeNull();
   });
 
-  it("still shows a suspended member a task is already assigned to", async () => {
+  it("still shows a suspended member a task already names", async () => {
     withSuspended();
     renderWithProviders(
-      <TaskFormDialog task={aTask({ assigneeId: "member-3" })} onClose={() => {}} />,
+      <TaskFormDialog task={aTask({ participantIds: ["member-3"] })} onClose={() => {}} />,
       { route: "/tasks" },
     );
     await openAssign();
 
-    expect(await screen.findByLabelText("Ответственный")).toHaveTextContent("Ушедший");
+    expect(await screen.findByRole("button", { name: "Участники" })).toHaveTextContent("Ушедший");
   });
 
   it("offers the four priorities, defaulting to the middle one", async () => {
@@ -119,8 +119,8 @@ describe("TaskFormDialog", () => {
       <TaskFormDialog
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "Написать бриф",
-          description, column: "IDEA", priority: "HIGH", assigneeId: "member-1",
-          createdById: "member-1", visibleToClient: false, position: 0, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds: ["image-1", "image-2"],
+          description, column: "IDEA", priority: "HIGH", participantIds: ["member-1"],
+          createdById: "member-1", visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, repeatEvery: "NONE", checklist: [], imageIds: ["image-1", "image-2"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -148,8 +148,7 @@ describe("TaskFormDialog", () => {
       <TaskFormDialog
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлами",
-          description: null, column: "IDEA", priority: "LOW", assigneeId: null,
-          createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds: ["image-1", "image-2"],
+          description: null, column: "IDEA", priority: "LOW",           createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", checklist: [], imageIds: ["image-1", "image-2"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -168,8 +167,7 @@ describe("TaskFormDialog", () => {
       <TaskFormDialog
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "Без файлов",
-          description: null, column: "IDEA", priority: "LOW", assigneeId: null,
-          createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds: [],
+          description: null, column: "IDEA", priority: "LOW",           createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", checklist: [], imageIds: [],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -294,10 +292,10 @@ describe("pictures in the selects", () => {
     setup();
 
     await openAssign();
-    await userEvent.click(await screen.findByLabelText("Ответственный"));
+    await userEvent.click(await screen.findByRole("button", { name: "Участники" }));
 
-    const option = await screen.findByRole("option", { name: /Пётр/ });
-    expect(within(option).getByRole("img", { name: "Пётр" }))
+    const option = await screen.findByRole("menuitemcheckbox", { name: /Пётр/ });
+    expect(within(option).getByRole("img", { name: "Пётр", hidden: true }))
       .toHaveAttribute("src", "/api/members/member-1/avatar");
   });
 
@@ -306,9 +304,9 @@ describe("pictures in the selects", () => {
     setup();
 
     await openAssign();
-    await userEvent.click(await screen.findByLabelText("Ответственный"));
+    await userEvent.click(await screen.findByRole("button", { name: "Участники" }));
 
-    const option = await screen.findByRole("option", { name: /Анна/ });
+    const option = await screen.findByRole("menuitemcheckbox", { name: /Анна/ });
     expect(within(option).queryByRole("img")).not.toBeInTheDocument();
     expect(option).toHaveTextContent("А");
   });
@@ -325,15 +323,14 @@ describe("the dialog's shape", () => {
       .toContainElement(priority);
   });
 
-  it("puts the assignment's selects on one row", async () => {
+  it("keeps the project and the participants in the assignment block", async () => {
     setup();
     await screen.findByLabelText("Название");
 
     await openAssign();
     const block = screen.getByTestId("task-block-assign");
-    for (const label of ["Проект", "Ответственный"]) {
-      expect(block).toContainElement(await screen.findByLabelText(label));
-    }
+    expect(block).toContainElement(await screen.findByLabelText("Проект"));
+    expect(block).toContainElement(screen.getByRole("button", { name: "Участники" }));
   });
 });
 
@@ -359,7 +356,7 @@ describe("creating into a chosen column", () => {
     expect(body).toMatchObject({ column: "IN_REVIEW", title: "Проверить креативы" });
   });
 
-  it("sends no column when it was opened from the page header", async () => {
+  it("sends Идея when it was opened from the page header", async () => {
     const user = userEvent.setup();
     let body: Record<string, unknown> | null = null;
     server.use(mock.post("/api/tasks", async ({ request }) => {
@@ -375,13 +372,13 @@ describe("creating into a chosen column", () => {
     await user.click(screen.getByRole("button", { name: "Создать задачу" }));
 
     await waitFor(() => expect(body).not.toBeNull());
-    expect(body).not.toHaveProperty("column");
+    expect(body).toMatchObject({ column: "IDEA" });
   });
 });
 
-describe("a new task given a project and a responsible member", () => {
+describe("a new task given a project and participants", () => {
   const raise = () => renderWithProviders(
-    <TaskFormDialog projectId="project-1" assigneeId="member-1" onClose={() => {}} />,
+    <TaskFormDialog projectId="project-1" participantIds={["member-1"]} onClose={() => {}} />,
     { route: "/projects/project-1" },
   );
 
@@ -389,7 +386,7 @@ describe("a new task given a project and a responsible member", () => {
     raise();
 
     await waitFor(() => expect(screen.getByLabelText("Проект")).toHaveTextContent("Летний запуск"));
-    await waitFor(() => expect(screen.getByLabelText("Ответственный")).toHaveTextContent("Пётр"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Участники" })).toHaveTextContent("Пётр"));
     expect(screen.queryByRole("button", { name: "Назначить" })).toBeNull();
   });
 
@@ -406,12 +403,12 @@ describe("a new task given a project and a responsible member", () => {
     await user.click(screen.getByRole("button", { name: "Создать задачу" }));
 
     await waitFor(() => expect(body).not.toBeNull());
-    expect(body).toMatchObject({ title: "Собрать отчёт", projectId: "project-1", assigneeId: "member-1" });
+    expect(body).toMatchObject({ title: "Собрать отчёт", projectId: "project-1", participantIds: ["member-1"] });
   });
 
   it("does not override the task being edited", async () => {
     renderWithProviders(
-      <TaskFormDialog task={aTask({ projectId: null, assigneeId: null })} projectId="project-1" assigneeId="member-1" onClose={() => {}} />,
+      <TaskFormDialog task={aTask({ projectId: null })} projectId="project-1" participantIds={["member-1"]} onClose={() => {}} />,
       { route: "/tasks" },
     );
 
@@ -420,7 +417,7 @@ describe("a new task given a project and a responsible member", () => {
   });
 });
 
-describe("a new task's responsible member", () => {
+describe("a new task's participants", () => {
   const me = { ...members[0], id: "member-me", userId: "user-1", name: "Я сам" };
   const signedInAmongStaff = () => server.use(mock.get("/api/members", () => HttpResponse.json([...members, me])));
 
@@ -428,7 +425,7 @@ describe("a new task's responsible member", () => {
     signedInAmongStaff();
     setup();
 
-    await waitFor(() => expect(screen.getByLabelText("Ответственный")).toHaveTextContent("Я сам"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Участники" })).toHaveTextContent("Я сам"));
     expect(screen.queryByRole("button", { name: "Назначить" })).toBeNull();
   });
 
@@ -442,12 +439,12 @@ describe("a new task's responsible member", () => {
     signedInAmongStaff();
     setup();
 
-    await waitFor(() => expect(screen.getByLabelText("Ответственный")).toHaveTextContent("Я сам"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Участники" })).toHaveTextContent("Я сам"));
     await user.type(screen.getByLabelText("Название"), "Собрать отчёт");
     await user.click(screen.getByRole("button", { name: "Создать задачу" }));
 
     await waitFor(() => expect(body).not.toBeNull());
-    expect(body).toMatchObject({ assigneeId: "member-me", projectId: null });
+    expect(body).toMatchObject({ participantIds: ["member-me"], projectId: null });
   });
 
   it("can be cleared by removing the assignment block", async () => {
@@ -460,35 +457,35 @@ describe("a new task's responsible member", () => {
     signedInAmongStaff();
     setup();
 
-    await waitFor(() => expect(screen.getByLabelText("Ответственный")).toHaveTextContent("Я сам"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Участники" })).toHaveTextContent("Я сам"));
     await user.click(screen.getByRole("button", { name: "Убрать назначение" }));
     await user.type(screen.getByLabelText("Название"), "Ничья");
     await user.click(screen.getByRole("button", { name: "Создать задачу" }));
 
     await waitFor(() => expect(body).not.toBeNull());
-    expect(body).toMatchObject({ assigneeId: null });
+    expect(body).toMatchObject({ participantIds: [] });
   });
 
-  it("yields to the responsible member the form was opened for", async () => {
+  it("yields to the participants the form was opened for", async () => {
     signedInAmongStaff();
-    renderWithProviders(<TaskFormDialog assigneeId="member-1" onClose={() => {}} />, { route: "/tasks" });
+    renderWithProviders(<TaskFormDialog participantIds={["member-1"]} onClose={() => {}} />, { route: "/tasks" });
 
-    await waitFor(() => expect(screen.getByLabelText("Ответственный")).toHaveTextContent("Пётр"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Участники" })).toHaveTextContent("Пётр"));
   });
 
   it("starts bare for a member the picker does not offer", async () => {
     setup();
 
     expect(await screen.findByRole("button", { name: "Назначить" })).toBeInTheDocument();
-    expect(screen.queryByLabelText("Ответственный")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Участники" })).toBeNull();
   });
 
   it("does not change the task being edited", async () => {
     signedInAmongStaff();
-    renderWithProviders(<TaskFormDialog task={aTask({ projectId: null, assigneeId: null })} onClose={() => {}} />, { route: "/tasks" });
+    renderWithProviders(<TaskFormDialog task={aTask({ projectId: null })} onClose={() => {}} />, { route: "/tasks" });
 
     expect(await screen.findByRole("button", { name: "Назначить" })).toBeInTheDocument();
-    expect(screen.queryByLabelText("Ответственный")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Участники" })).toBeNull();
   });
 });
 
@@ -546,8 +543,7 @@ describe("attachments", () => {
     <TaskFormDialog
       task={{
         id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлами",
-        description: null, column: "IDEA", priority: "LOW", assigneeId: null,
-        createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds,
+        description: null, column: "IDEA", priority: "LOW",         createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", checklist: [], imageIds,
         createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
       }}
       onClose={() => {}}
@@ -641,8 +637,7 @@ describe("a freshly pasted image", () => {
       <TaskFormDialog
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлами",
-          description: null, column: "IDEA", priority: "LOW", assigneeId: null,
-          createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds: ["image-1"],
+          description: null, column: "IDEA", priority: "LOW",           createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", checklist: [], imageIds: ["image-1"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -695,7 +690,7 @@ describe("removing an attachment reaches the description", () => {
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлом",
           description: described("image-1"), column: "IDEA", priority: "LOW",
-          assigneeId: null, createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds: ["image-1"],
+          createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", checklist: [], imageIds: ["image-1"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -727,7 +722,7 @@ describe("removing an attachment reaches the description", () => {
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлом",
           description: described("image-1"), column: "IDEA", priority: "LOW",
-          assigneeId: null, createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds: ["image-1"],
+          createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", checklist: [], imageIds: ["image-1"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}

@@ -42,12 +42,13 @@ export interface Task {
   description: unknown | null;
   column: TaskColumn;
   priority: TaskPriority;
-  assigneeId: string | null;
   createdById: string | null;
+  participantIds: string[];
   visibleToClient: boolean;
   position: number;
   dueDate: string | null;
   dueTime: string | null;
+  endTime: string | null;
   repeatEvery: TaskRepeat;
   checklist: ChecklistItem[];
   imageIds: string[];
@@ -61,10 +62,11 @@ export interface TaskInput {
   description?: unknown | null;
   column?: TaskColumn;
   priority?: TaskPriority;
-  assigneeId?: string | null;
+  participantIds?: string[];
   visibleToClient?: boolean;
   dueDate?: string | null;
   dueTime?: string | null;
+  endTime?: string | null;
   repeatEvery?: TaskRepeat;
   checklist?: { title: string; done: boolean }[];
 }

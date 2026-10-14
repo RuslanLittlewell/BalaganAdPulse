@@ -50,10 +50,11 @@ export const memberDoc: RouteDoc = {
       method: "get",
       path: "/",
       summary: "List the organization's members",
-      description: "Naming a client lists that client's own people instead of the agency's.",
+      description: "Naming a client lists that client's own people instead of the agency's; naming one of its projects too keeps only those whose grants reach it.",
       query: z.object({
         kind: z.enum(MEMBER_KINDS).optional(),
         clientId: z.uuid().optional(),
+        projectId: z.uuid().optional(),
       }),
       success: { status: 200, description: "The members", schema: arrayOf(ref("Member")) },
       errors: [400, 401, 403, 404],

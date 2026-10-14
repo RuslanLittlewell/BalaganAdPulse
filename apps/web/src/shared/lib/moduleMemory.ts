@@ -9,7 +9,8 @@ interface ModuleMemoryState {
   boards: ByUser;
   projectPlaces: ByUser;
   taskViews: ByUser;
-  taskAssignees: ListByUser;
+  taskParticipants: ListByUser;
+  taskProjects: ListByUser;
   crmViews: ByUser;
   taskCalendarZooms: ByUser;
   rememberBoard: (userId: string, board: string) => void;
@@ -17,7 +18,8 @@ interface ModuleMemoryState {
   rememberProjectPlace: (userId: string, place: string) => void;
   forgetProjectPlace: (userId: string) => void;
   rememberTaskView: (userId: string, view: string) => void;
-  rememberTaskAssignees: (userId: string, assigneeIds: string[]) => void;
+  rememberTaskParticipants: (userId: string, participantIds: string[]) => void;
+  rememberTaskProjects: (userId: string, projectIds: string[]) => void;
   rememberCrmView: (userId: string, view: string) => void;
   rememberTaskCalendarZoom: (userId: string, level: string) => void;
 }
@@ -38,7 +40,8 @@ export const useModuleMemory = create<ModuleMemoryState>()(
       boards: {},
       projectPlaces: {},
       taskViews: {},
-      taskAssignees: {},
+      taskParticipants: {},
+      taskProjects: {},
       crmViews: {},
       taskCalendarZooms: {},
       rememberBoard: (userId, board) =>
@@ -57,9 +60,13 @@ export const useModuleMemory = create<ModuleMemoryState>()(
         set((state) => ({
           taskViews: withValue(state.taskViews, userId, view),
         })),
-      rememberTaskAssignees: (userId, assigneeIds) =>
+      rememberTaskParticipants: (userId, participantIds) =>
         set((state) => ({
-          taskAssignees: { ...state.taskAssignees, [userId]: assigneeIds },
+          taskParticipants: { ...state.taskParticipants, [userId]: participantIds },
+        })),
+      rememberTaskProjects: (userId, projectIds) =>
+        set((state) => ({
+          taskProjects: { ...state.taskProjects, [userId]: projectIds },
         })),
       rememberCrmView: (userId, view) =>
         set((state) => ({
@@ -77,7 +84,8 @@ export const useModuleMemory = create<ModuleMemoryState>()(
         boards: state.boards,
         projectPlaces: state.projectPlaces,
         taskViews: state.taskViews,
-        taskAssignees: state.taskAssignees,
+        taskParticipants: state.taskParticipants,
+        taskProjects: state.taskProjects,
         crmViews: state.crmViews,
         taskCalendarZooms: state.taskCalendarZooms,
       }),

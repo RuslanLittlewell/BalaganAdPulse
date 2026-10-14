@@ -29,7 +29,16 @@ const project = (id: string, name: string) => ({
   image: null, avatarPath: null, position: 0, createdAt: "", updatedAt: "",
 });
 
-function api(options: { projects?: unknown[]; agency?: unknown; channels?: unknown[]; stageCounts?: unknown[] } = {}) {
+const days = [
+  { date: "2026-08-01", spend: 400, impressions: 0, reach: 0, clicks: 0, conversions: 0, revenue: 0 },
+  { date: "2026-08-02", spend: 900, impressions: 0, reach: 0, clicks: 0, conversions: 0, revenue: 0 },
+];
+
+const figures = (projectId: string, spend: number) => ({ projectId, performance: performance(spend), days });
+
+function api(options: {
+  projects?: unknown[]; agency?: unknown; channels?: unknown[]; stageCounts?: unknown[]; projectFigures?: unknown[];
+} = {}) {
   server.use(
     mock.get("/api/crm/project-stage-counts", () => HttpResponse.json(options.stageCounts ?? [])),
     mock.get("/api/projects", () =>
@@ -39,12 +48,8 @@ function api(options: { projects?: unknown[]; agency?: unknown; channels?: unkno
       { currency: "BYN", channel: "YANDEX", campaigns: 3, performance: performance(3000) },
       { currency: "BYN", channel: "META", campaigns: 1, performance: performance(1200) },
     ])),
-    mock.get("/api/projects/:projectId/summary", ({ params }) =>
-      HttpResponse.json(performance(params.projectId === "p1" ? 3000 : 1200))),
-    mock.get("/api/projects/:projectId/daily", () => HttpResponse.json([
-      { date: "2026-08-01", spend: 400, impressions: 0, reach: 0, clicks: 0, conversions: 0, revenue: 0 },
-      { date: "2026-08-02", spend: 900, impressions: 0, reach: 0, clicks: 0, conversions: 0, revenue: 0 },
-    ])),
+    mock.get("/api/summary/projects", () =>
+      HttpResponse.json(options.projectFigures ?? [figures("p1", 3000), figures("p2", 1200)])),
   );
 }
 
@@ -158,6 +163,37 @@ describe("DashboardPage", () => {
 
     await screen.findByRole("row", { name: /Клиника/ });
     expect(await screen.findAllByRole("img", { name: /Расход по дням/ })).toHaveLength(2);
+  });
+
+  it("reads every project's figures in one request, however many projects there are", async () => {
+    const many = Array.from({ length: 30 }, (_, index) => project(`p${index}`, `Проект ${index}`));
+    const asked: string[] = [];
+    api({ projects: many, projectFigures: many.map((entry) => figures(entry.id, 100)) });
+    server.use(
+      mock.get("/api/summary/projects", ({ request }) => {
+        asked.push(new URL(request.url).pathname);
+        return HttpResponse.json(many.map((entry) => figures(entry.id, 100)));
+      }),
+      mock.get("/api/projects/:projectId/:reading", ({ request }) => {
+        asked.push(new URL(request.url).pathname);
+        return HttpResponse.json([]);
+      }),
+    );
+    renderWithProviders(<DashboardPage />);
+
+    await screen.findByRole("row", { name: /Проект 29/ });
+    expect(await screen.findAllByRole("img", { name: /Расход по дням/ })).toHaveLength(30);
+    expect(asked).toEqual(["/api/summary/projects"]);
+  });
+
+  it("shows zero for a project the summary has no figures for", async () => {
+    api({ projectFigures: [figures("p1", 3000)] });
+    renderWithProviders(<DashboardPage />);
+
+    await within(await screen.findByRole("row", { name: /Клиника/ })).findByText("3 000 Br");
+    const quiet = screen.getByRole("row", { name: /Автосалон/ });
+    expect(within(quiet).getAllByText("0 Br").length).toBeGreaterThan(0);
+    expect(within(quiet).queryByRole("img", { name: /Расход по дням/ })).not.toBeInTheDocument();
   });
 
   it("opens a project when its row is chosen", async () => {

@@ -84,6 +84,45 @@ describe("reading a range", () => {
   });
 });
 
+describe("reading many campaigns at once", () => {
+  let secondId: string;
+
+  beforeEach(async () => {
+    const project = await prisma.campaign.findUniqueOrThrow({ where: { id: campaignId } });
+    secondId = (await prisma.campaign.create({
+      data: { projectId: project.projectId, name: "Лента", channel: "META", position: 1 },
+    })).id;
+    await recordCampaignDay(campaignId, day("2026-07-31"), { spend: 999 });
+    await recordCampaignDay(campaignId, day("2026-08-01"), { spend: 100 });
+    await recordCampaignDay(secondId, day("2026-08-03"), { spend: 40 });
+    await recordCampaignDay(secondId, day("2026-08-06"), { spend: 888 });
+  });
+
+  it("tags each day with the campaign it was measured for", async () => {
+    const rows = await repository.readCampaignsRange([campaignId, secondId], day("2026-08-01"), day("2026-08-03"));
+
+    expect(rows.map((row) => [row.campaignId, row.spend])).toEqual([[campaignId, 100], [secondId, 40]]);
+    expect(rows[0]).toMatchObject({ date: day("2026-08-01"), impressions: 0, results: 0 });
+  });
+
+  it("includes both endpoints and nothing outside them", async () => {
+    const rows = await repository.readCampaignsRange([campaignId, secondId], day("2026-08-01"), day("2026-08-03"));
+
+    expect(rows.map((row) => row.spend)).not.toContain(999);
+    expect(rows.map((row) => row.spend)).not.toContain(888);
+  });
+
+  it("reads only the campaigns it was given", async () => {
+    const rows = await repository.readCampaignsRange([secondId], day("2026-07-01"), day("2026-08-31"));
+
+    expect(rows.map((row) => row.campaignId)).toEqual([secondId, secondId]);
+  });
+
+  it("reads nothing for no campaigns", async () => {
+    expect(await repository.readCampaignsRange([], day("2026-07-01"), day("2026-08-31"))).toEqual([]);
+  });
+});
+
 describe("the hierarchy beneath a campaign", () => {
   it("records days against an ad set and an ad", async () => {
     const adSet = await prisma.adSet.create({

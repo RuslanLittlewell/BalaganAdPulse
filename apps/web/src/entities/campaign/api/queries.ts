@@ -76,6 +76,13 @@ export function useAgencySummary(range: DateRange) {
   });
 }
 
+export function useProjectsSummary(range: DateRange) {
+  return useQuery({
+    queryKey: keyed(["summary", "projects"], range),
+    queryFn: () => campaignsApi.projectsSummary(range),
+  });
+}
+
 export function useChannelShares(range: DateRange) {
   return useQuery({
     queryKey: keyed(["summary", "channels"], range),

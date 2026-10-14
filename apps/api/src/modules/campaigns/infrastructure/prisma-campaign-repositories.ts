@@ -115,4 +115,11 @@ export class PrismaProjectReach implements ProjectReach {
     });
     return project !== null;
   }
+
+  async listReachable(actor: ActorContext): Promise<string[]> {
+    const projects = await this.prisma.project.findMany({
+      where: reachableProjects(actor), select: { id: true }, orderBy: { position: "asc" },
+    });
+    return projects.map((project) => project.id);
+  }
 }

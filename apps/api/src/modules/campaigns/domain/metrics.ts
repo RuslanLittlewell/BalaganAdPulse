@@ -21,9 +21,7 @@ export function sumByDay(days: readonly MeasuredDay[]): MeasuredDay[] {
   for (const day of days) {
     const key = day.date.getTime();
     const running = byDate.get(key);
-    byDate.set(key, running === undefined
-      ? day
-      : { ...sumMeasured([running, day]), date: day.date });
+    byDate.set(key, { ...sumMeasured(running === undefined ? [day] : [running, day]), date: day.date });
   }
   return [...byDate.values()].sort((a, b) => a.date.getTime() - b.date.getTime());
 }

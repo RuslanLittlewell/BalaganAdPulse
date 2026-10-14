@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import type { MeasuredDay } from "../domain/metrics.js";
-import type { MetricRepository } from "../application/metric-ports.js";
+import type { CampaignDay, MetricRepository } from "../application/metric-ports.js";
 
 interface StoredRow {
   date: Date;
@@ -35,6 +35,15 @@ export class PrismaMetricRepository implements MetricRepository {
       orderBy: { date: "asc" },
     });
     return rows.map(toMeasured);
+  }
+
+  async readCampaignsRange(campaignIds: readonly string[], from: Date, to: Date): Promise<CampaignDay[]> {
+    if (campaignIds.length === 0) return [];
+    const rows = await this.prisma.campaignDailyMetric.findMany({
+      where: { campaignId: { in: [...campaignIds] }, date: within(from, to) },
+      orderBy: { date: "asc" },
+    });
+    return rows.map((row) => ({ campaignId: row.campaignId, ...toMeasured(row) }));
   }
 
   async readAdSetRange(adSetId: string, from: Date, to: Date): Promise<MeasuredDay[]> {

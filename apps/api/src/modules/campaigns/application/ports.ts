@@ -30,4 +30,5 @@ export interface CreativeStorage {
 
 export interface ProjectReach {
   isReachable(actor: ActorContext, projectId: string): Promise<boolean>;
+  listReachable(actor: ActorContext): Promise<string[]>;
 }

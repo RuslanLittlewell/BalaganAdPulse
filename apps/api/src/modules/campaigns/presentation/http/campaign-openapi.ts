@@ -27,6 +27,12 @@ const performance = z.object({ ...measured, ...derived });
 
 const measuredDay = z.object({ date: z.iso.date(), ...measured });
 
+const projectFigures = z.object({
+  projectId: z.uuid(),
+  performance,
+  days: z.array(measuredDay),
+});
+
 const campaign = z.object({
   id: z.uuid(),
   projectId: z.uuid(),
@@ -88,6 +94,7 @@ export const campaignComponents: ComponentDocs = {
   Ad: ad,
   CampaignReference: campaignReference,
   ChannelSummary: channelSummary,
+  ProjectFigures: projectFigures,
 };
 
 const RANGE = "Figures are summed over the inclusive from/to range, which both endpoints require.";
@@ -222,6 +229,15 @@ export const summaryDoc: RouteDoc = {
       description: `${RANGE} Each channel is split by currency.`,
       query: rangeSchema,
       success: { status: 200, description: "One entry per channel and currency", schema: arrayOf(ref("ChannelSummary")) },
+      errors: [400, 401, 403],
+    },
+    {
+      method: "get",
+      path: "/projects",
+      summary: "Sum every reachable project's performance and daily figures",
+      description: `${RANGE} One entry per project the actor reaches, a project with nothing measured carrying zeros and no days.`,
+      query: rangeSchema,
+      success: { status: 200, description: "One entry per project, each with its daily figures oldest first", schema: arrayOf(ref("ProjectFigures")) },
       errors: [400, 401, 403],
     },
     {

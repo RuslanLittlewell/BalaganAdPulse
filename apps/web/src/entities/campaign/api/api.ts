@@ -103,6 +103,12 @@ export interface CurrencyPerformance {
   performance: Performance;
 }
 
+export interface ProjectFigures {
+  projectId: string;
+  performance: Performance;
+  days: MeasuredDay[];
+}
+
 export interface ChannelShare {
   currency: string | null;
   channel: Channel;
@@ -128,6 +134,7 @@ export const campaignsApi = {
   projectSummary: (projectId: string, range: DateRange) =>
     http.get<Performance>(scoped(`/projects/${projectId}/summary`, range)),
   agencySummary: (range: DateRange) => http.get<CurrencyPerformance[]>(scoped("/summary", range)),
+  projectsSummary: (range: DateRange) => http.get<ProjectFigures[]>(scoped("/summary/projects", range)),
   adCreatives: (adId: string) => http.get<Creative[]>(`/ads/${adId}/creatives`),
   adPreview: (adId: string) => http.get<{ url: string }>(`/ads/${adId}/preview`),
   creativeFile: async (creativeId: string, part: "file" | "poster") => {

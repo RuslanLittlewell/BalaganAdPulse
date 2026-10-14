@@ -4,7 +4,7 @@ import type { ActorContext } from "#shared/application/index.js";
 import { isOrderedRange, type Ad, type AdSet, type Campaign, type Channel, type CreativeFile, type DateRange } from "../domain/hierarchy.js";
 import { performanceOf, sumByDay, type MeasuredDay, type Performance } from "../domain/metrics.js";
 import type { AdRepository, AdSetRepository, CampaignRepository, CreativeRepository, CreativeStorage, ProjectReach } from "./ports.js";
-import type { MetricRepository } from "./metric-ports.js";
+import type { CampaignDay, MetricRepository } from "./metric-ports.js";
 
 export interface CampaignDependencies {
   readonly campaigns: CampaignRepository;
@@ -32,6 +32,12 @@ export interface ChannelView {
   readonly performance: Performance;
 }
 
+export interface ProjectFigures {
+  readonly projectId: string;
+  readonly performance: Performance;
+  readonly days: MeasuredDay[];
+}
+
 export interface CampaignReference {
   readonly id: string;
   readonly name: string;
@@ -43,6 +49,12 @@ export type AdSetView = AdSet & WithPerformance<AdSet>;
 export type AdView = Ad & WithPerformance<Ad>;
 
 const NOT_FOUND = "Campaign not found";
+
+function groupedBy<T>(items: readonly T[], keyOf: (item: T) => string): Map<string, T[]> {
+  const groups = new Map<string, T[]>();
+  for (const item of items) groups.set(keyOf(item), [...(groups.get(keyOf(item)) ?? []), item]);
+  return groups;
+}
 
 export function createCampaignUseCases(dependencies: CampaignDependencies) {
   const assertCanRead = (actor: ActorContext) => {
@@ -75,6 +87,16 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
 
   const campaignPerformance = async (id: string, range: DateRange): Promise<Performance> =>
     performanceOf(await dependencies.metrics.readCampaignRange(id, range.from, range.to));
+
+  const campaignDays = (campaigns: readonly Campaign[], range: DateRange): Promise<CampaignDay[]> =>
+    dependencies.metrics.readCampaignsRange(campaigns.map((campaign) => campaign.id), range.from, range.to);
+
+  const reachableProjectCampaigns = async (actor: ActorContext, projectId: string): Promise<Campaign[]> => {
+    if (!(await dependencies.projects.isReachable(actor, projectId))) {
+      throw new AppError("not-found", "Project not found");
+    }
+    return dependencies.campaigns.listReachableByProject(actor, projectId);
+  };
 
   return {
     readCampaign: async (actor: ActorContext, id: string, range: DateRange): Promise<CampaignView> => {
@@ -164,13 +186,7 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
     ): Promise<MeasuredDay[]> => {
       assertCanRead(actor);
       assertRange(range);
-      if (!(await dependencies.projects.isReachable(actor, projectId))) {
-        throw new AppError("not-found", "Project not found");
-      }
-      const campaigns = await dependencies.campaigns.listReachableByProject(actor, projectId);
-      const days = await Promise.all(campaigns.map((campaign) =>
-        dependencies.metrics.readCampaignRange(campaign.id, range.from, range.to)));
-      return sumByDay(days.flat());
+      return sumByDay(await campaignDays(await reachableProjectCampaigns(actor, projectId), range));
     },
 
     projectSummary: async (
@@ -178,25 +194,36 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
     ): Promise<Performance> => {
       assertCanRead(actor);
       assertRange(range);
-      if (!(await dependencies.projects.isReachable(actor, projectId))) {
-        throw new AppError("not-found", "Project not found");
-      }
-      const campaigns = await dependencies.campaigns.listReachableByProject(actor, projectId);
-      const days = await Promise.all(campaigns.map((campaign) =>
-        dependencies.metrics.readCampaignRange(campaign.id, range.from, range.to)));
-      return performanceOf(days.flat());
+      return performanceOf(await campaignDays(await reachableProjectCampaigns(actor, projectId), range));
+    },
+
+    projectsSummary: async (actor: ActorContext, range: DateRange): Promise<ProjectFigures[]> => {
+      assertCanRead(actor);
+      assertRange(range);
+      const [projectIds, campaigns] = await Promise.all([
+        dependencies.projects.listReachable(actor),
+        dependencies.campaigns.listReachable(actor),
+      ]);
+      const campaignsByProject = groupedBy(campaigns, (campaign) => campaign.projectId);
+      const daysByCampaign = groupedBy(await campaignDays(campaigns, range), (day) => day.campaignId);
+      return projectIds.map((projectId) => {
+        const days = (campaignsByProject.get(projectId) ?? [])
+          .flatMap((campaign) => daysByCampaign.get(campaign.id) ?? []);
+        return { projectId, performance: performanceOf(days), days: sumByDay(days) };
+      });
     },
 
     channelSummary: async (actor: ActorContext, range: DateRange): Promise<ChannelView[]> => {
       assertCanRead(actor);
       assertRange(range);
       const campaigns = await dependencies.campaigns.listReachable(actor);
+      const daysByCampaign = groupedBy(await campaignDays(campaigns, range), (day) => day.campaignId);
       const groups = new Map<string, { channel: Channel; currency: string | null; campaigns: number; days: MeasuredDay[] }>();
       for (const campaign of campaigns) {
         const currency = campaign.currency ?? null;
         const key = JSON.stringify([campaign.channel, currency]);
         const group = groups.get(key) ?? { channel: campaign.channel, currency, campaigns: 0, days: [] };
-        group.days.push(...await dependencies.metrics.readCampaignRange(campaign.id, range.from, range.to));
+        group.days.push(...(daysByCampaign.get(campaign.id) ?? []));
         group.campaigns += 1;
         groups.set(key, group);
       }
@@ -208,11 +235,11 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
       assertCanRead(actor);
       assertRange(range);
       const campaigns = await dependencies.campaigns.listReachable(actor);
+      const daysByCampaign = groupedBy(await campaignDays(campaigns, range), (day) => day.campaignId);
       const groups = new Map<string | null, MeasuredDay[]>();
       for (const campaign of campaigns) {
         const currency = campaign.currency ?? null;
-        const days = await dependencies.metrics.readCampaignRange(campaign.id, range.from, range.to);
-        groups.set(currency, [...(groups.get(currency) ?? []), ...days]);
+        groups.set(currency, [...(groups.get(currency) ?? []), ...(daysByCampaign.get(campaign.id) ?? [])]);
       }
       return [...groups].map(([currency, days]) => ({ currency, performance: performanceOf(days) }));
     },

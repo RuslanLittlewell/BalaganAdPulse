@@ -542,6 +542,7 @@ ports, fixed clocks and deterministic identifiers.
 | GET | `/ad-sets/:id/ads` | An ad set's ads, each with its figures | 200 |
 | GET | `/summary` | Every project the caller reaches, summed | 200 |
 | GET | `/summary/channels` | The same, split by channel | 200 |
+| GET | `/summary/projects` | Each project the caller reaches, with its figures and measured days | 200 |
 
 Every reading above is scoped to a range: `?from=YYYY-MM-DD&to=YYYY-MM-DD`, both
 endpoints included and both required.
@@ -570,6 +571,12 @@ repeat replaces rather than appends. Each level stores what the platform reports
 level*: a campaign is never summed from its ads, because reach is deduplicated across the
 campaign's audience. A project and the organization **are** summed from campaigns —
 those are our own groupings and the platform has no opinion about them.
+
+The dashboard's project table reads `/summary/projects` once rather than a summary and a
+series per project, so opening it costs the same request whether the agency runs three
+projects or thirty. Every summary reads the days of all the campaigns it sums in one
+query and groups them in memory, so none costs a query per campaign either. A project
+with nothing measured is still listed, at zero with no days.
 
 Nothing writes these figures yet. This change defines the shape they land in and reads
 what is there; a later change connects the platforms.

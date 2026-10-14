@@ -74,6 +74,10 @@ export function createCampaignHttpRouters(useCases: CampaignUseCases): CampaignH
   summaryRouter.get("/channels", handle(async (req, res) => {
     res.json(await useCases.channelSummary(actorOf(req), rangeOf(req)));
   }));
+  summaryRouter.get("/projects", handle(async (req, res) => {
+    const figures = await useCases.projectsSummary(actorOf(req), rangeOf(req));
+    res.json(figures.map(({ days, ...project }) => ({ ...project, days: asDays(days) })));
+  }));
   summaryRouter.get("/", handle(async (req, res) => {
     res.json(await useCases.agencySummary(actorOf(req), rangeOf(req)));
   }));

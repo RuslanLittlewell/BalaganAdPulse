@@ -1,19 +1,26 @@
+import { useState } from "react";
 import { http as mock, HttpResponse } from "msw";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders, server } from "@test/shared/index.js";
 import { PerformanceSummary } from "@/widgets/agency-overview/index.js";
-import { useSummaryTiles } from "@/widgets/agency-overview/summaryTiles.js";
+import type { SummaryTile } from "@/entities/summary-tiles/index.js";
 
 const performance = {
-  spend: 1500, impressions: 100000, reach: 40000, clicks: 2000, conversions: 50, revenue: 4000,
-  ctr: 2, cpc: 0.75, cpm: 15, cpa: 30, roas: 2.67, frequency: 2.5,
+  spend: 1500, impressions: 100000, reach: 40000, clicks: 2000, conversions: 50, results: 75, revenue: 4000,
+  ctr: 2, cpc: 0.75, cpm: 15, cpa: 30, costPerResult: 20, roas: 2.67, frequency: 2.5,
 };
 const range = { from: "2026-09-01", to: "2026-09-30" };
 type Props = Partial<Parameters<typeof PerformanceSummary>[0]>;
 
-const setup = (props: Props = {}) =>
-  renderWithProviders(<PerformanceSummary screen="dashboard" performance={performance} range={range} {...props} />);
+function Held({ initial, ...props }: Props & { initial: SummaryTile[] }) {
+  const [tiles, setTiles] = useState<SummaryTile[]>(initial);
+  return <PerformanceSummary tiles={tiles} onTilesChange={setTiles} performance={performance} range={range} {...props} />;
+}
+
+const setup = (props: Props = {}) => renderWithProviders(<Held initial={["CONVERSIONS"]} {...props} />);
+
+const projectKpi = { scope: { kind: "project" as const, id: "p1" }, canEdit: false };
 
 const summary = () => screen.getByRole("group", { name: "Показатели за период" });
 const shownTiles = () => within(summary()).queryAllByTestId("summary-tile").map((tile) => tile.getAttribute("data-tile"));
@@ -22,13 +29,6 @@ async function openDialog() {
   await userEvent.click(await screen.findByRole("button", { name: "Настроить показатели" }));
   return screen.findByRole("dialog", { name: "Показатели за период" });
 }
-
-const signedInAs = (id: string) => server.use(mock.get("/api/auth/me", () => HttpResponse.json({
-  user: { id, name: "Buyer", email: `${id}@acme.com`, image: null },
-  organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
-  role: "ADMIN",
-  clientIds: [],
-})));
 
 beforeEach(() => {
   server.use(mock.get("/api/projects/:id/kpi", () => HttpResponse.json(null)));
@@ -39,7 +39,7 @@ describe("the period summary", () => {
     setup();
 
     await screen.findByRole("button", { name: "Настроить показатели" });
-    expect(shownTiles()).toEqual(["conversions"]);
+    expect(shownTiles()).toEqual(["CONVERSIONS"]);
     expect(within(summary()).getByText("Лиды")).toBeInTheDocument();
     expect(within(summary()).queryByText("Расход")).not.toBeInTheDocument();
   });
@@ -50,10 +50,20 @@ describe("the period summary", () => {
 
     expect(within(dialog).getByText("1/5")).toBeInTheDocument();
     const thumbnails = within(dialog).getAllByRole("button", { pressed: false }).concat(within(dialog).getAllByRole("button", { pressed: true }));
-    expect(thumbnails.map((thumbnail) => thumbnail.getAttribute("aria-label")).sort()).toEqual(["CPC", "Клики", "Лиды", "Показы", "Расход"].sort());
+    expect(thumbnails.map((thumbnail) => thumbnail.getAttribute("aria-label")).sort()).toEqual(["CPC", "Клики", "Лиды", "Показы", "Расход", "Результаты"].sort());
     expect(within(dialog).getByRole("button", { name: "Лиды" })).toHaveAttribute("aria-pressed", "true");
     expect(within(dialog).getByRole("button", { name: "Лиды" })).toHaveAttribute("data-selected", "true");
     expect(within(within(dialog).getByRole("button", { name: "Расход" })).getByText("1 500 ₽")).toBeInTheDocument();
+  });
+
+  it("shows results with their cost, between leads and CPC", async () => {
+    renderWithProviders(<Held initial={["CPC", "RESULTS", "CONVERSIONS"]} />);
+
+    await waitFor(() => expect(shownTiles()).toEqual(["CONVERSIONS", "RESULTS", "CPC"]));
+    const tile = within(summary()).getAllByTestId("summary-tile")[1]!;
+    expect(within(tile).getByText("Результаты")).toBeInTheDocument();
+    expect(within(tile).getByText("75")).toBeInTheDocument();
+    expect(within(tile).getByText(/^Цена результата 20,00\s₽$/)).toBeInTheDocument();
   });
 
   it("adds a tile at once and shows chosen tiles in catalogue order", async () => {
@@ -65,7 +75,20 @@ describe("the period summary", () => {
     expect(within(dialog).getByText("2/5")).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Расход" })).toHaveAttribute("aria-pressed", "true");
     await userEvent.keyboard("{Escape}");
-    await waitFor(() => expect(shownTiles()).toEqual(["spend", "conversions"]));
+    await waitFor(() => expect(shownTiles()).toEqual(["SPEND", "CONVERSIONS"]));
+  });
+
+  it("hands every change to whoever holds the tiles", async () => {
+    const changes: SummaryTile[][] = [];
+    renderWithProviders(
+      <PerformanceSummary tiles={["CONVERSIONS"]} onTilesChange={(tiles) => changes.push(tiles)} performance={performance} range={range} kpi={projectKpi} />,
+    );
+    const dialog = await openDialog();
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "KPI" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Лиды" }));
+
+    expect(changes).toEqual([["CONVERSIONS", "KPI"], []]);
   });
 
   it("leaves only the placeholder once every tile is removed", async () => {
@@ -81,7 +104,7 @@ describe("the period summary", () => {
   });
 
   it("stops at five tiles", async () => {
-    setup({ screen: "project", kpi: { scope: { kind: "project", id: "p1" }, canEdit: false } });
+    renderWithProviders(<Held initial={["CONVERSIONS"]} kpi={projectKpi} />);
     const dialog = await openDialog();
 
     for (const name of ["Расход", "Показы", "Клики", "CPC"]) await userEvent.click(within(dialog).getByRole("button", { name }));
@@ -93,49 +116,53 @@ describe("the period summary", () => {
     expect(within(dialog).getByRole("button", { name: "KPI" })).not.toBeDisabled();
   });
 
-  it("remembers each screen separately and across reloads", async () => {
-    const { unmount } = setup();
-    const dialog = await openDialog();
-    await userEvent.click(within(dialog).getByRole("button", { name: "Расход" }));
-    unmount();
-
-    setup({ screen: "project", kpi: { scope: { kind: "project", id: "p1" }, canEdit: false } });
-    await screen.findByRole("button", { name: "Настроить показатели" });
-    expect(shownTiles()).toEqual(["conversions"]);
-    expect(JSON.parse(localStorage.getItem("adpulse-summary-tiles")!).state.layouts["user-1"]).toEqual({ dashboard: ["spend", "conversions"] });
-  });
-
-  it("belongs to the person who chose it", async () => {
-    useSummaryTiles.setState({ layouts: { "user-1": { dashboard: ["spend"] } } });
-    signedInAs("user-2");
-    setup();
-
-    await screen.findByRole("button", { name: "Настроить показатели" });
-    await waitFor(() => expect(shownTiles()).toEqual(["conversions"]));
-  });
-
   it("offers KPI only where a KPI is bound and ignores a stored tile that is not offered", async () => {
-    useSummaryTiles.setState({ layouts: { "user-1": { dashboard: ["spend", "kpi"] } } });
-    setup();
+    renderWithProviders(<Held initial={["SPEND", "KPI"]} />);
 
-    await waitFor(() => expect(shownTiles()).toEqual(["spend"]));
+    await waitFor(() => expect(shownTiles()).toEqual(["SPEND"]));
     const dialog = await openDialog();
     expect(within(dialog).queryByRole("button", { name: "KPI" })).not.toBeInTheDocument();
     expect(within(dialog).getByText("1/5")).toBeInTheDocument();
   });
 
-  it("shows the chosen tiles without a placeholder when it cannot be configured", async () => {
-    useSummaryTiles.setState({ layouts: { "user-1": { project: ["spend", "clicks"] } } });
-    setup({ screen: "project", configurable: false });
+  it("shows the tiles it is given without a placeholder when nobody may change them", async () => {
+    renderWithProviders(<PerformanceSummary tiles={["SPEND", "CLICKS"]} performance={performance} range={range} />);
 
-    await waitFor(() => expect(shownTiles()).toEqual(["spend", "clicks"]));
+    await waitFor(() => expect(shownTiles()).toEqual(["SPEND", "CLICKS"]));
     expect(screen.queryByRole("button", { name: "Настроить показатели" })).not.toBeInTheDocument();
   });
 
-  it("offers KPI on a project page to a member who cannot change it", async () => {
-    setup({ screen: "project", kpi: { scope: { kind: "project", id: "p1" }, canEdit: false } });
+  it("offers KPI to a member choosing a project's tiles who cannot change the KPI itself", async () => {
+    renderWithProviders(<Held initial={["CONVERSIONS"]} kpi={projectKpi} />);
 
     const dialog = await openDialog();
     expect(within(dialog).getByRole("button", { name: "KPI" })).toHaveAttribute("aria-pressed", "false");
   });
+});
+
+it("keeps currency amounts in one card and aggregates only nonmonetary figures", async () => {
+  setup({ currency: null, currencyPerformances: [
+    { currency: "USD", performance },
+    { currency: "EUR", performance: { ...performance, spend: 40, cpc: 0.02, cpm: 0.4, cpa: 0.8 } },
+  ] });
+  expect(within(summary()).getByText("100")).toBeInTheDocument();
+  const dialog = await openDialog();
+  const spend = within(dialog).getByRole("button", { name: "Расход" });
+  expect(within(spend).getByText("1 500 $")).toBeInTheDocument();
+  expect(within(spend).getByText("40 €")).toBeInTheDocument();
+  const cpc = within(dialog).getByRole("button", { name: "CPC" });
+  expect(within(cpc).getByText("0,75 $")).toBeInTheDocument();
+  expect(within(cpc).getByText("0,02 €")).toBeInTheDocument();
+});
+
+it("adds results up across currencies and prices them in each", async () => {
+  renderWithProviders(<Held initial={["RESULTS"]} currency={null} currencyPerformances={[
+    { currency: "USD", performance },
+    { currency: "EUR", performance: { ...performance, costPerResult: 0.5 } },
+  ]} />);
+
+  await waitFor(() => expect(shownTiles()).toEqual(["RESULTS"]));
+  expect(within(summary()).getByText("150")).toBeInTheDocument();
+  expect(within(summary()).getByText(/^Цена результата 20,00\s\$$/)).toBeInTheDocument();
+  expect(within(summary()).getByText(/^Цена результата 0,50\s€$/)).toBeInTheDocument();
 });

@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { arrayOf, ref, type ComponentDocs, type RouteDoc } from "#shared/presentation/openapi.js";
-import { MAX_TASK_IMAGE_BYTES } from "../../domain/image.js";
-import { TASK_COLUMNS, TASK_PRIORITIES } from "../../domain/board.js";
-import { TASK_REPEATS } from "../../domain/schedule.js";
+import { MAX_TASK_IMAGE_BYTES } from "#modules/tasks/domain/image.js";
+import { TASK_COLUMNS, TASK_PRIORITIES } from "#modules/tasks/domain/board.js";
+import { TASK_REPEATS } from "#modules/tasks/domain/schedule.js";
 import { createTaskSchema, moveTaskSchema, updateTaskSchema } from "./task-schemas.js";
 
 const task = z.object({
@@ -13,13 +13,13 @@ const task = z.object({
   description: z.unknown(),
   column: z.enum(TASK_COLUMNS),
   priority: z.enum(TASK_PRIORITIES),
-  assigneeId: z.uuid().nullable(),
   createdById: z.uuid().nullable(),
-  campaignId: z.uuid().nullable(),
+  participantIds: z.array(z.uuid()),
   visibleToClient: z.boolean(),
   position: z.int(),
   dueDate: z.iso.date().nullable(),
   dueTime: z.string().nullable(),
+  endTime: z.string().nullable(),
   repeatEvery: z.enum(TASK_REPEATS),
   checklist: z.array(z.object({
     id: z.uuid(),
@@ -55,10 +55,9 @@ export const taskDoc: RouteDoc = {
       method: "get",
       path: "/",
       summary: "List the tasks on the board",
-      description: "Narrowed to the projects this actor reaches, and further by project, campaign or a range of due days when named.",
+      description: "Narrowed to the projects this actor reaches, and further by project or a range of due days when named.",
       query: z.object({
         projectId: z.uuid().optional(),
-        campaignId: z.uuid().optional(),
         dueFrom: z.iso.date().optional(),
         dueTo: z.iso.date().optional(),
       }),
@@ -69,7 +68,7 @@ export const taskDoc: RouteDoc = {
       method: "post",
       path: "/",
       summary: "Create a task",
-      description: "Naming no project makes the task the member's own note: it carries no campaign, is never shared with a client, and is reached by its author, the member responsible for it and any admin. Naming no campaign makes the task about the project as a whole. A checklist named here is stored with the task, in the order it is given.",
+      description: "Naming no project makes the task the member's own note: it is never shared with a client, and is reached by its author, the member responsible for it and any admin. A checklist named here is stored with the task, in the order it is given.",
       body: createTaskSchema,
       success: { status: 201, description: "The task", schema: ref("Task") },
       errors: [400, 401, 403, 404],

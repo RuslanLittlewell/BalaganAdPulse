@@ -24,7 +24,7 @@ export interface PresenceLeft {
 
 export type PresenceEvent = PresenceState | PresenceJoined | PresenceLeft;
 
-export function entryOf(person: PresencePerson): PresenceEntry {
+function entryOf(person: PresencePerson): PresenceEntry {
   return {
     userId: person.userId,
     membershipId: person.membershipId,

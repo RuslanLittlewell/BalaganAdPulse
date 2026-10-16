@@ -3,8 +3,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
 import { errorHandler } from "#shared/presentation/error-handler.js";
+import { projectDocumentBody } from "#modules/project-documents/index.js";
 import { createContainer, type ApiContainer } from "./create-container.js";
-import { createRoutes } from "./create-routes.js";
+import { createRoutes, mountPath } from "./create-routes.js";
 
 const DEFAULT_WEB_DIST = fileURLToPath(new URL("../../../web/dist/", import.meta.url));
 
@@ -17,6 +18,7 @@ export function createApp(options: AppOptions = {}) {
   const app = express();
 
   app.set("trust proxy", 1);
+  app.use(mountPath("project-documents"), projectDocumentBody);
   app.use(express.json());
 
   app.get("/healthz", (_req, res) => {
@@ -37,4 +39,3 @@ export function createApp(options: AppOptions = {}) {
   return app;
 }
 
-export default createApp;

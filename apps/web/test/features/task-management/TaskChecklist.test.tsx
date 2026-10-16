@@ -23,7 +23,6 @@ beforeEach(() => {
   server.use(
     mock.get("/api/projects", () => HttpResponse.json([aProject({ id: "project-1" })])),
     mock.get("/api/members", () => HttpResponse.json(members)),
-    mock.get("/api/campaigns/names", () => HttpResponse.json([])),
   );
 });
 
@@ -96,7 +95,7 @@ describe("the checklist of a task being edited", () => {
     await userEvent.click(await screen.findByRole("checkbox", { name: "Собрать креативы" }));
     await userEvent.click(screen.getByRole("button", { name: "Отмена" }));
 
-    expect(closed).toBe(true);
+    await waitFor(() => expect(closed).toBe(true));
     expect(requests).toBe(0);
   });
 

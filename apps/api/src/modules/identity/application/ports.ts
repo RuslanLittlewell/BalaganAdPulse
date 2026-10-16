@@ -26,6 +26,7 @@ export interface UserRepository {
       phone?: string | null; telegram?: string | null;
     },
   ): Promise<IdentityUser>;
+  setPassword(context: TransactionContext, id: string, passwordHash: string): Promise<IdentityUser>;
   setAvatar(
     context: TransactionContext,
     id: string,
@@ -61,6 +62,9 @@ export interface TokenPort {
   generateRefresh(): string;
   hashRefresh(token: string): string;
   refreshExpiry(now: Date): Date;
+  generateReset(): string;
+  hashReset(token: string): string;
+  resetExpiry(now: Date): Date;
 }
 
 export interface RefreshSessionRepository {
@@ -72,6 +76,21 @@ export interface RefreshSessionRepository {
     tokenHash: string,
   ): Promise<{ userId: string; expiresAt: Date; user: IdentityUser } | null>;
   revoke(context: TransactionContext, tokenHash: string): Promise<void>;
+  revokeAll(context: TransactionContext, userId: string): Promise<void>;
+}
+
+export interface PasswordResetRepository {
+  replace(
+    context: TransactionContext,
+    value: { userId: string; tokenHash: string; expiresAt: Date },
+  ): Promise<void>;
+  find(tokenHash: string): Promise<{ userId: string; expiresAt: Date } | null>;
+  consume(context: TransactionContext, tokenHash: string): Promise<boolean>;
+}
+
+export interface ResetLinkDelivery {
+  readonly available: boolean;
+  deliver(recipient: { email: string; name: string }, token: string): void;
 }
 
 export interface ProfileStorage {
@@ -85,6 +104,8 @@ export interface IdentityDependencies {
   readonly passwords: PasswordPort;
   readonly tokens: TokenPort;
   readonly sessions: RefreshSessionRepository;
+  readonly resets: PasswordResetRepository;
+  readonly resetLinks: ResetLinkDelivery;
   readonly profiles: ProfileStorage;
   readonly clock: Clock;
   readonly unitOfWork: UnitOfWork;

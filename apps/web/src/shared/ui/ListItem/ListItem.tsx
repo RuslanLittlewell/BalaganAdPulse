@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { PencilIcon } from "lucide-react";
-import { Button } from "../ui/button.js";
+import { Button } from "../Button/Button.js";
 
 const NO_OWN_HOVER = "hover:bg-transparent dark:hover:bg-transparent";
 

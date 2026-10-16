@@ -2,7 +2,7 @@ export const TASK_REPEATS = ["NONE", "DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"] a
 
 export type TaskRepeat = (typeof TASK_REPEATS)[number];
 
-export const DEFAULT_TASK_REPEAT: TaskRepeat = "NONE";
+const DEFAULT_TASK_REPEAT: TaskRepeat = "NONE";
 
 const CALENDAR_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_OF_DAY = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -15,6 +15,24 @@ export function isCalendarDay(value: string): boolean {
 
 export function isTimeOfDay(value: string): boolean {
   return TIME_OF_DAY.test(value);
+}
+
+const END_OF_DAY = "24:00";
+
+export const MINUTES_PER_DAY = 24 * 60;
+
+export function isEndTime(value: string): boolean {
+  return value === END_OF_DAY || isTimeOfDay(value);
+}
+
+export function minutesOf(time: string): number {
+  const [hours, minutes] = time.split(":").map(Number) as [number, number];
+  return hours * 60 + minutes;
+}
+
+function timeOf(minutes: number): string {
+  const hours = String(Math.floor(minutes / 60)).padStart(2, "0");
+  return `${hours}:${String(minutes % 60).padStart(2, "0")}`;
 }
 
 export function dayToDate(day: string): Date {
@@ -47,25 +65,40 @@ export function nextOccurrence(day: string, repeat: RepeatingTask): string {
 export interface TaskSchedule {
   readonly dueDate: string | null;
   readonly dueTime: string | null;
+  readonly endTime: string | null;
   readonly repeatEvery: TaskRepeat;
 }
 
 export interface ScheduleChange {
   readonly dueDate?: string | null;
   readonly dueTime?: string | null;
+  readonly endTime?: string | null;
   readonly repeatEvery?: TaskRepeat;
 }
 
 export const UNSCHEDULED: TaskSchedule = {
   dueDate: null,
   dueTime: null,
+  endTime: null,
   repeatEvery: DEFAULT_TASK_REPEAT,
 };
+
+function endAfter(current: TaskSchedule, change: ScheduleChange, dueTime: string | null): string | null {
+  if (change.endTime !== undefined) return change.endTime;
+  if (dueTime === null || current.dueTime === null || current.endTime === null) return null;
+  if (dueTime === current.dueTime) return current.endTime;
+  return timeOf(minutesOf(dueTime) + minutesOf(current.endTime) - minutesOf(current.dueTime));
+}
 
 export function rescheduled(current: TaskSchedule, change: ScheduleChange): TaskSchedule {
   const dueDate = change.dueDate === undefined ? current.dueDate : change.dueDate;
   const dueTime = change.dueDate === null
     ? null
     : change.dueTime === undefined ? current.dueTime : change.dueTime;
-  return { dueDate, dueTime, repeatEvery: change.repeatEvery ?? current.repeatEvery };
+  return {
+    dueDate,
+    dueTime,
+    endTime: endAfter(current, change, dueTime),
+    repeatEvery: change.repeatEvery ?? current.repeatEvery,
+  };
 }

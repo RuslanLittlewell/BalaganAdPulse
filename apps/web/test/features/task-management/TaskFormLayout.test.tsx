@@ -18,9 +18,6 @@ beforeEach(() => {
   server.use(
     mock.get("/api/projects", () => HttpResponse.json([aProject({ id: "project-1", name: "Летний запуск" })])),
     mock.get("/api/members", () => HttpResponse.json(members)),
-    mock.get("/api/campaigns/names", () => HttpResponse.json([
-      { id: "camp-1", projectId: "project-1", name: "Поиск / Москва", channel: "YANDEX" },
-    ])),
     mock.post("/api/tasks", async ({ request }) => {
       sent = await request.json() as Record<string, unknown>;
       return HttpResponse.json({ id: "task-1" }, { status: 201 });
@@ -64,17 +61,15 @@ describe("the blocks a task is composed from", () => {
     expect(screen.getByText("Приоритет")).toBeInTheDocument();
 
     expect(screen.queryByLabelText("Проект")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Ответственный")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Кампания")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Участники" })).not.toBeInTheDocument();
   });
 
-  it("brings the project, the campaign and the responsible member in one block", async () => {
+  it("brings the project and the participants in one block", async () => {
     creating();
     await open("Назначить");
 
     expect(await screen.findByLabelText("Проект")).toBeInTheDocument();
-    expect(screen.getByLabelText("Кампания")).toBeInTheDocument();
-    expect(screen.getByLabelText("Ответственный")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Участники" })).toBeInTheDocument();
     expect(offered()).toEqual(["Чек-лист", "Даты"]);
   });
 
@@ -86,15 +81,6 @@ describe("the blocks a task is composed from", () => {
 
     expect(shownBlocks())
       .toEqual(["task-block-checklist", "task-block-dates", "task-block-assign"]);
-  });
-
-  it("separates the blocks from one another", async () => {
-    creating();
-    await open("Чек-лист");
-    await open("Даты");
-
-    const dates = screen.getByTestId("task-block-dates");
-    expect(within(dates).getByRole("separator")).toBeInTheDocument();
   });
 
   it("carries the remove control of each block", async () => {
@@ -123,14 +109,12 @@ describe("a task the form saves without a project", () => {
     await waitFor(() => expect(sent).toMatchObject({ title: "Заметка", projectId: null }));
   });
 
-  it("clears the project, the campaign and the responsible member together", async () => {
-    edit({ campaignId: "camp-1", assigneeId: "member-1" });
+  it("clears the project and the participants together", async () => {
+    edit({ participantIds: ["member-1"] });
     await userEvent.click(await screen.findByRole("button", { name: "Убрать назначение" }));
     await save();
 
-    await waitFor(() => expect(sent).toMatchObject({
-      projectId: null, campaignId: null, assigneeId: null,
-    }));
+    await waitFor(() => expect(sent).toMatchObject({ projectId: null, participantIds: [] }));
   });
 
   it("shows the assignment block for a task that has a project", async () => {

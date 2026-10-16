@@ -13,15 +13,6 @@ function capturing(body: unknown[] = []) {
 }
 
 describe("useTasks", () => {
-  it("asks for one campaign's tasks", async () => {
-    const seen = capturing([aTask({ campaignId: "camp-1" })]);
-
-    const { result } = renderHook(() => useTasks({ campaignId: "camp-1" }), { wrapper: hookWrapper() });
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(seen[0].searchParams.get("campaignId")).toBe("camp-1");
-  });
-
   it("asks for one project's tasks", async () => {
     const seen = capturing();
 
@@ -29,22 +20,21 @@ describe("useTasks", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(seen[0].searchParams.get("projectId")).toBe("p1");
-    expect(seen[0].searchParams.get("campaignId")).toBeNull();
   });
 
-  it("keeps each campaign's answer apart", async () => {
+  it("keeps each project's answer apart", async () => {
     server.use(mock.get("/api/tasks", ({ request }) => {
-      const campaignId = new URL(request.url).searchParams.get("campaignId") as string;
-      return HttpResponse.json([aTask({ id: campaignId, title: campaignId })]);
+      const projectId = new URL(request.url).searchParams.get("projectId") as string;
+      return HttpResponse.json([aTask({ id: projectId, title: projectId })]);
     }));
     const wrapper = hookWrapper();
 
-    const first = renderHook(() => useTasks({ campaignId: "camp-1" }), { wrapper });
+    const first = renderHook(() => useTasks({ projectId: "p1" }), { wrapper });
     await waitFor(() => expect(first.result.current.isSuccess).toBe(true));
-    const second = renderHook(() => useTasks({ campaignId: "camp-2" }), { wrapper });
+    const second = renderHook(() => useTasks({ projectId: "p2" }), { wrapper });
     await waitFor(() => expect(second.result.current.isSuccess).toBe(true));
 
-    expect(second.result.current.data?.[0].title).toBe("camp-2");
-    expect(first.result.current.data?.[0].title).toBe("camp-1");
+    expect(second.result.current.data?.[0].title).toBe("p2");
+    expect(first.result.current.data?.[0].title).toBe("p1");
   });
 });

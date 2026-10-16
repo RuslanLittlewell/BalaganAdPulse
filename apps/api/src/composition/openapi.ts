@@ -1,4 +1,4 @@
-import { adPreviewDoc, integrationDoc } from "../modules/integrations/presentation/http/integration-openapi.js";
+import { adPreviewDoc, integrationDoc } from "#modules/integrations/presentation/http/integration-openapi.js";
 import { createRequire } from "node:module";
 import path from "node:path";
 import express, { Router } from "express";
@@ -8,13 +8,13 @@ import {
   type OpenApiDocument,
   type RouteDoc,
 } from "#shared/presentation/openapi.js";
-import { authDoc, identityComponents, userDoc } from "../modules/identity/presentation/http/identity-openapi.js";
-import { memberComponents, memberDoc, sessionDoc } from "../modules/members/presentation/http/member-openapi.js";
-import { inviteComponents, inviteDoc, registrationResolverDoc } from "../modules/invites/presentation/http/invite-openapi.js";
-import { auditComponents, auditDoc } from "../modules/audit/presentation/http/audit-openapi.js";
-import { clientComponents, clientDoc } from "../modules/clients/presentation/http/client-openapi.js";
-import { projectComponents, projectDoc } from "../modules/projects/presentation/http/project-openapi.js";
-import { projectGroupDoc, projectLayoutDoc } from "../modules/project-layout/presentation/http/layout-openapi.js";
+import { authDoc, identityComponents, userDoc } from "#modules/identity/presentation/http/identity-openapi.js";
+import { memberComponents, memberDoc, sessionDoc } from "#modules/members/presentation/http/member-openapi.js";
+import { inviteComponents, inviteDoc, registrationResolverDoc } from "#modules/invites/presentation/http/invite-openapi.js";
+import { auditComponents, auditDoc } from "#modules/audit/presentation/http/audit-openapi.js";
+import { clientComponents, clientDoc } from "#modules/clients/presentation/http/client-openapi.js";
+import { projectComponents, projectDoc } from "#modules/projects/presentation/http/project-openapi.js";
+import { projectGroupDoc, projectLayoutDoc } from "#modules/project-layout/presentation/http/layout-openapi.js";
 import {
   adCreativeDoc,
   adSetDoc,
@@ -22,11 +22,15 @@ import {
   campaignDoc,
   projectMetricDoc,
   summaryDoc,
-} from "../modules/campaigns/presentation/http/campaign-openapi.js";
-import { taskComponents, taskDoc, taskImageDoc } from "../modules/tasks/presentation/http/task-openapi.js";
+} from "#modules/campaigns/presentation/http/campaign-openapi.js";
+import { taskComponents, taskDoc, taskImageDoc } from "#modules/tasks/presentation/http/task-openapi.js";
 import { mountPath } from "./create-routes.js";
-import { leadDoc, leadComponents } from '../modules/leads/presentation/http/lead-openapi.js';
-import { kpiDoc } from '../modules/kpi/index.js';
+import { leadDoc, leadComponents } from '#modules/leads/presentation/http/lead-openapi.js';
+import { kpiDoc } from '#modules/kpi/index.js';
+import { summaryTileDoc } from "#modules/summary-tiles/index.js";
+import { projectDocumentComponents, projectDocumentDoc } from "#modules/project-documents/index.js";
+import { reportDoc, reportIndexDoc } from '#modules/reports/index.js';
+import { platformComponents, platformDoc } from "#modules/platform/index.js";
 
 const require = createRequire(import.meta.url);
 
@@ -82,11 +86,14 @@ export function apiDocument(): OpenApiDocument {
       { mount: mountPath("open-auth"), ...authDoc },
       { mount: mountPath("registration-resolver"), ...registrationResolverDoc },
       { mount: mountPath("session"), ...sessionDoc },
+      { mount: mountPath("platform"), ...platformDoc },
       { mount: mountPath("user"), ...userDoc },
       { mount: mountPath("invites"), ...inviteDoc },
       { mount: mountPath("members"), ...memberDoc },
       { mount: mountPath("audit"), ...auditDoc },
       { mount: mountPath("project-metrics"), ...projectMetricDoc },
+      { mount: mountPath("reports"), ...reportDoc },
+      { mount: mountPath("report-index"), ...reportIndexDoc },
       { mount: mountPath("integrations"), ...integrationDoc },
       { mount: mountPath("ad-previews"), ...adPreviewDoc },
       { mount: mountPath("projects"), ...projectDoc },
@@ -101,6 +108,8 @@ export function apiDocument(): OpenApiDocument {
       { mount: mountPath("leads"), ...leadDoc },
       { mount: mountPath("task-images"), ...taskImageDoc },
       { mount: mountPath("kpi"), ...kpiDoc },
+      { mount: mountPath("summary-tiles"), ...summaryTileDoc },
+      { mount: mountPath("project-documents"), ...projectDocumentDoc },
     ],
     components: mergeComponents(
       identityComponents,
@@ -112,6 +121,8 @@ export function apiDocument(): OpenApiDocument {
       projectComponents,
       campaignComponents,
       taskComponents,
+      projectDocumentComponents,
+      platformComponents,
     ),
   });
 }

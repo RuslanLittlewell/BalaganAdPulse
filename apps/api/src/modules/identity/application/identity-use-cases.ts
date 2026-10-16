@@ -27,7 +27,10 @@ export interface UpdateIdentityProfileInput {
 }
 
 export function createIdentityUseCases(dependencies: IdentityDependencies) {
-  const issueTokenPair = async (context: TransactionContext, user: Parameters<typeof principalOf>[0]) => {
+  const issueTokenPair = async (
+    context: TransactionContext,
+    user: Parameters<typeof principalOf>[0],
+  ) => {
     const refreshToken = dependencies.tokens.generateRefresh();
     await dependencies.sessions.save(context, {
       userId: user.id,
@@ -38,6 +41,18 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
       accessToken: await dependencies.tokens.issueAccess(principalOf(user)),
       refreshToken,
     };
+  };
+
+  const usableReset = async (token: string) => {
+    const tokenHash = dependencies.tokens.hashReset(token);
+    const reset = await dependencies.resets.find(tokenHash);
+    if (!reset || reset.expiresAt <= dependencies.clock.now()) {
+      throw new AppError(
+        "not-found",
+        "This password reset link is invalid or has expired",
+      );
+    }
+    return { ...reset, tokenHash };
   };
 
   return {
@@ -60,7 +75,11 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
           telegram: input.telegram ?? null,
         });
         await dependencies.invitations.redeem(
-          context, input.inviteCode, input.email, user.id, dependencies.clock.now(),
+          context,
+          input.inviteCode,
+          input.email,
+          user.id,
+          dependencies.clock.now(),
           input.registration,
         );
         return issueTokenPair(context, user);
@@ -69,24 +88,81 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
 
     login: async (input: LoginIdentityInput) => {
       const user = await dependencies.users.findByEmail(input.email);
-      const matches = await dependencies.passwords.verify(input.password, user?.passwordHash ?? dependencies.passwords.dummyHash);
-      if (!user || !matches) throw new AppError("unauthorized", "Invalid email or password");
-      return dependencies.unitOfWork.run((context) => issueTokenPair(context, user));
+      const matches = await dependencies.passwords.verify(
+        input.password,
+        user?.passwordHash ?? dependencies.passwords.dummyHash,
+      );
+      if (!user || !matches)
+        throw new AppError("unauthorized", "Invalid email or password");
+      return dependencies.unitOfWork.run((context) =>
+        issueTokenPair(context, user),
+      );
+    },
+
+    requestPasswordReset: async (email: string) => {
+      if (!dependencies.resetLinks.available) {
+        throw new AppError("unavailable", "Password recovery is not available");
+      }
+      const user = await dependencies.users.findByEmail(email);
+      if (!user) return;
+      const token = dependencies.tokens.generateReset();
+      await dependencies.unitOfWork.run((context) =>
+        dependencies.resets.replace(context, {
+          userId: user.id,
+          tokenHash: dependencies.tokens.hashReset(token),
+          expiresAt: dependencies.tokens.resetExpiry(dependencies.clock.now()),
+        }),
+      );
+      dependencies.resetLinks.deliver(
+        { email: user.email, name: user.name },
+        token,
+      );
+    },
+
+    checkPasswordReset: async (token: string) => {
+      await usableReset(token);
+    },
+
+    resetPassword: async (token: string, password: string) => {
+      const reset = await usableReset(token);
+      const passwordHash = await dependencies.passwords.hash(password);
+      return dependencies.unitOfWork.run(async (context) => {
+        if (!(await dependencies.resets.consume(context, reset.tokenHash))) {
+          throw new AppError(
+            "not-found",
+            "This password reset link is invalid or has expired",
+          );
+        }
+        const user = await dependencies.users.setPassword(
+          context,
+          reset.userId,
+          passwordHash,
+        );
+        await dependencies.sessions.revokeAll(context, user.id);
+        return issueTokenPair(context, user);
+      });
     },
 
     refresh: async (refreshToken: string) => {
-      const session = await dependencies.sessions.find(dependencies.tokens.hashRefresh(refreshToken));
+      const session = await dependencies.sessions.find(
+        dependencies.tokens.hashRefresh(refreshToken),
+      );
       if (!session || session.expiresAt <= dependencies.clock.now()) {
         throw new AppError("unauthorized", "Session expired");
       }
-      return { accessToken: await dependencies.tokens.issueAccess(principalOf(session.user)) };
+      return {
+        accessToken: await dependencies.tokens.issueAccess(
+          principalOf(session.user),
+        ),
+      };
     },
 
     logout: async (refreshToken: string): Promise<string | null> => {
       const tokenHash = dependencies.tokens.hashRefresh(refreshToken);
       const session = await dependencies.sessions.find(tokenHash);
       await dependencies.unitOfWork.run((context) =>
-        dependencies.sessions.revoke(context, tokenHash));
+        dependencies.sessions.revoke(context, tokenHash),
+      );
       return session?.user.id ?? null;
     },
 
@@ -99,7 +175,9 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
     profile: async (userId: string) => {
       const user = await dependencies.users.findById(userId);
       if (!user) throw new AppError("not-found", "User not found");
-      const image = user.image ? await dependencies.profiles.readAvatar(userId) : null;
+      const image = user.image
+        ? await dependencies.profiles.readAvatar(userId)
+        : null;
       return {
         name: user.name,
         email: user.email,
@@ -110,12 +188,20 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
       };
     },
 
-    updateProfile: async (userId: string, input: UpdateIdentityProfileInput) => {
+    updateProfile: async (
+      userId: string,
+      input: UpdateIdentityProfileInput,
+    ) => {
       const user = await dependencies.users.findById(userId);
       if (!user) throw new AppError("not-found", "User not found");
       let passwordHash: string | undefined;
       if (input.newPassword) {
-        if (!await dependencies.passwords.verify(input.currentPassword ?? "", user.passwordHash)) {
+        if (
+          !(await dependencies.passwords.verify(
+            input.currentPassword ?? "",
+            user.passwordHash,
+          ))
+        ) {
           throw new AppError("forbidden", "Current password is incorrect");
         }
         passwordHash = await dependencies.passwords.hash(input.newPassword);
@@ -127,14 +213,21 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
           ...(input.telegram === undefined ? {} : { telegram: input.telegram }),
           ...(passwordHash ? { passwordHash } : {}),
         });
-        return { accessToken: await dependencies.tokens.issueAccess(principalOf(updated)) };
+        return {
+          accessToken: await dependencies.tokens.issueAccess(
+            principalOf(updated),
+          ),
+        };
       });
     },
     saveAvatar: async (userId: string, png: Uint8Array, avatarPath: string) => {
       await dependencies.profiles.writeAvatar(userId, png);
-      await dependencies.unitOfWork.run((context) => dependencies.users.setAvatar(context, userId, {
-        image: dependencies.clock.now().toISOString(), avatarPath,
-      }));
+      await dependencies.unitOfWork.run((context) =>
+        dependencies.users.setAvatar(context, userId, {
+          image: dependencies.clock.now().toISOString(),
+          avatarPath,
+        }),
+      );
     },
   };
 }

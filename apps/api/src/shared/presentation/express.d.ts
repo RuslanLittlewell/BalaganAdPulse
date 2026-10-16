@@ -1,5 +1,5 @@
 import type { Actor } from "@adpulse/access-policy";
-import type { SessionPrincipal } from "../../modules/identity/domain/identity-user.js";
+import type { SessionPrincipal } from "#modules/identity/domain/identity-user.js";
 
 declare global {
   namespace Express {

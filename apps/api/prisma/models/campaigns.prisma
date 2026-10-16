@@ -1,0 +1,168 @@
+enum Channel {
+  META
+  GOOGLE
+  YANDEX
+  VK
+  TIKTOK
+  LINKEDIN
+  TELEGRAM
+
+  @@map("channel")
+}
+
+enum DeliveryStatus {
+  ACTIVE
+  LEARNING
+  PAUSED
+  REJECTED
+  ENDED
+
+  @@map("delivery_status")
+}
+
+enum CreativeKind {
+  IMAGE
+  VIDEO
+
+  @@map("creative_kind")
+}
+
+model Campaign {
+  id              String                @id @default(uuid())
+  projectId       String                @map("project_id")
+  project         Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name            String
+  channel         Channel
+  status          DeliveryStatus        @default(ACTIVE)
+  objective       String?
+  externalId      String?               @map("external_id")
+  sourceAccountId String?               @map("source_account_id")
+  position        Int
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+  adSets          AdSet[]
+  metrics         CampaignDailyMetric[]
+  leads           Lead[]
+  kpiMetric       KpiMetric?            @map("kpi_metric")
+  kpiTarget       Decimal?              @map("kpi_target") @db.Decimal(18, 4)
+  kpiUpdatedAt    DateTime?             @map("kpi_updated_at")
+
+  @@unique([channel, externalId])
+  @@index([projectId, position])
+  @@map("campaign")
+}
+
+model AdSet {
+  id         String             @id @default(uuid())
+  campaignId String             @map("campaign_id")
+  campaign   Campaign           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  name       String
+  audience   String?
+  status     DeliveryStatus     @default(ACTIVE)
+  externalId String?            @map("external_id")
+  position   Int
+  createdAt  DateTime           @default(now()) @map("created_at")
+  updatedAt  DateTime           @updatedAt @map("updated_at")
+  ads        Ad[]
+  metrics    AdSetDailyMetric[]
+
+  @@index([campaignId, position])
+  @@map("ad_set")
+}
+
+model Ad {
+  id          String            @id @default(uuid())
+  adSetId     String            @map("ad_set_id")
+  adSet       AdSet             @relation(fields: [adSetId], references: [id], onDelete: Cascade)
+  name        String
+  format      String?
+  headline    String?
+  status      DeliveryStatus    @default(ACTIVE)
+  externalId  String?           @map("external_id")
+  position    Int
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+  metrics     AdDailyMetric[]
+  creatives   AdCreative[]
+  leads       Lead[]
+  reportPicks MonthlyReportAd[]
+
+  @@index([adSetId, position])
+  @@map("ad")
+}
+
+model AdCreative {
+  id                String       @id @default(uuid())
+  adId              String       @map("ad_id")
+  ad                Ad           @relation(fields: [adId], references: [id], onDelete: Cascade)
+  externalId        String       @map("external_id")
+  position          Int
+  kind              CreativeKind
+  title             String?
+  body              String?
+  fileKey           String?      @map("file_key")
+  contentType       String?      @map("content_type")
+  bytes             Int?
+  posterKey         String?      @map("poster_key")
+  posterContentType String?      @map("poster_content_type")
+  quality           Int          @default(0)
+  syncedAt          DateTime     @default(now()) @map("synced_at")
+
+  @@unique([adId, externalId, position])
+  @@index([adId, position])
+  @@map("ad_creative")
+}
+
+model CampaignDailyMetric {
+  campaignId  String   @map("campaign_id")
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  date        DateTime @db.Date
+  spend       Decimal  @default(0) @db.Decimal(18, 4)
+  impressions Int      @default(0)
+  reach       Int      @default(0)
+  clicks      Int      @default(0)
+  conversions Int      @default(0)
+  results     Int      @default(0)
+  revenue     Decimal  @default(0) @db.Decimal(18, 4)
+  syncedAt    DateTime @default(now()) @map("synced_at")
+
+  @@id([campaignId, date])
+  @@index([date])
+  @@map("campaign_daily_metric")
+}
+
+model AdSetDailyMetric {
+  adSetId     String   @map("ad_set_id")
+  adSet       AdSet    @relation(fields: [adSetId], references: [id], onDelete: Cascade)
+  date        DateTime @db.Date
+  spend       Decimal  @default(0) @db.Decimal(18, 4)
+  impressions Int      @default(0)
+  reach       Int      @default(0)
+  clicks      Int      @default(0)
+  conversions Int      @default(0)
+  results     Int      @default(0)
+  revenue     Decimal  @default(0) @db.Decimal(18, 4)
+  syncedAt    DateTime @default(now()) @map("synced_at")
+
+  @@id([adSetId, date])
+  @@index([date])
+  @@map("ad_set_daily_metric")
+}
+
+model AdDailyMetric {
+  adId        String   @map("ad_id")
+  ad          Ad       @relation(fields: [adId], references: [id], onDelete: Cascade)
+  date        DateTime @db.Date
+  spend       Decimal  @default(0) @db.Decimal(18, 4)
+  impressions Int      @default(0)
+  reach       Int      @default(0)
+  clicks      Int      @default(0)
+  conversions Int      @default(0)
+  results     Int      @default(0)
+  revenue     Decimal  @default(0) @db.Decimal(18, 4)
+  syncedAt    DateTime @default(now()) @map("synced_at")
+
+  @@id([adId, date])
+  @@index([date])
+  @@map("ad_daily_metric")
+}

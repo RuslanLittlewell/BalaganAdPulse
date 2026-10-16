@@ -1,6 +1,6 @@
 export { discloses } from "./domain/presence.js";
 export type { PresencePerson, PresenceViewer } from "./domain/presence.js";
-export { entryOf, presenceJoined, presenceLeft, presenceState } from "./domain/presence-event.js";
+export { presenceJoined, presenceLeft, presenceState } from "./domain/presence-event.js";
 export type {
   PresenceEntry,
   PresenceEvent,
@@ -11,7 +11,6 @@ export type {
 export {
   createPresenceRegistry,
   PRESENCE_SWEEP_MS,
-  PRESENCE_WINDOW_MS,
 } from "./application/presence-registry.js";
 export type { PresenceRegistry, PresenceRegistryOptions } from "./application/presence-registry.js";
 export { createPresenceService } from "./application/presence-service.js";

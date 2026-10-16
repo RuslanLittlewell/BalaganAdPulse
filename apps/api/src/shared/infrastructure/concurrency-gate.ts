@@ -1,4 +1,14 @@
-import { ServiceUnavailableError } from "../presentation/http-errors.js";
+export class ServiceUnavailableError extends Error {
+  status = 503;
+  expose = true;
+  retryAfter?: number;
+
+  constructor(message = "Service unavailable", retryAfter?: number) {
+    super(message);
+    this.name = "ServiceUnavailableError";
+    this.retryAfter = retryAfter;
+  }
+}
 
 export interface GateOptions {
   maxConcurrent: number;

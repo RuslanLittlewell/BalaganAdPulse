@@ -7,6 +7,7 @@ export interface IdentityUser {
   readonly avatarPath: string | null;
   readonly phone: string | null;
   readonly telegram: string | null;
+  readonly isPlatformAdmin: boolean;
 }
 
 export interface SessionPrincipal {

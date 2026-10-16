@@ -1,6 +1,6 @@
 import type { PresencePerson } from "../domain/presence.js";
 
-export const PRESENCE_WINDOW_MS = 5 * 60_000;
+const PRESENCE_WINDOW_MS = 5 * 60_000;
 
 export const PRESENCE_SWEEP_MS = 30_000;
 

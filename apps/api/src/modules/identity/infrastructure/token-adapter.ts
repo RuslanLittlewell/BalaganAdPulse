@@ -6,6 +6,7 @@ import type { TokenPort } from "../application/ports.js";
 
 const ACCESS_TOKEN_TTL = "15m";
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 
 export class TokenAdapter implements TokenPort {
   private readonly secret = new TextEncoder().encode(config.jwtSecret);
@@ -36,5 +37,17 @@ export class TokenAdapter implements TokenPort {
 
   refreshExpiry(now: Date = new Date()): Date {
     return new Date(now.getTime() + REFRESH_TOKEN_TTL_MS);
+  }
+
+  generateReset(): string {
+    return randomBytes(32).toString("hex");
+  }
+
+  hashReset(token: string): string {
+    return createHash("sha256").update(token).digest("hex");
+  }
+
+  resetExpiry(now: Date = new Date()): Date {
+    return new Date(now.getTime() + RESET_TOKEN_TTL_MS);
   }
 }

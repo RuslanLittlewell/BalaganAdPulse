@@ -88,3 +88,118 @@ The KPI tile SHALL name the level's metric and show the actual figure for the pe
 #### Scenario: Not measurable
 - **WHEN** a campaign's KPI is a CPL target and the period has no leads
 - **THEN** the tile shows no figure, no progress indicator and no status
+
+### Requirement: A campaign's indicator follows its KPI
+
+Each campaign row in a project's campaign table SHALL carry a coloured indicator decided by
+the campaign's progress against its KPI for the selected period. The KPI SHALL be the
+campaign's own, or the project's when the campaign has none. Progress SHALL be the
+percentage achieved as the KPI tile computes it, counting lower-is-better metrics in their
+favourable direction. The indicator SHALL be:
+
+- grey when the campaign is not running (paused, rejected or ended), when neither the
+  campaign nor the project has a KPI, or when the KPI's figure is not measured;
+- red when progress is below 80%;
+- blue when progress is from 80% up to 100%;
+- green when progress is 100% or more.
+
+A campaign that is learning SHALL count as running. The indicator SHALL expose its state to
+assistive technology rather than through colour alone.
+
+#### Scenario: Meeting the KPI
+- **WHEN** a running campaign's KPI is 30 leads for the period and it has 30
+- **THEN** its indicator is green
+
+#### Scenario: Somewhat behind
+- **WHEN** a running campaign has 27 leads against a KPI of 30
+- **THEN** its indicator is blue
+
+#### Scenario: Far behind
+- **WHEN** a running campaign has 20 leads against a KPI of 30
+- **THEN** its indicator is red
+
+#### Scenario: Lower is better
+- **WHEN** a running campaign's KPI is a CPA of 10 and its CPA is 12
+- **THEN** its progress is 83% and its indicator is blue
+
+#### Scenario: The project's KPI stands in
+- **WHEN** a running campaign has no KPI and the project's KPI is met by it
+- **THEN** its indicator is green
+
+#### Scenario: Not running
+- **WHEN** a campaign is paused, whatever its figures
+- **THEN** its indicator is grey
+
+#### Scenario: No KPI anywhere
+- **WHEN** neither a running campaign nor its project has a KPI
+- **THEN** its indicator is grey
+
+### Requirement: A project KPI can be set by hand
+
+Besides a KPI on a measured metric, a project SHALL be able to hold a KPI set by hand,
+made of a name, a value and a target. The name SHALL be non-empty after trimming and at
+most 100 characters; the value SHALL be zero or a positive number and the target a
+positive number, both stored with four decimal places. It SHALL be the project's one KPI:
+setting it SHALL replace a metric KPI, and setting a metric KPI SHALL replace it. Only a
+project SHALL hold one; a request to set a KPI by hand on the organization or a campaign
+SHALL be refused with 400. Who may read, set and clear it, and the audit of every change,
+SHALL be as for any project KPI, the audit naming its name, value and target.
+
+Its value SHALL change only when a member edits the KPI: advertising imports and the
+selected period SHALL NOT change it. Progress SHALL be the value over the target, higher
+being better: met when equal, exceeded when above. It SHALL be compared as it is, whatever
+the period.
+
+The project's KPI dialog SHALL offer Вручную beside the metrics. Choosing it SHALL show the
+fields Название, Значение and Цель, and say that they change only by hand and do not depend
+on the period. Editing a KPI set by hand SHALL open with Вручную chosen and its fields
+filled. The dialogs of the organization and of campaigns SHALL NOT offer it.
+
+The KPI tile SHALL show a KPI set by hand under its name, with the value, the target, the
+percentage, the progress indicator and the status as for any KPI. The project's marker in
+the project list SHALL follow its progress. A project KPI set by hand SHALL NOT stand in for
+a campaign without its own KPI: such a campaign's indicator SHALL be grey, as when neither
+has a KPI.
+
+#### Scenario: Setting a KPI by hand
+
+- **WHEN** a manager opens a project's KPI dialog, chooses Вручную and saves the name
+  Продажи, the value 30 and the target 50
+- **THEN** the project's tile reads KPI · Продажи, shows 30 against a target of 50 and 60%,
+  and its marker in the project list is red
+
+#### Scenario: Met by hand
+
+- **WHEN** a project's KPI set by hand has the value 50 and the target 50
+- **THEN** the tile shows 100% and Выполнено, and the marker is green
+
+#### Scenario: The period does not matter
+
+- **WHEN** a member switches the period of a project whose KPI was set by hand
+- **THEN** the tile shows the same value, target and percentage
+
+#### Scenario: Replacing a metric KPI
+
+- **WHEN** a project holds a KPI of 60 leads and a manager sets a KPI by hand
+- **THEN** the project holds only the KPI set by hand
+
+#### Scenario: Missing fields
+
+- **WHEN** a request sets a KPI by hand with an empty name, a negative value or a target
+  that is not a positive number
+- **THEN** the API responds 400 and the KPI is unchanged
+
+#### Scenario: Not for a campaign
+
+- **WHEN** a manager tries to set a KPI by hand on a campaign or on the organization
+- **THEN** the API responds 400, and their KPI dialogs do not offer Вручную
+
+#### Scenario: Campaigns keep their own
+
+- **WHEN** a running campaign has no KPI and its project's KPI was set by hand
+- **THEN** the campaign's indicator is grey
+
+#### Scenario: Editing it
+
+- **WHEN** a manager opens the dialog of a project whose KPI was set by hand
+- **THEN** Вручную is chosen and Название, Значение and Цель hold its name, value and target

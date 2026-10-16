@@ -4,14 +4,16 @@ import {
   type ClientAccessGrant,
   type UpdateMemberInput,
 } from "./api.js";
+import { forgetMember } from "../model/staff.js";
 
 export const MEMBERS_KEY = ["members"] as const;
 
-export function useClientMembers(clientId: string | undefined) {
+export function useClientMembers(clientId: string | undefined, projectId?: string) {
   return useQuery({
-    queryKey: [...MEMBERS_KEY, "client", clientId ?? null],
-    queryFn: () => membersApi.listOfClient(clientId as string),
+    queryKey: [...MEMBERS_KEY, "client", clientId ?? null, projectId ?? null],
+    queryFn: () => membersApi.listOfClient(clientId as string, projectId),
     enabled: clientId != null,
+    staleTime: 5 * 60_000,
   });
 }
 
@@ -36,7 +38,10 @@ export function useDeleteMember() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: membersApi.remove,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: MEMBERS_KEY }),
+    onSuccess: (_, id) => {
+      forgetMember(id);
+      return queryClient.invalidateQueries({ queryKey: MEMBERS_KEY });
+    },
   });
 }
 

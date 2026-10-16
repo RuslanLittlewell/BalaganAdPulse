@@ -1,11 +1,23 @@
 import { can } from '@adpulse/access-policy';
 import { AppError } from '#shared/domain/index.js';
 import type { ActorContext, UnitOfWork } from '#shared/application/index.js';
-import type { AuditWriter } from '../../audit/index.js';
-import { normalizeTarget, type Kpi, type KpiInput, type KpiLevel, type KpiOwner } from '../domain/kpi.js';
+import type { AuditWriter } from '#modules/audit/index.js';
+import { MANUAL_KPI, normalizeAmount, type Kpi, type KpiInput, type KpiLevel, type KpiOwner } from '../domain/kpi.js';
 import type { KpiReach, KpiRepository } from './ports.js';
 
-const snapshot = (kpi: Kpi | null) => kpi && { metric: kpi.metric, target: kpi.target };
+const snapshot = (kpi: Kpi | null): Record<string, string> | null => {
+  if (!kpi) return null;
+  return kpi.metric === MANUAL_KPI
+    ? { metric: kpi.metric, name: kpi.name, value: kpi.value, target: kpi.target }
+    : { metric: kpi.metric, target: kpi.target };
+};
+
+function normalized(input: KpiInput, updatedAt: Date): Kpi {
+  const target = normalizeAmount(input.target);
+  return input.metric === MANUAL_KPI
+    ? { metric: input.metric, name: input.name.trim(), value: normalizeAmount(input.value), target, updatedAt }
+    : { metric: input.metric, target, updatedAt };
+}
 
 export function createKpiUseCases(d: { kpis: KpiRepository; reach: KpiReach; audit: AuditWriter; unitOfWork: UnitOfWork; clock: { now(): Date } }) {
   async function ownerOf(actor: ActorContext, level: KpiLevel): Promise<KpiOwner> {
@@ -25,11 +37,14 @@ export function createKpiUseCases(d: { kpis: KpiRepository; reach: KpiReach; aud
   }
 
   async function change(actor: ActorContext, level: KpiLevel, next: KpiInput | null) {
+    if (next?.metric === MANUAL_KPI && level.kind !== 'project') {
+      throw new AppError('validation', 'Only a project KPI can be set by hand');
+    }
     const owner = await ownerOf(actor, level);
     if (owner.entityType !== 'organization' && !can(actor, 'update', 'kpi')) {
       throw new AppError('forbidden', `Your role may not change a ${owner.entityType} KPI`);
     }
-    const kpi = next && { metric: next.metric, target: normalizeTarget(next.target), updatedAt: d.clock.now() };
+    const kpi = next && normalized(next, d.clock.now());
     const before = await d.kpis.read(owner);
     if (!before && !kpi) return null;
     await d.unitOfWork.run(async (context) => {

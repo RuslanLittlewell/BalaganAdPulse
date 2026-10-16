@@ -58,4 +58,33 @@ describe("loadConfig", () => {
       bucket: "avatars",
     });
   });
+
+  it("leaves mail off until an SMTP account is given", () => {
+    expect(loadConfig({ JWT_SECRET: "s", SMTP_USER: "robot@gmail.com" }).mail).toBeNull();
+  });
+
+  it("defaults mail to Google's SMTP server over TLS", () => {
+    expect(loadConfig({ JWT_SECRET: "s", SMTP_USER: "robot@gmail.com", SMTP_PASSWORD: "app-password" }).mail).toEqual({
+      host: "smtp.gmail.com", port: 465, user: "robot@gmail.com", password: "app-password",
+      from: "Balagan BI <robot@gmail.com>",
+    });
+  });
+
+  it("takes another server, port and sender when given", () => {
+    expect(loadConfig({
+      JWT_SECRET: "s", SMTP_USER: "u", SMTP_PASSWORD: "p",
+      SMTP_HOST: "smtp.example.com", SMTP_PORT: "587", MAIL_FROM: "Robot <robot@example.com>",
+    }).mail).toMatchObject({ host: "smtp.example.com", port: 587, from: "Robot <robot@example.com>" });
+  });
+
+  it("refuses an SMTP port that is not a number", () => {
+    expect(() => loadConfig({ JWT_SECRET: "s", SMTP_USER: "u", SMTP_PASSWORD: "p", SMTP_PORT: "smtp" }))
+      .toThrow(/SMTP_PORT/);
+  });
+
+  it("builds links on APP_URL, defaulting to the dev server only outside production", () => {
+    expect(loadConfig({ JWT_SECRET: "s" }).appUrl).toBe("http://localhost:5173");
+    expect(loadConfig({ JWT_SECRET: "s", APP_URL: "https://bi.example.com/" }).appUrl).toBe("https://bi.example.com");
+    expect(loadConfig({ NODE_ENV: "production", JWT_SECRET: "a".repeat(32) }).appUrl).toBeNull();
+  });
 });

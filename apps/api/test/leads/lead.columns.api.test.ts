@@ -15,26 +15,28 @@ let admin: SignedIn;
 let auth: { Authorization: string };
 let clientId: string;
 let projectId: string;
+let otherProjectId: string;
 
 beforeEach(async () => {
   await resetDb();
   admin = await signInAs();
   auth = admin.auth;
   ({ clientId, projectId } = await seedProject(admin.user.id));
+  otherProjectId = (await prisma.project.create({ data: { clientId, name: "Второй", position: 1 } })).id;
 });
 
 afterAll(() => prisma.$disconnect());
 
-const columns = (board = "agency") => `/api/crm/boards/${board}/columns`;
-const leads = (board = "agency") => `/api/crm/boards/${board}/leads`;
+const columns = (board: string = projectId) => `/api/crm/boards/${board}/columns`;
+const leads = (board: string = projectId) => `/api/crm/boards/${board}/leads`;
 
-const addColumn = (name: string, board = "agency", as = auth) =>
+const addColumn = (name: string, board: string = projectId, as = auth) =>
   request(app).post(columns(board)).set(as).send({ name });
-const addLead = (name: string, stage?: string, board = "agency") =>
+const addLead = (name: string, stage?: string, board: string = projectId) =>
   request(app).post(leads(board)).set(auth).send({ name, ...(stage ? { stage } : {}) });
-const listColumns = async (board = "agency") =>
+const listColumns = async (board: string = projectId) =>
   (await request(app).get(columns(board)).set(auth).expect(200)).body as Array<{ id: string; kind: string; name: string; position: number }>;
-const listLeads = async (board = "agency") =>
+const listLeads = async (board: string = projectId) =>
   (await request(app).get(leads(board)).set(auth).expect(200)).body as Array<{ id: string; name: string; stage: string; position: number }>;
 
 const FIXED = [
@@ -58,7 +60,7 @@ describe("board columns", () => {
       { id: meeting.body.id, kind: "CUSTOM", name: "Встреча", position: 0 },
       { id: expect.any(String), kind: "CUSTOM", name: "Договор", position: 1 },
     ]);
-    expect(await listColumns(clientId)).toEqual(FIXED);
+    expect(await listColumns(otherProjectId)).toEqual(FIXED);
   });
 
   it.each([
@@ -76,7 +78,7 @@ describe("board columns", () => {
   it("allows the same name on another board", async () => {
     await addColumn("Встреча").expect(201);
 
-    expect((await addColumn("Встреча", clientId)).status).toBe(201);
+    expect((await addColumn("Встреча", otherProjectId)).status).toBe(201);
   });
 
   it("holds at most twenty custom columns on a board", async () => {
@@ -152,11 +154,11 @@ describe("board columns", () => {
   });
 
   it("does not reach a column through another board", async () => {
-    const foreign = (await addColumn("Встреча", clientId)).body;
+    const foreign = (await addColumn("Встреча", otherProjectId)).body;
 
     expect((await request(app).patch(`${columns()}/${foreign.id}`).set(auth).send({ name: "Чужой" })).status).toBe(404);
     expect((await request(app).delete(`${columns()}/${foreign.id}`).set(auth)).status).toBe(404);
-    expect(await listColumns(clientId)).toContainEqual(expect.objectContaining({ id: foreign.id, name: "Встреча" }));
+    expect(await listColumns(otherProjectId)).toContainEqual(expect.objectContaining({ id: foreign.id, name: "Встреча" }));
   });
 
   it("deleting a column moves its leads to the end of Новый in their order and closes the gap", async () => {
@@ -219,7 +221,7 @@ describe("leads in custom columns", () => {
   });
 
   it("refuses a stage that is neither fixed nor a column of the board", async () => {
-    const foreign = (await addColumn("Встреча", clientId)).body;
+    const foreign = (await addColumn("Встреча", otherProjectId)).body;
     const lead = (await addLead("Лид")).body;
 
     expect((await addLead("Чужой", foreign.id)).status).toBe(400);
@@ -231,26 +233,28 @@ describe("leads in custom columns", () => {
 
 describe("who manages columns", () => {
   it.each(["CLIENT", "CLIENT_ADMIN"] as const)("lets %s manage the columns of their own board only", async (role) => {
+    const foreign = await seedProject("unused", "Чужой");
     const customer = await signInAs("Customer", { role });
     await grantAccess(customer.membership!.id, clientId);
 
-    const created = await addColumn("Встреча", clientId, customer.auth);
+    const created = await addColumn("Встреча", projectId, customer.auth);
     expect(created.status).toBe(201);
-    await addColumn("Договор", clientId, customer.auth).expect(201);
-    await request(app).patch(`${columns(clientId)}/${created.body.id}`).set(customer.auth).send({ name: "Звонок" }).expect(200);
-    await request(app).patch(`${columns(clientId)}/${created.body.id}`).set(customer.auth).send({ position: 1 }).expect(200);
-    await request(app).delete(`${columns(clientId)}/${created.body.id}`).set(customer.auth).expect(204);
+    await addColumn("Договор", otherProjectId, customer.auth).expect(201);
+    await request(app).patch(`${columns()}/${created.body.id}`).set(customer.auth).send({ name: "Звонок" }).expect(200);
+    await request(app).patch(`${columns()}/${created.body.id}`).set(customer.auth).send({ position: 1 }).expect(200);
+    await request(app).delete(`${columns()}/${created.body.id}`).set(customer.auth).expect(204);
 
-    expect((await request(app).get(columns()).set(customer.auth)).status).toBe(404);
+    expect((await request(app).get(columns(foreign.projectId)).set(customer.auth)).status).toBe(404);
     expect((await addColumn("Агентство", "agency", customer.auth)).status).toBe(404);
   });
 
   it("lets a guest read columns and change none", async () => {
     const meeting = (await addColumn("Встреча")).body;
     const guest = await signInAs("Guest", { role: "GUEST" });
+    await grantAccess(guest.membership!.id, clientId);
 
     expect((await request(app).get(columns()).set(guest.auth)).status).toBe(200);
-    expect((await addColumn("Гость", "agency", guest.auth)).status).toBe(403);
+    expect((await addColumn("Гость", projectId, guest.auth)).status).toBe(403);
     expect((await request(app).patch(`${columns()}/${meeting.id}`).set(guest.auth).send({ name: "Гость" })).status).toBe(403);
     expect((await request(app).delete(`${columns()}/${meeting.id}`).set(guest.auth)).status).toBe(403);
     expect((await listColumns()).slice(4)).toEqual([expect.objectContaining({ name: "Встреча" })]);
@@ -259,30 +263,30 @@ describe("who manages columns", () => {
 
 describe("column history and notifications", () => {
   it("records every column change with its board", async () => {
-    const meeting = (await addColumn("Встреча", clientId)).body;
-    await request(app).patch(`${columns(clientId)}/${meeting.id}`).set(auth).send({ name: "Звонок" }).expect(200);
-    await request(app).delete(`${columns(clientId)}/${meeting.id}`).set(auth).expect(204);
-    expect((await request(app).patch(`${columns(clientId)}/${meeting.id}`).set(auth).send({ name: "Нет" })).status).toBe(404);
+    const meeting = (await addColumn("Встреча", otherProjectId)).body;
+    await request(app).patch(`${columns(otherProjectId)}/${meeting.id}`).set(auth).send({ name: "Звонок" }).expect(200);
+    await request(app).delete(`${columns(otherProjectId)}/${meeting.id}`).set(auth).expect(204);
+    expect((await request(app).patch(`${columns(otherProjectId)}/${meeting.id}`).set(auth).send({ name: "Нет" })).status).toBe(404);
 
     const events = await prisma.auditEvent.findMany({ where: { entityType: "lead-column" }, orderBy: { createdAt: "asc" } });
-    expect(events.map((event) => [event.action, event.entityId, event.clientId, event.actorId])).toEqual([
-      ["CREATE", meeting.id, clientId, admin.membership!.id],
-      ["UPDATE", meeting.id, clientId, admin.membership!.id],
-      ["DELETE", meeting.id, clientId, admin.membership!.id],
+    expect(events.map((event) => [event.action, event.entityId, event.clientId, event.projectId, event.actorId])).toEqual([
+      ["CREATE", meeting.id, clientId, otherProjectId, admin.membership!.id],
+      ["UPDATE", meeting.id, clientId, otherProjectId, admin.membership!.id],
+      ["DELETE", meeting.id, clientId, otherProjectId, admin.membership!.id],
     ]);
     expect(events[1].changes).toMatchObject({ before: { name: "Встреча" }, after: { name: "Звонок" } });
   });
 
-  it("keeps column history of a client board from project-only grants", async () => {
-    await addColumn("Агентство").expect(201);
-    await addColumn("Клиент", clientId).expect(201);
+  it("keeps column history of another project's board from a project-only grant", async () => {
+    await addColumn("Свой").expect(201);
+    await addColumn("Чужой", otherProjectId).expect(201);
     const manager = await signInAs("Manager", { role: "MANAGER" });
     await grantAccess(manager.membership!.id, clientId, projectId);
 
     const history = await request(app).get("/api/audit?entityType=lead-column").set(manager.auth);
 
     expect(history.body.items).toHaveLength(1);
-    expect(history.body.items[0].clientId).toBeNull();
+    expect(history.body.items[0].projectId).toBe(projectId);
   });
 
   it("tells open boards that a column changed", async () => {
@@ -290,6 +294,7 @@ describe("column history and notifications", () => {
     const publish = vi.fn();
     const useCases = createLeadUseCases({
       leads: new PrismaLeadRepository(prisma, unitOfWork),
+      storage: { remove: vi.fn() },
       audit: { append: vi.fn() },
       ids: new RandomIdGenerator(),
       unitOfWork,
@@ -297,14 +302,14 @@ describe("column history and notifications", () => {
     });
     const actor = admin.actor!;
 
-    const meeting = await useCases.createColumn(actor, clientId, { name: "Встреча" });
-    await useCases.updateColumn(actor, clientId, meeting.id, { name: "Звонок" });
-    await useCases.deleteColumn(actor, clientId, meeting.id);
+    const meeting = await useCases.createColumn(actor, projectId, { name: "Встреча" });
+    await useCases.updateColumn(actor, projectId, meeting.id, { name: "Звонок" });
+    await useCases.deleteColumn(actor, projectId, meeting.id);
 
     expect(publish.mock.calls).toEqual([
-      [{ kind: "crm.changed", orgId: actor.orgId, board: clientId }],
-      [{ kind: "crm.changed", orgId: actor.orgId, board: clientId }],
-      [{ kind: "crm.changed", orgId: actor.orgId, board: clientId }],
+      [{ kind: "crm.changed", orgId: actor.orgId, board: projectId }],
+      [{ kind: "crm.changed", orgId: actor.orgId, board: projectId }],
+      [{ kind: "crm.changed", orgId: actor.orgId, board: projectId }],
     ]);
   });
 

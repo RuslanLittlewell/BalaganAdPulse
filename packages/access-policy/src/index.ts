@@ -16,7 +16,9 @@ export const RESOURCES = [
   "lead",
   "integration",
   "kpi",
-  "project-priority",
+  "project-summary",
+  "project-document",
+  "report",
 ] as const;
 export type Resource = (typeof RESOURCES)[number];
 
@@ -55,9 +57,11 @@ const MATRIX: Readonly<Record<Resource, ResourcePolicy>> = {
   },
   client: { read: EVERYONE, create: STAFF, update: STAFF, delete: ADMINS },
   project: { read: EVERYONE, create: STAFF_AND_CUSTOMERS, update: STAFF_AND_CUSTOMERS, delete: ADMINS },
-  "project-priority": { read: EVERYONE, create: NOBODY, update: STAFF, delete: NOBODY },
+  "project-summary": { read: EVERYONE, create: NOBODY, update: STAFF, delete: NOBODY },
+  "project-document": { read: STAFF_AND_GUEST, create: STAFF, update: STAFF, delete: STAFF },
   integration: { read: STAFF, create: STAFF, update: STAFF, delete: STAFF },
   kpi: { read: EVERYONE, create: STAFF, update: STAFF, delete: STAFF },
+  report: { read: EVERYONE, create: STAFF, update: STAFF, delete: STAFF },
   campaign: { read: EVERYONE, create: STAFF, update: STAFF, delete: STAFF },
   task: { read: EVERYONE, create: STAFF_AND_CUSTOMERS, update: STAFF, delete: STAFF },
   audit: { read: EVERYONE, create: NOBODY, update: NOBODY, delete: NOBODY },
@@ -68,4 +72,18 @@ export function can(actor: Actor, action: Action, resource: Resource): boolean {
   const policy = MATRIX[resource];
   if (!Object.hasOwn(policy, action)) return false;
   return policy[action].includes(actor.role);
+}
+
+export const ALWAYS_ON_MODULES = ["DASHBOARD", "PROJECTS"] as const;
+export const OPTIONAL_MODULES = ["CRM", "TASKS", "REPORTS"] as const;
+export const MODULES = [...ALWAYS_ON_MODULES, ...OPTIONAL_MODULES] as const;
+export type OptionalModule = (typeof OPTIONAL_MODULES)[number];
+export type ModuleKey = (typeof MODULES)[number];
+
+export function isOptionalModule(value: string): value is OptionalModule {
+  return (OPTIONAL_MODULES as readonly string[]).includes(value);
+}
+
+export function enabledModules(optional: readonly OptionalModule[]): ModuleKey[] {
+  return MODULES.filter((module) => !isOptionalModule(module) || optional.includes(module));
 }

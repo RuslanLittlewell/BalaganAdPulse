@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { NotFoundError } from "#shared/presentation/http-errors.js";
+import { AppError } from "#shared/domain/index.js";
 import type { ApiContainer } from "./create-container.js";
 
 export const ROUTE_MOUNTS = [
@@ -7,15 +7,24 @@ export const ROUTE_MOUNTS = [
   { id: "open-auth", path: "/api/auth" },
   { id: "registration-resolver", path: "/api/regustration" },
   { id: "authentication", path: "/api" },
+  { id: "session", path: "/api/auth/me" },
+  { id: "platform", path: "/api/platform" },
   { id: "actor-resolution", path: "/api" },
   { id: "request-context", path: "/api" },
   { id: "presence-touch", path: "/api" },
-  { id: "session", path: "/api/auth/me" },
+  { id: "reports-module", path: "/api/projects/:projectId/reports" },
+  { id: "report-index-module", path: "/api/reports" },
+  { id: "crm-module", path: "/api/crm" },
+  { id: "tasks-module", path: "/api/tasks" },
+  { id: "task-images-module", path: "/api/task-images" },
   { id: "user", path: "/api/user" },
   { id: "invites", path: "/api/invites" },
   { id: "members", path: "/api/members" },
   { id: "audit", path: "/api/audit" },
   { id: "project-metrics", path: "/api/projects/:projectId" },
+  { id: "reports", path: "/api/projects/:projectId/reports" },
+  { id: "project-documents", path: "/api/projects/:projectId/documents" },
+  { id: "report-index", path: "/api/reports" },
   { id: "integrations", path: "/api/projects" },
   { id: "projects", path: "/api/projects" },
   { id: "project-layout", path: "/api/project-layout" },
@@ -30,6 +39,7 @@ export const ROUTE_MOUNTS = [
   { id: "leads", path: "/api/crm" },
   { id: "task-images", path: "/api/task-images" },
   { id: "kpi", path: "/api" },
+  { id: "summary-tiles", path: "/api" },
   { id: "api-not-found", path: "/api" },
 ] as const;
 
@@ -48,15 +58,24 @@ export function createRoutes(container: ApiContainer): Router {
     container.authRouter,
     container.registrationResolverRouter,
     container.authentication,
+    container.sessionRouter,
+    container.platformRouter,
     container.actorResolution,
     container.requestContext,
     container.presenceTouch,
-    container.sessionRouter,
+    container.requireModule("REPORTS"),
+    container.requireModule("REPORTS"),
+    container.requireModule("CRM"),
+    container.requireModule("TASKS"),
+    container.requireModule("TASKS"),
     container.userRouter,
     container.inviteRouter,
     container.memberRouter,
     container.auditRouter,
     container.projectMetricRouter,
+    container.reportRouter,
+    container.projectDocumentRouter,
+    container.reportIndexRouter,
     container.integrationRouter,
     container.projectRouter,
     container.projectLayoutRouter,
@@ -71,7 +90,9 @@ export function createRoutes(container: ApiContainer): Router {
     container.leadRouter,
     container.taskImageRouter,
     container.kpiRouter,
-    (_request: unknown, _response: unknown, next: (error: Error) => void) => next(new NotFoundError("Endpoint not found")),
+    container.summaryTileRouter,
+    (_request: unknown, _response: unknown, next: (error: Error) => void) =>
+      next(new AppError("not-found", "Endpoint not found")),
   ];
   ROUTE_MOUNTS.forEach(({ path }, index) => router.use(path, handlers[index]));
   return router;

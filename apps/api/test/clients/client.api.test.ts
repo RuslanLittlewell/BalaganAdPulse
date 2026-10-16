@@ -102,15 +102,27 @@ describe("Clients API", () => {
       fullName: null, organization: null, unp: null, phone: null, telegram: null, website: null,
     });
   });
-  it("GET /api/clients lists only the clients the caller can reach", async () => {
+  it("GET /api/clients shows a manager every client of the organization", async () => {
     const mine = await signInAs("Mine", { role: "MANAGER" });
     const other = await signInAs("Other", { role: "MANAGER" });
     await request(app).post("/api/clients").set(mine.auth).send({ name: "Mine" });
     await request(app).post("/api/clients").set(other.auth).send({ name: "Theirs" });
+    await request(app).post("/api/clients").set(auth).send({ name: "Admin's" });
 
     const res = await request(app).get("/api/clients").set(mine.auth);
     expect(res.status).toBe(200);
-    expect(res.body.map((client: { name: string }) => client.name)).toEqual(["Mine"]);
+    expect(res.body.map((client: { name: string }) => client.name).sort())
+      .toEqual(["Admin's", "Mine", "Theirs"]);
+  });
+
+  it("GET /api/clients shows a guest only the clients granted to them", async () => {
+    const granted = await request(app).post("/api/clients").set(auth).send({ name: "Granted" });
+    await request(app).post("/api/clients").set(auth).send({ name: "Ungranted" });
+    const guest = await signInAs("Guest", { role: "GUEST" });
+    await grantAccess(guest.membership!.id, granted.body.id);
+
+    const res = await request(app).get("/api/clients").set(guest.auth);
+    expect(res.body.map((client: { name: string }) => client.name)).toEqual(["Granted"]);
   });
 
   it("GET /api/clients shows an admin every client of the organization", async () => {
@@ -125,7 +137,7 @@ describe("Clients API", () => {
 
   it("GET /api/clients/:id for an unreachable client -> 404", async () => {
     const other = await signInAs("Other", { role: "MANAGER" });
-    const stranger = await signInAs("Stranger", { role: "MANAGER" });
+    const stranger = await signInAs("Stranger", { role: "GUEST" });
     const theirs = await request(app).post("/api/clients").set(other.auth).send({ name: "Theirs" });
 
     const res = await request(app).get(`/api/clients/${theirs.body.id}`).set(stranger.auth);
@@ -134,7 +146,7 @@ describe("Clients API", () => {
 
   it("DELETE /api/clients/:id for an unreachable client -> 404 and keeps it", async () => {
     const other = await signInAs("Other", { role: "MANAGER" });
-    const stranger = await signInAs("Stranger", { role: "MANAGER" });
+    const stranger = await signInAs("Stranger", { role: "GUEST" });
     const theirs = await request(app).post("/api/clients").set(other.auth).send({ name: "Theirs" });
 
     const res = await request(app).delete(`/api/clients/${theirs.body.id}`).set(stranger.auth);

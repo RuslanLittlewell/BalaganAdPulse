@@ -10,8 +10,8 @@ const guest: ActorContext = { ...admin, membershipId: "m3", role: "GUEST" };
 
 function record(partial: Partial<ProjectRecord> = {}): ProjectRecord {
   return {
-    id: "p1", clientId: "c1", name: "Acme Ads", niche: null, monthlyBudget: null,
-    priority: "NEW", image: null, avatarPath: null, position: 0,
+    id: "p1", clientId: "c1", name: "Acme Ads",
+    image: null, avatarPath: null, position: 0,
     createdAt: new Date("2026-09-01T00:00:00.000Z"), updatedAt: new Date("2026-09-01T00:00:00.000Z"),
     ...partial,
   };
@@ -22,6 +22,9 @@ function fixture(seed: ProjectRecord[] = [], reachableClients = ["c1"]) {
   const projects = new Map(seed.map((value) => [value.id, value]));
   const audit: Array<Record<string, unknown>> = [];
   const pictures = new Map<string, Uint8Array>();
+  const grants: Array<{ context: TransactionContext; projectId: string; clientId: string; memberIds: readonly string[] }> = [];
+  const eligibilityChecks: string[][] = [];
+  const employees = ["e1", "e2"];
 
   const useCases = createProjectUseCases({
     projects: {
@@ -48,10 +51,19 @@ function fixture(seed: ProjectRecord[] = [], reachableClients = ["c1"]) {
       write: async (id, bytes) => { pictures.set(id, bytes); },
     },
     audit: { append: async (_tx, event) => { audit.push(event as never); } },
+    staffing: {
+      eligible: async (orgId, memberIds) => {
+        eligibilityChecks.push([...memberIds]);
+        return orgId === "org1" ? memberIds.filter((id) => employees.includes(id)) : [];
+      },
+      grant: async (tx, project, memberIds) => {
+        grants.push({ context: tx, projectId: project.id, clientId: project.clientId, memberIds });
+      },
+    },
     ids: new DeterministicIdGenerator(["new-1", "new-2"]),
     unitOfWork: { run: (work) => work(context) },
   });
-  return { useCases, projects, audit, pictures };
+  return { useCases, projects, audit, pictures, grants, eligibilityChecks, context };
 }
 
 describe("creating a project", () => {
@@ -90,6 +102,67 @@ describe("creating a project", () => {
   });
 });
 
+describe("assigning staff while creating a project", () => {
+  it("grants each named employee the new project inside the creating transaction", async () => {
+    const { useCases, grants, context } = fixture();
+    const created = await useCases.create(admin, { clientId: "c1", name: "Acme Ads", memberIds: ["e1", "e2"] });
+    expect(grants).toEqual([{ context, projectId: created.id, clientId: "c1", memberIds: ["e1", "e2"] }]);
+  });
+
+  it("keeps the employees out of the stored project", async () => {
+    const { useCases, projects } = fixture();
+    const created = await useCases.create(admin, { clientId: "c1", name: "Acme Ads", memberIds: ["e1"] });
+    expect(projects.get(created.id)).not.toHaveProperty("memberIds");
+  });
+
+  it("names an employee once however often they are listed", async () => {
+    const { useCases, grants } = fixture();
+    await useCases.create(admin, { clientId: "c1", name: "Acme Ads", memberIds: ["e1", "e1"] });
+    expect(grants[0]?.memberIds).toEqual(["e1"]);
+  });
+
+  it("refuses a manager who names anyone, storing nothing", async () => {
+    const { useCases, projects, grants } = fixture();
+    await expect(useCases.create(manager, { clientId: "c1", name: "No", memberIds: ["e1"] }))
+      .rejects.toMatchObject({ category: "forbidden" });
+    expect(projects.size).toBe(0);
+    expect(grants).toEqual([]);
+  });
+
+  it("refuses a list naming anyone who is not an eligible employee, storing nothing", async () => {
+    const { useCases, projects, grants } = fixture();
+    await expect(useCases.create(admin, { clientId: "c1", name: "No", memberIds: ["e1", "stranger"] }))
+      .rejects.toMatchObject({ category: "validation" });
+    expect(projects.size).toBe(0);
+    expect(grants).toEqual([]);
+  });
+
+  it("leaves staffing alone when nobody is named", async () => {
+    const { useCases, grants, eligibilityChecks } = fixture();
+    await useCases.create(admin, { clientId: "c1", name: "A" });
+    await useCases.create(admin, { clientId: "c1", name: "B", memberIds: [] });
+    expect(grants).toEqual([]);
+    expect(eligibilityChecks).toEqual([]);
+  });
+});
+
+describe("a manager creating a project", () => {
+  it("is granted the new project inside the creating transaction", async () => {
+    const { useCases, grants, context, eligibilityChecks } = fixture();
+    const created = await useCases.create(manager, { clientId: "c1", name: "Своё" });
+    expect(grants).toEqual([{ context, projectId: created.id, clientId: "c1", memberIds: ["m2"] }]);
+    expect(eligibilityChecks).toEqual([]);
+  });
+
+  it("stores neither project nor grant for a client out of reach", async () => {
+    const { useCases, projects, grants } = fixture([], []);
+    await expect(useCases.create(manager, { clientId: "c1", name: "Чужое" }))
+      .rejects.toMatchObject({ category: "not-found" });
+    expect(projects.size).toBe(0);
+    expect(grants).toEqual([]);
+  });
+});
+
 describe("reading projects", () => {
   it("lists what the actor reaches, narrowed to one client on request", async () => {
     const { useCases } = fixture([record({ id: "p1", clientId: "c1" }), record({ id: "p2", clientId: "c2" })]);
@@ -118,8 +191,8 @@ describe("reading projects", () => {
 describe("updating a project", () => {
   it("changes fields and audits it", async () => {
     const { useCases, audit } = fixture([record({ id: "p1" })]);
-    const updated = await useCases.update(manager, "p1", { priority: "URGENT" });
-    expect(updated.priority).toBe("URGENT");
+    const updated = await useCases.update(manager, "p1", { name: "Осенний запуск" });
+    expect(updated.name).toBe("Осенний запуск");
     expect(audit.at(-1)).toMatchObject({ action: "UPDATE", entityType: "project" });
   });
 

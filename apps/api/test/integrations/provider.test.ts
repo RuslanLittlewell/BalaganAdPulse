@@ -27,8 +27,60 @@ it("requests daily Insights at each level and maps aggregate actions without dou
   expect(data.to).toBe("2026-09-06");
   expect(data.campaignMetrics[0]).toMatchObject({ spend: "1.2345", conversions: 2, revenue: "12.3456" });
   const urls = fetcher.mock.calls.map(([url]) => url).filter((url) => url.pathname.endsWith("/insights"));
-  expect(urls.map((url) => url.searchParams.get("level"))).toEqual(["campaign", "adset", "ad"]);
+  const figures = urls.filter((url) => (url.searchParams.get("fields") ?? "").includes("spend"));
+  expect(figures.map((url) => url.searchParams.get("level"))).toEqual(["campaign", "adset", "ad"]);
   expect(urls.every((url) => url.searchParams.get("time_increment") === "1")).toBe(true);
+});
+const insightsReturning = (row: Record<string, unknown>) => vi.fn(async (url: URL) => {
+  if (url.pathname.endsWith("/act_123")) return json({ account_id: "123", currency: "USD", timezone_name: "America/Los_Angeles" });
+  if (url.pathname.endsWith("/insights")) return json({ data: [{ campaign_id: "1", adset_id: "2", ad_id: "3", date_start: "2026-09-06", spend: "220.58", ...row }] });
+  return json({ data: [] });
+});
+const snapshotOf = (fetcher: ReturnType<typeof insightsReturning>) =>
+  new GraphProvider("v22.0", fetcher).snapshot("123", "secret", "USD", new Date("2026-09-08T01:00:00Z"));
+it("requests Results apart from the other figures at each level and counts them beside the lead action", async () => {
+  const fetcher = insightsReturning({
+    actions: [{ action_type: "lead", value: "2" }],
+    results: [{ indicator: "actions:onsite_conversion.messaging_conversation_started_7d", values: [{ value: "56", attribution_windows: ["default"] }] }],
+  });
+  const data = await snapshotOf(fetcher);
+  for (const metrics of [data.campaignMetrics, data.adSetMetrics, data.adMetrics]) {
+    expect(metrics[0]).toMatchObject({ conversions: 2, results: 56 });
+  }
+  const fields = fetcher.mock.calls.map(([url]) => url).filter((url) => url.pathname.endsWith("/insights"))
+    .map((url) => url.searchParams.get("fields") ?? "");
+  expect(fields.filter((list) => list.split(",").includes("results")))
+    .toEqual(["campaign_id,date_start,results", "adset_id,date_start,results", "ad_id,date_start,results"]);
+});
+it("counts no results when Meta reports none", async () => {
+  const data = await snapshotOf(insightsReturning({}));
+  expect(data.campaignMetrics[0]).toMatchObject({ results: 0 });
+});
+it("takes the default attribution of every indicator and rounds a fractional result", async () => {
+  const data = await snapshotOf(insightsReturning({
+    results: [
+      { indicator: "actions:lead", values: [{ value: "9", attribution_windows: ["1d_click"] }, { value: "3.6", attribution_windows: ["default"] }] },
+      { indicator: "actions:onsite_conversion.messaging_conversation_started_7d", values: [{ value: "2", attribution_windows: ["default"] }] },
+    ],
+  }));
+  expect(data.campaignMetrics[0]).toMatchObject({ results: 6 });
+});
+it("joins results to the figures of the same entity and day", async () => {
+  const fetcher = vi.fn(async (url: URL) => {
+    if (url.pathname.endsWith("/act_123")) return json({ account_id: "123", currency: "USD", timezone_name: "America/Los_Angeles" });
+    if (!url.pathname.endsWith("/insights")) return json({ data: [] });
+    const day = (date: string) => ({ campaign_id: "1", adset_id: "2", ad_id: "3", date_start: date });
+    if ((url.searchParams.get("fields") ?? "").includes("spend")) {
+      return json({ data: [{ ...day("2026-09-05"), spend: "10" }, { ...day("2026-09-06"), spend: "20" }] });
+    }
+    return json({ data: [{ ...day("2026-09-06"), results: [{ values: [{ value: "4", attribution_windows: ["default"] }] }] }] });
+  });
+  const data = await snapshotOf(fetcher);
+  expect(data.campaignMetrics.map((row) => [row.date, row.results])).toEqual([["2026-09-05", 0], ["2026-09-06", 4]]);
+});
+it("refuses a result that is not a number", async () => {
+  await expect(snapshotOf(insightsReturning({ results: [{ values: [{ value: "many", attribution_windows: ["default"] }] }] })))
+    .rejects.toMatchObject({ code: "INVALID_DATA" });
 });
 it("redacts provider errors, times out requests, and rejects currency mismatch and invalid statuses", async () => {
   const rejected = new GraphProvider("v22.0", vi.fn().mockResolvedValue(json({ error: { code: 190, message: "secret" } }, 400)));
@@ -75,5 +127,5 @@ it("does not repeat campaign_id in campaign Insights fields accepted by Meta", a
   });
   await expect(new GraphProvider("v22.0", fetcher).snapshot("123", "synthetic-token", "USD", new Date("2026-09-08T12:00:00Z"))).resolves.toMatchObject({ campaignMetrics: [], adSetMetrics: [], adMetrics: [] });
   const insights = fetcher.mock.calls.map(([url]) => url).filter((url) => url.pathname.endsWith("/insights"));
-  expect(insights).toHaveLength(3);
+  expect(insights).toHaveLength(6);
 });

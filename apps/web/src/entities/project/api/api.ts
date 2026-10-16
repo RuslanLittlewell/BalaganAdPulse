@@ -1,19 +1,11 @@
 import { http } from "@/shared/lib/index.js";
-import { CURRENCY_SIGNS, type Currency } from "@/shared/lib/index.js";
-
-export const CURRENCIES = Object.keys(CURRENCY_SIGNS) as Currency[];
-
-export const DEFAULT_CURRENCY: Currency = "BYN";
-import type { ProjectPriority } from "../model/priority.js";
+import type { Currency } from "@/shared/lib/index.js";
 
 export interface Project {
   id: string;
   clientId: string;
   name: string;
-  niche: string | null;
-  monthlyBudget: string | null;
   budgetCurrency: Currency;
-  priority: ProjectPriority;
   image: string | null;
   avatarPath: string | null;
   position: number;
@@ -24,10 +16,7 @@ export interface Project {
 export interface ProjectInput {
   clientId?: string;
   name?: string;
-  niche?: string | null;
-  monthlyBudget?: number | null;
-  budgetCurrency?: Currency;
-  priority?: ProjectPriority;
+  memberIds?: string[];
 }
 
 export const projectsApi = {

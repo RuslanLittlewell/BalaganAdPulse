@@ -17,6 +17,7 @@ export function useCampaignReferences(projectId: string | undefined) {
     queryKey: ["projects", projectId, "campaigns", "names"],
     queryFn: () => campaignsApi.namesByProject(projectId as string),
     enabled: projectId != null,
+    staleTime: 5 * 60_000,
   });
 }
 
@@ -72,6 +73,15 @@ export function useAgencySummary(range: DateRange) {
   return useQuery({
     queryKey: keyed(["summary"], range),
     queryFn: () => campaignsApi.agencySummary(range),
+  });
+}
+
+export const PROJECTS_SUMMARY_KEY = ["summary", "projects"] as const;
+
+export function useProjectsSummary(range: DateRange) {
+  return useQuery({
+    queryKey: keyed(PROJECTS_SUMMARY_KEY, range),
+    queryFn: () => campaignsApi.projectsSummary(range),
   });
 }
 

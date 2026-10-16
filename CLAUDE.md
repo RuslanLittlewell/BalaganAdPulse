@@ -7,7 +7,7 @@ the stack, layout and commands.
 ## Conventions
 
 - **No comments** — the codebase carries none, and none are to be added: not in
-  TypeScript, not in `schema.prisma`, not in configs. A comment you were about to
+  TypeScript, not in the Prisma schema files, not in configs. A comment you were about to
   write is a name that should have been clearer, a function that should have been
   smaller, or a decision that belongs in `openspec/` or a commit message. The two
   exceptions are machine-read directives (`/// <reference …>`, pragmas) and files
@@ -17,10 +17,15 @@ the stack, layout and commands.
   messages and API error messages are English. Everything a user reads in the web
   app is Russian and lives in `apps/web/src/shared/config/ru.ts`; reach it through
   `t("key")` rather than writing copy inline.
+- **Buttons are never passed as props** — a component that shows a button imports
+  `Button` itself and renders it. Its parent decides through props whether the button
+  appears and what it does (`onRetry`, `canEdit`, `retryLabel`), never by handing over
+  a `<Button>` element in a `ReactNode` or render-prop slot (`action`, `actions`, `extra`).
 - **Commit messages follow Conventional Commits** — `type(scope): subject`, imperative
   mood, lowercase, no trailing period. Full type table and examples in
   [CONTRIBUTING.md](CONTRIBUTING.md). Do not commit without an explicit request.
-- **TDD** — write the failing test first, then the implementation, for each slice.
+- **Implementation first, then tests** — for each slice, write the implementation
+  first, then cover it with tests and see them pass.
 - **No tests for styles** — never assert on CSS classes, inline styles or computed
   colours, spacing and borders. Styling is changed on sight and such a test fails on
   a redesign that broke nothing. Test what the component does: the text and roles it

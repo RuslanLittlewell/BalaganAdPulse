@@ -8,18 +8,13 @@ import {
   ContactIcon,
   type LucideIcon,
 } from "lucide-react";
+import type { OptionalModule } from "@adpulse/access-policy";
 import { t } from "@/shared/config/index.js";
 import { ROUTES } from "@/shared/lib/index.js";
 import { useNavCollapse } from "@/features/nav-collapse/index.js";
 import { useAuth } from "@/features/auth/index.js";
-import {
-  SectionLabel,
-  Sidebar,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/shared/ui/index.js";
+import { SectionLabel, Sidebar } from "@/shared/ui/index.js";
+import WarmTooltip, { WarmTooltipGroup } from "@/shared/ui/WarmTooltip/WarmTooltip.js";
 
 interface Module {
   to: string;
@@ -27,6 +22,7 @@ interface Module {
   icon: LucideIcon;
   end?: boolean;
   agencyOnly?: boolean;
+  module?: OptionalModule;
 }
 
 interface ModuleLinkProps {
@@ -41,14 +37,14 @@ const MODULES: Module[] = [
     icon: LayoutDashboardIcon,
     end: true,
   },
-  { to: ROUTES.crm, label: t("nav.crm"), icon: ContactIcon },
+  { to: ROUTES.crm, label: t("nav.crm"), icon: ContactIcon, module: "CRM" },
   { to: ROUTES.projects, label: t("nav.projects"), icon: FolderKanbanIcon },
-  { to: ROUTES.tasks, label: t("nav.tasks"), icon: ListTodoIcon },
+  { to: ROUTES.tasks, label: t("nav.tasks"), icon: ListTodoIcon, module: "TASKS" },
   {
     to: ROUTES.reports,
     label: t("nav.reports"),
     icon: ChartColumnIcon,
-    agencyOnly: true,
+    module: "REPORTS",
   },
   {
     to: ROUTES.archive,
@@ -81,16 +77,15 @@ function ModuleLink({ module, collapsed }: ModuleLinkProps) {
   if (!collapsed) return link;
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>{link}</TooltipTrigger>
-      <TooltipContent side="right">{label}</TooltipContent>
-    </Tooltip>
+    <WarmTooltip content={label} side="right">
+      {link}
+    </WarmTooltip>
   );
 }
 
 export function MainNav() {
   const { collapsed } = useNavCollapse();
-  const { role } = useAuth();
+  const { role, modules } = useAuth();
 
   return (
     <Sidebar
@@ -105,7 +100,7 @@ export function MainNav() {
       }
     >
       {!collapsed && <SectionLabel>{t("nav.sections")}</SectionLabel>}
-      <TooltipProvider delayDuration={200}>
+      <WarmTooltipGroup>
         <nav
           className={
             collapsed
@@ -115,12 +110,14 @@ export function MainNav() {
           aria-label={t("nav.sections")}
         >
           {MODULES.filter(
-            (module) => !module.agencyOnly || role !== "CLIENT",
+            (entry) =>
+              (!entry.agencyOnly || role !== "CLIENT") &&
+              (!entry.module || modules.includes(entry.module)),
           ).map((module) => (
             <ModuleLink key={module.to} module={module} collapsed={collapsed} />
           ))}
         </nav>
-      </TooltipProvider>
+      </WarmTooltipGroup>
     </Sidebar>
   );
 }

@@ -60,45 +60,46 @@ it("moves leads out of removed stages to the end of NEW, keeps the rest and rebu
 describe("custom board columns", () => {
   async function board() {
     const member = await signInAs();
-    const { clientId } = await seedProject(member.user.id);
-    return { orgId: (await currentOrg()).id, clientId };
+    const { clientId, projectId } = await seedProject(member.user.id);
+    const other = await prisma.project.create({ data: { clientId, name: "Второй", position: 1 } });
+    return { orgId: (await currentOrg()).id, clientId, projectId, otherProjectId: other.id };
   }
 
   it("puts a lead in exactly one of a fixed stage or a custom column", async () => {
-    const { orgId, clientId } = await board();
-    const column = await prisma.leadColumn.create({ data: { orgId, clientId, name: "Встреча", position: 0 } });
+    const { orgId, projectId } = await board();
+    const column = await prisma.leadColumn.create({ data: { orgId, projectId, name: "Встреча", position: 0 } });
 
-    await expect(prisma.lead.create({ data: { name: "Both", orgId, clientId, stage: "NEW", columnId: column.id } })).rejects.toThrow();
-    await expect(prisma.lead.create({ data: { name: "Neither", orgId, clientId, stage: null } })).rejects.toThrow();
-    await expect(prisma.lead.create({ data: { name: "Custom", orgId, clientId, stage: null, columnId: column.id } })).resolves.toMatchObject({ columnId: column.id, stage: null });
-    await expect(prisma.lead.create({ data: { name: "Target", orgId, clientId, stage: "TARGET" } })).resolves.toMatchObject({ stage: "TARGET" });
+    await expect(prisma.lead.create({ data: { name: "Both", orgId, projectId, stage: "NEW", columnId: column.id } })).rejects.toThrow();
+    await expect(prisma.lead.create({ data: { name: "Neither", orgId, projectId, stage: null } })).rejects.toThrow();
+    await expect(prisma.lead.create({ data: { name: "Custom", orgId, projectId, stage: null, columnId: column.id } })).resolves.toMatchObject({ columnId: column.id, stage: null });
+    await expect(prisma.lead.create({ data: { name: "Target", orgId, projectId, stage: "TARGET" } })).resolves.toMatchObject({ stage: "TARGET" });
   });
 
   it("refuses deleting a column that still holds leads", async () => {
-    const { orgId, clientId } = await board();
-    const column = await prisma.leadColumn.create({ data: { orgId, clientId, name: "Встреча", position: 0 } });
-    await prisma.lead.create({ data: { name: "Custom", orgId, clientId, stage: null, columnId: column.id } });
+    const { orgId, projectId } = await board();
+    const column = await prisma.leadColumn.create({ data: { orgId, projectId, name: "Встреча", position: 0 } });
+    await prisma.lead.create({ data: { name: "Custom", orgId, projectId, stage: null, columnId: column.id } });
 
     await expect(prisma.leadColumn.delete({ where: { id: column.id } })).rejects.toThrow();
   });
 
-  it("disappears with its client, leads included", async () => {
-    const { orgId, clientId } = await board();
-    const column = await prisma.leadColumn.create({ data: { orgId, clientId, name: "Встреча", position: 0 } });
-    await prisma.lead.create({ data: { name: "Custom", orgId, clientId, stage: null, columnId: column.id } });
+  it("disappears with its project, leads included", async () => {
+    const { orgId, projectId } = await board();
+    const column = await prisma.leadColumn.create({ data: { orgId, projectId, name: "Встреча", position: 0 } });
+    await prisma.lead.create({ data: { name: "Custom", orgId, projectId, stage: null, columnId: column.id } });
 
-    await prisma.client.delete({ where: { id: clientId } });
+    await prisma.project.delete({ where: { id: projectId } });
 
     expect(await prisma.leadColumn.count()).toBe(0);
     expect(await prisma.lead.count({ where: { orgId } })).toBe(0);
   });
 
   it("keeps names unique on a board regardless of case, and free across boards", async () => {
-    const { orgId, clientId } = await board();
-    await prisma.leadColumn.create({ data: { orgId, clientId, name: "Встреча", position: 0 } });
+    const { orgId, projectId, otherProjectId } = await board();
+    await prisma.leadColumn.create({ data: { orgId, projectId, name: "Встреча", position: 0 } });
 
-    await expect(prisma.leadColumn.create({ data: { orgId, clientId, name: "ВСТРЕЧА", position: 1 } })).rejects.toThrow();
-    await expect(prisma.leadColumn.create({ data: { orgId, clientId: null, name: "Встреча", position: 0 } })).resolves.toMatchObject({ clientId: null });
-    await expect(prisma.leadColumn.create({ data: { orgId, clientId: null, name: "встреча", position: 1 } })).rejects.toThrow();
+    await expect(prisma.leadColumn.create({ data: { orgId, projectId, name: "ВСТРЕЧА", position: 1 } })).rejects.toThrow();
+    await expect(prisma.leadColumn.create({ data: { orgId, projectId: otherProjectId, name: "Встреча", position: 0 } })).resolves.toMatchObject({ projectId: otherProjectId });
+    await expect(prisma.leadColumn.create({ data: { orgId, projectId: otherProjectId, name: "встреча", position: 1 } })).rejects.toThrow();
   });
 });

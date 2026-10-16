@@ -1,5 +1,5 @@
 import { http as mock, HttpResponse } from "msw";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
 import { aProject, aTask, renderWithProviders, server } from "@test/shared/index.js";
@@ -12,6 +12,7 @@ function asClient() {
     organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
     role: "CLIENT",
     clientIds: ["client-1"],
+    modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"],
   })));
 }
 
@@ -36,7 +37,7 @@ describe("what a client is offered", () => {
     const nav = await screen.findByRole("navigation", { name: "Разделы" });
     await screen.findByRole("link", { name: "Задачи" });
     expect(within(nav).getAllByRole("link").map((link) => link.textContent))
-      .toEqual(["Дашборд", "CRM", "Проекты", "Задачи"]);
+      .toEqual(["Дашборд", "CRM", "Проекты", "Задачи", "Отчёты"]);
   });
 
   it("still shows every module to the agency", async () => {
@@ -46,7 +47,7 @@ describe("what a client is offered", () => {
     );
 
     const nav = screen.getByRole("navigation", { name: "Разделы" });
-    expect(within(nav).getAllByRole("link")).toHaveLength(6);
+    await waitFor(() => expect(within(nav).getAllByRole("link")).toHaveLength(6));
   });
 
   it("lists the tasks marked as shown to them", async () => {

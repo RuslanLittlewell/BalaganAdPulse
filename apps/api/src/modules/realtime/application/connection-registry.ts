@@ -1,7 +1,7 @@
-import type { SessionPrincipal } from "../../identity/index.js";
-import type { LeadEvent } from "../../leads/index.js";
-import type { PresenceEvent } from "../../presence/index.js";
-import type { TaskEvent } from "../../tasks/index.js";
+import type { SessionPrincipal } from "#modules/identity/index.js";
+import type { LeadEvent } from "#modules/leads/index.js";
+import type { PresenceEvent } from "#modules/presence/index.js";
+import type { TaskEvent } from "#modules/tasks/index.js";
 
 export type RealtimeEvent = TaskEvent | LeadEvent | PresenceEvent;
 

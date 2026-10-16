@@ -13,12 +13,6 @@ export function createProjectUseCases(dependencies: ProjectDependencies) {
     }
   };
 
-  const assertMayPrioritise = (actor: ActorContext, input: { priority?: unknown }) => {
-    if (input.priority !== undefined && !can(actor, "update", "project-priority")) {
-      throw new AppError("forbidden", "Your role may not set a project's priority");
-    }
-  };
-
   const reach = async (actor: ActorContext, id: string): Promise<ProjectRecord> => {
     const project = await dependencies.projects.findReachable(actor, id);
     if (!project) throw new AppError("not-found", "Project not found");
@@ -29,6 +23,19 @@ export function createProjectUseCases(dependencies: ProjectDependencies) {
     if (!(await dependencies.clients.isReachable(actor, clientId))) {
       throw new AppError("not-found", "Client not found");
     }
+  };
+
+  const staffOf = async (actor: ActorContext, memberIds: readonly string[] = []) => {
+    const named = [...new Set(memberIds)];
+    if (named.length === 0) return named;
+    if (!can(actor, "update", "member")) {
+      throw new AppError("forbidden", "Your role may not assign employees to a project");
+    }
+    const eligible = new Set(await dependencies.staffing.eligible(actor.orgId, named));
+    if (named.some((id) => !eligible.has(id))) {
+      throw new AppError("validation", "Only active managers and guests of the organization can be assigned");
+    }
+    return named;
   };
 
   const withPicture = async (project: ProjectRecord): Promise<ProjectRecord> => {
@@ -50,14 +57,17 @@ export function createProjectUseCases(dependencies: ProjectDependencies) {
   return {
     create: async (actor: ActorContext, input: NewProject): Promise<ProjectRecord> => {
       assertCan(actor, "create");
-      assertMayPrioritise(actor, input);
-      await assertClientReachable(actor, input.clientId);
+      const { memberIds, ...fields } = input;
+      const staff = await staffOf(actor, memberIds);
+      await assertClientReachable(actor, fields.clientId);
       return dependencies.unitOfWork.run(async (context) => {
         const project = await dependencies.projects.create(context, {
-          ...input,
+          ...fields,
           id: dependencies.ids.generate(),
-          position: await dependencies.projects.countForClient(input.clientId),
+          position: await dependencies.projects.countForClient(fields.clientId),
         });
+        const granted = actor.role === "MANAGER" ? [...staff, actor.membershipId] : staff;
+        if (granted.length > 0) await dependencies.staffing.grant(context, project, granted);
         await dependencies.audit.append(context, audit("CREATE", project), actor);
         return project;
       });
@@ -74,7 +84,6 @@ export function createProjectUseCases(dependencies: ProjectDependencies) {
     update: async (actor: ActorContext, id: string, input: ProjectChange): Promise<ProjectRecord> => {
       await reach(actor, id);
       assertCan(actor, "update");
-      assertMayPrioritise(actor, input);
       if (input.clientId) await assertClientReachable(actor, input.clientId);
       const updated = await dependencies.unitOfWork.run(async (context) => {
         const project = await dependencies.projects.update(context, id, input);

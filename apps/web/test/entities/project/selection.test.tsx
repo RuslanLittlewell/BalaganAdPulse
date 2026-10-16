@@ -1,13 +1,8 @@
+import { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
-import {
-  SelectionSync,
-  parseSelection,
-  useActiveCampaignId,
-  useActiveProjectId,
-  useSelectionStore,
-} from "@/entities/project/index.js";
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { parseSelection, useActiveCampaignId, useActiveProjectId } from "@/entities/project/index.js";
 
 describe("parseSelection", () => {
   it("reads a project and a sheet out of the address", () => {
@@ -38,24 +33,27 @@ function Probe() {
       <button type="button" onClick={() => navigate("/projects/p2/campaigns/c9")}>
         go
       </button>
+      <button type="button" onClick={() => navigate("/crm")}>
+        leave
+      </button>
     </>
   );
 }
 
-function renderAt(route: string) {
-  useSelectionStore.setState({ projectId: undefined, campaignId: undefined });
-  return render(
-    <MemoryRouter initialEntries={[route]}>
-      <SelectionSync />
-      <Routes>
-        <Route path="*" element={<Probe />} />
-      </Routes>
-    </MemoryRouter>,
+function HeldAddress() {
+  const [held] = useState(useLocation());
+  return (
+    <Routes location={held}>
+      <Route path="*" element={<Probe />} />
+    </Routes>
   );
 }
 
-describe("SelectionSync", () => {
-  it("fills the store from the address a visitor arrived on", () => {
+const renderAt = (route: string, page = <Probe />) =>
+  render(<MemoryRouter initialEntries={[route]}>{page}</MemoryRouter>);
+
+describe("the active selection", () => {
+  it("is read from the address a visitor arrived on", () => {
     renderAt("/projects/p1/campaigns/c1");
     expect(screen.getByTestId("selection")).toHaveTextContent("p1/c1");
   });
@@ -66,25 +64,19 @@ describe("SelectionSync", () => {
     expect(screen.getByTestId("selection")).toHaveTextContent("p2/c9");
   });
 
-  it("clears the sheet when the address no longer names one", () => {
-    useSelectionStore.setState({ projectId: "p1", campaignId: "c1" });
-    render(
-      <MemoryRouter initialEntries={["/projects/p1"]}>
-        <SelectionSync />
-        <Probe />
-      </MemoryRouter>,
-    );
+  it("names no sheet when the address names none", () => {
+    renderAt("/projects/p1");
     expect(screen.getByTestId("selection")).toHaveTextContent("p1/—");
   });
 
-  it("empties the selection outside the projects module", () => {
-    useSelectionStore.setState({ projectId: "p1", campaignId: "c1" });
-    render(
-      <MemoryRouter initialEntries={["/tasks"]}>
-        <SelectionSync />
-        <Probe />
-      </MemoryRouter>,
-    );
+  it("is empty outside the projects module", () => {
+    renderAt("/tasks");
     expect(screen.getByTestId("selection")).toHaveTextContent("—/—");
+  });
+
+  it("stays with a page still shown under the address it left, as one fading out does", async () => {
+    renderAt("/projects/p1/campaigns/c1", <HeldAddress />);
+    await userEvent.click(screen.getByRole("button", { name: "leave" }));
+    expect(screen.getByTestId("selection")).toHaveTextContent("p1/c1");
   });
 });

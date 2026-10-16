@@ -1,9 +1,10 @@
-import { can } from "@adpulse/access-policy";
+import { can, enabledModules, isCustomer, type OptionalModule } from "@adpulse/access-policy";
 import { AppError } from "#shared/domain/index.js";
 import type { ActorContext } from "#shared/application/index.js";
-import type { SessionPrincipal } from "../../identity/index.js";
+import type { SessionPrincipal } from "#modules/identity/index.js";
+import { discloses } from "#modules/presence/index.js";
 import { wouldStopBeingAdmin } from "../domain/member.js";
-import type { MemberChange } from "../domain/member.js";
+import type { MemberChange, MemberRecord } from "../domain/member.js";
 import type {
   AccessGrant,
   MemberDependencies,
@@ -11,6 +12,8 @@ import type {
   MemberKind,
   SessionDependencies,
 } from "./ports.js";
+
+export const ORGANIZATION_SUSPENDED = "Organization is suspended";
 
 export interface SetAccessInput {
   readonly grants: readonly { clientId: string; projectId?: string | null }[];
@@ -23,6 +26,17 @@ export function createMemberUseCases(
     if (!can(actor, action, "member")) {
       throw new AppError("forbidden", `Your role may not ${action} a member`);
     }
+  };
+
+  const activeMembershipOf = async (userId: string) => {
+    const membership = await dependencies.memberships.findActiveByUserId(userId);
+    if (!membership) {
+      throw new AppError(
+        "forbidden",
+        "Your account is not an active member of this organization",
+      );
+    }
+    return membership;
   };
 
   const reachable = async (actor: ActorContext, id: string) => {
@@ -42,34 +56,48 @@ export function createMemberUseCases(
     }
   };
 
+  const seesPictureOf = async (actor: ActorContext, member: MemberRecord): Promise<boolean> => {
+    const bothCustomers = isCustomer(actor.role) && isCustomer(member.role);
+    const [viewerClientIds, memberClientIds] = bothCustomers
+      ? await Promise.all([
+          dependencies.clients.reachableClientIds(actor),
+          dependencies.clients.reachableClientIds({
+            userId: member.userId, membershipId: member.id, orgId: member.orgId, role: member.role,
+          }),
+        ])
+      : [[], []];
+    return discloses(
+      { orgId: actor.orgId, role: actor.role, clientIds: viewerClientIds },
+      { orgId: member.orgId, role: member.role, clientIds: memberClientIds },
+    );
+  };
+
   return {
     resolveActor: async (principal: SessionPrincipal): Promise<ActorContext> => {
-      const actor = await dependencies.memberships.findActiveByUserId(principal.id);
-      if (!actor) {
-        throw new AppError(
-          "forbidden",
-          "Your account is not an active member of this organization",
-        );
+      const { actor, organizationStatus } = await activeMembershipOf(principal.id);
+      if (organizationStatus === "SUSPENDED") {
+        throw new AppError("forbidden", ORGANIZATION_SUSPENDED);
       }
       return actor;
     },
 
     list: async (actor: ActorContext, kind?: MemberKind) => {
-      assertCan(actor, "read");
+      const listsColleagues = kind === "staff" && actor.role === "MANAGER";
+      if (!listsColleagues) assertCan(actor, "read");
       return dependencies.directory.listByOrg(actor.orgId, kind);
     },
 
-    listOfClient: async (actor: ActorContext, clientId: string) => {
-      assertCan(actor, "read");
+    listOfClient: async (actor: ActorContext, clientId: string, projectId?: string) => {
+      if (actor.role !== "MANAGER") assertCan(actor, "read");
       if (!(await dependencies.clients.reachableClientIds(actor)).includes(clientId)) {
         throw new AppError("not-found", "Client not found");
       }
-      return dependencies.directory.listByClient(actor.orgId, clientId);
+      return dependencies.directory.listByClient(actor.orgId, clientId, projectId);
     },
 
     avatar: async (actor: ActorContext, id: string): Promise<Uint8Array> => {
-      assertCan(actor, "read");
       const member = await reachable(actor, id);
+      if (!(await seesPictureOf(actor, member))) throw new AppError("not-found", "Member not found");
       const bytes = await dependencies.avatars.readAvatar(member.userId);
       if (!bytes) throw new AppError("not-found", "Member has no picture");
       return bytes;
@@ -129,16 +157,38 @@ export function createMemberUseCases(
       return dependencies.access.listFor(member.id);
     },
 
-    describeSession: async (actor: ActorContext) => {
-      const [user, organization, clientIds] = await Promise.all([
-        dependencies.users.findById(actor.userId),
-        dependencies.organizations.findById(actor.orgId),
-        dependencies.clients.reachableClientIds(actor),
-      ]);
-      if (!user || !organization) {
-        throw new AppError("not-found", "Session could not be resolved");
+    isEntitled: async (actor: ActorContext, module: OptionalModule): Promise<boolean> => {
+      const organization = await dependencies.organizations.findById(actor.orgId);
+      return organization?.modules.includes(module) ?? false;
+    },
+
+    describeSession: async (principal: SessionPrincipal) => {
+      const person = await dependencies.users.findById(principal.id);
+      if (!person) throw new AppError("unauthorized", "Authentication required");
+      const { platformAdmin, ...user } = person;
+      if (platformAdmin) {
+        return {
+          session: { user, platformAdmin, organization: null, role: null, clientIds: [], modules: [] },
+          actor: null,
+        };
       }
-      return { user, organization, role: actor.role, clientIds };
+      const { actor } = await activeMembershipOf(user.id);
+      const held = await dependencies.organizations.findById(actor.orgId);
+      if (!held) throw new AppError("not-found", "Session could not be resolved");
+      const { modules, ...organization } = held;
+      if (organization.status === "SUSPENDED") {
+        return {
+          session: { user, platformAdmin, organization, role: actor.role, clientIds: [], modules: [] },
+          actor: null,
+        };
+      }
+      const clientIds = await dependencies.clients.reachableClientIds(actor);
+      return {
+        session: {
+          user, platformAdmin, organization, role: actor.role, clientIds, modules: enabledModules(modules),
+        },
+        actor,
+      };
     },
   };
 }

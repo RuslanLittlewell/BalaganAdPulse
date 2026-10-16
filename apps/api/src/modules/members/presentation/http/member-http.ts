@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { AppError } from "#shared/domain/index.js";
-import type { MemberUseCases } from "../../application/member-use-cases.js";
-import { MEMBER_KINDS } from "../../application/ports.js";
+import type { MemberUseCases } from "#modules/members/application/member-use-cases.js";
+import { MEMBER_KINDS } from "#modules/members/application/ports.js";
 import { setAccessSchema, updateMemberSchema } from "./member-schemas.js";
 
 function actorOf(req: Request) {
@@ -19,14 +19,15 @@ function handle<TRequest extends Request>(
 const memberQuerySchema = z.object({
   kind: z.enum(MEMBER_KINDS).optional(),
   clientId: z.uuid().optional(),
+  projectId: z.uuid().optional(),
 });
 
 export function createMemberRouter(useCases: MemberUseCases): Router {
   const router = Router();
   router.get("/", handle(async (req, res) => {
-    const { kind, clientId } = memberQuerySchema.parse(req.query);
+    const { kind, clientId, projectId } = memberQuerySchema.parse(req.query);
     res.json(clientId
-      ? await useCases.listOfClient(actorOf(req), clientId)
+      ? await useCases.listOfClient(actorOf(req), clientId, projectId)
       : await useCases.list(actorOf(req), kind));
   }));
   router.get("/:id/avatar", handle(async (req: Request<{ id: string }>, res) => {

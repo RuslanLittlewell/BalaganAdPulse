@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { AccountProvider } from "../application/ports.js";
 import { MetaError } from "../domain/integration.js";
 import type { ImportedCreative, ImportedEntity, ImportedMetric, ImportedStatus, PolledAd, Snapshot } from "../domain/snapshot.js";
-import type { IncomingLead } from "../../leads/index.js";
+import type { IncomingLead } from "#modules/leads/index.js";
 import { mapLeadAnswers } from "./meta-lead-answers.js";
 import { localDate, shiftDate } from "../application/schedule.js";
 
@@ -11,9 +11,21 @@ const money = z.string().regex(/^\d{1,14}(\.\d{1,4})?$/);
 const count = z.string().regex(/^\d+$/).transform(Number).pipe(z.number().int().min(0).max(2147483647));
 const entity = z.object({ id, name: z.string().min(1), effective_status: z.string(), campaign_id: id.optional(), adset_id: id.optional(), objective: z.string().optional() });
 const action = z.object({ action_type: z.string(), value: z.string() });
+const resultValue = z.object({ value: z.string().regex(/^\d{1,10}(\.\d+)?$/), attribution_windows: z.array(z.string()).default([]) });
+const result = z.object({ indicator: z.string().optional(), values: z.array(resultValue).default([]) });
 const metric = z.object({ campaign_id: id, adset_id: id.optional(), ad_id: id.optional(), date_start: z.iso.date(), spend: money.default("0"), impressions: count.default(0), reach: count.default(0), clicks: count.default(0), actions: z.array(action).default([]), action_values: z.array(action).default([]) });
+const resultRow = z.object({ campaign_id: id.optional(), adset_id: id.optional(), ad_id: id.optional(), date_start: z.iso.date(), results: z.array(result).default([]) });
+
+function resultsOf(reported: readonly z.infer<typeof result>[]): number {
+  const total = reported.reduce((sum, entry) => {
+    const chosen = entry.values.find((value) => value.attribution_windows.includes("default")) ?? entry.values[0];
+    return sum + Number(chosen?.value ?? 0);
+  }, 0);
+  return Math.min(Math.round(total), 2147483647);
+}
 const link = z.string().min(1).max(2048);
-const attachment = z.object({ picture: link.optional(), video_id: id.optional(), name: z.string().optional(), description: z.string().optional() });
+const hash = z.string().min(1).max(200);
+const attachment = z.object({ picture: link.optional(), image_hash: hash.optional(), video_id: id.optional(), name: z.string().optional(), description: z.string().optional() });
 const assetFeed = z.object({
   videos: z.array(z.object({ video_id: id.optional(), thumbnail_url: link.optional() })).optional(),
   images: z.array(z.object({ hash: z.string().min(1).max(200).optional(), url: link.optional() })).optional(),
@@ -26,11 +38,12 @@ const creative = z.object({
   thumbnail_url: link.optional(),
   video_id: id.optional(),
   object_story_spec: z.object({
-    link_data: z.object({ name: z.string().optional(), message: z.string().optional(), picture: link.optional(), child_attachments: z.array(attachment).optional() }).optional(),
+    link_data: z.object({ name: z.string().optional(), message: z.string().optional(), picture: link.optional(), image_hash: hash.optional(), child_attachments: z.array(attachment).optional() }).optional(),
     video_data: z.object({ video_id: id.optional(), image_url: link.optional(), title: z.string().optional(), message: z.string().optional() }).optional(),
   }).optional(),
 });
-const video = z.object({ id, source: link.optional(), picture: link.optional() });
+const frame = z.object({ uri: link, width: z.number().int().min(0).optional(), height: z.number().int().min(0).optional() });
+const video = z.object({ id, source: link.optional(), picture: link.optional(), thumbnails: z.object({ data: z.array(frame) }).optional() });
 const named = z.object({ id, name: z.string().min(1) });
 const leadAd = z.object({ id, name: z.string().min(1), adset: named, campaign: named.extend({ objective: z.string().optional() }) });
 const LEAD_OBJECTIVES = new Set(["OUTCOME_LEADS", "LEAD_GENERATION"]);
@@ -89,8 +102,8 @@ function describe(adExternalId: string, row: unknown): PendingCreative[] {
   if (frames.length > 0) {
     return frames.map((frame, position) => frame.video_id
       ? { ...base, position, kind: "VIDEO" as const, videoId: frame.video_id, posterUrl: frame.picture }
-      : { ...base, position, kind: "IMAGE" as const, fileUrl: frame.picture })
-      .filter((entry) => entry.kind === "VIDEO" || entry.fileUrl !== undefined);
+      : { ...base, position, kind: "IMAGE" as const, fileUrl: frame.picture, imageHash: frame.image_hash })
+      .filter((entry) => entry.kind === "VIDEO" || entry.fileUrl !== undefined || entry.imageHash !== undefined);
   }
   const feed = value.asset_feed_spec;
   const feedVideos = distinctBy(feed?.videos ?? [], (asset) => asset.video_id);
@@ -119,9 +132,9 @@ function describe(adExternalId: string, row: unknown): PendingCreative[] {
     }];
   }
   const picture = value.image_url ?? linkData?.picture ?? videoData?.image_url;
-  if (picture) return [{ ...base, position: 0, kind: "IMAGE", fileUrl: picture }];
-  if (value.image_hash) {
-    return [{ ...base, position: 0, kind: "IMAGE", imageHash: value.image_hash, fileUrl: value.thumbnail_url }];
+  const imageHash = value.image_hash ?? linkData?.image_hash;
+  if (picture || imageHash) {
+    return [{ ...base, position: 0, kind: "IMAGE", imageHash, fileUrl: picture ?? value.thumbnail_url }];
   }
   return value.thumbnail_url
     ? [{ ...base, position: 0, kind: "IMAGE", fileUrl: value.thumbnail_url }]
@@ -226,12 +239,18 @@ export class GraphProvider implements AccountProvider {
     token: string,
     signal?: AbortSignal,
   ): Promise<{ source?: string; picture?: string }> {
-    try {
-      const result = video.safeParse(await this.request(videoId, token, { fields: "source,picture" }, signal));
-      return result.success ? { source: result.data.source, picture: result.data.picture } : {};
-    } catch {
-      return {};
+    for (const fields of ["source,picture,thumbnails{uri,width,height}", "source,picture"]) {
+      try {
+        const result = video.safeParse(await this.request(videoId, token, { fields }, signal));
+        if (!result.success) return {};
+        const frames = [...(result.data.thumbnails?.data ?? [])]
+          .sort((a, b) => (b.width ?? 0) * (b.height ?? 0) - (a.width ?? 0) * (a.height ?? 0));
+        return { source: result.data.source, picture: frames[0]?.uri ?? result.data.picture };
+      } catch {
+        if (signal?.aborted) return {};
+      }
     }
+    return {};
   }
 
   private async creativeOf(adId: string, token: string, signal?: AbortSignal): Promise<unknown | null> {
@@ -283,6 +302,7 @@ export class GraphProvider implements AccountProvider {
 
   private async metrics(accountId: string, token: string, level: "campaign" | "adset" | "ad", from: string, to: string, signal?: AbortSignal): Promise<ImportedMetric[]> {
     const rows = await this.pages(`act_${accountId}/insights`, token, { level, time_increment: "1", time_range: JSON.stringify({ since: from, until: to }), fields: [...new Set([`${level}_id`, "campaign_id", "date_start", "spend", "impressions", "reach", "clicks", "actions", "action_values"])].join(",") }, signal);
+    const results = await this.results(accountId, token, level, from, to, signal);
     const seen = new Set<string>();
     return rows.map((row) => {
       const parsed = metric.safeParse(row);
@@ -296,8 +316,23 @@ export class GraphProvider implements AccountProvider {
       const conversions = count.safeParse(data.actions.find((item) => item.action_type === "lead")?.value ?? "0");
       const revenue = money.safeParse(data.action_values.find((item) => item.action_type === "purchase")?.value ?? "0");
       if (!conversions.success || !revenue.success) throw new MetaError("INVALID_DATA");
-      return { externalId, date: data.date_start, spend: data.spend, impressions: data.impressions, reach: data.reach, clicks: data.clicks, conversions: conversions.data, revenue: revenue.data };
+      return { externalId, date: data.date_start, spend: data.spend, impressions: data.impressions, reach: data.reach, clicks: data.clicks, conversions: conversions.data, results: results.get(key) ?? 0, revenue: revenue.data };
     });
+  }
+
+  private async results(accountId: string, token: string, level: "campaign" | "adset" | "ad", from: string, to: string, signal?: AbortSignal): Promise<Map<string, number>> {
+    const rows = await this.pages(`act_${accountId}/insights`, token, { level, time_increment: "1", time_range: JSON.stringify({ since: from, until: to }), fields: `${level}_id,date_start,results` }, signal);
+    const found = new Map<string, number>();
+    for (const row of rows) {
+      const parsed = resultRow.safeParse(row);
+      if (!parsed.success) throw new MetaError("INVALID_DATA");
+      const externalId = parsed.data[`${level}_id`];
+      if (!externalId) throw new MetaError("INVALID_DATA");
+      const key = `${externalId}/${parsed.data.date_start}`;
+      if (found.has(key)) throw new MetaError("INVALID_DATA");
+      found.set(key, resultsOf(parsed.data.results));
+    }
+    return found;
   }
 
   private async originals(

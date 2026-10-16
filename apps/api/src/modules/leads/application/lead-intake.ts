@@ -10,7 +10,7 @@ export interface IncomingLead {
   email: string | null;
   source: LeadMetaSource;
 }
-export interface LeadTarget { orgId: string; clientId: string; projectId: string }
+export interface LeadTarget { orgId: string; projectId: string }
 export interface LeadDelivery extends LeadTarget { leads: readonly IncomingLead[] }
 export interface ImportedLeadInput extends IncomingLead, LeadTarget {
   id: string;
@@ -21,29 +21,29 @@ export interface ImportedLeadInput extends IncomingLead, LeadTarget {
 export interface LeadIntakeRepository {
   lockBoard(context: TransactionContext, orgId: string, board: string): Promise<void>;
   claim(context: TransactionContext, orgId: string, externalId: string): Promise<boolean>;
-  shiftNew(context: TransactionContext, orgId: string, clientId: string, by: number): Promise<void>;
+  shiftNew(context: TransactionContext, orgId: string, projectId: string, by: number): Promise<void>;
   attribution(context: TransactionContext, projectId: string, source: LeadMetaSource): Promise<{ campaignId: string | null; adId: string | null }>;
   createImported(context: TransactionContext, input: ImportedLeadInput): Promise<void>;
-  linkAttribution(context: TransactionContext, projectId: string): Promise<Array<{ orgId: string; clientId: string }>>;
+  linkAttribution(context: TransactionContext, projectId: string): Promise<LeadTarget[]>;
 }
 
 export function createLeadIntake(d: { intake: LeadIntakeRepository; ids: IdGenerator; unitOfWork: UnitOfWork; publish: (event: LeadEvent) => void }) {
-  const announce = ({ orgId, clientId }: { orgId: string; clientId: string }) => {
-    d.publish({ kind: 'crm.changed', orgId, board: clientId });
+  const announce = ({ orgId, projectId }: LeadTarget) => {
+    d.publish({ kind: 'crm.changed', orgId, board: projectId });
   };
   return {
     async deliver(context: TransactionContext, delivery: LeadDelivery): Promise<{ created: number }> {
-      const { orgId, clientId, projectId } = delivery;
-      await d.intake.lockBoard(context, orgId, clientId);
+      const { orgId, projectId } = delivery;
+      await d.intake.lockBoard(context, orgId, projectId);
       const claimed: IncomingLead[] = [];
       for (const lead of delivery.leads) {
         if (await d.intake.claim(context, orgId, lead.externalId)) claimed.push(lead);
       }
-      if (claimed.length > 0) await d.intake.shiftNew(context, orgId, clientId, claimed.length);
+      if (claimed.length > 0) await d.intake.shiftNew(context, orgId, projectId, claimed.length);
       let position = 0;
       for (const lead of claimed) {
         const attribution = await d.intake.attribution(context, projectId, lead.source);
-        await d.intake.createImported(context, { ...lead, ...attribution, orgId, clientId, projectId, id: d.ids.generate(), position: position++ });
+        await d.intake.createImported(context, { ...lead, ...attribution, orgId, projectId, id: d.ids.generate(), position: position++ });
       }
       return { created: claimed.length };
     },

@@ -4,7 +4,6 @@ import userEvent from "@testing-library/user-event";
 import { Route, Routes, useLocation } from "react-router-dom";
 import { aTask, renderWithProviders, server } from "@test/shared/index.js";
 import { CampaignPage } from "@/pages/campaign/index.js";
-import { useSummaryTiles } from "@/widgets/agency-overview/summaryTiles.js";
 
 const performance = (spend: number, extra = {}) => ({
   spend, impressions: 100000, reach: 40000, clicks: 2000, conversions: 50, revenue: 4000,
@@ -29,17 +28,18 @@ function App() {
   );
 }
 
-function api(options: { adSets?: unknown[]; ads?: unknown[]; days?: unknown[]; tasks?: unknown[] } = {}) {
+function api(options: { adSets?: unknown[]; ads?: unknown[]; days?: unknown[]; summaryTiles?: string[] } = {}) {
   const creativeRequests: string[] = [];
   server.use(
     mock.get("/api/members", () => HttpResponse.json([])),
     mock.get("/api/projects", () => HttpResponse.json([{
-      id: "p1", clientId: "cl1", name: "Клиника", niche: null, monthlyBudget: null,
-      budgetCurrency: "BYN", priority: "NEW", image: null, avatarPath: null, position: 0,
+      id: "p1", clientId: "cl1", name: "Клиника",
+      budgetCurrency: "BYN", image: null, avatarPath: null, position: 0,
       createdAt: "", updatedAt: "",
     }])),
-    mock.get("/api/tasks", () => HttpResponse.json(options.tasks ?? [])),
     mock.get("/api/campaigns/names", () => HttpResponse.json([])),
+    mock.get("/api/projects/p1/summary-tiles", () =>
+      HttpResponse.json({ tiles: options.summaryTiles ?? ["CONVERSIONS"] })),
     mock.get("/api/campaigns/:campaignId/daily", () =>
       HttpResponse.json(options.days ?? [day("2026-08-01", 400), day("2026-08-02", 900)])),
     mock.get("/api/campaigns/:campaignId/ad-sets", () => HttpResponse.json(options.adSets ?? [
@@ -111,20 +111,19 @@ describe("CampaignPage", () => {
     expect(await within(summary).findByText(/^CPL 20,00\sBr$/)).toBeInTheDocument();
   });
 
-  it("shows the tiles chosen on the project page and nothing to configure", async () => {
-    api();
+  it("shows the tiles chosen for its project and nothing to configure", async () => {
+    api({ summaryTiles: ["CLICKS", "CONVERSIONS", "KPI"] });
     server.use(mock.get("/api/projects/:projectId/kpi", () => HttpResponse.json(null)));
-    useSummaryTiles.setState({ layouts: { "user-1": { project: ["clicks", "conversions", "kpi"], campaign: ["spend"] } as never } });
     renderWithProviders(<App />, route);
 
     const summary = await screen.findByRole("group", { name: "Показатели за период" });
     await waitFor(() => expect(within(summary).getAllByTestId("summary-tile").map((tile) => tile.getAttribute("data-tile")))
-      .toEqual(["clicks", "conversions", "kpi"]));
+      .toEqual(["CLICKS", "CONVERSIONS", "KPI"]));
     expect(screen.queryByRole("button", { name: "Настроить показатели" })).not.toBeInTheDocument();
   });
 
   it("shows the project's KPI against the campaign's figures, with nothing to change it", async () => {
-    api();
+    api({ summaryTiles: ["KPI"] });
     let campaignKpiAsked = false;
     server.use(
       mock.get("/api/projects/p1/kpi", () =>
@@ -134,7 +133,6 @@ describe("CampaignPage", () => {
         return HttpResponse.json(null);
       }),
     );
-    useSummaryTiles.setState({ layouts: { "user-1": { project: ["kpi"] } } });
     renderWithProviders(<App />, { route: "/projects/p1/campaigns/c1?from=2026-09-01&to=2026-09-30" });
 
     const tile = await screen.findByTestId("kpi-tile");
@@ -195,61 +193,5 @@ describe("CampaignPage", () => {
     renderWithProviders(<App />, route);
 
     expect(await screen.findByText("Групп объявлений пока нет")).toBeInTheDocument();
-  });
-});
-
-describe("the work about a campaign", () => {
-  it("lists the tasks that name it", async () => {
-    api({ tasks: [
-      aTask({ id: "t1", projectId: "p1", campaignId: "c1", title: "Переписать объявления" }),
-    ] });
-    renderWithProviders(<App />, route);
-
-    expect(await screen.findByText("Переписать объявления")).toBeInTheDocument();
-  });
-
-  it("asks the server for this campaign's tasks alone", async () => {
-    const seen: URL[] = [];
-    api();
-    server.use(mock.get("/api/tasks", ({ request }) => {
-      seen.push(new URL(request.url));
-      return HttpResponse.json([]);
-    }));
-    renderWithProviders(<App />, route);
-
-    await screen.findByText("К этой кампании нет задач");
-    expect(seen).toHaveLength(1);
-    expect(seen[0].searchParams.get("campaignId")).toBe("c1");
-  });
-
-  it("lists finished work too", async () => {
-    api({ tasks: [
-      aTask({ id: "t1", projectId: "p1", campaignId: "c1", title: "Старый отчёт", column: "DONE" }),
-    ] });
-    renderWithProviders(<App />, route);
-
-    expect(await screen.findByText("Старый отчёт")).toBeInTheDocument();
-  });
-
-  it("says so when the campaign has no tasks", async () => {
-    api({ tasks: [] });
-    renderWithProviders(<App />, route);
-
-    expect(await screen.findByText("К этой кампании нет задач")).toBeInTheDocument();
-  });
-
-  it("opens a task read-only when its row is chosen", async () => {
-    const user = userEvent.setup();
-    api({ tasks: [
-      aTask({ id: "t1", projectId: "p1", campaignId: "c1", title: "Переписать объявления" }),
-    ] });
-    renderWithProviders(<App />, route);
-
-    await user.click(await screen.findByRole("button", { name: /Переписать объявления/ }));
-
-    const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByRole("heading", { name: "Переписать объявления" }))
-      .toBeInTheDocument();
-    expect(within(dialog).queryByRole("button", { name: "Сохранить" })).not.toBeInTheDocument();
   });
 });

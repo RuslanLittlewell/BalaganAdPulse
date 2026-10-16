@@ -12,8 +12,8 @@ const actor = (partial: Partial<ActorContext> = {}): ActorContext =>
 
 const task: TaskRecord = {
   id: "t1", projectId: "p1", orgId: "org1", title: "Write the brief", description: null,
-  column: "IDEA", priority: "MEDIUM", assigneeId: null, createdById: "m1",
-  campaignId: null, visibleToClient: false, position: 0,
+  column: "IDEA", priority: "MEDIUM", createdById: "m1",
+  participantIds: [], visibleToClient: false, position: 0,
   imageIds: [], createdAt: new Date("2026-09-01T00:00:00.000Z"),
   updatedAt: new Date("2026-09-01T00:00:00.000Z"),
 };
@@ -95,29 +95,52 @@ describe("who receives a task event", () => {
     });
     const send = connect("u1");
 
-    await delivery.deliver(taskMoved({ ...task, assigneeId: "m2" }));
+    await delivery.deliver(taskMoved({ ...task, participantIds: ["m2"] }));
 
     expect(send).not.toHaveBeenCalled();
   });
 
-  it("withholds a task nobody is responsible for from a manager", async () => {
+  it("withholds a task nobody takes part in from a manager who did not create it", async () => {
+    const { delivery, connect } = harness({
+      actors: { u1: actor({ role: "MANAGER", membershipId: "m1" }) },
+    });
+    const send = connect("u1");
+
+    await delivery.deliver(taskMoved({ ...task, createdById: "m2" }));
+
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("delivers a task nobody takes part in to the manager who created it", async () => {
     const { delivery, connect } = harness({
       actors: { u1: actor({ role: "MANAGER", membershipId: "m1" }) },
     });
     const send = connect("u1");
 
     await delivery.deliver(taskMoved(task));
+    await delivery.deliver(taskDeleted(task));
 
-    expect(send).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledTimes(2);
   });
 
-  it("delivers to the manager who is responsible for it", async () => {
+  it("withholds a task its creator handed to a colleague", async () => {
     const { delivery, connect } = harness({
       actors: { u1: actor({ role: "MANAGER", membershipId: "m1" }) },
     });
     const send = connect("u1");
 
-    await delivery.deliver(taskMoved({ ...task, assigneeId: "m1" }));
+    await delivery.deliver(taskMoved({ ...task, participantIds: ["m2"] }));
+
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("delivers to a manager who takes part in it", async () => {
+    const { delivery, connect } = harness({
+      actors: { u1: actor({ role: "MANAGER", membershipId: "m1" }) },
+    });
+    const send = connect("u1");
+
+    await delivery.deliver(taskMoved({ ...task, participantIds: ["m1"] }));
 
     expect(send).toHaveBeenCalledOnce();
   });
@@ -126,7 +149,7 @@ describe("who receives a task event", () => {
     const { delivery, connect } = harness();
     const send = connect("u1");
 
-    await delivery.deliver(taskMoved({ ...task, assigneeId: "m9" }));
+    await delivery.deliver(taskMoved({ ...task, participantIds: ["m9"] }));
 
     expect(send).toHaveBeenCalledOnce();
   });
@@ -137,7 +160,7 @@ describe("who receives a task event", () => {
     });
     const send = connect("u1");
 
-    await delivery.deliver(taskDeleted({ ...task, assigneeId: "m2" }));
+    await delivery.deliver(taskDeleted({ ...task, participantIds: ["m2"] }));
 
     expect(send).not.toHaveBeenCalled();
   });
@@ -148,7 +171,7 @@ describe("who receives a task event", () => {
     });
     const send = connect("u1");
 
-    await delivery.deliver(taskDeleted({ ...task, assigneeId: "m1" }));
+    await delivery.deliver(taskDeleted({ ...task, participantIds: ["m1"] }));
 
     expect(send).toHaveBeenCalledOnce();
   });
@@ -169,7 +192,7 @@ describe("who receives a task event", () => {
       actors: { u1: actor({ role: "MANAGER" }) }, reach: { m1: ["p1"] },
     });
     const send = connect("u1");
-    const theirs = taskMoved({ ...task, assigneeId: "m1" });
+    const theirs = taskMoved({ ...task, participantIds: ["m1"] });
 
     await delivery.deliver(theirs);
     expect(send).toHaveBeenCalledTimes(1);
@@ -201,7 +224,7 @@ describe("who receives a task event", () => {
     });
     const sends = [connect("admin"), connect("granted"), connect("ungranted")];
 
-    await delivery.deliver(taskMoved({ ...task, assigneeId: "m2" }));
+    await delivery.deliver(taskMoved({ ...task, participantIds: ["m2"] }));
 
     expect(sends.map((send) => send.mock.calls.length)).toEqual([1, 1, 0]);
   });
@@ -249,5 +272,74 @@ describe("the connection registry", () => {
     handle.remove();
     handle.remove();
     expect(registry.size()).toBe(0);
+  });
+});
+
+describe("who receives the events of a task with participants", () => {
+  const call: TaskRecord = { ...task, createdById: "m9", participantIds: ["m1", "m2"] };
+
+  const managers = () => harness({
+    actors: {
+      u1: actor({ role: "MANAGER", membershipId: "m1" }),
+      u2: actor({ userId: "u2", role: "GUEST", membershipId: "m2" }),
+      u3: actor({ userId: "u3", role: "MANAGER", membershipId: "m3" }),
+    },
+    reach: { m1: ["p1"], m2: ["p1"], m3: ["p1"] },
+  });
+
+  it("delivers a call's move to its participants and to no other manager", async () => {
+    const { delivery, connect } = managers();
+    const participant = connect("u1");
+    const watchingGuest = connect("u2");
+    const bystander = connect("u3");
+
+    await delivery.deliver(taskMoved(call));
+
+    expect(participant).toHaveBeenCalledOnce();
+    expect(watchingGuest).toHaveBeenCalledOnce();
+    expect(bystander).not.toHaveBeenCalled();
+  });
+
+  it("delivers a deletion to a participant", async () => {
+    const { delivery, connect } = managers();
+    const participant = connect("u1");
+
+    await delivery.deliver(taskDeleted(call));
+
+    expect(participant).toHaveBeenCalledOnce();
+    expect(participant.mock.calls[0]![0]).toMatchObject({ kind: "task.deleted", participantIds: ["m1", "m2"] });
+  });
+
+  it("withholds from a participant who cannot reach the project", async () => {
+    const { delivery, connect } = harness({
+      actors: { u1: actor({ role: "MANAGER", membershipId: "m1" }) }, reach: { m1: ["p9"] },
+    });
+    const participant = connect("u1");
+
+    await delivery.deliver(taskMoved(call));
+
+    expect(participant).not.toHaveBeenCalled();
+  });
+
+  it("delivers a call with no project to a participant", async () => {
+    const { delivery, connect } = harness({
+      actors: { u1: actor({ role: "MANAGER", membershipId: "m1" }) }, reach: {},
+    });
+    const participant = connect("u1");
+
+    await delivery.deliver(taskMoved({ ...call, projectId: null }));
+
+    expect(participant).toHaveBeenCalledOnce();
+  });
+
+  it("withholds an unmarked call from a customer named on it", async () => {
+    const { delivery, connect } = harness({
+      actors: { u1: actor({ role: "CLIENT", membershipId: "m1" }) },
+    });
+    const customer = connect("u1");
+
+    await delivery.deliver(taskMoved(call));
+
+    expect(customer).not.toHaveBeenCalled();
   });
 });

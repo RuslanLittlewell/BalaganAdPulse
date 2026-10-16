@@ -8,7 +8,7 @@ import type { PolledAd } from "../domain/snapshot.js";
 
 const leaseUntil = (now: Date) => new Date(now.getTime() + 180_000);
 const owned = (job: LeadPollJob, now: Date): Prisma.ProjectIntegrationWhereInput => ({
-  projectId: job.projectId, revision: job.revision, leadsLeaseOwner: job.leadsLeaseOwner, leadsLeaseUntil: { gt: now },
+  id: job.id, revision: job.revision, leadsLeaseOwner: job.leadsLeaseOwner, leadsLeaseUntil: { gt: now },
 });
 const released = { leadsLeaseOwner: null, leadsLeaseUntil: null };
 
@@ -18,6 +18,7 @@ export class PrismaLeadPollJobs implements LeadPollJobs {
   async claim(now: Date): Promise<LeadPollJob | null> {
     const available: Prisma.ProjectIntegrationWhereInput = {
       status: { not: "AUTH_REQUIRED" },
+      leadsEnabled: true,
       lastSuccessAt: { not: null },
       AND: [
         { OR: [{ leadsLeaseUntil: null }, { leadsLeaseUntil: { lte: now } }] },
@@ -28,12 +29,12 @@ export class PrismaLeadPollJobs implements LeadPollJobs {
     if (!candidate) return null;
     const owner = randomUUID();
     const claimed = await this.prisma.projectIntegration.updateMany({
-      where: { ...available, projectId: candidate.projectId, revision: candidate.revision, leadsLeaseOwner: candidate.leadsLeaseOwner },
+      where: { ...available, id: candidate.id, revision: candidate.revision, leadsLeaseOwner: candidate.leadsLeaseOwner },
       data: { leadsLeaseOwner: owner, leadsLeaseUntil: leaseUntil(now) },
     });
     if (!claimed.count) return null;
     const row = await this.prisma.projectIntegration.findFirst({
-      where: { projectId: candidate.projectId, leadsLeaseOwner: owner },
+      where: { id: candidate.id, leadsLeaseOwner: owner },
       include: { project: { select: { clientId: true, client: { select: { orgId: true } } } } },
     });
     if (!row) return null;
@@ -54,7 +55,7 @@ export class PrismaLeadPollJobs implements LeadPollJobs {
     const ads = await this.prisma.ad.findMany({
       where: {
         externalId: { not: null },
-        adSet: { externalId: { not: null }, campaign: { projectId: job.projectId, channel: "META", externalId: { not: null } } },
+        adSet: { externalId: { not: null }, campaign: { projectId: job.projectId, channel: "META", externalId: { not: null }, sourceAccountId: job.accountId } },
         metrics: { some: { date: { gte: new Date(`${since.toISOString().slice(0, 10)}T00:00:00Z`) }, conversions: { gt: 0 } } },
       },
       select: { externalId: true, name: true, adSet: { select: { externalId: true, name: true, campaign: { select: { externalId: true, name: true } } } } },
@@ -75,14 +76,14 @@ export class PrismaLeadPollJobs implements LeadPollJobs {
   async succeed(context: TransactionContext, job: LeadPollJob, outcome: LeadPollOutcome, now: Date): Promise<void> {
     const client = this.unitOfWork.clientFor(context);
     await client.projectIntegration.update({
-      where: { projectId: job.projectId },
+      where: { id: job.id },
       data: {
         ...released, leadsStatus: "OK", leadsLastSuccessAt: now, leadsLastError: null,
         ...(outcome.polled ? { leadsCoveredUntil: outcome.coveredUntil, nextLeadsAt: new Date(now.getTime() + LEAD_POLL_INTERVAL_MS), leadsQueuedAt: null } : {}),
       },
     });
     if (outcome.swept) {
-      await client.projectIntegration.updateMany({ where: { projectId: job.projectId, nextSweepAt: job.nextSweepAt }, data: { nextSweepAt: null } });
+      await client.projectIntegration.updateMany({ where: { id: job.id, nextSweepAt: job.nextSweepAt }, data: { nextSweepAt: null } });
     }
   }
 

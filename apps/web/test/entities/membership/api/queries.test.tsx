@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { server, hookWrapper } from "@test/shared/index.js";
-import { useMembers, useUpdateMember } from "@/entities/membership/index.js";
+import { useClientMembers, useMembers, useUpdateMember } from "@/entities/membership/index.js";
 
 const member = {
   id: "membership-1",
@@ -36,5 +36,23 @@ describe("membership queries", () => {
 
     expect(received).toEqual({ role: "GUEST" });
     expect(updated.role).toBe("GUEST");
+  });
+
+  it("does not refetch a client's members on a second mount right after the first", async () => {
+    let requests = 0;
+    server.use(http.get("/api/members", () => {
+      requests += 1;
+      return HttpResponse.json([member]);
+    }));
+    const wrapper = hookWrapper();
+
+    const first = renderHook(() => useClientMembers("client-1"), { wrapper });
+    await waitFor(() => expect(first.result.current.isSuccess).toBe(true));
+    first.unmount();
+
+    const second = renderHook(() => useClientMembers("client-1"), { wrapper });
+    await waitFor(() => expect(second.result.current.isSuccess).toBe(true));
+
+    expect(requests).toBe(1);
   });
 });

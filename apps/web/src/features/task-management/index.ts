@@ -1,6 +1,14 @@
 export { TaskFormDialog } from "./ui/TaskFormDialog.js";
 export type { TaskFormDialogProps } from "./ui/TaskFormDialog.js";
 export { TaskPreviewDialog } from "./ui/TaskPreviewDialog.js";
+export { TaskDialogs } from "./ui/TaskDialogs.js";
+export { TaskCardView } from "./ui/TaskCardView.js";
+export { TaskDoneCheck } from "./ui/TaskDoneCheck.js";
+export { TaskParticipants } from "./ui/TaskParticipants.js";
+export type { TaskDoneCheckProps } from "./ui/TaskDoneCheck.js";
+export { useDoneToggle } from "./model/useDoneToggle.js";
+export type { TaskCardDrag, TaskCardViewProps } from "./ui/TaskCardView.js";
+export type { OpenedTask, TaskDialogsProps } from "./ui/TaskDialogs.js";
 export type { TaskPreviewDialogProps } from "./ui/TaskPreviewDialog.js";
 export { TaskDescriptionEditor } from "./ui/TaskDescriptionEditor.js";
 export { TaskImage } from "./ui/TaskImageNode.js";

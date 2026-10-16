@@ -26,7 +26,7 @@ beforeEach(async () => {
   const task = await request(app).post("/api/tasks").set(admin.auth)
     .send({
       title: "Написать отчёт", projectId, priority: "MEDIUM",
-      assigneeId: signedIn.membership!.id,
+      participantIds: [signedIn.membership!.id],
     });
   taskId = task.body.id;
 });

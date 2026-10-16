@@ -16,7 +16,6 @@ beforeEach(() => {
   server.use(
     mock.get("/api/projects", () => HttpResponse.json([aProject({ id: "project-1", name: "Летний запуск" })])),
     mock.get("/api/members", () => HttpResponse.json(members)),
-    mock.get("/api/projects/:projectId/campaigns/names", () => HttpResponse.json([])),
   );
 });
 
@@ -50,7 +49,7 @@ describe("a task's due date in the form", () => {
     edit({ dueDate: "2026-09-25", dueTime: "12:00" });
     await open("Даты");
     expect(await screen.findByRole("button", { name: /25 сентября/ })).toBeInTheDocument();
-    expect(screen.getByLabelText("Время")).toHaveValue("12:00");
+    expect(screen.getByLabelText("Начало")).toHaveValue("12:00");
   });
 
   it("sets a due date chosen from the calendar", async () => {
@@ -67,8 +66,8 @@ describe("a task's due date in the form", () => {
   it("sends a time of day with the day", async () => {
     edit({ dueDate: "2026-09-25" });
     await open("Даты");
-    await userEvent.clear(await screen.findByLabelText("Время"));
-    await userEvent.type(screen.getByLabelText("Время"), "12:00");
+    await userEvent.clear(await screen.findByLabelText("Начало"));
+    await userEvent.type(screen.getByLabelText("Начало"), "12:00");
     await save();
 
     await waitFor(() => expect(sent).toMatchObject({ dueDate: "2026-09-25", dueTime: "12:00" }));
@@ -77,7 +76,8 @@ describe("a task's due date in the form", () => {
   it("clears the due date", async () => {
     edit({ dueDate: "2026-09-25", dueTime: "12:00" });
     await open("Даты");
-    await userEvent.click(await screen.findByRole("button", { name: "Убрать срок" }));
+    const block = screen.getByTestId("task-block-dates");
+    await userEvent.click(within(block).getByRole("button", { name: "Убрать даты" }));
     await save();
 
     await waitFor(() => expect(sent).toMatchObject({ dueDate: null }));
@@ -87,7 +87,7 @@ describe("a task's due date in the form", () => {
     edit();
     await open("Даты");
     await screen.findByRole("button", { name: /Без срока/ });
-    expect(screen.queryByLabelText("Время")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Начало")).not.toBeInTheDocument();
   });
 });
 

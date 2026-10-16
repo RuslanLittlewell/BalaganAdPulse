@@ -9,8 +9,8 @@ export type TaskEvent =
       readonly orgId: string;
       readonly projectId: string | null;
       readonly taskId: string;
-      readonly assigneeId: string | null;
       readonly createdById: string | null;
+      readonly participantIds: readonly string[];
       readonly visibleToClient: boolean;
     };
 
@@ -31,8 +31,8 @@ export const taskDeleted = (task: TaskRecord): TaskEvent => ({
   orgId: task.orgId,
   projectId: task.projectId,
   taskId: task.id,
-  assigneeId: task.assigneeId,
   createdById: task.createdById,
+  participantIds: task.participantIds,
   visibleToClient: task.visibleToClient,
 });
 

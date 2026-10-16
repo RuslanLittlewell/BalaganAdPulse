@@ -17,8 +17,9 @@ const FIXED = [
 const custom = (id: string, name: string, position: number) => ({ id, kind: "CUSTOM", name, position });
 
 const aLead = (id: string, stage: string, position: number) => ({
-  id, orgId: "org-1", clientId: null, name: `Лид ${id}`, company: null, phone: null, email: null,
-  website: null, source: null, notes: null, projectId: null, campaignId: null, adId: null,
+  id, orgId: "org-1", name: `Лид ${id}`, company: null, phone: null, email: null,
+  website: null, source: null, notes: null, projectId: "project-1", campaignId: null, adId: null,
+  project: { id: "project-1", clientId: "client-1", name: "Сайт" }, tags: [],
   origin: "MANUAL", ad: null, metaSource: null, stage, position,
   createdAt: "2026-09-05T00:00:00.000Z", updatedAt: "2026-09-05T00:00:00.000Z",
 });
@@ -26,9 +27,9 @@ const aLead = (id: string, stage: string, position: number) => ({
 function board(options: { columns?: unknown[]; leads?: unknown[]; caps?: typeof capabilities } = {}) {
   const state = { columns: [...FIXED, ...(options.columns ?? [])] };
   server.use(
-    mock.get("/api/crm/boards", () => HttpResponse.json([{ key: "agency", label: "Агентство", capabilities: options.caps ?? capabilities }])),
-    mock.get("/api/crm/boards/agency/leads", () => HttpResponse.json(options.leads ?? [])),
-    mock.get("/api/crm/boards/agency/columns", () => HttpResponse.json(state.columns)),
+    mock.get("/api/crm/boards", () => HttpResponse.json([{ key: "project-1", label: "Сайт", capabilities: options.caps ?? capabilities }])),
+    mock.get("/api/crm/boards/project-1/leads", () => HttpResponse.json(options.leads ?? [])),
+    mock.get("/api/crm/boards/project-1/columns", () => HttpResponse.json(state.columns)),
   );
   return state;
 }
@@ -54,7 +55,7 @@ describe("the columns of a CRM board", () => {
     const state = board();
     let posted: unknown;
     server.use(
-      mock.post("/api/crm/boards/agency/columns", async ({ request }) => {
+      mock.post("/api/crm/boards/project-1/columns", async ({ request }) => {
         posted = await request.json();
         const column = custom("col-9", "Договор", 0);
         state.columns = [...state.columns, column];
@@ -76,7 +77,7 @@ describe("the columns of a CRM board", () => {
   it("refuses a blank name or one the board already has, in any letter case", async () => {
     board({ columns: [custom("col-1", "Встреча", 0)] });
     let posted = false;
-    server.use(mock.post("/api/crm/boards/agency/columns", () => { posted = true; return HttpResponse.json({}, { status: 201 }); }));
+    server.use(mock.post("/api/crm/boards/project-1/columns", () => { posted = true; return HttpResponse.json({}, { status: 201 }); }));
     setup();
 
     await userEvent.click(await screen.findByRole("button", { name: "Добавить столбец" }));
@@ -100,7 +101,7 @@ describe("the columns of a CRM board", () => {
   it("renames a custom column and offers no menu on fixed stages", async () => {
     board({ columns: [custom("col-1", "Встреча", 0)] });
     let patched: unknown;
-    server.use(mock.patch("/api/crm/boards/agency/columns/col-1", async ({ request }) => {
+    server.use(mock.patch("/api/crm/boards/project-1/columns/col-1", async ({ request }) => {
       patched = await request.json();
       return HttpResponse.json([...FIXED, custom("col-1", "Встреча назначена", 0)]);
     }));
@@ -123,7 +124,7 @@ describe("the columns of a CRM board", () => {
 
   it("disables a move only at the very start or end of the whole board", async () => {
     board({ columns: [custom("col-1", "Встреча", 0), custom("col-2", "Договор", 1)] });
-    server.use(mock.patch("/api/crm/boards/agency/columns/:id", () => HttpResponse.json(FIXED)));
+    server.use(mock.patch("/api/crm/boards/project-1/columns/:id", () => HttpResponse.json(FIXED)));
     setup();
 
     await userEvent.click(await screen.findByRole("button", { name: "Действия столбца: Встреча" }));
@@ -139,7 +140,7 @@ describe("the columns of a CRM board", () => {
   it("moves a column across a fixed stage, indexing against the whole board", async () => {
     board({ columns: [custom("col-1", "Встреча", 0), custom("col-2", "Договор", 1)] });
     const patched: Array<{ id: string; body: unknown }> = [];
-    server.use(mock.patch("/api/crm/boards/agency/columns/:id", async ({ params, request }) => {
+    server.use(mock.patch("/api/crm/boards/project-1/columns/:id", async ({ params, request }) => {
       patched.push({ id: String(params.id), body: await request.json() });
       return HttpResponse.json([FIXED[0], custom("col-1", "Встреча", 0), ...FIXED.slice(1), custom("col-2", "Договор", 0)]);
     }));
@@ -153,11 +154,11 @@ describe("the columns of a CRM board", () => {
   it("moves a column past the first fixed stage to the very start of the board", async () => {
     board();
     server.use(
-      mock.get("/api/crm/boards/agency/columns", () =>
+      mock.get("/api/crm/boards/project-1/columns", () =>
         HttpResponse.json([FIXED[0], custom("col-1", "Встреча", 0), FIXED[1], FIXED[2], FIXED[3]])),
     );
     let patched: unknown;
-    server.use(mock.patch("/api/crm/boards/agency/columns/:id", async ({ request }) => {
+    server.use(mock.patch("/api/crm/boards/project-1/columns/:id", async ({ request }) => {
       patched = await request.json();
       return HttpResponse.json([custom("col-1", "Встреча", 0), ...FIXED]);
     }));
@@ -174,7 +175,7 @@ describe("the columns of a CRM board", () => {
       leads: [aLead("a", "col-1", 0), aLead("b", "col-1", 1), aLead("c", "col-1", 2), aLead("d", "NEW", 0)],
     });
     let deleted = false;
-    server.use(mock.delete("/api/crm/boards/agency/columns/col-1", () => { deleted = true; return new HttpResponse(null, { status: 204 }); }));
+    server.use(mock.delete("/api/crm/boards/project-1/columns/col-1", () => { deleted = true; return new HttpResponse(null, { status: 204 }); }));
     setup();
 
     await screen.findByText("Лид a");

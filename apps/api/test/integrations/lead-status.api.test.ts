@@ -9,7 +9,7 @@ const app = createApp();
 let auth: { Authorization: string };
 let projectId: string;
 let clientId: string;
-const path = () => `/api/projects/${projectId}/integrations/meta`;
+const path = () => `/api/projects/${projectId}/integrations`;
 
 beforeEach(async () => {
   await resetDb();
@@ -32,7 +32,7 @@ it("exposes lead import status, last lead poll and a safe error beside the adver
   const read = await request(app).get(path()).set(auth);
 
   expect(read.status).toBe(200);
-  expect(read.body).toMatchObject({
+  expect(read.body[0]).toMatchObject({
     status: "SUCCESS",
     leads: { status: "ACCESS_REQUIRED", lastSuccessAt: "2026-09-13T09:00:00.000Z", lastError: "ACCESS" },
   });

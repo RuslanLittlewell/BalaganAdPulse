@@ -5,9 +5,24 @@ export const ROUTES = {
   crm: "/crm",
   reports: "/reports",
   archive: "/archive",
+  organizations: "/organizations",
 } as const;
 
 export function projectPath(clientId: string, campaignId?: string): string {
   const base = `${ROUTES.projects}/${clientId}`;
   return campaignId ? `${base}/campaigns/${campaignId}` : base;
+}
+
+export function projectDocumentsPath(projectId: string, documentId?: string): string {
+  const base = `${projectPath(projectId)}/documents`;
+  return documentId ? `${base}/${documentId}` : base;
+}
+
+export function reportPath(reportId: string): string {
+  return `${ROUTES.reports}/${reportId}`;
+}
+
+export function moduleKeyFromPathname(pathname: string): string {
+  const [segment] = pathname.split("/").filter(Boolean);
+  return segment ?? "dashboard";
 }

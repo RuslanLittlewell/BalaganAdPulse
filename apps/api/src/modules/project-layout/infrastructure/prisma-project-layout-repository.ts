@@ -4,6 +4,7 @@ import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-wor
 import type { ActorContext } from "#shared/application/index.js";
 import type { GroupRecord, StoredLayout } from "../domain/layout.js";
 import type { ProjectLayoutRepository, ProjectReach } from "../application/ports.js";
+import { reachableProjects } from "#shared/infrastructure/project-reach.js";
 
 export class PrismaProjectLayoutRepository implements ProjectLayoutRepository {
   constructor(
@@ -67,17 +68,8 @@ export class PrismaLayoutProjectReach implements ProjectReach {
   constructor(private readonly prisma: PrismaClient) {}
 
   async reachableIds(actor: ActorContext): Promise<readonly string[]> {
-    const where: Prisma.ProjectWhereInput = actor.role === "ADMIN"
-      ? { client: { orgId: actor.orgId } }
-      : {
-          client: { orgId: actor.orgId },
-          OR: [
-            { client: { access: { some: { membershipId: actor.membershipId, projectId: null } } } },
-            { access: { some: { membershipId: actor.membershipId } } },
-          ],
-        };
     const rows = await this.prisma.project.findMany({
-      where,
+      where: reachableProjects(actor),
       orderBy: [{ clientId: "asc" }, { position: "asc" }],
       select: { id: true },
     });

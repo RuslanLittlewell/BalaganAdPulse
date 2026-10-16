@@ -13,7 +13,6 @@ function scopeToWhere(scope: AuditScope): Prisma.AuditEventWhereInput {
     orgId: scope.orgId,
     OR: [
       { entityType: { notIn: CRM_ENTITY_TYPES }, projectId: null, clientId: { in: [...scope.clientIds] } },
-      ...(scope.agencyLeads ? [{ entityType: { in: CRM_ENTITY_TYPES }, clientId: null }] : []),
       { clientId: { in: [...scope.wholeClientIds] } },
       { projectId: { in: [...scope.projectIds] } },
     ],
@@ -75,7 +74,6 @@ export class PrismaAuditReach implements AuditReach {
     return {
       orgId: actor.orgId,
       everything: false,
-      agencyLeads: actor.role === 'MANAGER' || actor.role === 'GUEST',
       clientIds: [...new Set(grants.map((grant) => grant.clientId))],
       wholeClientIds: grants.filter((grant) => grant.projectId === null).map((grant) => grant.clientId),
       projectIds: grants.flatMap((grant) => (grant.projectId ? [grant.projectId] : [])),

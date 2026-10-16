@@ -166,7 +166,7 @@ describe("a checklist given when the task is updated", () => {
     const guest = await signInAs("Guest", { role: "GUEST" });
     await grantAccess(guest.membership!.id, clientId);
     const created = await create({
-      assigneeId: guest.membership!.id, checklist: [{ title: "Повестка" }],
+      participantIds: [guest.membership!.id], checklist: [{ title: "Повестка" }],
     });
 
     expect((await patch(created.body.id, { checklist: [] }, guest.auth)).status).toBe(403);

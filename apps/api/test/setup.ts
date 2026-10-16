@@ -1,3 +1,4 @@
+import http from "node:http";
 import { config } from "dotenv";
 import { TEST_WORKERS, currentRunId, databaseUrlForWorker } from "./workers.js";
 
@@ -20,3 +21,12 @@ if (!Number.isInteger(workerId) || workerId < 1 || workerId > TEST_WORKERS) {
 }
 
 process.env.DATABASE_URL = databaseUrlForWorker(workerId, currentRunId());
+
+class LoopbackAgent extends http.Agent {
+  override createConnection(...[options, callback]: Parameters<http.Agent["createConnection"]>) {
+    const host = options.host === "127.0.0.1" ? "::1" : options.host;
+    return super.createConnection({ ...options, host }, callback);
+  }
+}
+
+http.globalAgent = new LoopbackAgent({ keepAlive: false });

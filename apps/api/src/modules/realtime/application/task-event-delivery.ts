@@ -1,7 +1,7 @@
 import { can, isCustomer } from "@adpulse/access-policy";
 import type { ActorContext } from "#shared/application/index.js";
-import type { SessionPrincipal } from "../../identity/index.js";
-import type { TaskEvent } from "../../tasks/index.js";
+import type { SessionPrincipal } from "#modules/identity/index.js";
+import type { TaskEvent } from "#modules/tasks/index.js";
 import type { Connection, ConnectionRegistry } from "./connection-registry.js";
 
 export interface DeliveryActorResolution {
@@ -22,10 +22,9 @@ function sees(actor: ActorContext, event: TaskEvent): boolean {
   if (actor.role === "ADMIN") return true;
   const held = event.kind === "task.deleted" ? event : event.task;
   if (isCustomer(actor.role)) return held.visibleToClient && event.projectId !== null;
-  if (event.projectId === null) {
-    return held.assigneeId === actor.membershipId || held.createdById === actor.membershipId;
-  }
-  return held.assigneeId === actor.membershipId;
+  if (held.participantIds.includes(actor.membershipId)) return true;
+  if (held.createdById !== actor.membershipId) return false;
+  return event.projectId === null || held.participantIds.length === 0;
 }
 
 export function createTaskEventDelivery(dependencies: TaskEventDeliveryDependencies) {

@@ -1,7 +1,7 @@
 import { Router, type Request } from 'express';
 import { AppError } from '#shared/domain/index.js';
-import type { KpiLevel } from '../../domain/kpi.js';
-import type { KpiUseCases } from '../../application/kpi-use-cases.js';
+import type { KpiLevel } from '#modules/kpi/domain/kpi.js';
+import type { KpiUseCases } from '#modules/kpi/application/kpi-use-cases.js';
 import { kpiInputSchema } from './kpi-schemas.js';
 
 export function createKpiRouter(kpis: KpiUseCases) {

@@ -18,7 +18,7 @@ COPY . .
 # The shared permission matrix ships as built JS, and .dockerignore keeps
 # every dist/ out of the build context, so the image builds its own.
 RUN npm run build -w @adpulse/access-policy
-RUN npx prisma generate --schema apps/api/prisma/schema.prisma
+RUN npx prisma generate --schema apps/api/prisma
 
 WORKDIR /app/apps/api
 # `prisma generate` runs again at startup: node_modules lives in an anonymous volume

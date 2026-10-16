@@ -1,16 +1,12 @@
 import { useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
-import {
-  Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Step, Stepper, TextField,
-} from "@/shared/ui/index.js";
-import {
-  ApiError, CURRENCY_SIGNS, isEmail, isPartialDecimal, type Currency,
-} from "@/shared/lib/index.js";
+import { Step, Stepper, TextField } from "@/shared/ui/index.js";
+import { ApiError, isEmail, isPartialDecimal } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
-import { CURRENCIES, DEFAULT_CURRENCY } from "@/entities/project/index.js";
 import { useAuth } from "@/features/auth/index.js";
 import { AvatarStep, NO_AVATAR, type ChosenAvatar } from "./AvatarStep.js";
+import { KnownEmail } from "./KnownEmail.js";
 import { MIN_PASSWORD, optional, saveChosenAvatar } from "./registration.js";
 
 interface AccountValues {
@@ -26,12 +22,14 @@ interface AccountValues {
 
 interface ProjectValues {
   projectName: string;
-  niche: string;
-  monthlyBudget: string;
-  budgetCurrency: Currency;
 }
 
-export function ClientRegistrationForm({ code }: { code: string }) {
+export interface ClientRegistrationFormProps {
+  code: string;
+  knownEmail?: string | null;
+}
+
+export function ClientRegistrationForm({ code, knownEmail = null }: ClientRegistrationFormProps) {
   const { register: join, saveAvatar, logout } = useAuth();
   const navigate = useNavigate();
   const [avatar, setAvatar] = useState<ChosenAvatar>(NO_AVATAR);
@@ -45,24 +43,20 @@ export function ClientRegistrationForm({ code }: { code: string }) {
   });
   const project = useForm<ProjectValues>({
     defaultValues: {
-      projectName: "", niche: "", monthlyBudget: "", budgetCurrency: DEFAULT_CURRENCY,
+      projectName: "",
     },
   });
-
-  const amountOf = (value: string) => {
-    const amount = Number(value);
-    return value.trim() && Number.isFinite(amount) ? amount : null;
-  };
 
   async function create(): Promise<boolean> {
     if (!(await project.trigger())) return false;
     const contact = account.getValues();
     const values = project.getValues();
+    const email = knownEmail ?? contact.email.trim();
     setFailure(null);
     try {
       await join({
         name: contact.name.trim(),
-        email: contact.email.trim(),
+        email,
         password: contact.password,
         inviteCode: code,
         phone: optional(contact.phone),
@@ -73,13 +67,10 @@ export function ClientRegistrationForm({ code }: { code: string }) {
           phone: optional(contact.phone),
           telegram: optional(contact.telegram),
           website: optional(contact.website),
-          email: contact.email.trim(),
+          email,
         },
         project: {
           name: values.projectName.trim(),
-          niche: optional(values.niche),
-          monthlyBudget: amountOf(values.monthlyBudget),
-          budgetCurrency: values.budgetCurrency,
         },
       });
       await saveChosenAvatar(avatar, saveAvatar);
@@ -120,15 +111,19 @@ export function ClientRegistrationForm({ code }: { code: string }) {
                   validate: (value) => Boolean(value.trim()) || t("auth.name.required"),
                 })}
               />
-              <TextField
-                label={t("auth.email.label")}
-                type="email"
-                autoComplete="username"
-                error={account.formState.errors.email?.message}
-                {...account.register("email", {
-                  validate: (value) => isEmail(value.trim()) || t("auth.email.invalid"),
-                })}
-              />
+              {knownEmail ? (
+                <KnownEmail email={knownEmail} />
+              ) : (
+                <TextField
+                  label={t("auth.email.label")}
+                  type="email"
+                  autoComplete="username"
+                  error={account.formState.errors.email?.message}
+                  {...account.register("email", {
+                    validate: (value) => isEmail(value.trim()) || t("auth.email.invalid"),
+                  })}
+                />
+              )}
               <TextField
                 label={t("auth.password.label")}
                 type="password"
@@ -183,43 +178,6 @@ export function ClientRegistrationForm({ code }: { code: string }) {
                 validate: (value) => Boolean(value.trim()) || t("project.name.required"),
               })}
             />
-            <TextField label={t("project.niche.label")} {...project.register("niche")} />
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Controller
-                control={project.control}
-                name="monthlyBudget"
-                render={({ field }) => (
-                  <TextField
-                    label={t("project.budget.label")}
-                    inputMode="decimal"
-                    {...field}
-                    onChange={(event) => {
-                      if (isPartialDecimal(event.target.value)) field.onChange(event);
-                    }}
-                  />
-                )}
-              />
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="registration-currency">{t("project.currency.label")}</Label>
-                <Controller
-                  control={project.control}
-                  name="budgetCurrency"
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger id="registration-currency"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {CURRENCIES.map((currency) => (
-                          <SelectItem key={currency} value={currency}>
-                            {currency} {CURRENCY_SIGNS[currency]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </div>
-            </div>
           </div>
         </Step>
       </Stepper>

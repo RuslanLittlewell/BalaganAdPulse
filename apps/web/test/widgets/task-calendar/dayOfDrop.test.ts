@@ -1,4 +1,4 @@
-import { dayOfDrop, minutesFromTop, tasksOfDay, timeOfMinutes, topOfTime } from "@/widgets/task-calendar/index.js";
+import { CALENDAR_HOUR_HEIGHT, dayOfDrop, minutesFromTop, tasksOfDay, timeOfMinutes, topOfTime } from "@/widgets/task-calendar/index.js";
 
 const week = ["2026-09-14", "2026-09-15", "2026-09-16", "2026-09-17", "2026-09-18", "2026-09-19", "2026-09-20"];
 
@@ -51,13 +51,21 @@ describe("the order of a day's tasks", () => {
 
 describe("the time slot under a calendar drag", () => {
   it("rounds the pointer position to a quarter-hour time", () => {
-    expect(timeOfMinutes(minutesFromTop(56 * 3.5))).toBe("09:30");
-    expect(timeOfMinutes(minutesFromTop((56 * 7) + 8))).toBe("13:15");
+    expect(timeOfMinutes(minutesFromTop(CALENDAR_HOUR_HEIGHT * 3.5))).toBe("09:30");
+    expect(timeOfMinutes(minutesFromTop(CALENDAR_HOUR_HEIGHT * (7 + 10 / 60)))).toBe("13:15");
   });
 
   it("places a timed task at its hour row", () => {
-    expect(topOfTime("12:00")).toBe(56 * 6);
-    expect(topOfTime("05:00")).toBe(56 * 23);
+    expect(topOfTime("12:00")).toBe(CALENDAR_HOUR_HEIGHT * 6);
+    expect(topOfTime("05:00")).toBe(CALENDAR_HOUR_HEIGHT * 23);
     expect(topOfTime(null)).toBeNull();
   });
 });
+
+describe("the grid at another scale", () => {
+  it("reads and places times with the hour height it is given", () => {
+    expect(timeOfMinutes(minutesFromTop(24 * 8.5, 24))).toBe("14:30");
+    expect(topOfTime("14:30", 24)).toBe(24 * 8.5);
+  });
+});
+

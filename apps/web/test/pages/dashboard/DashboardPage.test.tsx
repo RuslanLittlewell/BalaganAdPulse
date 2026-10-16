@@ -1,7 +1,7 @@
 import { http as mock, HttpResponse } from "msw";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders, server } from "@test/shared/index.js";
+import { aSession, renderWithProviders, server } from "@test/shared/index.js";
 import { DashboardPage } from "@/pages/dashboard/index.js";
 import { Route, Routes, useLocation } from "react-router-dom";
 
@@ -25,26 +25,31 @@ const performance = (spend: number, extra = {}) => ({
 });
 
 const project = (id: string, name: string) => ({
-  id, clientId: "cl1", name, niche: null, monthlyBudget: null, budgetCurrency: "BYN", priority: "NEW",
+  id, clientId: "cl1", name, budgetCurrency: "BYN",
   image: null, avatarPath: null, position: 0, createdAt: "", updatedAt: "",
 });
 
-function api(options: { projects?: unknown[]; agency?: unknown; channels?: unknown[]; stageCounts?: unknown[] } = {}) {
+const days = [
+  { date: "2026-08-01", spend: 400, impressions: 0, reach: 0, clicks: 0, conversions: 0, revenue: 0 },
+  { date: "2026-08-02", spend: 900, impressions: 0, reach: 0, clicks: 0, conversions: 0, revenue: 0 },
+];
+
+const figures = (projectId: string, spend: number) => ({ projectId, performance: performance(spend), days });
+
+function api(options: {
+  projects?: unknown[]; agency?: unknown; channels?: unknown[]; stageCounts?: unknown[]; projectFigures?: unknown[];
+} = {}) {
   server.use(
     mock.get("/api/crm/project-stage-counts", () => HttpResponse.json(options.stageCounts ?? [])),
     mock.get("/api/projects", () =>
       HttpResponse.json(options.projects ?? [project("p1", "Клиника"), project("p2", "Автосалон")])),
-    mock.get("/api/summary", () => HttpResponse.json(options.agency ?? performance(4200))),
+    mock.get("/api/summary", () => HttpResponse.json(options.agency ?? [{ currency: "BYN", performance: performance(4200) }])),
     mock.get("/api/summary/channels", () => HttpResponse.json(options.channels ?? [
-      { channel: "YANDEX", campaigns: 3, performance: performance(3000) },
-      { channel: "META", campaigns: 1, performance: performance(1200) },
+      { currency: "BYN", channel: "YANDEX", campaigns: 3, performance: performance(3000) },
+      { currency: "BYN", channel: "META", campaigns: 1, performance: performance(1200) },
     ])),
-    mock.get("/api/projects/:projectId/summary", ({ params }) =>
-      HttpResponse.json(performance(params.projectId === "p1" ? 3000 : 1200))),
-    mock.get("/api/projects/:projectId/daily", () => HttpResponse.json([
-      { date: "2026-08-01", spend: 400, impressions: 0, reach: 0, clicks: 0, conversions: 0, revenue: 0 },
-      { date: "2026-08-02", spend: 900, impressions: 0, reach: 0, clicks: 0, conversions: 0, revenue: 0 },
-    ])),
+    mock.get("/api/summary/projects", () =>
+      HttpResponse.json(options.projectFigures ?? [figures("p1", 3000), figures("p2", 1200)])),
   );
 }
 
@@ -87,12 +92,61 @@ describe("DashboardPage", () => {
       organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
       role: "GUEST",
       clientIds: [],
+      modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"],
     })));
     renderWithProviders(<DashboardPage />);
     await userEvent.click(await screen.findByRole("button", { name: "Настроить показатели" }));
     const guestDialog = await screen.findByRole("dialog", { name: "Показатели за период" });
     await within(guestDialog).findByRole("button", { name: "Лиды" });
     expect(within(guestDialog).queryByRole("button", { name: "KPI" })).not.toBeInTheDocument();
+  });
+
+  it("shows the tiles the member keeps on the server, whatever the browser holds", async () => {
+    api();
+    localStorage.setItem("adpulse-summary-tiles", JSON.stringify({
+      version: 1, state: { layouts: { "user-1": { dashboard: ["cpc"] } } },
+    }));
+    server.use(mock.get("/api/dashboard/summary-tiles", () => HttpResponse.json({ tiles: ["SPEND", "CLICKS"] })));
+    renderWithProviders(<DashboardPage />);
+
+    const summary = await screen.findByRole("group", { name: "Показатели за период" });
+    await waitFor(() => expect(within(summary).getAllByTestId("summary-tile").map((tile) => tile.getAttribute("data-tile")))
+      .toEqual(["SPEND", "CLICKS"]));
+  });
+
+  it("saves a change of tiles to the server", async () => {
+    localStorage.removeItem("adpulse-summary-tiles");
+    api();
+    server.use(mock.get("/api/organization/kpi", () => HttpResponse.json(null)));
+    let saved: unknown = null;
+    server.use(mock.put("/api/dashboard/summary-tiles", async ({ request }) => {
+      const body = await request.json() as { tiles: string[] };
+      saved = body;
+      return HttpResponse.json(body);
+    }));
+    renderWithProviders(<DashboardPage />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Настроить показатели" }));
+    const dialog = await screen.findByRole("dialog", { name: "Показатели за период" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Расход" }));
+
+    await waitFor(() => expect(saved).toEqual({ tiles: ["SPEND", "CONVERSIONS"] }));
+    expect(localStorage.getItem("adpulse-summary-tiles")).toBeNull();
+  });
+
+  it("undoes a change the server refuses and says it was not saved", async () => {
+    api();
+    server.use(mock.get("/api/organization/kpi", () => HttpResponse.json(null)));
+    server.use(mock.put("/api/dashboard/summary-tiles", () =>
+      HttpResponse.json({ error: { message: "Boom" } }, { status: 500 })));
+    renderWithProviders(<DashboardPage />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Настроить показатели" }));
+    const dialog = await screen.findByRole("dialog", { name: "Показатели за период" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Расход" }));
+
+    expect(await screen.findByText("Не удалось сохранить показатели")).toBeInTheDocument();
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: "Расход" })).toHaveAttribute("aria-pressed", "false"));
   });
 
   it("lists every project with its own figures", async () => {
@@ -110,6 +164,37 @@ describe("DashboardPage", () => {
 
     await screen.findByRole("row", { name: /Клиника/ });
     expect(await screen.findAllByRole("img", { name: /Расход по дням/ })).toHaveLength(2);
+  });
+
+  it("reads every project's figures in one request, however many projects there are", async () => {
+    const many = Array.from({ length: 30 }, (_, index) => project(`p${index}`, `Проект ${index}`));
+    const asked: string[] = [];
+    api({ projects: many, projectFigures: many.map((entry) => figures(entry.id, 100)) });
+    server.use(
+      mock.get("/api/summary/projects", ({ request }) => {
+        asked.push(new URL(request.url).pathname);
+        return HttpResponse.json(many.map((entry) => figures(entry.id, 100)));
+      }),
+      mock.get("/api/projects/:projectId/:reading", ({ request }) => {
+        asked.push(new URL(request.url).pathname);
+        return HttpResponse.json([]);
+      }),
+    );
+    renderWithProviders(<DashboardPage />);
+
+    await screen.findByRole("row", { name: /Проект 29/ });
+    expect(await screen.findAllByRole("img", { name: /Расход по дням/ })).toHaveLength(30);
+    expect(asked).toEqual(["/api/summary/projects"]);
+  });
+
+  it("shows zero for a project the summary has no figures for", async () => {
+    api({ projectFigures: [figures("p1", 3000)] });
+    renderWithProviders(<DashboardPage />);
+
+    await within(await screen.findByRole("row", { name: /Клиника/ })).findByText("3 000 Br");
+    const quiet = screen.getByRole("row", { name: /Автосалон/ });
+    expect(within(quiet).getAllByText("0 Br").length).toBeGreaterThan(0);
+    expect(within(quiet).queryByRole("img", { name: /Расход по дням/ })).not.toBeInTheDocument();
   });
 
   it("opens a project when its row is chosen", async () => {
@@ -138,6 +223,26 @@ describe("DashboardPage", () => {
 
     expect(await screen.findByText("Яндекс Директ")).toBeInTheDocument();
     expect(screen.getByText("Meta")).toBeInTheDocument();
+  });
+
+  it("renders currencies inside one summary and separate channel rows", async () => {
+    api({ agency: [
+      { currency: "USD", performance: performance(100) },
+      { currency: "EUR", performance: performance(40) },
+    ], channels: [
+      { currency: "USD", channel: "META", campaigns: 1, performance: performance(100) },
+      { currency: "EUR", channel: "META", campaigns: 1, performance: performance(40) },
+    ] });
+    renderWithProviders(<DashboardPage />);
+    await screen.findAllByText("Meta");
+    await waitFor(() => expect(screen.getAllByRole("group", { name: "Показатели за период" })).toHaveLength(1));
+    const summary = screen.getByRole("group", { name: "Показатели за период" });
+    expect(within(summary).getByText("100")).toBeInTheDocument();
+    expect(within(summary).getByText("CPL 20,00 $" )).toBeInTheDocument();
+    expect(within(summary).getByText("CPL 20,00 €" )).toBeInTheDocument();
+    expect(screen.getByText("100 $")).toBeInTheDocument();
+    expect(screen.getByText("40 €")).toBeInTheDocument();
+    expect(screen.queryByText(/₽/)).not.toBeInTheDocument();
   });
 
   it("says so when no channel has been measured", async () => {
@@ -201,6 +306,26 @@ describe("CRM stage columns in the dashboard project table", () => {
     expect(cell(/Автосалон/, "Лид (Новый)")).toHaveTextContent("0");
     expect(cell(/Автосалон/, "Лид (КП)")).toHaveTextContent("0");
     expect(requested).toContain("?from=2026-09-01&to=2026-09-30");
+  });
+
+  it("offers no stage column, and asks for no counts, without the CRM module", async () => {
+    const user = userEvent.setup();
+    let asked = 0;
+    api();
+    server.use(
+      mock.get("/api/auth/me", () => HttpResponse.json(aSession({ modules: ["DASHBOARD", "PROJECTS", "TASKS"] }))),
+      mock.get("/api/crm/project-stage-counts", () => { asked += 1; return HttpResponse.json([]); }),
+    );
+    renderWithProviders(<DashboardPage />);
+
+    await screen.findByRole("row", { name: /Клиника/ });
+    await waitFor(() => expect(asked).toBe(0));
+    await user.click(screen.getByRole("button", { name: "Отображаемые столбцы" }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    for (const column of STAGE_COLUMNS) {
+      expect(screen.queryByRole("menuitemcheckbox", { name: column })).not.toBeInTheDocument();
+    }
+    expect(asked).toBe(0);
   });
 
   it("remembers a turned-on stage column", async () => {

@@ -63,6 +63,7 @@ function fixture(seed: readonly Partial<Invite>[] = []) {
     },
     memberships: { enrol: async (_tx, value) => { enrolled.push(value); return "membership-new"; } },
     projects: { allBelongToOrg: async () => true },
+    organizations: { isActive: async () => true },
     projectAccess: { grant: async () => undefined },
     clock: new FixedClock(NOW),
     ids: new DeterministicIdGenerator(["id-1", "id-2", "id-3", "code-1", "code-2", "code-3"]),

@@ -1,11 +1,24 @@
 import type React from "react";
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
-import { EditorContent, useEditor } from "@tiptap/react";
+import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import Link from "@tiptap/extension-link";
+import {
+  Bold,
+  Italic,
+  Strikethrough,
+  List,
+  ListOrdered,
+  Quote,
+  Undo2,
+  Redo2,
+} from "lucide-react";
 import { TaskImage } from "./TaskImageNode.js";
 import { taskImagesApi } from "@/entities/task/index.js";
 import { t } from "@/shared/config/index.js";
 import { ApiError, cn } from "@/shared/lib/index.js";
+import { EditorToolbarButton, RICH_TEXT_CLASS, Separator, followLink } from "@/shared/ui/index.js";
+import { WarmTooltipGroup } from "@/shared/ui/WarmTooltip/WarmTooltip.js";
 
 export interface TaskDescriptionEditorProps {
   className?: string;
@@ -21,6 +34,81 @@ export interface TaskDescriptionEditorHandle {
 const MAX_BYTES = 10 * 1024 * 1024;
 const ACCEPTED = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 
+
+function EditorToolbar({ editor }: { editor: Editor }) {
+  return (
+    <WarmTooltipGroup>
+      <div
+        className="flex flex-wrap items-center gap-1 border-b p-1"
+        data-testid="task-description-toolbar"
+      >
+        <EditorToolbarButton
+          label={t("tasks.editor.bold")}
+          active={editor.isActive("bold")}
+          onClick={() => editor.chain().focus().toggleBold().run()}
+        >
+          <Bold />
+        </EditorToolbarButton>
+        <EditorToolbarButton
+          label={t("tasks.editor.italic")}
+          active={editor.isActive("italic")}
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+        >
+          <Italic />
+        </EditorToolbarButton>
+        <EditorToolbarButton
+          label={t("tasks.editor.strike")}
+          active={editor.isActive("strike")}
+          onClick={() => editor.chain().focus().toggleStrike().run()}
+        >
+          <Strikethrough />
+        </EditorToolbarButton>
+
+        <Separator orientation="vertical" className="mx-1 h-5" />
+
+        <EditorToolbarButton
+          label={t("tasks.editor.bulletList")}
+          active={editor.isActive("bulletList")}
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
+        >
+          <List />
+        </EditorToolbarButton>
+        <EditorToolbarButton
+          label={t("tasks.editor.orderedList")}
+          active={editor.isActive("orderedList")}
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+        >
+          <ListOrdered />
+        </EditorToolbarButton>
+        <EditorToolbarButton
+          label={t("tasks.editor.blockquote")}
+          active={editor.isActive("blockquote")}
+          onClick={() => editor.chain().focus().toggleBlockquote().run()}
+        >
+          <Quote />
+        </EditorToolbarButton>
+
+        <Separator orientation="vertical" className="mx-1 h-5" />
+
+        <EditorToolbarButton
+          label={t("tasks.editor.undo")}
+          disabled={!editor.can().undo()}
+          onClick={() => editor.chain().focus().undo().run()}
+        >
+          <Undo2 />
+        </EditorToolbarButton>
+        <EditorToolbarButton
+          label={t("tasks.editor.redo")}
+          disabled={!editor.can().redo()}
+          onClick={() => editor.chain().focus().redo().run()}
+        >
+          <Redo2 />
+        </EditorToolbarButton>
+      </div>
+    </WarmTooltipGroup>
+  );
+}
+
 export const TaskDescriptionEditor = forwardRef<
   TaskDescriptionEditorHandle,
   TaskDescriptionEditorProps
@@ -35,14 +123,27 @@ export const TaskDescriptionEditor = forwardRef<
   report.current = onChange;
 
   const editor = useEditor({
-    extensions: [StarterKit, TaskImage],
+    extensions: [
+      StarterKit,
+      TaskImage,
+      Link.configure({
+        autolink: true,
+        linkOnPaste: true,
+        openOnClick: false,
+        HTMLAttributes: {
+          class: "text-primary underline underline-offset-4",
+          rel: "noopener noreferrer",
+          target: "_blank",
+        },
+      }),
+    ],
     editable,
     content: (initialContent as never) ?? "",
     onUpdate: ({ editor: instance }) => report.current(instance.getJSON()),
     editorProps: {
       attributes: {
         "aria-label": t("tasks.form.description"),
-        class: "min-h-32 p-3 outline-none",
+        class: RICH_TEXT_CLASS,
       },
       handlePaste: (_view, event) =>
         editable ? insertFrom(event.clipboardData?.files) : false,
@@ -120,17 +221,18 @@ export const TaskDescriptionEditor = forwardRef<
   return (
     <div
       className={cn("rounded-md border", className)}
+      onClick={(event) => {
+        if (followLink(event)) return;
+        if (editable) editor?.commands.focus();
+      }}
       onDrop={handleDrop}
       onDragOver={(event) => {
         if (event.dataTransfer?.types?.includes("Files"))
           event.preventDefault();
       }}
     >
-      <EditorContent
-        editor={editor}
-        className="min-h-0 flex-1 overflow-y-auto"
-        data-testid="task-description-editor"
-      />
+      {editable && editor ? <EditorToolbar editor={editor} /> : null}
+      <EditorContent editor={editor} data-testid="task-description-editor" />
       {status ? (
         <p role="status" className="border-t p-2 text-xs text-muted-foreground">
           {status}

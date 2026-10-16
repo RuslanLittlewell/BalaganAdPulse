@@ -1,17 +1,13 @@
 import { z } from "zod";
 import { avatarUploadBody } from "#shared/presentation/avatar.js";
 import { arrayOf, ref, type ComponentDocs, type RouteDoc } from "#shared/presentation/openapi.js";
-import { CURRENCIES, PROJECT_PRIORITIES } from "../../domain/project.js";
 import { createProjectSchema, updateProjectSchema } from "./project-schemas.js";
 
 const project = z.object({
   id: z.uuid(),
   clientId: z.uuid(),
   name: z.string(),
-  niche: z.string().nullable(),
-  monthlyBudget: z.string().nullable(),
-  budgetCurrency: z.enum(CURRENCIES),
-  priority: z.enum(PROJECT_PRIORITIES),
+  budgetCurrency: z.string().length(3).nullable(),
   image: z.string().nullable(),
   avatarPath: z.string().nullable(),
   position: z.int(),
@@ -23,7 +19,7 @@ export const projectComponents: ComponentDocs = { Project: project };
 
 export const projectDoc: RouteDoc = {
   tag: "Projects",
-  tagDescription: "A client's projects, their budget, their priority and their order on the board",
+  tagDescription: "A client's projects, their currency and their order on the board",
   operations: [
     {
       method: "post",

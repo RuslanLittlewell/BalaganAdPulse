@@ -29,6 +29,29 @@ describe("KPI storage", () => {
     await expect(prisma.project.update({ where: { id: projectId }, data: { kpiMetric: "CONVERSIONS", kpiTarget: "50", kpiUpdatedAt: new Date() } })).resolves.toMatchObject({ kpiMetric: "CONVERSIONS" });
   });
 
+  it("keeps a project's name and value with a KPI set by hand and nowhere else", async () => {
+    const member = await signInAs();
+    const { projectId } = await seedProject(member.user.id);
+    const where = { id: projectId };
+    const manual = { kpiMetric: "MANUAL", kpiTarget: "50", kpiUpdatedAt: new Date() } as const;
+
+    await expect(prisma.project.update({ where, data: manual })).rejects.toThrow();
+    await expect(prisma.project.update({ where, data: { ...manual, kpiName: "Продажи" } })).rejects.toThrow();
+    await expect(prisma.project.update({ where, data: { kpiMetric: "CONVERSIONS", kpiTarget: "50", kpiName: "Продажи", kpiValue: "1" } })).rejects.toThrow();
+    await expect(prisma.project.update({ where, data: { ...manual, kpiName: "Продажи", kpiValue: "30" } }))
+      .resolves.toMatchObject({ kpiMetric: "MANUAL", kpiName: "Продажи" });
+  });
+
+  it("refuses a KPI set by hand on a campaign or the organization", async () => {
+    const member = await signInAs();
+    const { projectId } = await seedProject(member.user.id);
+    const campaign = await seedCampaign(projectId);
+    const manual = { kpiMetric: "MANUAL", kpiTarget: "50", kpiUpdatedAt: new Date() } as const;
+
+    await expect(prisma.campaign.update({ where: { id: campaign.id }, data: manual })).rejects.toThrow();
+    await expect(prisma.organization.update({ where: { id: (await currentOrg()).id }, data: manual })).rejects.toThrow();
+  });
+
   it("removes a KPI with its campaign or project and leaves the organization KPI alone", async () => {
     const member = await signInAs();
     const orgId = (await currentOrg()).id;
@@ -49,6 +72,7 @@ describe("KPI storage", () => {
     const now = new Date("2026-09-14T06:00:00Z");
     const campaign = await prisma.campaign.create({ data: { projectId, name: "Old", channel: "META", externalId: "101", position: 0, kpiMetric: "CPA", kpiTarget: "20", kpiUpdatedAt: now } });
     await prisma.projectIntegration.create({ data: { projectId, accountId: "123", currency: "BYN", timezone: "UTC", encryptedToken: "e", revision: "v1", nextDailyAt: now, queuedAt: now } });
+    await prisma.project.update({ where: { id: projectId }, data: { budgetCurrency: "BYN" } });
     const jobs = new PrismaImportJobs(prisma);
     const job = (await jobs.claim(now))!;
 

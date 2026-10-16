@@ -7,7 +7,7 @@ import { hasSession, writeTokens } from "@/shared/lib/index.js";
 import { endSession, onSessionExpired, onTokenRenewed } from "@/shared/lib/index.js";
 import { authApi, type LoginBody, type RegisterBody, type UpdateProfileBody, type UserProfile } from "../api.js";
 import type { OrganizationSummary } from "../api.js";
-import type { Role } from "@adpulse/access-policy";
+import type { ModuleKey, Role } from "@adpulse/access-policy";
 
 export interface AuthUser {
   id: string;
@@ -20,8 +20,11 @@ interface AuthValue {
   organization: OrganizationSummary | null;
   role: Role | null;
   clientIds: string[];
+  platformAdmin: boolean;
+  modules: ModuleKey[];
   login: (body: LoginBody) => Promise<void>;
   register: (body: RegisterBody) => Promise<void>;
+  resetPassword: (token: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (body: UpdateProfileBody) => Promise<void>;
   loadProfile: () => Promise<UserProfile>;
@@ -41,6 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [organization, setOrganization] = useState<OrganizationSummary | null>(null);
   const [role, setRole] = useState<Role | null>(null);
   const [clientIds, setClientIds] = useState<string[]>([]);
+  const [platformAdmin, setPlatformAdmin] = useState(false);
+  const [modules, setModules] = useState<ModuleKey[]>([]);
 
   const loadSession = useCallback(async () => {
     const session = await authApi.session();
@@ -48,6 +53,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setOrganization(session.organization);
     setRole(session.role);
     setClientIds(session.clientIds);
+    setPlatformAdmin(session.platformAdmin);
+    setModules(session.modules);
   }, []);
 
   const leave = useCallback(() => {
@@ -55,6 +62,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setOrganization(null);
     setRole(null);
     setClientIds([]);
+    setPlatformAdmin(false);
+    setModules([]);
     queryClient.clear();
     navigate("/login", { replace: true });
   }, [navigate, queryClient]);
@@ -74,6 +83,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     organization,
     role,
     clientIds,
+    platformAdmin,
+    modules,
     login: async (body) => {
       writeTokens(await authApi.login(body));
       queryClient.clear();
@@ -81,6 +92,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     register: async (body) => {
       writeTokens(await authApi.register(body));
+      queryClient.clear();
+      await loadSession();
+    },
+    resetPassword: async (token, password) => {
+      writeTokens(await authApi.resetPassword(token, password));
       queryClient.clear();
       await loadSession();
     },
@@ -99,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     loadProfile: authApi.profile,
     saveAvatar: async (png, avatarPath) => { await authApi.saveAvatar(png, avatarPath); },
-  }), [user, organization, role, clientIds, loadSession, queryClient]);
+  }), [user, organization, role, clientIds, platformAdmin, modules, loadSession, queryClient]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
@@ -108,4 +124,8 @@ export function useAuth(): AuthValue {
   const value = useContext(AuthContext);
   if (!value) throw new Error("useAuth must be used inside AuthProvider");
   return value;
+}
+
+export function useModuleEnabled(module: ModuleKey): boolean {
+  return useAuth().modules.includes(module);
 }

@@ -21,6 +21,7 @@ describe("realtime wiring", () => {
         authentication: (_req, _res, next) => next(),
         actorResolution: (_req, _res, next) => next(),
         requestContext: (_req, _res, next) => next(),
+        requireModule: () => (_req, _res, next) => next(),
         taskRouter: sentinel,
       },
     });

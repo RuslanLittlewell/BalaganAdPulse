@@ -19,6 +19,11 @@ export type {
 export type { MemberChange, MemberRecord, MembershipStatus } from "./domain/member.js";
 export { createActorResolution } from "./presentation/http/actor-resolution.js";
 export { createSessionRouter } from "./presentation/http/session-http.js";
+export type { SessionPresence } from "./presentation/http/session-http.js";
+export { createModuleGate } from "./presentation/http/module-gate.js";
+export type { ModuleEntitlements } from "./presentation/http/module-gate.js";
+export { ORGANIZATION_SUSPENDED } from "./application/member-use-cases.js";
 export { PrismaMembershipEnrolment } from "./infrastructure/prisma-membership-enrolment.js";
 export { PrismaInvitationProjectAccess } from "./infrastructure/prisma-invitation-project-access.js";
+export { PrismaProjectStaffing } from "./infrastructure/prisma-project-staffing.js";
 export { createMemberRouter } from "./presentation/http/member-http.js";

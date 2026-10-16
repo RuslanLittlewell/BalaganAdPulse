@@ -38,3 +38,25 @@ export {
 export { applyTaskEvent, filterOfKey, TASKS_KEY } from "./api/queries.js";
 export type { TaskEvent, TaskListFilter, UseTasksOptions } from "./api/queries.js";
 export { collectImageIds } from "./lib/description.js";
+export {
+  NO_PARTICIPANTS,
+  participantChoices,
+  participantsOf,
+  tasksOfParticipants,
+} from "./lib/participants.js";
+export type { ParticipantChoice, ParticipantNamed } from "./lib/participants.js";
+export { NO_PROJECT_TASK, projectChoices, tasksOfProjects } from "./lib/projects.js";
+export type { ProjectChoice, ProjectNamed } from "./lib/projects.js";
+export { doneToggleFor, isDone } from "./lib/done.js";
+export type { DoneToggle } from "./lib/done.js";
+export {
+  END_OF_DAY,
+  MINUTES_PER_DAY,
+  endEnteredAs,
+  endKeepingLength,
+  endShownAs,
+  endsAfterStart,
+  minutesOfTime,
+  nextOccurrence,
+  timeRange,
+} from "./lib/schedule.js";

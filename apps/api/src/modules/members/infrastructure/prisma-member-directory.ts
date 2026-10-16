@@ -61,9 +61,12 @@ export class PrismaMemberDirectory implements MemberDirectory {
     return rows.map(toDomain);
   }
 
-  async listByClient(orgId: string, clientId: string): Promise<MemberRecord[]> {
+  async listByClient(orgId: string, clientId: string, projectId?: string): Promise<MemberRecord[]> {
+    const reaching = projectId === undefined
+      ? [{ clientId }, { project: { clientId } }]
+      : [{ clientId, projectId: null }, { projectId, project: { clientId } }];
     const rows = await this.prisma.membership.findMany({
-      where: { orgId, access: { some: { OR: [{ clientId }, { project: { clientId } }] } } },
+      where: { orgId, access: { some: { OR: reaching } } },
       select: SELECT,
       orderBy: { createdAt: "asc" },
     });

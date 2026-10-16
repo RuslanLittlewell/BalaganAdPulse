@@ -1,7 +1,7 @@
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useDroppable } from "@dnd-kit/core";
 import { Plus } from "lucide-react";
-import type { Task, TaskColumn as Column } from "@/entities/task/index.js";
+import { participantsOf, type Task, type TaskColumn as Column } from "@/entities/task/index.js";
 import type { Membership } from "@/entities/membership/index.js";
 import type { Project } from "@/entities/project/index.js";
 import { t } from "@/shared/config/index.js";
@@ -14,9 +14,9 @@ export interface TaskColumnProps {
   draggable: boolean;
   draggingId?: string | null;
   projects?: Map<string, Project>;
-  campaigns?: Map<string, string>;
   members?: Map<string, Membership>;
   onOpen?: (task: Task) => void;
+  onToggleDone?: (task: Task) => void;
   onCreate?: (column: Column) => void;
 }
 
@@ -30,7 +30,7 @@ const ACCENT: Record<Column, string> = {
 };
 
 export function TaskColumnPanel({
-  column, tasks, draggable, draggingId, projects, campaigns, members, onOpen, onCreate,
+  column, tasks, draggable, draggingId, projects, members, onOpen, onToggleDone, onCreate,
 }: TaskColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column });
 
@@ -80,9 +80,9 @@ export function TaskColumnPanel({
               draggable={draggable}
               placeholder={task.id === draggingId}
               project={task.projectId ? projects?.get(task.projectId) : undefined}
-              campaignName={task.campaignId ? campaigns?.get(task.campaignId) : undefined}
-              assignee={task.assigneeId ? members?.get(task.assigneeId) : undefined}
+              people={participantsOf(task, members)}
               onOpen={onOpen}
+              onToggleDone={onToggleDone}
             />
           ))}
 

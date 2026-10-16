@@ -33,7 +33,7 @@ export function PeriodControl() {
 
   return (
     <div role="group" aria-label={t("period.label")} className="flex flex-wrap items-start gap-2">
-      <div className="flex items-center gap-1 self-end">
+      <div className="flex items-center self-end">
         {SHORTCUTS.map((shortcut) => {
           const preset = shortcutRange(shortcut);
           const active = preset.from === range.from && preset.to === range.to;
@@ -54,10 +54,10 @@ export function PeriodControl() {
       {(["from", "to"] as const).map((side) => {
         const fieldError = error == null ? undefined : error;
         return (
-          <div key={side} className="flex w-36 flex-col gap-1">
+          <div key={side} className="flex w-37 flex-col gap-1">
             <Label
               htmlFor={`period-${side}`}
-              className="font-mono text-[11px] uppercase tracking-[.12em] text-muted-foreground"
+              className="font-mono text-[10px] uppercase tracking-[.12em] text-muted-foreground"
             >
               {t(side === "from" ? "period.from" : "period.to")}
             </Label>

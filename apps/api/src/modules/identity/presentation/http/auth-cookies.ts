@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 
 export const ACCESS_COOKIE = "adpulse_access";
 export const REFRESH_COOKIE = "adpulse_refresh";
-export const SESSION_COOKIE = "adpulse_session";
+const SESSION_COOKIE = "adpulse_session";
 
 const baseOptions = {
   httpOnly: true,

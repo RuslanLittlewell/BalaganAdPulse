@@ -58,8 +58,43 @@ describe("ProjectsPage", () => {
     expect(await screen.findByRole("heading", { name: "Летний запуск" })).toBeInTheDocument();
   });
 
-  it("shows the client and the niche beside the project name", async () => {
-    setup("/projects/p1", [aProject({ id: "p1", clientId: "1", name: "Летний запуск", niche: "fitness" })]);
-    expect(await screen.findByText("Acme · fitness")).toBeInTheDocument();
+  it("names the client the project belongs to, beside the project name", async () => {
+    setup("/projects/p1", [aProject({ id: "p1", clientId: "1", name: "Летний запуск" })]);
+    const heading = await screen.findByRole("heading", { name: "Летний запуск" });
+    expect(heading.parentElement).toHaveTextContent("Acme");
+  });
+});
+
+describe("narrowing the project list", () => {
+  beforeEach(() => localStorage.removeItem("adpulse.projects.collapsed"));
+
+  it("narrows the list to pictures from the handle on the border and widens it back", async () => {
+    const user = userEvent.setup();
+    setup();
+    await screen.findByText("Летний запуск");
+
+    const handle = screen.getByRole("button", { name: "Свернуть список проектов" });
+    expect(handle).toHaveAttribute("aria-expanded", "true");
+    await user.click(handle);
+
+    expect(screen.queryByText("Acme")).toBeNull();
+    expect(screen.getByRole("button", { name: "Летний запуск" })).toBeInTheDocument();
+    const widen = screen.getByRole("button", { name: "Развернуть список проектов" });
+    expect(widen).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(widen);
+    expect(screen.getByText("Acme")).toBeInTheDocument();
+  });
+
+  it("remembers the narrowed list", async () => {
+    const user = userEvent.setup();
+    const { unmount } = setup();
+    await screen.findByText("Летний запуск");
+    await user.click(screen.getByRole("button", { name: "Свернуть список проектов" }));
+    unmount();
+
+    setup();
+    expect(await screen.findByRole("button", { name: "Развернуть список проектов" })).toBeInTheDocument();
+    expect(screen.queryByText("Acme")).toBeNull();
   });
 });

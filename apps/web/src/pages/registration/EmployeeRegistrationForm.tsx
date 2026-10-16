@@ -6,6 +6,7 @@ import { ApiError, isEmail } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import { useAuth } from "@/features/auth/index.js";
 import { AvatarStep, NO_AVATAR, type ChosenAvatar } from "./AvatarStep.js";
+import { KnownEmail } from "./KnownEmail.js";
 import { MIN_PASSWORD, optional, saveChosenAvatar } from "./registration.js";
 
 interface Values {
@@ -17,7 +18,12 @@ interface Values {
   telegram: string;
 }
 
-export function EmployeeRegistrationForm({ code }: { code: string }) {
+export interface EmployeeRegistrationFormProps {
+  code: string;
+  knownEmail?: string | null;
+}
+
+export function EmployeeRegistrationForm({ code, knownEmail = null }: EmployeeRegistrationFormProps) {
   const { register: join, saveAvatar } = useAuth();
   const navigate = useNavigate();
   const [avatar, setAvatar] = useState<ChosenAvatar>(NO_AVATAR);
@@ -35,7 +41,7 @@ export function EmployeeRegistrationForm({ code }: { code: string }) {
     try {
       await join({
         name: values.name.trim(),
-        email: values.email.trim(),
+        email: knownEmail ?? values.email.trim(),
         password: values.password,
         inviteCode: code,
         phone: optional(values.phone),
@@ -64,15 +70,19 @@ export function EmployeeRegistrationForm({ code }: { code: string }) {
           validate: (value) => Boolean(value.trim()) || t("auth.name.required"),
         })}
       />
-      <TextField
-        label={t("auth.email.label")}
-        type="email"
-        autoComplete="username"
-        error={errors.email?.message}
-        {...register("email", {
-          validate: (value) => isEmail(value.trim()) || t("auth.email.invalid"),
-        })}
-      />
+      {knownEmail ? (
+        <KnownEmail email={knownEmail} />
+      ) : (
+        <TextField
+          label={t("auth.email.label")}
+          type="email"
+          autoComplete="username"
+          error={errors.email?.message}
+          {...register("email", {
+            validate: (value) => isEmail(value.trim()) || t("auth.email.invalid"),
+          })}
+        />
+      )}
       <TextField
         label={t("auth.password.label")}
         type="password"

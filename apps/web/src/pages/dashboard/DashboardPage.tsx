@@ -1,15 +1,22 @@
 import { PeriodControl, usePeriod } from "@/features/period/index.js";
 import { useAgencySummary } from "@/entities/campaign/index.js";
+import { useChooseSummaryTiles, useSummaryTiles } from "@/entities/summary-tiles/index.js";
 import {
   ChannelPanel, PerformanceSummary, ProjectPerformanceTable,
 } from "@/widgets/agency-overview/index.js";
 import { t } from "@/shared/config/index.js";
+import { useAlerts } from "@/shared/ui/index.js";
 import { useCan } from "@/features/permissions/index.js";
+
+const DASHBOARD = { kind: "dashboard" } as const;
 
 export function DashboardPage() {
   const { range } = usePeriod();
   const agency = useAgencySummary(range);
   const managesAgencyKpi = useCan("update", "organization");
+  const tiles = useSummaryTiles(DASHBOARD);
+  const chooseTiles = useChooseSummaryTiles(DASHBOARD);
+  const { raise } = useAlerts();
 
   return (
     <div className="flex min-h-0 flex-col gap-6">
@@ -19,9 +26,13 @@ export function DashboardPage() {
       </header>
 
       <PerformanceSummary
-        screen="dashboard"
+        tiles={tiles.data?.tiles ?? []}
+        onTilesChange={tiles.data
+          ? (next) => chooseTiles.mutate(next, { onError: () => raise(t("summary.notSaved")) })
+          : undefined}
         range={range}
-        performance={agency.data}
+        currencyPerformances={agency.data}
+        currency={null}
         kpi={managesAgencyKpi ? { scope: { kind: "organization" }, canEdit: true } : undefined}
       />
 

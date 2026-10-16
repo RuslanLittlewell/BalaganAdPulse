@@ -168,6 +168,16 @@ describe("the editor's identity across renders", () => {
     expect(await editorSurface()).toHaveFocus();
   });
 
+  it("focuses the text when the surrounding block is clicked", async () => {
+    setup();
+    const surface = await editorSurface();
+    const block = screen.getByTestId("task-description-editor").parentElement!;
+
+    fireEvent.click(block);
+
+    await waitFor(() => expect(surface).toHaveFocus());
+  });
+
   it("opens an existing description", async () => {
     render(
       <TaskDescriptionEditor

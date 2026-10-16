@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { Request, Response, NextFunction } from "express";
 import { errorHandler } from "../../src/shared/presentation/error-handler.js";
-import { NotFoundError, ServiceUnavailableError } from "../../src/shared/presentation/http-errors.js";
+import { AppError } from "../../src/shared/domain/app-error.js";
+import { ServiceUnavailableError } from "../../src/shared/infrastructure/concurrency-gate.js";
 
 function mockRes(): Response & { headers: Record<string, string>; body?: unknown } {
   const res = {} as Response & { headers: Record<string, string>; body?: unknown };
@@ -84,7 +85,7 @@ describe("errorHandler", () => {
     const res = mockRes();
     const next = vi.fn() as NextFunction;
 
-    errorHandler(new NotFoundError("Client not found"), {} as Request, res, next);
+    errorHandler(new AppError("not-found", "Client not found"), {} as Request, res, next);
 
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith({ error: { message: "Client not found" } });

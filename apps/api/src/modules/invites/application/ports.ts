@@ -48,6 +48,10 @@ export interface InvitationClientReach {
   isReachable(actor: ActorContext, clientId: string): Promise<boolean>;
 }
 
+export interface InvitationOrganizations {
+  isActive(orgId: string): Promise<boolean>;
+}
+
 export interface InvitationProjectReach {
   allBelongToOrg(orgId: string, projectIds: readonly string[]): Promise<boolean>;
 }
@@ -74,9 +78,6 @@ export interface ClientRegistrationDetails {
   };
   readonly project: {
     readonly name: string;
-    readonly niche?: string | null;
-    readonly monthlyBudget?: number | null;
-    readonly budgetCurrency?: string;
   };
 }
 
@@ -98,6 +99,7 @@ export interface InviteDependencies {
   readonly invites: InviteRepository;
   readonly memberships: MembershipEnrolment;
   readonly projects: InvitationProjectReach;
+  readonly organizations: InvitationOrganizations;
   readonly clients: InvitationClientReach;
   readonly projectAccess: InvitationProjectAccess;
   readonly clientDirectory: ClientDirectory;

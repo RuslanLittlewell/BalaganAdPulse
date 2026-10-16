@@ -47,6 +47,24 @@ describe("typed invitation HTTP contracts", () => {
     })).status).toBe(400);
   });
 
+  it("enrols a manager invited without projects, holding no grants", async () => {
+    const created = await request(app).post("/api/invites").set(admin)
+      .send({ registrationType: "EMPLOYEE", role: "MANAGER" });
+    expect(created.status).toBe(201);
+    expect(created.body).toMatchObject({ role: "MANAGER", projectIds: [] });
+
+    const registered = await request(app).post("/api/auth/register").send({
+      name: "Олег", email: "oleg@agency.by", password: "hunter2hunter2",
+      inviteCode: created.body.code,
+    });
+
+    expect(registered.status).toBe(201);
+    const user = await prisma.user.findFirstOrThrow({ where: { email: "oleg@agency.by" } });
+    const membership = await prisma.membership.findFirstOrThrow({ where: { userId: user.id } });
+    expect(membership).toMatchObject({ role: "MANAGER", orgId: (await currentOrg()).id });
+    expect(await prisma.clientAccess.count({ where: { membershipId: membership.id } })).toBe(0);
+  });
+
   it("lists only pending invitations and filters by registration type", async () => {
     const org = await currentOrg();
     await prisma.invite.createMany({ data: [
@@ -64,14 +82,27 @@ describe("typed invitation HTTP contracts", () => {
 });
 
 describe("GET /api/regustration/:code", () => {
-  it("is public and returns registration type only", async () => {
+  it("is public and returns the registration type and no address for an unbound code", async () => {
     const org = await currentOrg();
     await prisma.invite.create({
       data: { orgId: org.id, code: "PUBLCAAB", registrationType: "CLIENT", role: null },
     });
     const response = await request(app).get("/api/regustration/PUBLCAAB");
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ registrationType: "CLIENT" });
+    expect(response.body).toEqual({ registrationType: "CLIENT", email: null });
+  });
+
+  it("names the address a bound code is for, and nothing else about it", async () => {
+    const org = await currentOrg();
+    await prisma.invite.create({
+      data: {
+        orgId: org.id, code: "BNDXAAB2", registrationType: "EMPLOYEE", role: "ADMIN",
+        email: "owner@acme.com",
+      },
+    });
+    const response = await request(app).get("/api/regustration/BNDXAAB2");
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ registrationType: "EMPLOYEE", email: "owner@acme.com" });
   });
 
   it.each([

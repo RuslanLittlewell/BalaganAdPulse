@@ -14,11 +14,6 @@ beforeEach(() => {
     mock.get("/api/projects", () =>
       HttpResponse.json([aProject({ id: "project-1", name: "Летний запуск" })])),
     mock.get("/api/members", () => HttpResponse.json(members)),
-    mock.get("/api/campaigns/names", () => HttpResponse.json([
-      { id: "camp-1", projectId: "project-1", name: "Поиск / Москва", channel: "YANDEX" },
-    ])),
-    mock.get("/api/task-images/:id", () =>
-      HttpResponse.arrayBuffer(new ArrayBuffer(8), { headers: { "Content-Type": "image/png" } })),
   );
 });
 
@@ -35,25 +30,12 @@ describe("TaskPreviewDialog", () => {
   });
 
   it("shows the priority, the project and the responsible member", async () => {
-    open(aTask({ priority: "URGENT", projectId: "project-1", assigneeId: "member-1" }));
+    open(aTask({ priority: "URGENT", projectId: "project-1", participantIds: ["member-1"] }));
 
     const dialog = await screen.findByRole("dialog");
     expect(await within(dialog).findByText("Срочный")).toBeInTheDocument();
     expect(await within(dialog).findByText("Летний запуск")).toBeInTheDocument();
     expect(await within(dialog).findByText("Пётр")).toBeInTheDocument();
-  });
-
-  it("names the campaign the work is about", async () => {
-    open(aTask({ projectId: "project-1", campaignId: "camp-1" }));
-
-    expect(await screen.findByText("Поиск / Москва")).toBeInTheDocument();
-  });
-
-  it("says Общий when the task names no campaign", async () => {
-    open(aTask({ projectId: "project-1", campaignId: null }));
-
-    const dialog = await screen.findByRole("dialog");
-    expect(await within(dialog).findByText("Общий")).toBeInTheDocument();
   });
 
   it("shows the description as written", async () => {
@@ -73,7 +55,7 @@ describe("TaskPreviewDialog", () => {
 
   it("carries no control that changes the task", async () => {
     open(aTask({
-      projectId: "project-1", assigneeId: "member-1",
+      projectId: "project-1", participantIds: ["member-1"],
       description: {
         type: "doc",
         content: [{ type: "paragraph", content: [{ type: "text", text: "Текст" }] }],

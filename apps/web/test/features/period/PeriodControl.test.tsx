@@ -1,5 +1,5 @@
 import { http as mock, HttpResponse } from "msw";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useLocation } from "react-router-dom";
 import { renderWithProviders, server } from "@test/shared/index.js";
@@ -93,6 +93,22 @@ describe("PeriodControl", () => {
     expect(screen.getByRole("status").textContent).toBe("2026-08-11..2026-08-17");
     expect(screen.getByTestId("search")).toHaveTextContent("from=2026-08-11");
     expect(screen.getByTestId("search")).toHaveTextContent("to=2026-08-17");
+  });
+
+  it("offers yesterday as a shortcut before the others", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<><PeriodControl /><Screen /></>);
+    const group = screen.getByRole("button", { name: "Вчера" }).parentElement!;
+    expect(within(group).getAllByRole("button").map((button) => button.textContent))
+      .toEqual(["Вчера", "7 дней", "Этот месяц", "Прошлый месяц"]);
+
+    await user.click(screen.getByRole("button", { name: "Вчера" }));
+
+    expect(screen.getByLabelText("От")).toHaveValue("2026-08-16");
+    expect(screen.getByLabelText("До")).toHaveValue("2026-08-16");
+    expect(screen.getByRole("status").textContent).toBe("2026-08-16..2026-08-16");
+    expect(screen.getByRole("button", { name: "Вчера" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "7 дней" })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("offers this month and the previous month as shortcuts", async () => {

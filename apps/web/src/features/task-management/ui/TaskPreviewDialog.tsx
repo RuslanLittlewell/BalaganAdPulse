@@ -12,8 +12,7 @@ import { dayLabel } from "@/shared/ui/index.js";
 import { cn } from "@/shared/lib/index.js";
 import { ProjectAvatar, useProjects } from "@/entities/project/index.js";
 import { MemberAvatar, useMembers } from "@/entities/membership/index.js";
-import { useProjectCampaignNames } from "@/entities/campaign/index.js";
-import type { Task } from "@/entities/task/index.js";
+import { participantsOf, timeRange, type Task } from "@/entities/task/index.js";
 import { TaskAttachments } from "./TaskAttachments.js";
 import { TaskDescriptionEditor } from "./TaskDescriptionEditor.js";
 
@@ -35,7 +34,7 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
       <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </span>
-      <span className="flex min-w-0 items-center gap-1.5 text-sm text-foreground">
+      <span className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm text-foreground">
         {children}
       </span>
     </div>
@@ -45,17 +44,11 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 export function TaskPreviewDialog({ task, onClose }: TaskPreviewDialogProps) {
   const { data: projects } = useProjects();
   const { data: members } = useMembers();
-  const { data: campaigns } = useProjectCampaignNames(task.projectId ?? undefined);
 
   const project = projects?.find(
     (candidate) => candidate.id === task.projectId,
   );
-  const assignee = members?.find(
-    (candidate) => candidate.id === task.assigneeId,
-  );
-  const campaign = campaigns?.find(
-    (candidate) => candidate.id === task.campaignId,
-  );
+  const people = participantsOf(task, members);
 
   return (
     <Dialog
@@ -92,22 +85,23 @@ export function TaskPreviewDialog({ task, onClose }: TaskPreviewDialogProps) {
                 {project?.name ?? t("tasks.noProject")}
               </span>
             </Fact>
-            <Fact label={t("tasks.form.campaign")}>
-              <span className="truncate">
-                {campaign?.name ?? t("tasks.form.wholeProject")}
-              </span>
-            </Fact>
-            <Fact label={t("tasks.form.assignee")}>
-              {assignee ? <MemberAvatar member={assignee} size="sm" /> : null}
-              <span className="truncate">
-                {assignee?.name ?? t("tasks.form.unassigned")}
-              </span>
+            <Fact label={t("tasks.form.participants")}>
+              {people.length > 0 ? (
+                people.map((member) => (
+                  <span key={member.id} className="flex min-w-0 items-center gap-1.5">
+                    <MemberAvatar member={member} size="sm" />
+                    <span className="truncate">{member.name}</span>
+                  </span>
+                ))
+              ) : (
+                <span className="truncate">{t("tasks.participants.nobody")}</span>
+              )}
             </Fact>
             <Fact label={t("tasks.form.due")}>
               <span className="truncate">
                 {task.dueDate === null
                   ? t("tasks.form.noDue")
-                  : `${dayLabel(task.dueDate)}${task.dueTime ? `, ${task.dueTime}` : ""}`}
+                  : `${dayLabel(task.dueDate)}${task.dueTime ? `, ${timeRange(task)}` : ""}`}
               </span>
             </Fact>
             {task.repeatEvery === "NONE" ? null : (

@@ -33,14 +33,25 @@ describe("GET /api/members", () => {
     expect(JSON.stringify(res.body)).not.toContain("passwordHash");
   });
 
-  it("refuses a manager -> 403", async () => {
+  it("refuses a manager the whole membership -> 403", async () => {
     const { auth } = await signInAs("Manager", { role: "MANAGER" });
     expect((await request(app).get("/api/members").set(auth)).status).toBe(403);
+  });
+
+  it("lets a manager list the staff, themselves and admins included, customers left out", async () => {
+    const { auth } = await signInAs("Manager", { role: "MANAGER" });
+    await signInAs("Colleague", { role: "MANAGER" });
+    await signInAs("Customer", { role: "CLIENT" });
+
+    const res = await request(app).get("/api/members?kind=staff").set(auth);
+    expect(res.status).toBe(200);
+    expect(res.body.map((m: { role: string }) => m.role).sort()).toEqual(["ADMIN", "MANAGER", "MANAGER"]);
   });
 
   it("refuses a guest -> 403", async () => {
     const { auth } = await signInAs("Guest", { role: "GUEST" });
     expect((await request(app).get("/api/members").set(auth)).status).toBe(403);
+    expect((await request(app).get("/api/members?kind=staff").set(auth)).status).toBe(403);
   });
 });
 

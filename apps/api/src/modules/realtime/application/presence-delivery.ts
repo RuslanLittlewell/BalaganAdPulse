@@ -1,7 +1,7 @@
 import { isCustomer } from "@adpulse/access-policy";
 import type { ActorContext } from "#shared/application/index.js";
-import { discloses, presenceJoined, presenceLeft, presenceState } from "../../presence/index.js";
-import type { PresencePerson, PresenceRegistry, PresenceViewer } from "../../presence/index.js";
+import { discloses, presenceJoined, presenceLeft, presenceState } from "#modules/presence/index.js";
+import type { PresencePerson, PresenceRegistry, PresenceViewer } from "#modules/presence/index.js";
 import type { Connection, ConnectionRegistry } from "./connection-registry.js";
 import type { DeliveryActorResolution } from "./task-event-delivery.js";
 

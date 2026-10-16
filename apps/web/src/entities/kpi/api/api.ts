@@ -1,19 +1,48 @@
 import { http } from "@/shared/lib/index.js";
 
 export const KPI_METRIC_IDS = [
-  "SPEND", "IMPRESSIONS", "REACH", "CLICKS", "CONVERSIONS", "REVENUE",
-  "CTR", "CPC", "CPM", "CPA", "ROAS", "FREQUENCY",
+  "SPEND", "IMPRESSIONS", "REACH", "CLICKS", "CONVERSIONS", "RESULTS", "REVENUE",
+  "CTR", "CPC", "CPM", "CPA", "COST_PER_RESULT", "ROAS", "FREQUENCY",
 ] as const;
 
 export type KpiMetric = (typeof KPI_METRIC_IDS)[number];
 
-export interface KpiInput {
+export const MANUAL_KPI = "MANUAL";
+
+export const isKpiMetric = (metric: string): metric is KpiMetric =>
+  (KPI_METRIC_IDS as readonly string[]).includes(metric);
+
+export interface MeasuredKpiInput {
   metric: KpiMetric;
   target: string;
 }
 
-export interface Kpi extends KpiInput {
-  updatedAt: string;
+export interface ManualKpiInput {
+  metric: typeof MANUAL_KPI;
+  name: string;
+  value: string;
+  target: string;
+}
+
+export type KpiInput = MeasuredKpiInput | ManualKpiInput;
+
+export type Kpi = KpiInput & { updatedAt: string };
+
+export interface CarriedKpi {
+  metric: string;
+  target: string;
+  name?: string | null;
+  value?: string | null;
+}
+
+export function kpiInputOf(carried: CarriedKpi | null | undefined): KpiInput | null {
+  if (!carried) return null;
+  if (carried.metric === MANUAL_KPI) {
+    return carried.name != null && carried.value != null
+      ? { metric: MANUAL_KPI, name: carried.name, value: carried.value, target: carried.target }
+      : null;
+  }
+  return isKpiMetric(carried.metric) ? { metric: carried.metric, target: carried.target } : null;
 }
 
 export type KpiScope =

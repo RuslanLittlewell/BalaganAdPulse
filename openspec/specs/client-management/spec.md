@@ -22,25 +22,6 @@ individual user, and reassigning who works on a client SHALL NOT change the clie
 - **THEN** every client is attached to the organization with its fields, projects and
   campaigns intact, and the members who could reach it before can still reach it
 
-### Requirement: Creating a client grants its creator access
-
-Creating a client SHALL give the member who created it reach over that client, unless
-their role already reaches the whole organization. A member SHALL NOT be able to create a
-client they cannot then see.
-
-#### Scenario: A manager creates a client
-- **WHEN** a manager creates a client
-- **THEN** the client appears in their own list, and they can read and edit it
-
-#### Scenario: An admin creates a client
-- **WHEN** an admin creates a client
-- **THEN** no grant is recorded for them, because their role already reaches every client
-  of the organization
-
-#### Scenario: One manager's new client is invisible to another
-- **WHEN** two managers each create a client
-- **THEN** each sees only their own
-
 ### Requirement: Only admins delete clients
 
 Deleting a client SHALL be permitted to `ADMIN` only. Deleting a client SHALL remove its
@@ -64,3 +45,24 @@ client. The contact-book fields and the client picture SHALL keep their present 
 - **WHEN** a member opens a client after the organization is introduced
 - **THEN** the full name, organization, UNP, phone, telegram, email, website and picture
   are all present and editable exactly as before
+
+### Requirement: A new client is visible to every manager
+
+Creating a client SHALL give the member who created it reach over that client and all its
+projects, unless their role already reaches the whole organization. A member SHALL NOT be
+able to create a client they cannot then see. Every manager of the organization SHALL see
+a new client regardless of who created it.
+
+#### Scenario: A manager creates a client
+- **WHEN** a manager creates a client
+- **THEN** the client appears in their own list, they can read and edit it, and they
+  reach the projects later created under it
+
+#### Scenario: An admin creates a client
+- **WHEN** an admin creates a client
+- **THEN** no grant is recorded for them, because their role already reaches every client
+  of the organization, and the client appears in every manager's list
+
+#### Scenario: One manager's new client is visible to another
+- **WHEN** two managers each create a client
+- **THEN** each sees both clients, and each reaches the projects only of their own

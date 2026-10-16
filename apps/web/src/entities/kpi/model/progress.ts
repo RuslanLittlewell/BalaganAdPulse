@@ -1,13 +1,13 @@
 import type { MessageKey } from "@/shared/config/index.js";
-import type { KpiInput, KpiMetric } from "../api/api.js";
+import { MANUAL_KPI, type KpiInput, type KpiMetric } from "../api/api.js";
 
 export type KpiFigure =
-  | "spend" | "impressions" | "reach" | "clicks" | "conversions" | "revenue"
-  | "ctr" | "cpc" | "cpm" | "cpa" | "roas" | "frequency";
+  | "spend" | "impressions" | "reach" | "clicks" | "conversions" | "results" | "revenue"
+  | "ctr" | "cpc" | "cpm" | "cpa" | "costPerResult" | "roas" | "frequency";
 
 export type KpiFigures = Record<KpiFigure, number | null>;
 
-export type KpiFormat = "currency" | "count" | "percent" | "ratio" | "multiple";
+export type KpiFormat = "currency" | "count" | "percent" | "ratio" | "multiple" | "number";
 
 export interface KpiMetricDefinition {
   id: KpiMetric;
@@ -22,17 +22,19 @@ export const KPI_METRICS: readonly KpiMetricDefinition[] = [
   { id: "REACH", figure: "reach", label: "metric.reach", format: "count" },
   { id: "CLICKS", figure: "clicks", label: "metric.clicks", format: "count" },
   { id: "CONVERSIONS", figure: "conversions", label: "metric.conversions", format: "count" },
+  { id: "RESULTS", figure: "results", label: "metric.results", format: "count" },
   { id: "REVENUE", figure: "revenue", label: "metric.revenue", format: "currency" },
   { id: "CTR", figure: "ctr", label: "metric.ctr", format: "percent" },
   { id: "CPC", figure: "cpc", label: "metric.cpc", format: "ratio" },
   { id: "CPM", figure: "cpm", label: "metric.cpm", format: "ratio" },
   { id: "CPA", figure: "cpa", label: "metric.cpa", format: "ratio" },
+  { id: "COST_PER_RESULT", figure: "costPerResult", label: "metric.costPerResult", format: "ratio" },
   { id: "ROAS", figure: "roas", label: "metric.roas", format: "multiple" },
   { id: "FREQUENCY", figure: "frequency", label: "metric.frequency", format: "multiple" },
 ];
 
-const MONTHLY: ReadonlySet<KpiMetric> = new Set(["SPEND", "IMPRESSIONS", "REACH", "CLICKS", "CONVERSIONS", "REVENUE"]);
-const LOWER_BETTER: ReadonlySet<KpiMetric> = new Set(["CPC", "CPM", "CPA", "FREQUENCY"]);
+const MONTHLY: ReadonlySet<KpiMetric> = new Set(["SPEND", "IMPRESSIONS", "REACH", "CLICKS", "CONVERSIONS", "RESULTS", "REVENUE"]);
+const LOWER_BETTER: ReadonlySet<KpiMetric> = new Set(["CPC", "CPM", "CPA", "COST_PER_RESULT", "FREQUENCY"]);
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const isMonthly = (metric: KpiMetric) => MONTHLY.has(metric);
@@ -62,7 +64,13 @@ export interface KpiProgress {
   state: KpiState;
 }
 
-export function kpiProgress(figures: KpiFigures, kpi: Pick<KpiInput, "metric" | "target">, range: { from: string; to: string }): KpiProgress {
+function manualProgress(actual: number, target: number): KpiProgress {
+  const state: KpiState = actual > target ? "exceeded" : actual === target ? "met" : "behind";
+  return { actual, target, percent: (actual / target) * 100, state };
+}
+
+export function kpiProgress(figures: KpiFigures, kpi: KpiInput, range: { from: string; to: string }): KpiProgress {
+  if (kpi.metric === MANUAL_KPI) return manualProgress(Number(kpi.value), Number(kpi.target));
   const target = targetForRange(kpi.metric, Number(kpi.target), range);
   const actual = figures[kpiMetricDefinition(kpi.metric).figure];
   if (actual === null) return { actual, target, percent: null, state: "unmeasured" };

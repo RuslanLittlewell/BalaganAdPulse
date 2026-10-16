@@ -1,6 +1,6 @@
 import { LoaderCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { CenteredPanel } from "@/shared/ui/index.js";
 import { TextField } from "@/shared/ui/index.js";
 import { Button } from "@/shared/ui/index.js";
@@ -18,7 +18,7 @@ export function LoginPage() {
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? "/";
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<{ email: string; password: string }>({ defaultValues: { email: "", password: "" } });
+  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<{ email: string; password: string }>({ defaultValues: { email: "", password: "" } });
   const submit = handleSubmit(async ({ email, password }) => {
     const trimmedEmail = email.trim();
     if (!isEmail(trimmedEmail)) {
@@ -45,12 +45,21 @@ export function LoginPage() {
           aria-invalid={errors.email ? true : undefined}
           {...register("email", { validate: (value) => isEmail(value.trim()) || t("auth.email.invalid") })}
         />
-        <TextField
-          label={t("auth.password.label")}
-          type="password"
-          autoComplete="current-password"
-          {...register("password")}
-        />
+        <div className="flex flex-col gap-1.5">
+          <TextField
+            label={t("auth.password.label")}
+            type="password"
+            autoComplete="current-password"
+            {...register("password")}
+          />
+          <Link
+            to="/password-reset"
+            state={{ email: watch("email").trim() }}
+            className="self-end text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            {t("auth.forgot")}
+          </Link>
+        </div>
         <Button type="submit" className="h-11" disabled={isSubmitting} aria-busy={isSubmitting} aria-label={t("auth.login.submit")}>
           {isSubmitting ? (
             <span role="status">

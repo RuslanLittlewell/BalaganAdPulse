@@ -4,6 +4,7 @@ import { Route, Routes } from "react-router-dom";
 import { renderWithProviders } from "@test/shared/index.js";
 import { AppHeader } from "@/widgets/app-header/AppHeader.js";
 import { MainNav } from "@/widgets/main-nav/MainNav.js";
+import { AppShell } from "@/widgets/app-shell/index.js";
 
 function setup() {
   return renderWithProviders(
@@ -11,10 +12,9 @@ function setup() {
       <Route
         path="*"
         element={
-          <>
-            <AppHeader />
-            <MainNav />
-          </>
+          <AppShell sidebar={<MainNav />} header={<AppHeader />} moduleKey="dashboard">
+            <p>Содержимое</p>
+          </AppShell>
         }
       />
     </Routes>,
@@ -51,6 +51,14 @@ describe("collapsing the navigation", () => {
     }
   });
 
+  it("keeps the toggle out of the header, on the edge of the navigation", () => {
+    setup();
+    const toggle = screen.getByRole("button", { name: "Свернуть меню" });
+
+    expect(screen.getByRole("banner")).not.toContainElement(toggle);
+    expect(screen.getByRole("navigation", { name: "Разделы" })).not.toContainElement(toggle);
+  });
+
   it("drops the section heading while collapsed, since it labels nothing visible", async () => {
     setup();
     expect(screen.getByText("Разделы")).toBeInTheDocument();
@@ -85,7 +93,7 @@ describe("collapsing the navigation", () => {
     setup();
     await userEvent.click(chevron());
 
-    await userEvent.hover(screen.getByRole("link", { name: "Отчёты" }));
+    await userEvent.hover(await screen.findByRole("link", { name: "Отчёты" }));
 
     expect(await screen.findByRole("tooltip")).toHaveTextContent("Отчёты");
   });
@@ -93,7 +101,7 @@ describe("collapsing the navigation", () => {
   it("shows no tooltip while expanded: the label is already on screen", async () => {
     setup();
 
-    await userEvent.hover(screen.getByRole("link", { name: "Отчёты" }));
+    await userEvent.hover(await screen.findByRole("link", { name: "Отчёты" }));
 
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });

@@ -13,6 +13,12 @@ export function statusLabel(status: DeliveryStatus): string {
   return t(`status.${status}`);
 }
 
+const RUNNING_STATUSES: readonly DeliveryStatus[] = ["ACTIVE", "LEARNING"];
+
+export function isRunning(status: DeliveryStatus): boolean {
+  return RUNNING_STATUSES.includes(status);
+}
+
 export function statusTone(status: DeliveryStatus): "positive" | "warning" | "danger" | "muted" {
   if (status === "ACTIVE") return "positive";
   if (status === "LEARNING") return "warning";
@@ -20,13 +26,7 @@ export function statusTone(status: DeliveryStatus): "positive" | "warning" | "da
   return "muted";
 }
 
-export type PerformanceTone = "danger" | "stable" | "profitable";
-
-export function performanceTone(performance: Performance): PerformanceTone {
-  if (performance.roas != null && performance.roas < 0.9) return "danger";
-  if (performance.roas != null && performance.roas > 1.2) return "profitable";
-  return "stable";
-}
+export type PerformanceTone = "idle" | "danger" | "stable" | "profitable";
 
 export interface MetricColumn {
   id: keyof Performance;
@@ -40,15 +40,17 @@ export const METRIC_COLUMNS: MetricColumn[] = [
   { id: "reach", label: t("metric.reach"), format: (p) => formatCount(p.reach) },
   { id: "clicks", label: t("metric.clicks"), format: (p) => formatCount(p.clicks) },
   { id: "conversions", label: t("metric.conversions"), format: (p) => formatCount(p.conversions) },
+  { id: "results", label: t("metric.results"), format: (p) => formatCount(p.results) },
   { id: "ctr", label: t("metric.ctr"), format: (p) => formatPercent(p.ctr) },
   { id: "cpc", label: t("metric.cpc"), format: (p, currency) => formatRatio(p.cpc, currency) },
   { id: "cpm", label: t("metric.cpm"), format: (p, currency) => formatRatio(p.cpm, currency) },
   { id: "cpa", label: t("metric.cpa"), format: (p, currency) => formatRatio(p.cpa, currency) },
+  { id: "costPerResult", label: t("metric.costPerResult"), format: (p, currency) => formatRatio(p.costPerResult, currency) },
   { id: "roas", label: t("metric.roas"), format: (p) => formatMultiple(p.roas) },
   { id: "frequency", label: t("metric.frequency"), format: (p) => formatMultiple(p.frequency) },
 ];
 
 export const EMPTY_PERFORMANCE: Performance = {
-  spend: 0, impressions: 0, reach: 0, clicks: 0, conversions: 0, revenue: 0,
-  ctr: null, cpc: null, cpm: null, cpa: null, roas: null, frequency: null,
+  spend: 0, impressions: 0, reach: 0, clicks: 0, conversions: 0, results: 0, revenue: 0,
+  ctr: null, cpc: null, cpm: null, cpa: null, costPerResult: null, roas: null, frequency: null,
 };

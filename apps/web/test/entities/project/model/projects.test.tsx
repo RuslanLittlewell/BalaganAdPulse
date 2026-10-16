@@ -1,5 +1,5 @@
 import { http as mock, HttpResponse } from "msw";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { aProject, renderWithProviders, server } from "@test/shared/index.js";
 import { ProjectsSync, refreshProjects, resetProjects, useProjects } from "@/entities/project/index.js";
@@ -56,6 +56,24 @@ describe("the projects store", () => {
 
     await refreshProjects();
     expect(asked).toBe(2);
+  });
+
+  it("keeps what it holds on screen while it reloads", async () => {
+    renderWithProviders(<List label="Доска" />);
+    await screen.findByText("Доска: Летний запуск, Осенний запуск");
+    let release: (() => void) | undefined;
+    server.use(mock.get("/api/projects", async () => {
+      await new Promise<void>((resolve) => { release = resolve; });
+      return HttpResponse.json([acme]);
+    }));
+
+    const reloaded = refreshProjects();
+    await waitFor(() => expect(release).toBeDefined());
+
+    expect(screen.getByText("Доска: Летний запуск, Осенний запуск")).toBeInTheDocument();
+    release!();
+    await reloaded;
+    expect(await screen.findByText("Доска: Летний запуск")).toBeInTheDocument();
   });
 
   it("forgets the projects when the session ends", async () => {

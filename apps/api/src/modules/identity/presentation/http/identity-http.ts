@@ -1,11 +1,12 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
-import { ValidationError } from "#shared/presentation/http-errors.js";
 import { AppError } from "#shared/domain/index.js";
 import { avatarUpload } from "#shared/presentation/avatar-upload.js";
 import { assertAvatarPath, assertAvatarPng } from "#shared/presentation/avatar.js";
 import { createRateLimit } from "#shared/presentation/rate-limit.js";
-import type { IdentityUseCases } from "../../application/identity-use-cases.js";
-import { loginSchema, refreshSchema, registerSchema, updateProfileSchema } from "./identity-schemas.js";
+import type { IdentityUseCases } from "#modules/identity/application/identity-use-cases.js";
+import {
+  loginSchema, passwordResetRequestSchema, passwordResetSchema, refreshSchema, registerSchema, updateProfileSchema,
+} from "./identity-schemas.js";
 import { clearAuthCookies, readCookie, REFRESH_COOKIE, setAuthCookies } from "./auth-cookies.js";
 
 const resets = new Set<() => void>();
@@ -42,6 +43,19 @@ export function createIdentityHttpRouters(
     const tokens = await useCases.login(loginSchema.parse(req.body));
     setAuthCookies(res, tokens); res.json(tokens);
   }));
+  authRouter.post("/password-reset", credentialLimit, handle(async (req, res) => {
+    await useCases.requestPasswordReset(passwordResetRequestSchema.parse(req.body).email);
+    res.status(202).send();
+  }));
+  authRouter.get("/password-reset/:token", sessionLimit, handle(async (req, res) => {
+    await useCases.checkPasswordReset(String(req.params.token));
+    res.status(204).send();
+  }));
+  authRouter.post("/password-reset/:token", credentialLimit, handle(async (req, res) => {
+    const { password } = passwordResetSchema.parse(req.body);
+    const tokens = await useCases.resetPassword(String(req.params.token), password);
+    setAuthCookies(res, tokens); res.json(tokens);
+  }));
   authRouter.post("/refresh", sessionLimit, handle(async (req, res) => {
     const refreshToken = readCookie(req, REFRESH_COOKIE) ?? refreshSchema.parse(req.body).refreshToken;
     const tokens = await useCases.refresh(refreshToken);
@@ -60,7 +74,7 @@ export function createIdentityHttpRouters(
     setAuthCookies(res, tokens); res.json(tokens);
   }));
   userRouter.put("/avatar", avatarUpload.single("image"), handle(async (req, res) => {
-    if (!req.file) throw new ValidationError("Avatar PNG is required");
+    if (!req.file) throw new AppError("validation", "Avatar PNG is required");
     const avatarPath = String(req.body.avatarPath ?? "");
     assertAvatarPng(req.file.buffer); assertAvatarPath(avatarPath);
     await useCases.saveAvatar(userId(req), req.file.buffer, avatarPath);

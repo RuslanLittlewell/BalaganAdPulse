@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import type { CreativeStore } from "../application/ports.js";
-import type { CreativeView, StoredCreative } from "../domain/snapshot.js";
+import { CREATIVE_QUALITY, type CreativeView, type StoredCreative } from "../domain/snapshot.js";
 
 const toView = (row: {
   id: string; position: number; kind: string; title: string | null; body: string | null;
@@ -21,6 +21,10 @@ export class PrismaCreativeStore implements CreativeStore {
     return rows.map(toView);
   }
 
+  async outdated(adId: string): Promise<boolean> {
+    return (await this.prisma.adCreative.count({ where: { adId, quality: { lt: CREATIVE_QUALITY } } })) > 0;
+  }
+
   async save(adId: string, creatives: readonly StoredCreative[]): Promise<CreativeView[]> {
     await this.prisma.$transaction(async (tx) => {
       await tx.adCreative.deleteMany({ where: { adId } });
@@ -31,6 +35,7 @@ export class PrismaCreativeStore implements CreativeStore {
           fileKey: creative.fileKey ?? null, contentType: creative.contentType ?? null,
           bytes: creative.bytes ?? null, posterKey: creative.posterKey ?? null,
           posterContentType: creative.posterContentType ?? null,
+          quality: CREATIVE_QUALITY,
         })),
       });
     });

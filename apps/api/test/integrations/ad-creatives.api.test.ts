@@ -64,7 +64,7 @@ describe("Ad creatives on demand", () => {
   it("serves the stored creatives afterwards without asking the provider", async () => {
     await connect();
     await prisma.adCreative.create({
-      data: { adId, externalId: "c1", position: 0, kind: "IMAGE", fileKey: "creatives/one" },
+      data: { adId, externalId: "c1", position: 0, kind: "IMAGE", fileKey: "creatives/one", quality: 1 },
     });
     const read = vi.spyOn(GraphProvider.prototype, "adCreatives").mockResolvedValue(anImage);
 
@@ -74,6 +74,55 @@ describe("Ad creatives on demand", () => {
     expect(res.body).toHaveLength(1);
     expect(read).not.toHaveBeenCalled();
     read.mockRestore();
+  });
+
+  it("reads creatives copied under the earlier rule once more and replaces them", async () => {
+    await connect();
+    await prisma.adCreative.create({
+      data: { adId, externalId: "c0", position: 0, kind: "IMAGE", fileKey: "creatives/old", title: "Старый" },
+    });
+    const read = vi.spyOn(GraphProvider.prototype, "adCreatives").mockResolvedValue(anImage);
+    const copied = vi.spyOn(S3CreativeFiles.prototype, "copy")
+      .mockResolvedValue({ key: "creatives/new", contentType: "image/jpeg", bytes: 4096 });
+
+    const first = await request(app).get(`/api/ads/${adId}/creatives`).set(auth);
+    const second = await request(app).get(`/api/ads/${adId}/creatives`).set(auth);
+
+    expect(first.body).toEqual([expect.objectContaining({ title: "Баннер", hasFile: true })]);
+    expect(second.body).toEqual(first.body);
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(await prisma.adCreative.findMany({ select: { fileKey: true, quality: true } }))
+      .toEqual([{ fileKey: "creatives/new", quality: 1 }]);
+    read.mockRestore();
+    copied.mockRestore();
+  });
+
+  it("keeps the earlier copies when the provider cannot give better ones", async () => {
+    await connect();
+    await prisma.adCreative.create({
+      data: { adId, externalId: "c0", position: 0, kind: "IMAGE", fileKey: "creatives/old", title: "Старый" },
+    });
+    const read = vi.spyOn(GraphProvider.prototype, "adCreatives").mockResolvedValue(anImage);
+    const copied = vi.spyOn(S3CreativeFiles.prototype, "copy").mockRejectedValue(new Error("cdn down"));
+
+    const res = await request(app).get(`/api/ads/${adId}/creatives`).set(auth);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([expect.objectContaining({ title: "Старый", hasFile: true })]);
+    expect(await prisma.adCreative.findMany({ select: { fileKey: true } })).toEqual([{ fileKey: "creatives/old" }]);
+    read.mockRestore();
+    copied.mockRestore();
+  });
+
+  it("keeps the earlier copies when the connection is gone", async () => {
+    await prisma.adCreative.create({
+      data: { adId, externalId: "c0", position: 0, kind: "IMAGE", fileKey: "creatives/old", title: "Старый" },
+    });
+
+    const res = await request(app).get(`/api/ads/${adId}/creatives`).set(auth);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([expect.objectContaining({ title: "Старый" })]);
   });
 
   it("answers with what is stored when the project has no connection", async () => {

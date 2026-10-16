@@ -31,7 +31,7 @@ describe("an employee invitation end to end", () => {
 
     const resolved = await request(app).get(`/api/regustration/${code}`);
     expect(resolved.status).toBe(200);
-    expect(resolved.body).toEqual({ registrationType: "EMPLOYEE" });
+    expect(resolved.body).toEqual({ registrationType: "EMPLOYEE", email: null });
 
     expect((await request(app).delete(`/api/invites/${id}`).set(admin)).status).toBe(204);
 
@@ -67,6 +67,43 @@ describe("an employee invitation end to end", () => {
   });
 });
 
+describe("an admin invitation end to end", () => {
+  it("is created without projects and enrols an admin holding no grants", async () => {
+    const created = await request(app).post("/api/invites").set(admin).send({
+      registrationType: "EMPLOYEE", role: "ADMIN",
+    });
+    expect(created.status).toBe(201);
+    expect(created.body).toMatchObject({ role: "ADMIN", projectIds: [] });
+
+    const registered = await request(app).post("/api/auth/register").send({
+      name: "Chief", email: "chief@acme.com", password: "hunter2hunter2",
+      inviteCode: created.body.code,
+    });
+    expect(registered.status).toBe(201);
+
+    const membership = await prisma.membership.findFirstOrThrow({
+      where: { user: { email: "chief@acme.com" } },
+    });
+    expect(membership.role).toBe("ADMIN");
+    expect(await prisma.clientAccess.count({ where: { membershipId: membership.id } })).toBe(0);
+  });
+
+  it("refuses an admin invitation that names projects", async () => {
+    const created = await request(app).post("/api/invites").set(admin).send({
+      registrationType: "EMPLOYEE", role: "ADMIN", projectIds: [projectId],
+    });
+    expect(created.status).toBe(400);
+    expect(await prisma.invite.count()).toBe(0);
+  });
+
+  it("still requires projects from a guest invitation", async () => {
+    const created = await request(app).post("/api/invites").set(admin).send({
+      registrationType: "EMPLOYEE", role: "GUEST",
+    });
+    expect(created.status).toBe(400);
+  });
+});
+
 describe("a client invitation end to end", () => {
   it("is created and resolves as a client form, carrying no employee detail", async () => {
     const created = await request(app).post("/api/invites").set(admin)
@@ -77,7 +114,7 @@ describe("a client invitation end to end", () => {
     const resolved = await request(app).get(`/api/regustration/${created.body.code}`);
 
     expect(resolved.status).toBe(200);
-    expect(resolved.body).toEqual({ registrationType: "CLIENT" });
+    expect(resolved.body).toEqual({ registrationType: "CLIENT", email: null });
   });
 
   it("cannot be redeemed as an employee would be, and survives the attempt", async () => {
@@ -115,7 +152,7 @@ describe("a client invitation end to end", () => {
 describe("registering as a client", () => {
   const details = {
     client: { name: "Клиника", organization: "ООО Клиника", phone: "+375291112233" },
-    project: { name: "Стоматология", niche: "Медицина" },
+    project: { name: "Стоматология" },
   };
 
   it("creates the account, the client and the first project together", async () => {
@@ -150,12 +187,12 @@ describe("registering as a client", () => {
       .toEqual([{ clientId: client.id, projectId: null }]);
 
     await prisma.project.deleteMany({ where: { clientId: client.id } });
-    await prisma.project.create({ data: { clientId: client.id, name: "Имплантация", position: 0 } });
+    const replacement = await prisma.project.create({ data: { clientId: client.id, name: "Имплантация", position: 0 } });
     const auth = { Authorization: `Bearer ${registered.body.accessToken}` };
 
     expect((await request(app).get(`/api/clients/${client.id}`).set(auth)).status).toBe(200);
     expect((await request(app).get("/api/projects").set(auth)).body.map((project: { name: string }) => project.name)).toEqual(["Имплантация"]);
-    expect((await request(app).get("/api/crm/boards").set(auth)).body.map((board: { key: string }) => board.key)).toEqual([client.id]);
+    expect((await request(app).get("/api/crm/boards").set(auth)).body.map((board: { key: string }) => board.key)).toEqual([replacement.id]);
   });
 
   it("spends the invitation", async () => {
@@ -229,6 +266,6 @@ describe("an invitation to join an existing client", () => {
     const resolved = await request(app).get(`/api/regustration/${created.body.code}`);
 
     expect(resolved.status).toBe(200);
-    expect(resolved.body).toEqual({ registrationType: "CLIENT_STAFF" });
+    expect(resolved.body).toEqual({ registrationType: "CLIENT_STAFF", email: null });
   });
 });

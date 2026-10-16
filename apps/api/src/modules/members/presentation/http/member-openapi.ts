@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { ROLES } from "@adpulse/access-policy";
+import { MODULES, ROLES } from "@adpulse/access-policy";
 import { arrayOf, ref, type ComponentDocs, type RouteDoc } from "#shared/presentation/openapi.js";
-import { MEMBER_KINDS } from "../../application/ports.js";
+import { MEMBER_KINDS } from "#modules/members/application/ports.js";
 import { setAccessSchema, updateMemberSchema } from "./member-schemas.js";
 
 const member = z.object({
@@ -31,9 +31,16 @@ const session = z.object({
     email: z.email(),
     image: z.string().nullable(),
   }),
-  organization: z.object({ id: z.uuid(), name: z.string(), slug: z.string() }),
-  role: z.enum(ROLES),
+  platformAdmin: z.boolean(),
+  organization: z.object({
+    id: z.uuid(),
+    name: z.string(),
+    slug: z.string(),
+    status: z.enum(["ACTIVE", "SUSPENDED"]),
+  }).nullable(),
+  role: z.enum(ROLES).nullable(),
   clientIds: z.array(z.uuid()),
+  modules: z.array(z.enum(MODULES)),
 });
 
 export const memberComponents: ComponentDocs = {
@@ -50,10 +57,11 @@ export const memberDoc: RouteDoc = {
       method: "get",
       path: "/",
       summary: "List the organization's members",
-      description: "Naming a client lists that client's own people instead of the agency's.",
+      description: "Naming a client lists that client's own people instead of the agency's; naming one of its projects too keeps only those whose grants reach it.",
       query: z.object({
         kind: z.enum(MEMBER_KINDS).optional(),
         clientId: z.uuid().optional(),
+        projectId: z.uuid().optional(),
       }),
       success: { status: 200, description: "The members", schema: arrayOf(ref("Member")) },
       errors: [400, 401, 403, 404],
@@ -112,7 +120,7 @@ export const sessionDoc: RouteDoc = {
       method: "get",
       path: "/",
       summary: "Describe the signed-in session",
-      description: "The user, their organization, their role and the clients they reach.",
+      description: "The user, their organization, their role, the clients they reach and the modules the organization is entitled to. The platform administrator belongs to no organization. A member of a suspended organization is described with no clients and no modules.",
       success: { status: 200, description: "The session", schema: ref("Session") },
       errors: [401, 403, 404],
     },

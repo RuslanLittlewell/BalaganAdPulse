@@ -21,7 +21,7 @@ export interface MemberChange {
   readonly status?: MembershipStatus;
 }
 
-export function isActiveAdmin(member: { role: Role; status: MembershipStatus }): boolean {
+function isActiveAdmin(member: { role: Role; status: MembershipStatus }): boolean {
   return member.role === "ADMIN" && member.status === "ACTIVE";
 }
 

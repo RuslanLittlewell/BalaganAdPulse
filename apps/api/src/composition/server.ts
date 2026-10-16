@@ -2,8 +2,8 @@ import "dotenv/config";
 import { createApp } from "./app.js";
 import { createContainer } from "./create-container.js";
 import { prisma } from "#shared/infrastructure/prisma.js";
-import { attachRealtime } from "../modules/realtime/infrastructure/websocket-transport.js";
-import { PRESENCE_SWEEP_MS } from "../modules/presence/index.js";
+import { attachRealtime } from "#modules/realtime/infrastructure/websocket-transport.js";
+import { PRESENCE_SWEEP_MS } from "#modules/presence/index.js";
 import { createShutdown } from "./shutdown.js";
 
 const port = Number(process.env.PORT ?? 3000);

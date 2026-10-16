@@ -3,7 +3,7 @@ import { Check, Copy } from "lucide";
 import { MorphIcon } from "morphicons/react";
 import { t } from "@/shared/config/index.js";
 import { cn } from "@/shared/lib/index.js";
-import { Button } from "../ui/button.js";
+import { Button } from "../Button/Button.js";
 
 const CONFIRM_MS = 2000;
 

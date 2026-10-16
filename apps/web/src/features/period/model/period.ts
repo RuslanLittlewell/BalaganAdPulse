@@ -1,7 +1,7 @@
 import { shiftDays, todayIso } from "@/shared/lib/index.js";
 import type { DateRange } from "@/entities/campaign/index.js";
 
-export const SHORTCUTS = ["7d", "month", "prevMonth"] as const;
+export const SHORTCUTS = ["yesterday", "7d", "month", "prevMonth"] as const;
 
 export type Shortcut = (typeof SHORTCUTS)[number];
 
@@ -9,6 +9,10 @@ const firstOfMonth = (iso: string) => `${iso.slice(0, 7)}-01`;
 
 export function shortcutRange(shortcut: Shortcut, today = todayIso()): DateRange {
   switch (shortcut) {
+    case "yesterday": {
+      const yesterday = shiftDays(today, -1);
+      return { from: yesterday, to: yesterday };
+    }
     case "7d":
       return { from: shiftDays(today, -6), to: today };
     case "month":

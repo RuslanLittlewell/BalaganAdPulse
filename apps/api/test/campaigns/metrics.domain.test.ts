@@ -9,18 +9,18 @@ import {
 } from "../../src/modules/campaigns/domain/metrics.js";
 
 const day = (partial: Partial<Measured> = {}): Measured => ({
-  spend: 0, impressions: 0, reach: 0, clicks: 0, conversions: 0, revenue: 0, ...partial,
+  spend: 0, impressions: 0, reach: 0, clicks: 0, conversions: 0, results: 0, revenue: 0, ...partial,
 });
 
 describe("summing what was measured", () => {
   it("adds every figure across the days", () => {
     const total = sumMeasured([
-      day({ spend: 100, impressions: 1000, reach: 800, clicks: 20, conversions: 2, revenue: 400 }),
-      day({ spend: 50, impressions: 500, reach: 450, clicks: 5, conversions: 1, revenue: 150 }),
+      day({ spend: 100, impressions: 1000, reach: 800, clicks: 20, conversions: 2, results: 7, revenue: 400 }),
+      day({ spend: 50, impressions: 500, reach: 450, clicks: 5, conversions: 1, results: 5, revenue: 150 }),
     ]);
 
     expect(total).toEqual({
-      spend: 150, impressions: 1500, reach: 1250, clicks: 25, conversions: 3, revenue: 550,
+      spend: 150, impressions: 1500, reach: 1250, clicks: 25, conversions: 3, results: 12, revenue: 550,
     });
   });
 
@@ -36,7 +36,7 @@ describe("summing what was measured", () => {
 
 describe("deriving the ratios", () => {
   const measured = day({
-    spend: 1000, impressions: 100000, reach: 40000, clicks: 2000, conversions: 50, revenue: 4000,
+    spend: 1000, impressions: 100000, reach: 40000, clicks: 2000, conversions: 50, results: 80, revenue: 4000,
   });
 
   it("derives each ratio from the figures", () => {
@@ -46,6 +46,7 @@ describe("deriving the ratios", () => {
     expect(d.cpc).toBeCloseTo(0.5, 10);
     expect(d.cpm).toBeCloseTo(10, 10);
     expect(d.cpa).toBeCloseTo(20, 10);
+    expect(d.costPerResult).toBeCloseTo(12.5, 10);
     expect(d.roas).toBeCloseTo(4, 10);
     expect(d.frequency).toBeCloseTo(2.5, 10);
   });
@@ -55,6 +56,7 @@ describe("deriving the ratios", () => {
     ["cpc", day({ spend: 100 })],
     ["cpm", day({ spend: 100 })],
     ["cpa", day({ spend: 100 })],
+    ["costPerResult", day({ spend: 100, conversions: 3 })],
     ["roas", day({ revenue: 100 })],
     ["frequency", day({ impressions: 100 })],
   ] as const)("reports %s as absent when its divisor is zero", (ratio, figures) => {

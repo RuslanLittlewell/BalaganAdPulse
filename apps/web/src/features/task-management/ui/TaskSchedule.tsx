@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CalendarIcon, XIcon } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { t } from "@/shared/config/index.js";
 import {
   Button,
@@ -10,33 +10,46 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  TimeInput,
   dayLabel,
 } from "@/shared/ui/index.js";
-import { TASK_REPEATS, type TaskRepeat } from "@/entities/task/index.js";
+import {
+  TASK_REPEATS,
+  endEnteredAs,
+  endKeepingLength,
+  endShownAs,
+  type TaskRepeat,
+} from "@/entities/task/index.js";
 
 export interface TaskScheduleProps {
   dueDate: string | null;
   dueTime: string | null;
+  endTime: string | null;
   repeatEvery: TaskRepeat;
   today: string;
   onDueDateChange: (dueDate: string | null) => void;
   onDueTimeChange: (dueTime: string | null) => void;
+  onEndTimeChange: (endTime: string | null) => void;
   onRepeatChange: (repeatEvery: TaskRepeat) => void;
+  endError?: string;
 }
 
 export function TaskSchedule({
   dueDate,
   dueTime,
+  endTime,
   repeatEvery,
   today,
   onDueDateChange,
   onDueTimeChange,
+  onEndTimeChange,
   onRepeatChange,
+  endError,
 }: TaskScheduleProps) {
   const [picking, setPicking] = useState(false);
 
   return (
-    <div className="grid gap-3 sm:grid-cols-3" data-testid="task-form-schedule">
+    <div className="grid gap-3" data-testid="task-form-schedule">
       <div className="flex min-w-0 flex-col gap-2">
         <Label>{t("tasks.form.due")}</Label>
         <div className="flex gap-1">
@@ -61,36 +74,42 @@ export function TaskSchedule({
               </span>
             </Button>
           </DatePicker>
-          {dueDate === null ? null : (
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              aria-label={t("tasks.form.clearDue")}
-              onClick={() => onDueDateChange(null)}
-            >
-              <XIcon />
-            </Button>
-          )}
         </div>
       </div>
 
       {dueDate === null ? null : (
         <>
-          <div className="flex min-w-0 flex-col gap-2">
-            <Label htmlFor="task-due-time">{t("tasks.form.time")}</Label>
-            <input
-              id="task-due-time"
-              type="time"
-              value={dueTime ?? ""}
-              onChange={(event) => onDueTimeChange(event.target.value || null)}
-              className={
-                "h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm " +
-                "shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] " +
-                "focus-visible:ring-ring/50"
-              }
-            />
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex min-w-0 flex-col gap-2">
+              <Label htmlFor="task-due-time">{t("tasks.form.start")}</Label>
+              <TimeInput
+                id="task-due-time"
+                value={dueTime}
+                onChange={(next) => {
+                  onDueTimeChange(next);
+                  onEndTimeChange(endKeepingLength(dueTime, endTime, next));
+                }}
+              />
+            </div>
+
+            {dueTime === null ? null : (
+              <div className="flex min-w-0 flex-col gap-2">
+                <Label htmlFor="task-end-time">{t("tasks.form.end")}</Label>
+                <TimeInput
+                  id="task-end-time"
+                  value={endShownAs(endTime)}
+                  aria-invalid={endError ? true : undefined}
+                  aria-describedby={endError ? "task-end-time-error" : undefined}
+                  onChange={(next) => onEndTimeChange(endEnteredAs(next))}
+                />
+              </div>
+            )}
           </div>
+          {endError ? (
+            <p id="task-end-time-error" role="alert" className="text-sm text-destructive">
+              {endError}
+            </p>
+          ) : null}
 
           <div className="flex min-w-0 flex-col gap-2">
             <Label htmlFor="task-repeat">{t("tasks.form.repeat")}</Label>

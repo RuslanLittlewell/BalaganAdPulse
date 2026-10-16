@@ -1,7 +1,7 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import { AppError } from "#shared/domain/index.js";
-import type { AuditReader } from "../../application/audit-use-cases.js";
+import type { AuditReader } from "#modules/audit/application/audit-use-cases.js";
 
 const optionalUuid = z.uuid().optional();
 

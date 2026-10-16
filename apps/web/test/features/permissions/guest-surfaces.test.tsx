@@ -11,6 +11,7 @@ function guestSession() {
     organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
     role: "GUEST",
     clientIds: ["client-1"],
+    modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"],
   })));
 }
 
@@ -43,8 +44,8 @@ describe("guest controls", () => {
     server.use(
       http.get("/api/clients", () => HttpResponse.json([])),
       http.get("/api/projects", () => HttpResponse.json([{
-        id: "p1", clientId: "client-1", name: "Клиника", niche: null, monthlyBudget: null, budgetCurrency: "BYN",
-        priority: "NEW", image: null, avatarPath: null, position: 0, createdAt: "", updatedAt: "",
+        id: "p1", clientId: "client-1", name: "Клиника", budgetCurrency: "BYN",
+        image: null, avatarPath: null, position: 0, createdAt: "", updatedAt: "",
       }])),
       http.get("/api/projects/:projectId/summary", () => HttpResponse.json(performance)),
       http.get("/api/projects/:projectId/campaigns", () => HttpResponse.json([{

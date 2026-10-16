@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../../src/composition/app.js";
 import { prisma } from "../../src/shared/infrastructure/prisma.js";
-import { resetDb, seedCampaign, seedProject } from "../helpers/db.js";
+import { resetDb, seedProject } from "../helpers/db.js";
 import { currentOrg, grantAccess, signInAs, signInAsOutsider } from "../helpers/auth.js";
 
 const app = createApp();
@@ -29,7 +29,7 @@ describe("POST /api/tasks", () => {
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({
       title: "Write the brief", column: "IDEA", priority: "MEDIUM",
-      projectId, position: 0, assigneeId: null,
+      projectId, position: 0, participantIds: [],
     });
   });
 
@@ -73,20 +73,20 @@ describe("POST /api/tasks", () => {
     expect(res.body.description).toEqual(description);
   });
 
-  it("accepts an active member of the organization as responsible", async () => {
+  it("names an active member of the organization as a participant", async () => {
     const member = await signInAs("Member", { role: "MANAGER" });
-    const res = await create({ assigneeId: member.membership!.id });
-    expect(res.body.assigneeId).toBe(member.membership!.id);
+    const res = await create({ participantIds: [member.membership!.id] });
+    expect(res.body.participantIds).toEqual([member.membership!.id]);
   });
 
-  it("refuses a suspended member as responsible -> 400", async () => {
+  it("refuses a suspended member as a participant -> 400", async () => {
     const dormant = await signInAs("Dormant", { role: "MANAGER", status: "SUSPENDED" });
-    expect((await create({ assigneeId: dormant.membership!.id })).status).toBe(400);
+    expect((await create({ participantIds: [dormant.membership!.id] })).status).toBe(400);
   });
 
-  it("refuses a member of another organization as responsible -> 400", async () => {
+  it("refuses a member of another organization as a participant -> 400", async () => {
     const outsider = await signInAsOutsider();
-    expect((await create({ assigneeId: outsider.membership.id })).status).toBe(400);
+    expect((await create({ participantIds: [outsider.membership.id] })).status).toBe(400);
   });
 });
 
@@ -113,7 +113,7 @@ describe("GET /api/tasks", () => {
 
   it("shows a manager only the tasks their grants reach", async () => {
     const manager = await signInAs("Manager", { role: "MANAGER" });
-    await create({ title: "Ungranted", assigneeId: manager.membership!.id });
+    await create({ title: "Ungranted", participantIds: [manager.membership!.id] });
 
     expect((await request(app).get("/api/tasks").set(manager.auth)).body).toEqual([]);
     await grantAccess(manager.membership!.id, clientId);
@@ -124,16 +124,47 @@ describe("GET /api/tasks", () => {
     const colleague = await signInAs("Colleague", { role: "MANAGER" });
     const manager = await signInAs("Manager", { role: "MANAGER" });
     await grantAccess(manager.membership!.id, clientId);
-    await create({ title: "Theirs", assigneeId: colleague.membership!.id });
+    await create({ title: "Theirs", participantIds: [colleague.membership!.id] });
     await create({ title: "Nobody's" });
 
     expect((await request(app).get("/api/tasks").set(manager.auth)).body).toEqual([]);
   });
 
+  it("shows a manager the task they created with nobody taking part, and no colleague", async () => {
+    const manager = await signInAs("Manager", { role: "MANAGER" });
+    const colleague = await signInAs("Colleague", { role: "MANAGER" });
+    await grantAccess(manager.membership!.id, clientId);
+    await grantAccess(colleague.membership!.id, clientId);
+    const created = await create({ title: "Mine, unassigned" }, manager.auth);
+    expect(created.body.participantIds).toEqual([]);
+
+    const board = await request(app).get("/api/tasks").set(manager.auth);
+    expect(board.body.map((task: { title: string }) => task.title)).toEqual(["Mine, unassigned"]);
+    const inProject = await request(app).get(`/api/tasks?projectId=${projectId}`).set(manager.auth);
+    expect(inProject.body).toHaveLength(1);
+    expect((await request(app).get(`/api/tasks/${created.body.id}`).set(manager.auth)).status).toBe(200);
+    expect((await request(app).get("/api/tasks").set(colleague.auth)).body).toEqual([]);
+    expect((await request(app).get(`/api/tasks/${created.body.id}`).set(colleague.auth)).status).toBe(404);
+  });
+
+  it("moves a task nobody takes part in from its creator to whoever is named on it", async () => {
+    const manager = await signInAs("Manager", { role: "MANAGER" });
+    const colleague = await signInAs("Colleague", { role: "MANAGER" });
+    await grantAccess(manager.membership!.id, clientId);
+    await grantAccess(colleague.membership!.id, clientId);
+    const created = await create({ title: "Handed on" }, manager.auth);
+
+    await request(app).patch(`/api/tasks/${created.body.id}`).set(admin)
+      .send({ participantIds: [colleague.membership!.id] });
+
+    expect((await request(app).get("/api/tasks").set(manager.auth)).body).toEqual([]);
+    expect((await request(app).get("/api/tasks").set(colleague.auth)).body).toHaveLength(1);
+  });
+
   it("lets a guest read the board", async () => {
     const guest = await signInAs("Guest", { role: "GUEST" });
     await grantAccess(guest.membership!.id, clientId);
-    await create({ title: "Visible", assigneeId: guest.membership!.id });
+    await create({ title: "Visible", participantIds: [guest.membership!.id] });
     expect((await request(app).get("/api/tasks").set(guest.auth)).status).toBe(200);
   });
 
@@ -180,25 +211,25 @@ describe("PATCH /api/tasks/:id", () => {
     expect(res.body).toMatchObject({ title: "Renamed", column: "IN_REVIEW", position: 0 });
   });
 
-  it("clears the responsible member", async () => {
+  it("clears the participants", async () => {
     const member = await signInAs("Member", { role: "MANAGER" });
-    const created = await create({ assigneeId: member.membership!.id });
+    const created = await create({ participantIds: [member.membership!.id] });
     const res = await request(app).patch(`/api/tasks/${created.body.id}`)
-      .set(admin).send({ assigneeId: null });
-    expect(res.body.assigneeId).toBeNull();
+      .set(admin).send({ participantIds: [] });
+    expect(res.body.participantIds).toEqual([]);
   });
 
   it("refuses a guest -> 403", async () => {
     const guest = await signInAs("Guest", { role: "GUEST" });
     await grantAccess(guest.membership!.id, clientId);
-    const created = await create({ assigneeId: guest.membership!.id });
+    const created = await create({ participantIds: [guest.membership!.id] });
     expect((await request(app).patch(`/api/tasks/${created.body.id}`).set(guest.auth).send({ title: "No" })).status).toBe(403);
   });
 
   it("refuses a manager who tries to share a task with the client -> 403", async () => {
     const manager = await signInAs("Manager", { role: "MANAGER" });
     await grantAccess(manager.membership!.id, clientId);
-    const created = await create({ assigneeId: manager.membership!.id });
+    const created = await create({ participantIds: [manager.membership!.id] });
 
     const refused = await request(app).patch(`/api/tasks/${created.body.id}`)
       .set(manager.auth).send({ visibleToClient: true });
@@ -267,7 +298,7 @@ describe("POST /api/tasks/:id/move", () => {
   it("refuses a guest and leaves the card where it was -> 403", async () => {
     const guest = await signInAs("Guest", { role: "GUEST" });
     await grantAccess(guest.membership!.id, clientId);
-    const created = await create({ assigneeId: guest.membership!.id });
+    const created = await create({ participantIds: [guest.membership!.id] });
 
     expect((await request(app).post(`/api/tasks/${created.body.id}/move`)
       .set(guest.auth).send({ column: "DONE", position: 0 })).status).toBe(403);
@@ -291,14 +322,14 @@ describe("DELETE /api/tasks/:id", () => {
   it("is permitted to a manager", async () => {
     const manager = await signInAs("Manager", { role: "MANAGER" });
     await grantAccess(manager.membership!.id, clientId);
-    const created = await create({ assigneeId: manager.membership!.id });
+    const created = await create({ participantIds: [manager.membership!.id] });
     expect((await request(app).delete(`/api/tasks/${created.body.id}`).set(manager.auth)).status).toBe(204);
   });
 
   it("is refused to a guest -> 403", async () => {
     const guest = await signInAs("Guest", { role: "GUEST" });
     await grantAccess(guest.membership!.id, clientId);
-    const created = await create({ assigneeId: guest.membership!.id });
+    const created = await create({ participantIds: [guest.membership!.id] });
     expect((await request(app).delete(`/api/tasks/${created.body.id}`).set(guest.auth)).status).toBe(403);
     expect(await prisma.task.count()).toBe(1);
   });
@@ -374,175 +405,6 @@ describe("attachments on a task", () => {
     });
     const reopened = await request(app).get(`/api/tasks/${created.body.id}`).set(admin);
     expect(reopened.body.imageIds).toEqual([imageId]);
-  });
-});
-
-describe("the campaign a task is about", () => {
-  it("creates a task on a campaign of its project and reads it back", async () => {
-    const campaign = await seedCampaign(projectId, "Поиск / Москва");
-
-    const created = await request(app).post("/api/tasks").set(admin).send({
-      projectId, title: "Переписать объявления", priority: "HIGH", campaignId: campaign.id,
-    });
-
-    expect(created.status).toBe(201);
-    expect(created.body.campaignId).toBe(campaign.id);
-    const read = await request(app).get(`/api/tasks/${created.body.id}`).set(admin);
-    expect(read.body.campaignId).toBe(campaign.id);
-  });
-
-  it("creates a task about the project as a whole when none is named", async () => {
-    const created = await request(app).post("/api/tasks").set(admin)
-      .send({ projectId, title: "Согласовать бюджет", priority: "LOW" });
-
-    expect(created.status).toBe(201);
-    expect(created.body.campaignId).toBeNull();
-  });
-
-  it("400s a campaign belonging to another project", async () => {
-    const other = await seedProject("unused", "Другой");
-    const theirs = await seedCampaign(other.projectId, "Их кампания");
-
-    const created = await request(app).post("/api/tasks").set(admin)
-      .send({ projectId, title: "T", priority: "LOW", campaignId: theirs.id });
-
-    expect(created.status).toBe(400);
-    expect(await prisma.task.count()).toBe(0);
-  });
-
-  it("400s a campaign that does not exist, the same way", async () => {
-    const created = await request(app).post("/api/tasks").set(admin).send({
-      projectId, title: "T", priority: "LOW",
-      campaignId: "00000000-0000-0000-0000-000000000000",
-    });
-
-    expect(created.status).toBe(400);
-  });
-
-  it("400s a campaign id that is not a uuid", async () => {
-    const created = await request(app).post("/api/tasks").set(admin)
-      .send({ projectId, title: "T", priority: "LOW", campaignId: "not-a-uuid" });
-
-    expect(created.status).toBe(400);
-  });
-
-  it("attaches and releases a campaign through an update", async () => {
-    const campaign = await seedCampaign(projectId, "Лента");
-    const created = await request(app).post("/api/tasks").set(admin)
-      .send({ projectId, title: "T", priority: "LOW" });
-
-    const attached = await request(app).patch(`/api/tasks/${created.body.id}`).set(admin)
-      .send({ campaignId: campaign.id });
-    expect(attached.status).toBe(200);
-    expect(attached.body.campaignId).toBe(campaign.id);
-
-    const released = await request(app).patch(`/api/tasks/${created.body.id}`).set(admin)
-      .send({ campaignId: null });
-    expect(released.body.campaignId).toBeNull();
-  });
-
-  it("releases the campaign when the task moves to another project", async () => {
-    const campaign = await seedCampaign(projectId, "Лента");
-    const other = await seedProject("unused", "Другой");
-    const created = await request(app).post("/api/tasks").set(admin)
-      .send({ projectId, title: "T", priority: "LOW", campaignId: campaign.id });
-
-    const moved = await request(app).patch(`/api/tasks/${created.body.id}`).set(admin)
-      .send({ projectId: other.projectId });
-
-    expect(moved.status).toBe(200);
-    expect(moved.body).toMatchObject({ projectId: other.projectId, campaignId: null });
-  });
-});
-
-describe("GET /api/projects/:projectId/campaigns/names", () => {
-  it("lists a project's campaigns without figures or a range", async () => {
-    const first = await seedCampaign(projectId, "Поиск / Москва", "YANDEX");
-    const second = await seedCampaign(projectId, "Лента", "META");
-
-    const res = await request(app).get(`/api/projects/${projectId}/campaigns/names`).set(admin);
-
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual([
-      { id: first.id, name: "Поиск / Москва", channel: "YANDEX" },
-      { id: second.id, name: "Лента", channel: "META" },
-    ]);
-  });
-
-  it("answers an empty list for a project with no campaigns", async () => {
-    const res = await request(app).get(`/api/projects/${projectId}/campaigns/names`).set(admin);
-
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
-  });
-
-  it("404s a project the caller cannot reach", async () => {
-    const outsider = await signInAsOutsider();
-    const theirProject = await prisma.project.create({
-      data: { clientId: outsider.client.id, name: "Их проект", position: 0 },
-    });
-
-    const res = await request(app).get(`/api/projects/${theirProject.id}/campaigns/names`).set(admin);
-
-    expect(res.status).toBe(404);
-  });
-
-  it("requires authentication", async () => {
-    expect((await request(app).get(`/api/projects/${projectId}/campaigns/names`)).status).toBe(401);
-  });
-});
-
-describe("GET /api/tasks?campaignId=", () => {
-  it("returns only the tasks naming that campaign", async () => {
-    const first = await seedCampaign(projectId, "Поиск");
-    const second = await seedCampaign(projectId, "Лента", "META");
-    await create({ title: "На поиске", campaignId: first.id });
-    await create({ title: "На ленте", campaignId: second.id });
-    await create({ title: "Общая" });
-
-    const res = await request(app).get(`/api/tasks?campaignId=${first.id}`).set(admin);
-
-    expect(res.status).toBe(200);
-    expect(res.body.map((task: { title: string }) => task.title)).toEqual(["На поиске"]);
-  });
-
-  it("narrows by project and campaign together", async () => {
-    const campaign = await seedCampaign(projectId, "Поиск");
-    await create({ title: "На поиске", campaignId: campaign.id });
-
-    const res = await request(app)
-      .get(`/api/tasks?projectId=${projectId}&campaignId=${campaign.id}`).set(admin);
-
-    expect(res.body.map((task: { title: string }) => task.title)).toEqual(["На поиске"]);
-  });
-
-  it("returns nothing for a campaign under a project the caller cannot reach", async () => {
-    const manager = await signInAs("Manager", { role: "MANAGER" });
-    const campaign = await seedCampaign(projectId, "Поиск");
-    await create({ title: "На поиске", campaignId: campaign.id });
-
-    const res = await request(app).get(`/api/tasks?campaignId=${campaign.id}`).set(manager.auth);
-
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
-  });
-
-  it("answers an empty list for a campaign that does not exist, the same way", async () => {
-    await create({ title: "Общая" });
-
-    const res = await request(app).get(`/api/tasks?campaignId=${MISSING}`).set(admin);
-
-    expect(res.body).toEqual([]);
-  });
-
-  it("returns every reachable task when no campaign is named", async () => {
-    const campaign = await seedCampaign(projectId, "Поиск");
-    await create({ title: "На поиске", campaignId: campaign.id });
-    await create({ title: "Общая" });
-
-    const res = await request(app).get("/api/tasks").set(admin);
-
-    expect(res.body).toHaveLength(2);
   });
 });
 

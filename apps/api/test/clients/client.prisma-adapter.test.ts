@@ -65,36 +65,50 @@ describe("Prisma client repository", () => {
       expect(await clients.findReachable(admin.actor!, outsider.client.id)).toBeNull();
     });
 
-    it("shows a manager only what a grant names", async () => {
+    it("shows a manager every client of the organization without a grant", async () => {
+      const { clients } = repository();
+      const admin = await signInAs("Admin", { role: "ADMIN" });
+      const first = await seedProject(admin.user.id, "First");
+      const second = await seedProject(admin.user.id, "Second");
+      const manager = await signInAs("Manager", { role: "MANAGER" });
+      const outsider = await signInAsOutsider();
+
+      expect((await clients.reachableIds(manager.actor!))).toEqual([first.clientId, second.clientId]);
+      expect(await clients.findReachable(manager.actor!, first.clientId)).not.toBeNull();
+      expect(await clients.findReachable(manager.actor!, outsider.client.id)).toBeNull();
+    });
+
+    it("shows a guest only what a grant names", async () => {
       const { clients } = repository();
       const admin = await signInAs("Admin", { role: "ADMIN" });
       const granted = await seedProject(admin.user.id, "Granted");
       await seedProject(admin.user.id, "Ungranted");
-      const manager = await signInAs("Manager", { role: "MANAGER" });
-      await grantAccess(manager.membership!.id, granted.clientId);
+      const guest = await signInAs("Guest", { role: "GUEST" });
+      await grantAccess(guest.membership!.id, granted.clientId);
 
-      expect((await clients.listReachable(manager.actor!)).map((c) => c.id)).toEqual([granted.clientId]);
-      expect(await clients.findReachable(manager.actor!, granted.clientId)).not.toBeNull();
+      expect((await clients.listReachable(guest.actor!)).map((c) => c.id)).toEqual([granted.clientId]);
+      expect(await clients.findReachable(guest.actor!, granted.clientId)).not.toBeNull();
     });
 
     it("hides an ungranted client behind the same nothing as a missing one", async () => {
       const { clients } = repository();
       const admin = await signInAs("Admin", { role: "ADMIN" });
       const { clientId } = await seedProject(admin.user.id, "Theirs");
-      const manager = await signInAs("Manager", { role: "MANAGER" });
+      const guest = await signInAs("Guest", { role: "GUEST" });
 
-      expect(await clients.findReachable(manager.actor!, clientId)).toBeNull();
-      expect(await clients.findReachable(manager.actor!, "00000000-0000-0000-0000-000000000000")).toBeNull();
+      expect(await clients.findReachable(guest.actor!, clientId)).toBeNull();
+      expect(await clients.findReachable(guest.actor!, "00000000-0000-0000-0000-000000000000")).toBeNull();
     });
 
     it("counts a project-scoped grant as reaching the client it belongs to", async () => {
       const { clients } = repository();
       const admin = await signInAs("Admin", { role: "ADMIN" });
       const { clientId, projectId } = await seedProject(admin.user.id, "Acme");
-      const manager = await signInAs("Manager", { role: "MANAGER" });
-      await grantAccess(manager.membership!.id, clientId, projectId);
+      await seedProject(admin.user.id, "Other");
+      const guest = await signInAs("Guest", { role: "GUEST" });
+      await grantAccess(guest.membership!.id, clientId, projectId);
 
-      expect((await clients.reachableIds(manager.actor!))).toEqual([clientId]);
+      expect((await clients.reachableIds(guest.actor!))).toEqual([clientId]);
     });
   });
 

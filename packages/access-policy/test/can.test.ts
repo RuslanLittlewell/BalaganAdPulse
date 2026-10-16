@@ -88,9 +88,18 @@ describe("can", () => {
       expectRow("update", "project", ["ADMIN", "MANAGER", "CLIENT", "CLIENT_ADMIN"]);
     });
 
-    it("keep their priority for admins and managers to change", () => {
-      expectRow("read", "project-priority", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"]);
-      expectRow("update", "project-priority", ["ADMIN", "MANAGER"]);
+    it("keep their documents for the agency, written by admins and managers", () => {
+      expectRow("read", "project-document", ["ADMIN", "MANAGER", "GUEST"]);
+      for (const action of ["create", "update", "delete"] as const) {
+        expectRow(action, "project-document", ["ADMIN", "MANAGER"]);
+      }
+    });
+
+    it("show everyone the summary that admins and managers choose for them", () => {
+      expectRow("read", "project-summary", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"]);
+      expectRow("update", "project-summary", ["ADMIN", "MANAGER"]);
+      expectRow("create", "project-summary", []);
+      expectRow("delete", "project-summary", []);
     });
 
     it("are deleted by an admin alone", () => {
@@ -124,6 +133,13 @@ describe("can", () => {
       expectRow("read", "kpi", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"]);
       for (const action of ["create", "update", "delete"] as const) {
         expectRow(action, "kpi", ["ADMIN", "MANAGER"]);
+      }
+    });
+
+    it("let everyone read monthly reports and only admins and managers write them", () => {
+      expectRow("read", "report", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"]);
+      for (const action of ["create", "update", "delete"] as const) {
+        expectRow(action, "report", ["ADMIN", "MANAGER"]);
       }
     });
   });
@@ -235,7 +251,7 @@ describe("the customer's principal", () => {
   });
 
   it("writes none of the agency's clients, campaigns or organization, and deletes no project", () => {
-    for (const resource of ["client", "campaign", "organization", "integration", "kpi", "project-priority"] as const) {
+    for (const resource of ["client", "campaign", "organization", "integration", "kpi", "project-summary", "report"] as const) {
       for (const action of ["create", "update", "delete"] as const) {
         expect(
           can(actor("CLIENT_ADMIN"), action, resource),

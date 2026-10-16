@@ -25,11 +25,6 @@ beforeEach(() => {
     }),
     mock.get("/api/projects", () => HttpResponse.json([aProject({ id: "project-1", name: "Летний запуск" })])),
     mock.get("/api/members", () => HttpResponse.json(members)),
-    mock.get("/api/campaigns/names", () => HttpResponse.json([
-      { id: "camp-1", projectId: "project-1", name: "Поиск / Москва", channel: "YANDEX" },
-      { id: "camp-2", projectId: "project-1", name: "Лента", channel: "META" },
-      { id: "camp-9", projectId: "project-2", name: "Их кампания", channel: "VK" },
-    ])),
   );
 });
 
@@ -48,7 +43,7 @@ describe("TaskFormDialog", () => {
     await openAssign();
     await openAssign();
     expect(await screen.findByLabelText("Проект")).toBeInTheDocument();
-    expect(screen.getByLabelText("Ответственный")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Участники" })).toBeInTheDocument();
   });
 
   it("refuses a blank title and sends nothing", async () => {
@@ -68,11 +63,39 @@ describe("TaskFormDialog", () => {
     expect(await screen.findByRole("option", { name: "Летний запуск" })).toBeInTheDocument();
   });
 
-  it("lists the members who can be made responsible", async () => {
+  it("lists the members who can be named", async () => {
     setup();
     await openAssign();
-    await userEvent.click(await screen.findByLabelText("Ответственный"));
-    expect(await screen.findByRole("option", { name: "Пётр" })).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("button", { name: "Участники" }));
+    expect(await screen.findByRole("menuitemcheckbox", { name: "Пётр" })).toBeInTheDocument();
+  });
+
+  const withSuspended = () => server.use(mock.get("/api/members", () => HttpResponse.json([
+    ...members,
+    { ...members[0], id: "member-2", name: "Анна", role: "ADMIN" },
+    { ...members[0], id: "member-3", name: "Ушедший", status: "SUSPENDED" },
+  ])));
+
+  it("offers employees and admins but no suspended member", async () => {
+    withSuspended();
+    setup();
+    await openAssign();
+    await userEvent.click(await screen.findByRole("button", { name: "Участники" }));
+
+    expect(await screen.findByRole("menuitemcheckbox", { name: "Пётр" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitemcheckbox", { name: "Анна" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitemcheckbox", { name: "Ушедший" })).toBeNull();
+  });
+
+  it("still shows a suspended member a task already names", async () => {
+    withSuspended();
+    renderWithProviders(
+      <TaskFormDialog task={aTask({ participantIds: ["member-3"] })} onClose={() => {}} />,
+      { route: "/tasks" },
+    );
+    await openAssign();
+
+    expect(await screen.findByRole("button", { name: "Участники" })).toHaveTextContent("Ушедший");
   });
 
   it("offers the four priorities, defaulting to the middle one", async () => {
@@ -96,8 +119,8 @@ describe("TaskFormDialog", () => {
       <TaskFormDialog
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "Написать бриф",
-          description, column: "IDEA", priority: "HIGH", assigneeId: "member-1",
-          createdById: "member-1", campaignId: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds: ["image-1", "image-2"],
+          description, column: "IDEA", priority: "HIGH", participantIds: ["member-1"],
+          createdById: "member-1", visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, repeatEvery: "NONE", checklist: [], imageIds: ["image-1", "image-2"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -125,8 +148,7 @@ describe("TaskFormDialog", () => {
       <TaskFormDialog
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлами",
-          description: null, column: "IDEA", priority: "LOW", assigneeId: null,
-          createdById: null, campaignId: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds: ["image-1", "image-2"],
+          description: null, column: "IDEA", priority: "LOW",           createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", checklist: [], imageIds: ["image-1", "image-2"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -145,8 +167,7 @@ describe("TaskFormDialog", () => {
       <TaskFormDialog
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "Без файлов",
-          description: null, column: "IDEA", priority: "LOW", assigneeId: null,
-          createdById: null, campaignId: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds: [],
+          description: null, column: "IDEA", priority: "LOW",           createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", checklist: [], imageIds: [],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -163,14 +184,6 @@ describe("TaskFormDialog", () => {
     const body = screen.getByTestId("task-form-body");
     const save = screen.getByRole("button", { name: "Создать задачу" });
     expect(body).not.toContainElement(save);
-  });
-
-  it("lets the description take the room the dialog leaves over", async () => {
-    setup();
-    await screen.findByLabelText("Название");
-
-    const editor = screen.getByTestId("task-description-editor").closest("div[class*=flex-1]");
-    expect(editor).not.toBeNull();
   });
 
   it("reports a refusal from the API without closing", async () => {
@@ -279,10 +292,10 @@ describe("pictures in the selects", () => {
     setup();
 
     await openAssign();
-    await userEvent.click(await screen.findByLabelText("Ответственный"));
+    await userEvent.click(await screen.findByRole("button", { name: "Участники" }));
 
-    const option = await screen.findByRole("option", { name: /Пётр/ });
-    expect(within(option).getByRole("img", { name: "Пётр" }))
+    const option = await screen.findByRole("menuitemcheckbox", { name: /Пётр/ });
+    expect(within(option).getByRole("img", { name: "Пётр", hidden: true }))
       .toHaveAttribute("src", "/api/members/member-1/avatar");
   });
 
@@ -291,26 +304,33 @@ describe("pictures in the selects", () => {
     setup();
 
     await openAssign();
-    await userEvent.click(await screen.findByLabelText("Ответственный"));
+    await userEvent.click(await screen.findByRole("button", { name: "Участники" }));
 
-    const option = await screen.findByRole("option", { name: /Анна/ });
+    const option = await screen.findByRole("menuitemcheckbox", { name: /Анна/ });
     expect(within(option).queryByRole("img")).not.toBeInTheDocument();
     expect(option).toHaveTextContent("А");
   });
 });
 
 describe("the dialog's shape", () => {
-  it("puts the assignment's selects on one row", async () => {
+  it("puts the priority select in the dialog header, not the scrollable body", async () => {
     setup();
     await screen.findByLabelText("Название");
-    expect(screen.getByTestId("task-form-selects"))
-      .toContainElement(screen.getByLabelText("Приоритет"));
+    const priority = screen.getByLabelText("Приоритет");
+
+    expect(screen.getByTestId("task-form-body")).not.toContainElement(priority);
+    expect(screen.getByRole("heading", { name: "Новая задача" }).parentElement)
+      .toContainElement(priority);
+  });
+
+  it("keeps the project and the participants in the assignment block", async () => {
+    setup();
+    await screen.findByLabelText("Название");
 
     await openAssign();
     const block = screen.getByTestId("task-block-assign");
-    for (const label of ["Проект", "Кампания", "Ответственный"]) {
-      expect(block).toContainElement(await screen.findByLabelText(label));
-    }
+    expect(block).toContainElement(await screen.findByLabelText("Проект"));
+    expect(block).toContainElement(screen.getByRole("button", { name: "Участники" }));
   });
 });
 
@@ -336,7 +356,7 @@ describe("creating into a chosen column", () => {
     expect(body).toMatchObject({ column: "IN_REVIEW", title: "Проверить креативы" });
   });
 
-  it("sends no column when it was opened from the page header", async () => {
+  it("sends Идея when it was opened from the page header", async () => {
     const user = userEvent.setup();
     let body: Record<string, unknown> | null = null;
     server.use(mock.post("/api/tasks", async ({ request }) => {
@@ -352,7 +372,120 @@ describe("creating into a chosen column", () => {
     await user.click(screen.getByRole("button", { name: "Создать задачу" }));
 
     await waitFor(() => expect(body).not.toBeNull());
-    expect(body).not.toHaveProperty("column");
+    expect(body).toMatchObject({ column: "IDEA" });
+  });
+});
+
+describe("a new task given a project and participants", () => {
+  const raise = () => renderWithProviders(
+    <TaskFormDialog projectId="project-1" participantIds={["member-1"]} onClose={() => {}} />,
+    { route: "/projects/project-1" },
+  );
+
+  it("opens with both named in the assignment block, which the row no longer offers", async () => {
+    raise();
+
+    await waitFor(() => expect(screen.getByLabelText("Проект")).toHaveTextContent("Летний запуск"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Участники" })).toHaveTextContent("Пётр"));
+    expect(screen.queryByRole("button", { name: "Назначить" })).toBeNull();
+  });
+
+  it("sends both with the task", async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | null = null;
+    server.use(mock.post("/api/tasks", async ({ request }) => {
+      body = await request.json() as Record<string, unknown>;
+      return HttpResponse.json({}, { status: 201 });
+    }));
+    raise();
+
+    await user.type(await screen.findByLabelText("Название"), "Собрать отчёт");
+    await user.click(screen.getByRole("button", { name: "Создать задачу" }));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ title: "Собрать отчёт", projectId: "project-1", participantIds: ["member-1"] });
+  });
+
+  it("does not override the task being edited", async () => {
+    renderWithProviders(
+      <TaskFormDialog task={aTask({ projectId: null })} projectId="project-1" participantIds={["member-1"]} onClose={() => {}} />,
+      { route: "/tasks" },
+    );
+
+    expect(await screen.findByRole("button", { name: "Назначить" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Проект")).toBeNull();
+  });
+});
+
+describe("a new task's participants", () => {
+  const me = { ...members[0], id: "member-me", userId: "user-1", name: "Я сам" };
+  const signedInAmongStaff = () => server.use(mock.get("/api/members", () => HttpResponse.json([...members, me])));
+
+  it("starts with the member filling in the form, shown in the assignment block", async () => {
+    signedInAmongStaff();
+    setup();
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Участники" })).toHaveTextContent("Я сам"));
+    expect(screen.queryByRole("button", { name: "Назначить" })).toBeNull();
+  });
+
+  it("is sent as chosen when nobody touched it", async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | null = null;
+    server.use(mock.post("/api/tasks", async ({ request }) => {
+      body = await request.json() as Record<string, unknown>;
+      return HttpResponse.json({}, { status: 201 });
+    }));
+    signedInAmongStaff();
+    setup();
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Участники" })).toHaveTextContent("Я сам"));
+    await user.type(screen.getByLabelText("Название"), "Собрать отчёт");
+    await user.click(screen.getByRole("button", { name: "Создать задачу" }));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ participantIds: ["member-me"], projectId: null });
+  });
+
+  it("can be cleared by removing the assignment block", async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | null = null;
+    server.use(mock.post("/api/tasks", async ({ request }) => {
+      body = await request.json() as Record<string, unknown>;
+      return HttpResponse.json({}, { status: 201 });
+    }));
+    signedInAmongStaff();
+    setup();
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Участники" })).toHaveTextContent("Я сам"));
+    await user.click(screen.getByRole("button", { name: "Убрать назначение" }));
+    await user.type(screen.getByLabelText("Название"), "Ничья");
+    await user.click(screen.getByRole("button", { name: "Создать задачу" }));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ participantIds: [] });
+  });
+
+  it("yields to the participants the form was opened for", async () => {
+    signedInAmongStaff();
+    renderWithProviders(<TaskFormDialog participantIds={["member-1"]} onClose={() => {}} />, { route: "/tasks" });
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Участники" })).toHaveTextContent("Пётр"));
+  });
+
+  it("starts bare for a member the picker does not offer", async () => {
+    setup();
+
+    expect(await screen.findByRole("button", { name: "Назначить" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Участники" })).toBeNull();
+  });
+
+  it("does not change the task being edited", async () => {
+    signedInAmongStaff();
+    renderWithProviders(<TaskFormDialog task={aTask({ projectId: null })} onClose={() => {}} />, { route: "/tasks" });
+
+    expect(await screen.findByRole("button", { name: "Назначить" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Участники" })).toBeNull();
   });
 });
 
@@ -367,7 +500,7 @@ describe("the dialog's controls", () => {
     await user.type(await screen.findByLabelText("Название"), "Передумал");
     await user.click(screen.getByRole("button", { name: "Отмена" }));
 
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(posted).toBe(false);
   });
 
@@ -410,8 +543,7 @@ describe("attachments", () => {
     <TaskFormDialog
       task={{
         id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлами",
-        description: null, column: "IDEA", priority: "LOW", assigneeId: null,
-        createdById: null, campaignId: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds,
+        description: null, column: "IDEA", priority: "LOW",         createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", checklist: [], imageIds,
         createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
       }}
       onClose={() => {}}
@@ -505,8 +637,7 @@ describe("a freshly pasted image", () => {
       <TaskFormDialog
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлами",
-          description: null, column: "IDEA", priority: "LOW", assigneeId: null,
-          createdById: null, campaignId: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds: ["image-1"],
+          description: null, column: "IDEA", priority: "LOW",           createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", checklist: [], imageIds: ["image-1"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -559,7 +690,7 @@ describe("removing an attachment reaches the description", () => {
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлом",
           description: described("image-1"), column: "IDEA", priority: "LOW",
-          assigneeId: null, createdById: null, campaignId: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds: ["image-1"],
+          createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", checklist: [], imageIds: ["image-1"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -591,7 +722,7 @@ describe("removing an attachment reaches the description", () => {
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлом",
           description: described("image-1"), column: "IDEA", priority: "LOW",
-          assigneeId: null, createdById: null, campaignId: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, repeatEvery: "NONE", checklist: [], imageIds: ["image-1"],
+          createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", checklist: [], imageIds: ["image-1"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -607,122 +738,6 @@ describe("removing an attachment reaches the description", () => {
     await waitFor(() => expect(saved).not.toBeNull());
     expect(JSON.stringify(saved!.description)).not.toContain("image-1");
     expect(JSON.stringify(saved!.description)).toContain("после");
-  });
-});
-
-describe("the campaign a task is about", () => {
-  const chooseProject = async (user: ReturnType<typeof userEvent.setup>, name = "Летний запуск") => {
-    await openAssign();
-    await user.click(await screen.findByLabelText("Проект"));
-    await user.click(await screen.findByRole("option", { name }));
-  };
-
-  const openCampaign = async (_user: ReturnType<typeof userEvent.setup>) => {
-    await openAssign();
-  };
-
-  it("offers no campaign select until the assignment is added", async () => {
-    const user = userEvent.setup();
-    setup();
-    await screen.findByLabelText("Название");
-
-    expect(screen.queryByLabelText("Кампания")).not.toBeInTheDocument();
-
-    await openCampaign(user);
-
-    expect(await screen.findByLabelText("Кампания")).toBeInTheDocument();
-  });
-
-  it("starts on Общий, the project as a whole", async () => {
-    const user = userEvent.setup();
-    setup();
-    await screen.findByLabelText("Название");
-    await chooseProject(user);
-    await openCampaign(user);
-
-    expect(await screen.findByLabelText("Кампания")).toHaveTextContent("Общий");
-  });
-
-  it("lists the chosen project's campaigns, with Общий among them", async () => {
-    const user = userEvent.setup();
-    setup();
-    await screen.findByLabelText("Название");
-    await chooseProject(user);
-    await openCampaign(user);
-
-    await user.click(await screen.findByLabelText("Кампания"));
-
-    expect(await screen.findByRole("option", { name: "Общий" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: /Поиск \/ Москва/ })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: /Лента/ })).toBeInTheDocument();
-  });
-
-  it("sends the chosen campaign", async () => {
-    const user = userEvent.setup();
-    let body: Record<string, unknown> | null = null;
-    server.use(mock.post("/api/tasks", async ({ request }) => {
-      body = await request.json() as Record<string, unknown>;
-      return HttpResponse.json({ id: "t1" }, { status: 201 });
-    }));
-    setup();
-
-    await user.type(await screen.findByLabelText("Название"), "Переписать объявления");
-    await chooseProject(user);
-    await openCampaign(user);
-    await user.click(await screen.findByLabelText("Кампания"));
-    await user.click(await screen.findByRole("option", { name: /Поиск \/ Москва/ }));
-    await user.click(screen.getByRole("button", { name: "Создать задачу" }));
-
-    await waitFor(() => expect(body).not.toBeNull());
-    expect(body).toMatchObject({ campaignId: "camp-1" });
-  });
-
-  it("sends no campaign when Общий is left in place", async () => {
-    const user = userEvent.setup();
-    let body: Record<string, unknown> | null = null;
-    server.use(mock.post("/api/tasks", async ({ request }) => {
-      body = await request.json() as Record<string, unknown>;
-      return HttpResponse.json({ id: "t1" }, { status: 201 });
-    }));
-    setup();
-
-    await user.type(await screen.findByLabelText("Название"), "Согласовать бюджет");
-    await chooseProject(user);
-    await openCampaign(user);
-    await user.click(screen.getByRole("button", { name: "Создать задачу" }));
-
-    await waitFor(() => expect(body).not.toBeNull());
-    expect(body!.campaignId).toBeNull();
-  });
-
-  it("returns to Общий when the project changes", async () => {
-    const user = userEvent.setup();
-    server.use(mock.get("/api/projects", () => HttpResponse.json([
-      aProject({ id: "project-1", name: "Летний запуск" }),
-      aProject({ id: "project-2", name: "Осенний запуск" }),
-    ])));
-    setup();
-    await screen.findByLabelText("Название");
-    await chooseProject(user);
-    await openCampaign(user);
-    await user.click(await screen.findByLabelText("Кампания"));
-    await user.click(await screen.findByRole("option", { name: /Поиск \/ Москва/ }));
-    expect(screen.getByLabelText("Кампания")).toHaveTextContent("Поиск / Москва");
-
-    await chooseProject(user, "Осенний запуск");
-
-    expect(await screen.findByLabelText("Кампания")).toHaveTextContent("Общий");
-  });
-
-  it("opens an existing task on the campaign it names", async () => {
-    setup();
-    const task = aTask({ id: "t1", projectId: "project-1", campaignId: "camp-2" });
-    renderWithProviders(<TaskFormDialog task={task} onClose={() => {}} />, { route: "/tasks" });
-
-    expect(await screen.findAllByLabelText("Кампания")).not.toHaveLength(0);
-    await waitFor(() => {
-      expect(screen.getAllByLabelText("Кампания").at(-1)).toHaveTextContent("Лента");
-    });
   });
 });
 

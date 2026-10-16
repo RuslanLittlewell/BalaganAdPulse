@@ -22,6 +22,7 @@ function asAdmin() {
     organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
     role: "ADMIN",
     clientIds: [],
+    modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"],
   })));
 }
 
@@ -36,16 +37,17 @@ describe("MainNav", () => {
     expect(screen.queryByRole("link", { name: "Команда" })).not.toBeInTheDocument();
   });
 
-  it("lists the six modules, in order", () => {
+  it("lists the six modules, in order", async () => {
     setup();
     const nav = screen.getByRole("navigation", { name: "Разделы" });
-    expect(within(nav).getAllByRole("link").map((link) => link.textContent)).toEqual(MODULES);
+    await waitFor(() =>
+      expect(within(nav).getAllByRole("link").map((link) => link.textContent)).toEqual(MODULES));
   });
 
-  it("marks the module the visitor is in", () => {
+  it("marks the module the visitor is in", async () => {
     setup("/projects/1/campaigns/2");
     expect(screen.getByRole("link", { name: "Проекты" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: "Задачи" })).not.toHaveAttribute("aria-current");
+    expect(await screen.findByRole("link", { name: "Задачи" })).not.toHaveAttribute("aria-current");
   });
 
   it("does not mark the dashboard on every route, though it sits at the root", () => {
@@ -58,9 +60,26 @@ describe("MainNav", () => {
     expect(screen.getByRole("link", { name: "Дашборд" })).toHaveAttribute("aria-current", "page");
   });
 
+  it("offers only dashboard, projects and the modules the organization has", async () => {
+    server.use(mock.get("/api/auth/me", () => HttpResponse.json({
+      user: { id: "u1", name: "Админ", email: "a@acme.com", image: null },
+      platformAdmin: false,
+      organization: { id: "org-1", name: "AdPulse", slug: "adpulse", status: "ACTIVE" },
+      role: "ADMIN",
+      clientIds: [],
+      modules: ["DASHBOARD", "PROJECTS", "REPORTS"],
+    })));
+    setup();
+
+    const nav = screen.getByRole("navigation", { name: "Разделы" });
+    await screen.findByRole("link", { name: "Отчёты" });
+    expect(within(nav).getAllByRole("link").map((link) => link.textContent))
+      .toEqual(["Дашборд", "Проекты", "Отчёты", "Архив"]);
+  });
+
   it("navigates to a module", async () => {
     setup();
-    await userEvent.click(screen.getByRole("link", { name: "Отчёты" }));
+    await userEvent.click(await screen.findByRole("link", { name: "Отчёты" }));
     expect(screen.getByRole("link", { name: "Отчёты" })).toHaveAttribute("aria-current", "page");
   });
 

@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
   TextField,
+  useAlerts,
 } from "@/shared/ui/index.js";
 import { ApiError } from "@/shared/lib/index.js";
 import {
@@ -51,11 +52,10 @@ export function ProfileSettingsDialog({ open, onClose, onAvatarSaved }: Props) {
   });
   const [options, setOptions] = useState<AvatarOptions>(randomAvatarOptions);
   const [editorOpen, setEditorOpen] = useState(false);
-  const [message, setMessage] = useState("");
+  const { raise } = useAlerts();
 
   useEffect(() => {
     if (!open) return;
-    setMessage("");
     void loadProfile()
       .then((profile) => {
         reset({
@@ -67,12 +67,11 @@ export function ProfileSettingsDialog({ open, onClose, onAvatarSaved }: Props) {
         });
         setOptions(parseAvatarPath(profile.avatarPath));
       })
-      .catch(() => setMessage(t("profile.loadFailed")));
-  }, [open, loadProfile, reset]);
+      .catch(() => raise(t("profile.loadFailed")));
+  }, [open, loadProfile, reset, raise]);
 
   const submit = handleSubmit(
     async ({ name, phone, telegram, currentPassword, newPassword }) => {
-      setMessage("");
       try {
         await updateProfile({
           name,
@@ -81,11 +80,9 @@ export function ProfileSettingsDialog({ open, onClose, onAvatarSaved }: Props) {
           ...(newPassword ? { currentPassword, newPassword } : {}),
         });
         reset({ name, phone, telegram, currentPassword: "", newPassword: "" });
-        setMessage(t("profile.saved"));
+        raise(t("profile.saved"), "success");
       } catch (error) {
-        setMessage(
-          error instanceof ApiError ? error.message : t("profile.saveFailed"),
-        );
+        raise(error instanceof ApiError ? error.message : t("profile.saveFailed"));
       }
     },
   );
@@ -105,7 +102,7 @@ export function ProfileSettingsDialog({ open, onClose, onAvatarSaved }: Props) {
           if (!next) onClose();
         }}
       >
-        <DialogContent className="w-[min(760px,calc(100vw-2rem))] max-w-none">
+        <DialogContent className="w-[min(760px,calc(100vw-2rem))] max-w-none h-auto">
           <DialogHeader>
             <DialogTitle>{t("profile.title")}</DialogTitle>
           </DialogHeader>
@@ -116,7 +113,7 @@ export function ProfileSettingsDialog({ open, onClose, onAvatarSaved }: Props) {
           >
             <div className="grid gap-6 sm:grid-cols-[180px_minmax(0,1fr)]">
               <div className="flex flex-col items-center gap-3 sm:border-r sm:border-border sm:pr-6">
-                <div className="w-32 sm:w-full [&>img]:aspect-square [&>img]:w-full [&>img]:rounded-full [&>img]:bg-muted">
+                <div className="w-32 sm:w-full [&>img]:aspect-square [&>img]:w-full [&>img]:rounded-full">
                   <AvatarPreview options={options} />
                 </div>
                 <strong className="text-sm">{t("profile.avatar")}</strong>
@@ -167,11 +164,6 @@ export function ProfileSettingsDialog({ open, onClose, onAvatarSaved }: Props) {
                 <p className="-mt-2 text-xs text-muted-foreground">
                   {t("profile.passwordHint")}
                 </p>
-                {message && (
-                  <p className="text-sm text-foreground" role="status">
-                    {message}
-                  </p>
-                )}
               </div>
             </div>
             <DialogFooter>

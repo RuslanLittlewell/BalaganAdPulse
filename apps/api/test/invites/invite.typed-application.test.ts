@@ -107,6 +107,7 @@ function fixture(options: {
         grants.push({ membershipId, clientId });
       },
     },
+    organizations: { isActive: async () => true },
     projects: {
       allBelongToOrg: async (_orgId: string, projectIds: readonly string[]) =>
         projectIds.every((projectId) => (options.ownedProjectIds ?? ["project-1"]).includes(projectId)),
@@ -203,13 +204,43 @@ describe("typed invitation creation", () => {
     expect(invites.size).toBe(0);
   });
 
-  it("requires an employee role and at least one organization-owned project", async () => {
+  it("requires an employee role and organization-owned projects", async () => {
     const { useCases, invites } = fixture({ ownedProjectIds: ["project-1"] });
     await expect(useCases.create(admin, {
-      registrationType: "EMPLOYEE", role: "MANAGER", projectIds: [],
+      registrationType: "EMPLOYEE", role: "GUEST", projectIds: [],
     } as never)).rejects.toMatchObject({ category: "validation" });
     await expect(useCases.create(admin, {
       registrationType: "EMPLOYEE", role: "MANAGER", projectIds: ["other-project"],
+    } as never)).rejects.toMatchObject({ category: "validation" });
+    expect(invites.size).toBe(0);
+  });
+
+  it("requires projects from a guest invitation, however it names them", async () => {
+    const { useCases, invites } = fixture({ ownedProjectIds: ["project-1"] });
+    for (const projectIds of [undefined, []]) {
+      await expect(useCases.create(admin, {
+        registrationType: "EMPLOYEE", role: "GUEST", projectIds,
+      } as never)).rejects.toMatchObject({ category: "validation" });
+    }
+    expect(invites.size).toBe(0);
+  });
+
+  it("stores a manager invitation without projects", async () => {
+    const { useCases } = fixture({ ownedProjectIds: ["project-1"] });
+    const invite = await useCases.create(admin, { registrationType: "EMPLOYEE", role: "MANAGER" } as never);
+    expect(invite).toMatchObject({ role: "MANAGER", projectIds: [] });
+  });
+
+  it("stores an admin invitation without projects", async () => {
+    const { useCases } = fixture({ ownedProjectIds: ["project-1"] });
+    const invite = await useCases.create(admin, { registrationType: "EMPLOYEE", role: "ADMIN" } as never);
+    expect(invite).toMatchObject({ role: "ADMIN", projectIds: [] });
+  });
+
+  it("refuses an admin invitation that names projects", async () => {
+    const { useCases, invites } = fixture({ ownedProjectIds: ["project-1"] });
+    await expect(useCases.create(admin, {
+      registrationType: "EMPLOYEE", role: "ADMIN", projectIds: ["project-1"],
     } as never)).rejects.toMatchObject({ category: "validation" });
     expect(invites.size).toBe(0);
   });
@@ -237,10 +268,13 @@ describe("typed invitation creation", () => {
 });
 
 describe("public invitation resolution", () => {
-  it("returns only the registration type for a pending invitation", async () => {
-    const { useCases } = fixture({ seed: [employeeInvite()] });
-    await expect((useCases as never as { resolve(code: string): Promise<unknown> }).resolve("EXISTING"))
-      .resolves.toEqual({ registrationType: "EMPLOYEE" });
+  it("returns the registration type and the bound address of a pending invitation", async () => {
+    const bound = employeeInvite({ id: "bound", code: "BOUNDONE", email: "owner@acme.com" });
+    const { useCases } = fixture({ seed: [employeeInvite(), bound] });
+    await expect(useCases.resolve("EXISTING"))
+      .resolves.toEqual({ registrationType: "EMPLOYEE", email: null });
+    await expect(useCases.resolve("BOUNDONE"))
+      .resolves.toEqual({ registrationType: "EMPLOYEE", email: "owner@acme.com" });
   });
 
   it.each([
@@ -260,6 +294,15 @@ describe("employee invitation redemption", () => {
     const { useCases, transaction, grants } = fixture({ seed: [employeeInvite()] });
     await useCases.redeem(transaction, "EXISTING", "new@acme.com", "user-new", NOW);
     expect(grants).toEqual([{ membershipId: "membership-new", projectIds: ["project-1"] }]);
+  });
+
+  it("enrols a manager invited without projects and grants nothing", async () => {
+    const { useCases, transaction, grants, invites } = fixture({
+      seed: [employeeInvite({ role: "MANAGER", projectIds: [] })],
+    });
+    await useCases.redeem(transaction, "EXISTING", "new@acme.com", "user-new", NOW);
+    expect(grants.flatMap((grant) => grant.projectIds ?? [])).toEqual([]);
+    expect(invites.get("invite-existing")?.usedById).toBe("user-new");
   });
 
   it("rolls membership, grants and claim back when a project grant fails", async () => {
@@ -306,7 +349,7 @@ function clientInvite(overrides: Partial<Invite> = {}): Invite {
 
 const CLIENT_REGISTRATION = {
   client: { name: "Клиника", organization: "ООО Клиника", phone: "+375291112233" },
-  project: { name: "Стоматология", niche: "Медицина" },
+  project: { name: "Стоматология" },
 };
 
 describe("redeeming a client invitation", () => {

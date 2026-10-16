@@ -7,7 +7,7 @@ export class PrismaOrganizationDirectory implements OrganizationDirectory {
   findById(orgId: string) {
     return this.prisma.organization.findUnique({
       where: { id: orgId },
-      select: { id: true, name: true, slug: true },
+      select: { id: true, name: true, slug: true, status: true, modules: true },
     });
   }
 }

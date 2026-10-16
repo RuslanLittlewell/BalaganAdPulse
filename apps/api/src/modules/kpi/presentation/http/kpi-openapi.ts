@@ -9,7 +9,7 @@ const level = (path: string, name: string, errors: { read: number[]; write: numb
 
 export const kpiDoc: RouteDoc = {
   tag: 'KPI',
-  tagDescription: 'One goal per organization, project and campaign: a metric and a positive target with four decimals. Summable metrics hold a monthly target; ratios hold the target value.',
+  tagDescription: 'One goal per organization, project and campaign: a metric and a positive target with four decimals. Summable metrics hold a monthly target; ratios hold the target value. A project may instead hold a goal set by hand, metric MANUAL with a name and a value of its own, compared with the target as it is.',
   operations: [
     ...level('/organization/kpi', 'organization', { read: [403], write: [403] }),
     ...level('/projects/:id/kpi', 'project', { read: [404], write: [403, 404] }),

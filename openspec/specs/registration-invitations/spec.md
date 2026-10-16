@@ -7,11 +7,29 @@ Registration invitations are backend-owned, typed, short-lived onboarding capabi
 
 ### Requirement: Every invitation has a registration type
 
-An invitation SHALL have exactly one registration type: `CLIENT` or `EMPLOYEE`. An employee invitation SHALL carry one of the employee roles `ADMIN`, `MANAGER`, or `GUEST` and one or more project identifiers; a client invitation SHALL carry neither.
+An invitation SHALL have exactly one registration type: `CLIENT` or `EMPLOYEE`. An employee invitation SHALL carry one of the employee roles `ADMIN`, `MANAGER`, or `GUEST`. A `GUEST` invitation SHALL carry one or more project identifiers. A `MANAGER` invitation MAY carry project identifiers or none; a manager enrolled without projects reaches nothing until they create a client or a project, or are granted one. An `ADMIN` invitation SHALL carry none, since an admin reaches the whole organization. A client invitation SHALL carry neither a role nor projects.
+
+The invitation dialog SHALL offer the project picker only while the chosen role is a manager or a guest, SHALL demand at least one project only for a guest, and SHALL send an admin invitation without projects.
 
 #### Scenario: Valid employee invitation input
-- **WHEN** an authorized actor creates an `EMPLOYEE` invitation with a valid role and projects in their organization
+- **WHEN** an authorized actor creates a `MANAGER` or `GUEST` invitation with projects in their organization
 - **THEN** the invitation is stored with that role and those projects
+
+#### Scenario: Admin invitation without projects
+- **WHEN** an admin creates an `ADMIN` invitation naming no projects
+- **THEN** the invitation is stored with the admin role and no projects, and redeeming it enrols an admin holding no access grants
+
+#### Scenario: Admin invitation naming projects
+- **WHEN** a caller creates an `ADMIN` invitation with project identifiers
+- **THEN** the API responds 400 and stores no invitation
+
+#### Scenario: Manager invitation without projects
+- **WHEN** an admin creates a `MANAGER` invitation naming no projects
+- **THEN** the invitation is stored with the manager role and no projects, and redeeming it enrols a manager of the admin's organization holding no access grants
+
+#### Scenario: Manager or guest invitation without projects
+- **WHEN** a caller creates a `GUEST` invitation naming no projects
+- **THEN** the API responds 400 and stores no invitation, while a `MANAGER` invitation naming no projects is stored
 
 #### Scenario: Employee project from another organization
 - **WHEN** an actor includes a project outside their organization
@@ -24,6 +42,18 @@ An invitation SHALL have exactly one registration type: `CLIENT` or `EMPLOYEE`. 
 #### Scenario: Employee invitation requests the client role
 - **WHEN** a caller creates an `EMPLOYEE` invitation with role `CLIENT`
 - **THEN** the API responds 400 and stores no invitation
+
+#### Scenario: The dialog for an admin
+- **WHEN** an admin chooses Администратор in the employee invitation dialog and creates the invitation
+- **THEN** no project picker is shown, no project is demanded, and the request names no projects
+
+#### Scenario: The dialog for a manager without projects
+- **WHEN** an admin chooses Менеджер in the employee invitation dialog, chooses no project and creates the invitation
+- **THEN** no project is demanded and the request names no projects
+
+#### Scenario: The dialog for a guest without projects
+- **WHEN** an admin chooses Гость in the employee invitation dialog, chooses no project and creates the invitation
+- **THEN** the dialog says a project must be chosen and sends no request
 
 ### Requirement: The backend generates short invitation links
 
@@ -39,15 +69,19 @@ The backend SHALL generate each invitation code as eight cryptographically rando
 
 ### Requirement: Public resolution selects the registration form
 
-The API SHALL expose an unauthenticated lookup by invitation code that returns only the valid pending invitation's registration type. It SHALL NOT expose organization, role, projects, creator, recipient, or status details.
+The API SHALL expose an unauthenticated lookup by invitation code that returns the valid pending invitation's registration type and the email address it is bound to, or `null` when it is bound to none. It SHALL NOT expose organization, role, projects, creator, or status details.
 
 #### Scenario: Resolving a client link
-- **WHEN** a visitor resolves a valid pending client invitation code
-- **THEN** the API returns `{ "registrationType": "CLIENT" }`
+- **WHEN** a visitor resolves a valid pending client invitation code bound to no address
+- **THEN** the API returns `{ "registrationType": "CLIENT", "email": null }`
 
 #### Scenario: Resolving an employee link
-- **WHEN** a visitor resolves a valid pending employee invitation code
-- **THEN** the API returns `{ "registrationType": "EMPLOYEE" }`
+- **WHEN** a visitor resolves a valid pending employee invitation code bound to no address
+- **THEN** the API returns `{ "registrationType": "EMPLOYEE", "email": null }`
+
+#### Scenario: Resolving a link bound to an address
+- **WHEN** a visitor resolves a valid pending invitation code bound to `owner@acme.com`
+- **THEN** the API returns its registration type and `"email": "owner@acme.com"`
 
 #### Scenario: Probing unusable codes
 - **WHEN** a visitor resolves an unknown, revoked, used, or expired code
@@ -148,9 +182,11 @@ The page SHALL be reachable without a session, since whoever follows the link ha
 
 ### Requirement: The employee form collects an account and an avatar
 
-The employee form SHALL collect a name, an email, a password, a confirmation of that
-password, and an avatar the visitor may either upload or generate. It SHALL refuse to
-submit when the two passwords differ, and SHALL say so against the confirmation field.
+The employee form SHALL collect a name, a password, a confirmation of that password, and
+an avatar the visitor may either upload or generate. It SHALL collect an email only when
+the invitation is bound to none; when it is bound, the form SHALL show that address as the
+account's email, not ask for one, and register with it. It SHALL refuse to submit when the
+two passwords differ, and SHALL say so against the confirmation field.
 
 Completing it SHALL create the account, redeem the invitation, and grant the projects the
 invitation named — all together, so a failure leaves no half-made member.
@@ -160,6 +196,12 @@ invitation named — all together, so a failure leaves no half-made member.
 - **WHEN** a visitor completes the employee form with matching passwords
 - **THEN** the account exists, the invitation is spent, the granted projects are reachable,
   and they are signed in
+
+#### Scenario: An invitation bound to an address
+
+- **WHEN** a visitor opens the link of an employee invitation bound to `owner@acme.com`
+- **THEN** the form shows `owner@acme.com`, offers no email field, and the account it
+  creates signs in with that address
 
 #### Scenario: Passwords that do not match
 
@@ -254,8 +296,9 @@ same reach the client's other people have — all together, or none of it.
 #### Scenario: The form the link opens
 
 - **WHEN** a visitor opens the link
-- **THEN** the joining form asks for a name, an email, a password and its confirmation,
-  and an avatar — and asks nothing about a company, which already exists
+- **THEN** the joining form asks for a name, a password and its confirmation, and an
+  avatar, and for an email only when the invitation is bound to none — and asks nothing
+  about a company, which already exists
 
 ### Requirement: A customer sees only their own client's invitations
 
@@ -274,3 +317,21 @@ their own client, and SHALL be told a stranger's invitation does not exist.
 
 - **WHEN** a `CLIENT_ADMIN` revokes an invitation belonging to another client
 - **THEN** the answer is 404
+
+### Requirement: A registration form never asks for an email the invitation fixes
+
+Whichever form a link opens — employee, client or joining — an invitation bound to an
+address SHALL have that address shown as the account's email and used to register, with
+no email field to fill in. The client form SHALL also use it as the new client's contact
+email. An invitation bound to no address SHALL keep asking for one.
+
+#### Scenario: A client invitation bound to an address
+
+- **WHEN** a visitor completes the client form of an invitation bound to `owner@acme.com`
+- **THEN** the account and the client's contact both carry `owner@acme.com`, and no email
+  was asked for
+
+#### Scenario: An unbound invitation
+
+- **WHEN** a visitor opens the link of an invitation bound to no address
+- **THEN** the form asks for an email as before

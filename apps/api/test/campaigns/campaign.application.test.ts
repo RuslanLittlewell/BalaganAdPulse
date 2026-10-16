@@ -25,9 +25,11 @@ function fixture(options: {
   adSets?: AdSet[];
   ads?: Ad[];
   reachableProjects?: string[];
+  projectKpis?: Record<string, { metric: string; target: string }>;
   campaignDays?: Record<string, MeasuredDay[]>;
   adSetDays?: Record<string, MeasuredDay[]>;
   adDays?: Record<string, MeasuredDay[]>;
+  metricReads?: string[];
 } = {}) {
   const campaigns = options.campaigns ?? [campaign()];
   const reachable = options.reachableProjects ?? ["p1"];
@@ -50,12 +52,19 @@ function fixture(options: {
     },
     creatives: { findFile: async () => null },
     creativeFiles: { read: async () => ({ body: new Uint8Array(), contentType: "image/png" }) },
-    projects: { isReachable: async (_actor, projectId) => reachable.includes(projectId) },
+    projects: {
+      isReachable: async (_actor, projectId) => reachable.includes(projectId),
+      listReachable: async () => reachable.map((id) => ({ id, kpi: options.projectKpis?.[id] ?? null })),
+    },
     metrics: {
-      recordCampaignDay: async () => undefined,
-      recordAdSetDay: async () => undefined,
-      recordAdDay: async () => undefined,
-      readCampaignRange: async (id) => options.campaignDays?.[id] ?? [],
+      readCampaignRange: async (id) => {
+        options.metricReads?.push(id);
+        return options.campaignDays?.[id] ?? [];
+      },
+      readCampaignsRange: async (ids) => {
+        options.metricReads?.push(ids.join(","));
+        return ids.flatMap((id) => (options.campaignDays?.[id] ?? []).map((entry) => ({ campaignId: id, ...entry })));
+      },
       readAdSetRange: async (id) => options.adSetDays?.[id] ?? [],
       readAdRange: async (id) => options.adDays?.[id] ?? [],
     },
@@ -150,7 +159,7 @@ describe("summarising a parent", () => {
       campaignDays: { c1: [measured({ spend: 100 })], c2: [measured({ spend: 40 })] },
     });
 
-    expect(await useCases.agencySummary(admin, range)).toMatchObject({ spend: 140 });
+    expect(await useCases.agencySummary(admin, range)).toMatchObject([{ currency: null, performance: { spend: 140 } }]);
   });
 
   it("leaves out a project the member holds no grant over", async () => {
@@ -160,12 +169,101 @@ describe("summarising a parent", () => {
       campaignDays: { c1: [measured({ spend: 100 })], c2: [measured({ spend: 40 })] },
     });
 
-    expect(await useCases.agencySummary(admin, range)).toMatchObject({ spend: 100 });
+    expect(await useCases.agencySummary(admin, range)).toMatchObject([{ currency: null, performance: { spend: 100 } }]);
   });
 
   it("summarises an empty project to zero rather than to nothing", async () => {
     const useCases = fixture({ campaigns: [] });
     expect(await useCases.projectSummary(admin, "p1", range)).toMatchObject({ spend: 0, cpa: null });
+  });
+});
+
+describe("every project at once", () => {
+  const twoProjects = (reachableProjects = ["p1", "p2", "p3"]) => fixture({
+    campaigns: [
+      campaign({ id: "c1", projectId: "p1" }),
+      campaign({ id: "c2", projectId: "p1" }),
+      campaign({ id: "c3", projectId: "p2" }),
+    ],
+    reachableProjects,
+    campaignDays: {
+      c1: [measured({ date: day("2026-08-01"), spend: 100, clicks: 10 }), measured({ date: day("2026-08-02"), spend: 50 })],
+      c2: [measured({ date: day("2026-08-02"), spend: 30, clicks: 5 })],
+      c3: [measured({ date: day("2026-08-03"), spend: 7 })],
+    },
+  });
+
+  it("gives every reachable project its totals and its days", async () => {
+    const figures = await twoProjects().projectsSummary(admin, range);
+
+    expect(figures.map((entry) => entry.projectId)).toEqual(["p1", "p2", "p3"]);
+    expect(figures[0]!.performance).toMatchObject({ spend: 180, clicks: 15, cpc: 12 });
+    expect(figures[0]!.days.map((entry) => [entry.date, entry.spend]))
+      .toEqual([[day("2026-08-01"), 100], [day("2026-08-02"), 80]]);
+    expect(figures[1]!.performance).toMatchObject({ spend: 7 });
+  });
+
+  it("lists a project with nothing measured at zero, with no days", async () => {
+    const [, , empty] = await twoProjects().projectsSummary(admin, range);
+
+    expect(empty).toEqual({ projectId: "p3", kpi: null, performance: expect.objectContaining({ spend: 0, cpc: null }), days: [] });
+  });
+
+  it("carries each project's own KPI beside its figures", async () => {
+    const useCases = fixture({
+      campaigns: [campaign({ id: "c1", projectId: "p1" }), campaign({ id: "c2", projectId: "p2", kpi: { metric: "CPA", target: "10.0000" } })],
+      reachableProjects: ["p1", "p2"],
+      projectKpis: { p1: { metric: "CONVERSIONS", target: "60.0000" } },
+    });
+
+    const figures = await useCases.projectsSummary(admin, range);
+
+    expect(figures.map((entry) => entry.kpi)).toEqual([{ metric: "CONVERSIONS", target: "60.0000" }, null]);
+  });
+
+  it("leaves out a project the member holds no grant over", async () => {
+    const figures = await twoProjects(["p2"]).projectsSummary(admin, range);
+
+    expect(figures).toEqual([expect.objectContaining({ projectId: "p2" })]);
+  });
+
+  it("carries only figures in a day, never the campaign it came from", async () => {
+    const [first] = await twoProjects().projectsSummary(admin, range);
+
+    for (const entry of first!.days) expect(entry).not.toHaveProperty("campaignId");
+  });
+
+  it("refuses a range that ends before it starts", async () => {
+    await expect(twoProjects().projectsSummary(admin, { from: day("2026-08-05"), to: day("2026-08-01") }))
+      .rejects.toMatchObject({ category: "validation" });
+  });
+
+  it("refuses a role that may not read campaigns at all", async () => {
+    await expect(twoProjects().projectsSummary({ ...customer, role: "NOBODY" as never }, range))
+      .rejects.toMatchObject({ category: "forbidden" });
+  });
+});
+
+describe("reading the days of many campaigns", () => {
+  const many = () => {
+    const metricReads: string[] = [];
+    const campaigns = ["c1", "c2", "c3", "c4"].map((id, index) =>
+      campaign({ id, projectId: index < 2 ? "p1" : "p2", channel: index % 2 ? "META" : "YANDEX" }));
+    return { metricReads, useCases: fixture({ campaigns, reachableProjects: ["p1", "p2"], metricReads }) };
+  };
+
+  it.each([
+    ["the projects summary", (useCases: ReturnType<typeof fixture>) => useCases.projectsSummary(admin, range)],
+    ["the agency summary", (useCases: ReturnType<typeof fixture>) => useCases.agencySummary(admin, range)],
+    ["the channel shares", (useCases: ReturnType<typeof fixture>) => useCases.channelSummary(admin, range)],
+    ["a project's summary", (useCases: ReturnType<typeof fixture>) => useCases.projectSummary(admin, "p1", range)],
+    ["a project's days", (useCases: ReturnType<typeof fixture>) => useCases.projectDailySeries(admin, "p1", range)],
+  ])("asks once for %s, however many campaigns it sums", async (_name, read) => {
+    const { metricReads, useCases } = many();
+
+    await read(useCases);
+
+    expect(metricReads).toHaveLength(1);
   });
 });
 
@@ -237,8 +335,8 @@ describe("the agency's channels", () => {
     const channels = await useCases.channelSummary(admin, range);
 
     expect(channels).toEqual([
-      { channel: "YANDEX", campaigns: 2, performance: expect.objectContaining({ spend: 500, cpc: 4 }) },
-      { channel: "META", campaigns: 1, performance: expect.objectContaining({ spend: 250, cpc: 5 }) },
+      { currency: null, channel: "YANDEX", campaigns: 2, performance: expect.objectContaining({ spend: 500, cpc: 4 }) },
+      { currency: null, channel: "META", campaigns: 1, performance: expect.objectContaining({ spend: 250, cpc: 5 }) },
     ]);
   });
 
@@ -259,3 +357,18 @@ describe("the agency's channels", () => {
       .toEqual(["TELEGRAM"]);
   });
 });
+
+ it("keeps currencies separate in agency and channel totals and derived costs", async () => {
+   const useCases = fixture({
+     campaigns: [campaign({ id: "c1", currency: "USD" }), campaign({ id: "c2", currency: "EUR" }), campaign({ id: "c3", currency: "USD" })],
+     campaignDays: { c1: [measured({ spend: 100, clicks: 10 })], c2: [measured({ spend: 40, clicks: 20 })], c3: [measured({ spend: 50, clicks: 5 })] },
+   });
+   expect(await useCases.agencySummary(admin, range)).toEqual([
+     { currency: "USD", performance: expect.objectContaining({ spend: 150, cpc: 10 }) },
+     { currency: "EUR", performance: expect.objectContaining({ spend: 40, cpc: 2 }) },
+   ]);
+   expect(await useCases.channelSummary(admin, range)).toEqual([
+     { currency: "EUR", channel: "YANDEX", campaigns: 1, performance: expect.objectContaining({ spend: 40, cpc: 2 }) },
+     { currency: "USD", channel: "YANDEX", campaigns: 2, performance: expect.objectContaining({ spend: 150, cpc: 10 }) },
+   ]);
+ });

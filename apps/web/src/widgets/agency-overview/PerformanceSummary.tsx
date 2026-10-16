@@ -1,69 +1,189 @@
 import { useState, type ReactNode } from "react";
-import { Plus } from "lucide-react";
 import {
-  cn, formatCount, formatCurrency, formatMultiple, formatPercent, formatRatio,
+  cn,
+  formatCount,
+  formatCurrency,
+  formatMultiple,
+  formatPercent,
+  formatRatio,
 } from "@/shared/lib/index.js";
 import type { Currency } from "@/shared/lib/index.js";
-import { EMPTY_PERFORMANCE, type Performance } from "@/entities/campaign/index.js";
+import {
+  EMPTY_PERFORMANCE,
+  type Performance,
+  type CurrencyPerformance,
+} from "@/entities/campaign/index.js";
 import type { KpiScope } from "@/entities/kpi/index.js";
-import { useAuth } from "@/features/auth/index.js";
 import { KpiTile } from "@/features/kpi-target/index.js";
 import { t } from "@/shared/config/index.js";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, MetricCard } from "@/shared/ui/index.js";
 import {
-  chosenTiles, MAX_SUMMARY_TILES, SUMMARY_TILES, useSummaryTiles, type SummaryScreen, type SummaryTile,
+  AddTile,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  MetricCard,
+  RollingNumber,
+} from "@/shared/ui/index.js";
+import {
+  chosenTiles,
+  MAX_SUMMARY_TILES,
+  SUMMARY_TILES,
+  toggledTiles,
+  type SummaryTile,
 } from "./summaryTiles.js";
 
 export interface PerformanceSummaryProps {
-  screen: SummaryScreen;
+  tiles: readonly SummaryTile[];
+  onTilesChange?: (tiles: SummaryTile[]) => void;
   range: { from: string; to: string };
   performance?: Performance;
   currency?: Currency;
+  currencyPerformances?: CurrencyPerformance[];
   kpi?: { scope: KpiScope; canEdit: boolean };
-  configurable?: boolean;
 }
 
 const LABELS: Record<SummaryTile, string> = {
-  spend: t("metric.spend"),
-  impressions: t("metric.impressions"),
-  clicks: t("metric.clicks"),
-  conversions: t("metric.conversions"),
-  cpc: t("metric.cpc"),
-  kpi: t("summary.kpi"),
+  SPEND: t("metric.spend"),
+  IMPRESSIONS: t("metric.impressions"),
+  CLICKS: t("metric.clicks"),
+  CONVERSIONS: t("metric.conversions"),
+  RESULTS: t("metric.results"),
+  CPC: t("metric.cpc"),
+  KPI: t("summary.kpi"),
 };
 
 export function PerformanceSummary({
-  screen, range, performance, currency = "RUB", kpi, configurable = true,
+  tiles,
+  onTilesChange,
+  range,
+  performance,
+  currency = "RUB",
+  currencyPerformances,
+  kpi,
 }: PerformanceSummaryProps) {
-  const figures = performance ?? EMPTY_PERFORMANCE;
-  const { user } = useAuth();
-  const layouts = useSummaryTiles((state) => state.layouts);
-  const toggleTile = useSummaryTiles((state) => state.toggleTile);
+  const groups = currencyPerformances?.length
+    ? currencyPerformances
+    : [{ currency, performance: performance ?? EMPTY_PERFORMANCE }];
+  const figures = currencyPerformances
+    ? groups.reduce(
+        (total, group) => ({
+          ...total,
+          impressions: total.impressions + group.performance.impressions,
+          reach: total.reach + group.performance.reach,
+          clicks: total.clicks + group.performance.clicks,
+          conversions: total.conversions + group.performance.conversions,
+          results: total.results + group.performance.results,
+        }),
+        { ...EMPTY_PERFORMANCE },
+      )
+    : (performance ?? EMPTY_PERFORMANCE);
+  if (currencyPerformances) {
+    figures.ctr = figures.impressions
+      ? (figures.clicks * 100) / figures.impressions
+      : null;
+    figures.frequency = figures.reach
+      ? figures.impressions / figures.reach
+      : null;
+  }
+  const monetary = (
+    format: (p: Performance, currency: Currency) => ReactNode,
+  ) => (
+    <>
+      {groups.map((group) => (
+        <div key={group.currency ?? "unknown"}>
+          {format(group.performance, group.currency)}
+        </div>
+      ))}
+    </>
+  );
   const [configuring, setConfiguring] = useState(false);
+  const configurable = onTilesChange !== undefined;
 
-  const offered = SUMMARY_TILES.filter((tile) => tile !== "kpi" || kpi !== undefined);
-  const chosen = chosenTiles(layouts, user?.id, screen, offered);
+  const offered = SUMMARY_TILES.filter(
+    (tile) => tile !== "KPI" || kpi !== undefined,
+  );
+  const chosen = chosenTiles(tiles, offered);
   const atLimit = chosen.length >= MAX_SUMMARY_TILES;
 
   const render = (tile: SummaryTile, preview = false): ReactNode => {
     switch (tile) {
-      case "spend":
-        return <MetricCard className="h-full" label={LABELS.spend} value={formatCurrency(figures.spend, currency)}
-          hint={`${t("metric.cpm")} ${formatRatio(figures.cpm, currency)}`} />;
-      case "impressions":
-        return <MetricCard className="h-full" label={LABELS.impressions} value={formatCount(figures.impressions)}
-          hint={`${t("metric.frequency")} ${formatMultiple(figures.frequency)}`} />;
-      case "clicks":
-        return <MetricCard className="h-full" label={LABELS.clicks} value={formatCount(figures.clicks)}
-          hint={`${t("metric.ctr")} ${formatPercent(figures.ctr)}`} />;
-      case "conversions":
-        return <MetricCard className="h-full" label={LABELS.conversions} value={formatCount(figures.conversions)}
-          hint={`${t("metric.cpa")} ${formatRatio(figures.cpa, currency)}`} />;
-      case "cpc":
-        return <MetricCard className="h-full" label={LABELS.cpc} value={formatRatio(figures.cpc, currency)}
-          hint={`${t("metric.reach")} ${formatCount(figures.reach)}`} />;
-      case "kpi":
-        return kpi ? <KpiTile {...kpi} figures={figures} range={range} currency={currency} preview={preview} /> : null;
+      case "SPEND":
+        return (
+          <MetricCard
+            className="h-full"
+            label={LABELS.SPEND}
+            value={monetary((p, c) => (
+              <RollingNumber value={formatCurrency(p.spend, c)} />
+            ))}
+            hint={monetary(
+              (p, c) => `${t("metric.cpm")} ${formatRatio(p.cpm, c)}`,
+            )}
+          />
+        );
+      case "IMPRESSIONS":
+        return (
+          <MetricCard
+            className="h-full"
+            label={LABELS.IMPRESSIONS}
+            value={formatCount(figures.impressions)}
+            hint={`${t("metric.frequency")} ${formatMultiple(figures.frequency)}`}
+          />
+        );
+      case "CLICKS":
+        return (
+          <MetricCard
+            className="h-full"
+            label={LABELS.CLICKS}
+            value={formatCount(figures.clicks)}
+            hint={`${t("metric.ctr")} ${formatPercent(figures.ctr)}`}
+          />
+        );
+      case "CONVERSIONS":
+        return (
+          <MetricCard
+            className="h-full"
+            label={LABELS.CONVERSIONS}
+            value={formatCount(figures.conversions)}
+            hint={monetary(
+              (p, c) => `${t("metric.cpa")} ${formatRatio(p.cpa, c)}`,
+            )}
+          />
+        );
+      case "RESULTS":
+        return (
+          <MetricCard
+            className="h-full"
+            label={LABELS.RESULTS}
+            value={formatCount(figures.results)}
+            hint={monetary(
+              (p, c) => `${t("metric.costPerResult")} ${formatRatio(p.costPerResult, c)}`,
+            )}
+          />
+        );
+      case "CPC":
+        return (
+          <MetricCard
+            className="h-full"
+            label={LABELS.CPC}
+            value={monetary((p, c) => (
+              <RollingNumber value={formatRatio(p.cpc, c)} />
+            ))}
+            hint={`${t("metric.reach")} ${formatCount(figures.reach)}`}
+          />
+        );
+      case "KPI":
+        return kpi ? (
+          <KpiTile
+            {...kpi}
+            figures={figures}
+            range={range}
+            currency={currency}
+            currencyFigures={currencyPerformances}
+            preview={preview}
+          />
+        ) : null;
     }
   };
 
@@ -75,21 +195,15 @@ export function PerformanceSummary({
         className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
       >
         {chosen.map((tile) => (
-          <div key={tile} data-testid="summary-tile" data-tile={tile}>{render(tile)}</div>
+          <div key={tile} data-testid="summary-tile" data-tile={tile}>
+            {render(tile)}
+          </div>
         ))}
         {configurable ? (
-          <button
-            type="button"
-            aria-label={t("summary.configure")}
+          <AddTile
+            label={t("summary.configure")}
             onClick={() => setConfiguring(true)}
-            className={cn(
-              "grid min-h-24 place-items-center rounded-lg border-2 border-dashed border-border text-muted-foreground",
-              "transition-colors hover:border-primary hover:text-primary",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            )}
-          >
-            <Plus aria-hidden className="size-6" />
-          </button>
+          />
         ) : null}
       </div>
 
@@ -98,9 +212,13 @@ export function PerformanceSummary({
           <DialogHeader>
             <div className="flex items-center justify-between gap-3 pr-8">
               <DialogTitle>{t("summary.title")}</DialogTitle>
-              <span className="text-sm tabular-nums text-muted-foreground">{chosen.length}/{MAX_SUMMARY_TILES}</span>
+              <span className="text-sm tabular-nums text-muted-foreground">
+                {chosen.length}/{MAX_SUMMARY_TILES}
+              </span>
             </div>
-            <DialogDescription>{atLimit ? t("summary.limit") : t("summary.choose")}</DialogDescription>
+            <DialogDescription>
+              {atLimit ? t("summary.limit") : t("summary.choose")}
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {offered.map((tile) => {
@@ -113,15 +231,21 @@ export function PerformanceSummary({
                   aria-pressed={selected}
                   data-selected={selected ? "true" : "false"}
                   disabled={!selected && atLimit}
-                  onClick={() => { if (user) toggleTile(user.id, screen, tile, offered); }}
+                  onClick={() =>
+                    onTilesChange?.(toggledTiles(tiles, tile, offered))
+                  }
                   className={cn(
                     "rounded-xl border-2 p-1 text-left transition-colors",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     "disabled:cursor-not-allowed disabled:opacity-50",
-                    selected ? "border-primary bg-primary/5" : "border-transparent hover:border-border",
+                    selected
+                      ? "border-primary bg-primary/5"
+                      : "border-transparent hover:border-border",
                   )}
                 >
-                  <div className="pointer-events-none">{render(tile, true)}</div>
+                  <div className="pointer-events-none">
+                    {render(tile, true)}
+                  </div>
                 </button>
               );
             })}

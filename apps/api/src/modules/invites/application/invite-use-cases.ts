@@ -85,14 +85,23 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
         if (!input.role || input.role === "CLIENT") {
           throw new AppError("validation", "Employee invitation role is invalid");
         }
-        if (projectIds.length === 0) {
-          throw new AppError("validation", "Employee invitations require at least one project");
-        }
-        if (!(await dependencies.projects.allBelongToOrg(actor.orgId, projectIds))) {
-          throw new AppError("validation", "One or more invitation projects are invalid");
-        }
         if (input.role === "ADMIN" && actor.role !== "ADMIN") {
           throw new AppError("forbidden", "Only an admin may grant the admin role");
+        }
+        if (input.role === "ADMIN") {
+          if (projectIds.length > 0) {
+            throw new AppError("validation", "An admin invitation carries no projects");
+          }
+        } else {
+          if (input.role === "GUEST" && projectIds.length === 0) {
+            throw new AppError("validation", "A guest invitation requires at least one project");
+          }
+          if (
+            projectIds.length > 0 &&
+            !(await dependencies.projects.allBelongToOrg(actor.orgId, projectIds))
+          ) {
+            throw new AppError("validation", "One or more invitation projects are invalid");
+          }
         }
       }
       const now = dependencies.clock.now();
@@ -132,13 +141,16 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
       return (await onlyReachable(actor, invites)).map(view);
     },
 
-    resolve: async (code: string): Promise<{ registrationType: RegistrationType }> =>
+    resolve: async (code: string): Promise<{ registrationType: RegistrationType; email: string | null }> =>
       dependencies.unitOfWork.run(async (context) => {
         const invite = await dependencies.invites.findByCode(context, code);
         if (!invite || inviteStatus(invite, dependencies.clock.now()) !== "PENDING") {
           throw new AppError("not-found", INVALID_INVITE);
         }
-        return { registrationType: invite.registrationType };
+        if (!(await dependencies.organizations.isActive(invite.orgId))) {
+          throw new AppError("not-found", INVALID_INVITE);
+        }
+        return { registrationType: invite.registrationType, email: invite.email };
       }),
 
     revoke: async (actor: ActorContext, id: string): Promise<void> => {
@@ -163,6 +175,9 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
     ): Promise<void> => {
       const invite = await dependencies.invites.findByCode(context, code);
       if (!isRedeemable(invite, email, now)) throw new AppError("forbidden", INVALID_INVITE);
+      if (!(await dependencies.organizations.isActive(invite.orgId))) {
+        throw new AppError("forbidden", INVALID_INVITE);
+      }
 
       if (invite.registrationType === "CLIENT_STAFF") {
         if (details) {

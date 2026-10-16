@@ -22,3 +22,11 @@ export function todayIso(): string {
   const day = `${now.getDate()}`.padStart(2, "0");
   return `${now.getFullYear()}-${month}-${day}`;
 }
+
+export function formatCalendarDate(isoDateTime: string): string {
+  return new Date(isoDateTime).toLocaleDateString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}

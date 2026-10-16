@@ -20,7 +20,10 @@ export async function resetDb(): Promise<void> {
   await prisma.user.deleteMany();
   const original = await prisma.organization.findFirstOrThrow({ orderBy: { createdAt: "asc" } });
   await prisma.organization.deleteMany({ where: { id: { not: original.id } } });
-  await prisma.organization.update({ where: { id: original.id }, data: { kpiMetric: null, kpiTarget: null, kpiUpdatedAt: null } });
+  await prisma.organization.update({ where: { id: original.id }, data: {
+    kpiMetric: null, kpiTarget: null, kpiUpdatedAt: null,
+    modules: ["CRM", "TASKS", "REPORTS"], status: "ACTIVE",
+  } });
 }
 
 export async function seedProject(

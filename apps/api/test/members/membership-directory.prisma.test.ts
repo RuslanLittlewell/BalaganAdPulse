@@ -13,11 +13,24 @@ describe("Prisma membership directory", () => {
   it("resolves an active membership into an ActorContext", async () => {
     const signedIn = await signInAs("Buyer", { role: "MANAGER" });
     await expect(directory().findActiveByUserId(signedIn.user.id)).resolves.toEqual({
-      userId: signedIn.user.id,
-      membershipId: signedIn.membership!.id,
-      orgId: signedIn.membership!.orgId,
-      role: "MANAGER",
+      actor: {
+        userId: signedIn.user.id,
+        membershipId: signedIn.membership!.id,
+        orgId: signedIn.membership!.orgId,
+        role: "MANAGER",
+      },
+      organizationStatus: "ACTIVE",
     });
+  });
+
+  it("names the standing of the member's organization", async () => {
+    const signedIn = await signInAs("Buyer", { role: "MANAGER" });
+    await prisma.organization.update({
+      where: { id: signedIn.membership!.orgId },
+      data: { status: "SUSPENDED" },
+    });
+    await expect(directory().findActiveByUserId(signedIn.user.id))
+      .resolves.toMatchObject({ organizationStatus: "SUSPENDED" });
   });
 
   it("returns nothing for a user who is not a member at all", async () => {
@@ -37,7 +50,7 @@ describe("Prisma membership directory", () => {
       data: { role: "GUEST" },
     });
     await expect(directory().findActiveByUserId(signedIn.user.id))
-      .resolves.toMatchObject({ role: "GUEST" });
+      .resolves.toMatchObject({ actor: { role: "GUEST" } });
   });
 
   it("returns nothing for a user id that does not exist", async () => {

@@ -22,7 +22,8 @@
     "test:watch": "vitest",
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
-    "seed": "tsx src/composition/seed-cli.ts"
+    "seed": "tsx src/composition/seed-cli.ts",
+    "seed:platform": "tsx src/composition/seed-cli.ts platform"
   },
   "dependencies": {
     "@adpulse/access-policy": "^0.1.0",

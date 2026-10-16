@@ -81,6 +81,7 @@ import { resetStaff } from "@/entities/membership/model/staff.js";
 import { resetProjects } from "@/entities/project/model/projects.js";
 import { useModuleMemory } from "@/shared/lib/moduleMemory.js";
 import { useColumnWidths } from "@/widgets/performance-table/columnWidths.js";
+import { useHintMemory } from "@/features/hints/index.js";
 
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => {
@@ -89,6 +90,7 @@ afterEach(() => {
   resetProjects();
   useModuleMemory.setState({ boards: {}, projectPlaces: {}, taskCalendarZooms: {} });
   useColumnWidths.setState({ nameWidths: {}, columnWidths: {}, columnOrder: {}, visibleColumns: {} });
+  useHintMemory.setState({ dismissed: {} });
 });
 afterAll(() => server.close());
 

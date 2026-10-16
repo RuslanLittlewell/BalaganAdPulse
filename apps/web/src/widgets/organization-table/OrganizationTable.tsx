@@ -1,0 +1,106 @@
+import {
+  moduleLabel,
+  usePlatformOrganizations,
+  type PlatformOrganization,
+} from "@/entities/platform-organization/index.js";
+import { OrganizationActions, registrationLink } from "@/features/organization-admin/index.js";
+import { t } from "@/shared/config/index.js";
+import { cn, formatCalendarDate } from "@/shared/lib/index.js";
+import { CopyButton, Loader } from "@/shared/ui/index.js";
+
+export function OrganizationTable() {
+  const organizations = usePlatformOrganizations();
+
+  if (organizations.isPending) return <Loader label={t("state.loading")} />;
+  if (organizations.isError) {
+    return <p role="alert" className="text-sm text-destructive">{t("platform.organizations.loadFailed")}</p>;
+  }
+  if (organizations.data.length === 0) {
+    return <p className="text-sm text-muted-foreground">{t("platform.organizations.empty")}</p>;
+  }
+
+  return (
+    <table aria-label={t("platform.organizations.list")} className="w-full text-sm">
+      <thead className="text-left text-xs text-muted-foreground">
+        <tr className="border-b">
+          <th className="py-2 pl-4 font-medium">{t("platform.column.name")}</th>
+          <th className="py-2 font-medium">{t("platform.column.status")}</th>
+          <th className="py-2 font-medium">{t("platform.column.modules")}</th>
+          <th className="py-2 text-right font-medium">{t("platform.column.members")}</th>
+          <th className="py-2 pl-4 font-medium">{t("platform.column.firstAdmin")}</th>
+          <th className="py-2 font-medium">{t("platform.column.createdAt")}</th>
+          <th className="py-2 text-right font-medium">{t("platform.column.actions")}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {organizations.data.map((organization) => (
+          <OrganizationRow key={organization.id} organization={organization} />
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function OrganizationRow({ organization }: { organization: PlatformOrganization }) {
+  return (
+    <tr className="border-b align-middle" data-status={organization.status}>
+      <th
+        scope="row"
+        className={cn(
+          "border-l-4 py-3 pl-3 text-left font-medium",
+          organization.status === "ACTIVE" ? "border-l-emerald-500" : "border-l-red-500",
+        )}
+      >
+        <span className="flex flex-col">
+          <span>{organization.name}</span>
+          <span className="text-xs font-normal text-muted-foreground">{organization.slug}</span>
+        </span>
+      </th>
+      <td className="py-3">
+        <span
+          className={cn(
+            "rounded-full px-2 py-0.5 text-xs font-medium",
+            organization.status === "ACTIVE"
+              ? "bg-primary/10 text-primary"
+              : "bg-destructive/10 text-destructive",
+          )}
+        >
+          {t(`platform.status.${organization.status}`)}
+        </span>
+      </td>
+      <td className="py-3">
+        <ul aria-label={`${t("platform.column.modules")}: ${organization.name}`} className="flex flex-wrap gap-1">
+          {organization.modules.map((module) => (
+            <li key={module} className="rounded-md border border-border px-1.5 py-0.5 text-xs">
+              {moduleLabel(module)}
+            </li>
+          ))}
+        </ul>
+      </td>
+      <td className="py-3 text-right tabular-nums">{organization.activeMembers}</td>
+      <td className="py-3 pl-4">
+        <FirstAdmin organization={organization} />
+      </td>
+      <td className="py-3 text-muted-foreground">{formatCalendarDate(organization.createdAt)}</td>
+      <td className="py-3">
+        <OrganizationActions organization={organization} />
+      </td>
+    </tr>
+  );
+}
+
+function FirstAdmin({ organization }: { organization: PlatformOrganization }) {
+  const firstAdmin = organization.firstAdmin;
+  if (!firstAdmin) return <span className="text-muted-foreground">{t("platform.firstAdmin.none")}</span>;
+  return (
+    <span className="flex items-center gap-2">
+      <span className="flex flex-col">
+        <span>{firstAdmin.email}</span>
+        <span className="text-xs text-muted-foreground">{t(`platform.firstAdmin.${firstAdmin.state}`)}</span>
+      </span>
+      {firstAdmin.registrationUrl && (
+        <CopyButton value={registrationLink(firstAdmin.registrationUrl)} label={t("platform.copyLink")} />
+      )}
+    </span>
+  );
+}

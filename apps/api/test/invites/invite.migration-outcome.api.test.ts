@@ -54,7 +54,7 @@ describe("a database migrated from untyped invitations", () => {
 
     const resolved = await request(app).get("/api/regustration/LEGPENDA");
     expect(resolved.status).toBe(200);
-    expect(resolved.body).toEqual({ registrationType: "EMPLOYEE" });
+    expect(resolved.body).toEqual({ registrationType: "EMPLOYEE", email: null });
 
     const registered = await request(app).post("/api/auth/register").send({
       name: "Legacy", email: "legacy@acme.com", password: "hunter2hunter2",

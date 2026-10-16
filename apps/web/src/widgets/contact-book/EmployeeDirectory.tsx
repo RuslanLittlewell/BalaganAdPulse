@@ -42,7 +42,7 @@ export function EmployeeDirectory() {
 
   return (
     <div className="grid min-h-[22rem] gap-4 sm:grid-cols-[minmax(14rem,22%)_minmax(0,1fr)] flex-1">
-      <div className="flex max-h-[60vh] flex-col gap-1 overflow-auto">
+      <div data-testid="employee-list" className="flex max-h-[60vh] flex-col gap-1 overflow-auto">
         {list.map((member) => (
           <ListItem
             key={member.id}
@@ -53,10 +53,17 @@ export function EmployeeDirectory() {
             {member.name}
           </ListItem>
         ))}
-        {list.length === 0 && <EmptyState title={t("contacts.employees.empty")} />}
       </div>
 
-      <div className="max-h-[60vh] min-w-0 overflow-auto sm:border-l sm:border-border sm:pl-4">
+      <div
+        data-testid="employee-panel"
+        className="flex max-h-[60vh] min-w-0 flex-col overflow-auto sm:border-l sm:border-border sm:pl-4"
+      >
+        {selected == null && (
+          <div className="grid flex-1 place-items-center">
+            <EmptyState title={t("contacts.employees.empty")} />
+          </div>
+        )}
         {selected && (
           <Can action="delete" resource="member">
             <div className="flex justify-end">

@@ -2,6 +2,8 @@ import type { Client } from "@/entities/client/index.js";
 import type { Task } from "@/entities/task/index.js";
 import type { Lead } from "@/entities/lead/index.js";
 import type { Project } from "@/entities/project/index.js";
+import type { PlatformOrganization } from "@/entities/platform-organization/index.js";
+import type { AuthSession } from "@/features/auth/api.js";
 
 export function aClient(overrides: Partial<Client> = {}): Client {
   return {
@@ -92,6 +94,42 @@ export function aTask(overrides: Partial<Task> = {}): Task {
     imageIds: [],
     createdAt: "2026-09-01T00:00:00.000Z",
     updatedAt: "2026-09-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+export function aSession(overrides: Partial<AuthSession> = {}): AuthSession {
+  return {
+    user: { id: "user-1", name: "Buyer", email: "buyer@acme.com", image: null },
+    platformAdmin: false,
+    organization: { id: "org-1", name: "AdPulse", slug: "adpulse", status: "ACTIVE" },
+    role: "ADMIN",
+    clientIds: [],
+    modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"],
+    ...overrides,
+  };
+}
+
+export function aPlatformAdminSession(): AuthSession {
+  return aSession({
+    user: { id: "platform-1", name: "Платформа", email: "global-admin@balagan.pro", image: null },
+    platformAdmin: true,
+    organization: null,
+    role: null,
+    modules: [],
+  });
+}
+
+export function aPlatformOrganization(overrides: Partial<PlatformOrganization> = {}): PlatformOrganization {
+  return {
+    id: "org-1",
+    name: "Balagan",
+    slug: "balagan",
+    status: "ACTIVE",
+    modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"],
+    activeMembers: 12,
+    createdAt: "2026-08-31T12:00:00.000Z",
+    firstAdmin: null,
     ...overrides,
   };
 }

@@ -5,6 +5,7 @@ export const ROUTES = {
   crm: "/crm",
   reports: "/reports",
   archive: "/archive",
+  organizations: "/organizations",
 } as const;
 
 export function projectPath(clientId: string, campaignId?: string): string {

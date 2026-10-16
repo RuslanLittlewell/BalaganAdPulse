@@ -3,6 +3,7 @@ import { PrismaUserRepository } from "#modules/identity/infrastructure/prisma-id
 import {
   createActorResolution,
   createMemberRouter,
+  createModuleGate,
   createMemberUseCases,
   createSessionRouter,
 } from "#modules/members/index.js";
@@ -32,7 +33,13 @@ export function wireMembersAndPresence(
     users: {
       findById: async (id) => {
         const user = await users.findById(id);
-        return user && { id: user.id, name: user.name, email: user.email, image: user.image };
+        return user && {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.image,
+          platformAdmin: user.isPlatformAdmin,
+        };
       },
     },
     clients: { reachableClientIds: clients.reachableIds },
@@ -69,7 +76,8 @@ export function wireMembersAndPresence(
     presence,
     leave: (userId: string) => { presenceService.leave(userId); },
     actorResolution: createActorResolution(members),
-    sessionRouter: createSessionRouter(members),
+    sessionRouter: createSessionRouter(members, presenceService),
+    requireModule: createModuleGate(members),
     memberRouter: createMemberRouter(members),
     presenceTouch: createPresenceTouch(presenceService),
     greetPresence: (connection: Connection) =>

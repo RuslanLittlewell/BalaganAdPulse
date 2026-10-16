@@ -15,6 +15,8 @@ import {
   TextField,
 } from "@/shared/ui/index.js";
 import { useCan } from "@/features/permissions/index.js";
+import { useModuleEnabled } from "@/features/auth/index.js";
+import { LeadsSetupInfo } from "./LeadsSetupInfo.js";
 
 export interface Connection {
   id: string;
@@ -295,7 +297,8 @@ function MetaConnectionForm({
   const queryClient = useQueryClient();
   const [accountId, setAccountId] = useState(connection?.accountId ?? "");
   const [token, setToken] = useState("");
-  const [leadsEnabled, setLeadsEnabled] = useState(connection?.leadsEnabled ?? true);
+  const tracksLeads = useModuleEnabled("CRM");
+  const [leadsEnabled, setLeadsEnabled] = useState(connection?.leadsEnabled ?? false);
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const key = integrationsKey(projectId);
@@ -333,7 +336,7 @@ function MetaConnectionForm({
       if (connection) {
         store(await http.put<Connection>(`${integrationsPath(projectId)}/${connection.id}`, credentials));
       } else {
-        const saved = await http.post<Connection>(`${integrationsPath(projectId)}/meta`, { ...credentials, leadsEnabled });
+        const saved = await http.post<Connection>(`${integrationsPath(projectId)}/meta`, { ...credentials, leadsEnabled: tracksLeads && leadsEnabled });
         queryClient.setQueryData<Connection[]>(key, (list) => [...(list ?? []), saved]);
       }
     });
@@ -366,14 +369,19 @@ function MetaConnectionForm({
             autoComplete="new-password"
             disabled={pending}
           />
-          <label className="flex items-center gap-2 text-sm">
-            <Switch
-              checked={leadsEnabled}
-              disabled={pending}
-              onCheckedChange={(enabled) => void switchLeads(enabled)}
-            />
-            {t("meta.leads.toggle")}
-          </label>
+          {tracksLeads && (
+            <div className="flex items-center gap-1">
+              <label className="flex items-center gap-2 text-sm">
+                <Switch
+                  checked={leadsEnabled}
+                  disabled={pending}
+                  onCheckedChange={(enabled) => void switchLeads(enabled)}
+                />
+                {t("meta.leads.toggle")}
+              </label>
+              <LeadsSetupInfo />
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">{t("meta.help")}</p>
           {failure && <p role="alert" className="text-xs text-destructive">{failure}</p>}
           <DialogFooter className="flex-wrap gap-2">

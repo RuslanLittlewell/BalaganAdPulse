@@ -1,4 +1,4 @@
-import type { Role } from "@adpulse/access-policy";
+import type { OptionalModule, Role } from "@adpulse/access-policy";
 import type {
   ActorContext,
   TransactionContext,
@@ -6,8 +6,15 @@ import type {
 } from "#shared/application/index.js";
 import type { MemberChange, MemberRecord } from "../domain/member.js";
 
+export type OrganizationStatus = "ACTIVE" | "SUSPENDED";
+
+export interface ActiveMembership {
+  readonly actor: ActorContext;
+  readonly organizationStatus: OrganizationStatus;
+}
+
 export interface MembershipDirectory {
-  findActiveByUserId(userId: string): Promise<ActorContext | null>;
+  findActiveByUserId(userId: string): Promise<ActiveMembership | null>;
 }
 
 export interface MemberDependencies {
@@ -15,11 +22,23 @@ export interface MemberDependencies {
 }
 
 export interface OrganizationDirectory {
-  findById(orgId: string): Promise<{ id: string; name: string; slug: string } | null>;
+  findById(orgId: string): Promise<{
+    id: string;
+    name: string;
+    slug: string;
+    status: OrganizationStatus;
+    modules: readonly OptionalModule[];
+  } | null>;
 }
 
 export interface SessionUserDirectory {
-  findById(userId: string): Promise<{ id: string; name: string; email: string; image: string | null } | null>;
+  findById(userId: string): Promise<{
+    id: string;
+    name: string;
+    email: string;
+    image: string | null;
+    platformAdmin: boolean;
+  } | null>;
 }
 
 export interface ClientReachDirectory {
@@ -27,6 +46,7 @@ export interface ClientReachDirectory {
 }
 
 export interface SessionDependencies {
+  readonly memberships: MembershipDirectory;
   readonly organizations: OrganizationDirectory;
   readonly users: SessionUserDirectory;
   readonly clients: ClientReachDirectory;

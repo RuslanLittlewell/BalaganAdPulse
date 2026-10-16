@@ -26,10 +26,11 @@ export function useLeads(boardKey: string | undefined) {
   });
 }
 
-export function useProjectStageCounts({ from, to }: CountingPeriod) {
+export function useProjectStageCounts({ from, to }: CountingPeriod, { enabled = true } = {}) {
   return useQuery({
     queryKey: ["crm", "project-stage-counts", { from, to }],
     queryFn: () => leadsApi.projectStageCounts({ from, to }),
+    enabled,
   });
 }
 

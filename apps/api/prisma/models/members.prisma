@@ -15,12 +15,29 @@ enum MembershipStatus {
   @@map("membership_status")
 }
 
+enum OrgModule {
+  CRM
+  TASKS
+  REPORTS
+
+  @@map("org_module")
+}
+
+enum OrgStatus {
+  ACTIVE
+  SUSPENDED
+
+  @@map("org_status")
+}
+
 model Organization {
   leads        Lead[]
   leadColumns  LeadColumn[]
   id           String       @id @default(uuid())
   name         String
   slug         String       @unique
+  modules      OrgModule[]  @default([CRM, TASKS, REPORTS])
+  status       OrgStatus    @default(ACTIVE)
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
   members      Membership[]

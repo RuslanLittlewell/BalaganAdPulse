@@ -91,6 +91,7 @@ const signedInAs = (role: string) => server.use(mock.get("/api/auth/me", () => H
   organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
   role,
   clientIds: ["cl1"],
+  modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"],
 })));
 
 async function editorSurface(): Promise<HTMLElement> {

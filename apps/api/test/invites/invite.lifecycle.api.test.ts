@@ -31,7 +31,7 @@ describe("an employee invitation end to end", () => {
 
     const resolved = await request(app).get(`/api/regustration/${code}`);
     expect(resolved.status).toBe(200);
-    expect(resolved.body).toEqual({ registrationType: "EMPLOYEE" });
+    expect(resolved.body).toEqual({ registrationType: "EMPLOYEE", email: null });
 
     expect((await request(app).delete(`/api/invites/${id}`).set(admin)).status).toBe(204);
 
@@ -114,7 +114,7 @@ describe("a client invitation end to end", () => {
     const resolved = await request(app).get(`/api/regustration/${created.body.code}`);
 
     expect(resolved.status).toBe(200);
-    expect(resolved.body).toEqual({ registrationType: "CLIENT" });
+    expect(resolved.body).toEqual({ registrationType: "CLIENT", email: null });
   });
 
   it("cannot be redeemed as an employee would be, and survives the attempt", async () => {
@@ -266,6 +266,6 @@ describe("an invitation to join an existing client", () => {
     const resolved = await request(app).get(`/api/regustration/${created.body.code}`);
 
     expect(resolved.status).toBe(200);
-    expect(resolved.body).toEqual({ registrationType: "CLIENT_STAFF" });
+    expect(resolved.body).toEqual({ registrationType: "CLIENT_STAFF", email: null });
   });
 });

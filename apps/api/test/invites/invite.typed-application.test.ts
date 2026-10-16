@@ -107,6 +107,7 @@ function fixture(options: {
         grants.push({ membershipId, clientId });
       },
     },
+    organizations: { isActive: async () => true },
     projects: {
       allBelongToOrg: async (_orgId: string, projectIds: readonly string[]) =>
         projectIds.every((projectId) => (options.ownedProjectIds ?? ["project-1"]).includes(projectId)),
@@ -267,10 +268,13 @@ describe("typed invitation creation", () => {
 });
 
 describe("public invitation resolution", () => {
-  it("returns only the registration type for a pending invitation", async () => {
-    const { useCases } = fixture({ seed: [employeeInvite()] });
-    await expect((useCases as never as { resolve(code: string): Promise<unknown> }).resolve("EXISTING"))
-      .resolves.toEqual({ registrationType: "EMPLOYEE" });
+  it("returns the registration type and the bound address of a pending invitation", async () => {
+    const bound = employeeInvite({ id: "bound", code: "BOUNDONE", email: "owner@acme.com" });
+    const { useCases } = fixture({ seed: [employeeInvite(), bound] });
+    await expect(useCases.resolve("EXISTING"))
+      .resolves.toEqual({ registrationType: "EMPLOYEE", email: null });
+    await expect(useCases.resolve("BOUNDONE"))
+      .resolves.toEqual({ registrationType: "EMPLOYEE", email: "owner@acme.com" });
   });
 
   it.each([

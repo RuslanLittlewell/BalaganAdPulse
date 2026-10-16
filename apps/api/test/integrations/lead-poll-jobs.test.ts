@@ -24,7 +24,7 @@ beforeEach(async () => {
     data: {
       projectId, accountId: "123", currency: "BYN", timezone: "UTC", encryptedToken: "encrypted", revision: "v1",
       status: "SUCCESS", lastSuccessAt: new Date("2026-09-13T06:00:00Z"), nextDailyAt: new Date("2026-09-14T06:00:00Z"),
-      nextLeadsAt: now,
+      nextLeadsAt: now, leadsEnabled: true,
     },
   });
   await prisma.project.update({ where: { id: projectId }, data: { budgetCurrency: "BYN" } });
@@ -275,9 +275,18 @@ describe("what sets lead polling in motion", () => {
 });
 
 describe("the lead import switch", () => {
-  it("is on for a connection, is not polled while off, and asks for a poll when switched back on", async () => {
+  it("is off for a connection stored without it", async () => {
+    const stored = await prisma.projectIntegration.create({
+      data: {
+        projectId, accountId: "456", currency: "BYN", timezone: "UTC", encryptedToken: "encrypted", revision: "v1",
+        nextDailyAt: now, nextLeadsAt: now,
+      },
+    });
+    expect(stored.leadsEnabled).toBe(false);
+  });
+
+  it("is not polled while off, and asks for a poll when switched back on", async () => {
     const { id } = await prisma.projectIntegration.findFirstOrThrow({ where: { projectId } });
-    expect((await prisma.projectIntegration.findUniqueOrThrow({ where: { id } })).leadsEnabled).toBe(true);
     const repository = new PrismaIntegrationRepository(prisma, unitOfWork);
 
     await repository.setLeadsEnabled(id, false, now);

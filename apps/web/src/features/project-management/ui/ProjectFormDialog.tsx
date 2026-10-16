@@ -11,6 +11,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Hint,
   Label,
   MultiSelect,
   Select,
@@ -34,6 +35,7 @@ import { MemberAvatar, useMembers } from "@/entities/membership/index.js";
 import { isCustomer } from "@adpulse/access-policy";
 import { useAuth } from "@/features/auth/index.js";
 import { Can, useCan } from "@/features/permissions/index.js";
+import { HINTS, useHint } from "@/features/hints/index.js";
 import { ClientFormDialog } from "@/features/client-management/index.js";
 
 const UPLOADED = JSON.stringify({ source: "upload" });
@@ -179,6 +181,8 @@ export function ProjectFormDialog({
 
   const pending = create.isPending || update.isPending || saveAvatar.isPending;
   const noClients = clients.isSuccess && clients.data.length === 0;
+  const mayCreateClient = useCan("create", "client");
+  const firstClient = useHint(HINTS.projectsFirstClient, mayCreateClient && noClients && !creatingClient);
 
   return (
     <Dialog open onOpenChange={(next) => { if (!next) onClose(); }}>
@@ -271,16 +275,23 @@ export function ProjectFormDialog({
                   />
                 </div>
                 <Can action="create" resource="client">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="shrink-0"
-                    aria-label={t("clients.new")}
-                    onClick={() => setCreatingClient(true)}
+                  <Hint
+                    open={firstClient.open}
+                    text={t("hint.projects.firstClient")}
+                    side="top"
+                    onDismiss={firstClient.dismiss}
                   >
-                    <PlusIcon aria-hidden="true" />
-                  </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0"
+                      aria-label={t("clients.new")}
+                      onClick={() => setCreatingClient(true)}
+                    >
+                      <PlusIcon aria-hidden="true" />
+                    </Button>
+                  </Hint>
                 </Can>
               </div>
               {errors.clientId != null && (

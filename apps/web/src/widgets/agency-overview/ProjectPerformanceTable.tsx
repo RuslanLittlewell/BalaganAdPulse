@@ -5,6 +5,7 @@ import { t } from "@/shared/config/index.js";
 import { useProjects, type Project } from "@/entities/project/index.js";
 import { EMPTY_PERFORMANCE, useProjectsSummary, type DateRange } from "@/entities/campaign/index.js";
 import { LEAD_STAGES, useProjectStageCounts } from "@/entities/lead/index.js";
+import { useModuleEnabled } from "@/features/auth/index.js";
 import { PerformanceTable, type ExtraColumn, type PerformanceRow } from "@/widgets/performance-table/index.js";
 
 const STAGE_COLUMNS: readonly ExtraColumn[] = LEAD_STAGES.map((stage) => ({
@@ -27,7 +28,8 @@ export function ProjectPerformanceTable({ range }: { range: DateRange }) {
   const location = useLocation();
   const projects = useProjects();
   const figures = useProjectFigures(projects.data ?? [], range);
-  const stageCounts = useProjectStageCounts(range);
+  const crm = useModuleEnabled("CRM");
+  const stageCounts = useProjectStageCounts(range, { enabled: crm });
   const countsByProject = new Map((stageCounts.data ?? []).map((counts) => [counts.projectId, counts]));
 
   const rows: PerformanceRow[] = figures.map(({ project, performance, days }) => ({
@@ -42,9 +44,11 @@ export function ProjectPerformanceTable({ range }: { range: DateRange }) {
     ),
     performance,
     currency: project.budgetCurrency,
-    extra: Object.fromEntries(
-      LEAD_STAGES.map((stage) => [`crm-${stage}`, countsByProject.get(project.id)?.[stage] ?? 0]),
-    ),
+    extra: crm
+      ? Object.fromEntries(
+        LEAD_STAGES.map((stage) => [`crm-${stage}`, countsByProject.get(project.id)?.[stage] ?? 0]),
+      )
+      : {},
   }));
 
   return (
@@ -52,7 +56,7 @@ export function ProjectPerformanceTable({ range }: { range: DateRange }) {
       tableKey="projects"
       heading={t("dashboard.project")}
       rows={rows}
-      extraColumns={STAGE_COLUMNS}
+      extraColumns={crm ? STAGE_COLUMNS : []}
       empty={projects.isSuccess ? t("projects.empty.title") : undefined}
       onOpen={(id) => navigate(`${projectPath(id)}${location.search}`)}
     />

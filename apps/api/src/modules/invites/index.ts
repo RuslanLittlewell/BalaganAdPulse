@@ -2,6 +2,7 @@ export { createInviteUseCases } from "./application/invite-use-cases.js";
 export type { CreateInviteInput, InviteUseCases, InviteView } from "./application/invite-use-cases.js";
 export type {
   InvitationCodeGenerator,
+  InvitationOrganizations,
   InvitationProjectAccess,
   InvitationProjectReach,
   InviteDependencies,

@@ -9,9 +9,10 @@ import { UserAvatar } from "../user-avatar/UserAvatar.js";
 export interface UserMenuProps {
   onSettings?: () => void;
   avatarVersion?: number;
+  canEditProfile?: boolean;
 }
 
-export function UserMenu({ onSettings, avatarVersion }: UserMenuProps) {
+export function UserMenu({ onSettings, avatarVersion, canEditProfile = true }: UserMenuProps) {
   const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -56,10 +57,12 @@ export function UserMenu({ onSettings, avatarVersion }: UserMenuProps) {
 
       {open && (
         <div className={"absolute right-0 top-full z-40 mt-2 grid min-w-48 overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg [&>button]:flex [&>button]:items-center [&>button]:gap-2 [&>button]:rounded-sm [&>button]:px-3 [&>button]:py-2 [&>button]:text-sm [&>button:hover]:bg-accent [&_svg]:size-4"} role="menu">
-          <button type="button" role="menuitem" onClick={() => { setOpen(false); onSettings?.(); }}>
-            <Settings aria-hidden="true" />
-            {t("account.settings")}
-          </button>
+          {canEditProfile && (
+            <button type="button" role="menuitem" onClick={() => { setOpen(false); onSettings?.(); }}>
+              <Settings aria-hidden="true" />
+              {t("account.settings")}
+            </button>
+          )}
           <button type="button" role="menuitem" onClick={() => void logout()}>
             <LogOut aria-hidden="true" />
             {t("auth.logout")}

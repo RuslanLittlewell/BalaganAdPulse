@@ -30,6 +30,7 @@ import { kpiDoc } from '#modules/kpi/index.js';
 import { summaryTileDoc } from "#modules/summary-tiles/index.js";
 import { projectDocumentComponents, projectDocumentDoc } from "#modules/project-documents/index.js";
 import { reportDoc, reportIndexDoc } from '#modules/reports/index.js';
+import { platformComponents, platformDoc } from "#modules/platform/index.js";
 
 const require = createRequire(import.meta.url);
 
@@ -85,6 +86,7 @@ export function apiDocument(): OpenApiDocument {
       { mount: mountPath("open-auth"), ...authDoc },
       { mount: mountPath("registration-resolver"), ...registrationResolverDoc },
       { mount: mountPath("session"), ...sessionDoc },
+      { mount: mountPath("platform"), ...platformDoc },
       { mount: mountPath("user"), ...userDoc },
       { mount: mountPath("invites"), ...inviteDoc },
       { mount: mountPath("members"), ...memberDoc },
@@ -120,6 +122,7 @@ export function apiDocument(): OpenApiDocument {
       campaignComponents,
       taskComponents,
       projectDocumentComponents,
+      platformComponents,
     ),
   });
 }

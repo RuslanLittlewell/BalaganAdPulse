@@ -140,7 +140,7 @@ export function createIntegrationUseCases(d: IntegrationDependencies) {
             context,
             {
               ...connectionData(projectId, account, encryptedToken),
-              leadsEnabled: input.leadsEnabled ?? true,
+              leadsEnabled: input.leadsEnabled ?? false,
             },
             d.clock.now(),
           );

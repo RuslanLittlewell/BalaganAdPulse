@@ -21,6 +21,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
   EmptyState,
+  Hint,
   Input,
   Loader,
   Popover,
@@ -51,6 +52,7 @@ import {
 } from "@/entities/project/index.js";
 import { ProjectFormDialog } from "@/features/project-management/index.js";
 import { Can, useCan } from "@/features/permissions/index.js";
+import { HINTS, useHint } from "@/features/hints/index.js";
 import { DragPreview } from "./DragPreview.js";
 import { GroupDialog } from "./GroupDialog.js";
 import { ProjectGroupCard } from "./ProjectGroupCard.js";
@@ -91,6 +93,11 @@ export function ProjectList({ collapsed = false }: { collapsed?: boolean }) {
   const update = useUpdateProject();
   const mayUpdate = useCan("update", "project");
   const mayPrioritise = useCan("update", "project-priority");
+  const mayCreate = useCan("create", "project");
+  const firstProject = useHint(
+    HINTS.projectsFirstProject,
+    mayCreate && projects.isSuccess && projects.data.length === 0 && !creating,
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -305,18 +312,25 @@ export function ProjectList({ collapsed = false }: { collapsed?: boolean }) {
         </div>
 
         <Can action="create" resource="project">
-          <Button
-            type="button"
-            size="icon"
-            className={cn(
-              "absolute bottom-2 z-10 rounded-full shadow-md",
-              collapsed ? "left-1/2 -translate-x-1/2" : "right-2",
-            )}
-            aria-label={t("projects.new")}
-            onClick={() => setCreating(true)}
+          <Hint
+            open={firstProject.open}
+            text={t("hint.projects.firstProject")}
+            side="top"
+            onDismiss={firstProject.dismiss}
           >
-            <PlusIcon aria-hidden="true" />
-          </Button>
+            <Button
+              type="button"
+              size="icon"
+              className={cn(
+                "absolute bottom-2 z-10 rounded-full shadow-md",
+                collapsed ? "left-1/2 -translate-x-1/2" : "right-2",
+              )}
+              aria-label={t("projects.new")}
+              onClick={() => setCreating(true)}
+            >
+              <PlusIcon aria-hidden="true" />
+            </Button>
+          </Hint>
         </Can>
       </div>
       </WarmTooltipGroup>

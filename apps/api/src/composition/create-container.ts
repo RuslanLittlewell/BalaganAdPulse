@@ -1,4 +1,5 @@
 import { Router, type RequestHandler } from "express";
+import type { OptionalModule } from "@adpulse/access-policy";
 import { config } from "#shared/infrastructure/config.js";
 import { requestContext } from "#shared/presentation/request-context.js";
 import { createAuditRouter } from "#modules/audit/index.js";
@@ -15,6 +16,7 @@ import { wireInvites } from "./wiring/invites.js";
 import { createKernel } from "./wiring/kernel.js";
 import { wireLeads } from "./wiring/leads.js";
 import { wireMembersAndPresence } from "./wiring/members-presence.js";
+import { wirePlatform } from "./wiring/platform.js";
 import { wireReportsAndKpi } from "./wiring/reports-kpi.js";
 import { wireSummaryTiles } from "./wiring/summary-tiles.js";
 import { wireProjectDocuments } from "./wiring/project-documents.js";
@@ -36,6 +38,7 @@ export interface ApiContainer {
   readonly actorResolution: RequestHandler;
   readonly requestContext: RequestHandler;
   readonly sessionRouter: Router;
+  readonly platformRouter: Router;
   readonly userRouter: Router;
   readonly inviteRouter: Router;
   readonly registrationResolverRouter: Router;
@@ -56,6 +59,7 @@ export interface ApiContainer {
   readonly connections: ConnectionRegistry;
   readonly presence: PresenceRegistry;
   readonly presenceTouch: RequestHandler;
+  readonly requireModule: (module: OptionalModule) => RequestHandler;
   readonly greetPresence: (connection: Connection) => void;
   readonly sweepPresence: () => void;
   readonly authenticate: (accessToken: string) => Promise<SessionPrincipal>;
@@ -79,6 +83,7 @@ export function createContainer(): ApiContainer {
   });
   const summaries = wireSummaryTiles(kernel, { projectRepository: catalog.projectRepository });
   const notebook = wireProjectDocuments(kernel, { projectRepository: catalog.projectRepository });
+  const platform = wirePlatform(kernel);
 
   return {
     documentationRouter: config.documentation ? createDocumentationRouter(apiDocument()) : Router(),
@@ -96,8 +101,11 @@ export function createContainer(): ApiContainer {
     memberRouter: people.memberRouter,
     presence: people.presence,
     presenceTouch: people.presenceTouch,
+    requireModule: people.requireModule,
     greetPresence: people.greetPresence,
     sweepPresence: people.sweepPresence,
+
+    platformRouter: platform.platformRouter,
 
     inviteRouter: invites.inviteRouter,
     registrationResolverRouter: invites.registrationResolverRouter,

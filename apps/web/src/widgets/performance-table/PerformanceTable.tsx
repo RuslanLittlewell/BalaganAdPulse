@@ -407,7 +407,7 @@ export function PerformanceTable({
 
   if (rows.length === 0 && empty != null) {
     return (
-      <div className="rounded-lg border border-border p-8 text-center text-sm text-muted-foreground">
+      <div className="rounded-lg border border-border p-8 text-center text-sm text-muted-foreground flex items-center justify-center">
         {empty}
       </div>
     );

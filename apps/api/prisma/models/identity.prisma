@@ -1,17 +1,18 @@
 model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
-  name          String
-  passwordHash  String         @map("password_hash")
-  image         String?
-  avatarPath    String?        @map("avatar_path")
-  phone         String?
-  telegram      String?
-  createdAt     DateTime       @default(now()) @map("created_at")
-  refreshTokens RefreshToken[]
-  passwordReset PasswordReset?
-  memberships   Membership[]
-  invitesUsed   Invite[]
+  id              String         @id @default(uuid())
+  email           String         @unique
+  name            String
+  passwordHash    String         @map("password_hash")
+  image           String?
+  avatarPath      String?        @map("avatar_path")
+  phone           String?
+  telegram        String?
+  isPlatformAdmin Boolean        @default(false) @map("is_platform_admin")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  refreshTokens   RefreshToken[]
+  passwordReset   PasswordReset?
+  memberships     Membership[]
+  invitesUsed     Invite[]
 
   @@map("app_user")
 }

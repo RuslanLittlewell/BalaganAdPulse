@@ -141,13 +141,16 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
       return (await onlyReachable(actor, invites)).map(view);
     },
 
-    resolve: async (code: string): Promise<{ registrationType: RegistrationType }> =>
+    resolve: async (code: string): Promise<{ registrationType: RegistrationType; email: string | null }> =>
       dependencies.unitOfWork.run(async (context) => {
         const invite = await dependencies.invites.findByCode(context, code);
         if (!invite || inviteStatus(invite, dependencies.clock.now()) !== "PENDING") {
           throw new AppError("not-found", INVALID_INVITE);
         }
-        return { registrationType: invite.registrationType };
+        if (!(await dependencies.organizations.isActive(invite.orgId))) {
+          throw new AppError("not-found", INVALID_INVITE);
+        }
+        return { registrationType: invite.registrationType, email: invite.email };
       }),
 
     revoke: async (actor: ActorContext, id: string): Promise<void> => {
@@ -172,6 +175,9 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
     ): Promise<void> => {
       const invite = await dependencies.invites.findByCode(context, code);
       if (!isRedeemable(invite, email, now)) throw new AppError("forbidden", INVALID_INVITE);
+      if (!(await dependencies.organizations.isActive(invite.orgId))) {
+        throw new AppError("forbidden", INVALID_INVITE);
+      }
 
       if (invite.registrationType === "CLIENT_STAFF") {
         if (details) {

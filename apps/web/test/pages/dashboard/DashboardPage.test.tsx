@@ -1,7 +1,7 @@
 import { http as mock, HttpResponse } from "msw";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders, server } from "@test/shared/index.js";
+import { aSession, renderWithProviders, server } from "@test/shared/index.js";
 import { DashboardPage } from "@/pages/dashboard/index.js";
 import { Route, Routes, useLocation } from "react-router-dom";
 
@@ -92,6 +92,7 @@ describe("DashboardPage", () => {
       organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
       role: "GUEST",
       clientIds: [],
+      modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"],
     })));
     renderWithProviders(<DashboardPage />);
     await userEvent.click(await screen.findByRole("button", { name: "Настроить показатели" }));
@@ -305,6 +306,26 @@ describe("CRM stage columns in the dashboard project table", () => {
     expect(cell(/Автосалон/, "Лид (Новый)")).toHaveTextContent("0");
     expect(cell(/Автосалон/, "Лид (КП)")).toHaveTextContent("0");
     expect(requested).toContain("?from=2026-09-01&to=2026-09-30");
+  });
+
+  it("offers no stage column, and asks for no counts, without the CRM module", async () => {
+    const user = userEvent.setup();
+    let asked = 0;
+    api();
+    server.use(
+      mock.get("/api/auth/me", () => HttpResponse.json(aSession({ modules: ["DASHBOARD", "PROJECTS", "TASKS"] }))),
+      mock.get("/api/crm/project-stage-counts", () => { asked += 1; return HttpResponse.json([]); }),
+    );
+    renderWithProviders(<DashboardPage />);
+
+    await screen.findByRole("row", { name: /Клиника/ });
+    await waitFor(() => expect(asked).toBe(0));
+    await user.click(screen.getByRole("button", { name: "Отображаемые столбцы" }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    for (const column of STAGE_COLUMNS) {
+      expect(screen.queryByRole("menuitemcheckbox", { name: column })).not.toBeInTheDocument();
+    }
+    expect(asked).toBe(0);
   });
 
   it("remembers a turned-on stage column", async () => {

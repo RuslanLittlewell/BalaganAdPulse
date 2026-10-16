@@ -43,6 +43,16 @@ export async function signInAsOutsider(name = "Outsider") {
   return { org, user, membership, client, auth: { Authorization: `Bearer ${token}` } };
 }
 
+export async function signInAsPlatformAdmin(name = "Platform") {
+  const user = await prisma.user.create({
+    data: {
+      name, email: `${randomUUID()}@example.com`, passwordHash: "placeholder", isPlatformAdmin: true,
+    },
+  });
+  const token = await tokens.issueAccess({ id: user.id, name: user.name, email: user.email });
+  return { user, auth: { Authorization: `Bearer ${token}` } };
+}
+
 export async function grantAccess(
   membershipId: string,
   clientId: string,

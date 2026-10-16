@@ -9,6 +9,7 @@ import { JoinClientForm } from "./JoinClientForm.js";
 
 interface Resolved {
   registrationType: "CLIENT" | "EMPLOYEE" | "CLIENT_STAFF";
+  email: string | null;
 }
 
 export function RegistrationPage() {
@@ -30,7 +31,7 @@ export function RegistrationPage() {
     );
   }
 
-  const type = resolved.data.registrationType;
+  const { registrationType: type, email } = resolved.data;
   const wide = type === "CLIENT";
   const title = type === "CLIENT"
     ? t("registration.client.title")
@@ -40,9 +41,9 @@ export function RegistrationPage() {
 
   return (
     <CenteredPanel title={title} wide={wide}>
-      {type === "CLIENT" ? <ClientRegistrationForm code={code} /> : null}
-      {type === "CLIENT_STAFF" ? <JoinClientForm code={code} /> : null}
-      {type === "EMPLOYEE" ? <EmployeeRegistrationForm code={code} /> : null}
+      {type === "CLIENT" ? <ClientRegistrationForm code={code} knownEmail={email} /> : null}
+      {type === "CLIENT_STAFF" ? <JoinClientForm code={code} knownEmail={email} /> : null}
+      {type === "EMPLOYEE" ? <EmployeeRegistrationForm code={code} knownEmail={email} /> : null}
     </CenteredPanel>
   );
 }

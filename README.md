@@ -190,6 +190,17 @@ APP_IMAGE=ghcr.io/<repository>:<deployed sha> docker compose --env-file .env \
 
 See [Seeding the first admin](#seeding-the-first-admin) for what it does.
 
+The platform administrator is seeded the same way, once, with `SEED_PLATFORM_ADMIN_*` set
+in the same file:
+
+```bash
+cd /opt/adpulse
+APP_IMAGE=ghcr.io/<repository>:<deployed sha> docker compose --env-file .env \
+  -f compose.prod.yml run --rm app node --conditions=compiled dist/composition/seed-cli.js platform
+```
+
+See [The platform administrator](#the-platform-administrator).
+
 ### Monitoring
 
 [Beszel](https://beszel.dev) watches the server: CPU, memory, disk, network traffic and each
@@ -722,6 +733,30 @@ It reads `SEED_ADMIN_NAME`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` and option
 nothing once an active admin exists, so a deploy
 pipeline can call it unconditionally. A database that already held accounts needs no
 seeding: the tenancy migration made its oldest account the admin.
+
+### The platform administrator
+
+One instance serves many organizations. The platform administrator belongs to none of
+them: they sign in on the same login page, land in a separate area whose one module lists
+every organization, and reach nothing inside any organization. Seed the account once:
+
+```bash
+SEED_PLATFORM_ADMIN_EMAIL=you@example.com SEED_PLATFORM_ADMIN_PASSWORD=... npm run seed:platform -w apps/api
+```
+
+The password must be at least eight characters. Running it again does nothing once a
+platform administrator exists, and it never changes an existing account's password; an
+address that already has an account without a membership is made the administrator, one
+that belongs to an organization is refused.
+
+Adding an organization takes its name, the optional modules it is entitled to and the
+email of its first administrator. Dashboard and Projects are always enabled; CRM, Tasks
+and Reports are optional, and a disabled one is absent from the organization's navigation
+while its endpoints answer 404. The organization is created with an admin invitation bound
+to that email, whose registration link the platform administrator hands over. An
+organization can later be renamed, given or relieved of modules — a removed module's data
+is kept and returns with it — and suspended: every request by its members is then refused
+with 403 until it is reactivated, and nothing it holds is deleted.
 
 ### Invitations
 

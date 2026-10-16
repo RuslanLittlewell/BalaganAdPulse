@@ -2,7 +2,7 @@ import { http as mock, HttpResponse } from "msw";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Link, Route, Routes, useLocation } from "react-router-dom";
-import { aTask, renderWithProviders, server } from "@test/shared/index.js";
+import { aSession, aTask, renderWithProviders, server } from "@test/shared/index.js";
 import { ProjectPage } from "@/pages/project/index.js";
 
 const performance = (spend: number, extra = {}) => ({
@@ -56,6 +56,7 @@ const signedInAs = (role: string) => server.use(mock.get("/api/auth/me", () => H
   organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
   role,
   clientIds: ["cl1"],
+  modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"],
 })));
 
 const projectKpi = () => server.use(mock.get("/api/projects/p1/kpi", () =>
@@ -247,20 +248,12 @@ describe("ProjectPage", () => {
     expect(screen.queryByRole("button", { name: "Удалить" })).not.toBeInTheDocument();
   });
 
-  it("opens project-scoped activity from the header", async () => {
-    const user = userEvent.setup();
-    let projectFilter: string | null = null;
+  it("offers no activity history of its own", async () => {
     api();
-    server.use(mock.get("/api/audit", ({ request }) => {
-      projectFilter = new URL(request.url).searchParams.get("projectId");
-      return HttpResponse.json({ items: [], nextCursor: null });
-    }));
     renderWithProviders(<App />, route);
 
-    await user.click(await screen.findByRole("button", { name: "История действий" }));
-
-    expect(await screen.findByRole("dialog", { name: "История действий" })).toBeInTheDocument();
-    await waitFor(() => expect(projectFilter).toBe("p1"));
+    await screen.findByRole("heading", { name: "Метрики", level: 2 });
+    expect(screen.queryByRole("button", { name: "История действий" })).not.toBeInTheDocument();
   });
 
   it("shows an error state with retry when the campaigns fail to load", async () => {
@@ -300,6 +293,22 @@ describe("the work in flight under a project", () => {
     }
   });
 
+  it("leaves the tasks out for an organization without the task module", async () => {
+    let asked = 0;
+    api({ tasks: board });
+    server.use(
+      mock.get("/api/auth/me", () => HttpResponse.json(aSession({ modules: ["DASHBOARD", "PROJECTS"] }))),
+      mock.get("/api/tasks", () => { asked += 1; return HttpResponse.json(board); }),
+    );
+    renderWithProviders(<App />, route);
+
+    await screen.findByRole("heading", { name: "Метрики", level: 2 });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.queryByText("Задачи в работе")).not.toBeInTheDocument();
+    expect(screen.queryByText("Переписать объявления")).not.toBeInTheDocument();
+    expect(asked).toBe(0);
+  });
+
   it("leaves out what is done or archived", async () => {
     api({ tasks: board });
     renderWithProviders(<App />, route);
@@ -314,6 +323,7 @@ describe("the work in flight under a project", () => {
     organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
     role: "GUEST",
     clientIds: ["cl1"],
+    modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"],
   })));
 
   it("says so when nothing is in flight to a member who may not add a task", async () => {

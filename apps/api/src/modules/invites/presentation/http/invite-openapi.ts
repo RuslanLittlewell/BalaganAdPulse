@@ -24,7 +24,10 @@ const invite = z.object({
   registrationUrl: z.string(),
 });
 
-const registration = z.object({ registrationType: z.enum(REGISTRATION_TYPES) });
+const registration = z.object({
+  registrationType: z.enum(REGISTRATION_TYPES),
+  email: z.email().nullable(),
+});
 
 export const inviteComponents: ComponentDocs = {
   Invite: invite,

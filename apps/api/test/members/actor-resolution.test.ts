@@ -6,13 +6,16 @@ import { createMemberUseCases } from "../../src/modules/members/index.js";
 const PRINCIPAL = { id: "u1", name: "Buyer", email: "buyer@acme.com" };
 const ACTOR: ActorContext = { userId: "u1", membershipId: "m1", orgId: "org1", role: "MANAGER" };
 
-function fixture(actor: ActorContext | null) {
+function fixture(actor: ActorContext | null, organizationStatus: "ACTIVE" | "SUSPENDED" = "ACTIVE") {
   const asked: string[] = [];
   const useCases = createMemberUseCases({
     memberships: {
-      findActiveByUserId: async (userId) => { asked.push(userId); return actor; },
+      findActiveByUserId: async (userId) => {
+        asked.push(userId);
+        return actor && { actor, organizationStatus };
+      },
     },
-  });
+  } as never);
   return { asked, useCases };
 }
 
@@ -32,6 +35,14 @@ describe("resolveActor", () => {
     const { useCases } = fixture(null);
     await expect(useCases.resolveActor(PRINCIPAL)).rejects.toBeInstanceOf(AppError);
     await expect(useCases.resolveActor(PRINCIPAL)).rejects.toMatchObject({ category: "forbidden" });
+  });
+
+  it("refuses a member of a suspended organization", async () => {
+    const { useCases } = fixture(ACTOR, "SUSPENDED");
+    await expect(useCases.resolveActor(PRINCIPAL)).rejects.toMatchObject({
+      category: "forbidden",
+      message: "Organization is suspended",
+    });
   });
 
   it("asks the directory again for every resolution", async () => {

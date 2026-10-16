@@ -4,7 +4,7 @@ model ProjectIntegration {
   project            Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   provider           String    @default("META")
   accountId          String    @map("account_id")
-  leadsEnabled       Boolean   @default(true) @map("leads_enabled")
+  leadsEnabled       Boolean   @default(false) @map("leads_enabled")
   encryptedToken     String    @map("encrypted_token")
   currency           String
   timezone           String

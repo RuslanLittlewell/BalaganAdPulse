@@ -12,7 +12,7 @@ function open(code = "ABCDEFGH") {
 }
 
 const resolves = (registrationType: "CLIENT" | "EMPLOYEE" | "CLIENT_STAFF") =>
-  server.use(mock.get("/api/regustration/:code", () => HttpResponse.json({ registrationType })));
+  server.use(mock.get("/api/regustration/:code", () => HttpResponse.json({ registrationType, email: null })));
 
 describe("RegistrationPage", () => {
   it("shows the employee form for an employee invitation", async () => {

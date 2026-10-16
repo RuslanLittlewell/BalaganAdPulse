@@ -7,11 +7,13 @@ import {
   Button,
   ConfirmDialog,
   EmptyState,
+  Hint,
   ListItem,
   Loader,
   useAlerts,
 } from "@/shared/ui/index.js";
-import { Can } from "@/features/permissions/index.js";
+import { Can, useCan } from "@/features/permissions/index.js";
+import { HINTS, useHint } from "@/features/hints/index.js";
 import { ContactAvatar } from "./ContactAvatar.js";
 import { ContactDetails } from "./ContactDetails.js";
 import { ContactForm } from "./ContactForm.js";
@@ -28,6 +30,11 @@ export function ClientDirectory() {
   const list = clients.data ?? [];
   const selected = list.find((client) => client.id === selectedId) ?? list[0];
   const editing = mode.kind !== "view";
+  const createsClients = useCan("create", "client");
+  const firstClient = useHint(
+    HINTS.contactsFirstClient,
+    createsClients && clients.isSuccess && list.length === 0 && !editing,
+  );
 
   function select(client: Client) {
     setSelectedId(client.id);
@@ -75,65 +82,76 @@ export function ClientDirectory() {
         </div>
         {!editing && (
           <Can action="create" resource="client">
-            <Button
-              type="button"
-              size="icon"
-              className="absolute right-0 bottom-2 z-10 rounded-full shadow-md"
-              aria-label={t("contacts.new")}
-              onClick={() => setMode({ kind: "create" })}
+            <Hint
+              open={firstClient.open}
+              text={t("hint.contacts.firstClient")}
+              side="top"
+              onDismiss={firstClient.dismiss}
             >
-              <PlusIcon aria-hidden="true" />
-            </Button>
+              <Button
+                type="button"
+                size="icon"
+                className="absolute right-0 bottom-2 z-10 rounded-full shadow-md"
+                aria-label={t("contacts.new")}
+                onClick={() => setMode({ kind: "create" })}
+              >
+                <PlusIcon aria-hidden="true" />
+              </Button>
+            </Hint>
           </Can>
         )}
       </div>
 
       <div
         data-testid="contact-book-details"
-        className="max-h-[60vh] min-w-0 overflow-auto sm:border-l sm:border-border sm:pl-4"
+        className="flex max-h-[60vh] min-w-0 flex-col overflow-auto sm:border-l sm:border-border sm:pl-4"
       >
-        <div className="mb-2 flex min-h-9 items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-3">
-            {mode.kind !== "create" && selected != null && (
-              <Can action="update" resource="client"><ContactAvatar client={selected} /></Can>
-            )}
-            <h3 className="min-w-0 truncate text-lg font-semibold">
-              {mode.kind === "create" ? t("contacts.new") : selected?.name}
-            </h3>
-          </div>
-          {!editing && (
-            <div className="flex shrink-0 items-center gap-1">
-              {selected != null && (
-                <Can action="update" resource="client">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={t("contacts.edit")}
-                  onClick={() => setMode({ kind: "edit" })}
-                >
-                  <PencilIcon />
-                </Button>
-                </Can>
+        {(mode.kind === "create" || selected != null) && (
+          <div className="mb-2 flex min-h-9 items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-3">
+              {mode.kind !== "create" && selected != null && (
+                <Can action="update" resource="client"><ContactAvatar client={selected} /></Can>
               )}
-              {selected != null && (
-                <Can action="delete" resource="client">
+              <h3 className="min-w-0 truncate text-lg font-semibold">
+                {mode.kind === "create" ? t("contacts.new") : selected?.name}
+              </h3>
+            </div>
+            {!editing && (
+              <div className="flex shrink-0 items-center gap-1">
+                {selected != null && (
+                  <Can action="update" resource="client">
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={t("contacts.delete")}
-                    onClick={() => setDeleting(selected)}
+                    aria-label={t("contacts.edit")}
+                    onClick={() => setMode({ kind: "edit" })}
                   >
-                    <Trash2 />
+                    <PencilIcon />
                   </Button>
-                </Can>
-              )}
-            </div>
-          )}
-        </div>
+                  </Can>
+                )}
+                {selected != null && (
+                  <Can action="delete" resource="client">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={t("contacts.delete")}
+                      onClick={() => setDeleting(selected)}
+                    >
+                      <Trash2 />
+                    </Button>
+                  </Can>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {mode.kind === "view" && selected != null && <ContactDetails client={selected} />}
         {mode.kind === "view" && selected == null && (
-          <EmptyState title={t("contacts.empty")} />
+          <div className="grid flex-1 place-items-center">
+            <EmptyState title={t("contacts.empty")} />
+          </div>
         )}
         {editing && (
           <ContactForm

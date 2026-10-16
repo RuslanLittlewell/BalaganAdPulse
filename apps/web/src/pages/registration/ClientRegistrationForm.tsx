@@ -6,6 +6,7 @@ import { ApiError, isEmail, isPartialDecimal } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import { useAuth } from "@/features/auth/index.js";
 import { AvatarStep, NO_AVATAR, type ChosenAvatar } from "./AvatarStep.js";
+import { KnownEmail } from "./KnownEmail.js";
 import { MIN_PASSWORD, optional, saveChosenAvatar } from "./registration.js";
 
 interface AccountValues {
@@ -23,7 +24,12 @@ interface ProjectValues {
   projectName: string;
 }
 
-export function ClientRegistrationForm({ code }: { code: string }) {
+export interface ClientRegistrationFormProps {
+  code: string;
+  knownEmail?: string | null;
+}
+
+export function ClientRegistrationForm({ code, knownEmail = null }: ClientRegistrationFormProps) {
   const { register: join, saveAvatar, logout } = useAuth();
   const navigate = useNavigate();
   const [avatar, setAvatar] = useState<ChosenAvatar>(NO_AVATAR);
@@ -45,11 +51,12 @@ export function ClientRegistrationForm({ code }: { code: string }) {
     if (!(await project.trigger())) return false;
     const contact = account.getValues();
     const values = project.getValues();
+    const email = knownEmail ?? contact.email.trim();
     setFailure(null);
     try {
       await join({
         name: contact.name.trim(),
-        email: contact.email.trim(),
+        email,
         password: contact.password,
         inviteCode: code,
         phone: optional(contact.phone),
@@ -60,7 +67,7 @@ export function ClientRegistrationForm({ code }: { code: string }) {
           phone: optional(contact.phone),
           telegram: optional(contact.telegram),
           website: optional(contact.website),
-          email: contact.email.trim(),
+          email,
         },
         project: {
           name: values.projectName.trim(),
@@ -104,15 +111,19 @@ export function ClientRegistrationForm({ code }: { code: string }) {
                   validate: (value) => Boolean(value.trim()) || t("auth.name.required"),
                 })}
               />
-              <TextField
-                label={t("auth.email.label")}
-                type="email"
-                autoComplete="username"
-                error={account.formState.errors.email?.message}
-                {...account.register("email", {
-                  validate: (value) => isEmail(value.trim()) || t("auth.email.invalid"),
-                })}
-              />
+              {knownEmail ? (
+                <KnownEmail email={knownEmail} />
+              ) : (
+                <TextField
+                  label={t("auth.email.label")}
+                  type="email"
+                  autoComplete="username"
+                  error={account.formState.errors.email?.message}
+                  {...account.register("email", {
+                    validate: (value) => isEmail(value.trim()) || t("auth.email.invalid"),
+                  })}
+                />
+              )}
               <TextField
                 label={t("auth.password.label")}
                 type="password"

@@ -11,6 +11,7 @@ function guestSession() {
     organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
     role: "GUEST",
     clientIds: ["client-1"],
+    modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"],
   })));
 }
 

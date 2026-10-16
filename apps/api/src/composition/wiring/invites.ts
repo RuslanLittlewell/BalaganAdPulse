@@ -6,6 +6,7 @@ import {
   createRegistrationResolverRouter,
 } from "#modules/invites/index.js";
 import { PrismaInviteRepository } from "#modules/invites/infrastructure/prisma-invite-repository.js";
+import { PrismaInvitationOrganizations } from "#modules/invites/infrastructure/prisma-invitation-organizations.js";
 import { PrismaInvitationProjectReach } from "#modules/invites/infrastructure/prisma-invitation-project-reach.js";
 import { PrismaInvitationProjectAccess, PrismaMembershipEnrolment } from "#modules/members/index.js";
 import type { ClientsAndProjects } from "./clients-projects.js";
@@ -20,6 +21,7 @@ export function wireInvites(
     invites: new PrismaInviteRepository(prisma, unitOfWork),
     memberships: new PrismaMembershipEnrolment(unitOfWork),
     projects: new PrismaInvitationProjectReach(prisma),
+    organizations: new PrismaInvitationOrganizations(prisma),
     clients: clientReach,
     projectAccess: new PrismaInvitationProjectAccess(unitOfWork),
     clientDirectory: {

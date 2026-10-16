@@ -292,7 +292,9 @@ describe("choosing which directory to show", () => {
 
       await user.click(screen.getByRole("radio", { name: "Сотрудники" }));
 
-      expect(await screen.findByText("Сотрудников пока нет")).toBeInTheDocument();
+      const empty = await screen.findByText("Сотрудников пока нет");
+      expect(screen.getByTestId("employee-panel")).toContainElement(empty);
+      expect(screen.getByTestId("employee-list")).not.toContainElement(empty);
     });
   });
 

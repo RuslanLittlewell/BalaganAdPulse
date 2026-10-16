@@ -38,7 +38,7 @@ it("normalizes account ID, encrypts tokens and queues without changing existing 
   const campaign = await seedCampaign(projectId);
   const response = await connect({ accountId: "act_123", token });
   expect(response.status).toBe(201);
-  expect(response.body).toMatchObject({ provider: "META", accountId: "123", status: "QUEUED", leadsEnabled: true });
+  expect(response.body).toMatchObject({ provider: "META", accountId: "123", status: "QUEUED", leadsEnabled: false });
   expect(JSON.stringify(response.body)).not.toContain(token);
   const stored = await prisma.projectIntegration.findFirstOrThrow({ where: { projectId } });
   expect(stored.encryptedToken).not.toContain(token);
@@ -171,12 +171,12 @@ it("switches a connection's lead import off and on", async () => {
   expect(on.body.leadsEnabled).toBe(true);
   expect((await prisma.projectIntegration.findUniqueOrThrow({ where: { id: created.id } })).leadsQueuedAt).not.toBeNull();
 });
-it("adds a connection with lead import off when asked, and on otherwise", async () => {
-  const off = await request(app).post(`${list()}/meta`).set(auth).send({ accountId: "123", token, leadsEnabled: false });
-  expect(off.status).toBe(201);
-  expect(off.body.leadsEnabled).toBe(false);
+it("adds a connection with lead import on when asked, and off otherwise", async () => {
+  const on = await request(app).post(`${list()}/meta`).set(auth).send({ accountId: "123", token, leadsEnabled: true });
+  expect(on.status).toBe(201);
+  expect(on.body.leadsEnabled).toBe(true);
 
   billedIn("BYN", "456");
-  const on = await connect({ accountId: "456", token });
-  expect(on.body.leadsEnabled).toBe(true);
+  const off = await connect({ accountId: "456", token });
+  expect(off.body.leadsEnabled).toBe(false);
 });

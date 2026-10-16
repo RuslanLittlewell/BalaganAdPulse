@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders, server } from "@test/shared/index.js";
+import { aSession, renderWithProviders, server } from "@test/shared/index.js";
 import { MetaIntegration } from "@/features/meta-integration/index.js";
 const list = "/api/projects/p1/integrations";
 const path = `${list}/i1`;
@@ -20,7 +20,7 @@ it("accepts Account ID and token on the frontend, sends them to the server and c
   expect(token).toHaveAttribute("type", "password");
   await userEvent.type(token, "synthetic-secret");
   await userEvent.click(screen.getByRole("button", { name: "Подключить" }));
-  await waitFor(() => expect(sent).toEqual({ accountId: "act_123", token: "synthetic-secret", leadsEnabled: true }));
+  await waitFor(() => expect(sent).toEqual({ accountId: "act_123", token: "synthetic-secret", leadsEnabled: false }));
   expect(await screen.findByRole("region", { name: "Meta · Facebook Ads" })).toBeInTheDocument();
   await waitFor(() => expect(screen.queryByLabelText("Токен доступа")).not.toBeInTheDocument());
   expect(JSON.stringify(localStorage)).not.toContain("synthetic-secret");
@@ -214,25 +214,57 @@ describe("several connections", () => {
 });
 
 describe("the lead import switch", () => {
-  it("is in the settings window, not on the panel, and starts on for a new connection", async () => {
+  it("is in the settings window, not on the panel, and starts off for a new connection", async () => {
     let sent: unknown;
     server.use(
       http.get(list, () => HttpResponse.json([])),
-      http.post(`${list}/meta`, async ({ request }) => { sent = await request.json(); return HttpResponse.json({ ...connected, leadsEnabled: false }, { status: 201 }); }),
+      http.post(`${list}/meta`, async ({ request }) => { sent = await request.json(); return HttpResponse.json({ ...connected, leadsEnabled: true }, { status: 201 }); }),
     );
     renderWithProviders(<MetaIntegration projectId="p1" />);
     await openNewMeta();
 
-    const toggle = screen.getByRole("switch", { name: "Загружать лиды для CRM" });
-    expect(toggle).toBeChecked();
+    const toggle = await screen.findByRole("switch", { name: "Загружать лиды для CRM" });
+    expect(toggle).not.toBeChecked();
     await userEvent.click(toggle);
     await userEvent.type(screen.getByLabelText("Account ID"), "123");
     await userEvent.type(screen.getByLabelText("Токен доступа"), "secret");
     await userEvent.click(screen.getByRole("button", { name: "Подключить" }));
 
-    await waitFor(() => expect(sent).toMatchObject({ leadsEnabled: false }));
+    await waitFor(() => expect(sent).toMatchObject({ leadsEnabled: true }));
     const panel = await screen.findByRole("region", { name: "Meta · Facebook Ads" });
     expect(within(panel).queryByRole("switch")).toBeNull();
+  });
+
+  it("is not offered to an organization without CRM, which connects with lead import off", async () => {
+    let sent: unknown;
+    server.use(
+      http.get("/api/auth/me", () => HttpResponse.json(aSession({ modules: ["DASHBOARD", "PROJECTS", "TASKS"] }))),
+      http.get(list, () => HttpResponse.json([])),
+      http.post(`${list}/meta`, async ({ request }) => { sent = await request.json(); return HttpResponse.json(connected, { status: 201 }); }),
+    );
+    renderWithProviders(<MetaIntegration projectId="p1" />);
+    await openNewMeta();
+
+    await userEvent.type(screen.getByLabelText("Account ID"), "123");
+    expect(screen.queryByRole("switch", { name: "Загружать лиды для CRM" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Как настроить загрузку лидов" })).not.toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText("Токен доступа"), "secret");
+    await userEvent.click(screen.getByRole("button", { name: "Подключить" }));
+
+    await waitFor(() => expect(sent).toMatchObject({ leadsEnabled: false }));
+  });
+
+  it("explains what to set up in Meta behind the information button", async () => {
+    server.use(http.get(list, () => HttpResponse.json([])));
+    renderWithProviders(<MetaIntegration projectId="p1" />);
+    await openNewMeta();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Как настроить загрузку лидов" }));
+
+    const steps = await screen.findByRole("dialog", { name: "Чтобы лиды приходили по API" });
+    expect(steps).toHaveTextContent("leads_retrieval");
+    expect(steps).toHaveTextContent("Leads Access Manager");
+    expect(within(steps).getAllByRole("listitem")).toHaveLength(4);
   });
 
   it("switches an existing connection at once, without asking for the token", async () => {

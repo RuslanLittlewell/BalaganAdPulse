@@ -40,7 +40,7 @@ import {
   type OpenedTask,
 } from "@/features/task-management/index.js";
 import { useCan } from "@/features/permissions/index.js";
-import { useAuth } from "@/features/auth/index.js";
+import { useAuth, useModuleEnabled } from "@/features/auth/index.js";
 import { useMembers } from "@/entities/membership/index.js";
 import { TaskList } from "@/widgets/task-list/index.js";
 import { PerformanceSummary } from "@/widgets/agency-overview/index.js";
@@ -48,9 +48,7 @@ import {
   PerformanceTable,
   type PerformanceRow,
 } from "@/widgets/performance-table/index.js";
-import { ActivityLogModal } from "@/widgets/activity-log-modal/index.js";
 import { ProjectDocuments } from "@/widgets/project-documents/index.js";
-import type { AuditEventFilters } from "@/entities/audit-event/index.js";
 
 const sourceKey = (provider: string, accountId: string) => `${provider}:${accountId}`;
 
@@ -88,17 +86,15 @@ export function ProjectPage() {
     kind: "project",
     id: projectId ?? "",
   });
-  const [activityFilters, setActivityFilters] =
-    useState<AuditEventFilters | null>(null);
   const [opened, setOpened] = useState<OpenedTask>({ mode: "closed" });
-  const tasks = useTasks({ projectId, enabled: projectId != null });
+  const tracksTasks = useModuleEnabled("TASKS");
+  const tasks = useTasks({ projectId, enabled: projectId != null && tracksTasks });
   const raisesTasks = useCan("create", "task");
   const { user } = useAuth();
   const members = useMembers();
   const editsProjectKpi = useCan("update", "kpi");
   const arrangesSummary = useCan("update", "project-summary");
   const { raise } = useAlerts();
-  const readsActivity = useCan("read", "audit");
   const readsDocuments = useCan("read", "project-document");
   const { documentId } = useParams<{ documentId?: string }>();
   const inDocuments =
@@ -173,15 +169,7 @@ export function ProjectPage() {
 
   return (
     <div className="flex min-h-0 flex-col gap-6">
-      <ProjectHeader
-        project={project}
-        clientName={clientName}
-        onShowActivity={
-          readsActivity
-            ? () => setActivityFilters({ projectId: project.id })
-            : undefined
-        }
-      />
+      <ProjectHeader project={project} clientName={clientName} />
 
       {readsDocuments ? (
         <div className="border-b border-border pb-4">
@@ -292,36 +280,30 @@ export function ProjectPage() {
             </div>
           )}
 
-          <TaskList
-            title={t("tasks.inFlight.title")}
-            tasks={inFlight}
-            empty={t("tasks.inFlight.empty")}
-            onOpen={(task) => setOpened({ mode: "open", task })}
-            onCreate={
-              raisesTasks
-                ? () =>
-                    setOpened({
-                      mode: "create",
-                      projectId: project.id,
-                      participantIds: me ? [me.id] : undefined,
-                    })
-                : undefined
-            }
-          />
+          {tracksTasks && (
+            <TaskList
+              title={t("tasks.inFlight.title")}
+              tasks={inFlight}
+              empty={t("tasks.inFlight.empty")}
+              onOpen={(task) => setOpened({ mode: "open", task })}
+              onCreate={
+                raisesTasks
+                  ? () =>
+                      setOpened({
+                        mode: "create",
+                        projectId: project.id,
+                        participantIds: me ? [me.id] : undefined,
+                      })
+                  : undefined
+              }
+            />
+          )}
         </>
       )}
 
       <TaskDialogs
         opened={opened}
         onClose={() => setOpened({ mode: "closed" })}
-      />
-
-      <ActivityLogModal
-        open={activityFilters != null}
-        filters={activityFilters ?? {}}
-        onOpenChange={(open) => {
-          if (!open) setActivityFilters(null);
-        }}
       />
     </div>
   );

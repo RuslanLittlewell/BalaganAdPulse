@@ -1,6 +1,6 @@
 import { http } from "@/shared/lib/index.js";
 import type { TokenPair } from "@/shared/lib/index.js";
-import type { Role } from "@adpulse/access-policy";
+import type { ModuleKey, Role } from "@adpulse/access-policy";
 
 export interface ClientRegistrationBody {
   client: {
@@ -49,17 +49,22 @@ export interface UserProfile {
   telegram: string | null;
 }
 
+export type OrganizationStatus = "ACTIVE" | "SUSPENDED";
+
 export interface OrganizationSummary {
   id: string;
   name: string;
   slug: string;
+  status: OrganizationStatus;
 }
 
 export interface AuthSession {
   user: { id: string; name: string; email: string; image: string | null };
-  organization: OrganizationSummary;
-  role: Role;
+  platformAdmin: boolean;
+  organization: OrganizationSummary | null;
+  role: Role | null;
   clientIds: string[];
+  modules: ModuleKey[];
 }
 
 const UNAUTHENTICATED = { authenticated: false };

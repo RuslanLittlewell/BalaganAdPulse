@@ -75,3 +75,17 @@ export function can(actor: Actor, action: Action, resource: Resource): boolean {
   if (!Object.hasOwn(policy, action)) return false;
   return policy[action].includes(actor.role);
 }
+
+export const ALWAYS_ON_MODULES = ["DASHBOARD", "PROJECTS"] as const;
+export const OPTIONAL_MODULES = ["CRM", "TASKS", "REPORTS"] as const;
+export const MODULES = [...ALWAYS_ON_MODULES, ...OPTIONAL_MODULES] as const;
+export type OptionalModule = (typeof OPTIONAL_MODULES)[number];
+export type ModuleKey = (typeof MODULES)[number];
+
+export function isOptionalModule(value: string): value is OptionalModule {
+  return (OPTIONAL_MODULES as readonly string[]).includes(value);
+}
+
+export function enabledModules(optional: readonly OptionalModule[]): ModuleKey[] {
+  return MODULES.filter((module) => !isOptionalModule(module) || optional.includes(module));
+}

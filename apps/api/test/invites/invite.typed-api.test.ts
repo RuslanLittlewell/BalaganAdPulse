@@ -82,14 +82,27 @@ describe("typed invitation HTTP contracts", () => {
 });
 
 describe("GET /api/regustration/:code", () => {
-  it("is public and returns registration type only", async () => {
+  it("is public and returns the registration type and no address for an unbound code", async () => {
     const org = await currentOrg();
     await prisma.invite.create({
       data: { orgId: org.id, code: "PUBLCAAB", registrationType: "CLIENT", role: null },
     });
     const response = await request(app).get("/api/regustration/PUBLCAAB");
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ registrationType: "CLIENT" });
+    expect(response.body).toEqual({ registrationType: "CLIENT", email: null });
+  });
+
+  it("names the address a bound code is for, and nothing else about it", async () => {
+    const org = await currentOrg();
+    await prisma.invite.create({
+      data: {
+        orgId: org.id, code: "BNDXAAB2", registrationType: "EMPLOYEE", role: "ADMIN",
+        email: "owner@acme.com",
+      },
+    });
+    const response = await request(app).get("/api/regustration/BNDXAAB2");
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ registrationType: "EMPLOYEE", email: "owner@acme.com" });
   });
 
   it.each([

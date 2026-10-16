@@ -26,6 +26,7 @@ export * from "./DatePicker/DatePicker.js";
 export * from "./FadeContent/FadeContent.js";
 export { dayLabel, fromIso, toIso } from "./DatePicker/month.js";
 export * from "./EmptyState/EmptyState.js";
+export * from "./Hint/Hint.js";
 export * from "./EditorToolbarButton/EditorToolbarButton.js";
 export { RICH_TEXT_CLASS, followLink } from "./RichText/richText.js";
 export type { LinkClick } from "./RichText/richText.js";

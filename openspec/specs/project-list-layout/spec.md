@@ -106,7 +106,8 @@ its height. Choosing it SHALL narrow the list to the projects' pictures alone, a
 it again SHALL widen it back. The handle SHALL name the action it performs and expose
 whether the list is expanded. The choice SHALL be remembered in the member's browser.
 
-While narrowed, each project SHALL show only its picture; hovering or focusing it SHALL
+While narrowed, each project SHALL show only its picture, with its KPI marker as a small
+circle on it; hovering or focusing it SHALL
 show the project's name in a tooltip, and choosing it SHALL open the project as before.
 Pinned projects SHALL stay above the rest, groups SHALL keep their projects together with
 the group's name in a tooltip, and nothing SHALL be draggable. The search SHALL become a
@@ -115,7 +116,8 @@ context menu, which narrows the list as the search field does.
 
 #### Scenario: Narrowing the list
 - **WHEN** a member chooses the handle on the border
-- **THEN** the list shows only the projects' pictures and the handle offers to widen it
+- **THEN** the list shows only the projects' pictures, each with its KPI marker, and the
+  handle offers to widen it
 
 #### Scenario: A project's name
 - **WHEN** a member hovers a project's picture in the narrowed list
@@ -144,8 +146,8 @@ in the wide and the narrowed list alike, opening the project form for that proje
 
 ### Requirement: A project's marker follows its KPI
 
-Each project in the wide project list SHALL carry a coloured marker decided by the
-project's progress against its own KPI over the selected reporting period, the period the
+Each project in the project list, wide or narrowed, SHALL carry a coloured marker decided by
+the project's progress against its own KPI over the selected reporting period, the period the
 project's KPI tile uses. Progress SHALL be the percentage achieved as the KPI tile computes
 it, counting lower-is-better metrics in their favourable direction, rounded to the whole
 percent the tile shows. The marker SHALL be:
@@ -157,7 +159,8 @@ percent the tile shows. The marker SHALL be:
   should look closer and help;
 - green when progress is 100% or more: the plan is met or exceeded and nothing is needed.
 
-These are the zones of a campaign's indicator.
+These are the zones of a campaign's indicator. In the wide list the marker SHALL be a bar
+beside the project; in the narrowed list it SHALL be a small circle on the project's picture.
 
 Campaign KPIs SHALL NOT stand in for a project without one. The marker SHALL expose its
 state to assistive technology rather than through colour alone. It SHALL follow a change
@@ -218,6 +221,12 @@ project's context menu SHALL NOT offer a priority.
 
 - **WHEN** an admin opens a project's context menu
 - **THEN** it offers no priority
+
+#### Scenario: The narrowed list
+
+- **WHEN** a member narrows the list and a project's KPI is far behind
+- **THEN** the project's picture carries a small red circle, and the project is described to
+  assistive technology as seriously behind its KPI
 
 ### Requirement: Projects keep the member's order and are found by searching
 

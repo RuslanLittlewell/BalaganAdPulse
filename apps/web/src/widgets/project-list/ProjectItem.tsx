@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { ListItem } from "@/shared/ui/index.js";
 import WarmTooltip from "@/shared/ui/WarmTooltip/WarmTooltip.js";
 import { t } from "@/shared/config/index.js";
@@ -30,6 +31,9 @@ export function ProjectItem({
   onOpen,
   onEdit,
 }: ProjectItemProps) {
+  const markerId = useId();
+  const markerLabel = t(`projects.kpiMarker.${tone}`);
+
   if (collapsed) {
     return (
       <WarmTooltip content={project.name} side="right">
@@ -37,11 +41,20 @@ export function ProjectItem({
           type="button"
           onClick={onOpen}
           aria-label={project.name}
+          aria-describedby={markerId}
           aria-current={selected ? "page" : undefined}
           data-selected={selected}
           className="mx-auto mb-1 grid rounded-md p-1 transition-colors hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[selected=true]:bg-accent"
         >
-          <ProjectAvatar project={project} size="sm" />
+          <span className="relative">
+            <ProjectAvatar project={project} size="sm" />
+            <span
+              aria-hidden="true"
+              className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-background"
+              style={{ background: MARKER[tone] }}
+            />
+          </span>
+          <span id={markerId} className="sr-only">{markerLabel}</span>
         </button>
       </WarmTooltip>
     );
@@ -52,7 +65,7 @@ export function ProjectItem({
       selected={selected}
       leading={<ProjectAvatar project={project} size="sm" />}
       marker={MARKER[tone]}
-      markerLabel={t(`projects.kpiMarker.${tone}`)}
+      markerLabel={markerLabel}
       onEdit={onEdit}
       editLabel={`${t("project.edit")}: ${project.name}`}
       onClick={onOpen}

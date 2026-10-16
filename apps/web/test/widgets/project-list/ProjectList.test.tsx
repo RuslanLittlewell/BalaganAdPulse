@@ -389,6 +389,22 @@ describe("the narrowed project list", () => {
     expect(await screen.findByRole("tooltip")).toHaveTextContent("Летний запуск");
   });
 
+  it("describes each picture with its project's KPI marker, keeping the project's name", async () => {
+    withProjects();
+    server.use(mock.get("/api/summary/projects", () => HttpResponse.json([{
+      projectId: "summer",
+      kpi: { metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000" },
+      performance: EMPTY_PERFORMANCE,
+      days: [],
+    }])));
+    setupNarrowed();
+
+    const summer = await screen.findByRole("button", { name: "Летний запуск" });
+    await waitFor(() => expect(summer).toHaveAccessibleDescription("KPI: серьёзное отставание"));
+    expect(screen.getByRole("button", { name: "Осенняя распродажа" }))
+      .toHaveAccessibleDescription("KPI: цель не задана или не измерена");
+  });
+
   it("does not let a project be dragged", async () => {
     withProjects();
     setupNarrowed();

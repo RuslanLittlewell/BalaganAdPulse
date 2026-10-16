@@ -1,16 +1,26 @@
 import type { PrismaClient } from "@prisma/client";
 import type { ActorContext } from "#shared/application/index.js";
 import { getObject } from "#shared/infrastructure/storage.js";
-import type { Ad, AdSet, Campaign } from "../domain/hierarchy.js";
+import type { Ad, AdSet, Campaign, KpiTarget, ProjectKpi } from "../domain/hierarchy.js";
 import type {
-  AdRepository, AdSetRepository, CampaignRepository, CreativeRepository, CreativeStorage, ProjectReach,
+  AdRepository, AdSetRepository, CampaignRepository, CreativeRepository, CreativeStorage, ProjectReach, ReachableProject,
 } from "../application/ports.js";
 import { reachableProjects } from "#shared/infrastructure/project-reach.js";
 
-const toCampaign = (row: {
+type StoredKpi = { kpiMetric: string | null; kpiTarget: { toFixed(digits: number): string } | null };
+
+const kpiOf = ({ kpiMetric, kpiTarget }: StoredKpi): KpiTarget | null =>
+  kpiMetric && kpiTarget ? { metric: kpiMetric, target: kpiTarget.toFixed(4) } : null;
+
+const projectKpiOf = (row: StoredKpi & { kpiName: string | null; kpiValue: { toFixed(digits: number): string } | null }): ProjectKpi | null => {
+  const kpi = kpiOf(row);
+  if (!kpi || kpi.metric !== "MANUAL") return kpi;
+  return row.kpiName != null && row.kpiValue ? { ...kpi, name: row.kpiName, value: row.kpiValue.toFixed(4) } : null;
+};
+
+const toCampaign = (row: StoredKpi & {
   id: string; projectId: string; name: string; channel: string; status: string;
   objective: string | null; externalId: string | null; sourceAccountId: string | null; position: number;
-  kpiMetric: string | null; kpiTarget: { toFixed(digits: number): string } | null;
   project?: { budgetCurrency: string | null };
 }): Campaign => ({
   currency: row.project?.budgetCurrency ?? null,
@@ -23,7 +33,7 @@ const toCampaign = (row: {
   externalId: row.externalId,
   sourceAccountId: row.sourceAccountId,
   position: row.position,
-  kpi: row.kpiMetric && row.kpiTarget ? { metric: row.kpiMetric, target: row.kpiTarget.toFixed(4) } : null,
+  kpi: kpiOf(row),
 });
 
 export class PrismaCampaignRepository implements CampaignRepository {
@@ -116,10 +126,12 @@ export class PrismaProjectReach implements ProjectReach {
     return project !== null;
   }
 
-  async listReachable(actor: ActorContext): Promise<string[]> {
+  async listReachable(actor: ActorContext): Promise<ReachableProject[]> {
     const projects = await this.prisma.project.findMany({
-      where: reachableProjects(actor), select: { id: true }, orderBy: { position: "asc" },
+      where: reachableProjects(actor),
+      select: { id: true, kpiMetric: true, kpiTarget: true, kpiName: true, kpiValue: true },
+      orderBy: { position: "asc" },
     });
-    return projects.map((project) => project.id);
+    return projects.map((project) => ({ id: project.id, kpi: projectKpiOf(project) }));
   }
 }

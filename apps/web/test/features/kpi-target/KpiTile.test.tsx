@@ -11,15 +11,22 @@ const figures = (values: Record<string, number | null> = {}) => ({
 const firstHalf = { from: "2026-09-01", to: "2026-09-15" };
 const path = "/api/projects/p1/kpi";
 
-function kpi(initial: { metric: string; target: string } | null) {
+type StoredKpi = { metric: string; target: string; name?: string; value?: string };
+
+function kpi(initial: StoredKpi | null) {
   let current = initial && { ...initial, updatedAt: "2026-09-14T10:00:00.000Z" };
   const requests: Array<{ method: string; body?: unknown }> = [];
   server.use(
     mock.get(path, () => HttpResponse.json(current)),
     mock.put(path, async ({ request }) => {
-      const body = await request.json() as { metric: string; target: string };
+      const body = await request.json() as StoredKpi;
       requests.push({ method: "PUT", body });
-      current = { metric: body.metric, target: Number(body.target).toFixed(4), updatedAt: "2026-09-14T11:00:00.000Z" };
+      current = {
+        ...body,
+        target: Number(body.target).toFixed(4),
+        ...(body.value === undefined ? {} : { value: Number(body.value).toFixed(4) }),
+        updatedAt: "2026-09-14T11:00:00.000Z",
+      };
       return HttpResponse.json(current);
     }),
     mock.delete(path, () => { requests.push({ method: "DELETE" }); current = null; return new HttpResponse(null, { status: 204 }); }),
@@ -178,6 +185,106 @@ describe("the KPI target dialog", () => {
 
     expect(await within(dialog).findByText("Введите положительное число, не больше 4 знаков после запятой")).toBeInTheDocument();
     expect(requests).toEqual([]);
+  });
+});
+
+describe("a KPI set by hand", () => {
+  const openDialog = async (button = "Задать цель") => {
+    await userEvent.click(await screen.findByRole("button", { name: button }));
+    return screen.findByRole("dialog", { name: "Цель KPI" });
+  };
+  const chooseManual = async (dialog: HTMLElement) => {
+    await userEvent.click(within(dialog).getByLabelText("Метрика"));
+    await userEvent.click(await screen.findByRole("option", { name: "Вручную" }));
+  };
+
+  it("asks for a name, a value and a target, and saves them", async () => {
+    const requests = kpi(null);
+    setup();
+
+    const dialog = await openDialog();
+    expect(within(dialog).queryByLabelText("Название")).not.toBeInTheDocument();
+    await chooseManual(dialog);
+    expect(within(dialog).getByText("Значение и цель меняются только вручную и не зависят от выбранного периода"))
+      .toBeInTheDocument();
+    await userEvent.type(within(dialog).getByLabelText("Название"), " Продажи ");
+    await userEvent.type(within(dialog).getByLabelText("Значение"), "30,5");
+    await userEvent.type(within(dialog).getByLabelText("Цель"), "50");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Сохранить" }));
+
+    await waitFor(() => expect(requests).toEqual([
+      { method: "PUT", body: { metric: "MANUAL", name: "Продажи", value: "30.5", target: "50" } },
+    ]));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("says what is missing and sends nothing", async () => {
+    const requests = kpi(null);
+    setup();
+
+    const dialog = await openDialog();
+    await chooseManual(dialog);
+    await userEvent.type(within(dialog).getByLabelText("Значение"), "-3");
+    await userEvent.type(within(dialog).getByLabelText("Цель"), "0");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Сохранить" }));
+
+    expect(await within(dialog).findByText("Введите название")).toBeInTheDocument();
+    expect(within(dialog).getByText("Введите число не меньше нуля, не больше 4 знаков после запятой")).toBeInTheDocument();
+    expect(within(dialog).getByText("Введите положительное число, не больше 4 знаков после запятой")).toBeInTheDocument();
+    expect(requests).toEqual([]);
+  });
+
+  it("shows its name, value, target and progress on the tile, whatever the figures", async () => {
+    kpi({ metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000" });
+    setup({ canEdit: false, values: { conversions: 999 } });
+
+    expect(await screen.findByText("KPI · Продажи")).toBeInTheDocument();
+    expect(tile()).toHaveAttribute("data-state", "behind");
+    expect(within(tile()).getByText("30")).toBeInTheDocument();
+    expect(within(tile()).getByText("Цель 50 · 60%")).toBeInTheDocument();
+    expect(within(tile()).getByRole("progressbar", { name: "Выполнение KPI" })).toHaveAttribute("aria-valuenow", "60");
+  });
+
+  it("writes Выполнено once the value reaches the target", async () => {
+    kpi({ metric: "MANUAL", name: "Продажи", value: "50.0000", target: "50.0000" });
+    setup({ canEdit: false });
+
+    expect(await within(await screen.findByTestId("kpi-tile")).findByText("Выполнено")).toBeInTheDocument();
+    expect(tile()).toHaveAttribute("data-state", "met");
+  });
+
+  it("opens for editing with Вручную chosen and its fields filled", async () => {
+    const requests = kpi({ metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000" });
+    setup();
+
+    const dialog = await openDialog("Изменить цель");
+    expect(within(dialog).getByLabelText("Метрика")).toHaveTextContent("Вручную");
+    expect(within(dialog).getByLabelText("Название")).toHaveValue("Продажи");
+    expect(within(dialog).getByLabelText("Значение")).toHaveValue("30");
+    expect(within(dialog).getByLabelText("Цель")).toHaveValue("50");
+    await userEvent.clear(within(dialog).getByLabelText("Значение"));
+    await userEvent.type(within(dialog).getByLabelText("Значение"), "42");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Сохранить" }));
+
+    await waitFor(() => expect(requests).toEqual([
+      { method: "PUT", body: { metric: "MANUAL", name: "Продажи", value: "42", target: "50" } },
+    ]));
+  });
+
+  it.each([
+    ["campaign", { kind: "campaign" as const, id: "c1" }, "/api/campaigns/c1/kpi"],
+    ["organization", { kind: "organization" as const }, "/api/organization/kpi"],
+  ])("is not offered for the %s", async (_level, scope, path) => {
+    server.use(mock.get(path, () => HttpResponse.json(null)));
+    renderWithProviders(
+      <KpiTile scope={scope} canEdit figures={figures()} range={firstHalf} currency="BYN" />,
+    );
+
+    const dialog = await openDialog();
+    await userEvent.click(within(dialog).getByLabelText("Метрика"));
+
+    expect(await screen.findByRole("option", { name: "Лиды" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Вручную" })).not.toBeInTheDocument();
   });
 });
 

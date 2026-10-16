@@ -7,7 +7,7 @@ import { ReportsPage } from "@/pages/reports/index.js";
 import { ProjectPage } from "@/pages/project/index.js";
 
 const project = (id: string, name: string) => ({
-  id, clientId: "cl1", name, budgetCurrency: "USD", priority: "NEW", image: null, avatarPath: null, position: 0, createdAt: "", updatedAt: "",
+  id, clientId: "cl1", name, budgetCurrency: "USD", image: null, avatarPath: null, position: 0, createdAt: "", updatedAt: "",
 });
 
 const summary = (id: string, projectId: string, month: string, status = "PUBLISHED") => ({

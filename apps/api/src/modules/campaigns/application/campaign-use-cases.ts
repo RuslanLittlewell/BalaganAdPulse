@@ -1,7 +1,7 @@
 import { can } from "@adpulse/access-policy";
 import { AppError } from "#shared/domain/index.js";
 import type { ActorContext } from "#shared/application/index.js";
-import { isOrderedRange, type Ad, type AdSet, type Campaign, type Channel, type CreativeFile, type DateRange } from "../domain/hierarchy.js";
+import { isOrderedRange, type Ad, type AdSet, type Campaign, type Channel, type CreativeFile, type DateRange, type ProjectKpi } from "../domain/hierarchy.js";
 import { performanceOf, sumByDay, type MeasuredDay, type Performance } from "../domain/metrics.js";
 import type { AdRepository, AdSetRepository, CampaignRepository, CreativeRepository, CreativeStorage, ProjectReach } from "./ports.js";
 import type { CampaignDay, MetricRepository } from "./metric-ports.js";
@@ -34,6 +34,7 @@ export interface ChannelView {
 
 export interface ProjectFigures {
   readonly projectId: string;
+  readonly kpi: ProjectKpi | null;
   readonly performance: Performance;
   readonly days: MeasuredDay[];
 }
@@ -200,16 +201,16 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
     projectsSummary: async (actor: ActorContext, range: DateRange): Promise<ProjectFigures[]> => {
       assertCanRead(actor);
       assertRange(range);
-      const [projectIds, campaigns] = await Promise.all([
+      const [projects, campaigns] = await Promise.all([
         dependencies.projects.listReachable(actor),
         dependencies.campaigns.listReachable(actor),
       ]);
       const campaignsByProject = groupedBy(campaigns, (campaign) => campaign.projectId);
       const daysByCampaign = groupedBy(await campaignDays(campaigns, range), (day) => day.campaignId);
-      return projectIds.map((projectId) => {
-        const days = (campaignsByProject.get(projectId) ?? [])
+      return projects.map(({ id, kpi }) => {
+        const days = (campaignsByProject.get(id) ?? [])
           .flatMap((campaign) => daysByCampaign.get(campaign.id) ?? []);
-        return { projectId, performance: performanceOf(days), days: sumByDay(days) };
+        return { projectId: id, kpi, performance: performanceOf(days), days: sumByDay(days) };
       });
     },
 

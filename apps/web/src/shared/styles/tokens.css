@@ -116,14 +116,10 @@
   --color-text-muted: var(--muted-foreground);
 
   --color-avatar-ink: #fff;
-  /* Priority markers. Signals, so they stay legible rather than joining the
-     palette: only the shade shifts between themes. */
-  --priority-critical: #dc2626;
-  --priority-urgent: #ea580c;
-  --priority-waiting: #2563eb;
-  --priority-idle: #16a34a;
-  /* "White" in spirit: on a light ground pure white would be no marker at all. */
-  --priority-new: #cbd5e1;
+  --kpi-marker-danger: #dc2626;
+  --kpi-marker-behind: #f59e0b;
+  --kpi-marker-met: #16a34a;
+  --kpi-marker-none: #cbd5e1;
 
   --color-avatar-1: #e8703a;
   --color-avatar-2: #4a8fe7;
@@ -191,11 +187,10 @@
   --sidebar-border: #35465c;
   --sidebar-ring: #c4a074;
 
-  --priority-critical: #f87171;
-  --priority-urgent: #fb923c;
-  --priority-waiting: #7fa6c8;
-  --priority-idle: #6ec48f;
-  --priority-new: #eee9df;
+  --kpi-marker-danger: #f87171;
+  --kpi-marker-behind: #fbbf24;
+  --kpi-marker-met: #6ec48f;
+  --kpi-marker-none: #64748b;
 
   /* Client swatches, pulled into the palette's temperature. All five are light
      enough to carry the ground colour as ink, and far enough apart in hue that

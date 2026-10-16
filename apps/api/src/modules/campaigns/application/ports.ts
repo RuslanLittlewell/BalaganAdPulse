@@ -1,5 +1,5 @@
 import type { ActorContext } from "#shared/application/index.js";
-import type { Ad, AdSet, Campaign } from "../domain/hierarchy.js";
+import type { Ad, AdSet, Campaign, ProjectKpi } from "../domain/hierarchy.js";
 
 export interface CampaignRepository {
   findReachable(actor: ActorContext, id: string): Promise<Campaign | null>;
@@ -28,7 +28,12 @@ export interface CreativeStorage {
   read(key: string): Promise<{ body: Uint8Array; contentType: string | undefined }>;
 }
 
+export interface ReachableProject {
+  readonly id: string;
+  readonly kpi: ProjectKpi | null;
+}
+
 export interface ProjectReach {
   isReachable(actor: ActorContext, projectId: string): Promise<boolean>;
-  listReachable(actor: ActorContext): Promise<string[]>;
+  listReachable(actor: ActorContext): Promise<ReachableProject[]>;
 }

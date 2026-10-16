@@ -82,6 +82,86 @@ describe("setting, reading and clearing a KPI", () => {
   });
 });
 
+describe("a project KPI set by hand", () => {
+  const manual = { metric: "MANUAL", name: "  Продажи ", value: "30", target: "50" };
+
+  it("is stored with its name, value and target and read back the same way", async () => {
+    const saved = await request(app).put(projectKpi()).set(admin).send(manual);
+
+    expect(saved.status).toBe(200);
+    expect(saved.body).toEqual({
+      metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000", updatedAt: expect.any(String),
+    });
+    expect((await request(app).get(projectKpi()).set(admin)).body)
+      .toMatchObject({ metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000" });
+  });
+
+  it("accepts a value of zero", async () => {
+    const saved = await request(app).put(projectKpi()).set(admin).send({ ...manual, value: "0" });
+
+    expect(saved.body).toMatchObject({ value: "0.0000" });
+  });
+
+  it("replaces a metric KPI and is replaced by one", async () => {
+    await request(app).put(projectKpi()).set(admin).send({ metric: "CONVERSIONS", target: "60" });
+    await request(app).put(projectKpi()).set(admin).send(manual);
+    expect((await request(app).get(projectKpi()).set(admin)).body).toMatchObject({ metric: "MANUAL", name: "Продажи" });
+
+    await request(app).put(projectKpi()).set(admin).send({ metric: "CPA", target: "10" });
+
+    const read = await request(app).get(projectKpi()).set(admin);
+    expect(read.body).toEqual({ metric: "CPA", target: "10.0000", updatedAt: expect.any(String) });
+    expect(await prisma.project.findUniqueOrThrow({ where: { id: projectId } }))
+      .toMatchObject({ kpiName: null, kpiValue: null });
+  });
+
+  it("is gone once cleared", async () => {
+    await request(app).put(projectKpi()).set(admin).send(manual);
+
+    expect((await request(app).delete(projectKpi()).set(admin)).status).toBe(204);
+
+    expect((await request(app).get(projectKpi()).set(admin)).body).toBeNull();
+    expect(await prisma.project.findUniqueOrThrow({ where: { id: projectId } }))
+      .toMatchObject({ kpiMetric: null, kpiName: null, kpiValue: null });
+  });
+
+  it.each([
+    { ...manual, name: "" },
+    { ...manual, name: "   " },
+    { ...manual, name: "Я".repeat(101) },
+    { ...manual, value: "-1" },
+    { ...manual, value: "ten" },
+    { ...manual, value: "1.23456" },
+    { ...manual, target: "0" },
+    { metric: "MANUAL", value: "30", target: "50" },
+    { metric: "MANUAL", name: "Продажи", target: "50" },
+    { ...manual, extra: true },
+    { metric: "CONVERSIONS", name: "Продажи", value: "30", target: "50" },
+  ])("refuses %j and leaves the KPI unchanged", async (body) => {
+    await request(app).put(projectKpi()).set(admin).send({ metric: "SPEND", target: "1000" });
+
+    expect((await request(app).put(projectKpi()).set(admin).send(body)).status).toBe(400);
+    expect((await request(app).get(projectKpi()).set(admin)).body).toMatchObject({ metric: "SPEND", target: "1000.0000" });
+  });
+
+  it.each([
+    ["campaign", () => campaignKpi()],
+    ["organization", () => organizationKpi],
+  ])("is refused on the %s", async (_level, path) => {
+    const res = await request(app).put(path()).set(admin).send(manual);
+
+    expect(res.status).toBe(400);
+    expect((await request(app).get(path()).set(admin)).body).toBeNull();
+  });
+
+  it("is refused to a client like any KPI", async () => {
+    const customer = await signInAs("Client", { role: "CLIENT" });
+    await grantAccess(customer.membership!.id, clientId);
+
+    expect((await request(app).put(projectKpi()).set(customer.auth).send(manual)).status).toBe(403);
+  });
+});
+
 describe("who reaches and changes a KPI", () => {
   it("answers 404 for projects and campaigns out of reach", async () => {
     const stranger = await signInAs("Stranger", { role: "MANAGER" });
@@ -146,6 +226,20 @@ describe("auditing KPI changes", () => {
       ["organization", "UPDATE", { before: null, after: { metric: "SPEND", target: "5000.0000" } }],
     ]);
     expect(events[0]).toMatchObject({ entityId: campaignId, campaignId, projectId, clientId });
+  });
+
+  it("records the name, value and target of a KPI set by hand", async () => {
+    await request(app).put(projectKpi()).set(admin).send({ metric: "MANUAL", name: "Продажи", value: "30", target: "50" });
+    await request(app).put(projectKpi()).set(admin).send({ metric: "MANUAL", name: "Продажи", value: "45", target: "50" });
+
+    const events = await prisma.auditEvent.findMany({ orderBy: { createdAt: "asc" } });
+    expect(events.map((event) => event.changes)).toEqual([
+      { before: null, after: { metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000" } },
+      {
+        before: { metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000" },
+        after: { metric: "MANUAL", name: "Продажи", value: "45.0000", target: "50.0000" },
+      },
+    ]);
   });
 
   it("records nothing for a refused change", async () => {

@@ -76,9 +76,11 @@ export function useAgencySummary(range: DateRange) {
   });
 }
 
+export const PROJECTS_SUMMARY_KEY = ["summary", "projects"] as const;
+
 export function useProjectsSummary(range: DateRange) {
   return useQuery({
-    queryKey: keyed(["summary", "projects"], range),
+    queryKey: keyed(PROJECTS_SUMMARY_KEY, range),
     queryFn: () => campaignsApi.projectsSummary(range),
   });
 }

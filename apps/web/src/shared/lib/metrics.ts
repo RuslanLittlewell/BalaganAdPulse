@@ -54,6 +54,12 @@ export function formatRatio(value: number | null, currency: Currency = "RUB"): s
   return present(value) ? withSign(grouped(value, 2), currency) : MISSING;
 }
 
+export function formatNumber(value: number | null): string {
+  return present(value)
+    ? value.toLocaleString("ru-RU", { maximumFractionDigits: 4 }).replace(/\s/g, NBSP)
+    : MISSING;
+}
+
 export function formatMultiple(value: number | null): string {
   return present(value) ? `${grouped(value, 2)}x` : MISSING;
 }

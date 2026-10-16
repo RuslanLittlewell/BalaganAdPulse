@@ -30,7 +30,6 @@ export function aProject(overrides: Partial<Project> = {}): Project {
     clientId: "1",
     name: "Летний запуск",
     budgetCurrency: "BYN",
-    priority: "NEW",
     image: null,
     avatarPath: null,
     position: 0,

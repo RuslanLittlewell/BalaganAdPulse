@@ -43,6 +43,11 @@ describe("a campaign's indicator", () => {
     expect(campaignTone(campaign({ kpi: null }), projectKpi, SEPTEMBER)).toBe("profitable");
   });
 
+  it("does not fall back to a project KPI set by hand", () => {
+    const projectKpi = { metric: "MANUAL" as const, name: "Продажи", value: "500.0000", target: "50.0000" };
+    expect(campaignTone(campaign({ kpi: null }), projectKpi, SEPTEMBER)).toBe("idle");
+  });
+
   it("prefers the campaign's own KPI over the project's", () => {
     const projectKpi = { metric: "CONVERSIONS" as const, target: "10.0000" };
     expect(campaignTone(campaign({ kpi: { metric: "CONVERSIONS", target: "100.0000" } }), projectKpi, SEPTEMBER)).toBe("danger");

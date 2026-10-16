@@ -1,13 +1,3 @@
-enum ProjectPriority {
-  CRITICAL
-  URGENT
-  WAITING
-  IDLE
-  NEW
-
-  @@map("project_priority")
-}
-
 enum SummaryTile {
   SPEND
   IMPRESSIONS
@@ -26,7 +16,6 @@ model Project {
   client         Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
   name           String
   budgetCurrency String?              @map("budget_currency") @db.VarChar(3)
-  priority       ProjectPriority      @default(NEW)
   image          String?
   avatarPath     String?              @map("avatar_path")
   position       Int
@@ -44,6 +33,8 @@ model Project {
   documents      ProjectDocument[]
   kpiMetric      KpiMetric?           @map("kpi_metric")
   kpiTarget      Decimal?             @map("kpi_target") @db.Decimal(18, 4)
+  kpiName        String?              @map("kpi_name")
+  kpiValue       Decimal?             @map("kpi_value") @db.Decimal(18, 4)
   kpiUpdatedAt   DateTime?            @map("kpi_updated_at")
   summaryTiles   SummaryTile[]        @default([]) @map("summary_tiles")
 

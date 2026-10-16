@@ -3,8 +3,10 @@ import { Pencil } from "lucide-react";
 import {
   kpiMetricDefinition,
   kpiProgress,
+  MANUAL_KPI,
   useKpi,
   type KpiFigures,
+  type KpiFormat,
   type KpiScope,
 } from "@/entities/kpi/index.js";
 import { cn, type Currency } from "@/shared/lib/index.js";
@@ -38,8 +40,10 @@ export function KpiTile({
   const [editing, setEditing] = useState(false);
   const controls = canEdit && !preview;
   const current = kpi.data ?? null;
-  const definition = current ? kpiMetricDefinition(current.metric) : null;
-  const progress = current ? kpiProgress(figures, current, range) : null;
+  const definition = current && current.metric !== MANUAL_KPI ? kpiMetricDefinition(current.metric) ?? null : null;
+  const title = current?.metric === MANUAL_KPI ? current.name : definition ? t(definition.label) : null;
+  const format: KpiFormat | null = current?.metric === MANUAL_KPI ? "number" : definition?.format ?? null;
+  const progress = current && format ? kpiProgress(figures, current, range) : null;
   const monetary =
     definition?.format === "currency" ||
     definition?.format === "ratio" ||
@@ -60,9 +64,7 @@ export function KpiTile({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {definition
-            ? `${t("summary.kpi")} · ${t(definition.label)}`
-            : t("summary.kpi")}
+          {title ? `${t("summary.kpi")} · ${title}` : t("summary.kpi")}
         </div>
         {controls && current ? (
           <Button
@@ -78,7 +80,7 @@ export function KpiTile({
         ) : null}
       </div>
 
-      {current && definition && progress ? (
+      {current && format && progress ? (
         <>
           {rows.map(
             ({ currency: rowCurrency, progress: rowProgress }, index) => {
@@ -90,7 +92,7 @@ export function KpiTile({
               return (
                 <Fragment key={index}>
                   <div className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
-                    {definition.figure === "roas" &&
+                    {definition?.figure === "roas" &&
                     currencyFigures &&
                     rowCurrency
                       ? `${rowCurrency} · `
@@ -100,7 +102,7 @@ export function KpiTile({
                         progress.state === "unmeasured"
                           ? "—"
                           : formatKpiValue(
-                              definition.format,
+                              format,
                               progress.actual,
                               rowCurrency,
                             )
@@ -108,7 +110,7 @@ export function KpiTile({
                     />
                   </div>
                   <div className="mt-0.5 text-xs text-muted-foreground">
-                    {`${t("kpi.targetShort")} ${formatKpiValue(definition.format, progress.target, rowCurrency)}${percent === null ? "" : ` · ${percent}%`}`}
+                    {`${t("kpi.targetShort")} ${formatKpiValue(format, progress.target, rowCurrency)}${percent === null ? "" : ` · ${percent}%`}`}
                   </div>
                   {progress.state === "unmeasured" ? null : (
                     <div

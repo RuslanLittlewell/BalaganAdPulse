@@ -6,6 +6,16 @@ export const DELIVERY_STATUSES = ["ACTIVE", "LEARNING", "PAUSED", "REJECTED", "E
 
 export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number];
 
+export interface KpiTarget {
+  readonly metric: string;
+  readonly target: string;
+}
+
+export interface ProjectKpi extends KpiTarget {
+  readonly name?: string;
+  readonly value?: string;
+}
+
 export interface Campaign {
   readonly currency?: string | null;
   readonly id: string;
@@ -17,7 +27,7 @@ export interface Campaign {
   readonly externalId: string | null;
   readonly sourceAccountId: string | null;
   readonly position: number;
-  readonly kpi: { readonly metric: string; readonly target: string } | null;
+  readonly kpi: KpiTarget | null;
 }
 
 export interface AdSet {

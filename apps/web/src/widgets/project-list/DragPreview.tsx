@@ -1,17 +1,19 @@
 import type { Project } from "@/entities/project/index.js";
 import { ProjectItem } from "./ProjectItem.js";
+import type { ProjectTone } from "./projectTone.js";
 
 export interface DragPreviewProps {
   project?: Project;
   clientName?: string;
+  tone?: ProjectTone;
   groupName?: string;
 }
 
-export function DragPreview({ project, clientName, groupName }: DragPreviewProps) {
+export function DragPreview({ project, clientName, tone, groupName }: DragPreviewProps) {
   if (project) {
     return (
       <div className="cursor-grabbing opacity-95 shadow-lg">
-        <ProjectItem project={project} clientName={clientName ?? ""} />
+        <ProjectItem project={project} clientName={clientName ?? ""} tone={tone} />
       </div>
     );
   }

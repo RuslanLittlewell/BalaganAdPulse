@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { avatarUploadBody } from "#shared/presentation/avatar.js";
 import { arrayOf, ref, type ComponentDocs, type RouteDoc } from "#shared/presentation/openapi.js";
-import { PROJECT_PRIORITIES } from "#modules/projects/domain/project.js";
 import { createProjectSchema, updateProjectSchema } from "./project-schemas.js";
 
 const project = z.object({
@@ -9,7 +8,6 @@ const project = z.object({
   clientId: z.uuid(),
   name: z.string(),
   budgetCurrency: z.string().length(3).nullable(),
-  priority: z.enum(PROJECT_PRIORITIES),
   image: z.string().nullable(),
   avatarPath: z.string().nullable(),
   position: z.int(),
@@ -21,7 +19,7 @@ export const projectComponents: ComponentDocs = { Project: project };
 
 export const projectDoc: RouteDoc = {
   tag: "Projects",
-  tagDescription: "A client's projects, their currency, their priority and their order on the board",
+  tagDescription: "A client's projects, their currency and their order on the board",
   operations: [
     {
       method: "post",

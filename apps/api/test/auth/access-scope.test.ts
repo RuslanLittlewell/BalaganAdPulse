@@ -247,7 +247,7 @@ describe("a client's principal reaches one client", () => {
     const refusals = await Promise.all([
       request(app).post("/api/clients").set(principal.auth).send({ name: "Своя" }),
       request(app).delete(`/api/projects/${projectId}`).set(principal.auth),
-      request(app).patch(`/api/projects/${projectId}`).set(principal.auth).send({ priority: "CRITICAL" }),
+      request(app).put(`/api/projects/${projectId}/kpi`).set(principal.auth).send({ metric: "CONVERSIONS", target: "10" }),
     ]);
 
     expect(refusals.map((response) => response.status)).toEqual([403, 403, 403]);

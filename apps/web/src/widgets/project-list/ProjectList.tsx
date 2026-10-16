@@ -13,7 +13,10 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import {
   Button,
   ContextMenu,
@@ -29,7 +32,12 @@ import {
   PopoverTrigger,
 } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
-import { cn, projectPath, ROUTES, useDebouncedValue } from "@/shared/lib/index.js";
+import {
+  cn,
+  projectPath,
+  ROUTES,
+  useDebouncedValue,
+} from "@/shared/lib/index.js";
 import { WarmTooltipGroup } from "@/shared/ui/WarmTooltip/WarmTooltip.js";
 import { useClients } from "@/entities/client/index.js";
 import {
@@ -47,16 +55,18 @@ import {
   useProjectLayout,
   useProjects,
   useSaveProjectLayout,
-  useUpdateProject,
   type LayoutGroupItem,
 } from "@/entities/project/index.js";
+import { useProjectsSummary } from "@/entities/campaign/index.js";
 import { ProjectFormDialog } from "@/features/project-management/index.js";
 import { Can, useCan } from "@/features/permissions/index.js";
 import { HINTS, useHint } from "@/features/hints/index.js";
+import { usePeriod } from "@/features/period/index.js";
 import { DragPreview } from "./DragPreview.js";
 import { GroupDialog } from "./GroupDialog.js";
 import { ProjectGroupCard } from "./ProjectGroupCard.js";
 import { ProjectRow } from "./ProjectRow.js";
+import { projectTone, type ProjectTone } from "./projectTone.js";
 
 function ListEnd() {
   const { setNodeRef, isOver } = useDroppable({ id: LIST_END });
@@ -74,6 +84,20 @@ const SEARCH_DELAY_MS = 300;
 
 const normalised = (text: string) => text.trim().toLocaleLowerCase("ru");
 
+function useProjectTones(): (projectId: string) => ProjectTone {
+  const { range } = usePeriod();
+  const summary = useProjectsSummary(range);
+  return useMemo(() => {
+    const tones = new Map(
+      (summary.data ?? []).map((figures) => [
+        figures.projectId,
+        projectTone(figures.kpi, figures.performance, range),
+      ]),
+    );
+    return (projectId) => tones.get(projectId) ?? "none";
+  }, [summary.data, range]);
+}
+
 export function ProjectList({ collapsed = false }: { collapsed?: boolean }) {
   const projectId = useActiveProjectId();
   const navigate = useNavigate();
@@ -90,9 +114,8 @@ export function ProjectList({ collapsed = false }: { collapsed?: boolean }) {
   const [editingId, setEditingId] = useState<string | undefined>(undefined);
   const [problem, setProblem] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
-  const update = useUpdateProject();
+  const toneOf = useProjectTones();
   const mayUpdate = useCan("update", "project");
-  const mayPrioritise = useCan("update", "project-priority");
   const mayCreate = useCan("create", "project");
   const firstProject = useHint(
     HINTS.projectsFirstProject,
@@ -104,17 +127,23 @@ export function ProjectList({ collapsed = false }: { collapsed?: boolean }) {
   );
 
   const byId = useMemo(
-    () => new Map((projects.data ?? []).map((project) => [project.id, project])),
+    () =>
+      new Map((projects.data ?? []).map((project) => [project.id, project])),
     [projects.data],
   );
 
   const layout = useMemo(
-    () => arrangeProjects(stored.data ?? EMPTY_LAYOUT, (projects.data ?? []).map(({ id }) => id)),
+    () =>
+      arrangeProjects(
+        stored.data ?? EMPTY_LAYOUT,
+        (projects.data ?? []).map(({ id }) => id),
+      ),
     [stored.data, projects.data],
   );
 
   const editing = projects.data?.find((project) => project.id === editingId);
-  const clientName = (id: string) => clients.data?.find((client) => client.id === id)?.name ?? "";
+  const clientName = (id: string) =>
+    clients.data?.find((client) => client.id === id)?.name ?? "";
 
   const searching = query !== "";
   const arrangeable = !searching && !collapsed;
@@ -122,10 +151,12 @@ export function ProjectList({ collapsed = false }: { collapsed?: boolean }) {
     const project = byId.get(id);
     if (!project) return false;
     if (!searching) return true;
-    return [project.name, clientName(project.clientId)].some((text) => normalised(text).includes(query));
+    return [project.name, clientName(project.clientId)].some((text) =>
+      normalised(text).includes(query),
+    );
   };
 
-  const activeKind = dragging ? parseDragId(dragging)?.kind ?? null : null;
+  const activeKind = dragging ? (parseDragId(dragging)?.kind ?? null) : null;
 
   const row = (id: string, pinned: boolean) => {
     const project = byId.get(id);
@@ -135,25 +166,31 @@ export function ProjectList({ collapsed = false }: { collapsed?: boolean }) {
         key={id}
         project={project}
         clientName={clientName(project.clientId)}
+        tone={toneOf(project.id)}
         selected={project.id === projectId}
         draggable={arrangeable && !pinned}
         pinned={pinned}
         collapsed={collapsed}
         sorting={activeKind === "project"}
-        mayPrioritise={mayPrioritise}
-        onOpen={() => { if (project.id !== projectId) navigate(projectPath(project.id)); }}
+        onOpen={() => {
+          if (project.id !== projectId) navigate(projectPath(project.id));
+        }}
         onEdit={mayUpdate ? () => setEditingId(project.id) : undefined}
         onPin={() => {
           setProblem(null);
-          save.mutate(pinned ? unpinProject(layout, id) : pinProject(layout, id));
+          save.mutate(
+            pinned ? unpinProject(layout, id) : pinProject(layout, id),
+          );
         }}
-        onPriority={(priority) => update.mutate({ id: project.id, body: { priority } })}
       />
     );
   };
 
   const removeGroup = (group: LayoutGroupItem) => {
-    if (group.projectIds.length > 0) { setProblem(t("projects.group.notEmpty")); return; }
+    if (group.projectIds.length > 0) {
+      setProblem(t("projects.group.notEmpty"));
+      return;
+    }
     setProblem(null);
     deleteGroup.mutate(group.groupId);
   };
@@ -163,7 +200,13 @@ export function ProjectList({ collapsed = false }: { collapsed?: boolean }) {
     if (!target) return {};
     if (target.kind === "project") {
       const project = byId.get(target.id);
-      return project ? { project, clientName: clientName(project.clientId) } : {};
+      return project
+        ? {
+            project,
+            clientName: clientName(project.clientId),
+            tone: toneOf(project.id),
+          }
+        : {};
     }
     const group = layout.items.find(
       (item) => item.type === "group" && item.groupId === target.id,
@@ -183,9 +226,11 @@ export function ProjectList({ collapsed = false }: { collapsed?: boolean }) {
   }
 
   const pinned = layout.pinned.filter(shown);
-  const items = layout.items.filter((item) => item.type === "group"
-    ? !searching || item.projectIds.some(shown)
-    : shown(item.projectId));
+  const items = layout.items.filter((item) =>
+    item.type === "group"
+      ? !searching || item.projectIds.some(shown)
+      : shown(item.projectId),
+  );
   const searchField = (
     <Input
       type="search"
@@ -196,143 +241,172 @@ export function ProjectList({ collapsed = false }: { collapsed?: boolean }) {
       aria-label={t("projects.search")}
     />
   );
-  const nothingFound = searching && projects.isSuccess && pinned.length === 0 && items.length === 0;
+  const nothingFound =
+    searching &&
+    projects.isSuccess &&
+    pinned.length === 0 &&
+    items.length === 0;
 
   return (
     <>
       <WarmTooltipGroup>
-      <div className="relative flex min-h-0 flex-col gap-2">
-        {collapsed ? (
-          <Popover>
-            <PopoverTrigger asChild>
+        <div className="relative flex min-h-0 flex-col gap-2">
+          {collapsed ? (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant={searching ? "secondary" : "ghost"}
+                  size="icon"
+                  className="self-center"
+                  aria-label={t("projects.search")}
+                >
+                  <SearchIcon aria-hidden />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent side="right" align="start" className="w-64 p-1">
+                {searchField}
+              </PopoverContent>
+            </Popover>
+          ) : (
+            searchField
+          )}
+
+          {problem != null && (
+            <p role="alert" className="text-xs text-destructive">
+              {problem}
+            </p>
+          )}
+          {save.isError && (
+            <p role="alert" className="text-xs text-destructive">
+              {t("projects.order.failed")}
+            </p>
+          )}
+
+          <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-auto pb-12">
+            {projects.isPending && (
+              <div className="grid place-items-center gap-3 p-6">
+                <Loader size="sm" />
+              </div>
+            )}
+
+            {projects.isError && (
+              <div className="grid place-items-center gap-3 p-6">
+                <p className="text-sm text-muted-foreground">
+                  {t("state.error.title")}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => projects.refetch()}
+                >
+                  {t("state.retry")}
+                </Button>
+              </div>
+            )}
+
+            {projects.isSuccess && projects.data.length === 0 && (
+              <EmptyState compact title={t("projects.empty.title")} />
+            )}
+
+            {nothingFound && projects.data.length > 0 && (
+              <EmptyState compact title={t("projects.search.empty")} />
+            )}
+
+            {pinned.length > 0 && (
+              <div
+                role="group"
+                aria-label={t("projects.pinned")}
+                className="mb-1 border-b-4 border-border pb-2"
+              >
+                {pinned.map((id) => row(id, true))}
+              </div>
+            )}
+
+            <ContextMenu>
+              <ContextMenuTrigger asChild>
+                <div
+                  className="flex min-h-16 flex-1 flex-col"
+                  data-testid="project-list-area"
+                >
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    measuring={{
+                      droppable: { strategy: MeasuringStrategy.Always },
+                    }}
+                    onDragStart={(event: DragStartEvent) =>
+                      setDragging(String(event.active.id))
+                    }
+                    onDragCancel={() => setDragging(null)}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={items.map((item) =>
+                        item.type === "project"
+                          ? dragId.project(item.projectId)
+                          : dragId.group(item.groupId),
+                      )}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {items.map((item) =>
+                        item.type === "project" ? (
+                          row(item.projectId, false)
+                        ) : (
+                          <ProjectGroupCard
+                            key={item.groupId}
+                            groupId={item.groupId}
+                            name={item.name}
+                            projectIds={item.projectIds.filter(shown)}
+                            draggable={arrangeable}
+                            collapsed={collapsed}
+                            sorting={activeKind === "group"}
+                            onDelete={() => removeGroup(item)}
+                          >
+                            {item.projectIds
+                              .filter(shown)
+                              .map((id) => row(id, false))}
+                          </ProjectGroupCard>
+                        ),
+                      )}
+                      <ListEnd />
+                    </SortableContext>
+                    <DragOverlay dropAnimation={null}>
+                      <DragPreview {...dragged()} />
+                    </DragOverlay>
+                  </DndContext>
+                </div>
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem onSelect={() => setGrouping(true)}>
+                  {t("projects.group.new")}
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
+          </div>
+
+          <Can action="create" resource="project">
+            <Hint
+              open={firstProject.open}
+              text={t("hint.projects.firstProject")}
+              side="top"
+              onDismiss={firstProject.dismiss}
+            >
               <Button
                 type="button"
-                variant={searching ? "secondary" : "ghost"}
                 size="icon"
-                className="self-center"
-                aria-label={t("projects.search")}
+                className={cn(
+                  "absolute bottom-2 z-10 rounded-full shadow-md",
+                  collapsed ? "left-1/2 -translate-x-1/2" : "right-2",
+                )}
+                aria-label={t("projects.new")}
+                onClick={() => setCreating(true)}
               >
-                <SearchIcon aria-hidden />
+                <PlusIcon aria-hidden="true" />
               </Button>
-            </PopoverTrigger>
-            <PopoverContent side="right" align="start" className="w-64 p-1">
-              {searchField}
-            </PopoverContent>
-          </Popover>
-        ) : searchField}
-
-        {problem != null && (
-          <p role="alert" className="text-xs text-destructive">{problem}</p>
-        )}
-        {save.isError && (
-          <p role="alert" className="text-xs text-destructive">{t("projects.order.failed")}</p>
-        )}
-
-        <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-auto pb-12">
-          {projects.isPending && (
-            <div className="grid place-items-center gap-3 p-6">
-              <Loader size="sm" />
-            </div>
-          )}
-
-          {projects.isError && (
-            <div className="grid place-items-center gap-3 p-6">
-              <p className="text-sm text-muted-foreground">{t("state.error.title")}</p>
-              <Button variant="outline" size="sm" onClick={() => projects.refetch()}>
-                {t("state.retry")}
-              </Button>
-            </div>
-          )}
-
-          {projects.isSuccess && projects.data.length === 0 && (
-            <EmptyState compact title={t("projects.empty.title")} />
-          )}
-
-          {nothingFound && projects.data.length > 0 && (
-            <EmptyState compact title={t("projects.search.empty")} />
-          )}
-
-          {pinned.length > 0 && (
-            <div
-              role="group"
-              aria-label={t("projects.pinned")}
-              className="mb-1 border-b-4 border-border pb-2"
-            >
-              {pinned.map((id) => row(id, true))}
-            </div>
-          )}
-
-          <ContextMenu>
-            <ContextMenuTrigger asChild>
-              <div className="flex min-h-16 flex-1 flex-col" data-testid="project-list-area">
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
-                  onDragStart={(event: DragStartEvent) => setDragging(String(event.active.id))}
-                  onDragCancel={() => setDragging(null)}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    items={items.map((item) => item.type === "project"
-                      ? dragId.project(item.projectId)
-                      : dragId.group(item.groupId))}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {items.map((item) => item.type === "project"
-                      ? row(item.projectId, false)
-                      : (
-                        <ProjectGroupCard
-                          key={item.groupId}
-                          groupId={item.groupId}
-                          name={item.name}
-                          projectIds={item.projectIds.filter(shown)}
-                          draggable={arrangeable}
-                          collapsed={collapsed}
-                          sorting={activeKind === "group"}
-                          onDelete={() => removeGroup(item)}
-                        >
-                          {item.projectIds.filter(shown).map((id) => row(id, false))}
-                        </ProjectGroupCard>
-                      ))}
-                    <ListEnd />
-                  </SortableContext>
-                  <DragOverlay dropAnimation={null}>
-                    <DragPreview {...dragged()} />
-                  </DragOverlay>
-                </DndContext>
-              </div>
-            </ContextMenuTrigger>
-            <ContextMenuContent>
-              <ContextMenuItem onSelect={() => setGrouping(true)}>
-                {t("projects.group.new")}
-              </ContextMenuItem>
-            </ContextMenuContent>
-          </ContextMenu>
+            </Hint>
+          </Can>
         </div>
-
-        <Can action="create" resource="project">
-          <Hint
-            open={firstProject.open}
-            text={t("hint.projects.firstProject")}
-            side="top"
-            onDismiss={firstProject.dismiss}
-          >
-            <Button
-              type="button"
-              size="icon"
-              className={cn(
-                "absolute bottom-2 z-10 rounded-full shadow-md",
-                collapsed ? "left-1/2 -translate-x-1/2" : "right-2",
-              )}
-              aria-label={t("projects.new")}
-              onClick={() => setCreating(true)}
-            >
-              <PlusIcon aria-hidden="true" />
-            </Button>
-          </Hint>
-        </Can>
-      </div>
       </WarmTooltipGroup>
 
       {grouping && (
@@ -357,7 +431,8 @@ export function ProjectList({ collapsed = false }: { collapsed?: boolean }) {
           project={editing}
           onClose={() => setEditingId(undefined)}
           onDeleted={() => {
-            if (editing.id === projectId) navigate(ROUTES.projects, { replace: true });
+            if (editing.id === projectId)
+              navigate(ROUTES.projects, { replace: true });
           }}
         />
       )}

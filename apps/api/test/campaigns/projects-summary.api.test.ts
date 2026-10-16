@@ -54,9 +54,39 @@ describe("GET /api/summary/projects", () => {
     expect(res.body).toHaveLength(2);
     expect(res.body).toContainEqual({
       projectId: dealer.projectId,
+      kpi: null,
       performance: expect.objectContaining({ spend: 0, cpc: null }),
       days: [],
     });
+  });
+
+  it("carries each project's own KPI beside its figures", async () => {
+    await request(app).put(`/api/projects/${clinic.projectId}/kpi`).set(auth).send({ metric: "CONVERSIONS", target: "60" });
+
+    const res = await read(auth);
+
+    const clinicFigures = res.body.find((entry: { projectId: string }) => entry.projectId === clinic.projectId);
+    expect(clinicFigures.kpi).toEqual({ metric: "CONVERSIONS", target: "60.0000" });
+  });
+
+  it("carries the name and value of a KPI set by hand", async () => {
+    await request(app).put(`/api/projects/${clinic.projectId}/kpi`).set(auth)
+      .send({ metric: "MANUAL", name: "Продажи", value: "30", target: "50" });
+
+    const res = await read(auth);
+
+    const clinicFigures = res.body.find((entry: { projectId: string }) => entry.projectId === clinic.projectId);
+    expect(clinicFigures.kpi).toEqual({ metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000" });
+  });
+
+  it("never lets a campaign's KPI stand in for its project's", async () => {
+    const campaign = await seedCampaign(dealer.projectId, "Поиск", "YANDEX");
+    await request(app).put(`/api/campaigns/${campaign.id}/kpi`).set(auth).send({ metric: "CPA", target: "10" });
+
+    const res = await read(auth);
+
+    const dealerFigures = res.body.find((entry: { projectId: string }) => entry.projectId === dealer.projectId);
+    expect(dealerFigures.kpi).toBeNull();
   });
 
   it("counts only the days inside the range", async () => {

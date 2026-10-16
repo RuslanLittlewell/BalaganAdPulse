@@ -105,6 +105,7 @@ export interface CurrencyPerformance {
 
 export interface ProjectFigures {
   projectId: string;
+  kpi: { metric: string; target: string; name?: string; value?: string } | null;
   performance: Performance;
   days: MeasuredDay[];
 }

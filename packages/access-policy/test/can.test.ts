@@ -88,11 +88,6 @@ describe("can", () => {
       expectRow("update", "project", ["ADMIN", "MANAGER", "CLIENT", "CLIENT_ADMIN"]);
     });
 
-    it("keep their priority for admins and managers to change", () => {
-      expectRow("read", "project-priority", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"]);
-      expectRow("update", "project-priority", ["ADMIN", "MANAGER"]);
-    });
-
     it("keep their documents for the agency, written by admins and managers", () => {
       expectRow("read", "project-document", ["ADMIN", "MANAGER", "GUEST"]);
       for (const action of ["create", "update", "delete"] as const) {
@@ -256,7 +251,7 @@ describe("the customer's principal", () => {
   });
 
   it("writes none of the agency's clients, campaigns or organization, and deletes no project", () => {
-    for (const resource of ["client", "campaign", "organization", "integration", "kpi", "project-priority", "project-summary", "report"] as const) {
+    for (const resource of ["client", "campaign", "organization", "integration", "kpi", "project-summary", "report"] as const) {
       for (const action of ["create", "update", "delete"] as const) {
         expect(
           can(actor("CLIENT_ADMIN"), action, resource),

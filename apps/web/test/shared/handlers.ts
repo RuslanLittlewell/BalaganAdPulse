@@ -18,6 +18,7 @@ export const defaultHandlers = [
   http.get("/api/projects/:projectId/integrations", () => HttpResponse.json([])),
   http.get("/api/projects", () => HttpResponse.json([])),
   http.get("/api/project-layout", () => HttpResponse.json({ pinned: [], items: [] })),
+  http.get("/api/summary/projects", () => HttpResponse.json([])),
   http.get("/api/dashboard/summary-tiles", () => HttpResponse.json({ tiles: ["CONVERSIONS"] })),
   http.get("/api/projects/:projectId/summary-tiles", () => HttpResponse.json({ tiles: [] })),
   http.get("/api/projects/:projectId/campaigns", () => HttpResponse.json([])),

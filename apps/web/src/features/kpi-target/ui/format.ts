@@ -1,6 +1,6 @@
 import type { KpiFormat } from "@/entities/kpi/index.js";
 import {
-  formatCount, formatCurrency, formatMultiple, formatPercent, formatRatio, type Currency,
+  formatCount, formatCurrency, formatMultiple, formatNumber, formatPercent, formatRatio, type Currency,
 } from "@/shared/lib/index.js";
 
 export function formatKpiValue(format: KpiFormat, value: number | null, currency: Currency): string {
@@ -10,5 +10,6 @@ export function formatKpiValue(format: KpiFormat, value: number | null, currency
     case "percent": return formatPercent(value);
     case "ratio": return formatRatio(value, currency);
     case "multiple": return formatMultiple(value);
+    case "number": return formatNumber(value);
   }
 }

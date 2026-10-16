@@ -25,6 +25,7 @@ function fixture(options: {
   adSets?: AdSet[];
   ads?: Ad[];
   reachableProjects?: string[];
+  projectKpis?: Record<string, { metric: string; target: string }>;
   campaignDays?: Record<string, MeasuredDay[]>;
   adSetDays?: Record<string, MeasuredDay[]>;
   adDays?: Record<string, MeasuredDay[]>;
@@ -53,7 +54,7 @@ function fixture(options: {
     creativeFiles: { read: async () => ({ body: new Uint8Array(), contentType: "image/png" }) },
     projects: {
       isReachable: async (_actor, projectId) => reachable.includes(projectId),
-      listReachable: async () => reachable,
+      listReachable: async () => reachable.map((id) => ({ id, kpi: options.projectKpis?.[id] ?? null })),
     },
     metrics: {
       readCampaignRange: async (id) => {
@@ -205,7 +206,19 @@ describe("every project at once", () => {
   it("lists a project with nothing measured at zero, with no days", async () => {
     const [, , empty] = await twoProjects().projectsSummary(admin, range);
 
-    expect(empty).toEqual({ projectId: "p3", performance: expect.objectContaining({ spend: 0, cpc: null }), days: [] });
+    expect(empty).toEqual({ projectId: "p3", kpi: null, performance: expect.objectContaining({ spend: 0, cpc: null }), days: [] });
+  });
+
+  it("carries each project's own KPI beside its figures", async () => {
+    const useCases = fixture({
+      campaigns: [campaign({ id: "c1", projectId: "p1" }), campaign({ id: "c2", projectId: "p2", kpi: { metric: "CPA", target: "10.0000" } })],
+      reachableProjects: ["p1", "p2"],
+      projectKpis: { p1: { metric: "CONVERSIONS", target: "60.0000" } },
+    });
+
+    const figures = await useCases.projectsSummary(admin, range);
+
+    expect(figures.map((entry) => entry.kpi)).toEqual([{ metric: "CONVERSIONS", target: "60.0000" }, null]);
   });
 
   it("leaves out a project the member holds no grant over", async () => {

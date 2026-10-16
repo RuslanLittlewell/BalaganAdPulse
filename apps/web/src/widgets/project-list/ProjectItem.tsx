@@ -1,16 +1,20 @@
 import { ListItem } from "@/shared/ui/index.js";
 import WarmTooltip from "@/shared/ui/WarmTooltip/WarmTooltip.js";
 import { t } from "@/shared/config/index.js";
-import {
-  ProjectAvatar,
-  priorityColour,
-  priorityLabel,
-  type Project,
-} from "@/entities/project/index.js";
+import { ProjectAvatar, type Project } from "@/entities/project/index.js";
+import type { ProjectTone } from "./projectTone.js";
+
+const MARKER: Record<ProjectTone, string> = {
+  none: "var(--kpi-marker-none)",
+  danger: "var(--kpi-marker-danger)",
+  behind: "var(--kpi-marker-behind)",
+  met: "var(--kpi-marker-met)",
+};
 
 export interface ProjectItemProps {
   project: Project;
   clientName: string;
+  tone?: ProjectTone;
   selected?: boolean;
   collapsed?: boolean;
   onOpen?: () => void;
@@ -20,6 +24,7 @@ export interface ProjectItemProps {
 export function ProjectItem({
   project,
   clientName,
+  tone = "none",
   selected = false,
   collapsed = false,
   onOpen,
@@ -46,8 +51,8 @@ export function ProjectItem({
     <ListItem
       selected={selected}
       leading={<ProjectAvatar project={project} size="sm" />}
-      marker={priorityColour(project.priority)}
-      markerLabel={`${t("priority.title")}: ${priorityLabel(project.priority)}`}
+      marker={MARKER[tone]}
+      markerLabel={t(`projects.kpiMarker.${tone}`)}
       onEdit={onEdit}
       editLabel={`${t("project.edit")}: ${project.name}`}
       onClick={onOpen}

@@ -1,10 +1,12 @@
 import { http as mock, HttpResponse } from "msw";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Routes, Route } from "react-router-dom";
 import { server } from "@test/shared/index.js";
 import { renderWithProviders } from "@test/shared/index.js";
 import { aClient, aProject } from "@test/shared/index.js";
+import { EMPTY_PERFORMANCE, type ProjectFigures } from "@/entities/campaign/index.js";
+import { KpiTile } from "@/features/kpi-target/index.js";
 import { ProjectList } from "@/widgets/project-list/ProjectList.js";
 
 function setup(route = "/") {
@@ -46,11 +48,11 @@ describe("ProjectList", () => {
     await waitFor(() => expect(screen.getByLabelText("Название проекта")).toBeInTheDocument());
   });
 
-  it("keeps the member's own order rather than sorting by priority", async () => {
+  it("keeps the member's own order rather than sorting by KPI progress", async () => {
     server.use(mock.get("/api/projects", () => HttpResponse.json([
-      aProject({ id: "new", name: "Новый", priority: "NEW" }),
-      aProject({ id: "critical", name: "Критичный", priority: "CRITICAL" }),
-      aProject({ id: "idle", name: "Без задач", priority: "IDLE" }),
+      aProject({ id: "new", name: "Новый" }),
+      aProject({ id: "critical", name: "Критичный" }),
+      aProject({ id: "idle", name: "Без задач" }),
     ])));
     setup();
 
@@ -147,18 +149,7 @@ describe("ProjectList", () => {
     expect(screen.getByText("Летний запуск")).toBe(row);
   });
 
-  it("marks a row with the colour of its priority", async () => {
-    server.use(
-      mock.get("/api/clients", () => HttpResponse.json([aClient({ name: "Acme" })])),
-      mock.get("/api/projects", () =>
-        HttpResponse.json([aProject({ name: "Летний запуск", priority: "CRITICAL" })])),
-    );
-    setup();
-
-    expect(await screen.findByText("Приоритет: Очень важно")).toBeInTheDocument();
-  });
-
-  it("offers every priority on a right click", async () => {
+  it("offers no priority on a right click", async () => {
     server.use(
       mock.get("/api/clients", () => HttpResponse.json([aClient({ name: "Acme" })])),
       mock.get("/api/projects", () => HttpResponse.json([aProject({ name: "Летний запуск" })])),
@@ -167,47 +158,108 @@ describe("ProjectList", () => {
 
     fireEvent.contextMenu(await screen.findByText("Летний запуск"));
 
-    const items = await screen.findAllByRole("menuitemradio");
-    expect(items.map((item) => item.textContent)).toEqual([
-      "Очень важно",
-      "Есть срочные задачи",
-      "В работе, ждём результата",
-      "Нет задач",
-      "Новый",
-    ]);
+    expect(await screen.findByRole("menuitem", { name: "Закрепить" })).toBeInTheDocument();
+    expect(screen.queryAllByRole("menuitemradio")).toEqual([]);
+    expect(screen.queryByText("Приоритет")).toBeNull();
   });
+});
 
-  it("shows which priority is the current one", async () => {
+describe("a project's KPI marker", () => {
+  const september = "/?from=2026-09-01&to=2026-09-30";
+  const leads = (conversions: number, kpi: ProjectFigures["kpi"] = { metric: "CONVERSIONS", target: "30.0000" }) =>
+    ({ projectId: "p1", kpi, performance: { ...EMPTY_PERFORMANCE, conversions }, days: [] });
+
+  const withFigures = (figures: unknown[]) => {
+    const asked: string[] = [];
     server.use(
       mock.get("/api/clients", () => HttpResponse.json([aClient({ name: "Acme" })])),
-      mock.get("/api/projects", () =>
-        HttpResponse.json([aProject({ name: "Летний запуск", priority: "IDLE" })])),
-    );
-    setup();
-
-    fireEvent.contextMenu(await screen.findByText("Летний запуск"));
-
-    expect(await screen.findByRole("menuitemradio", { name: "Нет задач" }))
-      .toHaveAttribute("aria-checked", "true");
-  });
-
-  it("saves the chosen priority", async () => {
-    let sent: Record<string, unknown> | undefined;
-    server.use(
-      mock.get("/api/clients", () => HttpResponse.json([aClient({ name: "Acme" })])),
-      mock.get("/api/projects", () =>
-        HttpResponse.json([aProject({ id: "p1", name: "Летний запуск" })])),
-      mock.patch("/api/projects/p1", async ({ request }) => {
-        sent = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json(aProject({ id: "p1", priority: "URGENT" }));
+      mock.get("/api/projects", () => HttpResponse.json([aProject({ id: "p1", name: "Летний запуск" })])),
+      mock.get("/api/summary/projects", ({ request }) => {
+        asked.push(new URL(request.url).search);
+        return HttpResponse.json(figures);
       }),
     );
-    setup();
+    return asked;
+  };
 
-    fireEvent.contextMenu(await screen.findByText("Летний запуск"));
-    await userEvent.click(await screen.findByRole("menuitemradio", { name: "Есть срочные задачи" }));
+  it.each([
+    ["met", 30, "KPI: план выполнен"],
+    ["somewhat behind", 27, "KPI: небольшое отставание"],
+    ["at the lower edge of somewhat behind", 24, "KPI: небольшое отставание"],
+    ["far behind", 23, "KPI: серьёзное отставание"],
+  ])("names a KPI %s", async (_case, conversions, label) => {
+    withFigures([leads(conversions)]);
+    setup(september);
 
-    await waitFor(() => expect(sent).toEqual({ priority: "URGENT" }));
+    expect(await screen.findByText(label)).toBeInTheDocument();
+  });
+
+  it("names a project without a KPI", async () => {
+    withFigures([leads(30, null)]);
+    setup(september);
+
+    await screen.findByText("Летний запуск");
+    expect(await screen.findByText("KPI: цель не задана или не измерена")).toBeInTheDocument();
+  });
+
+  it("follows a KPI set by hand", async () => {
+    withFigures([{
+      projectId: "p1",
+      kpi: { metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000" },
+      performance: EMPTY_PERFORMANCE,
+      days: [],
+    }]);
+    setup(september);
+
+    expect(await screen.findByText("KPI: серьёзное отставание")).toBeInTheDocument();
+  });
+
+  it("reads the figures of the selected period", async () => {
+    const asked = withFigures([leads(30)]);
+    setup(september);
+
+    await screen.findByText("KPI: план выполнен");
+    expect(asked).toContain("?from=2026-09-01&to=2026-09-30");
+  });
+
+  it("follows a KPI set on the project without a reload", async () => {
+    let kpi: ProjectFigures["kpi"] = null;
+    withFigures([]);
+    server.use(
+      mock.get("/api/summary/projects", () => HttpResponse.json([leads(30, kpi)])),
+      mock.get("/api/projects/p1/kpi", () =>
+        HttpResponse.json(kpi && { ...kpi, updatedAt: "2026-09-14T10:00:00.000Z" })),
+      mock.put("/api/projects/p1/kpi", async ({ request }) => {
+        const body = await request.json() as { metric: string; target: string };
+        kpi = { metric: body.metric, target: Number(body.target).toFixed(4) };
+        return HttpResponse.json({ ...kpi, updatedAt: "2026-09-14T11:00:00.000Z" });
+      }),
+    );
+    renderWithProviders(
+      <Routes>
+        <Route path="*" element={(
+          <>
+            <ProjectList />
+            <KpiTile
+              scope={{ kind: "project", id: "p1" }}
+              canEdit
+              figures={{ ...EMPTY_PERFORMANCE, conversions: 30 }}
+              range={{ from: "2026-09-01", to: "2026-09-30" }}
+              currency="BYN"
+            />
+          </>
+        )} />
+      </Routes>,
+      { route: september },
+    );
+    expect(await screen.findByText("KPI: цель не задана или не измерена")).toBeInTheDocument();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Задать цель" }));
+    const dialog = await screen.findByRole("dialog", { name: "Цель KPI" });
+    await userEvent.type(within(dialog).getByLabelText("Цель"), "30");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Сохранить" }));
+
+    expect(await screen.findByText("KPI: план выполнен")).toBeInTheDocument();
   });
 });
 
@@ -221,7 +273,7 @@ describe("a customer's project list", () => {
     })));
   };
 
-  it("offers the create control and the edit action but no priority menu", async () => {
+  it("offers the create control and the edit action", async () => {
     asCustomer();
     server.use(
       mock.get("/api/clients", () => HttpResponse.json([aClient({ id: "1", name: "Acme" })])),
@@ -233,7 +285,6 @@ describe("a customer's project list", () => {
     expect(await screen.findByRole("button", { name: "Редактировать: Летний запуск" })).toBeInTheDocument();
     fireEvent.contextMenu(screen.getByText("Летний запуск"));
     expect(await screen.findByRole("menuitem", { name: "Закрепить" })).toBeInTheDocument();
-    expect(screen.queryAllByRole("menuitemradio")).toEqual([]);
   });
 });
 
@@ -244,20 +295,20 @@ describe("searching the project list", () => {
       aClient({ id: "2", name: "Стоматология Улыбка" }),
     ])),
     mock.get("/api/projects", () => HttpResponse.json([
-      aProject({ id: "summer", clientId: "1", name: "Летний запуск", priority: "CRITICAL" }),
-      aProject({ id: "autumn", clientId: "1", name: "Осенняя распродажа", priority: "IDLE" }),
-      aProject({ id: "implants", clientId: "2", name: "Имплантация", priority: "NEW" }),
+      aProject({ id: "summer", clientId: "1", name: "Летний запуск" }),
+      aProject({ id: "autumn", clientId: "1", name: "Осенняя распродажа" }),
+      aProject({ id: "implants", clientId: "2", name: "Имплантация" }),
     ])),
   );
   const searchField = () => screen.getByRole("searchbox", { name: "Поиск проектов" });
 
-  it("offers a search field and no priority filter", async () => {
+  it("offers a search field and no filter by the marker", async () => {
     withProjects();
     setup();
     await screen.findByText("Летний запуск");
 
     expect(searchField()).toBeInTheDocument();
-    expect(screen.queryByRole("combobox", { name: "Фильтр по приоритету" })).toBeNull();
+    expect(screen.queryAllByRole("combobox")).toEqual([]);
   });
 
   it("narrows to the projects whose name matches, in any case, once typing pauses", async () => {

@@ -11,7 +11,7 @@ const guest: ActorContext = { ...admin, membershipId: "m3", role: "GUEST" };
 function record(partial: Partial<ProjectRecord> = {}): ProjectRecord {
   return {
     id: "p1", clientId: "c1", name: "Acme Ads",
-    priority: "NEW", image: null, avatarPath: null, position: 0,
+    image: null, avatarPath: null, position: 0,
     createdAt: new Date("2026-09-01T00:00:00.000Z"), updatedAt: new Date("2026-09-01T00:00:00.000Z"),
     ...partial,
   };
@@ -191,8 +191,8 @@ describe("reading projects", () => {
 describe("updating a project", () => {
   it("changes fields and audits it", async () => {
     const { useCases, audit } = fixture([record({ id: "p1" })]);
-    const updated = await useCases.update(manager, "p1", { priority: "URGENT" });
-    expect(updated.priority).toBe("URGENT");
+    const updated = await useCases.update(manager, "p1", { name: "Осенний запуск" });
+    expect(updated.name).toBe("Осенний запуск");
     expect(audit.at(-1)).toMatchObject({ action: "UPDATE", entityType: "project" });
   });
 

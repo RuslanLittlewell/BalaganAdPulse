@@ -233,11 +233,11 @@ function withDirectory() {
     http.get("/api/members", () => HttpResponse.json([member])),
     http.get("/api/projects", () => HttpResponse.json([
       { id: "project-1", clientId: "1", name: "Летний запуск",
-        budgetCurrency: "BYN", priority: "NEW", image: "data:image/png;base64,AAA",
+        budgetCurrency: "BYN", image: "data:image/png;base64,AAA",
         avatarPath: null, position: 0, createdAt: "2026-09-01T00:00:00.000Z",
         updatedAt: "2026-09-01T00:00:00.000Z" },
       { id: "project-2", clientId: "1", name: "Второй проект",
-        budgetCurrency: "BYN", priority: "NEW", image: null,
+        budgetCurrency: "BYN", image: null,
         avatarPath: null, position: 1, createdAt: "2026-09-01T00:00:00.000Z",
         updatedAt: "2026-09-01T00:00:00.000Z" },
     ])),

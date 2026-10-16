@@ -1,5 +1,5 @@
 import type { MessageKey } from "@/shared/config/index.js";
-import type { KpiInput, KpiMetric } from "../api/api.js";
+import { MANUAL_KPI, type KpiInput, type KpiMetric } from "../api/api.js";
 
 export type KpiFigure =
   | "spend" | "impressions" | "reach" | "clicks" | "conversions" | "results" | "revenue"
@@ -7,7 +7,7 @@ export type KpiFigure =
 
 export type KpiFigures = Record<KpiFigure, number | null>;
 
-export type KpiFormat = "currency" | "count" | "percent" | "ratio" | "multiple";
+export type KpiFormat = "currency" | "count" | "percent" | "ratio" | "multiple" | "number";
 
 export interface KpiMetricDefinition {
   id: KpiMetric;
@@ -64,7 +64,13 @@ export interface KpiProgress {
   state: KpiState;
 }
 
-export function kpiProgress(figures: KpiFigures, kpi: Pick<KpiInput, "metric" | "target">, range: { from: string; to: string }): KpiProgress {
+function manualProgress(actual: number, target: number): KpiProgress {
+  const state: KpiState = actual > target ? "exceeded" : actual === target ? "met" : "behind";
+  return { actual, target, percent: (actual / target) * 100, state };
+}
+
+export function kpiProgress(figures: KpiFigures, kpi: KpiInput, range: { from: string; to: string }): KpiProgress {
+  if (kpi.metric === MANUAL_KPI) return manualProgress(Number(kpi.value), Number(kpi.target));
   const target = targetForRange(kpi.metric, Number(kpi.target), range);
   const actual = figures[kpiMetricDefinition(kpi.metric).figure];
   if (actual === null) return { actual, target, percent: null, state: "unmeasured" };

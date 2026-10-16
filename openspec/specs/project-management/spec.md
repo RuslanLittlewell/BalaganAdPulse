@@ -3,8 +3,8 @@
 ## Purpose
 
 A project is the unit of work the agency runs for one client, and the object most of the
-interface hangs on: it carries the currency its figures are stated in and the priority, and
-it is what campaigns, their daily figures and the board's tasks belong to.
+interface hangs on: it carries the currency its figures are stated in and its KPI, and it is
+what campaigns, their daily figures and the board's tasks belong to.
 
 ## Requirements
 
@@ -24,7 +24,7 @@ The project form SHALL offer, beside its client select and to members who may cr
 - **THEN** the contact book lists it without a reload
 
 ### Requirement: Customers create and edit their own client's projects
-The projects module SHALL offer customers the control to create a project and the action to edit a project of their client. The project form SHALL fix the client to the customer's own client and SHALL NOT offer choosing another client, creating a client or deleting the project. The priority menu SHALL NOT be offered to customers. A project created by a customer SHALL appear, without further action, wherever the agency's members who reach that client see projects, with the priority every new project starts with.
+The projects module SHALL offer customers the control to create a project and the action to edit a project of their client. The project form SHALL fix the client to the customer's own client and SHALL NOT offer choosing another client, creating a client or deleting the project. A project created by a customer SHALL appear, without further action, wherever the agency's members who reach that client see projects.
 
 #### Scenario: A client adds a project
 - **WHEN** a client opens the projects module, activates the create control, enters a name and creates it
@@ -36,7 +36,7 @@ The projects module SHALL offer customers the control to create a project and th
 
 #### Scenario: Editing without agency controls
 - **WHEN** a client edits their client's project
-- **THEN** they can change its name and picture, and are offered no deletion and no priority choice
+- **THEN** they can change its name and picture, and are offered no deletion
 
 ### Requirement: Staff can be assigned to a project as it is created
 Creating a project SHALL accept an optional list of employees to assign. Each assigned employee SHALL be granted access to that project alone, in the same operation that creates it, so that they reach the project as soon as it exists. An employee SHALL be an active manager or guest of the creator's organization. Only a member who may manage members' access SHALL name employees; for anyone else a non-empty list SHALL be refused with 403. A list naming anyone who is not an eligible employee SHALL be refused with 400. When creation is refused, neither the project nor any grant SHALL be stored. An omitted or empty list SHALL leave project creation as it is.
@@ -132,3 +132,19 @@ A manager SHALL be able to create a project whatever grants they hold, including
 #### Scenario: Another agency
 - **WHEN** a manager creates a project naming a client of another organization
 - **THEN** the API responds 404 and nothing is stored
+
+### Requirement: A project carries no priority
+
+A project SHALL NOT carry a priority. Reading a project SHALL return no priority, and a
+priority sent when creating or updating a project SHALL be ignored rather than stored or
+refused.
+
+#### Scenario: Reading a project
+
+- **WHEN** a member lists or reads projects
+- **THEN** no project in the response has a priority
+
+#### Scenario: A priority sent by an older client
+
+- **WHEN** an admin updates a project's name and sends a priority alongside it
+- **THEN** the API responds 200, the name is stored and the response has no priority

@@ -34,7 +34,7 @@ function api(options: { adSets?: unknown[]; ads?: unknown[]; days?: unknown[]; s
     mock.get("/api/members", () => HttpResponse.json([])),
     mock.get("/api/projects", () => HttpResponse.json([{
       id: "p1", clientId: "cl1", name: "Клиника",
-      budgetCurrency: "BYN", priority: "NEW", image: null, avatarPath: null, position: 0,
+      budgetCurrency: "BYN", image: null, avatarPath: null, position: 0,
       createdAt: "", updatedAt: "",
     }])),
     mock.get("/api/campaigns/names", () => HttpResponse.json([])),

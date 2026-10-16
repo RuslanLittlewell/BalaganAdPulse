@@ -9,7 +9,7 @@ function toDomain(row: ProjectRow): ProjectRecord {
   return {
     id: row.id, clientId: row.clientId, name: row.name,
     budgetCurrency: row.budgetCurrency,
-    priority: row.priority, image: row.image, avatarPath: row.avatarPath,
+    image: row.image, avatarPath: row.avatarPath,
     position: row.position, createdAt: row.createdAt, updatedAt: row.updatedAt,
   };
 }

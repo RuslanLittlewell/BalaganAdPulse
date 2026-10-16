@@ -1,13 +1,11 @@
 import { http } from "@/shared/lib/index.js";
 import type { Currency } from "@/shared/lib/index.js";
-import type { ProjectPriority } from "../model/priority.js";
 
 export interface Project {
   id: string;
   clientId: string;
   name: string;
   budgetCurrency: Currency;
-  priority: ProjectPriority;
   image: string | null;
   avatarPath: string | null;
   position: number;
@@ -18,7 +16,6 @@ export interface Project {
 export interface ProjectInput {
   clientId?: string;
   name?: string;
-  priority?: ProjectPriority;
   memberIds?: string[];
 }
 

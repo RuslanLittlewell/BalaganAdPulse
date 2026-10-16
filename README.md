@@ -333,9 +333,8 @@ the board already carries (with **Без участников** and **Без п�
 neither); a participant chosen keeps every task they take part in. Both choices narrow the board
 and the calendar alike and are remembered per person in that browser.
 
-A task carries a title, a rich-text description and a priority of its own (`LOW`, `MEDIUM`,
-`HIGH`, `URGENT` — distinct from `ProjectPriority`, which describes a project by counting its
-tasks), and optionally a project, its participants, a due date and a checklist.
+A task carries a title, a rich-text description and a priority (`LOW`, `MEDIUM`, `HIGH`,
+`URGENT`), and optionally a project, its participants, a due date and a checklist.
 
 **A task has participants, not one responsible member.** Everybody named in **Участники** sees
 the task on their board and in their calendar, and a new task starts with the member filling the
@@ -553,7 +552,7 @@ ports, fixed clocks and deterministic identifiers.
 | GET | `/ad-sets/:id/ads` | An ad set's ads, each with its figures | 200 |
 | GET | `/summary` | Every project the caller reaches, summed | 200 |
 | GET | `/summary/channels` | The same, split by channel | 200 |
-| GET | `/summary/projects` | Each project the caller reaches, with its figures and measured days | 200 |
+| GET | `/summary/projects` | Each project the caller reaches, with its KPI, figures and measured days | 200 |
 
 Every reading above is scoped to a range: `?from=YYYY-MM-DD&to=YYYY-MM-DD`, both
 endpoints included and both required.
@@ -588,6 +587,17 @@ series per project, so opening it costs the same request whether the agency runs
 projects or thirty. Every summary reads the days of all the campaigns it sums in one
 query and groups them in memory, so none costs a query per campaign either. A project
 with nothing measured is still listed, at zero with no days.
+
+The project list reads the same `/summary/projects` for the period in the address and paints
+each project's marker from its own KPI, in the campaign indicator's zones: green from 100%,
+yellow from 80%, red below it, grey without a KPI or a measured figure. The percentage is
+the one the project's KPI tile shows, so the two never disagree.
+
+A project's KPI can also be set by hand — **Вручную** in its KPI dialog — for a goal the
+platform does not measure: `{ "metric": "MANUAL", "name", "value", "target" }` on
+`PUT /projects/:id/kpi`. Its progress is the value over the target, whatever the period,
+and the value changes only when someone edits it. Campaigns and the organization refuse it
+with 400, and it never stands in for a campaign without a KPI of its own.
 
 Nothing writes these figures yet. This change defines the shape they land in and reads
 what is there; a later change connects the platforms.

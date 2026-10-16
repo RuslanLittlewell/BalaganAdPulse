@@ -34,7 +34,7 @@ describe("a customer managing their client's projects", () => {
       .send({ clientId, name: "Имплантация", budgetCurrency: "USD" });
 
     expect(created.status).toBe(201);
-    expect(created.body).toMatchObject({ clientId, name: "Имплантация", priority: "NEW" });
+    expect(created.body).toMatchObject({ clientId, name: "Имплантация" });
     for (const reader of [admin, manager.auth]) {
       const listed = await request(app).get("/api/projects").set(reader);
       expect(listed.body.map((project: { name: string }) => project.name)).toContain("Имплантация");
@@ -63,15 +63,11 @@ describe("a customer managing their client's projects", () => {
     expect(updated.body).toMatchObject({ name: "Клиника 2.0", budgetCurrency: null });
   });
 
-  it("keeps deletion and priority with the agency", async () => {
+  it("keeps deletion with the agency", async () => {
     const auth = await customer();
 
     expect((await request(app).delete(`/api/projects/${projectId}`).set(auth)).status).toBe(403);
-    expect((await request(app).patch(`/api/projects/${projectId}`).set(auth).send({ priority: "CRITICAL" })).status).toBe(403);
-    expect((await request(app).post("/api/projects").set(auth).send({ clientId, name: "Срочный", priority: "CRITICAL" })).status).toBe(403);
-    expect(await prisma.project.findUniqueOrThrow({ where: { id: projectId } })).toMatchObject({ priority: "NEW" });
-    expect(await prisma.project.count({ where: { name: "Срочный" } })).toBe(0);
-    expect((await request(app).patch(`/api/projects/${projectId}`).set(admin).send({ priority: "CRITICAL" })).status).toBe(200);
+    expect(await prisma.project.count({ where: { id: projectId } })).toBe(1);
   });
 
   it("keeps the Meta connection and KPIs with the agency", async () => {

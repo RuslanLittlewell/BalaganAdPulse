@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isLowerBetter, isMonthly, KPI_METRICS, kpiProgress, targetForRange } from "@/entities/kpi/index.js";
+import { isLowerBetter, isMonthly, KPI_METRICS, kpiInputOf, kpiProgress, targetForRange } from "@/entities/kpi/index.js";
 
 const september = { from: "2026-09-01", to: "2026-09-30" };
 const figures = (values: Partial<Record<string, number | null>> = {}) => ({
@@ -101,5 +101,37 @@ describe("progress against a KPI", () => {
   it("is behind at zero for a summable figure", () => {
     expect(kpiProgress(figures({ spend: 0 }), { metric: "SPEND", target: "300.0000" }, september))
       .toEqual({ actual: 0, target: 300, percent: 0, state: "behind" });
+  });
+});
+
+describe("a KPI set by hand", () => {
+  const manual = (value: string, target = "50.0000") => ({ metric: "MANUAL" as const, name: "Продажи", value, target });
+  const october = { from: "2026-10-01", to: "2026-10-31" };
+
+  it.each([
+    ["30.0000", { actual: 30, target: 50, percent: 60, state: "behind" }],
+    ["50.0000", { actual: 50, target: 50, percent: 100, state: "met" }],
+    ["75.0000", { actual: 75, target: 50, percent: 150, state: "exceeded" }],
+    ["0.0000", { actual: 0, target: 50, percent: 0, state: "behind" }],
+  ])("reads the value %s over its target, whatever the figures", (value, progress) => {
+    expect(kpiProgress(figures({ conversions: 999 }), manual(value), september)).toEqual(progress);
+  });
+
+  it("does not depend on the period", () => {
+    expect(kpiProgress(figures(), manual("30.0000"), october)).toEqual(kpiProgress(figures(), manual("30.0000"), september));
+  });
+});
+
+describe("reading a carried KPI", () => {
+  it("keeps a measured metric and a KPI set by hand", () => {
+    expect(kpiInputOf({ metric: "CPA", target: "10.0000" })).toEqual({ metric: "CPA", target: "10.0000" });
+    expect(kpiInputOf({ metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000" }))
+      .toEqual({ metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000" });
+  });
+
+  it("drops what it cannot compare", () => {
+    expect(kpiInputOf(null)).toBeNull();
+    expect(kpiInputOf({ metric: "LIKES", target: "10.0000" })).toBeNull();
+    expect(kpiInputOf({ metric: "MANUAL", target: "50.0000" })).toBeNull();
   });
 });

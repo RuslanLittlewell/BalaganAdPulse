@@ -4,51 +4,39 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
-  ContextMenuLabel,
-  ContextMenuRadioGroup,
-  ContextMenuRadioItem,
-  ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
-import {
-  PROJECT_PRIORITIES,
-  dragId,
-  priorityColour,
-  priorityLabel,
-  type Project,
-  type ProjectPriority,
-} from "@/entities/project/index.js";
+import { dragId, type Project } from "@/entities/project/index.js";
 import { ProjectItem } from "./ProjectItem.js";
+import type { ProjectTone } from "./projectTone.js";
 
 export interface ProjectRowProps {
   project: Project;
   clientName: string;
+  tone: ProjectTone;
   selected: boolean;
   draggable: boolean;
   pinned: boolean;
   collapsed?: boolean;
   sorting: boolean;
-  mayPrioritise: boolean;
   onOpen: () => void;
   onEdit?: () => void;
   onPin: () => void;
-  onPriority: (priority: ProjectPriority) => void;
 }
 
 export function ProjectRow({
   project,
   clientName,
+  tone,
   selected,
   draggable,
   pinned,
   collapsed = false,
   sorting,
-  mayPrioritise,
   onOpen,
   onEdit,
   onPin,
-  onPriority,
 }: ProjectRowProps) {
   const sortable = useSortable({ id: dragId.project(project.id), disabled: !draggable });
 
@@ -72,6 +60,7 @@ export function ProjectRow({
             <ProjectItem
               project={project}
               clientName={clientName}
+              tone={tone}
               selected={selected}
               collapsed={collapsed}
               onOpen={onOpen}
@@ -85,27 +74,6 @@ export function ProjectRow({
             <ContextMenuItem onSelect={onPin}>
               {t(pinned ? "projects.unpin" : "projects.pin")}
             </ContextMenuItem>
-            {mayPrioritise && (
-              <>
-                <ContextMenuSeparator />
-                <ContextMenuLabel>{t("priority.title")}</ContextMenuLabel>
-                <ContextMenuRadioGroup
-                  value={project.priority}
-                  onValueChange={(priority) => onPriority(priority as ProjectPriority)}
-                >
-                  {PROJECT_PRIORITIES.map((priority) => (
-                    <ContextMenuRadioItem key={priority} value={priority}>
-                      <span
-                        className="size-2.5 shrink-0 rounded-full"
-                        style={{ background: priorityColour(priority) }}
-                        aria-hidden="true"
-                      />
-                      {priorityLabel(priority)}
-                    </ContextMenuRadioItem>
-                  ))}
-                </ContextMenuRadioGroup>
-              </>
-            )}
           </ContextMenuContent>
         </ContextMenu>
       </div>

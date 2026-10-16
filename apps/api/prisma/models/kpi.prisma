@@ -13,6 +13,7 @@ enum KpiMetric {
   COST_PER_RESULT
   ROAS
   FREQUENCY
+  MANUAL
 
   @@map("kpi_metric")
 }

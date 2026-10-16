@@ -143,44 +143,24 @@ describe("Projects API", () => {
     expect(res.status).toBe(404);
   });
 
-  it("starts a project at NEW, so a fresh one is marked as such", async () => {
-    const res = await project();
-    expect(res.body.priority).toBe("NEW");
-  });
-
-  it("takes a priority on creation", async () => {
-    const res = await project({ priority: "CRITICAL" });
-    expect(res.status).toBe(201);
-    expect(res.body.priority).toBe("CRITICAL");
-  });
-
-  it("changes the priority on its own, without touching the rest", async () => {
+  it("returns a project without a priority, alone and in the list", async () => {
     const created = await project();
-    await prisma.project.update({ where: { id: created.body.id }, data: { budgetCurrency: "USD" } });
-    const res = await request(app).patch(`/api/projects/${created.body.id}`).set(auth)
-      .send({ priority: "URGENT" });
+    const list = await request(app).get("/api/projects").set(auth);
 
-    expect(res.status).toBe(200);
-    expect(res.body.priority).toBe("URGENT");
-    expect(res.body).toMatchObject({ budgetCurrency: "USD", name: "Летний запуск" });
+    expect(created.body).not.toHaveProperty("priority");
+    expect(list.body[0]).not.toHaveProperty("priority");
   });
 
-  it("accepts every priority the interface offers", async () => {
-    for (const priority of ["CRITICAL", "URGENT", "WAITING", "IDLE", "NEW"]) {
-      const created = await project({ priority });
-      expect(created.body.priority, priority).toBe(priority);
-    }
-  });
+  it("ignores a priority sent on creation or update", async () => {
+    const created = await project({ priority: "CRITICAL" });
+    expect(created.status).toBe(201);
 
-  it("refuses a priority it does not know", async () => {
-    const res = await project({ priority: "MAGENTA" });
-    expect(res.status).toBe(400);
-  });
+    const updated = await request(app).patch(`/api/projects/${created.body.id}`).set(auth)
+      .send({ name: "Осенний запуск", priority: "URGENT" });
 
-  it("carries the priority in the list", async () => {
-    await project({ priority: "WAITING" });
-    const res = await request(app).get("/api/projects").set(auth);
-    expect(res.body[0].priority).toBe("WAITING");
+    expect(updated.status).toBe(200);
+    expect(updated.body.name).toBe("Осенний запуск");
+    expect(updated.body).not.toHaveProperty("priority");
   });
 
   describe("role permissions and grant scoping", () => {

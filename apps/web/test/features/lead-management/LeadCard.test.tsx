@@ -38,7 +38,7 @@ function catalogue(boardLeads: Lead[] = []) {
   server.use(
     mock.get("/api/projects", () => HttpResponse.json([{
       id: "project-1", clientId: "client-1", name: "Сайт", budgetCurrency: "BYN",
-      priority: "NEW", image: null, avatarPath: null, position: 0,
+      image: null, avatarPath: null, position: 0,
       createdAt: "2026-09-05T00:00:00.000Z", updatedAt: "2026-09-05T00:00:00.000Z",
     }])),
     mock.get("/api/projects/project-1/campaigns/names", () => HttpResponse.json([

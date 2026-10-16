@@ -25,7 +25,7 @@ function notebook(initial: Stored[] = [], options: { failSaves?: boolean } = {})
   server.use(
     mock.get("/api/projects", () => HttpResponse.json([{
       id: "p1", clientId: "cl1", name: "Клиника", budgetCurrency: "BYN",
-      priority: "NEW", image: null, avatarPath: null, position: 0, createdAt: "", updatedAt: "",
+      image: null, avatarPath: null, position: 0, createdAt: "", updatedAt: "",
     }])),
     mock.get("/api/clients", () => HttpResponse.json([{ id: "cl1", name: "Acme", orgId: "o1" }])),
     mock.get("/api/projects/:projectId/summary", () => HttpResponse.json(null)),

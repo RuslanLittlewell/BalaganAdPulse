@@ -14,9 +14,9 @@ function setup(route = "/") {
 }
 
 const PROJECTS = [
-  aProject({ id: "a", name: "Альфа", priority: "NEW" }),
-  aProject({ id: "b", name: "Бета", priority: "CRITICAL" }),
-  aProject({ id: "c", name: "Гамма", priority: "IDLE" }),
+  aProject({ id: "a", name: "Альфа" }),
+  aProject({ id: "b", name: "Бета" }),
+  aProject({ id: "c", name: "Гамма" }),
 ];
 
 function api(layout: ProjectLayout, projects = PROJECTS) {
@@ -48,7 +48,7 @@ const order = () =>
   screen.getAllByTestId(/^project-row-/).map((row) => row.getAttribute("data-testid"));
 
 describe("ProjectList arrangement", () => {
-  it("orders the list by the stored arrangement rather than by priority", async () => {
+  it("orders the list by the stored arrangement rather than by KPI progress", async () => {
     api({ pinned: [], items: [
       { type: "project", projectId: "c" },
       { type: "project", projectId: "a" },

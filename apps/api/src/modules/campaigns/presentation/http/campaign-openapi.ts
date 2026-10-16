@@ -27,8 +27,16 @@ const performance = z.object({ ...measured, ...derived });
 
 const measuredDay = z.object({ date: z.iso.date(), ...measured });
 
+const kpiTarget = z.object({ metric: z.string(), target: z.string() }).nullable();
+
+const projectKpi = z.union([
+  z.object({ metric: z.string(), target: z.string() }),
+  z.object({ metric: z.literal("MANUAL"), name: z.string(), value: z.string(), target: z.string() }),
+]).nullable();
+
 const projectFigures = z.object({
   projectId: z.uuid(),
+  kpi: projectKpi,
   performance,
   days: z.array(measuredDay),
 });
@@ -43,7 +51,7 @@ const campaign = z.object({
   externalId: z.string().nullable(),
   sourceAccountId: z.string().nullable(),
   position: z.int(),
-  kpi: z.object({ metric: z.string(), target: z.string() }).nullable(),
+  kpi: kpiTarget,
   performance,
 });
 
@@ -234,8 +242,8 @@ export const summaryDoc: RouteDoc = {
     {
       method: "get",
       path: "/projects",
-      summary: "Sum every reachable project's performance and daily figures",
-      description: `${RANGE} One entry per project the actor reaches, a project with nothing measured carrying zeros and no days.`,
+      summary: "Sum every reachable project's performance and daily figures beside its KPI",
+      description: `${RANGE} One entry per project the actor reaches, a project with nothing measured carrying zeros and no days. Each entry carries the project's own KPI, with its name and value when it was set by hand, or null when it has none.`,
       query: rangeSchema,
       success: { status: 200, description: "One entry per project, each with its daily figures oldest first", schema: arrayOf(ref("ProjectFigures")) },
       errors: [400, 401, 403],

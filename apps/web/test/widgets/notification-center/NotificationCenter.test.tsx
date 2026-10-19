@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { Route, Routes, useLocation } from "react-router-dom";
 import { renderWithProviders, server } from "@test/shared/index.js";
 import { FakeEventSource } from "@test/shared/eventSource.js";
-import type { Notification } from "@/entities/notification/index.js";
+import { SOUND_CLAIM_KEY, type Notification } from "@/entities/notification/index.js";
 import { TooltipProvider } from "@/shared/ui/index.js";
 import { NotificationCenter } from "@/widgets/notification-center/index.js";
 
@@ -79,13 +79,18 @@ function serve(initial: Notification[]) {
 
 const bell = () => screen.findByRole("button", { name: "Уведомления" });
 
+let play: ReturnType<typeof vi.spyOn>;
+
 beforeEach(() => {
   FakeEventSource.reset();
   vi.stubGlobal("EventSource", FakeEventSource);
+  localStorage.removeItem(SOUND_CLAIM_KEY);
+  play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("NotificationCenter", () => {
@@ -208,6 +213,16 @@ describe("NotificationCenter", () => {
     await waitFor(async () => expect(await bell()).toHaveAttribute("data-unread", "true"));
     const items = screen.getAllByRole("listitem");
     expect(within(items[0]!).getByText("Проект «Клиника» выполнил KPI")).toBeInTheDocument();
+    expect(play).toHaveBeenCalledTimes(1);
+  });
+
+  it("plays nothing for the notifications it loads", async () => {
+    serve([kpiMet, assigned]);
+    setup();
+
+    await waitFor(async () => expect(await bell()).toHaveAttribute("data-unread", "true"));
+
+    expect(play).not.toHaveBeenCalled();
   });
 
   it("refreshes the list after the stream reconnects", async () => {

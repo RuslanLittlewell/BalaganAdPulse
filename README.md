@@ -454,6 +454,29 @@ through instance B; a shared broker (Postgres `LISTEN/NOTIFY` is the smallest st
 before the board can be trusted across instances. Until then the board still converges on
 reconnect and on reload.
 
+### Notifications
+
+Each member has their own notifications, behind the bell in the header: a project's marker
+turning green for the current month (**KPI_MET**, at most once per project per month, to the
+admins, managers and guests who reach it), a new project (**PROJECT_CREATED**, to the same
+people except whoever added it), and being named on a task (**TASK_ASSIGNED**, on creation or
+when added later, never for naming oneself; a client's person only for a task shown to the
+client). The KPI check runs on the server when a Meta import for the project finishes and when
+its KPI is set, with the project list's arithmetic over the UTC month to date; the month that
+was notified is kept in `project.kpi_met_month`. Notifications are created after the change
+commits and off the request, so failing to notify never fails the change.
+
+`GET /api/notifications` lists the latest 50 with the unread count; `POST
+/api/notifications/:id/read` and `POST /api/notifications/read-all` mark them read. New ones
+arrive on `GET /api/notifications/stream`, a Server-Sent Events stream beside the WebSocket,
+authenticated by the same cookie: a `ready` event, then one `notification` event per
+notification, and a keepalive comment every 25 seconds inside nginx's read timeout. The stream
+sends `X-Accel-Buffering: no` so nginx passes it through unbuffered. The browser reconnects it
+on its own and the web app refetches the list on every reconnection; when the browser gives up,
+as on an expired session, the app renews the session and reopens it with a widening delay. Like
+the WebSocket registry, the subscribers live in the API process, and shutting down ends every
+open stream before the server closes.
+
 Business mutations append an `AuditEvent` in the same database transaction as the
 change. Events retain the actor's name, email and role as they were at write time and are
 read through a scoped, cursor-paginated endpoint. The web app opens that history for the
@@ -592,6 +615,14 @@ The project list reads the same `/summary/projects` for the period in the addres
 each project's marker from its own KPI, in the campaign indicator's zones: green from 100%,
 yellow from 80%, red below it, grey without a KPI or a measured figure. The percentage is
 the one the project's KPI tile shows, so the two never disagree.
+
+The dashboard also reads `/summary/projects` for the current month, from its first day to
+today, whatever period it shows, and gauges how the projects stand against their KPIs: a
+semicircle split by project count into green (100% and up), red (below 100%, the marker's
+yellow zone included) and grey (no KPI, or no figure to measure it by), with a needle at the
+green share. Beside it, the Важная информация panel lists the projects with no KPI at all, each linking
+to its project page with the dashboard's period; a KPI whose figure is unmeasured is grey on
+the gauge but not warned about.
 
 A project's KPI can also be set by hand — **Вручную** in its KPI dialog — for a goal the
 platform does not measure: `{ "metric": "MANUAL", "name", "value", "target" }` on

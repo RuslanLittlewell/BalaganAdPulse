@@ -8,11 +8,13 @@ import { S3ReportCoverStorage } from "#modules/reports/infrastructure/s3-report-
 import type { CampaignsAndIntegrations } from "./campaigns-integrations.js";
 import type { ClientsAndProjects } from "./clients-projects.js";
 import type { Kernel } from "./kernel.js";
+import type { Notifications } from "./notifications.js";
 
 export function wireReportsAndKpi(
   { unitOfWork, clock, ids, audit }: Kernel,
   { projectRepository, campaignRepository }:
     Pick<ClientsAndProjects, "projectRepository"> & Pick<CampaignsAndIntegrations, "campaignRepository">,
+  { kpiEvents }: Pick<Notifications, "kpiEvents">,
 ) {
   const reports = createReportUseCases({
     reports: new PrismaReportRepository(prisma, unitOfWork),
@@ -30,6 +32,7 @@ export function wireReportsAndKpi(
     audit,
     unitOfWork,
     clock,
+    events: kpiEvents,
   });
   return {
     reportRouter: createReportRouter(reports),

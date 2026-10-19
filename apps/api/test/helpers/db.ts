@@ -5,6 +5,7 @@ import { RandomIdGenerator } from "../../src/shared/infrastructure/id-generator.
 import { currentOrg } from "./auth.js";
 
 export async function resetDb(): Promise<void> {
+  await prisma.notification.deleteMany();
   await prisma.lead.deleteMany();
   await prisma.leadColumn.deleteMany();
   await prisma.metaLead.deleteMany();

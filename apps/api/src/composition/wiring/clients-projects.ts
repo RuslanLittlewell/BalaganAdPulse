@@ -17,8 +17,12 @@ import {
   PrismaProjectLayoutRepository,
 } from "#modules/project-layout/infrastructure/prisma-project-layout-repository.js";
 import type { Kernel } from "./kernel.js";
+import type { Notifications } from "./notifications.js";
 
-export function wireClientsAndProjects({ unitOfWork, ids, audit }: Kernel) {
+export function wireClientsAndProjects(
+  { unitOfWork, ids, audit }: Kernel,
+  { projectEvents }: Pick<Notifications, "projectEvents">,
+) {
   const clientRepository = new PrismaClientRepository(prisma, unitOfWork);
   const projectRepository = new PrismaProjectRepository(prisma, unitOfWork);
   const clients = createClientUseCases({
@@ -38,6 +42,7 @@ export function wireClientsAndProjects({ unitOfWork, ids, audit }: Kernel) {
     pictures: new S3ProjectPictureStorage(),
     staffing: new PrismaProjectStaffing(prisma, unitOfWork),
     audit,
+    events: projectEvents,
     ids,
     unitOfWork,
   });

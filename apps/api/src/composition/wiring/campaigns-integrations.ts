@@ -24,10 +24,12 @@ import { createAdPreviewRouter, createIntegrationRouter } from "#modules/integra
 import type { ClientsAndProjects } from "./clients-projects.js";
 import type { Kernel } from "./kernel.js";
 import type { Leads } from "./leads.js";
+import type { Notifications } from "./notifications.js";
 
 export function wireCampaignsAndIntegrations(
   { unitOfWork, clock, audit }: Kernel,
   { projectRepository, leadIntake }: Pick<ClientsAndProjects, "projectRepository"> & Pick<Leads, "leadIntake">,
+  { imports }: Pick<Notifications, "imports">,
 ) {
   const cipher = new AesCredentialCipher(process.env.INTEGRATION_ENCRYPTION_KEY);
   const provider = new GraphProvider(process.env.META_GRAPH_VERSION ?? "v22.0");
@@ -58,7 +60,7 @@ export function wireCampaignsAndIntegrations(
     ...createCampaignHttpRouters(campaigns),
     integrationRouter: createIntegrationRouter(integrations),
     adPreviewRouter: createAdPreviewRouter(integrations),
-    importWorker: createImportWorker({ jobs: new PrismaImportJobs(prisma), cipher, provider, clock, leads: leadIntake }),
+    importWorker: createImportWorker({ jobs: new PrismaImportJobs(prisma), cipher, provider, clock, leads: leadIntake, imports }),
     leadPollWorker: createLeadPollWorker({
       jobs: new PrismaLeadPollJobs(prisma, unitOfWork),
       cipher,

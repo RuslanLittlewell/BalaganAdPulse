@@ -3,7 +3,7 @@ import { AppError } from '#shared/domain/index.js';
 import type { ActorContext, UnitOfWork } from '#shared/application/index.js';
 import type { AuditWriter } from '#modules/audit/index.js';
 import { MANUAL_KPI, normalizeAmount, type Kpi, type KpiInput, type KpiLevel, type KpiOwner } from '../domain/kpi.js';
-import type { KpiReach, KpiRepository } from './ports.js';
+import type { KpiReach, KpiRepository, ProjectKpiEvents } from './ports.js';
 
 const snapshot = (kpi: Kpi | null): Record<string, string> | null => {
   if (!kpi) return null;
@@ -19,7 +19,7 @@ function normalized(input: KpiInput, updatedAt: Date): Kpi {
     : { metric: input.metric, target, updatedAt };
 }
 
-export function createKpiUseCases(d: { kpis: KpiRepository; reach: KpiReach; audit: AuditWriter; unitOfWork: UnitOfWork; clock: { now(): Date } }) {
+export function createKpiUseCases(d: { kpis: KpiRepository; reach: KpiReach; audit: AuditWriter; unitOfWork: UnitOfWork; clock: { now(): Date }; events: ProjectKpiEvents }) {
   async function ownerOf(actor: ActorContext, level: KpiLevel): Promise<KpiOwner> {
     if (level.kind === 'organization') {
       if (!can(actor, 'update', 'organization')) throw new AppError('forbidden', 'Your role may not manage the organization KPI');
@@ -56,6 +56,7 @@ export function createKpiUseCases(d: { kpis: KpiRepository; reach: KpiReach; aud
         changes: { before: snapshot(before), after: snapshot(kpi) },
       }, actor);
     });
+    if (kpi && owner.entityType === 'project') d.events.changed(owner.entityId, actor);
     return kpi;
   }
 

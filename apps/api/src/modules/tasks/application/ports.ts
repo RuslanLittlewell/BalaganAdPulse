@@ -115,6 +115,10 @@ export interface MemberReach {
   ): Promise<NamedMember[]>;
 }
 
+export interface TaskAssignments {
+  named(task: TaskRecord, memberIds: readonly string[], actor: ActorContext): void;
+}
+
 export interface TaskDependencies {
   readonly tasks: TaskRepository;
   readonly images: TaskImageRepository;
@@ -123,6 +127,7 @@ export interface TaskDependencies {
   readonly members: MemberReach;
   readonly audit: AuditWriter;
   readonly events: TaskEventPublisher;
+  readonly assignments: TaskAssignments;
   readonly ids: IdGenerator;
   readonly unitOfWork: UnitOfWork;
 }

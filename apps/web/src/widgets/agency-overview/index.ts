@@ -1,4 +1,5 @@
 export { ChannelPanel } from "./ChannelPanel.js";
+export { KpiOverview } from "./KpiOverview.js";
 export { ProjectPerformanceTable } from "./ProjectPerformanceTable.js";
 export { PerformanceSummary } from "./PerformanceSummary.js";
 export type { PerformanceSummaryProps } from "./PerformanceSummary.js";

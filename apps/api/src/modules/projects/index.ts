@@ -3,6 +3,7 @@ export type { ProjectUseCases } from "./application/project-use-cases.js";
 export type {
   ClientReach,
   ProjectDependencies,
+  ProjectEvents,
   ProjectPictureStorage,
   ProjectRepository,
   ProjectStaffing,

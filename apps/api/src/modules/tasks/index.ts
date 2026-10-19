@@ -4,6 +4,7 @@ export type {
   MemberReach,
   NewTask,
   ProjectReach,
+  TaskAssignments,
   TaskChange,
   TaskDependencies,
   TaskDescription,

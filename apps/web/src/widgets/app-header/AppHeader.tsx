@@ -10,6 +10,7 @@ import { Can } from "@/features/permissions/index.js";
 import { ContactBook } from "@/widgets/contact-book/index.js";
 import { OnlineUsers } from "@/widgets/online-users/index.js";
 import { ActivityLogModal } from "@/widgets/activity-log-modal/index.js";
+import { NotificationCenter } from "@/widgets/notification-center/index.js";
 import { t } from "@/shared/config/index.js";
 import {
   Button,
@@ -32,6 +33,10 @@ function useFirstPeopleHint(contactsOpen: boolean) {
   return useHint(HINTS.contactsFirstPeople, empty && !contactsOpen);
 }
 
+function HeaderDivider() {
+  return <div aria-hidden="true" className="mx-1 h-6 w-px bg-border" />;
+}
+
 export function AppHeader() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [contactsOpen, setContactsOpen] = useState(false);
@@ -44,6 +49,8 @@ export function AppHeader() {
 
         <TooltipProvider delayDuration={200}>
           <div className="flex items-center gap-2">
+            <NotificationCenter />
+            <HeaderDivider />
             <Tooltip>
               <Hint
                 open={firstPeople.open}
@@ -64,7 +71,7 @@ export function AppHeader() {
               <TooltipContent>{t("contacts.title")}</TooltipContent>
             </Tooltip>
             <Can action="read" resource="audit">
-              <div aria-hidden="true" className="mx-1 h-6 w-px bg-border" />
+              <HeaderDivider />
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -78,8 +85,8 @@ export function AppHeader() {
                 </TooltipTrigger>
                 <TooltipContent>{t("activity.title")}</TooltipContent>
               </Tooltip>
-              <div aria-hidden="true" className="mx-1 h-6 w-px bg-border" />
             </Can>
+            <HeaderDivider />
           <OnlineUsers />
           <UserMenu onSettings={() => setSettingsOpen(true)} avatarVersion={avatarVersion} />
           <ThemeToggle />

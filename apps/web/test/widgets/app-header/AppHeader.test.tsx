@@ -25,6 +25,17 @@ describe("AppHeader", () => {
     expect(within(roster).getByRole("img", { name: "Мария" })).toBeInTheDocument();
   });
 
+  it("puts the notifications bell first, before Contacts and History", async () => {
+    renderWithProviders(<AppHeader />);
+
+    const bell = await screen.findByRole("button", { name: "Уведомления" });
+    const contacts = await screen.findByRole("button", { name: "Контактная книга" });
+    const activity = await screen.findByRole("button", { name: "История действий" });
+
+    expect(bell.compareDocumentPosition(contacts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(contacts.compareDocumentPosition(activity) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("renders the account and theme controls", async () => {
     renderWithProviders(<AppHeader />);
     expect(await screen.findByRole("button", { name: /Buyer/ })).toBeInTheDocument();

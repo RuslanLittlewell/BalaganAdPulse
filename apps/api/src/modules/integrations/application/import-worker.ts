@@ -17,6 +17,7 @@ export function createImportWorker(d: {
   };
   clock: { now(): Date };
   leads: Pick<LeadInbox, "link">;
+  imports: { finished(projectId: string): void };
 }) {
   let polling: ReturnType<typeof setInterval> | undefined;
   let active: Promise<void> | undefined;
@@ -55,6 +56,7 @@ export function createImportWorker(d: {
         !(await d.jobs.complete(job, snapshot, d.clock.now()))
       )
         return true;
+      d.imports.finished(job.projectId);
       await d.leads.link(job.projectId).catch((error: unknown) => {
         console.error(
           "Linking imported leads failed:",

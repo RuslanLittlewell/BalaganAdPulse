@@ -37,12 +37,17 @@ export interface ProjectPictureStorage {
   write(projectId: string, png: Uint8Array): Promise<void>;
 }
 
+export interface ProjectEvents {
+  created(project: ProjectRecord, actor: ActorContext): void;
+}
+
 export interface ProjectDependencies {
   readonly projects: ProjectRepository;
   readonly clients: ClientReach;
   readonly pictures: ProjectPictureStorage;
   readonly staffing: ProjectStaffing;
   readonly audit: AuditWriter;
+  readonly events: ProjectEvents;
   readonly ids: IdGenerator;
   readonly unitOfWork: UnitOfWork;
 }

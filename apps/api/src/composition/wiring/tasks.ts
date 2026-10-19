@@ -16,10 +16,12 @@ import {
 import { taskImageUpload } from "#modules/tasks/presentation/http/task-image-upload.js";
 import { runDetached, type Kernel } from "./kernel.js";
 import type { MembersAndPresence } from "./members-presence.js";
+import type { Notifications } from "./notifications.js";
 
 export function wireTasks(
   { unitOfWork, ids, audit, connections }: Kernel,
   { members }: Pick<MembersAndPresence, "members">,
+  { taskAssignments }: Pick<Notifications, "taskAssignments">,
 ) {
   const projects = new PrismaTaskProjectReach(prisma);
   const delivery = createTaskEventDelivery({ registry: connections, members, projects });
@@ -33,6 +35,7 @@ export function wireTasks(
     events: {
       publish: (event: TaskEvent) => runDetached("Failed to deliver task event:", delivery.deliver(event)),
     },
+    assignments: taskAssignments,
     ids,
     unitOfWork,
   };

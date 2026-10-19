@@ -31,11 +31,13 @@ model Project {
   placements     ProjectPlacement[]
   reports        MonthlyReport[]
   documents      ProjectDocument[]
+  notifications  Notification[]
   kpiMetric      KpiMetric?           @map("kpi_metric")
   kpiTarget      Decimal?             @map("kpi_target") @db.Decimal(18, 4)
   kpiName        String?              @map("kpi_name")
   kpiValue       Decimal?             @map("kpi_value") @db.Decimal(18, 4)
   kpiUpdatedAt   DateTime?            @map("kpi_updated_at")
+  kpiMetMonth    DateTime?            @map("kpi_met_month") @db.Date
   summaryTiles   SummaryTile[]        @default([]) @map("summary_tiles")
 
   @@index([clientId, position])

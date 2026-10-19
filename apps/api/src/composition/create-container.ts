@@ -16,6 +16,7 @@ import { wireInvites } from "./wiring/invites.js";
 import { createKernel } from "./wiring/kernel.js";
 import { wireLeads } from "./wiring/leads.js";
 import { wireMembersAndPresence } from "./wiring/members-presence.js";
+import { wireNotifications } from "./wiring/notifications.js";
 import { wirePlatform } from "./wiring/platform.js";
 import { wireReportsAndKpi } from "./wiring/reports-kpi.js";
 import { wireSummaryTiles } from "./wiring/summary-tiles.js";
@@ -56,6 +57,8 @@ export interface ApiContainer {
   readonly summaryRouter: Router;
   readonly taskRouter: Router;
   readonly taskImageRouter: Router;
+  readonly notificationRouter: Router;
+  readonly closeNotificationStreams: () => void;
   readonly connections: ConnectionRegistry;
   readonly presence: PresenceRegistry;
   readonly presenceTouch: RequestHandler;
@@ -67,7 +70,8 @@ export interface ApiContainer {
 
 export function createContainer(): ApiContainer {
   const kernel = createKernel();
-  const catalog = wireClientsAndProjects(kernel);
+  const notices = wireNotifications(kernel);
+  const catalog = wireClientsAndProjects(kernel, notices);
   const invites = wireInvites(kernel, catalog);
   const people = wireMembersAndPresence(kernel, catalog);
   const identity = wireIdentity(kernel, { redeem: invites.redeem, signedOut: people.leave });
@@ -75,12 +79,12 @@ export function createContainer(): ApiContainer {
   const advertising = wireCampaignsAndIntegrations(kernel, {
     projectRepository: catalog.projectRepository,
     leadIntake: leads.leadIntake,
-  });
-  const tasks = wireTasks(kernel, people);
+  }, notices);
+  const tasks = wireTasks(kernel, people, notices);
   const reporting = wireReportsAndKpi(kernel, {
     projectRepository: catalog.projectRepository,
     campaignRepository: advertising.campaignRepository,
-  });
+  }, notices);
   const summaries = wireSummaryTiles(kernel, { projectRepository: catalog.projectRepository });
   const notebook = wireProjectDocuments(kernel, { projectRepository: catalog.projectRepository });
   const platform = wirePlatform(kernel);
@@ -127,6 +131,9 @@ export function createContainer(): ApiContainer {
 
     taskRouter: tasks.taskRouter,
     taskImageRouter: tasks.taskImageRouter,
+
+    notificationRouter: notices.notificationRouter,
+    closeNotificationStreams: notices.closeNotificationStreams,
 
     leadRouter: leads.leadRouter,
 

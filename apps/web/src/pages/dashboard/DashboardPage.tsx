@@ -2,7 +2,7 @@ import { PeriodControl, usePeriod } from "@/features/period/index.js";
 import { useAgencySummary } from "@/entities/campaign/index.js";
 import { useChooseSummaryTiles, useSummaryTiles } from "@/entities/summary-tiles/index.js";
 import {
-  ChannelPanel, PerformanceSummary, ProjectPerformanceTable,
+  ChannelPanel, KpiOverview, PerformanceSummary, ProjectPerformanceTable,
 } from "@/widgets/agency-overview/index.js";
 import { t } from "@/shared/config/index.js";
 import { useAlerts } from "@/shared/ui/index.js";
@@ -36,10 +36,12 @@ export function DashboardPage() {
         kpi={managesAgencyKpi ? { scope: { kind: "organization" }, canEdit: true } : undefined}
       />
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
-        <ProjectPerformanceTable range={range} />
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <KpiOverview />
         <ChannelPanel range={range} />
       </div>
+
+      <ProjectPerformanceTable range={range} />
     </div>
   );
 }

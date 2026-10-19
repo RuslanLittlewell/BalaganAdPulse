@@ -40,6 +40,7 @@ export const ROUTE_MOUNTS = [
   { id: "task-images", path: "/api/task-images" },
   { id: "kpi", path: "/api" },
   { id: "summary-tiles", path: "/api" },
+  { id: "notifications", path: "/api/notifications" },
   { id: "api-not-found", path: "/api" },
 ] as const;
 
@@ -91,6 +92,7 @@ export function createRoutes(container: ApiContainer): Router {
     container.taskImageRouter,
     container.kpiRouter,
     container.summaryTileRouter,
+    container.notificationRouter,
     (_request: unknown, _response: unknown, next: (error: Error) => void) =>
       next(new AppError("not-found", "Endpoint not found")),
   ];

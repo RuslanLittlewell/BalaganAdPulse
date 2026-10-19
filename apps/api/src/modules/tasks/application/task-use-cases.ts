@@ -207,6 +207,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
         return { ...task, imageIds };
       });
       dependencies.events.publish(taskCreated(created));
+      dependencies.assignments.named(created, created.participantIds, actor);
       return created;
     },
 
@@ -256,6 +257,9 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
         return { ...withChecklist, imageIds };
       });
       dependencies.events.publish(taskUpdated(updated));
+      dependencies.assignments.named(
+        updated, updated.participantIds.filter((id) => !task.participantIds.includes(id)), actor,
+      );
       return updated;
     },
 

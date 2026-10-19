@@ -40,6 +40,7 @@ const expectedMounts = [
   "/api/task-images",
   "/api",
   "/api",
+  "/api/notifications",
   "/api",
 ];
 

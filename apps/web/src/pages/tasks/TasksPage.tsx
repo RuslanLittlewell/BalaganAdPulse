@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { TaskBoard } from "@/widgets/task-board/index.js";
 import { TaskCalendar } from "@/widgets/task-calendar/index.js";
 import { TaskDialogs, type OpenedTask } from "@/features/task-management/index.js";
@@ -63,6 +64,18 @@ export function TasksPage() {
   );
 
   const open = (task: Task) => setOpened({ mode: "open", task });
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const linkedTaskId = searchParams.get("task");
+  useEffect(() => {
+    if (!linkedTaskId || !tasks) return;
+    const linked = tasks.find((candidate) => candidate.id === linkedTaskId);
+    if (linked) setOpened({ mode: "open", task: linked });
+    setSearchParams((params) => {
+      params.delete("task");
+      return params;
+    }, { replace: true });
+  }, [linkedTaskId, tasks, setSearchParams]);
 
   return (
     <section className="flex h-full flex-col gap-4">

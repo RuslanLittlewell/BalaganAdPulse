@@ -29,7 +29,10 @@ const presenceSweep = setInterval(() => { container.sweepPresence(); }, PRESENCE
 const shutdown = createShutdown({
   server,
   stopTimers: () => { clearInterval(presenceSweep); },
-  closeRealtime: () => realtime.close(),
+  closeRealtime: async () => {
+    container.closeNotificationStreams();
+    await realtime.close();
+  },
   disconnect: async () => { await Promise.all([container.importWorker.stop(), container.leadPollWorker.stop()]); await prisma.$disconnect(); },
   exit: (code) => process.exit(code),
 });

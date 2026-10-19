@@ -34,6 +34,7 @@ function fixture(options: {
   const removedObjects: string[] = [];
   const published: TaskEvent[] = [];
   const journal: string[] = [];
+  const assigned: Array<{ taskId: string; memberIds: string[]; actor: string }> = [];
 
   const owns = (actor: ActorContext, candidate: TaskRecord) => {
     if (actor.role === "ADMIN") return true;
@@ -102,6 +103,11 @@ function fixture(options: {
     events: {
       publish: (event: TaskEvent) => { published.push(event); journal.push(`publish:${event.kind}`); },
     },
+    assignments: {
+      named: (named: TaskRecord, memberIds: readonly string[], actor: ActorContext) => {
+        assigned.push({ taskId: named.id, memberIds: [...memberIds], actor: actor.membershipId });
+      },
+    },
     ids: new DeterministicIdGenerator(["new-1", "new-2", "new-3"]),
     unitOfWork: {
       run: async (work) => {
@@ -112,7 +118,7 @@ function fixture(options: {
       },
     },
   });
-  return { useCases, tasks, audit, orders, claimed, removedObjects, published, journal };
+  return { useCases, tasks, audit, orders, claimed, removedObjects, published, journal, assigned };
 }
 
 describe("reading the board", () => {
@@ -209,6 +215,30 @@ describe("creating a task", () => {
       action: "CREATE", entityType: "task", entityId: created.id,
       clientId: "c1", projectId: "p1", summary: 'Created task “Brief”',
     });
+  });
+});
+
+describe("naming participants", () => {
+  it("names everyone on a new task", async () => {
+    const { useCases, assigned } = fixture();
+    const created = await useCases.create(admin, { projectId: "p1", title: "T", priority: "LOW", participantIds: ["m2"] });
+    expect(assigned).toEqual([{ taskId: created.id, memberIds: ["m2"], actor: "m1" }]);
+  });
+
+  it("names only the members added to a task", async () => {
+    const { useCases, assigned } = fixture({ tasks: [task({ participantIds: ["m2"] })], assignable: ["m2", "m3"] });
+    await useCases.update(admin, "t1", { participantIds: ["m2", "m3"] });
+    expect(assigned).toEqual([{ taskId: "t1", memberIds: ["m3"], actor: "m1" }]);
+  });
+
+  it("names nobody when a change adds no one", async () => {
+    const { useCases, assigned } = fixture({ tasks: [task({ participantIds: ["m2", "m3"] })] });
+    await useCases.update(admin, "t1", { participantIds: ["m2"] });
+    await useCases.update(admin, "t1", { title: "Renamed" });
+    expect(assigned).toEqual([
+      { taskId: "t1", memberIds: [], actor: "m1" },
+      { taskId: "t1", memberIds: [], actor: "m1" },
+    ]);
   });
 });
 

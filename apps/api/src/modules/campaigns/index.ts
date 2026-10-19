@@ -8,5 +8,6 @@ export type {
 export type { CampaignDay, MetricRepository } from "./application/metric-ports.js";
 export type { Ad, AdSet, Campaign, Channel, DateRange, DeliveryStatus, KpiTarget, ProjectKpi } from "./domain/hierarchy.js";
 export type { Derived, Measured, Performance } from "./domain/metrics.js";
+export { performanceOf } from "./domain/metrics.js";
 export { createCampaignHttpRouters } from "./presentation/http/campaign-http.js";
 export type { CampaignHttpRouters } from "./presentation/http/campaign-http.js";

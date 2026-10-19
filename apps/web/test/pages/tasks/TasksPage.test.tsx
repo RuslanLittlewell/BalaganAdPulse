@@ -1,8 +1,14 @@
 import { http as mock, HttpResponse } from "msw";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useLocation } from "react-router-dom";
 import { aProject, aTask, renderWithProviders, server } from "@test/shared/index.js";
 import { TasksPage } from "@/pages/tasks/index.js";
+
+function Where() {
+  const location = useLocation();
+  return <output aria-label="Адрес">{`${location.pathname}${location.search}`}</output>;
+}
 
 function setup() {
   return renderWithProviders(<TasksPage />, { route: "/tasks" });
@@ -65,6 +71,26 @@ describe("TasksPage", () => {
 
     await userEvent.click(await screen.findByText("Срочный"));
     expect(await screen.findByLabelText("Название")).toHaveValue("Написать бриф");
+  });
+
+  it("opens the task named in the address, then forgets the name", async () => {
+    server.use(mock.get("/api/tasks", () => HttpResponse.json([
+      aTask({ id: "task-7", title: "Позвонить клиенту" }),
+      aTask({ id: "task-8", title: "Написать бриф" }),
+    ])));
+    renderWithProviders(<><TasksPage /><Where /></>, { route: "/tasks?task=task-7" });
+
+    expect(await screen.findByLabelText("Название")).toHaveValue("Позвонить клиенту");
+    await waitFor(() => expect(screen.getByText("/tasks")).toBeInTheDocument());
+  });
+
+  it("opens nothing for a task it does not have", async () => {
+    server.use(mock.get("/api/tasks", () => HttpResponse.json([aTask({ title: "Написать бриф" })])));
+    renderWithProviders(<><TasksPage /><Where /></>, { route: "/tasks?task=gone" });
+
+    await screen.findByText("Написать бриф");
+    await waitFor(() => expect(screen.getByRole("status", { name: "Адрес" })).toHaveTextContent(/^\/tasks$/));
+    expect(screen.queryByLabelText("Название")).not.toBeInTheDocument();
   });
 
   it("opens a card for editing, with its values filled in", async () => {

@@ -31,6 +31,7 @@ import { summaryTileDoc } from "#modules/summary-tiles/index.js";
 import { projectDocumentComponents, projectDocumentDoc } from "#modules/project-documents/index.js";
 import { reportDoc, reportIndexDoc } from '#modules/reports/index.js';
 import { platformComponents, platformDoc } from "#modules/platform/index.js";
+import { notificationDoc } from "#modules/notifications/index.js";
 
 const require = createRequire(import.meta.url);
 
@@ -110,6 +111,7 @@ export function apiDocument(): OpenApiDocument {
       { mount: mountPath("kpi"), ...kpiDoc },
       { mount: mountPath("summary-tiles"), ...summaryTileDoc },
       { mount: mountPath("project-documents"), ...projectDocumentDoc },
+      { mount: mountPath("notifications"), ...notificationDoc },
     ],
     components: mergeComponents(
       identityComponents,

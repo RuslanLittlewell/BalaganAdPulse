@@ -24,6 +24,7 @@ function fixture(seed: ProjectRecord[] = [], reachableClients = ["c1"]) {
   const pictures = new Map<string, Uint8Array>();
   const grants: Array<{ context: TransactionContext; projectId: string; clientId: string; memberIds: readonly string[] }> = [];
   const eligibilityChecks: string[][] = [];
+  const announced: Array<{ projectId: string; actor: ActorContext }> = [];
   const employees = ["e1", "e2"];
 
   const useCases = createProjectUseCases({
@@ -51,6 +52,7 @@ function fixture(seed: ProjectRecord[] = [], reachableClients = ["c1"]) {
       write: async (id, bytes) => { pictures.set(id, bytes); },
     },
     audit: { append: async (_tx, event) => { audit.push(event as never); } },
+    events: { created: (project, actor) => { announced.push({ projectId: project.id, actor }); } },
     staffing: {
       eligible: async (orgId, memberIds) => {
         eligibilityChecks.push([...memberIds]);
@@ -63,7 +65,7 @@ function fixture(seed: ProjectRecord[] = [], reachableClients = ["c1"]) {
     ids: new DeterministicIdGenerator(["new-1", "new-2"]),
     unitOfWork: { run: (work) => work(context) },
   });
-  return { useCases, projects, audit, pictures, grants, eligibilityChecks, context };
+  return { useCases, projects, audit, pictures, grants, eligibilityChecks, announced, context };
 }
 
 describe("creating a project", () => {
@@ -71,6 +73,19 @@ describe("creating a project", () => {
     const { useCases } = fixture();
     const created = await useCases.create(admin, { clientId: "c1", name: "Acme Ads" });
     expect(created.clientId).toBe("c1");
+  });
+
+  it("announces the project once it is stored, with who created it", async () => {
+    const { useCases, announced, projects } = fixture();
+    const created = await useCases.create(manager, { clientId: "c1", name: "Acme Ads" });
+    expect(projects.has(created.id)).toBe(true);
+    expect(announced).toEqual([{ projectId: created.id, actor: manager }]);
+  });
+
+  it("announces nothing when the client is out of reach", async () => {
+    const { useCases, announced } = fixture([], []);
+    await expect(useCases.create(admin, { clientId: "c1", name: "No" })).rejects.toBeDefined();
+    expect(announced).toEqual([]);
   });
 
   it("appends it after the client's existing projects", async () => {

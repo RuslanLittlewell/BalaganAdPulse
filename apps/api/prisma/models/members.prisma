@@ -82,6 +82,9 @@ model Membership {
   authoredDocuments ProjectDocument[] @relation("ProjectDocumentAuthor")
   editedDocuments   ProjectDocument[] @relation("ProjectDocumentEditor")
 
+  notifications       Notification[] @relation("NotificationRecipient")
+  causedNotifications Notification[] @relation("NotificationActor")
+
   @@unique([userId, orgId])
   @@index([orgId, role])
   @@map("membership")

@@ -60,7 +60,7 @@ export function createProjectUseCases(dependencies: ProjectDependencies) {
       const { memberIds, ...fields } = input;
       const staff = await staffOf(actor, memberIds);
       await assertClientReachable(actor, fields.clientId);
-      return dependencies.unitOfWork.run(async (context) => {
+      const created = await dependencies.unitOfWork.run(async (context) => {
         const project = await dependencies.projects.create(context, {
           ...fields,
           id: dependencies.ids.generate(),
@@ -71,6 +71,8 @@ export function createProjectUseCases(dependencies: ProjectDependencies) {
         await dependencies.audit.append(context, audit("CREATE", project), actor);
         return project;
       });
+      dependencies.events.created(created, actor);
+      return created;
     },
 
     list: async (actor: ActorContext, clientId?: string): Promise<ProjectRecord[]> => {

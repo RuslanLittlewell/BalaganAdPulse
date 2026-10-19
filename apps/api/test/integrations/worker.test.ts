@@ -10,6 +10,7 @@ const dependencies = () => ({
   cipher: { encrypt: vi.fn(), decrypt: vi.fn().mockReturnValue("synthetic-secret") },
   provider: { snapshot: vi.fn().mockResolvedValue(data) }, clock: { now: () => now },
   leads: { link: vi.fn().mockResolvedValue(undefined) },
+  imports: { finished: vi.fn() },
 });
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
@@ -21,6 +22,22 @@ it("processes startup work without waiting for the first minute", async () => {
   expect(d.provider.snapshot).toHaveBeenCalledWith("123", "synthetic-secret", "USD", now, expect.any(AbortSignal));
   expect(d.jobs.complete).toHaveBeenCalledWith(job, data, now);
   await worker.stop();
+});
+it("reports a finished import of the project, and nothing when the snapshot was not committed", async () => {
+  const done = dependencies();
+  const finishing = createImportWorker(done);
+  finishing.start();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(done.imports.finished).toHaveBeenCalledWith("p");
+  await finishing.stop();
+
+  const lost = dependencies();
+  lost.jobs.complete.mockResolvedValue(false);
+  const losing = createImportWorker(lost);
+  losing.start();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(lost.imports.finished).not.toHaveBeenCalled();
+  await losing.stop();
 });
 it("renews long requests and drains an aborted request before stopping", async () => {
   const d = dependencies();

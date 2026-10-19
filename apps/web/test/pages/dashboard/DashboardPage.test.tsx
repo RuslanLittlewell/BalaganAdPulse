@@ -184,7 +184,7 @@ describe("DashboardPage", () => {
 
     await screen.findByRole("row", { name: /Проект 29/ });
     expect(await screen.findAllByRole("img", { name: /Расход по дням/ })).toHaveLength(30);
-    expect(asked).toEqual(["/api/summary/projects"]);
+    expect([...new Set(asked)]).toEqual(["/api/summary/projects"]);
   });
 
   it("shows zero for a project the summary has no figures for", async () => {
@@ -257,6 +257,111 @@ describe("DashboardPage", () => {
     renderWithProviders(<DashboardPage />);
 
     expect(await screen.findByText("Проектов пока нет")).toBeInTheDocument();
+  });
+});
+
+describe("this month's KPI on the dashboard", () => {
+  const leads = (target: string) => ({ metric: "CONVERSIONS", target });
+  const withKpi = (projectId: string, kpi: unknown, extra = {}) =>
+    ({ projectId, kpi, performance: performance(1000, extra), days: [] });
+  const three = [project("p1", "Клиника"), project("p2", "Автосалон"), project("p3", "Фитнес")];
+
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-10-15T12:00:00"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("gauges how many projects meet their KPI and names each part", async () => {
+    api({
+      projects: three,
+      projectFigures: [
+        withKpi("p1", leads("62.0000"), { conversions: 30 }),
+        withKpi("p2", leads("62.0000"), { conversions: 10 }),
+        withKpi("p3", null),
+      ],
+    });
+    renderWithProviders(<DashboardPage />);
+
+    const gauge = await screen.findByRole("region", { name: "Выполнение KPI за месяц" });
+    expect(await within(gauge).findByRole("img", {
+      name: "Выполнение KPI за месяц: Выполняют 1, Не выполняют 1, Без оценки 1",
+    })).toBeInTheDocument();
+    expect(within(gauge).getByText("1 из 3")).toBeInTheDocument();
+    expect(within(gauge).getByText("Выполняют").nextSibling).toHaveTextContent("1");
+    expect(within(gauge).getByText("Не выполняют").nextSibling).toHaveTextContent("1");
+    expect(within(gauge).getByText("Без оценки").nextSibling).toHaveTextContent("1");
+  });
+
+  it("reads the current month whatever period the dashboard shows", async () => {
+    const asked: string[] = [];
+    api({ projects: three });
+    server.use(mock.get("/api/summary/projects", ({ request }) => {
+      const search = new URL(request.url).search;
+      asked.push(search);
+      const conversions = search === "?from=2026-10-01&to=2026-10-15" ? 30 : 0;
+      return HttpResponse.json(three.map((entry) => withKpi(entry.id, leads("62.0000"), { conversions })));
+    }));
+    renderWithProviders(<DashboardPage />, { route: "/?from=2026-09-01&to=2026-09-30" });
+
+    const gauge = await screen.findByRole("region", { name: "Выполнение KPI за месяц" });
+    expect(await within(gauge).findByText("3 из 3")).toBeInTheDocument();
+    expect(asked).toContain("?from=2026-10-01&to=2026-10-15");
+    expect(asked).toContain("?from=2026-09-01&to=2026-09-30");
+  });
+
+  it("reads — over a grey arc when there are no projects", async () => {
+    api({ projects: [], projectFigures: [] });
+    renderWithProviders(<DashboardPage />);
+
+    const gauge = await screen.findByRole("region", { name: "Выполнение KPI за месяц" });
+    expect(await within(gauge).findByRole("img", {
+      name: "Выполнение KPI за месяц: Выполняют 0, Не выполняют 0, Без оценки 0",
+    })).toBeInTheDocument();
+    expect(within(gauge).getByText("—")).toBeInTheDocument();
+  });
+
+  it("warns about each project without a KPI, and not about one whose figure is unmeasured", async () => {
+    api({
+      projects: [...three, project("p4", "Стоматология")],
+      projectFigures: [
+        withKpi("p1", leads("62.0000")),
+        withKpi("p2", null),
+        withKpi("p3", null),
+        withKpi("p4", { metric: "CPA", target: "10.0000" }, { cpa: null }),
+      ],
+    });
+    renderWithProviders(<DashboardPage />);
+
+    const notices = await screen.findByRole("region", { name: "Важная информация" });
+    const listed = await within(notices).findAllByRole("link");
+    expect(listed.map((link) => link.textContent)).toEqual(["АвтосалонKPI не задан", "ФитнесKPI не задан"]);
+    expect(within(notices).getByText("Проектов без KPI:").parentElement).toHaveTextContent("2");
+    expect(within(notices).queryByText("Во всех проектах задан KPI")).not.toBeInTheDocument();
+  });
+
+  it("opens a project without a KPI with the dashboard's period", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    api({ projects: three, projectFigures: [withKpi("p1", leads("62.0000")), withKpi("p2", null), withKpi("p3", leads("62.0000"))] });
+    renderWithProviders(<App />, { route: "/?from=2026-08-01&to=2026-08-09" });
+
+    const notices = await screen.findByRole("region", { name: "Важная информация" });
+    await user.click(await within(notices).findByRole("link", { name: /Автосалон/ }));
+
+    expect(await screen.findByRole("heading", { name: "Экран проекта" })).toBeInTheDocument();
+    expect(screen.getByText("?from=2026-08-01&to=2026-08-09")).toBeInTheDocument();
+  });
+
+  it("says every project has a KPI when none is missing", async () => {
+    api({ projects: three, projectFigures: three.map((entry) => withKpi(entry.id, leads("62.0000"))) });
+    renderWithProviders(<DashboardPage />);
+
+    const notices = await screen.findByRole("region", { name: "Важная информация" });
+    expect(await within(notices).findByText("Во всех проектах задан KPI")).toBeInTheDocument();
+    expect(within(notices).queryByRole("link")).not.toBeInTheDocument();
   });
 });
 

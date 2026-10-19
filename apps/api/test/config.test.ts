@@ -93,4 +93,18 @@ describe("loadConfig", () => {
     expect(loadConfig({ JWT_SECRET: "s", TASK_TIME_ZONE: "Europe/Warsaw" }).taskTimeZone).toBe("Europe/Warsaw");
     expect(() => loadConfig({ JWT_SECRET: "s", TASK_TIME_ZONE: "Mars/Olympus" })).toThrow(/TASK_TIME_ZONE/);
   });
+
+  it("turns the Telegram bot on only with both a bot token and a Groq key, with default models", () => {
+    expect(loadConfig({ JWT_SECRET: "s" }).telegramBot).toBeNull();
+    expect(loadConfig({ JWT_SECRET: "s", TELEGRAM_BOT_TOKEN: "123:abc" }).telegramBot).toBeNull();
+    expect(loadConfig({ JWT_SECRET: "s", GROQ_API_KEY: "gsk" }).telegramBot).toBeNull();
+    expect(loadConfig({ JWT_SECRET: "s", TELEGRAM_BOT_TOKEN: " 123:abc ", GROQ_API_KEY: "gsk" }).telegramBot).toEqual({
+      botToken: "123:abc", groqApiKey: "gsk",
+      transcriptionModel: "whisper-large-v3-turbo", taskModel: "openai/gpt-oss-20b",
+    });
+    expect(loadConfig({
+      JWT_SECRET: "s", TELEGRAM_BOT_TOKEN: "123:abc", GROQ_API_KEY: "gsk",
+      GROQ_TRANSCRIPTION_MODEL: "whisper-large-v3", GROQ_TASK_MODEL: "openai/gpt-oss-120b",
+    }).telegramBot).toMatchObject({ transcriptionModel: "whisper-large-v3", taskModel: "openai/gpt-oss-120b" });
+  });
 });

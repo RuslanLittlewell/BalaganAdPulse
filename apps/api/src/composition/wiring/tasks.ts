@@ -39,8 +39,10 @@ export function wireTasks(
     ids,
     unitOfWork,
   };
+  const taskUseCases = createTaskUseCases(dependencies);
   return {
-    taskRouter: createTaskRouter(createTaskUseCases(dependencies)),
+    taskUseCases,
+    taskRouter: createTaskRouter(taskUseCases),
     taskImageRouter: createTaskImageRouter(createTaskImageUseCases(dependencies), taskImageUpload.single("image")),
   };
 }

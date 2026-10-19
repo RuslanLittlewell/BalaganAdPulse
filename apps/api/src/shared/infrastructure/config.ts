@@ -6,6 +6,13 @@ export interface MailConfig {
   from: string;
 }
 
+export interface TelegramBotConfig {
+  botToken: string;
+  groqApiKey: string;
+  transcriptionModel: string;
+  taskModel: string;
+}
+
 export interface Config {
   jwtSecret: string;
   documentation: boolean;
@@ -13,6 +20,7 @@ export interface Config {
   appUrl: string | null;
   mail: MailConfig | null;
   taskTimeZone: string;
+  telegramBot: TelegramBotConfig | null;
   storage: {
     endpoint: string;
     region: string;
@@ -38,6 +46,22 @@ function taskTimeZone(env: NodeJS.ProcessEnv): string {
     throw new Error(`TASK_TIME_ZONE must be an IANA time zone, such as ${DEFAULT_TASK_TIME_ZONE}`);
   }
   return zone;
+}
+
+const DEFAULT_TRANSCRIPTION_MODEL = "whisper-large-v3-turbo";
+
+const DEFAULT_TASK_MODEL = "openai/gpt-oss-20b";
+
+function telegramBotConfig(env: NodeJS.ProcessEnv): TelegramBotConfig | null {
+  const botToken = env.TELEGRAM_BOT_TOKEN?.trim();
+  const groqApiKey = env.GROQ_API_KEY?.trim();
+  if (!botToken || !groqApiKey) return null;
+  return {
+    botToken,
+    groqApiKey,
+    transcriptionModel: env.GROQ_TRANSCRIPTION_MODEL?.trim() || DEFAULT_TRANSCRIPTION_MODEL,
+    taskModel: env.GROQ_TASK_MODEL?.trim() || DEFAULT_TASK_MODEL,
+  };
 }
 
 function mailConfig(env: NodeJS.ProcessEnv): MailConfig | null {
@@ -78,6 +102,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     appUrl: env.APP_URL?.trim().replace(/\/+$/, "") || (production ? null : DEVELOPMENT_APP_URL),
     mail: mailConfig(env),
     taskTimeZone: taskTimeZone(env),
+    telegramBot: telegramBotConfig(env),
     storage: {
       endpoint: env.S3_ENDPOINT ?? "http://localhost:9000",
       region: env.S3_REGION ?? "us-east-1",

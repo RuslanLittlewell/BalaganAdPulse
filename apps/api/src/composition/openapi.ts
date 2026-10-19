@@ -32,6 +32,7 @@ import { projectDocumentComponents, projectDocumentDoc } from "#modules/project-
 import { reportDoc, reportIndexDoc } from '#modules/reports/index.js';
 import { platformComponents, platformDoc } from "#modules/platform/index.js";
 import { notificationDoc } from "#modules/notifications/index.js";
+import { telegramDoc } from "#modules/telegram-bot/index.js";
 
 const require = createRequire(import.meta.url);
 
@@ -112,6 +113,7 @@ export function apiDocument(): OpenApiDocument {
       { mount: mountPath("summary-tiles"), ...summaryTileDoc },
       { mount: mountPath("project-documents"), ...projectDocumentDoc },
       { mount: mountPath("notifications"), ...notificationDoc },
+      { mount: mountPath("telegram"), ...telegramDoc },
     ],
     components: mergeComponents(
       identityComponents,

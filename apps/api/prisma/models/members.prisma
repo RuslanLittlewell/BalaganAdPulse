@@ -85,6 +85,10 @@ model Membership {
   notifications       Notification[] @relation("NotificationRecipient")
   causedNotifications Notification[] @relation("NotificationActor")
 
+  telegramLink      TelegramLink?
+  telegramLinkToken TelegramLinkToken?
+  telegramDrafts    TelegramTaskDraft[]
+
   @@unique([userId, orgId])
   @@index([orgId, role])
   @@map("membership")

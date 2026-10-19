@@ -24,6 +24,7 @@ const realtime = attachRealtime({
 container.importWorker.start();
 container.leadPollWorker.start();
 container.dueSoonWorker.start();
+container.telegramPoller.start();
 
 const presenceSweep = setInterval(() => { container.sweepPresence(); }, PRESENCE_SWEEP_MS);
 
@@ -35,7 +36,12 @@ const shutdown = createShutdown({
     await realtime.close();
   },
   disconnect: async () => {
-    await Promise.all([container.importWorker.stop(), container.leadPollWorker.stop(), container.dueSoonWorker.stop()]);
+    await Promise.all([
+      container.importWorker.stop(),
+      container.leadPollWorker.stop(),
+      container.dueSoonWorker.stop(),
+      container.telegramPoller.stop(),
+    ]);
     await prisma.$disconnect();
   },
   exit: (code) => process.exit(code),

@@ -77,6 +77,10 @@ services:
       SMTP_PORT: "${SMTP_PORT:-}"
       MAIL_FROM: "${MAIL_FROM:-}"
       TASK_TIME_ZONE: "${TASK_TIME_ZONE:-Europe/Minsk}"
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
+      GROQ_API_KEY: "${GROQ_API_KEY:-}"
+      GROQ_TRANSCRIPTION_MODEL: "${GROQ_TRANSCRIPTION_MODEL:-}"
+      GROQ_TASK_MODEL: "${GROQ_TASK_MODEL:-}"
     ports:
       - "3000:3000"
     volumes:

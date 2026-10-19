@@ -153,7 +153,7 @@ Backups are gzipped `pg_dump` files in `/opt/adpulse/backups`, one per deploy, k
 
 | What | Where it lives | Who sets it |
 |---|---|---|
-| Postgres and MinIO credentials, `JWT_SECRET`, `INTEGRATION_ENCRYPTION_KEY`, `SEED_ADMIN_*`, `APP_URL`, `SMTP_*` | `/opt/adpulse/.env` on the server, passed whole to the app | Operator, by hand |
+| Postgres and MinIO credentials, `JWT_SECRET`, `INTEGRATION_ENCRYPTION_KEY`, `SEED_ADMIN_*`, `APP_URL`, `SMTP_*`, `TELEGRAM_BOT_TOKEN`, `GROQ_API_KEY` | `/opt/adpulse/.env` on the server, passed whole to the app | Operator, by hand |
 | `PRODUCTION_VPS_SSH_KEY` — the private key of `adpulse-deploy` | GitHub Actions repository secret | Operator |
 | The server's host key | [deploy/known_hosts](deploy/known_hosts), in the repository | Operator, when the server changes |
 | Access to the image registry | The job's own `GITHUB_TOKEN`, used for one deploy and logged out | Nobody |
@@ -489,6 +489,36 @@ the tabs claim it through `localStorage`, the visible one first, and a browser t
 sound before the first click on the page is simply not heard. Like
 the WebSocket registry, the subscribers live in the API process, and shutting down ends every
 open stream before the server closes.
+
+### The Telegram bot
+
+Admins and managers can put a task on the board by sending a voice or text message to a
+Telegram bot. It is on when the API has both `TELEGRAM_BOT_TOKEN` (from
+[@BotFather](https://t.me/BotFather)) and `GROQ_API_KEY` (from
+[console.groq.com](https://console.groq.com/keys)); with either missing, the profile does not
+offer it and nothing is polled. `GROQ_TRANSCRIPTION_MODEL` (`whisper-large-v3-turbo`) and
+`GROQ_TASK_MODEL` (`openai/gpt-oss-20b`) override the models; the task model must support
+Groq's strict structured outputs.
+
+A member links their Telegram from **Настройки профиля**: **Подключить** issues a one-time
+link to the bot (`POST /api/telegram/link`), valid for 15 minutes; pressing Start in the bot
+sends it the token and ties the chat to the member. `GET /api/telegram` tells the profile
+whether the bot is offered and linked, and `DELETE /api/telegram/link` unlinks. The bot is
+offered to active admins and managers of an active organization with the tasks module, and
+that is checked again at every message, so a suspension takes effect at once.
+
+A voice message of up to two minutes is transcribed by Groq's Whisper in Russian; a text
+message is taken as it is. A Groq language model then reads it into a draft, given today's
+date in `TASK_TIME_ZONE`, the projects the member reaches and the organization's active staff,
+and answers by keys, so the draft can name only those. The bot shows the draft with
+**Создать** and **Отмена**: **Создать** creates the task as the member through the task use
+cases, with its audit entry, live board update and notifications, and links to it under
+`APP_URL`. Drafts are kept for a day in `telegram_task_draft` and used once.
+
+The bot receives updates by long polling from the API process, so it needs no public address
+or webhook. Telegram allows one poller per bot token: give local development its own bot, or
+the production one and the laptop will take each other's messages. Voice recordings, message
+text and the names of the member's projects and colleagues are sent to Groq.
 
 Business mutations append an `AuditEvent` in the same database transaction as the
 change. Events retain the actor's name, email and role as they were at write time and are

@@ -23,6 +23,7 @@ import { wireReportsAndKpi } from "./wiring/reports-kpi.js";
 import { wireSummaryTiles } from "./wiring/summary-tiles.js";
 import { wireProjectDocuments } from "./wiring/project-documents.js";
 import { wireTasks } from "./wiring/tasks.js";
+import { wireTelegramBot, type TelegramPoller } from "./wiring/telegram-bot.js";
 
 export interface ApiContainer {
   readonly integrationRouter: Router;
@@ -61,6 +62,8 @@ export interface ApiContainer {
   readonly notificationRouter: Router;
   readonly closeNotificationStreams: () => void;
   readonly dueSoonWorker: DueSoonWorker;
+  readonly telegramRouter: Router;
+  readonly telegramPoller: TelegramPoller;
   readonly connections: ConnectionRegistry;
   readonly presence: PresenceRegistry;
   readonly presenceTouch: RequestHandler;
@@ -83,6 +86,7 @@ export function createContainer(): ApiContainer {
     leadIntake: leads.leadIntake,
   }, notices);
   const tasks = wireTasks(kernel, people, notices);
+  const telegram = wireTelegramBot(kernel, { tasks: tasks.taskUseCases });
   const reporting = wireReportsAndKpi(kernel, {
     projectRepository: catalog.projectRepository,
     campaignRepository: advertising.campaignRepository,
@@ -137,6 +141,9 @@ export function createContainer(): ApiContainer {
     notificationRouter: notices.notificationRouter,
     closeNotificationStreams: notices.closeNotificationStreams,
     dueSoonWorker: notices.dueSoonWorker,
+
+    telegramRouter: telegram.telegramRouter,
+    telegramPoller: telegram.telegramPoller,
 
     leadRouter: leads.leadRouter,
 

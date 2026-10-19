@@ -1,0 +1,33 @@
+model TelegramLink {
+  membershipId String   @id @map("membership_id")
+  chatId       BigInt   @unique @map("chat_id")
+  username     String?
+  linkedAt     DateTime @default(now()) @map("linked_at")
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@map("telegram_link")
+}
+
+model TelegramLinkToken {
+  membershipId String   @id @map("membership_id")
+  tokenHash    String   @unique @map("token_hash")
+  expiresAt    DateTime @map("expires_at")
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@map("telegram_link_token")
+}
+
+model TelegramTaskDraft {
+  id           String   @id @default(uuid())
+  membershipId String   @map("membership_id")
+  chatId       BigInt   @map("chat_id")
+  draft        Json
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@map("telegram_task_draft")
+}

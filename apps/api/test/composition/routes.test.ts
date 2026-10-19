@@ -41,6 +41,7 @@ const expectedMounts = [
   "/api",
   "/api",
   "/api/notifications",
+  "/api/telegram",
   "/api",
 ];
 

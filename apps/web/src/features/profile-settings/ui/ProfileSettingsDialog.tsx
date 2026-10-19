@@ -20,6 +20,7 @@ import {
   type AvatarOptions,
 } from "@/features/avatar-editor/index.js";
 import { AvatarEditorDialog } from "@/features/avatar-editor/index.js";
+import { TelegramBotSection } from "@/features/telegram-bot/index.js";
 
 interface Props {
   open: boolean;
@@ -166,6 +167,7 @@ export function ProfileSettingsDialog({ open, onClose, onAvatarSaved }: Props) {
                 </p>
               </div>
             </div>
+            <TelegramBotSection />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose}>
                 {t("action.cancel")}

@@ -21,7 +21,7 @@ import type { Notifications } from "./notifications.js";
 export function wireTasks(
   { unitOfWork, ids, audit, connections }: Kernel,
   { members }: Pick<MembersAndPresence, "members">,
-  { taskAssignments }: Pick<Notifications, "taskAssignments">,
+  { taskNotices }: Pick<Notifications, "taskNotices">,
 ) {
   const projects = new PrismaTaskProjectReach(prisma);
   const delivery = createTaskEventDelivery({ registry: connections, members, projects });
@@ -35,7 +35,7 @@ export function wireTasks(
     events: {
       publish: (event: TaskEvent) => runDetached("Failed to deliver task event:", delivery.deliver(event)),
     },
-    assignments: taskAssignments,
+    notices: taskNotices,
     ids,
     unitOfWork,
   };

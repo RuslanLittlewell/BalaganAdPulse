@@ -12,16 +12,29 @@ const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).
 
 const kpiMet: Notification = {
   id: "n1", kind: "KPI_MET", createdAt: minutesAgo(5), readAt: null,
-  project: { id: "p1", name: "Клиника" }, task: null, actor: null,
+  project: { id: "p1", name: "Клиника" }, task: null, document: null, actor: null,
 };
 const newProject: Notification = {
   id: "n2", kind: "PROJECT_CREATED", createdAt: minutesAgo(60), readAt: "2026-10-15T10:00:00.000Z",
-  project: { id: "p2", name: "Автосалон" }, task: null, actor: { name: "Анна" },
+  project: { id: "p2", name: "Автосалон" }, task: null, document: null, actor: { name: "Анна" },
 };
 const assigned: Notification = {
   id: "n3", kind: "TASK_ASSIGNED", createdAt: minutesAgo(120), readAt: null,
-  project: { id: "p1", name: "Клиника" }, task: { id: "t1", title: "Позвонить клиенту", projectId: "p1" },
-  actor: { name: "Борис" },
+  project: { id: "p1", name: "Клиника" },
+  task: { id: "t1", title: "Позвонить клиенту", projectId: "p1", dueDate: null, dueTime: null },
+  document: null, actor: { name: "Борис" },
+};
+const changed: Notification = {
+  ...assigned, id: "n4", kind: "TASK_UPDATED", createdAt: minutesAgo(10), actor: { name: "Вера" },
+};
+const document: Notification = {
+  id: "n5", kind: "DOCUMENT_ADDED", createdAt: minutesAgo(15), readAt: null,
+  project: { id: "p1", name: "Клиника" }, task: null, document: { id: "d1", title: "Медиаплан" },
+  actor: { name: "Анна" },
+};
+const dueSoon: Notification = {
+  ...assigned, id: "n6", kind: "TASK_DUE_SOON", createdAt: minutesAgo(1), actor: null,
+  task: { id: "t1", title: "Позвонить клиенту", projectId: "p1", dueDate: "2026-10-20", dueTime: "18:00" },
 };
 
 function Where() {
@@ -104,6 +117,49 @@ describe("NotificationCenter", () => {
     expect(within(items[1]!).getByText(/^Анна · /)).toBeInTheDocument();
     expect(within(items[2]!).getByText("Вас назначили участником задачи «Позвонить клиенту»")).toBeInTheDocument();
     expect(within(items[2]!).getByText(/^Борис · /)).toBeInTheDocument();
+  });
+
+  it("writes a task change, a new document and a deadline drawing near", async () => {
+    serve([dueSoon, changed, document]);
+    setup();
+
+    await userEvent.click(await bell());
+    const items = await screen.findAllByRole("listitem");
+
+    expect(within(items[0]!).getByText("Подходит срок задачи «Позвонить клиенту»")).toBeInTheDocument();
+    expect(within(items[0]!).getByText(/^срок 20 окт\.?, 18:00 · /)).toBeInTheDocument();
+    expect(within(items[1]!).getByText("Задача «Позвонить клиенту» изменена")).toBeInTheDocument();
+    expect(within(items[1]!).getByText(/^Вера · /)).toBeInTheDocument();
+    expect(within(items[2]!).getByText("Новый документ «Медиаплан» в проекте «Клиника»")).toBeInTheDocument();
+  });
+
+  it("opens the document of a document notification", async () => {
+    const asked = serve([document]);
+    setup();
+
+    await userEvent.click(await bell());
+    await userEvent.click(await screen.findByRole("button", { name: /Новый документ «Медиаплан»/ }));
+
+    expect(screen.getByRole("status", { name: "Адрес" })).toHaveTextContent("/projects/p1/documents/d1");
+    await waitFor(() => expect(asked.read).toEqual(["n5"]));
+  });
+
+  it("brings a refreshed change to the top without lighting a second count", async () => {
+    serve([kpiMet, changed]);
+    setup();
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+    await userEvent.click(await bell());
+    await screen.findByText("Задача «Позвонить клиенту» изменена");
+
+    FakeEventSource.latest().emit("ready", {});
+    FakeEventSource.latest().emit("notification", { ...changed, actor: { name: "Анна" }, createdAt: minutesAgo(0) });
+
+    await waitFor(() => {
+      const items = screen.getAllByRole("listitem");
+      expect(within(items[0]!).getByText("Задача «Позвонить клиенту» изменена")).toBeInTheDocument();
+      expect(within(items[0]!).getByText(/^Анна · /)).toBeInTheDocument();
+    });
+    expect(screen.getAllByRole("listitem")).toHaveLength(2);
   });
 
   it("reads a task notification and opens the task", async () => {

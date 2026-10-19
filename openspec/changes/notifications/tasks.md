@@ -13,3 +13,17 @@
 - [x] 2.3 Open the task named by `?task=` on the tasks page
 - [x] 2.4 Cover it: the dot, the list texts, reading one and opening its project or task, reading all, the empty list, a streamed notification, reconnecting refreshes the list, the tasks page opening `?task=`; `npm run test:web` and `npm test` green
 - [x] 2.5 Describe notifications in README.md; `openspec validate notifications --strict`
+
+## 3. More kinds in the API
+
+- [x] 3.1 Add TASK_UPDATED, DOCUMENT_ADDED and TASK_DUE_SOON, `notification.document_id` and `task.due_soon_for`, with a second migration; add `TASK_TIME_ZONE` to the config
+- [x] 3.2 Report task changes through `TaskNotices.changed` (update, move to another column, completion) and new documents through `DocumentEvents.created`; add the notifier's `taskChanged`, with the refresh of an unread one, and `documentAdded`
+- [x] 3.3 Add the deadline arithmetic, `DueTasks` and its Prisma adapter, `remindDueTasks` and the due-soon worker; start and stop it with the server; return the document and the task's due date and time in the list and its OpenAPI
+- [x] 3.4 Cover it: who is told of a change and the refresh; a new document's recipients; deadlines with and without a time and across the zone; the 24-hour window; once per deadline and again for a new one; done, archived and module-less tasks; nobody named; the worker; `npm test` green
+
+## 4. More kinds in the web app
+
+- [x] 4.1 Add the kinds, the document and the due fields to the web types; move a refreshed notification to the top without counting it twice
+- [x] 4.2 Write the new texts and the deadline line in the list; open a document notification on its document; add the copy to `ru.ts`
+- [x] 4.3 Cover it: the texts, the deadline line, opening a document, a refreshed notification on the stream; `npm run test:web` green
+- [x] 4.4 Describe the new kinds and `TASK_TIME_ZONE` in README.md; `openspec validate notifications --strict`

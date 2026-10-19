@@ -44,6 +44,7 @@ model Task {
   dueTime         String?      @map("due_time") @db.VarChar(5)
   endTime         String?      @map("end_time") @db.VarChar(5)
   repeatEvery     TaskRepeat   @default(NONE) @map("repeat_every")
+  dueSoonFor      DateTime?    @map("due_soon_for")
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
 

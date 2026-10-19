@@ -8,6 +8,7 @@ import type { createImportWorker } from "#modules/integrations/application/impor
 import type { createLeadPollWorker } from "#modules/integrations/application/lead-poll-worker.js";
 import type { PresenceRegistry } from "#modules/presence/index.js";
 import type { Connection, ConnectionRegistry } from "#modules/realtime/index.js";
+import type { DueSoonWorker } from "#modules/notifications/index.js";
 import { apiDocument, createDocumentationRouter } from "./openapi.js";
 import { wireCampaignsAndIntegrations } from "./wiring/campaigns-integrations.js";
 import { wireClientsAndProjects } from "./wiring/clients-projects.js";
@@ -59,6 +60,7 @@ export interface ApiContainer {
   readonly taskImageRouter: Router;
   readonly notificationRouter: Router;
   readonly closeNotificationStreams: () => void;
+  readonly dueSoonWorker: DueSoonWorker;
   readonly connections: ConnectionRegistry;
   readonly presence: PresenceRegistry;
   readonly presenceTouch: RequestHandler;
@@ -86,7 +88,7 @@ export function createContainer(): ApiContainer {
     campaignRepository: advertising.campaignRepository,
   }, notices);
   const summaries = wireSummaryTiles(kernel, { projectRepository: catalog.projectRepository });
-  const notebook = wireProjectDocuments(kernel, { projectRepository: catalog.projectRepository });
+  const notebook = wireProjectDocuments(kernel, { projectRepository: catalog.projectRepository }, notices);
   const platform = wirePlatform(kernel);
 
   return {
@@ -134,6 +136,7 @@ export function createContainer(): ApiContainer {
 
     notificationRouter: notices.notificationRouter,
     closeNotificationStreams: notices.closeNotificationStreams,
+    dueSoonWorker: notices.dueSoonWorker,
 
     leadRouter: leads.leadRouter,
 

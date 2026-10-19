@@ -10,7 +10,8 @@ import { FakeEventSource, fakeEventSource } from "@test/shared/eventSource.js";
 
 const arrived: Notification = {
   id: "n1", kind: "TASK_ASSIGNED", createdAt: "2026-10-15T10:00:00.000Z", readAt: null,
-  project: null, task: { id: "t1", title: "Позвонить клиенту", projectId: null }, actor: { name: "Анна" },
+  project: null, task: { id: "t1", title: "Позвонить клиенту", projectId: null, dueDate: null, dueTime: null },
+  document: null, actor: { name: "Анна" },
 };
 
 function open() {

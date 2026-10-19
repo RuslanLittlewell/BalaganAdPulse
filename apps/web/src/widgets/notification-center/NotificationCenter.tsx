@@ -21,7 +21,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/shared/ui/index.js";
-import { notificationTarget, notificationText } from "./notificationText.js";
+import { notificationDeadline, notificationTarget, notificationText } from "./notificationText.js";
 
 export function NotificationCenter() {
   const [open, setOpen] = useState(false);
@@ -109,6 +109,7 @@ export function NotificationCenter() {
                       </span>
                       <span className="mt-0.5 block text-xs text-muted-foreground">
                         {[
+                          notificationDeadline(notification),
                           notification.actor?.name,
                           formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true, locale: ru }),
                         ].filter(Boolean).join(" · ")}

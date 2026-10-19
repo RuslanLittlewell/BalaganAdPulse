@@ -5,6 +5,7 @@ import type { NotificationHub } from "./notification-hub.js";
 
 export interface NotificationRepository {
   createMany(notifications: readonly NewNotification[]): Promise<AddressedNotification[]>;
+  refreshUnread(notification: NewNotification, at: Date): Promise<AddressedNotification | null>;
   latest(recipientId: string, limit: number): Promise<NotificationView[]>;
   unreadCount(recipientId: string): Promise<number>;
   markRead(recipientId: string, id: string, at: Date): Promise<boolean>;
@@ -24,11 +25,28 @@ export interface KpiMonthClaims {
   claim(projectId: string, month: string): Promise<boolean>;
 }
 
+export interface DueTask {
+  readonly id: string;
+  readonly projectId: string | null;
+  readonly dueDate: string;
+  readonly dueTime: string | null;
+  readonly participantIds: readonly string[];
+  readonly createdById: string | null;
+  readonly visibleToClient: boolean;
+}
+
+export interface DueTasks {
+  dueBetween(fromDay: string, toDay: string): Promise<DueTask[]>;
+  claim(taskId: string, deadline: Date): Promise<boolean>;
+}
+
 export interface NotificationDependencies {
   readonly notifications: NotificationRepository;
   readonly recipients: NotificationRecipients;
   readonly standings: ProjectKpiStandings;
   readonly claims: KpiMonthClaims;
+  readonly dueTasks: DueTasks;
   readonly hub: NotificationHub;
   readonly clock: Clock;
+  readonly timeZone: string;
 }

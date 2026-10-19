@@ -56,7 +56,7 @@ export function createProjectDocumentUseCases(dependencies: ProjectDocumentDepen
     create: async (actor: ActorContext, projectId: string, input: { title: string }): Promise<ProjectDocument> => {
       const project = await projectOf(actor, projectId, "create");
       const title = titled(input.title);
-      return dependencies.unitOfWork.run(async (context) => {
+      const created = await dependencies.unitOfWork.run(async (context) => {
         const document = await dependencies.documents.create(context, {
           id: dependencies.ids.generate(), projectId: project.id, title, authorId: actor.membershipId,
         });
@@ -67,6 +67,8 @@ export function createProjectDocumentUseCases(dependencies: ProjectDocumentDepen
         }, actor);
         return document;
       });
+      dependencies.events.created(created, actor);
+      return created;
     },
 
     update: async (actor: ActorContext, projectId: string, id: string, change: DocumentChange): Promise<ProjectDocument> => {

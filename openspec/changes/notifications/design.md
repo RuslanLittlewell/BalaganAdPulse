@@ -21,7 +21,9 @@ finishes (`PrismaImportJobs.complete`), and a project KPI only through `kpi-use-
 **Non-Goals:**
 - Email or push notifications, per-kind preferences, muting.
 - Retention: notifications are kept; the list shows the latest 50.
-- Notifying a repeating task's next occurrence; it is not a new assignment.
+- Notifying a repeating task's next occurrence as a new assignment; it is a change and a new
+  deadline.
+- Notifying document edits, deleted tasks or documents.
 
 ## Decisions
 
@@ -91,12 +93,45 @@ popover with the list, using the vendored `popover`. Choosing an item calls the 
 navigates: a project to `projectPath(id)`, a task to `/tasks?task=<id>`. The tasks page opens the
 task named by `task` once the tasks are loaded, then drops the parameter.
 
+**A task change refreshes an unread notification instead of adding one.** Saving the task
+dialog can send a move and an update for one save, and a task is often touched several times
+in a row. For TASK_UPDATED the repository first looks for the recipient's unread TASK_UPDATED
+about the task; if there is one, it sets its `created_at` to now and its actor to the latest
+member and returns it, otherwise it creates one. The stream sends the refreshed row under its own
+id; the web cache moves an id it already holds to the top and leaves the unread count alone when
+it was already unread. The tasks use cases report a change through `TaskNotices.changed(task,
+actor, newcomers)`: after an update with the participants it added, after a move whose column
+differs, after completing a repeating task. `TaskNotices.named` keeps reporting the participants
+added, and the notifier leaves those newcomers out of the change.
+
+**Documents are reported on creation.** `project-documents` gains a `DocumentEvents` port called
+after a document is created; the recipients are those of a new project. `notification` gains a
+nullable `document_id` that cascades with the document, and the list returns the document's id and
+current title. A document is created with its title alone and written afterwards, so creation is
+the one moment worth telling; edits are not notified.
+
+**Deadlines are found by a worker, once per deadline.** `createDueSoonWorker` runs
+`remindDueTasks` on start and every 15 minutes, like the import worker, and is stopped on
+shutdown. The use case asks `DueTasks.dueBetween(fromDay, toDay)` for tasks with a due date in a
+window of calendar days around now, outside DONE and ARCHIVED, in organizations whose modules
+include TASKS, then computes each deadline exactly: the due date at the due time, or at 24:00, in
+`config.taskTimeZone` (`TASK_TIME_ZONE`, `Europe/Minsk` when unset, checked with `Intl` at start).
+The zone offset comes from `Intl.DateTimeFormat`, so no time-zone library is added. A task is due
+soon when its deadline is after now and at most 24 hours ahead. `task.due_soon_for` holds the
+deadline last notified and is claimed with the same conditional update as the KPI month, so a
+task is told once per deadline and a moved deadline or a repeating task's next occurrence is told
+again. Recipients are the active participants, or the active creator when there are none,
+customers only for a task shown to the client. A 15-minute tick means a reminder lands up to 15
+minutes after the deadline enters the day.
+
 ## Migration Plan
 
-One migration creates the `notification_kind` enum and the `notification` table with its foreign
-keys and index, and adds the nullable `kpi_met_month` date to `project`. Nothing is backfilled and
-existing data survives. Rolling back drops the table, the enum and the column; notifications are
-lost, nothing else is.
+The first migration creates the `notification_kind` enum and the `notification` table with its
+foreign keys and index, and adds the nullable `kpi_met_month` date to `project`. A second adds
+TASK_UPDATED, DOCUMENT_ADDED and TASK_DUE_SOON to the enum, the nullable `document_id` to
+`notification` with its cascading key, and the nullable `due_soon_for` timestamp to `task`. Both
+are additive: nothing is backfilled and existing data survives. Rolling back drops the table, the
+enum and the columns; notifications are lost, nothing else is.
 
 ## Risks / Trade-offs
 

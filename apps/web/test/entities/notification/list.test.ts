@@ -2,7 +2,7 @@ import { withAllRead, withArrived, withOneRead, type Notification } from "@/enti
 
 const notification = (id: string, readAt: string | null = null): Notification => ({
   id, kind: "KPI_MET", createdAt: "2026-10-15T10:00:00.000Z", readAt,
-  project: { id: "p1", name: "Клиника" }, task: null, actor: null,
+  project: { id: "p1", name: "Клиника" }, task: null, document: null, actor: null,
 });
 
 const READ_AT = "2026-10-15T12:00:00.000Z";
@@ -15,7 +15,17 @@ describe("the cached list of notifications", () => {
 
     expect(arrived.notifications.map((n) => n.id)).toEqual(["b", "a"]);
     expect(arrived.unreadCount).toBe(2);
-    expect(withArrived(arrived, notification("b"))).toBe(arrived);
+    expect(withArrived(arrived, notification("b"))).toEqual(arrived);
+  });
+
+  it("moves a refreshed notification to the top without counting it twice", () => {
+    const list = { notifications: [notification("a"), notification("b")], unreadCount: 2 };
+
+    const refreshed = withArrived(list, { ...notification("b"), actor: { name: "Вера" } });
+
+    expect(refreshed.notifications.map((n) => n.id)).toEqual(["b", "a"]);
+    expect(refreshed.notifications[0]?.actor).toEqual({ name: "Вера" });
+    expect(refreshed.unreadCount).toBe(2);
   });
 
   it("keeps the latest fifty", () => {

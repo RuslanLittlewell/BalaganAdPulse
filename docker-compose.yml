@@ -76,6 +76,7 @@ services:
       SMTP_HOST: "${SMTP_HOST:-}"
       SMTP_PORT: "${SMTP_PORT:-}"
       MAIL_FROM: "${MAIL_FROM:-}"
+      TASK_TIME_ZONE: "${TASK_TIME_ZONE:-Europe/Minsk}"
     ports:
       - "3000:3000"
     volumes:

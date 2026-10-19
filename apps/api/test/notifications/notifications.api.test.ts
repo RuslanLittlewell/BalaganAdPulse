@@ -46,7 +46,7 @@ describe("reading one's notifications", () => {
     expect(times).toEqual([...times].sort().reverse());
     expect(res.body.notifications[0]).toEqual({
       id: expect.any(String), kind: "KPI_MET", createdAt: expect.any(String), readAt: null,
-      project: { id: projectId, name: "Клиника" }, task: null, actor: null,
+      project: { id: projectId, name: "Клиника" }, task: null, document: null, actor: null,
     });
   });
 
@@ -100,14 +100,60 @@ describe("what is notified", () => {
     const updated = await request(app).patch(`/api/tasks/${created.body.id}`).set(anna.auth)
       .send({ participantIds: [boris.membership!.id, anna.membership!.id, vera.membership!.id] });
     expect(updated.status).toBe(200);
-    await vi.waitFor(async () => expect(await notificationsOf(vera)).toHaveLength(1));
+    await vi.waitFor(async () => {
+      expect(await notificationsOf(vera)).toHaveLength(1);
+      expect(await notificationsOf(boris)).toHaveLength(2);
+    });
 
     const listed = (await request(app).get("/api/notifications").set(boris.auth)).body.notifications;
-    expect(listed).toHaveLength(1);
-    expect(listed[0]).toMatchObject({
-      kind: "TASK_ASSIGNED", task: { id: created.body.id, title: "Позвонить клиенту", projectId }, actor: { name: "Анна" },
+    expect(listed.map((n: { kind: string }) => n.kind)).toEqual(["TASK_UPDATED", "TASK_ASSIGNED"]);
+    expect(listed[1]).toMatchObject({
+      task: { id: created.body.id, title: "Позвонить клиенту", projectId }, actor: { name: "Анна" },
     });
+    expect((await notificationsOf(vera)).map((n) => n.kind)).toEqual(["TASK_ASSIGNED"]);
     expect(await notificationsOf(anna)).toEqual([]);
+  });
+
+  it("tells a task's participants of a change, refreshing an unread one, and not of a reorder", async () => {
+    const vera = await signInAs("Вера");
+    const created = await request(app).post("/api/tasks").set(anna.auth)
+      .send({ projectId, title: "Бриф", priority: "MEDIUM", participantIds: [boris.membership!.id, anna.membership!.id] });
+    await vi.waitFor(async () => expect(await notificationsOf(boris)).toHaveLength(1));
+    await prisma.notification.updateMany({ where: { recipientId: boris.membership!.id }, data: { readAt: new Date() } });
+
+    await request(app).patch(`/api/tasks/${created.body.id}`).set(anna.auth).send({ title: "Бриф клиента" });
+    await vi.waitFor(async () => expect((await notificationsOf(boris)).filter((n) => n.readAt === null)).toHaveLength(1));
+    await request(app).post(`/api/tasks/${created.body.id}/move`).set(vera.auth).send({ column: "IN_PROGRESS", position: 0 });
+    await vi.waitFor(async () => {
+      const unread = (await notificationsOf(boris)).filter((n) => n.readAt === null);
+      expect(unread).toHaveLength(1);
+      expect(unread[0]).toMatchObject({ kind: "TASK_UPDATED", actorId: vera.membership!.id });
+    });
+
+    await prisma.notification.updateMany({ where: { recipientId: boris.membership!.id }, data: { readAt: new Date() } });
+    await request(app).post(`/api/tasks/${created.body.id}/move`).set(vera.auth).send({ column: "IN_PROGRESS", position: 0 });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect((await notificationsOf(boris)).filter((n) => n.readAt === null)).toEqual([]);
+    expect((await notificationsOf(anna)).map((n) => n.kind)).toEqual(["TASK_UPDATED"]);
+  });
+
+  it("tells the project's people of a new document, except the one who added it", async () => {
+    const manager = await signInAs("Вера", { role: "MANAGER" });
+    await grantAccess(manager.membership!.id, clientId);
+
+    const res = await request(app).post(`/api/projects/${projectId}/documents`).set(manager.auth).send({ title: "Медиаплан" });
+    expect(res.status).toBe(201);
+
+    await vi.waitFor(async () => {
+      expect(await notificationsOf(anna)).toHaveLength(1);
+      expect(await notificationsOf(boris)).toHaveLength(1);
+    });
+    const listed = (await request(app).get("/api/notifications").set(anna.auth)).body.notifications;
+    expect(listed[0]).toMatchObject({
+      kind: "DOCUMENT_ADDED", project: { id: projectId, name: "Клиника" },
+      document: { id: res.body.id, title: "Медиаплан" }, actor: { name: "Вера" },
+    });
+    expect(await notificationsOf(manager)).toEqual([]);
   });
 
   it("tells the project's people when a KPI set by hand is met, except the one who set it, once a month", async () => {

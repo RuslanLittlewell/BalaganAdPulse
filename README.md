@@ -459,9 +459,19 @@ reconnect and on reload.
 Each member has their own notifications, behind the bell in the header: a project's marker
 turning green for the current month (**KPI_MET**, at most once per project per month, to the
 admins, managers and guests who reach it), a new project (**PROJECT_CREATED**, to the same
-people except whoever added it), and being named on a task (**TASK_ASSIGNED**, on creation or
-when added later, never for naming oneself; a client's person only for a task shown to the
-client). The KPI check runs on the server when a Meta import for the project finishes and when
+people except whoever added it), a new project document (**DOCUMENT_ADDED**, likewise), being
+named on a task (**TASK_ASSIGNED**, on creation or when added later, never for naming oneself),
+someone else changing a task one is on (**TASK_UPDATED**: an edit, a move to another column, a
+repeating task completed; a further change refreshes an unread one and brings it to the top
+instead of adding another), and a task's deadline less than a day away (**TASK_DUE_SOON**, to
+its participants or, when it names nobody, its creator). A client's person hears about a task
+only when the task is shown to the client.
+
+A deadline is the due date at the due time, or at the end of the day without one, read in
+`TASK_TIME_ZONE` (`Europe/Minsk` when unset; the API refuses to start with a zone `Intl` does
+not know). A worker looks for deadlines on start and every 15 minutes, skips tasks in Готово
+and Архив and organizations without the tasks module, and records the deadline it told in
+`task.due_soon_for`, so a task is told once per deadline and again when the deadline moves. The KPI check runs on the server when a Meta import for the project finishes and when
 its KPI is set, with the project list's arithmetic over the UTC month to date; the month that
 was notified is kept in `project.kpi_met_month`. Notifications are created after the change
 commits and off the request, so failing to notify never fails the change.

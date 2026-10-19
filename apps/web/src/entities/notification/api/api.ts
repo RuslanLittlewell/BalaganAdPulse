@@ -1,6 +1,8 @@
 import { http } from "@/shared/lib/index.js";
 
-export const NOTIFICATION_KINDS = ["KPI_MET", "PROJECT_CREATED", "TASK_ASSIGNED"] as const;
+export const NOTIFICATION_KINDS = [
+  "KPI_MET", "PROJECT_CREATED", "TASK_ASSIGNED", "TASK_UPDATED", "DOCUMENT_ADDED", "TASK_DUE_SOON",
+] as const;
 
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -10,7 +12,14 @@ export interface Notification {
   createdAt: string;
   readAt: string | null;
   project: { id: string; name: string } | null;
-  task: { id: string; title: string; projectId: string | null } | null;
+  task: {
+    id: string;
+    title: string;
+    projectId: string | null;
+    dueDate: string | null;
+    dueTime: string | null;
+  } | null;
+  document: { id: string; title: string } | null;
   actor: { name: string } | null;
 }
 

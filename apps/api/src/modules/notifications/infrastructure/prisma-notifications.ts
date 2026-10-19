@@ -3,6 +3,8 @@ import { isCustomer } from "@adpulse/access-policy";
 import { performanceOf } from "#modules/campaigns/index.js";
 import { isKpiMetric, MANUAL_KPI, type IsoDateRange, type KpiFigures, type KpiInput } from "#modules/kpi/index.js";
 import type {
+  DueTask,
+  DueTasks,
   KpiMonthClaims,
   NotificationRecipients,
   NotificationRepository,
@@ -12,9 +14,12 @@ import type { AddressedNotification, NewNotification, NotificationView } from ".
 
 const shown = {
   project: { select: { id: true, name: true } },
-  task: { select: { id: true, title: true, projectId: true } },
+  task: { select: { id: true, title: true, projectId: true, dueDate: true, dueTime: true } },
+  document: { select: { id: true, title: true } },
   actor: { select: { user: { select: { name: true } } } },
 } satisfies Prisma.NotificationInclude;
+
+const dayOf = (date: Date | null) => date?.toISOString().slice(0, 10) ?? null;
 
 type StoredNotification = Prisma.NotificationGetPayload<{ include: typeof shown }>;
 
@@ -24,7 +29,8 @@ const viewOf = (row: StoredNotification): NotificationView => ({
   createdAt: row.createdAt,
   readAt: row.readAt,
   project: row.project,
-  task: row.task,
+  task: row.task ? { ...row.task, dueDate: dayOf(row.task.dueDate) } : null,
+  document: row.document,
   actor: row.actor ? { name: row.actor.user.name } : null,
 });
 
@@ -35,6 +41,19 @@ export class PrismaNotificationRepository implements NotificationRepository {
     const rows = await this.prisma.$transaction(notifications.map((data) =>
       this.prisma.notification.create({ data, include: shown })));
     return rows.map((row) => ({ ...viewOf(row), recipientId: row.recipientId }));
+  }
+
+  async refreshUnread(notification: NewNotification, at: Date): Promise<AddressedNotification | null> {
+    const { recipientId, kind, projectId, taskId, documentId, actorId } = notification;
+    const unread = await this.prisma.notification.findFirst({
+      where: { recipientId, kind, projectId, taskId, documentId, readAt: null },
+      select: { id: true },
+    });
+    if (!unread) return null;
+    const row = await this.prisma.notification.update({
+      where: { id: unread.id }, data: { createdAt: at, actorId }, include: shown,
+    });
+    return { ...viewOf(row), recipientId: row.recipientId };
   }
 
   async latest(recipientId: string, limit: number): Promise<NotificationView[]> {
@@ -151,6 +170,38 @@ export class PrismaKpiMonthClaims implements KpiMonthClaims {
     const claimed = await this.prisma.$executeRaw`
       UPDATE project SET kpi_met_month = ${month}::date
       WHERE id = ${projectId} AND kpi_met_month IS DISTINCT FROM ${month}::date`;
+    return claimed === 1;
+  }
+}
+
+export class PrismaDueTasks implements DueTasks {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async dueBetween(fromDay: string, toDay: string): Promise<DueTask[]> {
+    const tasks = await this.prisma.task.findMany({
+      where: {
+        dueDate: { gte: new Date(`${fromDay}T00:00:00Z`), lte: new Date(`${toDay}T00:00:00Z`) },
+        column: { notIn: ["DONE", "ARCHIVED"] },
+        org: { status: "ACTIVE", modules: { has: "TASKS" } },
+      },
+      select: {
+        id: true, projectId: true, dueDate: true, dueTime: true, createdById: true, visibleToClient: true,
+        participants: { select: { membershipId: true } },
+      },
+      orderBy: { dueDate: "asc" },
+    });
+    return tasks.map(({ participants, dueDate, ...task }) => ({
+      ...task,
+      dueDate: dayOf(dueDate)!,
+      participantIds: participants.map(({ membershipId }) => membershipId),
+    }));
+  }
+
+  async claim(taskId: string, deadline: Date): Promise<boolean> {
+    const claimed = await this.prisma.$executeRaw`
+      UPDATE task SET due_soon_for = (${deadline.toISOString()}::timestamptz AT TIME ZONE 'UTC')
+      WHERE id = ${taskId}
+        AND due_soon_for IS DISTINCT FROM (${deadline.toISOString()}::timestamptz AT TIME ZONE 'UTC')`;
     return claimed === 1;
   }
 }

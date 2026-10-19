@@ -207,7 +207,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
         return { ...task, imageIds };
       });
       dependencies.events.publish(taskCreated(created));
-      dependencies.assignments.named(created, created.participantIds, actor);
+      dependencies.notices.named(created, created.participantIds, actor);
       return created;
     },
 
@@ -257,9 +257,9 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
         return { ...withChecklist, imageIds };
       });
       dependencies.events.publish(taskUpdated(updated));
-      dependencies.assignments.named(
-        updated, updated.participantIds.filter((id) => !task.participantIds.includes(id)), actor,
-      );
+      const newcomers = updated.participantIds.filter((id) => !task.participantIds.includes(id));
+      dependencies.notices.named(updated, newcomers, actor);
+      dependencies.notices.changed(updated, actor, newcomers);
       return updated;
     },
 
@@ -307,6 +307,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
         return moved;
       });
       dependencies.events.publish(taskUpdated(completed));
+      dependencies.notices.changed(completed, actor, []);
       return completed;
     },
 
@@ -337,6 +338,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
         return { ...task, column: input.column, position: target.indexOf(id) };
       });
       dependencies.events.publish(taskMoved(moved));
+      if (task.column !== moved.column) dependencies.notices.changed(moved, actor, []);
       return moved;
     },
   };

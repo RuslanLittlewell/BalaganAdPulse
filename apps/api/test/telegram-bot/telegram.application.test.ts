@@ -207,6 +207,7 @@ describe("a message turned into a draft and a task", () => {
     expect(dependencies.voices.download).toHaveBeenCalledWith("file-1");
     expect(dependencies.reader.read).toHaveBeenCalledWith("Подготовить отчёт по Евроопту", {
       now: { date: "2026-10-19", weekday: "понедельник", time: "14:00" },
+      calendar: expect.arrayContaining([{ date: "2026-10-23", weekday: "пятница" }]),
       timeZone: "Europe/Minsk",
       catalog: expect.objectContaining({
         members: [

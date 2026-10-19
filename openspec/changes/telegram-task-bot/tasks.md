@@ -16,3 +16,9 @@
 - [x] 3.1 Add `features/telegram-bot`: the API and its queries, `TelegramBotSection`; place it in the profile dialog; add the copy to `ru.ts`
 - [x] 3.2 Cover it: hidden when not available, linking shows the Telegram link and turns to linked when the status does, unlinking; `npm run test:web` green
 - [x] 3.3 Describe the bot and its settings in README.md; `openspec validate telegram-task-bot --strict`
+
+## 4. Groq from Belarus
+
+- [x] 4.1 Add `GROQ_BASE_URL` (https only) to the config, compose and `.env.example`, and pass it to both Groq clients
+- [x] 4.2 Give the model the next 15 days with their weekdays and the rule for names in any case; capitalise the title
+- [x] 4.3 Cover it: the relay address and its validation, the calendar in the prompt, the calendar across a month's end, the capital letter; describe the relay in README.md; `npm test` green

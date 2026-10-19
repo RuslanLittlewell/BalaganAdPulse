@@ -39,7 +39,8 @@ None.
 
 - Prisma: `telegram_link`, `telegram_link_token` and `telegram_task_draft` tables, each
   deleted with its membership. Existing data is untouched.
-- Configuration: `TELEGRAM_BOT_TOKEN` and `GROQ_API_KEY` turn the bot on;
+- Configuration: `TELEGRAM_BOT_TOKEN` and `GROQ_API_KEY` turn the bot on; `GROQ_BASE_URL` sends
+  Groq requests through a relay, as Groq refuses Belarus;
   `GROQ_TRANSCRIPTION_MODEL` (`whisper-large-v3-turbo`) and `GROQ_TASK_MODEL`
   (`openai/gpt-oss-20b`) may override the models.
 - API: a new `modules/telegram-bot` (domain, use cases, the Telegram and Groq clients, Prisma

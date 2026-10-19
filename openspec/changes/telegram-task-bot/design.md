@@ -6,9 +6,9 @@ transaction, publishes the realtime event and tells the named participants. The 
 reads request metadata only when there is a request, so the use case works for an actor that
 does not come from HTTP. A user has one active membership; the session resolves the first one.
 
-The server runs in Belarus. Telegram's Bot API is reachable from there; Groq lists Russia but
-not Belarus among the regions it refuses. OpenAI's API and the Gemini API are not offered in
-Belarus, which is why Groq was chosen.
+The server runs in Belarus. Telegram's Bot API is reachable from there. OpenAI's API and the
+Gemini API are not offered in Belarus, and Groq, chosen for its free tier, turned out to refuse
+it too: every request from the production server answers `403 Forbidden`.
 
 ## Goals / Non-Goals
 
@@ -89,6 +89,26 @@ message that tries to steer it can at most produce a draft the member cancels.
 draft is a delete returning the row, filtered by id, chat and age, so it is used once. Drafts
 older than a day are swept when a new one is written. A table rather than memory keeps a draft
 across a restart and makes the single use hold even with two processes.
+
+### A relay for Groq
+
+`GROQ_BASE_URL` replaces `https://api.groq.com/openai/v1`, so production reaches Groq through a
+reverse proxy on the agency's server in the EU. The relay admits only the production server's
+address and is reached over https, since it carries the API key; the configuration refuses a
+plain-http address. The relay forwards requests unchanged, so the clients need nothing but the
+address. Going around the regional block is against Groq's terms and the key may be shut off;
+the agency chose to take that risk over running recognition itself (GigaAM-v3 on the server)
+or paying Yandex Cloud, both of which stay open should it happen.
+
+The alternative, a forward proxy through `HTTPS_PROXY`, would also reach Telegram, Meta and the
+storage, or need a proxy-aware fetch for Groq alone; a base URL keeps the change to one setting.
+
+### Reading dates and names
+
+`gpt-oss-20b` worked a weekday out wrong and missed people named in another grammatical case.
+The prompt now carries the next 15 days with their weekdays, so «к пятнице» is looked up rather
+than computed, and says that a person may be named in any case or by a short form. The title is
+capitalised after reading.
 
 ### Copy
 

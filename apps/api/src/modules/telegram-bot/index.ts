@@ -31,7 +31,8 @@ export {
 } from "./domain/draft.js";
 export type { KeyedCatalog, ReadTask, TaskCatalog, TaskDraft } from "./domain/draft.js";
 export { LINK_TOKEN_TTL_MS, linkUrl, mayUseBot } from "./domain/link.js";
-export { localMoment } from "./domain/moment.js";
+export { CALENDAR_DAYS, calendarFrom, localMoment } from "./domain/moment.js";
+export type { CalendarDay, LocalMoment } from "./domain/moment.js";
 export { createTelegramRouter } from "./presentation/http/telegram-http.js";
 export { telegramDoc } from "./presentation/http/telegram-openapi.js";
 export { BOT_COPY } from "./presentation/telegram/bot-copy.js";

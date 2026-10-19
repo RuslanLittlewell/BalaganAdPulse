@@ -179,7 +179,7 @@ describe("the draft's buttons", () => {
     expect(drafts.create).toHaveBeenCalledWith(CHAT, "d1");
     expect(api.answerCallback).toHaveBeenCalledWith("cb");
     expect(api.editMessage).toHaveBeenCalledWith(CHAT, 9, {
-      html: "Задача создана: <b>Отчёт &lt;для&gt; клиента</b>\n<a href=\"https://adpulse.example/tasks?task=t-1\">Открыть в AdPulse</a>",
+      html: "Задача создана: <b>Отчёт &lt;для&gt; клиента</b>\n<a href=\"https://adpulse.example/tasks?task=t-1\">Открыть в Balagan BI</a>",
     });
   });
 

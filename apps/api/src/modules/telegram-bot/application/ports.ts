@@ -2,7 +2,7 @@ import type { ActorContext, Clock, IdGenerator } from "#shared/application/index
 import type { CreateTaskInput } from "#modules/tasks/index.js";
 import type { BotMembership } from "../domain/link.js";
 import type { KeyedCatalog, ReadTask, TaskCatalog, TaskDraft } from "../domain/draft.js";
-import type { LocalMoment } from "../domain/moment.js";
+import type { CalendarDay, LocalMoment } from "../domain/moment.js";
 
 export class ServiceBusyError extends Error {
   constructor(service: string) {
@@ -56,6 +56,7 @@ export interface SpeechToText {
 
 export interface ReadingContext {
   readonly now: LocalMoment;
+  readonly calendar: readonly CalendarDay[];
   readonly timeZone: string;
   readonly catalog: KeyedCatalog;
 }

@@ -500,6 +500,28 @@ offer it and nothing is polled. `GROQ_TRANSCRIPTION_MODEL` (`whisper-large-v3-tu
 `GROQ_TASK_MODEL` (`openai/gpt-oss-20b`) override the models; the task model must support
 Groq's strict structured outputs.
 
+Groq refuses requests from Belarus with `403 Forbidden`, so production reaches it through a
+relay on a server elsewhere: `GROQ_BASE_URL` replaces `https://api.groq.com/openai/v1` with the
+relay's address, which must be https since the API key travels with every request. The relay
+is a plain reverse proxy to `api.groq.com` that admits only the production server's address
+(`203.0.113.10` below),
+for example with Caddy:
+
+```caddyfile
+groq-relay.example.com {
+	@others not remote_ip 203.0.113.10
+	respond @others 403
+	request_body {
+		max_size 26MB
+	}
+	reverse_proxy https://api.groq.com {
+		header_up Host api.groq.com
+	}
+}
+```
+
+Routing around the block goes against Groq's terms, and the key may be shut off for it.
+
 A member links their Telegram from **Настройки профиля**: **Подключить** issues a one-time
 link to the bot (`POST /api/telegram/link`), valid for 15 minutes; pressing Start in the bot
 sends it the token and ties the chat to the member. `GET /api/telegram` tells the profile

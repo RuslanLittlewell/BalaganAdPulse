@@ -99,12 +99,20 @@ describe("loadConfig", () => {
     expect(loadConfig({ JWT_SECRET: "s", TELEGRAM_BOT_TOKEN: "123:abc" }).telegramBot).toBeNull();
     expect(loadConfig({ JWT_SECRET: "s", GROQ_API_KEY: "gsk" }).telegramBot).toBeNull();
     expect(loadConfig({ JWT_SECRET: "s", TELEGRAM_BOT_TOKEN: " 123:abc ", GROQ_API_KEY: "gsk" }).telegramBot).toEqual({
-      botToken: "123:abc", groqApiKey: "gsk",
+      botToken: "123:abc", groqApiKey: "gsk", groqBaseUrl: "https://api.groq.com/openai/v1",
       transcriptionModel: "whisper-large-v3-turbo", taskModel: "openai/gpt-oss-20b",
     });
     expect(loadConfig({
       JWT_SECRET: "s", TELEGRAM_BOT_TOKEN: "123:abc", GROQ_API_KEY: "gsk",
       GROQ_TRANSCRIPTION_MODEL: "whisper-large-v3", GROQ_TASK_MODEL: "openai/gpt-oss-120b",
     }).telegramBot).toMatchObject({ transcriptionModel: "whisper-large-v3", taskModel: "openai/gpt-oss-120b" });
+  });
+
+  it("sends Groq requests through a relay over https only", () => {
+    const bot = { JWT_SECRET: "s", TELEGRAM_BOT_TOKEN: "123:abc", GROQ_API_KEY: "gsk" };
+    expect(loadConfig({ ...bot, GROQ_BASE_URL: "https://relay.example.com/openai/v1/" }).telegramBot?.groqBaseUrl)
+      .toBe("https://relay.example.com/openai/v1");
+    expect(() => loadConfig({ ...bot, GROQ_BASE_URL: "http://relay.example.com/openai/v1" })).toThrow(/https/);
+    expect(() => loadConfig({ ...bot, GROQ_BASE_URL: "relay" })).toThrow(/GROQ_BASE_URL must be a URL/);
   });
 });

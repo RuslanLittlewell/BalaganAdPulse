@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  calendarFrom,
   descriptionOf,
   draftFrom,
   keyedCatalog,
@@ -81,6 +82,11 @@ describe("a draft from what the model read", () => {
     expect(draftFrom(read({ title: "" }), catalog, "Купить кофе").title).toBe("Купить кофе");
   });
 
+  it("starts the title with a capital letter", () => {
+    expect(draftFrom(read({ title: "обновить креативы" }), catalog, "t").title).toBe("Обновить креативы");
+    expect(draftFrom(read({ title: "" }), catalog, "ёлку нарядить").title).toBe("Ёлку нарядить");
+  });
+
   it("takes a known priority and otherwise MEDIUM", () => {
     expect(draftFrom(read({ priority: "URGENT" }), catalog, "t").priority).toBe("URGENT");
     expect(draftFrom(read({ priority: "ASAP" }), catalog, "t").priority).toBe("MEDIUM");
@@ -132,6 +138,16 @@ describe("who may use the bot", () => {
 describe("the link and the moment", () => {
   it("opens the bot with the token as its start parameter", () => {
     expect(linkUrl("adpulse_bot", "abc-_1")).toBe("https://t.me/adpulse_bot?start=abc-_1");
+  });
+
+  it("lists the coming days with their weekdays, across a month's end", () => {
+    expect(calendarFrom("2026-10-30", 4)).toEqual([
+      { date: "2026-10-30", weekday: "пятница" },
+      { date: "2026-10-31", weekday: "суббота" },
+      { date: "2026-11-01", weekday: "воскресенье" },
+      { date: "2026-11-02", weekday: "понедельник" },
+    ]);
+    expect(calendarFrom("2026-10-19")).toHaveLength(15);
   });
 
   it("reads today's date, weekday and time in the task time zone", () => {

@@ -9,6 +9,7 @@ export interface MailConfig {
 export interface TelegramBotConfig {
   botToken: string;
   groqApiKey: string;
+  groqBaseUrl: string;
   transcriptionModel: string;
   taskModel: string;
 }
@@ -52,6 +53,23 @@ const DEFAULT_TRANSCRIPTION_MODEL = "whisper-large-v3-turbo";
 
 const DEFAULT_TASK_MODEL = "openai/gpt-oss-20b";
 
+const DEFAULT_GROQ_BASE_URL = "https://api.groq.com/openai/v1";
+
+function groqBaseUrl(env: NodeJS.ProcessEnv): string {
+  const given = env.GROQ_BASE_URL?.trim().replace(/\/+$/, "");
+  if (!given) return DEFAULT_GROQ_BASE_URL;
+  let url: URL;
+  try {
+    url = new URL(given);
+  } catch {
+    throw new Error("GROQ_BASE_URL must be a URL, such as https://relay.example.com/openai/v1");
+  }
+  if (url.protocol !== "https:") {
+    throw new Error("GROQ_BASE_URL must use https, since the Groq API key travels with every request");
+  }
+  return given;
+}
+
 function telegramBotConfig(env: NodeJS.ProcessEnv): TelegramBotConfig | null {
   const botToken = env.TELEGRAM_BOT_TOKEN?.trim();
   const groqApiKey = env.GROQ_API_KEY?.trim();
@@ -59,6 +77,7 @@ function telegramBotConfig(env: NodeJS.ProcessEnv): TelegramBotConfig | null {
   return {
     botToken,
     groqApiKey,
+    groqBaseUrl: groqBaseUrl(env),
     transcriptionModel: env.GROQ_TRANSCRIPTION_MODEL?.trim() || DEFAULT_TRANSCRIPTION_MODEL,
     taskModel: env.GROQ_TASK_MODEL?.trim() || DEFAULT_TASK_MODEL,
   };

@@ -79,6 +79,10 @@ function fallbackTitle(text: string): string {
   return flat.length <= TITLE_FALLBACK_LENGTH ? flat : `${flat.slice(0, TITLE_FALLBACK_LENGTH - 1).trimEnd()}…`;
 }
 
+function capitalized(text: string): string {
+  return text.charAt(0).toLocaleUpperCase("ru-RU") + text.slice(1);
+}
+
 function priorityOf(value: string): TaskPriority {
   return (TASK_PRIORITIES as readonly string[]).includes(value) ? value as TaskPriority : DEFAULT_DRAFT_PRIORITY;
 }
@@ -92,7 +96,7 @@ export function draftFrom(read: ReadTask, catalog: KeyedCatalog, text: string): 
   const dueDate = isCalendarDay(cleaned(read.dueDate)) ? cleaned(read.dueDate) : null;
   const dueTime = dueDate !== null && isTimeOfDay(cleaned(read.dueTime)) ? cleaned(read.dueTime) : null;
   return {
-    title: cleaned(read.title) || fallbackTitle(text),
+    title: capitalized(cleaned(read.title) || fallbackTitle(text)),
     details: cleaned(read.details) || null,
     project: project ? { id: project.id, name: project.name } : null,
     participants,

@@ -45,8 +45,12 @@ export function wireTelegramBot(
     members,
     catalogs: new PrismaTaskCatalogs(prisma),
     voices: telegram,
-    speech: new GroqSpeechToText(settings.groqApiKey, settings.transcriptionModel),
-    reader: new GroqTaskReader(settings.groqApiKey, settings.taskModel),
+    speech: new GroqSpeechToText({
+      apiKey: settings.groqApiKey, baseUrl: settings.groqBaseUrl, model: settings.transcriptionModel,
+    }),
+    reader: new GroqTaskReader({
+      apiKey: settings.groqApiKey, baseUrl: settings.groqBaseUrl, model: settings.taskModel,
+    }),
     drafts: new PrismaTaskDrafts(prisma),
     tasks,
     ids,

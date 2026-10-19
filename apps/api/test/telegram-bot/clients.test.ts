@@ -6,7 +6,7 @@ import {
   READING_INSTRUCTIONS,
   TASK_SCHEMA,
 } from "../../src/modules/telegram-bot/infrastructure/groq.js";
-import { ServiceBusyError, keyedCatalog, type ReadingContext } from "../../src/modules/telegram-bot/index.js";
+import { ServiceBusyError, calendarFrom, keyedCatalog, type ReadingContext } from "../../src/modules/telegram-bot/index.js";
 
 const TOKEN = "123:secret";
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
@@ -102,7 +102,7 @@ describe("the Groq clients", () => {
   it("sends the voice to Whisper in Russian and returns its text", async () => {
     const fetcher = vi.fn().mockResolvedValue(json({ text: "Подготовить отчёт" }));
 
-    const text = await new GroqSpeechToText("gsk", "whisper-large-v3-turbo", fetcher).transcribe(new Uint8Array([1, 2]));
+    const text = await new GroqSpeechToText({ apiKey: "gsk", model: "whisper-large-v3-turbo" }, fetcher).transcribe(new Uint8Array([1, 2]));
 
     const { url, init, body } = callOf(fetcher);
     expect(text).toBe("Подготовить отчёт");
@@ -115,16 +115,31 @@ describe("the Groq clients", () => {
     expect((form.get("file") as File).type).toBe("audio/ogg");
   });
 
+  it("goes through a relay when given another base URL", async () => {
+    const fetcher = vi.fn(async () => json({ text: "Ок" }));
+    const relay = { apiKey: "gsk", model: "m", baseUrl: "https://relay.example.com/openai/v1" };
+
+    await new GroqSpeechToText(relay, fetcher).transcribe(new Uint8Array([1]));
+    fetcher.mockImplementation(async () => json({ choices: [{ message: { content: "{}" } }] }));
+    await new GroqTaskReader(relay, fetcher).read("Купить", context);
+
+    expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
+      "https://relay.example.com/openai/v1/audio/transcriptions",
+      "https://relay.example.com/openai/v1/chat/completions",
+    ]);
+  });
+
   it("turns a 429 into a busy error and any other failure into Groq's message", async () => {
     const busy = vi.fn().mockResolvedValue(json({ error: { message: "Rate limit reached" } }, 429));
-    await expect(new GroqSpeechToText("gsk", "m", busy).transcribe(new Uint8Array())).rejects.toBeInstanceOf(ServiceBusyError);
+    await expect(new GroqSpeechToText({ apiKey: "gsk", model: "m" }, busy).transcribe(new Uint8Array())).rejects.toBeInstanceOf(ServiceBusyError);
 
     const refused = vi.fn().mockResolvedValue(json({ error: { message: "Invalid API Key" } }, 401));
-    await expect(new GroqSpeechToText("gsk", "m", refused).transcribe(new Uint8Array())).rejects.toThrow("Groq answered 401: Invalid API Key");
+    await expect(new GroqSpeechToText({ apiKey: "gsk", model: "m" }, refused).transcribe(new Uint8Array())).rejects.toThrow("Groq answered 401: Invalid API Key");
   });
 
   const context: ReadingContext = {
     now: { date: "2026-10-19", weekday: "понедельник", time: "14:00" },
+    calendar: calendarFrom("2026-10-19", 3),
     timeZone: "Europe/Minsk",
     catalog: keyedCatalog({
       projects: [{ id: "p-1", name: "Евроопт", client: "Евроторг" }],
@@ -139,7 +154,7 @@ describe("the Groq clients", () => {
     };
     const fetcher = vi.fn().mockResolvedValue(json({ choices: [{ message: { content: JSON.stringify(answer) } }] }));
 
-    const read = await new GroqTaskReader("gsk", "openai/gpt-oss-20b", fetcher).read("Отчёт по Евроопту", context);
+    const read = await new GroqTaskReader({ apiKey: "gsk", model: "openai/gpt-oss-20b" }, fetcher).read("Отчёт по Евроопту", context);
 
     expect(read).toEqual(answer);
     const { url, init, body } = callOf(fetcher);
@@ -154,6 +169,11 @@ describe("the Groq clients", () => {
     expect(body.messages[0]).toEqual({ role: "system", content: READING_INSTRUCTIONS });
     expect(body.messages[1].content).toBe([
       "Today: 2026-10-19, понедельник, 14:00 (Europe/Minsk)",
+      "",
+      "Calendar:",
+      "2026-10-19 понедельник (today)",
+      "2026-10-20 вторник",
+      "2026-10-21 среда",
       "",
       "Projects:",
       "P1: Евроопт (client: Евроторг)",
@@ -171,7 +191,7 @@ describe("the Groq clients", () => {
   it("asks a model other than gpt-oss without a reasoning effort, and reads a sloppy answer leniently", async () => {
     const fetcher = vi.fn().mockResolvedValue(json({ choices: [{ message: { content: JSON.stringify({ title: "Купить", priority: 3 }) } }] }));
 
-    const read = await new GroqTaskReader("gsk", "qwen/qwen3-32b", fetcher).read("Купить", context);
+    const read = await new GroqTaskReader({ apiKey: "gsk", model: "qwen/qwen3-32b" }, fetcher).read("Купить", context);
 
     expect(callOf(fetcher).body).not.toHaveProperty("reasoning_effort");
     expect(read).toEqual({

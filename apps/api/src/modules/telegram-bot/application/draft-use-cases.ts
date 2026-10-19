@@ -8,7 +8,7 @@ import {
   keyedCatalog,
   type TaskDraft,
 } from "../domain/draft.js";
-import { localMoment } from "../domain/moment.js";
+import { calendarFrom, localMoment } from "../domain/moment.js";
 import { botActorOf } from "./link-use-cases.js";
 import { ServiceBusyError, type TaskDraftDependencies } from "./ports.js";
 
@@ -50,7 +50,10 @@ export function createTaskDraftUseCases(d: TaskDraftDependencies) {
   ): Promise<DraftOutcome> => {
     const now = d.clock.now();
     const catalog = keyedCatalog(await d.catalogs.catalog(actor), actor.membershipId);
-    const read = await d.reader.read(text, { now: localMoment(now, d.timeZone), timeZone: d.timeZone, catalog });
+    const moment = localMoment(now, d.timeZone);
+    const read = await d.reader.read(text, {
+      now: moment, calendar: calendarFrom(moment.date), timeZone: d.timeZone, catalog,
+    });
     const draft = draftFrom(read, catalog, text);
     const id = d.ids.generate();
     await d.drafts.sweep(new Date(now.getTime() - DRAFT_TTL_MS));

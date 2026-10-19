@@ -26,7 +26,8 @@ one place that tells each member what happened to them, the moment it happens.
   notification marks it read and opens its project or task; **Прочитать все** marks them all
   read.
 - New notifications reach open tabs at once over Server-Sent Events, on a stream of their
-  own beside the existing WebSocket channel.
+  own beside the existing WebSocket channel, and play a short sound once, whatever the number
+  of open tabs.
 - The tasks page opens the task named in its address, so a notification can link to it.
 - API: `GET /api/notifications`, `POST /api/notifications/:id/read`,
   `POST /api/notifications/read-all`, and the event stream `GET /api/notifications/stream`.

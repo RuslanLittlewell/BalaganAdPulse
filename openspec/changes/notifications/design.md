@@ -88,6 +88,18 @@ cache; every `open` after the first refetches the list, since events may have be
 the browser gives up (`readyState` CLOSED, as on a 401), the hook calls `forceRefresh` and reopens
 with a backoff from 1 to 15 seconds. It is mounted once, in the header.
 
+**The sound is played once per browser, from the stream.** `notification.wav` lives in
+`shared/assets` and is imported with `?url`, so Vite fingerprints it. `soundNotification(key)` in
+`entities/notification` keeps one `HTMLAudioElement`, rewinds and plays it, and swallows the
+rejection a browser gives before the page has had a user gesture. Every open tab receives every
+event, so the tabs agree through `localStorage`: the key is the notification's id and creation
+time, so a refreshed notification sounds again; a visible tab claims it at once, a hidden one
+after a random delay of up to 250 ms, and a tab that finds the key already claimed stays silent.
+Two windows visible at the same instant can both play; a `BroadcastChannel` election was
+rejected as more machinery than the case is worth. Only the stream plays the sound, never a
+list fetched on load or reconnection. Rewinding one element also folds a burst of
+notifications into one sound.
+
 **The bell is a widget.** `widgets/notification-center` renders the bell button, its dot and a
 popover with the list, using the vendored `popover`. Choosing an item calls the read mutation and
 navigates: a project to `projectPath(id)`, a task to `/tasks?task=<id>`. The tasks page opens the

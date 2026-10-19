@@ -483,7 +483,10 @@ authenticated by the same cookie: a `ready` event, then one `notification` event
 notification, and a keepalive comment every 25 seconds inside nginx's read timeout. The stream
 sends `X-Accel-Buffering: no` so nginx passes it through unbuffered. The browser reconnects it
 on its own and the web app refetches the list on every reconnection; when the browser gives up,
-as on an expired session, the app renews the session and reopens it with a widening delay. Like
+as on an expired session, the app renews the session and reopens it with a widening delay. Each
+notification that arrives on the stream plays `shared/assets/notification.wav` once per browser:
+the tabs claim it through `localStorage`, the visible one first, and a browser that refuses
+sound before the first click on the page is simply not heard. Like
 the WebSocket registry, the subscribers live in the API process, and shutting down ends every
 open stream before the server closes.
 

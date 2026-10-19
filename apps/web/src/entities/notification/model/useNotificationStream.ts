@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { NotificationList } from "../api/api.js";
 import { NOTIFICATIONS_KEY } from "../api/queries.js";
 import { withArrived } from "./list.js";
+import { soundNotification } from "./sound.js";
 import { openNotificationStream, type EventSourceFactory } from "./stream.js";
 
 export function useNotificationStream(options: { createSource?: EventSourceFactory } = {}) {
@@ -13,6 +14,7 @@ export function useNotificationStream(options: { createSource?: EventSourceFacto
     const stream = openNotificationStream({
       createSource,
       onNotification: (notification) => {
+        soundNotification(`${notification.id}@${notification.createdAt}`);
         if (qc.getQueryData<NotificationList>(NOTIFICATIONS_KEY)) {
           qc.setQueryData<NotificationList>(NOTIFICATIONS_KEY, (list) => list && withArrived(list, notification));
         } else {

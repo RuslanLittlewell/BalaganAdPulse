@@ -27,3 +27,9 @@
 - [x] 4.2 Write the new texts and the deadline line in the list; open a document notification on its document; add the copy to `ru.ts`
 - [x] 4.3 Cover it: the texts, the deadline line, opening a document, a refreshed notification on the stream; `npm run test:web` green
 - [x] 4.4 Describe the new kinds and `TASK_TIME_ZONE` in README.md; `openspec validate notifications --strict`
+
+## 5. The notification sound
+
+- [x] 5.1 Add `notification.wav` to `shared/assets` and `soundNotification` to `entities/notification`, played by the stream hook for each arriving notification, once across tabs
+- [x] 5.2 Cover it: a visible tab plays at once, a hidden one after its delay, a claimed key stays silent, a refreshed notification sounds again, a refused play changes nothing, a list fetch plays nothing; `npm run test:web` green
+- [x] 5.3 Mention the sound in README.md; `openspec validate notifications --strict`

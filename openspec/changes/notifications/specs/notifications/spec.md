@@ -277,14 +277,36 @@ marked; with none, the list SHALL say Уведомлений пока нет. Th
 - TASK_DUE_SOON: Подходит срок задачи «title», with the deadline beside the time.
 
 Choosing a notification SHALL mark it read and open its document, its project, or the tasks page
-with its task open. While any is unread, the list SHALL offer Прочитать все, which marks them all read. A
-notification arriving on the stream SHALL appear at the top of the list and light the dot
-without a reload. When the stream drops, the app SHALL reconnect and refresh the list.
+with its task open. While any is unread, the list SHALL offer Прочитать все, which marks them all
+read. A notification arriving on the stream SHALL appear at the top of the list and light the
+dot without a reload. When the stream drops, the app SHALL reconnect and refresh the list.
+
+A notification arriving on the stream, new or refreshed, SHALL play the notification sound once,
+in one tab of the browser even when several are open, the visible tab first. When the browser
+refuses to play sound, as it does before the member has interacted with the page, the
+notification SHALL still appear and nothing SHALL fail. Notifications fetched with the list, on
+opening the app or after a reconnection, SHALL NOT play it.
 
 #### Scenario: A new notification lights the dot
 
 - **WHEN** a notification arrives on the stream while the member looks at the dashboard
 - **THEN** the bell carries a dot, and opening it shows the notification at the top, marked unread
+
+#### Scenario: A sound for a new notification
+
+- **WHEN** a notification arrives on the stream
+- **THEN** the notification sound plays
+
+#### Scenario: Several tabs
+
+- **WHEN** the member has three tabs of the app open and a notification arrives
+- **THEN** the sound plays once
+
+#### Scenario: Sound refused
+
+- **WHEN** a notification arrives before the member has clicked anywhere on the page and the
+  browser refuses to play sound
+- **THEN** the notification appears and lights the dot as usual
 
 #### Scenario: Opening a task from a notification
 

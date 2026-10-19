@@ -5,3 +5,4 @@ export { LATEST_NOTIFICATIONS, withAllRead, withArrived, withOneRead } from "./m
 export { openNotificationStream, STREAM_BASE_DELAY_MS, STREAM_MAX_DELAY_MS } from "./model/stream.js";
 export type { EventSourceFactory, NotificationStream, NotificationStreamOptions } from "./model/stream.js";
 export { useNotificationStream } from "./model/useNotificationStream.js";
+export { HIDDEN_TAB_DELAY_MS, SOUND_CLAIM_KEY, soundNotification } from "./model/sound.js";

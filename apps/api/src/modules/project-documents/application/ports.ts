@@ -21,10 +21,15 @@ export interface DocumentProjectReach {
   findReachable(actor: ActorContext, id: string): Promise<{ id: string; clientId: string } | null>;
 }
 
+export interface DocumentEvents {
+  created(document: ProjectDocument, actor: ActorContext): void;
+}
+
 export interface ProjectDocumentDependencies {
   readonly documents: ProjectDocumentRepository;
   readonly projects: DocumentProjectReach;
   readonly audit: AuditWriter;
+  readonly events: DocumentEvents;
   readonly ids: IdGenerator;
   readonly unitOfWork: UnitOfWork;
 }

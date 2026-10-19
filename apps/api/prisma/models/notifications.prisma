@@ -2,6 +2,9 @@ enum NotificationKind {
   KPI_MET
   PROJECT_CREATED
   TASK_ASSIGNED
+  TASK_UPDATED
+  DOCUMENT_ADDED
+  TASK_DUE_SOON
 
   @@map("notification_kind")
 }
@@ -12,14 +15,16 @@ model Notification {
   kind        NotificationKind
   projectId   String?          @map("project_id")
   taskId      String?          @map("task_id")
+  documentId  String?          @map("document_id")
   actorId     String?          @map("actor_id")
   readAt      DateTime?        @map("read_at")
   createdAt   DateTime         @default(now()) @map("created_at")
 
-  recipient Membership  @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
-  project   Project?    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  task      Task?       @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  actor     Membership? @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  recipient Membership       @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  project   Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task      Task?            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  document  ProjectDocument? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  actor     Membership?      @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([recipientId, createdAt])
   @@map("notification")

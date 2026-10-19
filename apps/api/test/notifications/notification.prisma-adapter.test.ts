@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "../../src/shared/infrastructure/prisma.js";
 import {
+  PrismaDueTasks,
   PrismaKpiMonthClaims,
   PrismaNotificationRecipients,
   PrismaNotificationRepository,
@@ -13,6 +14,7 @@ const repository = new PrismaNotificationRepository(prisma);
 const recipients = new PrismaNotificationRecipients(prisma);
 const standings = new PrismaProjectKpiStandings(prisma);
 const claims = new PrismaKpiMonthClaims(prisma);
+const dueTasks = new PrismaDueTasks(prisma);
 
 const OCTOBER_SO_FAR = { from: "2026-10-01", to: "2026-10-15" };
 
@@ -178,5 +180,70 @@ describe("the monthly claim", () => {
     await claims.claim(projectId, "2026-10-01");
 
     expect((await prisma.project.findUniqueOrThrow({ where: { id: projectId } })).updatedAt).toEqual(before);
+  });
+});
+
+describe("refreshing an unread notification", () => {
+  it("brings the recipient's unread one about the same task up to date, and leaves read ones alone", async () => {
+    const anna = await signInAs("Анна");
+    const vera = await signInAs("Вера");
+    const boris = await membershipOf("Борис");
+    const task = await prisma.task.create({ data: {
+      orgId: anna.membership!.orgId, projectId, title: "Бриф", priority: "MEDIUM", position: 0,
+    } });
+    const draft = (actorId: string) => ({
+      recipientId: boris, kind: "TASK_UPDATED" as const, projectId, taskId: task.id, documentId: null, actorId,
+    });
+    const at = new Date("2026-10-15T12:00:00Z");
+
+    expect(await repository.refreshUnread(draft(anna.membership!.id), at)).toBeNull();
+    const [first] = await repository.createMany([draft(anna.membership!.id)]);
+    const refreshed = await repository.refreshUnread(draft(vera.membership!.id), at);
+
+    expect(refreshed).toMatchObject({ id: first!.id, recipientId: boris, actor: { name: "Вера" }, createdAt: at });
+    await repository.markRead(boris, first!.id, at);
+    expect(await repository.refreshUnread(draft(anna.membership!.id), at)).toBeNull();
+  });
+});
+
+describe("tasks with a due date", () => {
+  const seedTask = async (partial: Record<string, unknown> = {}) => {
+    const org = await prisma.organization.findFirstOrThrow({ orderBy: { createdAt: "asc" } });
+    return prisma.task.create({ data: {
+      orgId: org.id, projectId, title: "Бриф", priority: "MEDIUM", position: 0,
+      dueDate: new Date("2026-10-20T00:00:00Z"), dueTime: "18:00", ...partial,
+    } });
+  };
+
+  it("are found by due day with their participants, outside Готово and Архив", async () => {
+    const boris = await membershipOf("Борис");
+    const open = await seedTask({ participants: { create: [{ membershipId: boris }] } });
+    await seedTask({ column: "DONE" });
+    await seedTask({ column: "ARCHIVED" });
+    await seedTask({ dueDate: new Date("2026-10-22T00:00:00Z") });
+    await seedTask({ dueDate: null, dueTime: null });
+
+    expect(await dueTasks.dueBetween("2026-10-19", "2026-10-20")).toEqual([{
+      id: open.id, projectId, dueDate: "2026-10-20", dueTime: "18:00",
+      createdById: null, visibleToClient: false, participantIds: [boris],
+    }]);
+  });
+
+  it("leave out organizations without the tasks module", async () => {
+    await seedTask();
+    const org = await prisma.organization.findFirstOrThrow({ orderBy: { createdAt: "asc" } });
+    await prisma.organization.update({ where: { id: org.id }, data: { modules: ["CRM"] } });
+
+    expect(await dueTasks.dueBetween("2026-10-19", "2026-10-20")).toEqual([]);
+  });
+
+  it("are claimed once per deadline, and again for a new one", async () => {
+    const task = await seedTask();
+    const deadline = new Date("2026-10-20T15:00:00Z");
+
+    expect(await dueTasks.claim(task.id, deadline)).toBe(true);
+    expect(await dueTasks.claim(task.id, deadline)).toBe(false);
+    expect((await prisma.task.findUniqueOrThrow({ where: { id: task.id } })).dueSoonFor).toEqual(deadline);
+    expect(await dueTasks.claim(task.id, new Date("2026-10-22T15:00:00Z"))).toBe(true);
   });
 });

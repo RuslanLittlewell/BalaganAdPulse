@@ -63,12 +63,9 @@ export function ClientDirectory() {
   if (!clients.isSuccess) return null;
 
   return (
-    <div
-      data-testid="contact-book-columns flex-1"
-      className="grid min-h-[22rem] gap-4 sm:grid-cols-[minmax(14rem,22%)_minmax(0,1fr)] flex-1"
-    >
-      <div data-testid="contact-book-list" className="relative min-w-0">
-        <div className="flex max-h-[60vh] flex-col gap-1 overflow-auto pb-14">
+    <div data-testid="contact-book-columns" className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-4 sm:grid-cols-[minmax(14rem,22%)_minmax(0,1fr)] sm:grid-rows-[minmax(0,1fr)]">
+      <div data-testid="contact-book-list" className="relative flex min-h-0 min-w-0 flex-col">
+        <div className="grid min-h-0 flex-1 content-start gap-1 overflow-y-auto pb-14">
           {list.map((client) => (
             <ListItem
               key={client.id}
@@ -104,7 +101,7 @@ export function ClientDirectory() {
 
       <div
         data-testid="contact-book-details"
-        className="flex max-h-[60vh] min-w-0 flex-col overflow-auto sm:border-l sm:border-border sm:pl-4"
+        className="flex min-h-0 min-w-0 flex-col overflow-y-auto sm:border-l sm:border-border sm:pl-4"
       >
         {(mode.kind === "create" || selected != null) && (
           <div className="mb-2 flex min-h-9 items-center justify-between gap-2">

@@ -35,6 +35,7 @@ function fixture(options: {
   const published: TaskEvent[] = [];
   const journal: string[] = [];
   const assigned: Array<{ taskId: string; memberIds: string[]; actor: string }> = [];
+  const changes: Array<{ taskId: string; actor: string; newcomers: string[] }> = [];
 
   const owns = (actor: ActorContext, candidate: TaskRecord) => {
     if (actor.role === "ADMIN") return true;
@@ -64,6 +65,7 @@ function fixture(options: {
         return updated;
       },
       delete: async (_tx, id) => { tasks.delete(id); },
+      untickChecklist: async () => undefined,
       countInColumn: async (_orgId, column) =>
         [...tasks.values()].filter((t) => t.column === column).length,
       columnIds: async (_orgId, column) =>
@@ -103,9 +105,12 @@ function fixture(options: {
     events: {
       publish: (event: TaskEvent) => { published.push(event); journal.push(`publish:${event.kind}`); },
     },
-    assignments: {
+    notices: {
       named: (named: TaskRecord, memberIds: readonly string[], actor: ActorContext) => {
         assigned.push({ taskId: named.id, memberIds: [...memberIds], actor: actor.membershipId });
+      },
+      changed: (changed: TaskRecord, actor: ActorContext, newcomers: readonly string[]) => {
+        changes.push({ taskId: changed.id, actor: actor.membershipId, newcomers: [...newcomers] });
       },
     },
     ids: new DeterministicIdGenerator(["new-1", "new-2", "new-3"]),
@@ -118,7 +123,7 @@ function fixture(options: {
       },
     },
   });
-  return { useCases, tasks, audit, orders, claimed, removedObjects, published, journal, assigned };
+  return { useCases, tasks, audit, orders, claimed, removedObjects, published, journal, assigned, changes };
 }
 
 describe("reading the board", () => {
@@ -239,6 +244,34 @@ describe("naming participants", () => {
       { taskId: "t1", memberIds: [], actor: "m1" },
       { taskId: "t1", memberIds: [], actor: "m1" },
     ]);
+  });
+});
+
+describe("reporting a change", () => {
+  it("reports an edit, leaving out whoever the edit named", async () => {
+    const { useCases, changes } = fixture({ tasks: [task({ participantIds: ["m2"] })], assignable: ["m2", "m3"] });
+    await useCases.update(admin, "t1", { title: "Renamed", participantIds: ["m2", "m3"] });
+    expect(changes).toEqual([{ taskId: "t1", actor: "m1", newcomers: ["m3"] }]);
+  });
+
+  it("reports a move to another column and not a reorder within one", async () => {
+    const { useCases, changes } = fixture({ tasks: [task({ column: "IDEA" })] });
+    await useCases.move(admin, "t1", { column: "IDEA", position: 0 });
+    expect(changes).toEqual([]);
+    await useCases.move(admin, "t1", { column: "IN_PROGRESS", position: 0 });
+    expect(changes).toEqual([{ taskId: "t1", actor: "m1", newcomers: [] }]);
+  });
+
+  it("reports a repeating task completed into its next occurrence", async () => {
+    const { useCases, changes } = fixture({ tasks: [task({ repeatEvery: "WEEKLY", dueDate: "2026-10-20" })] });
+    await useCases.complete(admin, "t1");
+    expect(changes).toEqual([{ taskId: "t1", actor: "m1", newcomers: [] }]);
+  });
+
+  it("reports nothing when a task is created", async () => {
+    const { useCases, changes } = fixture();
+    await useCases.create(admin, { projectId: "p1", title: "T", priority: "LOW", participantIds: ["m2"] });
+    expect(changes).toEqual([]);
   });
 });
 

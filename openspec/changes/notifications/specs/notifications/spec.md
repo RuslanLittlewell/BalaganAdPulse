@@ -1,22 +1,25 @@
 ## Purpose
 
 Tell each member, in one place and as it happens, of the events that concern them: a project
-reaching its KPI, a project being added, and being named on a task.
+reaching its KPI, a project or a project document being added, being named on a task, a change
+to a task they are on, and a task's deadline drawing near.
 
 ## ADDED Requirements
 
 ### Requirement: A member keeps their own notifications
 
 Every notification SHALL belong to one member of one organization and SHALL be of one kind:
-KPI_MET about a project, PROJECT_CREATED about a project and the member who added it, or
-TASK_ASSIGNED about a task and the member who named the recipient on it. It SHALL record when
-it was created and whether and when its recipient read it. A member SHALL read only their own
-notifications: `GET /api/notifications` SHALL return their latest 50, newest first, each with
-its kind, creation time, read time or null, the project's id and name, the task's id, title and
-project id, and the name of the member who caused it, where the kind has them, together with
-the number of their unread notifications. A notification SHALL be deleted with its recipient's
-membership, its project or its task; when the member who caused it is deleted, it SHALL remain
-without their name.
+KPI_MET about a project, PROJECT_CREATED about a project and the member who added it,
+TASK_ASSIGNED about a task and the member who named the recipient on it, TASK_UPDATED about a
+task and the member who last changed it, DOCUMENT_ADDED about a project document and the member
+who added it, or TASK_DUE_SOON about a task. It SHALL record when it was created and whether
+and when its recipient read it. A member SHALL read only their own notifications:
+`GET /api/notifications` SHALL return their latest 50, newest first, each with its kind,
+creation time, read time or null, the project's id and name, the task's id, title, project id,
+due date and due time, the document's id and title, and the name of the member who caused it,
+where the kind has them, together with the number of their unread notifications. A
+notification SHALL be deleted with its recipient's membership, its project, its task or its
+document; when the member who caused it is deleted, it SHALL remain without their name.
 
 #### Scenario: Only one's own
 
@@ -115,6 +118,102 @@ when the task is shown to the client.
 - **WHEN** a client's person is named on a task about their project that is not shown to the client
 - **THEN** they are not notified
 
+### Requirement: A change to a task is notified to its participants
+
+When a task is changed — any of its fields edited, moved to another column, or a repeating task
+completed into its next occurrence — its participants SHALL be notified with TASK_UPDATED naming
+the member who changed it. The member who changed it SHALL NOT be notified, nor a member named
+on the task by that same change, who is told of being named instead. Reordering a task within
+its column SHALL NOT be notified. A client's person SHALL be notified only when the task is
+shown to the client. While a participant still has an unread TASK_UPDATED about the task, a
+further change SHALL refresh that notification — its time and the member named in it — and
+bring it to the top of their list, rather than add another.
+
+#### Scenario: A participant is told of an edit
+
+- **WHEN** Анна changes the title of a task that names Борис and Анна
+- **THEN** Борис is notified that the task changed, naming Анна, and Анна is not
+
+#### Scenario: Moved to another column
+
+- **WHEN** Анна moves the task from В работе to На проверке
+- **THEN** Борис is notified that the task changed
+
+#### Scenario: Reordered in its column
+
+- **WHEN** Анна moves the task within В работе
+- **THEN** nobody is notified
+
+#### Scenario: Several changes before reading
+
+- **WHEN** Анна edits the task and then Вера moves it, while Борис has not read the first
+  notification
+- **THEN** Борис has one unread TASK_UPDATED about the task, naming Вера, at the top of the list
+
+#### Scenario: Named by the change
+
+- **WHEN** Анна adds Вера to the task and edits its title in one change
+- **THEN** Вера is notified of being named and not of the change, and Борис of the change
+
+### Requirement: A new project document is notified
+
+When a document is added to a project, the active admins, managers and guests who reach the
+project SHALL be notified with DOCUMENT_ADDED naming the member who added it. The member who
+added it SHALL NOT be notified, and clients SHALL NOT be notified.
+
+#### Scenario: A manager adds a document
+
+- **WHEN** a manager adds the document Медиаплан to the project Клиника
+- **THEN** the admins and the other managers and guests who reach Клиника are notified, naming
+  the manager, and the manager is not
+
+### Requirement: A task's deadline drawing near is notified
+
+A task's deadline SHALL be its due date at its due time, or at the end of its due date when it
+has no time, read in the agency's time zone, Europe/Minsk unless the API is configured with
+another. Once the deadline is less than 24 hours away and has not passed, the task's
+participants SHALL be notified with TASK_DUE_SOON, or the member who created it when it names
+nobody. A task SHALL be notified once per deadline: changing its due date or time, or completing
+a repeating task into its next occurrence, gives it a new deadline to be notified of. Tasks
+without a due date, tasks in Готово or Архив, and tasks of organizations without the tasks
+module SHALL NOT be notified. A client's person SHALL be notified only when the task is shown to
+the client. The API SHALL look for such tasks at least every 15 minutes.
+
+#### Scenario: A day before
+
+- **WHEN** a task naming Борис is due on 20 October at 18:00 and it is 19 October, 18:10 in Minsk
+- **THEN** Борис is notified that the task's deadline is near
+
+#### Scenario: Not yet
+
+- **WHEN** it is 19 October, 17:50 in Minsk
+- **THEN** nobody is notified of that task
+
+#### Scenario: A due date without a time
+
+- **WHEN** a task is due on 20 October with no time and it is 20 October, 00:10 in Minsk
+- **THEN** its participants are notified
+
+#### Scenario: Once per deadline
+
+- **WHEN** the task has been notified and the API looks again an hour later
+- **THEN** nobody is notified again
+
+#### Scenario: A new deadline
+
+- **WHEN** the task is moved to 22 October at 18:00 and it becomes 21 October, 18:10
+- **THEN** its participants are notified again
+
+#### Scenario: Nobody named
+
+- **WHEN** a task Анна created names nobody and its deadline draws near
+- **THEN** Анна is notified
+
+#### Scenario: Done
+
+- **WHEN** a task in Готово has a deadline within the day
+- **THEN** nobody is notified
+
 ### Requirement: A member reads their notifications
 
 `POST /api/notifications/:id/read` SHALL mark one of the member's notifications read and
@@ -172,10 +271,13 @@ marked; with none, the list SHALL say Уведомлений пока нет. Th
 
 - KPI_MET: Проект «name» выполнил KPI;
 - PROJECT_CREATED: Новый проект «name»;
-- TASK_ASSIGNED: Вас назначили участником задачи «title».
+- TASK_ASSIGNED: Вас назначили участником задачи «title»;
+- TASK_UPDATED: Задача «title» изменена;
+- DOCUMENT_ADDED: Новый документ «title» в проекте «name»;
+- TASK_DUE_SOON: Подходит срок задачи «title», with the deadline beside the time.
 
-Choosing a notification SHALL mark it read and open its project, or the tasks page with its task
-open. While any is unread, the list SHALL offer Прочитать все, which marks them all read. A
+Choosing a notification SHALL mark it read and open its document, its project, or the tasks page
+with its task open. While any is unread, the list SHALL offer Прочитать все, which marks them all read. A
 notification arriving on the stream SHALL appear at the top of the list and light the dot
 without a reload. When the stream drops, the app SHALL reconnect and refresh the list.
 
@@ -193,6 +295,17 @@ without a reload. When the stream drops, the app SHALL reconnect and refresh the
 
 - **WHEN** the member chooses Проект «Клиника» выполнил KPI
 - **THEN** it is marked read and the project Клиника opens
+
+#### Scenario: Opening a document from a notification
+
+- **WHEN** the member chooses Новый документ «Медиаплан» в проекте «Клиника»
+- **THEN** it is marked read and the document Медиаплан of Клиника opens
+
+#### Scenario: A refreshed notification
+
+- **WHEN** a TASK_UPDATED the member has not read is refreshed by a further change
+- **THEN** it moves to the top of the list, naming the member who made the latest change, and the
+  unread count stays the same
 
 #### Scenario: Reading all
 

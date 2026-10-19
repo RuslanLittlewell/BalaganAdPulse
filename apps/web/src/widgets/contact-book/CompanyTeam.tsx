@@ -32,7 +32,7 @@ export function CompanyTeam({ clientId }: { clientId: string }) {
   const list = people.data ?? [];
 
   return (
-    <div className="flex min-h-[22rem] flex-col gap-4 flex-1">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-foreground">
           {t("company.team")}
@@ -47,7 +47,7 @@ export function CompanyTeam({ clientId }: { clientId: string }) {
       {list.length === 0 ? (
         <EmptyState title={t("company.team.empty")} />
       ) : (
-        <ul className="divide-y divide-border rounded-lg border border-border">
+        <ul className="min-h-0 divide-y divide-border overflow-y-auto rounded-lg border border-border">
           {list.map((person: Membership) => (
             <li
               key={person.id}

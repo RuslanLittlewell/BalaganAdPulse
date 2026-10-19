@@ -27,7 +27,7 @@ export function TaskParticipants({ task, people }: TaskParticipantsProps) {
       <span className="flex shrink-0 items-center -space-x-1.5" data-testid={`task-participants-${task.id}`}>
         {shown.map((member) => (
           <WarmTooltip key={member.id} content={member.name} side="top">
-            <span role="img" aria-label={member.name} className="rounded-md ring-2 ring-background">
+            <span role="img" aria-label={member.name}>
               <span aria-hidden className="contents">
                 <MemberAvatar member={member} size="sm" />
               </span>
@@ -37,7 +37,7 @@ export function TaskParticipants({ task, people }: TaskParticipantsProps) {
         {rest > 0 ? (
           <span
             aria-label={`${t("tasks.participants.more")}: ${rest}`}
-            className="grid size-8 place-items-center rounded-md bg-muted text-[11px] font-medium text-muted-foreground ring-2 ring-background"
+            className="grid size-8 place-items-center rounded-md bg-muted text-[11px] font-medium text-muted-foreground"
           >
             {`+${rest}`}
           </span>

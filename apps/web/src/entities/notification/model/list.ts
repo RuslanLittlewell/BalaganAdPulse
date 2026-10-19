@@ -3,10 +3,12 @@ import type { Notification, NotificationList } from "../api/api.js";
 export const LATEST_NOTIFICATIONS = 50;
 
 export function withArrived(list: NotificationList, arrived: Notification): NotificationList {
-  if (list.notifications.some((notification) => notification.id === arrived.id)) return list;
+  const held = list.notifications.find((notification) => notification.id === arrived.id);
+  const counted = held !== undefined && held.readAt === null;
   return {
-    notifications: [arrived, ...list.notifications].slice(0, LATEST_NOTIFICATIONS),
-    unreadCount: list.unreadCount + (arrived.readAt === null ? 1 : 0),
+    notifications: [arrived, ...list.notifications.filter((notification) => notification.id !== arrived.id)]
+      .slice(0, LATEST_NOTIFICATIONS),
+    unreadCount: list.unreadCount + (arrived.readAt === null && !counted ? 1 : 0),
   };
 }
 

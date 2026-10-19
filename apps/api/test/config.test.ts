@@ -87,4 +87,10 @@ describe("loadConfig", () => {
     expect(loadConfig({ JWT_SECRET: "s", APP_URL: "https://bi.example.com/" }).appUrl).toBe("https://bi.example.com");
     expect(loadConfig({ NODE_ENV: "production", JWT_SECRET: "a".repeat(32) }).appUrl).toBeNull();
   });
+
+  it("reads task deadlines in Minsk unless told otherwise, and refuses a zone it does not know", () => {
+    expect(loadConfig({ JWT_SECRET: "s" }).taskTimeZone).toBe("Europe/Minsk");
+    expect(loadConfig({ JWT_SECRET: "s", TASK_TIME_ZONE: "Europe/Warsaw" }).taskTimeZone).toBe("Europe/Warsaw");
+    expect(() => loadConfig({ JWT_SECRET: "s", TASK_TIME_ZONE: "Mars/Olympus" })).toThrow(/TASK_TIME_ZONE/);
+  });
 });

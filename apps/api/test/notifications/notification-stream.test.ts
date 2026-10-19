@@ -111,7 +111,8 @@ describe("the notification stream of the API", () => {
       data: {
         id: expect.any(String), kind: "TASK_ASSIGNED", createdAt: expect.any(String), readAt: null,
         project: { id: projectId, name: "Клиника" },
-        task: { id: task.body.id, title: "Позвонить клиенту", projectId },
+        task: { id: task.body.id, title: "Позвонить клиенту", projectId, dueDate: null, dueTime: null },
+        document: null,
         actor: { name: "Анна" },
       },
     });
@@ -140,14 +141,16 @@ describe("the notification stream's upkeep", () => {
     const hub = createNotificationHub();
     const useCases = createNotificationUseCases({
       notifications: {
-        createMany: async () => [], latest: async () => [], unreadCount: async () => 0,
+        createMany: async () => [], refreshUnread: async () => null, latest: async () => [], unreadCount: async () => 0,
         markRead: async () => true, markAllRead: async () => {},
       },
       recipients: { staffReaching: async () => [], activeMembers: async () => [] },
       standings: { read: async () => null },
       claims: { claim: async () => false },
+      dueTasks: { dueBetween: async () => [], claim: async () => false },
       hub,
       clock: { now: () => new Date() },
+      timeZone: "Europe/Minsk",
     });
     const app = express();
     app.use((req, _res, next) => {

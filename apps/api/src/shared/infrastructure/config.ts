@@ -12,6 +12,7 @@ export interface Config {
   production: boolean;
   appUrl: string | null;
   mail: MailConfig | null;
+  taskTimeZone: string;
   storage: {
     endpoint: string;
     region: string;
@@ -26,6 +27,18 @@ const PLACEHOLDER_JWT_SECRET = "dev-secret-change-me";
 const MIN_JWT_SECRET_LENGTH = 32;
 
 const DEVELOPMENT_APP_URL = "http://localhost:5173";
+
+const DEFAULT_TASK_TIME_ZONE = "Europe/Minsk";
+
+function taskTimeZone(env: NodeJS.ProcessEnv): string {
+  const zone = env.TASK_TIME_ZONE?.trim() || DEFAULT_TASK_TIME_ZONE;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: zone });
+  } catch {
+    throw new Error(`TASK_TIME_ZONE must be an IANA time zone, such as ${DEFAULT_TASK_TIME_ZONE}`);
+  }
+  return zone;
+}
 
 function mailConfig(env: NodeJS.ProcessEnv): MailConfig | null {
   const user = env.SMTP_USER?.trim();
@@ -64,6 +77,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     production,
     appUrl: env.APP_URL?.trim().replace(/\/+$/, "") || (production ? null : DEVELOPMENT_APP_URL),
     mail: mailConfig(env),
+    taskTimeZone: taskTimeZone(env),
     storage: {
       endpoint: env.S3_ENDPOINT ?? "http://localhost:9000",
       region: env.S3_REGION ?? "us-east-1",

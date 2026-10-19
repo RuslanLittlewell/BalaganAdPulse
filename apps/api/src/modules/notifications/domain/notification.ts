@@ -1,4 +1,6 @@
-export const NOTIFICATION_KINDS = ["KPI_MET", "PROJECT_CREATED", "TASK_ASSIGNED"] as const;
+export const NOTIFICATION_KINDS = [
+  "KPI_MET", "PROJECT_CREATED", "TASK_ASSIGNED", "TASK_UPDATED", "DOCUMENT_ADDED", "TASK_DUE_SOON",
+] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 export const LATEST_NOTIFICATIONS = 50;
@@ -8,6 +10,7 @@ export interface NewNotification {
   readonly kind: NotificationKind;
   readonly projectId: string | null;
   readonly taskId: string | null;
+  readonly documentId: string | null;
   readonly actorId: string | null;
 }
 
@@ -17,7 +20,14 @@ export interface NotificationView {
   readonly createdAt: Date;
   readonly readAt: Date | null;
   readonly project: { readonly id: string; readonly name: string } | null;
-  readonly task: { readonly id: string; readonly title: string; readonly projectId: string | null } | null;
+  readonly task: {
+    readonly id: string;
+    readonly title: string;
+    readonly projectId: string | null;
+    readonly dueDate: string | null;
+    readonly dueTime: string | null;
+  } | null;
+  readonly document: { readonly id: string; readonly title: string } | null;
   readonly actor: { readonly name: string } | null;
 }
 

@@ -92,6 +92,29 @@ describe("a card follows the length of its task", () => {
   });
 });
 
+describe("dragging a short call", () => {
+  it("moves it to the day and time it is dropped at", async () => {
+    let sent: Record<string, unknown> | null = null;
+    const call = aTask({
+      id: "call", title: "Планёрка", dueDate: "2026-09-16", dueTime: "10:00", endTime: "10:15",
+      repeatEvery: "DAILY", isCall: true,
+    });
+    server.use(mock.patch("/api/tasks/call", async ({ request }) => {
+      sent = await request.json() as Record<string, unknown>;
+      return HttpResponse.json({ ...call, dueDate: "2026-09-18", dueTime: "15:00", endTime: "15:15" });
+    }));
+    calendar([call]);
+    const wednesday = await screen.findByRole("group", { name: /среда/ });
+    const card = await within(wednesday).findByTestId("task-card-call");
+    expect(card).toHaveAttribute("data-compact", "true");
+    measureColumns();
+
+    drag(card, "2026-09-18", "15:00");
+
+    await waitFor(() => expect(sent).toEqual({ dueDate: "2026-09-18", dueTime: "15:00" }));
+  });
+});
+
 describe("dragging a task that has an end", () => {
   it("keeps its length on another day", async () => {
     let sent: Record<string, unknown> | null = null;

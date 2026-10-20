@@ -125,3 +125,87 @@ describe("a task's repetition in the form", () => {
     expect(await screen.findByLabelText("Повтор")).toHaveTextContent("Каждый месяц");
   });
 });
+
+describe("marking a task as a call in the form", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("is offered while a task is created, and sent with it", async () => {
+    let created: Record<string, unknown> | null = null;
+    server.use(mock.post("/api/tasks", async ({ request }) => {
+      created = await request.json() as Record<string, unknown>;
+      return HttpResponse.json(aTask(created as Partial<Task>), { status: 201 });
+    }));
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 9, 20, 9, 0));
+    renderWithProviders(<TaskFormDialog onClose={() => {}} />, { route: "/tasks" });
+    await userEvent.type(await screen.findByLabelText("Название"), "Планёрка");
+    await open("Даты");
+    await userEvent.click(await screen.findByRole("button", { name: /Без срока/ }));
+    const calendar = await screen.findByRole("dialog", { name: "Выбрать дату" });
+    await userEvent.click(within(calendar).getByRole("button", { name: /22 октября/ }));
+    await userEvent.type(await screen.findByLabelText("Начало"), "10:00");
+    await repeat("Каждый день");
+
+    await userEvent.click(await screen.findByRole("switch", { name: "Созвон" }));
+    await userEvent.click(screen.getByRole("button", { name: "Создать задачу" }));
+
+    await waitFor(() => expect(created).toMatchObject({
+      dueDate: "2026-10-22", dueTime: "10:00", repeatEvery: "DAILY", isCall: true,
+    }));
+  });
+
+  const callBox = () => screen.queryByRole("switch", { name: "Созвон" });
+
+  async function repeat(label: string) {
+    await userEvent.click(await screen.findByLabelText("Повтор"));
+    await userEvent.click(await screen.findByRole("option", { name: label }));
+  }
+
+  it("is not offered for a timed task that does not repeat", async () => {
+    edit({ dueDate: "2026-10-19", dueTime: "10:00" });
+    await open("Даты");
+    await screen.findByLabelText("Повтор");
+
+    expect(callBox()).not.toBeInTheDocument();
+  });
+
+  it("is not offered for a repeating task with no time", async () => {
+    edit({ dueDate: "2026-10-19", repeatEvery: "WEEKLY" });
+    await open("Даты");
+    await screen.findByLabelText("Повтор");
+
+    expect(callBox()).not.toBeInTheDocument();
+  });
+
+  it("is offered once the timed task repeats, and sent when ticked", async () => {
+    edit({ dueDate: "2026-10-19", dueTime: "10:00" });
+    await open("Даты");
+    await repeat("Каждую неделю");
+
+    await userEvent.click(await screen.findByRole("switch", { name: "Созвон" }));
+    await save();
+
+    await waitFor(() => expect(sent).toMatchObject({ repeatEvery: "WEEKLY", isCall: true }));
+  });
+
+  it("shows a call ticked", async () => {
+    edit({ dueDate: "2026-10-19", dueTime: "10:00", repeatEvery: "WEEKLY", isCall: true });
+    await open("Даты");
+
+    expect(await screen.findByRole("switch", { name: "Созвон" })).toBeChecked();
+  });
+
+  it("goes away with the repetition, and the task is no longer sent as a call", async () => {
+    edit({ dueDate: "2026-10-19", dueTime: "10:00", repeatEvery: "WEEKLY", isCall: true });
+    await open("Даты");
+    await screen.findByRole("switch", { name: "Созвон" });
+
+    await repeat("Не повторяется");
+    expect(callBox()).not.toBeInTheDocument();
+    await save();
+
+    await waitFor(() => expect(sent).toMatchObject({ repeatEvery: "NONE", isCall: false }));
+  });
+});

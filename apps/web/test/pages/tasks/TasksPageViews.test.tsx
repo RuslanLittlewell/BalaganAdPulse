@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { aProject, aTask, renderWithProviders, server } from "@test/shared/index.js";
 import { TasksPage } from "@/pages/tasks/index.js";
 import { useModuleMemory } from "@/shared/lib/index.js";
+import { toIso } from "@/shared/ui/index.js";
 
 function setup() {
   return renderWithProviders(<TasksPage />, { route: "/tasks" });
@@ -85,5 +86,47 @@ describe("switching between the board and the calendar", () => {
     setup();
     expect(await screen.findByRole("heading", { name: "Идея", level: 2 })).toBeInTheDocument();
     expect(onCalendar()).toBe(false);
+  });
+});
+
+describe("the calls view", () => {
+  const daily = { dueDate: "2020-01-06", dueTime: "10:00", repeatEvery: "DAILY" } as const;
+
+  beforeEach(() => {
+    server.use(mock.get("/api/tasks", () => HttpResponse.json([
+      aTask({ id: "call", title: "Планёрка", ...daily, isCall: true }),
+      aTask({ id: "routine", title: "Проверить ставки", ...daily }),
+      aTask({ id: "ended", title: "Старый созвон", ...daily, isCall: true, column: "ARCHIVED" }),
+    ])));
+  });
+
+  it("holds the calls alone, each on every day it recurs", async () => {
+    setup();
+    await userEvent.click(await screen.findByRole("radio", { name: "Созвоны" }));
+
+    expect(await screen.findAllByText("Планёрка")).toHaveLength(7);
+    expect(screen.getAllByText("Старый созвон")).toHaveLength(7);
+    expect(tab("Созвоны")).toHaveAttribute("aria-checked", "true");
+    expect(screen.queryByText("Проверить ставки")).not.toBeInTheDocument();
+  });
+
+  it("keeps calls off the board", async () => {
+    setup();
+
+    expect(await screen.findByText("Проверить ставки")).toBeInTheDocument();
+    expect(screen.queryByText("Планёрка")).not.toBeInTheDocument();
+    expect(screen.queryByText("Старый созвон")).not.toBeInTheDocument();
+  });
+
+  it("keeps calls out of the calendar", async () => {
+    server.use(mock.get("/api/tasks", () => HttpResponse.json([
+      aTask({ id: "call", title: "Планёрка", dueDate: "2020-01-06", dueTime: "10:00", repeatEvery: "DAILY", isCall: true }),
+      aTask({ id: "today", title: "Сверить бюджет", dueDate: toIso(new Date()), dueTime: "12:00" }),
+    ])));
+    setup();
+    await userEvent.click(await screen.findByRole("radio", { name: "Календарь" }));
+
+    expect(await screen.findByText("Сверить бюджет")).toBeInTheDocument();
+    expect(screen.queryByText("Планёрка")).not.toBeInTheDocument();
   });
 });

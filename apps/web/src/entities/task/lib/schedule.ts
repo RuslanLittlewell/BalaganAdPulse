@@ -47,15 +47,56 @@ const DAYS_APART: Record<Exclude<TaskRepeat, "NONE" | "MONTHLY">, number> = {
   BIWEEKLY: 14,
 };
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 function dayOf(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+function partsOf(day: string): [number, number, number] {
+  return day.split("-").map(Number) as [number, number, number];
+}
+
+function daysAfter(day: string, days: number): string {
+  const [year, month, date] = partsOf(day);
+  return dayOf(new Date(Date.UTC(year, month - 1, date + days)));
+}
+
+function monthsAfter(day: string, months: number): string {
+  const [year, month, date] = partsOf(day);
+  const lastOfMonth = new Date(Date.UTC(year, month - 1 + months + 1, 0)).getUTCDate();
+  return dayOf(new Date(Date.UTC(year, month - 1 + months, Math.min(date, lastOfMonth))));
+}
+
+function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(to) - Date.parse(from)) / DAY_MS);
+}
+
 export function nextOccurrence(day: string, repeat: Exclude<TaskRepeat, "NONE">): string {
-  const [year, month, date] = day.split("-").map(Number) as [number, number, number];
-  if (repeat !== "MONTHLY") {
-    return dayOf(new Date(Date.UTC(year, month - 1, date + DAYS_APART[repeat])));
+  return repeat === "MONTHLY" ? monthsAfter(day, 1) : daysAfter(day, DAYS_APART[repeat]);
+}
+
+export function mayBeCall(schedule: Pick<Task, "dueTime" | "repeatEvery">): boolean {
+  return schedule.dueTime !== null && schedule.repeatEvery !== "NONE";
+}
+
+export function occurrencesBetween(
+  task: Pick<Task, "dueDate" | "repeatEvery">,
+  from: string,
+  to: string,
+): string[] {
+  const { dueDate, repeatEvery } = task;
+  if (dueDate === null) return [];
+  if (repeatEvery === "NONE") return dueDate >= from && dueDate <= to ? [dueDate] : [];
+  const nth = (count: number) => repeatEvery === "MONTHLY"
+    ? monthsAfter(dueDate, count)
+    : daysAfter(dueDate, count * DAYS_APART[repeatEvery]);
+  const skipped = repeatEvery === "MONTHLY"
+    ? 0
+    : Math.max(0, Math.floor(daysBetween(dueDate, from) / DAYS_APART[repeatEvery]));
+  const days: string[] = [];
+  for (let count = skipped; nth(count) <= to; count += 1) {
+    if (nth(count) >= from) days.push(nth(count));
   }
-  const lastOfNextMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-  return dayOf(new Date(Date.UTC(year, month, Math.min(date, lastOfNextMonth))));
+  return days;
 }

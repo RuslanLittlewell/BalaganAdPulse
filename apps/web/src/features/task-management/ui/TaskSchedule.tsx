@@ -10,6 +10,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Switch,
   TimeInput,
   dayLabel,
 } from "@/shared/ui/index.js";
@@ -18,6 +19,7 @@ import {
   endEnteredAs,
   endKeepingLength,
   endShownAs,
+  mayBeCall,
   type TaskRepeat,
 } from "@/entities/task/index.js";
 
@@ -26,11 +28,13 @@ export interface TaskScheduleProps {
   dueTime: string | null;
   endTime: string | null;
   repeatEvery: TaskRepeat;
+  isCall: boolean;
   today: string;
   onDueDateChange: (dueDate: string | null) => void;
   onDueTimeChange: (dueTime: string | null) => void;
   onEndTimeChange: (endTime: string | null) => void;
   onRepeatChange: (repeatEvery: TaskRepeat) => void;
+  onCallChange: (isCall: boolean) => void;
   endError?: string;
 }
 
@@ -39,11 +43,13 @@ export function TaskSchedule({
   dueTime,
   endTime,
   repeatEvery,
+  isCall,
   today,
   onDueDateChange,
   onDueTimeChange,
   onEndTimeChange,
   onRepeatChange,
+  onCallChange,
   endError,
 }: TaskScheduleProps) {
   const [picking, setPicking] = useState(false);
@@ -122,6 +128,13 @@ export function TaskSchedule({
               </SelectContent>
             </Select>
           </div>
+
+          {mayBeCall({ dueTime, repeatEvery }) ? (
+            <div className="flex items-center gap-2">
+              <Switch id="task-call" checked={isCall} onCheckedChange={onCallChange} />
+              <Label htmlFor="task-call" className="text-sm font-normal">{t("tasks.form.call")}</Label>
+            </div>
+          ) : null}
         </>
       )}
     </div>

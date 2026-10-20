@@ -37,6 +37,7 @@ export const createTaskSchema = z.object({
   dueTime,
   endTime,
   repeatEvery: z.enum(TASK_REPEATS).optional(),
+  isCall: z.boolean().optional(),
   checklist,
 });
 
@@ -51,6 +52,7 @@ export const updateTaskSchema = z.object({
   dueTime,
   endTime,
   repeatEvery: z.enum(TASK_REPEATS).optional(),
+  isCall: z.boolean().optional(),
   checklist,
 });
 

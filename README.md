@@ -309,8 +309,9 @@ individual projects. Role permission and row reach are evaluated separately.
 
 ### The task board and the calendar
 
-`/tasks` shows the same tasks two ways, switched by the **Канбан** / **Календарь** tabs in
-the page header and faded into place. The chosen view is remembered for that person in that
+`/tasks` has three views, switched by the **Канбан** / **Календарь** / **Созвоны** tabs in the
+page header and faded into place: the board and the calendar show the same work, and the calls
+are kept apart in the third. The chosen view is remembered for that person in that
 browser, so they return to the one they left; someone else signing in on the same browser
 gets their own.
 
@@ -341,8 +342,8 @@ the task on their board and in their calendar, and a new task starts with the me
 form among them. The list is given whole with the task (`participantIds`) and stored in the
 `task_participant` join; a member removed from the organization leaves every list. Staff can be
 named on any task, and the client's people on a task about a project they reach — they still see
-it only when it is marked **Видно клиенту**. Being named grants no right to change a task. A call
-is simply a task with a time of day that repeats. The `assignee_id` column still exists, unread
+it only when it is marked **Видно клиенту**. Being named grants no right to change a task. The
+`assignee_id` column still exists, unread
 and unwritten, until a later migration drops it; every former responsible member was carried
 over as a participant.
 
@@ -394,11 +395,18 @@ in the audit trail. A monthly task due on the 31st falls on the last day of a mo
 short to hold it. An interval needs a due date to count from, and clearing the due date of a
 task while it repeats is refused.
 
+**A call** is a task with a time of day that repeats, marked with the **Созвон** switch
+(`is_call`). The form offers the switch, creating or editing, only once the task has both; a
+request marking any other task as a call is refused, and a change that takes the time or the
+repetition away quietly ends the call rather than failing. A call is not work on the board: it
+leaves **Канбан** and **Календарь** and is found in **Созвоны** alone, described below.
+
 Reading the board follows the same grants as the projects it draws from. Admins and
 managers write; guests read; a `CLIENT` member is refused the board entirely, because it
 carries the agency's internal notes about a customer's own work.
 
-**Images in a description** are pasted with Ctrl+V or dropped onto the editor. They are
+**Images in a description** are pasted with Ctrl+V, dropped onto the editor, or chosen with the
+paperclip beside the attachments, which adds them to the end of the description. They are
 uploaded as they land — PNG, JPEG, WebP or GIF, up to 10 MB, recognised by their own bytes
 rather than by a file name — and stored as objects; the description keeps only a reference,
 so listing a board never carries image data. The editor fetches them with the member's
@@ -415,7 +423,17 @@ enough at the default scale for a full card, and a card too short for one shows 
 time on one line. Tasks whose times overlap are laid out side by side, dividing the day's width,
 each taking the leftmost place no overlapping card holds, so no card covers another;
 back-to-back tasks keep the full width. The grid opens at 06:00 and shows the small hours last,
-so midnight is a line inside it rather than its bottom.
+so midnight is a line inside it rather than its bottom. A line in the primary colour (green in the
+light theme, gold in the dark) crosses today's column at the
+current time and moves with it.
+
+**Созвоны** is the same week grid holding the calls alone, in whatever stage, each drawn on every
+day it recurs, counted from its due date — a daily call on all seven days. The occurrences are
+computed in the browser from the due date and the interval, so nothing stores them. A monthly
+call falls on its own day each month, or on the last day of a month too short for it. The card
+on the due day is the task itself and is dragged to move the call; the others open it on click
+and are not dragged, because moving one occurrence would move them all. No call card carries
+**Готово**: a call is not finished, it is deleted or switched off.
 
 Dragging a card into another day gives the task that day and starts it where it is dropped,
 keeping its length; a drop that would carry the end past midnight is pulled back so the task

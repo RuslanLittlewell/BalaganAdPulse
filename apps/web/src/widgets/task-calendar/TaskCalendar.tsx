@@ -14,11 +14,13 @@ import {
   ChevronRight,
   ListChecks,
   Paperclip,
+  Phone,
   Repeat,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
 import {
+  occurrencesBetween,
   participantsOf,
   timeRange,
   useRescheduleTask,
@@ -37,7 +39,7 @@ import { useAuth } from "@/features/auth/index.js";
 import { useCan } from "@/features/permissions/index.js";
 import { TaskDoneCheck, TaskParticipants, useDoneToggle } from "@/features/task-management/index.js";
 import { t } from "@/shared/config/index.js";
-import { cn, useModuleMemory } from "@/shared/lib/index.js";
+import { cn, useModuleMemory, useNow } from "@/shared/lib/index.js";
 import WarmTooltip, { WarmTooltipGroup } from "@/shared/ui/WarmTooltip/WarmTooltip.js";
 import {
   Button,
@@ -97,6 +99,28 @@ const PRIORITY_BAR: Record<Task["priority"], string> = {
   URGENT: "bg-red-500",
 };
 
+function recursOn(task: Task, day: string): boolean {
+  return task.isCall && task.dueDate !== day && occurrencesBetween(task, day, day).length > 0;
+}
+
+function timeOfDay(moment: Date): string {
+  return `${String(moment.getHours()).padStart(2, "0")}:${String(moment.getMinutes()).padStart(2, "0")}`;
+}
+
+function NowLine({ time, hourHeight }: { time: string; hourHeight: number }) {
+  return (
+    <div
+      aria-hidden
+      data-testid="calendar-now"
+      data-now={time}
+      className="pointer-events-none absolute inset-x-0 z-15 border-t-2 border-primary"
+      style={{ top: topOfTime(time, hourHeight) ?? 0 }}
+    >
+      <span className="absolute left-[-5px] top-[-6px] size-2.5 rounded-full bg-primary" />
+    </div>
+  );
+}
+
 export function TaskCalendar({
   tasks,
   isLoading,
@@ -104,7 +128,8 @@ export function TaskCalendar({
   today,
   onOpen,
 }: TaskCalendarProps) {
-  const now = today ?? toIso(new Date());
+  const clock = useNow();
+  const now = today ?? toIso(clock);
   const reschedule = useRescheduleTask();
   const draggable = useCan("update", "task");
   const { data: projects } = useProjects();
@@ -286,7 +311,7 @@ export function TaskCalendar({
             </div>
 
             {days.map((day) => {
-              const dayTasks = tasksOfDay(board, day);
+              const dayTasks = [...tasksOfDay(board, day), ...board.filter((task) => recursOn(task, day))];
               const timed = layoutDay(dayTasks.filter((task) => task.dueTime !== null));
               const untimed = dayTasks.filter((task) => task.dueTime === null);
 
@@ -318,7 +343,7 @@ export function TaskCalendar({
                       <CalendarTaskEvent
                         key={task.id}
                         task={task}
-                        draggable={draggable}
+                        draggable={draggable && task.dueDate === day}
                         floating
                         span={{ start, end, lane, lanes }}
                         hourHeight={hourHeight}
@@ -331,9 +356,10 @@ export function TaskCalendar({
                         people={participantsOf(task, memberById)}
                         onOpen={onOpen}
                         onDrop={rescheduleTask}
-                        onToggleDone={draggable ? toggleTask : undefined}
+                        onToggleDone={draggable && !task.isCall ? toggleTask : undefined}
                       />
                     ))}
+                    {day === now ? <NowLine time={timeOfDay(clock)} hourHeight={hourHeight} /> : null}
                   </div>
 
                   <div className="absolute inset-x-0 top-0 z-10 space-y-1 p-1.5">
@@ -686,6 +712,7 @@ function CalendarTaskEvent({
                 className="size-3"
               />
             )}
+            {task.isCall ? <Phone aria-hidden={false} aria-label={t("tasks.call")} className="size-3" /> : null}
           </span>
           {task.checklist.length > 0 ? (
             <span className="inline-flex items-center gap-1">

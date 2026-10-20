@@ -393,6 +393,7 @@ export const ru = {
   "tasks.form.projectUnchosen": "Не выбран",
   "tasks.editor.attachment": "Вложение",
   "tasks.attachments.remove": "Удалить вложение",
+  "tasks.attachments.attach": "Прикрепить изображение",
   "tasks.attachments.removeFailed": "Не удалось удалить вложение",
   "tasks.form.create": "Создать задачу", "tasks.form.save": "Сохранить",
   "tasks.form.titleRequired": "Введите название", "tasks.form.projectRequired": "Выберите проект",
@@ -429,7 +430,7 @@ export const ru = {
   "tasks.form.previousMonth": "Предыдущий месяц", "tasks.form.nextMonth": "Следующий месяц",
   "tasks.form.start": "Начало", "tasks.form.end": "Окончание",
   "tasks.form.endBeforeStart": "Окончание должно быть позже начала",
-  "tasks.form.repeat": "Повтор",
+  "tasks.form.repeat": "Повтор", "tasks.form.call": "Созвон", "tasks.call": "Созвон",
   "tasks.repeat.NONE": "Не повторяется", "tasks.repeat.DAILY": "Каждый день",
   "tasks.repeat.WEEKLY": "Каждую неделю", "tasks.repeat.BIWEEKLY": "Каждые 2 недели",
   "tasks.repeat.MONTHLY": "Каждый месяц",
@@ -446,7 +447,7 @@ export const ru = {
   "tasks.block.remove.assign": "Убрать назначение",
   "tasks.calendar.previousWeek": "Предыдущая неделя",
   "tasks.calendar.nextWeek": "Следующая неделя", "tasks.calendar.today": "Сегодня", "tasks.calendar.zoomOut": "Уменьшить масштаб", "tasks.calendar.zoomIn": "Увеличить масштаб",
-  "tasks.view.board": "Канбан", "tasks.view.calendar": "Календарь", "tasks.view.label": "Вид",
+  "tasks.view.board": "Канбан", "tasks.view.calendar": "Календарь", "tasks.view.calls": "Созвоны", "tasks.view.label": "Вид",
   "auth.email.invalid": "Введите корректный email", "auth.password.tooShort": "Минимум 8 символов", "auth.name.required": "Введите имя",
 } as const;
 export type MessageKey = keyof typeof ru;

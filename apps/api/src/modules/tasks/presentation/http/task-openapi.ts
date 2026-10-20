@@ -21,6 +21,7 @@ const task = z.object({
   dueTime: z.string().nullable(),
   endTime: z.string().nullable(),
   repeatEvery: z.enum(TASK_REPEATS),
+  isCall: z.boolean(),
   checklist: z.array(z.object({
     id: z.uuid(),
     title: z.string(),

@@ -37,6 +37,7 @@ import {
   TASK_PRIORITIES,
   collectImageIds,
   endsAfterStart,
+  mayBeCall,
   useCreateTask,
   useMoveTask,
   useUpdateTask,
@@ -80,6 +81,7 @@ interface FormValues {
   dueTime: string | null;
   endTime: string | null;
   repeatEvery: TaskRepeat;
+  isCall: boolean;
 }
 
 const NO_PROJECT = "__no_project__";
@@ -222,6 +224,7 @@ export function TaskFormDialog({
       dueTime: task?.dueTime ?? null,
       endTime: task?.endTime ?? null,
       repeatEvery: task?.repeatEvery ?? "NONE",
+      isCall: task?.isCall ?? false,
     },
   });
 
@@ -240,6 +243,7 @@ export function TaskFormDialog({
   const dueTime = watch("dueTime");
   const endTime = watch("endTime");
   const repeatEvery = watch("repeatEvery");
+  const isCall = watch("isCall");
 
   const chosenProject = (projects ?? []).find((project) => project.id === projectId);
   const { data: projectPeople } = useClientMembers(
@@ -290,6 +294,7 @@ export function TaskFormDialog({
       setValue("dueTime", null);
       setValue("endTime", null);
       setValue("repeatEvery", "NONE");
+      setValue("isCall", false);
     }
     if (block === "checklist") checklist.clear();
     if (block === "assign") {
@@ -322,6 +327,7 @@ export function TaskFormDialog({
       dueTime: values.dueDate === null ? null : values.dueTime,
       endTime: values.dueDate === null || values.dueTime === null ? null : values.endTime,
       repeatEvery: values.dueDate === null ? "NONE" : values.repeatEvery,
+      isCall: values.dueDate !== null && values.isCall && mayBeCall(values),
       checklist: checklist.items.map((item) => ({
         title: item.title,
         done: item.done,
@@ -496,6 +502,7 @@ export function TaskFormDialog({
                 <TaskAttachments
                   imageIds={attachmentIds}
                   onRemoved={(imageId) => editor.current?.removeImage(imageId)}
+                  onAttach={(imageId) => editor.current?.appendImage(imageId)}
                 />
               </div>
 
@@ -536,6 +543,7 @@ export function TaskFormDialog({
                           dueTime={dueTime}
                           endTime={endTime}
                           repeatEvery={repeatEvery}
+                          isCall={isCall}
                           today={toIso(new Date())}
                           onDueDateChange={(value) => {
                             setValue("dueDate", value);
@@ -543,6 +551,7 @@ export function TaskFormDialog({
                             setValue("dueTime", null);
                             setValue("endTime", null);
                             setValue("repeatEvery", "NONE");
+                            setValue("isCall", false);
                           }}
                           onDueTimeChange={(value) =>
                             setValue("dueTime", value)
@@ -555,6 +564,7 @@ export function TaskFormDialog({
                           onRepeatChange={(value) =>
                             setValue("repeatEvery", value)
                           }
+                          onCallChange={(value) => setValue("isCall", value)}
                         />
                       ) : null}
 

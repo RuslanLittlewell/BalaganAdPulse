@@ -67,6 +67,7 @@ export interface TaskSchedule {
   readonly dueTime: string | null;
   readonly endTime: string | null;
   readonly repeatEvery: TaskRepeat;
+  readonly isCall: boolean;
 }
 
 export interface ScheduleChange {
@@ -74,6 +75,7 @@ export interface ScheduleChange {
   readonly dueTime?: string | null;
   readonly endTime?: string | null;
   readonly repeatEvery?: TaskRepeat;
+  readonly isCall?: boolean;
 }
 
 export const UNSCHEDULED: TaskSchedule = {
@@ -81,7 +83,12 @@ export const UNSCHEDULED: TaskSchedule = {
   dueTime: null,
   endTime: null,
   repeatEvery: DEFAULT_TASK_REPEAT,
+  isCall: false,
 };
+
+export function mayBeCall(schedule: Pick<TaskSchedule, "dueTime" | "repeatEvery">): boolean {
+  return schedule.dueTime !== null && schedule.repeatEvery !== "NONE";
+}
 
 function endAfter(current: TaskSchedule, change: ScheduleChange, dueTime: string | null): string | null {
   if (change.endTime !== undefined) return change.endTime;
@@ -95,10 +102,12 @@ export function rescheduled(current: TaskSchedule, change: ScheduleChange): Task
   const dueTime = change.dueDate === null
     ? null
     : change.dueTime === undefined ? current.dueTime : change.dueTime;
+  const repeatEvery = change.repeatEvery ?? current.repeatEvery;
   return {
     dueDate,
     dueTime,
     endTime: endAfter(current, change, dueTime),
-    repeatEvery: change.repeatEvery ?? current.repeatEvery,
+    repeatEvery,
+    isCall: change.isCall ?? (current.isCall && mayBeCall({ dueTime, repeatEvery })),
   };
 }

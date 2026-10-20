@@ -34,7 +34,7 @@ function toDomain(row: RowWithImages): TaskRecord {
     visibleToClient: row.visibleToClient,
     position: row.position,
     dueDate: row.dueDate === null ? null : dateToDay(row.dueDate),
-    dueTime: row.dueTime, endTime: row.endTime, repeatEvery: row.repeatEvery,
+    dueTime: row.dueTime, endTime: row.endTime, repeatEvery: row.repeatEvery, isCall: row.isCall,
     checklist: row.checklist ?? [],
     imageIds: (row.images ?? []).map((image) => image.id),
     createdAt: row.createdAt, updatedAt: row.updatedAt,
@@ -170,6 +170,7 @@ export class PrismaTaskRepository implements TaskRepository {
         ...(input.dueTime === undefined ? {} : { dueTime: input.dueTime }),
         ...(input.endTime === undefined ? {} : { endTime: input.endTime }),
         ...(input.repeatEvery === undefined ? {} : { repeatEvery: input.repeatEvery }),
+        ...(input.isCall === undefined ? {} : { isCall: input.isCall }),
         ...(input.description === undefined
           ? {}
           : { description: input.description === null

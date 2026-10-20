@@ -1,6 +1,8 @@
 import type { Role } from "@adpulse/access-policy";
 
-export type AuditAction = "CREATE" | "UPDATE" | "DELETE";
+export const AUDIT_ACTIONS = ["CREATE", "UPDATE", "DELETE", "ONLINE", "OFFLINE"] as const;
+
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
 export type JsonValue =
   | string
@@ -27,6 +29,7 @@ export interface StoredAuditEvent {
   readonly requestId: string | null;
   readonly ip: string | null;
   readonly userAgent: string | null;
+  readonly createdAt?: Date;
 }
 
 export type AuditScope =

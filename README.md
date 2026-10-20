@@ -545,8 +545,17 @@ text and the names of the member's projects and colleagues are sent to Groq.
 
 Business mutations append an `AuditEvent` in the same database transaction as the
 change. Events retain the actor's name, email and role as they were at write time and are
-read through a scoped, cursor-paginated endpoint. The web app opens that history for the
-organization, a project or a campaign row.
+read through a scoped, cursor-paginated endpoint. Members coming online and going offline are
+recorded too, as `ONLINE` and `OFFLINE` events with the member as entity: online at their first
+request after being away, offline when they sign out, or dated at their last request when five
+minutes pass without another. They concern no client or project, so only admins read them.
+
+The history window in the app header has two tabs. **Проекты** lists the events tied to a
+project (`GET /api/audit?inProject=true`) with a select of the viewer's projects;
+**Сотрудники** lists everything the viewer may read with a select of the people in it
+(`GET /api/audit/actors`), coming online and going offline among their actions. The list is a
+timeline by day with an action colour per event; the window reads the API's English summaries
+into Russian (`describeAuditEvent`) and shows any it does not know as recorded.
 
 ## API
 

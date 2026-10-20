@@ -4,6 +4,7 @@ import { createApp } from "../../src/composition/app.js";
 import { prisma } from "../../src/shared/infrastructure/prisma.js";
 import { resetDb, seedCampaign, seedProject } from "../helpers/db.js";
 import { currentOrg, grantAccess, signInAs, signInAsOutsider } from "../helpers/auth.js";
+import { BUSINESS_EVENTS } from "../helpers/audit.js";
 
 const app = createApp();
 let admin: { Authorization: string };
@@ -218,7 +219,7 @@ describe("auditing KPI changes", () => {
     await request(app).delete(campaignKpi()).set(admin);
     await request(app).put(organizationKpi).set(admin).send({ metric: "SPEND", target: "5000" });
 
-    const events = await prisma.auditEvent.findMany({ orderBy: { createdAt: "asc" } });
+    const events = await prisma.auditEvent.findMany({ where: BUSINESS_EVENTS, orderBy: { createdAt: "asc" } });
     expect(events.map((event) => [event.entityType, event.action, event.changes])).toEqual([
       ["campaign", "UPDATE", { before: null, after: { metric: "CPA", target: "20.0000" } }],
       ["campaign", "UPDATE", { before: { metric: "CPA", target: "20.0000" }, after: { metric: "CPA", target: "15.0000" } }],
@@ -232,7 +233,7 @@ describe("auditing KPI changes", () => {
     await request(app).put(projectKpi()).set(admin).send({ metric: "MANUAL", name: "Продажи", value: "30", target: "50" });
     await request(app).put(projectKpi()).set(admin).send({ metric: "MANUAL", name: "Продажи", value: "45", target: "50" });
 
-    const events = await prisma.auditEvent.findMany({ orderBy: { createdAt: "asc" } });
+    const events = await prisma.auditEvent.findMany({ where: BUSINESS_EVENTS, orderBy: { createdAt: "asc" } });
     expect(events.map((event) => event.changes)).toEqual([
       { before: null, after: { metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000" } },
       {
@@ -245,6 +246,6 @@ describe("auditing KPI changes", () => {
   it("records nothing for a refused change", async () => {
     await request(app).put(projectKpi()).set(admin).send({ metric: "LIKES", target: "1" });
 
-    expect(await prisma.auditEvent.count()).toBe(0);
+    expect(await prisma.auditEvent.count({ where: BUSINESS_EVENTS })).toBe(0);
   });
 });

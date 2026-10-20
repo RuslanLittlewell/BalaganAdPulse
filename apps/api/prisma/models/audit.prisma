@@ -2,6 +2,8 @@ enum AuditAction {
   CREATE
   UPDATE
   DELETE
+  ONLINE
+  OFFLINE
 
   @@map("audit_action")
 }

@@ -1,94 +1,116 @@
-import { formatDistanceToNow } from "date-fns";
-import { ru } from "date-fns/locale";
-import {
-  useAuditEvents,
-  type AuditAction,
-  type AuditEventFilters,
-} from "@/entities/audit-event/index.js";
+import { useMemo, useState } from "react";
+import { useAuditActors, type AuditEventFilters } from "@/entities/audit-event/index.js";
+import { useProjects } from "@/entities/project/index.js";
 import { t } from "@/shared/config/index.js";
 import {
-  Button,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  Loader,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Tabs,
 } from "@/shared/ui/index.js";
+import { ActivityList } from "./ActivityList.js";
 
 export interface ActivityLogModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  filters?: AuditEventFilters;
 }
 
-const actionLabels: Record<AuditAction, string> = {
-  CREATE: t("activity.action.CREATE"),
-  UPDATE: t("activity.action.UPDATE"),
-  DELETE: t("activity.action.DELETE"),
-};
+type Section = "projects" | "people";
 
-function displayValue(value: unknown) {
-  if (value === null || value === undefined || value === "") return "—";
-  if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
+const ALL = "all";
+
+const SECTIONS = [
+  { id: "projects", label: t("activity.tab.projects") },
+  { id: "people", label: t("activity.tab.people") },
+];
+
+interface Option {
+  id: string;
+  name: string;
 }
 
-function ActivityList({ filters }: { filters: AuditEventFilters }) {
-  const query = useAuditEvents(filters);
-  const events = query.data?.pages.flatMap((page) => page.items) ?? [];
+function FilterSelect({ label, allLabel, options, value, onChange }: {
+  label: string;
+  allLabel: string;
+  options: readonly Option[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger aria-label={label} className="w-full sm:w-64"><SelectValue /></SelectTrigger>
+      <SelectContent>
+        <SelectItem value={ALL}>{allLabel}</SelectItem>
+        {options.map((option) => (
+          <SelectItem key={option.id} value={option.id}>{option.name}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
-  if (query.isPending) return <div className="grid place-items-center py-12"><Loader /></div>;
-  if (query.isError) return <p className="py-8 text-center text-sm text-destructive">{t("activity.loadFailed")}</p>;
-  if (events.length === 0) return <p className="py-8 text-center text-sm text-muted-foreground">{t("activity.empty")}</p>;
+const byName = (left: Option, right: Option) => left.name.localeCompare(right.name, "ru");
+
+function ActivitySections() {
+  const [section, setSection] = useState<Section>("projects");
+  const [projectId, setProjectId] = useState(ALL);
+  const [actorId, setActorId] = useState(ALL);
+  const projects = useProjects();
+  const actors = useAuditActors();
+
+  const projectOptions = useMemo(() => [...(projects.data ?? [])].sort(byName), [projects.data]);
+  const projectNames = useMemo(
+    () => new Map((projects.data ?? []).map((project) => [project.id, project.name])),
+    [projects.data],
+  );
+  const filters: AuditEventFilters = section === "projects"
+    ? (projectId === ALL ? { inProject: true } : { projectId })
+    : (actorId === ALL ? {} : { actorId });
 
   return (
-    <div className="flex max-h-[65vh] flex-col gap-3 overflow-y-auto pr-1">
-      {events.map((event) => (
-        <article key={event.id} className="rounded-lg border p-4">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">{event.actorName}</span>
-                <span className="rounded bg-muted px-2 py-0.5 text-xs">{actionLabels[event.action]}</span>
-              </div>
-              <p className="mt-1 text-sm">{event.summary}</p>
-            </div>
-            <time className="text-xs text-muted-foreground" dateTime={event.createdAt}>
-              {formatDistanceToNow(new Date(event.createdAt), { addSuffix: true, locale: ru })}
-            </time>
-          </div>
-          {event.changes && event.changes.length > 0 && (
-            <ul className="mt-3 space-y-1 border-t pt-3 text-sm text-muted-foreground">
-              {event.changes.map((change, index) => (
-                <li key={`${change.field}-${index}`}>
-                  <span className="font-medium text-foreground">{change.field}:</span>{" "}
-                  {displayValue(change.before)} → {displayValue(change.after)}
-                </li>
-              ))}
-            </ul>
-          )}
-        </article>
-      ))}
-      {query.hasNextPage && (
-        <Button
-          type="button"
-          variant="outline"
-          disabled={query.isFetchingNextPage}
-          onClick={() => void query.fetchNextPage()}
-        >
-          {query.isFetchingNextPage ? t("state.loading") : t("activity.more")}
-        </Button>
-      )}
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
+      <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Tabs
+          items={SECTIONS}
+          activeId={section}
+          onSelect={(id) => setSection(id as Section)}
+          ariaLabel={t("activity.tabs")}
+        />
+        {section === "projects" ? (
+          <FilterSelect
+            label={t("activity.filter.project")}
+            allLabel={t("activity.allProjects")}
+            options={projectOptions}
+            value={projectId}
+            onChange={setProjectId}
+          />
+        ) : (
+          <FilterSelect
+            label={t("activity.filter.person")}
+            allLabel={t("activity.allPeople")}
+            options={actors.data ?? []}
+            value={actorId}
+            onChange={setActorId}
+          />
+        )}
+      </div>
+      <ActivityList filters={filters} projectNames={projectNames} />
     </div>
   );
 }
 
-export function ActivityLogModal({ open, onOpenChange, filters = {} }: ActivityLogModalProps) {
+export function ActivityLogModal({ open, onOpenChange }: ActivityLogModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(720px,calc(100vw-2rem))] max-w-none">
+      <DialogContent className="flex h-[min(44rem,calc(90vh-2rem))] w-[min(720px,calc(100vw-2rem))] max-w-none flex-col overflow-hidden">
         <DialogHeader><DialogTitle>{t("activity.title")}</DialogTitle></DialogHeader>
-        {open && <ActivityList filters={filters} />}
+        {open && <ActivitySections />}
       </DialogContent>
     </Dialog>
   );

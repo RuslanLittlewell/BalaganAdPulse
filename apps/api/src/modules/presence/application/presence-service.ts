@@ -1,4 +1,4 @@
-import type { ActorContext } from "#shared/application/index.js";
+import type { ActorContext, Clock } from "#shared/application/index.js";
 import type { PresencePerson } from "../domain/presence.js";
 import type { PresenceRegistry } from "./presence-registry.js";
 
@@ -12,14 +12,15 @@ export interface PresenceProfiles {
 }
 
 export interface PresenceAnnouncements {
-  joined(person: PresencePerson): void;
-  left(person: PresencePerson): void;
+  joined(person: PresencePerson, at: Date): void;
+  left(person: PresencePerson, at: Date): void;
 }
 
 export interface PresenceServiceDependencies {
   readonly registry: PresenceRegistry;
   readonly profiles: PresenceProfiles;
   readonly announce: PresenceAnnouncements;
+  readonly clock: Clock;
 }
 
 export interface PresenceService {
@@ -31,7 +32,7 @@ export interface PresenceService {
 export function createPresenceService(
   dependencies: PresenceServiceDependencies,
 ): PresenceService {
-  const { registry, profiles, announce } = dependencies;
+  const { registry, profiles, announce, clock } = dependencies;
   const arriving = new Set<string>();
 
   return {
@@ -53,7 +54,7 @@ export function createPresenceService(
             clientIds,
           };
           registry.join(person);
-          announce.joined(person);
+          announce.joined(person, clock.now());
         })
         .catch(() => {})
         .finally(() => { arriving.delete(actor.userId); });
@@ -61,11 +62,11 @@ export function createPresenceService(
 
     leave(userId) {
       const person = registry.leave(userId);
-      if (person) announce.left(person);
+      if (person) announce.left(person, clock.now());
     },
 
     sweep() {
-      for (const person of registry.sweep()) announce.left(person);
+      for (const { person, lastSeenAt } of registry.sweep()) announce.left(person, lastSeenAt);
     },
   };
 }

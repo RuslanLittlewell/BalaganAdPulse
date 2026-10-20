@@ -3,7 +3,13 @@ import type { AuditEvent, PrismaClient } from "@prisma/client";
 import type { ActorContext, TransactionContext } from "#shared/application/index.js";
 import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
 import type { AuditScope, StoredAuditEvent } from "../domain/audit-event.js";
-import type { ActorSnapshots, AuditQuery, AuditReach, AuditRepository } from "../application/ports.js";
+import type {
+  ActorSnapshots,
+  AuditActor,
+  AuditQuery,
+  AuditReach,
+  AuditRepository,
+} from "../application/ports.js";
 
 const CRM_ENTITY_TYPES = ['lead', 'lead-column'];
 
@@ -40,7 +46,7 @@ export class PrismaAuditRepository implements AuditRepository<AuditEvent> {
   async list(query: AuditQuery) {
     const filters: Prisma.AuditEventWhereInput = {
       clientId: query.filters.clientId,
-      projectId: query.filters.projectId,
+      projectId: query.filters.projectId ?? (query.filters.inProject ? { not: null } : undefined),
       campaignId: query.filters.campaignId,
       entityType: query.filters.entityType,
       entityId: query.filters.entityId,
@@ -59,6 +65,20 @@ export class PrismaAuditRepository implements AuditRepository<AuditEvent> {
     const hasMore = rows.length > query.limit;
     const items = hasMore ? rows.slice(0, query.limit) : rows;
     return { items, nextCursor: hasMore ? items.at(-1)!.id : null };
+  }
+
+  async actors(scope: AuditScope): Promise<AuditActor[]> {
+    const groups = await this.prisma.auditEvent.groupBy({
+      by: ["actorId"],
+      where: { AND: [scopeToWhere(scope), { actorId: { not: null } }] },
+    });
+    const ids = groups.flatMap((group) => (group.actorId ? [group.actorId] : []));
+    if (ids.length === 0) return [];
+    const members = await this.prisma.membership.findMany({
+      where: { id: { in: ids }, orgId: scope.orgId },
+      select: { id: true, user: { select: { name: true } } },
+    });
+    return members.map((member) => ({ id: member.id, name: member.user.name }));
   }
 }
 

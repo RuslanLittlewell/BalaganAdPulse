@@ -63,8 +63,8 @@ describe("the presence registry", () => {
     expect(presence.list()).toEqual([]);
   });
 
-  it("names who left when it sweeps, and only once", () => {
-    const { presence, pass } = registry();
+  it("names who left when it sweeps, with when they were last seen, and only once", () => {
+    const { presence, pass } = registry(1_000_000);
     presence.join(person("u1"));
     presence.join(person("u2"));
 
@@ -72,7 +72,8 @@ describe("the presence registry", () => {
     presence.seen("u2");
     pass(2_000);
 
-    expect(presence.sweep().map((who) => who.userId)).toEqual(["u1"]);
+    expect(presence.sweep().map(({ person: who, lastSeenAt }) => [who.userId, lastSeenAt.getTime()]))
+      .toEqual([["u1", 1_000_000]]);
     expect(presence.sweep()).toEqual([]);
     expect(presence.list().map((who) => who.userId)).toEqual(["u2"]);
   });

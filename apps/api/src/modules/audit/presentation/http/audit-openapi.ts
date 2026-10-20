@@ -7,6 +7,7 @@ import {
   type JsonSchema,
   type RouteDoc,
 } from "#shared/presentation/openapi.js";
+import { AUDIT_ACTIONS } from "#modules/audit/domain/audit-event.js";
 import { auditQuerySchema } from "./audit-http.js";
 
 const auditEvent = z.object({
@@ -16,7 +17,7 @@ const auditEvent = z.object({
   actorName: z.string(),
   actorEmail: z.email(),
   actorRole: z.enum(ROLES),
-  action: z.enum(["CREATE", "UPDATE", "DELETE"]),
+  action: z.enum(AUDIT_ACTIONS),
   entityType: z.string(),
   entityId: z.string(),
   clientId: z.uuid().nullable(),
@@ -43,7 +44,7 @@ const auditPage: JsonSchema = {
 
 export const auditDoc: RouteDoc = {
   tag: "Audit",
-  tagDescription: "What changed, who changed it, and when",
+  tagDescription: "What changed, who changed it, and when, and when members came online and went offline",
   operations: [
     {
       method: "get",
@@ -53,6 +54,18 @@ export const auditDoc: RouteDoc = {
       query: auditQuerySchema,
       success: { status: 200, description: "A page of events", schema: auditPage },
       errors: [400, 401],
+    },
+    {
+      method: "get",
+      path: "/actors",
+      summary: "List the people who appear in the events the caller may read",
+      description: "Each member who is the actor of at least one reachable event, with their current name, ordered by name.",
+      success: {
+        status: 200,
+        description: "The actors",
+        schema: z.array(z.object({ id: z.uuid(), name: z.string() })),
+      },
+      errors: [401],
     },
   ],
 };

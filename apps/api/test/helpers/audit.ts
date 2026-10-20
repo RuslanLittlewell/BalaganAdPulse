@@ -2,6 +2,8 @@ import type { AuditAction } from "@prisma/client";
 import { expect } from "vitest";
 import { prisma } from "../../src/shared/infrastructure/prisma.js";
 
+export const BUSINESS_EVENTS = { action: { notIn: ["ONLINE", "OFFLINE"] as AuditAction[] } };
+
 interface ExpectedAudit {
   action: AuditAction;
   entityType: string;

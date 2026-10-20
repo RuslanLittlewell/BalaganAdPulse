@@ -1,7 +1,9 @@
 import type { Role } from "@adpulse/access-policy";
 import { http } from "@/shared/lib/index.js";
 
-export type AuditAction = "CREATE" | "UPDATE" | "DELETE";
+export type AuditAction = "CREATE" | "UPDATE" | "DELETE" | "ONLINE" | "OFFLINE";
+
+export const PRESENCE_ACTIONS: readonly AuditAction[] = ["ONLINE", "OFFLINE"];
 
 export interface AuditChange {
   field: string;
@@ -37,9 +39,15 @@ export interface AuditEventFilters {
   entityType?: string;
   entityId?: string;
   actorId?: string;
+  inProject?: boolean;
   from?: string;
   to?: string;
   limit?: number;
+}
+
+export interface AuditActor {
+  id: string;
+  name: string;
 }
 
 export interface AuditEventPage {
@@ -56,4 +64,5 @@ export const auditEventsApi = {
     const query = params.toString();
     return http.get<AuditEventPage>(`/audit${query ? `?${query}` : ""}`);
   },
+  actors: () => http.get<AuditActor[]>("/audit/actors"),
 };

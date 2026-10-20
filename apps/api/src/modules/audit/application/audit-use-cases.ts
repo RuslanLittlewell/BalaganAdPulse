@@ -1,6 +1,6 @@
 import type { ActorContext, TransactionContext } from "#shared/application/index.js";
 import type { AuditEventInput, AuditWriter } from "./audit-writer.js";
-import type { AuditDependencies, AuditFilters, AuditPage } from "./ports.js";
+import type { AuditActor, AuditDependencies, AuditFilters, AuditPage } from "./ports.js";
 
 export function createAuditWriter(dependencies: AuditDependencies): AuditWriter {
   return {
@@ -29,6 +29,7 @@ export function createAuditWriter(dependencies: AuditDependencies): AuditWriter 
         requestId: request?.requestId ?? null,
         ip: request?.ip ?? null,
         userAgent: request?.userAgent ?? null,
+        ...(event.occurredAt ? { createdAt: event.occurredAt } : {}),
       });
     },
   };
@@ -49,6 +50,11 @@ export function createAuditReader<TEvent>(dependencies: AuditDependencies<TEvent
         limit,
         cursor,
       });
+    },
+
+    actors: async (actor: ActorContext): Promise<AuditActor[]> => {
+      const actors = await dependencies.events.actors(await dependencies.reach.scopeFor(actor));
+      return [...actors].sort((left, right) => left.name.localeCompare(right.name, "ru"));
     },
   };
 }

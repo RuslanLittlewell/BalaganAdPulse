@@ -120,6 +120,11 @@
   --kpi-marker-behind: #f59e0b;
   --kpi-marker-met: #16a34a;
   --kpi-marker-none: #cbd5e1;
+  --activity-create: #16a34a;
+  --activity-update: #2563eb;
+  --activity-delete: #dc2626;
+  --activity-online: #0d9488;
+  --activity-offline: #94a3b8;
 
   --color-avatar-1: #e8703a;
   --color-avatar-2: #4a8fe7;
@@ -191,6 +196,11 @@
   --kpi-marker-behind: #fbbf24;
   --kpi-marker-met: #6ec48f;
   --kpi-marker-none: #64748b;
+  --activity-create: #6ec48f;
+  --activity-update: #7aa7e8;
+  --activity-delete: #e07a62;
+  --activity-online: #5fc4b8;
+  --activity-offline: #7c879a;
 
   /* Client swatches, pulled into the palette's temperature. All five are light
      enough to carry the ground colour as ink, and far enough apart in hue that

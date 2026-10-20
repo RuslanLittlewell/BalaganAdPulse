@@ -13,6 +13,7 @@ export interface AuditEventInput {
   readonly campaignId?: string | null;
   readonly summary: string;
   readonly changes?: JsonValue;
+  readonly occurredAt?: Date;
 }
 
 export interface AuditWriter {

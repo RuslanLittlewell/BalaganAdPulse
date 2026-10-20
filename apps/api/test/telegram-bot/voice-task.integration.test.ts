@@ -86,7 +86,8 @@ describe("a voice message made into a task", () => {
       description: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Сверить цифры" }] }] },
     });
     expect(task.dueDate?.toISOString().slice(0, 10)).toBe("2026-10-23");
-    expect(task.participants.map((participant) => participant.membershipId)).toEqual([boris.membership!.id]);
+    expect(task.participants.map((participant) => participant.membershipId).sort())
+      .toEqual([anna.membership!.id, boris.membership!.id].sort());
     expect(task.checklist.map((item) => item.title)).toEqual(["Собрать данные"]);
     expect(await prisma.auditEvent.findFirst({ where: { entityId: task.id, action: "CREATE" } }))
       .toMatchObject({ actorId: anna.membership!.id, actorName: "Анна" });

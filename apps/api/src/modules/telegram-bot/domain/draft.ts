@@ -89,10 +89,11 @@ function priorityOf(value: string): TaskPriority {
 
 export function draftFrom(read: ReadTask, catalog: KeyedCatalog, text: string): TaskDraft {
   const project = catalog.projects.find((candidate) => candidate.key === cleaned(read.projectKey));
-  const participants = distinct(read.participantKeys)
+  const speaker = catalog.members.filter((member) => member.speaker);
+  const named = distinct(read.participantKeys)
     .map((key) => catalog.members.find((member) => member.key === key))
-    .filter((member): member is KeyedMember => member !== undefined)
-    .map(({ id, name }) => ({ id, name }));
+    .filter((member): member is KeyedMember => member !== undefined && !member.speaker);
+  const participants = [...speaker, ...named].map(({ id, name }) => ({ id, name }));
   const dueDate = isCalendarDay(cleaned(read.dueDate)) ? cleaned(read.dueDate) : null;
   const dueTime = dueDate !== null && isTimeOfDay(cleaned(read.dueTime)) ? cleaned(read.dueTime) : null;
   return {

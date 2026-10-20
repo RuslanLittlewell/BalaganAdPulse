@@ -22,3 +22,8 @@
 - [x] 4.1 Add `GROQ_BASE_URL` (https only) to the config, compose and `.env.example`, and pass it to both Groq clients
 - [x] 4.2 Give the model the next 15 days with their weekdays and the rule for names in any case; capitalise the title
 - [x] 4.3 Cover it: the relay address and its validation, the calendar in the prompt, the calendar across a month's end, the capital letter; describe the relay in README.md; `npm test` green
+
+## 5. The sender takes part
+
+- [x] 5.1 Put the speaker first among the draft's participants and add the member's membership on creating; tell the model the speaker always takes part
+- [x] 5.2 Cover it: the speaker in a draft naming nobody, first and once; created with the sender among the participants whatever the draft holds, not notified; `npm test` green

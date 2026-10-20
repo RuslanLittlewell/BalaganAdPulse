@@ -110,6 +110,13 @@ The prompt now carries the next 15 days with their weekdays, so «к пятни�
 than computed, and says that a person may be named in any case or by a short form. The title is
 capitalised after reading.
 
+### The sender takes part
+
+Whoever dictates a task is on it: `draftFrom` puts the speaker first among the participants, so
+the draft shows it, and creating adds their membership again, so it holds for any draft. The
+model is told it may leave the speaker out. Notifications already skip the actor, so the sender
+is not told they were named.
+
 ### Copy
 
 The bot's texts are Russian, written in `presentation/telegram/bot-copy.ts`. They are read in

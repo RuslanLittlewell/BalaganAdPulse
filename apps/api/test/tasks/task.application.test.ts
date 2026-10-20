@@ -13,7 +13,7 @@ const task = (partial: Partial<TaskRecord> = {}): TaskRecord => ({
   id: "t1", projectId: "p1", orgId: "org1", title: "Write the brief", description: null,
   column: "IDEA", priority: "MEDIUM", createdById: "m1",
   participantIds: [], visibleToClient: false, position: 0,
-  dueDate: null, dueTime: null, endTime: null, repeatEvery: "NONE", checklist: [], imageIds: [],
+  dueDate: null, dueTime: null, endTime: null, repeatEvery: "NONE", isCall: false, checklist: [], imageIds: [],
   createdAt: new Date("2026-09-01T00:00:00.000Z"), updatedAt: new Date("2026-09-01T00:00:00.000Z"),
   ...partial,
 });

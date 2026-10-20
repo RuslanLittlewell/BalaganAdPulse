@@ -56,7 +56,11 @@ export {
   endKeepingLength,
   endShownAs,
   endsAfterStart,
+  mayBeCall,
   minutesOfTime,
   nextOccurrence,
+  occurrencesBetween,
   timeRange,
 } from "./lib/schedule.js";
+export { MAX_TASK_IMAGE_BYTES, TASK_IMAGE_TYPES, imageRefusal } from "./lib/images.js";
+export type { ImageRefusal } from "./lib/images.js";

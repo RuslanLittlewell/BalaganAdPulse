@@ -22,7 +22,7 @@ import {
 import { MemberAvatar, useMembers } from "@/entities/membership/index.js";
 import { ProjectAvatar, useProjects } from "@/entities/project/index.js";
 
-const VIEWS = ["board", "calendar"] as const;
+const VIEWS = ["board", "calendar", "calls"] as const;
 
 const EMPTY: string[] = [];
 
@@ -62,6 +62,8 @@ export function TasksPage() {
     () => tasksOfProjects(tasksOfParticipants(tasks ?? [], chosenPeople), chosenProjects),
     [tasks, chosenPeople, chosenProjects],
   );
+  const work = useMemo(() => shown.filter((task) => !task.isCall), [shown]);
+  const calls = useMemo(() => shown.filter((task) => task.isCall), [shown]);
 
   const open = (task: Task) => setOpened({ mode: "open", task });
 
@@ -117,6 +119,7 @@ export function TasksPage() {
           items={[
             { id: "board", label: t("tasks.view.board") },
             { id: "calendar", label: t("tasks.view.calendar") },
+            { id: "calls", label: t("tasks.view.calls") },
           ]}
           activeId={view}
           onSelect={(id) => {
@@ -140,7 +143,7 @@ export function TasksPage() {
         <FadeContent key={view} className="h-full">
           {view === "board" ? (
             <TaskBoard
-              tasks={shown}
+              tasks={work}
               isLoading={isLoading}
               isError={isError}
               onOpen={open}
@@ -148,7 +151,7 @@ export function TasksPage() {
             />
           ) : (
             <TaskCalendar
-              tasks={shown}
+              tasks={view === "calls" ? calls : work}
               isLoading={isLoading}
               isError={isError}
               onOpen={open}

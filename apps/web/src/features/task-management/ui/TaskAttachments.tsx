@@ -1,17 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { X } from "lucide-react";
-import { TASKS_KEY, taskImagesApi } from "@/entities/task/index.js";
+import { Paperclip, X } from "lucide-react";
+import { TASKS_KEY, TASK_IMAGE_TYPES, imageRefusal, taskImagesApi } from "@/entities/task/index.js";
 import { t } from "@/shared/config/index.js";
 import { cn } from "@/shared/lib/index.js";
+import { Button } from "@/shared/ui/index.js";
 import { TaskImagePreview } from "./TaskImagePreview.js";
 
 export interface TaskAttachmentsProps {
   imageIds: readonly string[];
   onRemoved?: (imageId: string) => void;
+  onAttach?: (imageId: string) => void;
 }
 
-export function TaskAttachments({ imageIds, onRemoved }: TaskAttachmentsProps) {
+export function TaskAttachments({ imageIds, onRemoved, onAttach }: TaskAttachmentsProps) {
   const queryClient = useQueryClient();
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [previewing, setPreviewing] = useState<{
@@ -20,6 +22,8 @@ export function TaskAttachments({ imageIds, onRemoved }: TaskAttachmentsProps) {
   } | null>(null);
   const [removed, setRemoved] = useState<string[]>([]);
   const [failure, setFailure] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const picker = useRef<HTMLInputElement>(null);
 
   const visible = imageIds.filter((id) => !removed.includes(id));
 
@@ -60,12 +64,67 @@ export function TaskAttachments({ imageIds, onRemoved }: TaskAttachmentsProps) {
     }
   }
 
+  async function attach(files: readonly File[]) {
+    if (!onAttach) return;
+    setFailure(null);
+    setUploading(true);
+    for (const file of files) {
+      const refusal = imageRefusal(file);
+      if (refusal) {
+        setFailure(t(`tasks.editor.${refusal}`));
+        continue;
+      }
+      try {
+        onAttach((await taskImagesApi.upload(file)).id);
+      } catch {
+        setFailure(t("tasks.editor.uploadFailed"));
+      }
+    }
+    setUploading(false);
+  }
+
   return (
     <section className="flex flex-col gap-2" data-testid="task-attachments">
-      <h3 className="text-sm font-medium">
-        {t("tasks.attachments")}
-        {visible.length > 0 ? ` (${visible.length})` : ""}
-      </h3>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-medium">
+          {t("tasks.attachments")}
+          {visible.length > 0 ? ` (${visible.length})` : ""}
+        </h3>
+        {onAttach ? (
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7 shrink-0"
+              aria-label={t("tasks.attachments.attach")}
+              disabled={uploading}
+              onClick={() => picker.current?.click()}
+            >
+              <Paperclip />
+            </Button>
+            <input
+              ref={picker}
+              type="file"
+              accept={TASK_IMAGE_TYPES.join(",")}
+              multiple
+              hidden
+              data-testid="task-attachments-picker"
+              onChange={(event) => {
+                const files = [...(event.target.files ?? [])];
+                event.target.value = "";
+                void attach(files);
+              }}
+            />
+          </>
+        ) : null}
+      </div>
+
+      {uploading ? (
+        <p role="status" className="text-xs text-muted-foreground">
+          {t("tasks.editor.uploading")}
+        </p>
+      ) : null}
 
       {visible.length === 0 ? (
         <p className="text-xs text-muted-foreground">

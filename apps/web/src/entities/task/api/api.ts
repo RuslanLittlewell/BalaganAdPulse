@@ -50,6 +50,7 @@ export interface Task {
   dueTime: string | null;
   endTime: string | null;
   repeatEvery: TaskRepeat;
+  isCall: boolean;
   checklist: ChecklistItem[];
   imageIds: string[];
   createdAt: string;
@@ -68,6 +69,7 @@ export interface TaskInput {
   dueTime?: string | null;
   endTime?: string | null;
   repeatEvery?: TaskRepeat;
+  isCall?: boolean;
   checklist?: { title: string; done: boolean }[];
 }
 

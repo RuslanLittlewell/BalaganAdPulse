@@ -1,7 +1,7 @@
 import type React from "react";
 import type { CSSProperties, Ref } from "react";
 import type { DraggableAttributes, DraggableSyntheticListeners } from "@dnd-kit/core";
-import { CalendarClock, GripVertical, ListChecks, Paperclip, Repeat } from "lucide-react";
+import { CalendarClock, GripVertical, ListChecks, Paperclip, Phone, Repeat } from "lucide-react";
 import { timeRange, type Task } from "@/entities/task/index.js";
 import type { Membership } from "@/entities/membership/index.js";
 import { ProjectAvatar, type Project } from "@/entities/project/index.js";
@@ -151,6 +151,7 @@ export function TaskCardView({
               {task.repeatEvery === "NONE" ? null : (
                 <Repeat aria-hidden={false} aria-label={t("tasks.repeats")} className="size-3" />
               )}
+              {task.isCall ? <Phone aria-hidden={false} aria-label={t("tasks.call")} className="size-3" /> : null}
             </span>
           ) : null}
 

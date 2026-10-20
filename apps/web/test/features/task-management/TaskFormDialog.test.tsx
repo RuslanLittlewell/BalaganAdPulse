@@ -120,7 +120,7 @@ describe("TaskFormDialog", () => {
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "Написать бриф",
           description, column: "IDEA", priority: "HIGH", participantIds: ["member-1"],
-          createdById: "member-1", visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, repeatEvery: "NONE", checklist: [], imageIds: ["image-1", "image-2"],
+          createdById: "member-1", visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, repeatEvery: "NONE", isCall: false, checklist: [], imageIds: ["image-1", "image-2"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -148,7 +148,7 @@ describe("TaskFormDialog", () => {
       <TaskFormDialog
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлами",
-          description: null, column: "IDEA", priority: "LOW",           createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", checklist: [], imageIds: ["image-1", "image-2"],
+          description: null, column: "IDEA", priority: "LOW",           createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", isCall: false, checklist: [], imageIds: ["image-1", "image-2"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -167,7 +167,7 @@ describe("TaskFormDialog", () => {
       <TaskFormDialog
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "Без файлов",
-          description: null, column: "IDEA", priority: "LOW",           createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", checklist: [], imageIds: [],
+          description: null, column: "IDEA", priority: "LOW",           createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", isCall: false, checklist: [], imageIds: [],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -543,7 +543,7 @@ describe("attachments", () => {
     <TaskFormDialog
       task={{
         id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлами",
-        description: null, column: "IDEA", priority: "LOW",         createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", checklist: [], imageIds,
+        description: null, column: "IDEA", priority: "LOW",         createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", isCall: false, checklist: [], imageIds,
         createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
       }}
       onClose={() => {}}
@@ -637,7 +637,7 @@ describe("a freshly pasted image", () => {
       <TaskFormDialog
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлами",
-          description: null, column: "IDEA", priority: "LOW",           createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", checklist: [], imageIds: ["image-1"],
+          description: null, column: "IDEA", priority: "LOW",           createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", isCall: false, checklist: [], imageIds: ["image-1"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -690,7 +690,7 @@ describe("removing an attachment reaches the description", () => {
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлом",
           description: described("image-1"), column: "IDEA", priority: "LOW",
-          createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", checklist: [], imageIds: ["image-1"],
+          createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", isCall: false, checklist: [], imageIds: ["image-1"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -722,7 +722,7 @@ describe("removing an attachment reaches the description", () => {
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлом",
           description: described("image-1"), column: "IDEA", priority: "LOW",
-          createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", checklist: [], imageIds: ["image-1"],
+          createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", isCall: false, checklist: [], imageIds: ["image-1"],
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}

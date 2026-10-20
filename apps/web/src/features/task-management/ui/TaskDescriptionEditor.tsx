@@ -14,7 +14,7 @@ import {
   Redo2,
 } from "lucide-react";
 import { TaskImage } from "./TaskImageNode.js";
-import { taskImagesApi } from "@/entities/task/index.js";
+import { imageRefusal, taskImagesApi } from "@/entities/task/index.js";
 import { t } from "@/shared/config/index.js";
 import { ApiError, cn } from "@/shared/lib/index.js";
 import { EditorToolbarButton, RICH_TEXT_CLASS, Separator, followLink } from "@/shared/ui/index.js";
@@ -29,11 +29,8 @@ export interface TaskDescriptionEditorProps {
 
 export interface TaskDescriptionEditorHandle {
   removeImage(imageId: string): void;
+  appendImage(imageId: string): void;
 }
-
-const MAX_BYTES = 10 * 1024 * 1024;
-const ACCEPTED = ["image/png", "image/jpeg", "image/webp", "image/gif"];
-
 
 function EditorToolbar({ editor }: { editor: Editor }) {
   return (
@@ -171,6 +168,16 @@ export const TaskDescriptionEditor = forwardRef<
         }
         editor.view.dispatch(transaction);
       },
+      appendImage(imageId: string) {
+        if (!editor) return;
+        const image = { type: "taskImage", attrs: { imageId } };
+        const { doc } = editor.state;
+        const last = doc.lastChild;
+        if (last?.type.name === "paragraph" && last.content.size === 0)
+          editor.commands.insertContentAt(doc.content.size - 1, image);
+        else
+          editor.commands.insertContentAt(doc.content.size, { type: "paragraph", content: [image] });
+      },
     }),
     [editor],
   );
@@ -184,12 +191,9 @@ export const TaskDescriptionEditor = forwardRef<
   }
 
   async function upload(file: Blob & { type: string }) {
-    if (!ACCEPTED.includes(file.type)) {
-      setStatus(t("tasks.editor.wrongType"));
-      return;
-    }
-    if (file.size > MAX_BYTES) {
-      setStatus(t("tasks.editor.tooLarge"));
+    const refusal = imageRefusal(file);
+    if (refusal) {
+      setStatus(t(`tasks.editor.${refusal}`));
       return;
     }
 

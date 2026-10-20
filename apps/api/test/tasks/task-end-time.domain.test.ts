@@ -7,7 +7,7 @@ import {
 } from "../../src/modules/tasks/domain/schedule.js";
 
 const noon: TaskSchedule = {
-  dueDate: "2026-09-25", dueTime: "12:00", endTime: "13:30", repeatEvery: "NONE",
+  dueDate: "2026-09-25", dueTime: "12:00", endTime: "13:30", repeatEvery: "NONE", isCall: false,
 };
 
 describe("the time a task ends", () => {

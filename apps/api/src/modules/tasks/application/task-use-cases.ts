@@ -13,6 +13,7 @@ import { collectImageIds } from "../domain/description.js";
 import {
   MINUTES_PER_DAY,
   UNSCHEDULED,
+  mayBeCall,
   minutesOf,
   nextOccurrence,
   rescheduled,
@@ -35,6 +36,7 @@ export interface CreateTaskInput {
   readonly dueTime?: string | null;
   readonly endTime?: string | null;
   readonly repeatEvery?: TaskRepeat;
+  readonly isCall?: boolean;
   readonly checklist?: readonly { title: string; done?: boolean }[];
 }
 
@@ -134,6 +136,9 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
     }
     if (schedule.repeatEvery !== "NONE" && schedule.dueDate === null) {
       throw new AppError("validation", "A repeating task needs a due date to count from");
+    }
+    if (schedule.isCall && !mayBeCall(schedule)) {
+      throw new AppError("validation", "A call needs a time of day and a repetition");
     }
     if (schedule.endTime === null) return;
     if (schedule.dueTime === null) {

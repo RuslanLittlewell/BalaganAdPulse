@@ -109,7 +109,7 @@ export function createTaskDraftUseCases(d: TaskDraftDependencies) {
           description: descriptionOf(draft.details),
           projectId: draft.project?.id ?? null,
           priority: draft.priority,
-          participantIds: draft.participants.map((member) => member.id),
+          participantIds: [...new Set([actor.membershipId, ...draft.participants.map((member) => member.id)])],
           dueDate: draft.dueDate,
           dueTime: draft.dueTime,
           checklist: draft.checklist.map((title) => ({ title })),

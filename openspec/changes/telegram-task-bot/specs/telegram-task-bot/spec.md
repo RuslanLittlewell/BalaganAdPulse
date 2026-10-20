@@ -74,7 +74,7 @@ draft: a title, details, a project, participants, a due date, a due time, a prio
 checklist items, giving it today's date and weekday in the task time zone, the projects the
 member reaches and the active staff of the organization, the member themself marked as the
 speaker. The draft SHALL keep only a project the member reaches and staff members of the
-organization; a due date SHALL be a real calendar day and a due time a time of day that comes
+organization, and SHALL always name the member who sent the message as a participant, first; a due date SHALL be a real calendar day and a due time a time of day that comes
 with a date; a missing or empty title SHALL fall back to the beginning of the text; the
 priority SHALL default to MEDIUM. The bot SHALL keep the draft for a day and answer with it,
 the recognised text of a voice message, the names it could not match, and the buttons
@@ -83,7 +83,12 @@ the recognised text of a voice message, the names it could not match, and the bu
 #### Scenario: A voice message
 
 - **WHEN** Анна sends «Подготовить отчёт по Евроопту к пятнице, добавь Бориса, срочно»
-- **THEN** the bot answers with a draft titled with the report, project Евроопт, Борис as participant, due on the coming Friday, priority URGENT, and the recognised text
+- **THEN** the bot answers with a draft titled with the report, project Евроопт, Анна and Борис as participants, due on the coming Friday, priority URGENT, and the recognised text
+
+#### Scenario: The sender always takes part
+
+- **WHEN** Анна sends a message that names nobody
+- **THEN** the draft names Анна as its participant
 
 #### Scenario: A name not on the staff
 
@@ -119,7 +124,7 @@ the recognised text of a voice message, the names it could not match, and the bu
 
 **Создать** SHALL create the task from the draft as the member who sent the message, through
 the same rules, audit, realtime update and notifications as a task made in the app, in the
-board's first column, and the bot SHALL replace the draft with a confirmation linking to the
+board's first column, with the member among its participants whatever the draft holds, and the bot SHALL replace the draft with a confirmation linking to the
 task in the app. **Отмена** SHALL drop the draft. A draft SHALL be used at most once; a button
 of a draft that is used, dropped, older than a day, or of another chat SHALL do nothing but say
 the draft is no longer there. When the task cannot be created, the bot SHALL say so.
@@ -127,7 +132,7 @@ the draft is no longer there. When the task cannot be created, the bot SHALL say
 #### Scenario: Creating
 
 - **WHEN** Анна presses **Создать** on a draft naming Бориса
-- **THEN** the task appears on the board created by Анна, Борис is notified that he was named on it, and the bot's message links to the task
+- **THEN** the task appears on the board created by Анна with Анна and Борис as participants, Борис is notified that he was named on it while Анна is not, and the bot's message links to the task
 
 #### Scenario: Pressed twice
 

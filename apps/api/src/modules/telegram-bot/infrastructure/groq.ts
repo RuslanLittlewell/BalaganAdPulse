@@ -92,7 +92,7 @@ export const READING_INSTRUCTIONS = [
   "- title: what has to be done, a short phrase in Russian that starts with a verb, without the deadline, the people, the priority or the project.",
   "- details: only what the message says about the task that fits none of the other fields, in Russian, or null. Never repeat in details the people, the deadline, the priority, the project or the checklist steps.",
   "- projectKey: the key of the project the task is about, from the list of projects, or null when the message names none.",
-  "- participantKeys: the keys of the people the message names as taking part, from the list of people. A person may be named in any grammatical case, by first name only, or by a short or affectionate form: Бориса, Борису and Боря all mean Борис Петров. Include the speaker only when they say they take part themselves.",
+  "- participantKeys: the keys of the people the message names as taking part, from the list of people. A person may be named in any grammatical case, by first name only, or by a short or affectionate form: Бориса, Борису and Боря all mean Борис Петров. The speaker always takes part, so they may be left out.",
   "- unknownNames: the names of people the message names as taking part who match no one in the list.",
   "- dueDate: the deadline as YYYY-MM-DD. Take it from the calendar: «сегодня» is today, «завтра» the next day, «послезавтра» the one after, and a weekday («в пятницу», «к пятнице», «до пятницы») is the first date after today with that weekday. Work out a date beyond the calendar from today. null when the message gives no deadline.",
   "- dueTime: the time of the deadline as HH:MM on a 24-hour clock, or null.",

@@ -45,18 +45,22 @@ describe("the catalog the model reads", () => {
 });
 
 describe("a draft from what the model read", () => {
-  it("maps the keys back to the project and the people, once each", () => {
+  it("maps the keys back to the project and the people, once each, the speaker first", () => {
     const draft = draftFrom(read({ projectKey: "P1", participantKeys: ["M2", "M2", "M1"] }), catalog, "text");
 
     expect(draft.project).toEqual({ id: "p-1", name: "Евроопт" });
-    expect(draft.participants).toEqual([{ id: "m-boris", name: "Борис" }, { id: "m-anna", name: "Анна" }]);
+    expect(draft.participants).toEqual([{ id: "m-anna", name: "Анна" }, { id: "m-boris", name: "Борис" }]);
+  });
+
+  it("always has the speaker take part, even when the message names nobody", () => {
+    expect(draftFrom(read({ participantKeys: [] }), catalog, "text").participants).toEqual([{ id: "m-anna", name: "Анна" }]);
   });
 
   it("drops a key it does not know, so no project or person comes from outside the catalog", () => {
     const draft = draftFrom(read({ projectKey: "P9", participantKeys: ["M7", "m-boris"] }), catalog, "text");
 
     expect(draft.project).toBeNull();
-    expect(draft.participants).toEqual([]);
+    expect(draft.participants).toEqual([{ id: "m-anna", name: "Анна" }]);
   });
 
   it("keeps a real day and a time that comes with it", () => {

@@ -532,7 +532,8 @@ that is checked again at every message, so a suspension takes effect at once.
 A voice message of up to two minutes is transcribed by Groq's Whisper in Russian; a text
 message is taken as it is. A Groq language model then reads it into a draft, given today's
 date in `TASK_TIME_ZONE`, the projects the member reaches and the organization's active staff,
-and answers by keys, so the draft can name only those. The bot shows the draft with
+and answers by keys, so the draft can name only those. Whoever sends the message is always one
+of the task's participants. The bot shows the draft with
 **Создать** and **Отмена**: **Создать** creates the task as the member through the task use
 cases, with its audit entry, live board update and notifications, and links to it under
 `APP_URL`. Drafts are kept for a day in `telegram_task_draft` and used once.

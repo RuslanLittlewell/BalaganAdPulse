@@ -222,7 +222,7 @@ describe("a message turned into a draft and a task", () => {
       heard: "Подготовить отчёт по Евроопту",
       draft: {
         title: "Подготовить отчёт", details: "Сверить цифры", project: { id: "p-1", name: "Евроопт" },
-        participants: [{ id: "boris", name: "Борис" }], unknownNames: ["Вася"],
+        participants: [{ id: "anna", name: "Анна" }, { id: "boris", name: "Борис" }], unknownNames: ["Вася"],
         dueDate: "2026-10-23", dueTime: null, priority: "URGENT", checklist: [],
       },
     });
@@ -286,11 +286,25 @@ describe("a message turned into a draft and a task", () => {
         description: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Сверить цифры" }] }] },
         projectId: "p-1",
         priority: "URGENT",
-        participantIds: ["boris"],
+        participantIds: ["anna", "boris"],
         dueDate: "2026-10-23",
         dueTime: null,
         checklist: [],
       },
+    );
+  });
+
+  it("names the sender on the task even when the draft somehow left them out", async () => {
+    const { useCases, dependencies, drafts } = setup();
+    await useCases.fromText(CHAT, "Подготовить отчёт");
+    const stored = drafts.get("draft-1")!;
+    drafts.set("draft-1", { ...stored, stored: { ...stored.stored, draft: { ...stored.stored.draft, participants: [{ id: "boris", name: "Борис" }] } } });
+
+    await useCases.create(CHAT, "draft-1");
+
+    expect(dependencies.tasks.create).toHaveBeenCalledWith(
+      expect.objectContaining({ membershipId: "anna" }),
+      expect.objectContaining({ participantIds: ["anna", "boris"] }),
     );
   });
 

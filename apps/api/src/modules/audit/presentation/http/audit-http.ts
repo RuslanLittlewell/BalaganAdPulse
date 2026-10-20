@@ -12,6 +12,7 @@ export const auditQuerySchema = z.object({
   entityType: z.string().min(1).optional(),
   entityId: z.string().min(1).optional(),
   actorId: optionalUuid,
+  inProject: z.enum(["true", "false"]).transform((value) => value === "true").optional(),
   from: z.iso.datetime({ offset: true }).optional(),
   to: z.iso.datetime({ offset: true }).optional(),
   cursor: optionalUuid,
@@ -28,6 +29,14 @@ export function createAuditRouter<TEvent>(reader: AuditReader<TEvent>): Router {
     }
     const query = auditQuerySchema.parse(req.query);
     reader.list(actor, query).then((page) => res.json(page)).catch(next);
+  });
+  router.get("/actors", (req: Request, res: Response, next: NextFunction) => {
+    const actor = req.actor;
+    if (!actor) {
+      next(new AppError("unauthorized", "Authentication required"));
+      return;
+    }
+    reader.actors(actor).then((actors) => res.json(actors)).catch(next);
   });
   return router;
 }

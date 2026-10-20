@@ -66,7 +66,7 @@ export class PrismaLeadRepository implements LeadRepository {
     return files.map(file => file.storageKey);
   }
   async history(orgId: string, leadId: string) {
-    const [events, source] = await Promise.all([
+    const [rows, source] = await Promise.all([
       this.prisma.auditEvent.findMany({
         where:{orgId, entityType:'lead', entityId:leadId},
         select:{id:true, action:true, actorName:true, createdAt:true, changes:true},
@@ -74,6 +74,8 @@ export class PrismaLeadRepository implements LeadRepository {
       }),
       this.prisma.leadMetaSource.findUnique({where:{leadId}, select:{submittedAt:true}}),
     ]);
+    const events = rows.flatMap(({action, ...event}) =>
+      action === 'CREATE' || action === 'UPDATE' || action === 'DELETE' ? [{...event, action}] : []);
     return {events, importedAt:source?.submittedAt ?? null};
   }
   async campaignNames(ids: readonly string[]) {

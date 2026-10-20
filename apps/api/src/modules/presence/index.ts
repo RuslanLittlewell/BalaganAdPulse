@@ -12,7 +12,11 @@ export {
   createPresenceRegistry,
   PRESENCE_SWEEP_MS,
 } from "./application/presence-registry.js";
-export type { PresenceRegistry, PresenceRegistryOptions } from "./application/presence-registry.js";
+export type {
+  PresenceDeparture,
+  PresenceRegistry,
+  PresenceRegistryOptions,
+} from "./application/presence-registry.js";
 export { createPresenceService } from "./application/presence-service.js";
 export type {
   PresenceAnnouncements,

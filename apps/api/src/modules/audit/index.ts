@@ -1,9 +1,11 @@
 export type { AuditEventInput, AuditWriter } from "./application/audit-writer.js";
 export type { AuditAction, JsonValue } from "./domain/audit-event.js";
+export { AUDIT_ACTIONS } from "./domain/audit-event.js";
 export { createAuditReader, createAuditWriter } from "./application/audit-use-cases.js";
 export type { AuditReader, ListAuditInput } from "./application/audit-use-cases.js";
 export type {
   ActorSnapshots,
+  AuditActor,
   AuditDependencies,
   AuditFilters,
   AuditPage,

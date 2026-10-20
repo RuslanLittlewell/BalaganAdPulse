@@ -9,11 +9,16 @@ export interface PresenceRegistryOptions {
   readonly windowMs?: number;
 }
 
+export interface PresenceDeparture {
+  readonly person: PresencePerson;
+  readonly lastSeenAt: Date;
+}
+
 export interface PresenceRegistry {
   seen(userId: string): boolean;
   join(person: PresencePerson): void;
   leave(userId: string): PresencePerson | null;
-  sweep(): readonly PresencePerson[];
+  sweep(): readonly PresenceDeparture[];
   list(): readonly PresencePerson[];
   clear(): void;
 }
@@ -50,11 +55,11 @@ export function createPresenceRegistry(options: PresenceRegistryOptions = {}): P
     },
 
     sweep() {
-      const gone: PresencePerson[] = [];
+      const gone: PresenceDeparture[] = [];
       for (const [userId, entry] of entries) {
         if (here(entry)) continue;
         entries.delete(userId);
-        gone.push(entry.person);
+        gone.push({ person: entry.person, lastSeenAt: new Date(entry.lastSeenAt) });
       }
       return gone;
     },

@@ -21,6 +21,7 @@ export const defaultHandlers = [
   http.get("/api/summary/projects", () => HttpResponse.json([])),
   http.get("/api/dashboard/summary-tiles", () => HttpResponse.json({ tiles: ["CONVERSIONS"] })),
   http.get("/api/notifications", () => HttpResponse.json({ notifications: [], unreadCount: 0 })),
+  http.get("/api/audit/actors", () => HttpResponse.json([])),
   http.get("/api/telegram", () => HttpResponse.json({ available: false, linked: false, username: null, linkedAt: null })),
   http.get("/api/projects/:projectId/summary-tiles", () => HttpResponse.json({ tiles: [] })),
   http.get("/api/projects/:projectId/campaigns", () => HttpResponse.json([])),

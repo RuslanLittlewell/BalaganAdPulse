@@ -16,15 +16,31 @@ import {
   createPresenceRegistry,
   createPresenceService,
   createPresenceTouch,
+  type PresencePerson,
 } from "#modules/presence/index.js";
 import { createPresenceDelivery, type Connection } from "#modules/realtime/index.js";
 import type { ClientsAndProjects } from "./clients-projects.js";
 import { runDetached, type Kernel } from "./kernel.js";
 
+const PRESENCE_SUMMARY = { ONLINE: "Came online", OFFLINE: "Went offline" } as const;
+
 export function wireMembersAndPresence(
-  { unitOfWork, connections }: Kernel,
+  { unitOfWork, connections, clock, audit }: Kernel,
   { clients }: Pick<ClientsAndProjects, "clients">,
 ) {
+  const recordPresence = (person: PresencePerson, action: "ONLINE" | "OFFLINE", at: Date) =>
+    runDetached("Failed to record presence:", unitOfWork.run((transaction) => audit.append(transaction, {
+      action,
+      entityType: "member",
+      entityId: person.membershipId,
+      summary: PRESENCE_SUMMARY[action],
+      occurredAt: at,
+    }, {
+      userId: person.userId,
+      membershipId: person.membershipId,
+      orgId: person.orgId,
+      role: person.role,
+    })));
   const users = new PrismaUserRepository(prisma, unitOfWork);
   const memberDirectory = new PrismaMemberDirectory(prisma, unitOfWork);
   const members = createMemberUseCases({
@@ -67,9 +83,16 @@ export function wireMembersAndPresence(
       },
     },
     announce: {
-      joined: (person) => runDetached("Failed to announce an arrival:", presenceDelivery.deliverJoined(person)),
-      left: (person) => runDetached("Failed to announce a departure:", presenceDelivery.deliverLeft(person)),
+      joined: (person, at) => {
+        runDetached("Failed to announce an arrival:", presenceDelivery.deliverJoined(person));
+        recordPresence(person, "ONLINE", at);
+      },
+      left: (person, at) => {
+        runDetached("Failed to announce a departure:", presenceDelivery.deliverLeft(person));
+        recordPresence(person, "OFFLINE", at);
+      },
     },
+    clock,
   });
   return {
     members,

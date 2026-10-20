@@ -4,6 +4,7 @@ import { createApp } from "../../src/composition/app.js";
 import { prisma } from "../../src/shared/infrastructure/prisma.js";
 import { resetDb, seedProject } from "../helpers/db.js";
 import { currentOrg, grantAccess, signInAs, signInAsOutsider } from "../helpers/auth.js";
+import { BUSINESS_EVENTS } from "../helpers/audit.js";
 
 const app = createApp();
 const MISSING = "00000000-0000-0000-0000-000000000000";
@@ -354,10 +355,10 @@ describe("the audit trail", () => {
     const created = await create({});
     const guest = await signInAs("Guest", { role: "GUEST" });
     await grantAccess(guest.membership!.id, clientId);
-    const before = await prisma.auditEvent.count();
+    const before = await prisma.auditEvent.count({ where: BUSINESS_EVENTS });
 
     await request(app).delete(`/api/tasks/${created.body.id}`).set(guest.auth);
-    expect(await prisma.auditEvent.count()).toBe(before);
+    expect(await prisma.auditEvent.count({ where: BUSINESS_EVENTS })).toBe(before);
   });
 });
 

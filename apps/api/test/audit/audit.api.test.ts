@@ -95,6 +95,7 @@ describe("GET /api/audit", () => {
     ["entityType", () => "campaign", 2],
     ["entityId", () => campaignA.id, 1],
     ["actorId", () => manager.membership!.id, 1],
+    ["inProject", () => "true", 4],
   ])("filters by %s", async (key, value, count) => {
     const response = await request(app).get("/api/audit").query({ [key]: value() }).set(admin.auth);
     expect(response.status).toBe(200);
@@ -120,3 +121,29 @@ describe("GET /api/audit", () => {
       .not.toContain(first.body.items[0].id);
   });
 });
+
+describe("GET /api/audit/actors", () => {
+  it("lists who acted on what the caller reaches, by current name in Russian order, leaving out deleted members", async () => {
+    const vera = await signInAs("Вера", { role: "MANAGER" });
+    const gone = await signInAs("Ушедший", { role: "MANAGER" });
+    await event({ entityType: "project", entityId: projectB.id, clientId: clientB.id, projectId: projectB.id, actorId: vera.membership!.id, createdAt: "2026-08-06T10:00:00Z" });
+    await event({ entityType: "project", entityId: projectA.id, clientId: clientA.id, projectId: projectA.id, actorId: gone.membership!.id, createdAt: "2026-08-07T10:00:00Z" });
+    await prisma.membership.delete({ where: { id: gone.membership!.id } });
+    await prisma.user.update({ where: { id: manager.user.id }, data: { name: "Борис" } });
+
+    const forAdmin = await request(app).get("/api/audit/actors").set(admin.auth).expect(200);
+    const forManager = await request(app).get("/api/audit/actors").set(manager.auth).expect(200);
+
+    expect(forAdmin.body).toEqual([
+      { id: manager.membership!.id, name: "Борис" },
+      { id: vera.membership!.id, name: "Вера" },
+      { id: admin.membership!.id, name: "Audit Admin" },
+    ]);
+    expect(forManager.body.map((actor: { name: string }) => actor.name)).toEqual(["Борис", "Audit Admin"]);
+  });
+
+  it("needs a session", async () => {
+    await request(app).get("/api/audit/actors").expect(401);
+  });
+});
+

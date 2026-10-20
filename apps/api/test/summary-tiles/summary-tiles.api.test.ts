@@ -4,6 +4,7 @@ import { createApp } from "../../src/composition/app.js";
 import { prisma } from "../../src/shared/infrastructure/prisma.js";
 import { resetDb, seedProject } from "../helpers/db.js";
 import { grantAccess, signInAs, signInAsOutsider } from "../helpers/auth.js";
+import { BUSINESS_EVENTS } from "../helpers/audit.js";
 
 const app = createApp();
 
@@ -132,7 +133,7 @@ describe("a member's dashboard tiles", () => {
   it("are not audited", async () => {
     await choose(dashboardTiles, ["SPEND"]);
 
-    expect(await prisma.auditEvent.count()).toBe(0);
+    expect(await prisma.auditEvent.count({ where: BUSINESS_EVENTS })).toBe(0);
   });
 
   it("refuse more than five tiles -> 400", async () => {

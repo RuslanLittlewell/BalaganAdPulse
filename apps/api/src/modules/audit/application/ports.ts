@@ -8,6 +8,7 @@ export interface AuditFilters {
   readonly entityType?: string;
   readonly entityId?: string;
   readonly actorId?: string;
+  readonly inProject?: boolean;
   readonly from?: string;
   readonly to?: string;
 }
@@ -24,9 +25,15 @@ export interface AuditPage<TEvent> {
   readonly nextCursor: string | null;
 }
 
+export interface AuditActor {
+  readonly id: string;
+  readonly name: string;
+}
+
 export interface AuditRepository<TEvent = unknown> {
   append(context: TransactionContext, event: StoredAuditEvent): Promise<void>;
   list(query: AuditQuery): Promise<AuditPage<TEvent>>;
+  actors(scope: AuditScope): Promise<AuditActor[]>;
 }
 
 export interface AuditReach {

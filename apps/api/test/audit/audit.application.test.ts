@@ -17,6 +17,10 @@ function fixture(options: { metadata?: { requestId: string; ip: string | null; u
     events: {
       append: async (_tx: TransactionContext, event: StoredAuditEvent) => { appended.push(event); },
       list: async (query: unknown) => { queries.push(query); return { items: [], nextCursor: null }; },
+      actors: async (scope: unknown) => {
+        queries.push(scope);
+        return [{ id: "m-b", name: "Борис" }, { id: "m-a", name: "Анна" }, { id: "m-e", name: "Ёжиков" }, { id: "m-z", name: "Женя" }];
+      },
     },
     reach: {
       scopeFor: async (actor: ActorContext) =>
@@ -41,6 +45,16 @@ function fixture(options: { metadata?: { requestId: string; ip: string | null; u
 }
 
 describe("appending an event", () => {
+  it("dates the event at the moment it happened when told, and leaves it to the store otherwise", async () => {
+    const { writer, appended, context } = fixture();
+    const at = new Date("2026-10-20T07:05:00Z");
+    await writer.append(context, { action: "OFFLINE", entityType: "member", entityId: "m1", summary: "Went offline", occurredAt: at }, admin);
+    await writer.append(context, { action: "ONLINE", entityType: "member", entityId: "m1", summary: "Came online" }, admin);
+
+    expect(appended[0]).toMatchObject({ action: "OFFLINE", createdAt: at });
+    expect(appended[1]).not.toHaveProperty("createdAt");
+  });
+
   it("snapshots the actor as they are at write time", async () => {
     const { writer, appended, context } = fixture();
     await writer.append(context, {
@@ -126,5 +140,16 @@ describe("reading the trail", () => {
   it("lets a guest read, because reach not role decides how much they see", async () => {
     const { reader } = fixture();
     await expect(reader.list(guest, { limit: 50 })).resolves.toBeDefined();
+  });
+});
+
+describe("listing the actors", () => {
+  it("asks within the reader's scope and orders them by name in Russian", async () => {
+    const { reader, queries } = fixture();
+
+    const actors = await reader.actors(manager);
+
+    expect(actors.map((actor) => actor.name)).toEqual(["Анна", "Борис", "Ёжиков", "Женя"]);
+    expect(queries).toEqual([{ orgId: "org1", everything: false, clientIds: ["c1"], wholeClientIds: ["c1"], projectIds: ["p1"] }]);
   });
 });

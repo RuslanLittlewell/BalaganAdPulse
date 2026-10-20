@@ -463,8 +463,9 @@ function CalendarTaskEvent({
         element.style.pointerEvents = "";
         element.style.opacity = "";
         element.style.cursor = draggable ? "grab" : "";
-        if (floating)
-          element.style.top = `${typeof finalTop === "number" ? finalTop : top}px`;
+        const positioned = compact ? element.parentElement : element;
+        if (floating && positioned)
+          positioned.style.top = `${typeof finalTop === "number" ? finalTop : top}px`;
         requestAnimationFrame(() => {
           element.style.transition = "";
         });
@@ -479,7 +480,7 @@ function CalendarTaskEvent({
       columnsRef.current = [];
       currentDayRef.current = task.dueDate;
     },
-    [draggable, floating, task.dueDate, top],
+    [compact, draggable, floating, task.dueDate, top],
   );
 
   const handleMouseMove = useCallback((event: MouseEvent) => {

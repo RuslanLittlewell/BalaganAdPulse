@@ -590,6 +590,7 @@ function CalendarTaskEvent({
 
       event.preventDefault();
       const rect = element.getBoundingClientRect();
+      const columnRect = sourceColumn.getBoundingClientRect();
       pointerOffsetRef.current = floating
         ? event.clientY - rect.top
         : eventHeight / 2;
@@ -602,10 +603,10 @@ function CalendarTaskEvent({
       const ghost = element.cloneNode(true) as HTMLElement;
       ghost.dataset.calendarGhost = "true";
       ghost.style.position = "absolute";
-      ghost.style.left = "6px";
-      ghost.style.right = "6px";
+      ghost.style.left = `${rect.left - columnRect.left}px`;
       ghost.style.top = `${floating ? top : 0}px`;
-      ghost.style.width = "auto";
+      ghost.style.width = `${rect.width}px`;
+      ghost.style.height = `${rect.height}px`;
       ghost.style.pointerEvents = "none";
       ghost.style.transition = "none";
       ghost.style.opacity = "0.85";

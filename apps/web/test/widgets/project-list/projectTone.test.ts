@@ -14,9 +14,10 @@ describe("a project's marker", () => {
   it.each([
     [30, "met"],
     [45, "met"],
-    [27, "behind"],
-    [24, "behind"],
-    [23, "danger"],
+    [27, "met"],
+    [26, "behind"],
+    [21, "behind"],
+    [20, "danger"],
     [0, "danger"],
   ] as const)("reads %s leads against a target of 30 as %s", (conversions, tone) => {
     expect(projectTone(leads, { ...performance, conversions }, SEPTEMBER)).toBe(tone);
@@ -28,7 +29,7 @@ describe("a project's marker", () => {
 
     expect(cpaOf(10)).toBe("met");
     expect(cpaOf(12)).toBe("behind");
-    expect(cpaOf(13)).toBe("danger");
+    expect(cpaOf(15)).toBe("danger");
   });
 
   it("paints a monthly target met exactly over a 31-day month green", () => {
@@ -40,10 +41,10 @@ describe("a project's marker", () => {
     const of = (conversions: number) =>
       projectTone({ metric: "CONVERSIONS", target: "1000.0000" }, { ...performance, conversions }, SEPTEMBER);
 
-    expect(of(996)).toBe("met");
-    expect(of(994)).toBe("behind");
-    expect(of(796)).toBe("behind");
-    expect(of(794)).toBe("danger");
+    expect(of(896)).toBe("met");
+    expect(of(894)).toBe("behind");
+    expect(of(696)).toBe("behind");
+    expect(of(694)).toBe("danger");
   });
 
   it.each([

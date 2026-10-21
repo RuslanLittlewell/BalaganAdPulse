@@ -33,7 +33,7 @@ export function createProjectUseCases(dependencies: ProjectDependencies) {
     }
     const eligible = new Set(await dependencies.staffing.eligible(actor.orgId, named));
     if (named.some((id) => !eligible.has(id))) {
-      throw new AppError("validation", "Only active managers and guests of the organization can be assigned");
+      throw new AppError("validation", "Only active admins, managers and guests of the organization can be assigned");
     }
     return named;
   };

@@ -316,6 +316,16 @@ describe("assigning staff while creating a project", () => {
     }
   });
 
+  it("lets an admin be named as a participant", async () => {
+    const boss = await employee("Boss", "ADMIN");
+    const staff = await employee("Staff");
+
+    const created = await project({ memberIds: [boss.id, staff.id] });
+
+    expect(created.status).toBe(201);
+    expect(await prisma.clientAccess.count({ where: { membershipId: boss.id, projectId: created.body.id } })).toBe(1);
+  });
+
   it("grants that project alone, not the rest of its client", async () => {
     const existing = await project({ name: "Старый" });
     const staff = await employee("Staff");
@@ -341,7 +351,6 @@ describe("assigning staff while creating a project", () => {
   });
 
   it.each([
-    ["an admin", () => employee("Boss", "ADMIN")],
     ["a client", () => employee("Customer", "CLIENT")],
     ["a suspended manager", () => employee("Away", "MANAGER", "SUSPENDED")],
     ["a member of another organization", async () => ({ id: (await signInAsOutsider()).membership.id })],

@@ -23,7 +23,10 @@ import {
   type BoardCapabilities,
   type Lead,
 } from "@/entities/lead/index.js";
-import { AddLeadColumn, LeadColumnMenu } from "@/features/lead-column-management/index.js";
+import {
+  AddLeadColumn,
+  LeadColumnMenu,
+} from "@/features/lead-column-management/index.js";
 import { t } from "@/shared/config/index.js";
 import { boardCollisionDetection, useDragPreview } from "@/shared/lib/index.js";
 import { EmptyState, Loader } from "@/shared/ui/index.js";
@@ -38,7 +41,13 @@ export interface CrmBoardProps {
   onOpen?: (lead: Lead) => void;
 }
 
-export function CrmBoard({ boardKey, busy = false, draggable = false, capabilities, onOpen }: CrmBoardProps) {
+export function CrmBoard({
+  boardKey,
+  busy = false,
+  draggable = false,
+  capabilities,
+  onOpen,
+}: CrmBoardProps) {
   const { data: leads, isLoading, isError } = useLeads(boardKey);
   const { data: loadedColumns } = useLeadColumns(boardKey);
   const columns = loadedColumns ?? FIXED_LEAD_COLUMNS;
@@ -48,24 +57,31 @@ export function CrmBoard({ boardKey, busy = false, draggable = false, capabiliti
   const drag = useDragPreview(leads);
   const { board, draggingId, cancel: cancelDrag } = drag;
 
-  useEffect(() => { cancelDrag(); setMoveError(null); }, [boardKey, cancelDrag]);
+  useEffect(() => {
+    cancelDrag();
+    setMoveError(null);
+  }, [boardKey, cancelDrag]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   );
 
   const byStage = useMemo(() => {
     const grouped = new Map<string, Lead[]>(stages.map((stage) => [stage, []]));
     for (const lead of board) grouped.get(lead.stage)?.push(lead);
-    for (const stage of grouped.values()) stage.sort((a, b) => a.position - b.position);
+    for (const stage of grouped.values())
+      stage.sort((a, b) => a.position - b.position);
     return grouped;
   }, [board, stages]);
 
   const dragging = board.find((lead) => lead.id === draggingId) ?? null;
   const loading = busy || isLoading;
 
-  if (isError && board.length === 0) return <EmptyState title={t("crm.loadFailed")} />;
+  if (isError && board.length === 0)
+    return <EmptyState title={t("crm.loadFailed")} />;
 
   function handleDragStart(event: DragStartEvent) {
     drag.start(String(event.active.id));
@@ -75,15 +91,26 @@ export function CrmBoard({ boardKey, busy = false, draggable = false, capabiliti
   function handleDragOver(event: DragOverEvent) {
     const { active, over } = event;
     if (!over) return;
-    drag.preview((current) => leadPreviewFor(current, String(active.id), String(over.id), stages));
+    drag.preview((current) =>
+      leadPreviewFor(current, String(active.id), String(over.id), stages),
+    );
   }
 
   function handleDragEnd(event: DragEndEvent) {
     const activeId = String(event.active.id);
     const overId = event.over ? String(event.over.id) : null;
-    const placement = resolveLeadDrop(leads ?? [], drag.previewed, activeId, overId, stages);
+    const placement = resolveLeadDrop(
+      leads ?? [],
+      drag.previewed,
+      activeId,
+      overId,
+      stages,
+    );
 
-    if (!placement) { cancelDrag(); return; }
+    if (!placement) {
+      cancelDrag();
+      return;
+    }
 
     move.mutate(
       { id: activeId, body: placement },
@@ -106,7 +133,9 @@ export function CrmBoard({ boardKey, busy = false, draggable = false, capabiliti
       onDragCancel={cancelDrag}
     >
       {moveError ? (
-        <p role="alert" className="mb-2 text-sm text-destructive">{moveError}</p>
+        <p role="alert" className="mb-2 text-sm text-destructive">
+          {moveError}
+        </p>
       ) : null}
 
       {loading ? (
@@ -130,7 +159,10 @@ export function CrmBoard({ boardKey, busy = false, draggable = false, capabiliti
             draggingId={draggingId}
             onOpen={onOpen}
             actions={
-              boardKey && capabilities && column.kind === "CUSTOM" && (capabilities.update || capabilities.delete) ? (
+              boardKey &&
+              capabilities &&
+              column.kind === "CUSTOM" &&
+              (capabilities.update || capabilities.delete) ? (
                 <LeadColumnMenu
                   boardKey={boardKey}
                   column={column}
@@ -159,5 +191,9 @@ export function CrmBoard({ boardKey, busy = false, draggable = false, capabiliti
 }
 
 function LeadCardOverlay({ lead }: { lead: Lead }) {
-  return <div className="w-80 cursor-grabbing opacity-95 shadow-xl"><LeadCard lead={lead} /></div>;
+  return (
+    <div className="w-80 cursor-grabbing opacity-95 shadow-xl">
+      <LeadCard lead={lead} />
+    </div>
+  );
 }

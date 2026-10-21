@@ -53,7 +53,7 @@ describe("the Готово checkbox in the calendar", () => {
       .toHaveAttribute("aria-checked", "false");
   });
 
-  it("closes a task that does not repeat, keeping it on its day", async () => {
+  it("closes a task that does not repeat and takes it off the calendar", async () => {
     let body: unknown = null;
     server.use(mock.post("/api/tasks/task-2/move", async ({ request }) => {
       body = await request.json();
@@ -64,9 +64,14 @@ describe("the Готово checkbox in the calendar", () => {
     await userEvent.click(await screen.findByRole("checkbox", { name: "Готово: Разовая" }));
 
     await waitFor(() => expect(body).toEqual({ column: "DONE", position: 0 }));
-    const wednesday = screen.getByRole("group", { name: /среда/ });
-    expect(within(wednesday).getByRole("checkbox", { name: "Готово: Разовая" }))
-      .toHaveAttribute("aria-checked", "true");
+    await waitFor(() => expect(screen.queryByText("Разовая")).not.toBeInTheDocument());
+  });
+
+  it.each(["DONE", "ARCHIVED"] as const)("does not draw a task already in %s", async (column) => {
+    calendar([once, aTask({ id: "task-3", title: "Закрытая", dueDate: "2026-09-16", column })]);
+
+    await screen.findByText("Разовая");
+    expect(screen.queryByText("Закрытая")).not.toBeInTheDocument();
   });
 
   it("does not open the task when the checkbox is used", async () => {

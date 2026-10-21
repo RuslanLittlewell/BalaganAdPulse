@@ -169,7 +169,26 @@ describe("the filter cannot widen what a member sees", () => {
     await openFilter(user);
 
     expect(await screen.findByRole("menuitemcheckbox", { name: "Пётр" })).toBeInTheDocument();
-    expect(await screen.findAllByRole("menuitemcheckbox")).toHaveLength(1);
+    expect(await screen.findAllByRole("menuitemcheckbox")).toHaveLength(2);
+  });
+});
+
+describe("choosing every participant at once", () => {
+  it("narrows to nobody in particular when Все is chosen, and back when it is chosen again", async () => {
+    const user = userEvent.setup();
+    setup();
+    await screen.findByText("Пишет Пётр");
+
+    await openFilter(user);
+    await choose(user, "Все");
+    for (const item of await screen.findAllByRole("menuitemcheckbox")) {
+      expect(item).toHaveAttribute("aria-checked", "true");
+    }
+
+    await choose(user, "Все");
+    for (const item of screen.getAllByRole("menuitemcheckbox")) {
+      expect(item).toHaveAttribute("aria-checked", "false");
+    }
   });
 });
 

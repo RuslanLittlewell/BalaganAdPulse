@@ -95,6 +95,7 @@ export function TasksPage() {
             }))}
             chosen={chosenPeople}
             onChange={(next) => rememberPeople(userId, next)}
+            allLabel={t("tasks.filter.all")}
             placeholder={t("tasks.participants.filter")}
             ariaLabel={t("tasks.participants.filterLabel")}
             className="max-w-52"
@@ -109,6 +110,7 @@ export function TasksPage() {
             }))}
             chosen={chosenProjects}
             onChange={(next) => rememberProjects(userId, next)}
+            allLabel={t("tasks.filter.all")}
             placeholder={t("tasks.projects.filter")}
             ariaLabel={t("tasks.projects.filterLabel")}
             className="max-w-52"

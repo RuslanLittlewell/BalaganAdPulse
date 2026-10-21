@@ -328,15 +328,45 @@ describe("assigning employees while creating a project", () => {
     server.use(http.get("/api/members", () => HttpResponse.json(staff)));
   });
 
-  it("offers an admin only the active managers and guests", async () => {
+  it("offers an admin the active admins, managers and guests", async () => {
     const user = userEvent.setup();
     setup(<ProjectFormDialog clientId="1" onClose={() => {}} />);
 
-    await user.click(await screen.findByRole("button", { name: "Сотрудники" }));
+    await user.click(await screen.findByRole("button", { name: "Участники" }));
 
     expect(await screen.findByRole("menuitemcheckbox", { name: "Пётр" })).toBeInTheDocument();
     expect(screen.getByRole("menuitemcheckbox", { name: "Анна" })).toBeInTheDocument();
-    expect(screen.getAllByRole("menuitemcheckbox")).toHaveLength(2);
+    expect(screen.getByRole("menuitemcheckbox", { name: "Босс" })).toBeInTheDocument();
+    expect(screen.getAllByRole("menuitemcheckbox")).toHaveLength(3);
+  });
+
+  it("has every active admin chosen and nobody else", async () => {
+    const user = userEvent.setup();
+    setup(<ProjectFormDialog clientId="1" onClose={() => {}} />);
+
+    await user.click(await screen.findByRole("button", { name: "Участники" }));
+
+    expect(await screen.findByRole("menuitemcheckbox", { name: "Босс" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("menuitemcheckbox", { name: "Пётр" })).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("menuitemcheckbox", { name: "Анна" })).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("sends the admins by default", async () => {
+    const user = userEvent.setup();
+    let sent: Record<string, unknown> | undefined;
+    server.use(http.post("/api/projects", async ({ request }) => {
+      sent = (await request.json()) as Record<string, unknown>;
+      return HttpResponse.json(aProject(sent as never), { status: 201 });
+    }));
+    setup(<ProjectFormDialog clientId="1" onClose={() => {}} />);
+
+    await user.type(screen.getByLabelText("Название проекта"), "Летний запуск");
+    await screen.findByRole("button", { name: "Участники" });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Участники" })).toHaveTextContent("Босс"));
+    await user.click(screen.getByRole("button", { name: "Создать" }));
+
+    await waitFor(() => expect(sent).toBeDefined());
+    expect(sent?.memberIds).toEqual(["m3"]);
   });
 
   it("sends the employees chosen", async () => {
@@ -349,14 +379,14 @@ describe("assigning employees while creating a project", () => {
     setup(<ProjectFormDialog clientId="1" onClose={() => {}} />);
 
     await user.type(screen.getByLabelText("Название проекта"), "Летний запуск");
-    await user.click(await screen.findByRole("button", { name: "Сотрудники" }));
+    await user.click(await screen.findByRole("button", { name: "Участники" }));
     await user.click(await screen.findByRole("menuitemcheckbox", { name: "Пётр" }));
     await user.click(screen.getByRole("menuitemcheckbox", { name: "Анна" }));
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: "Создать" }));
 
     await waitFor(() => expect(sent).toBeDefined());
-    expect(sent?.memberIds).toEqual(["m1", "m2"]);
+    expect(sent?.memberIds).toEqual(["m3", "m1", "m2"]);
   });
 
   it.each(["MANAGER", "CLIENT"])("offers no picker to a %s", async (role) => {
@@ -364,13 +394,13 @@ describe("assigning employees while creating a project", () => {
     setup(<ProjectFormDialog clientId="1" onClose={() => {}} />);
 
     expect(await screen.findByLabelText("Название проекта")).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByRole("button", { name: "Сотрудники" })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Участники" })).not.toBeInTheDocument());
   });
 
   it("offers no picker when editing a project", async () => {
     setup(<ProjectFormDialog project={aProject({ id: "p1", clientId: "1" })} onClose={() => {}} />);
 
     expect(await screen.findByRole("button", { name: "Сохранить" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Сотрудники" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Участники" })).not.toBeInTheDocument();
   });
 });

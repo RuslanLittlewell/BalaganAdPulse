@@ -9,10 +9,11 @@ const items: MultiSelectItem[] = [
   { value: "none", label: "Не назначен" },
 ];
 
-function show(chosen: string[] = [], onChange = (_next: string[]) => {}) {
+function show(chosen: string[] = [], onChange = (_next: string[]) => {}, allLabel?: string) {
   return render(
     <MultiSelect
       items={items}
+      allLabel={allLabel}
       chosen={chosen}
       onChange={onChange}
       placeholder="Ответственный"
@@ -132,5 +133,67 @@ describe("reaching a multi-select from the keyboard", () => {
 
     await user.keyboard("{Enter}");
     expect(screen.getAllByRole("menuitemcheckbox", { checked: true })).toHaveLength(1);
+  });
+});
+
+describe("the all entry of a multi-select", () => {
+  it("is absent unless the caller names it", async () => {
+    const user = userEvent.setup();
+    show();
+    await open(user);
+
+    await screen.findByRole("menuitemcheckbox", { name: "Пётр" });
+    expect(screen.queryByRole("menuitemcheckbox", { name: "Все" })).not.toBeInTheDocument();
+  });
+
+  it("chooses every option at once", async () => {
+    const user = userEvent.setup();
+    const seen: string[][] = [];
+    show(["m1"], (next) => seen.push(next), "Все");
+    await open(user);
+
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Все" }));
+
+    expect(seen).toEqual([["m1", "m2", "none"]]);
+  });
+
+  it("clears the choice while every option is chosen", async () => {
+    const user = userEvent.setup();
+    const seen: string[][] = [];
+    show(["m1", "m2", "none"], (next) => seen.push(next), "Все");
+    await open(user);
+
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Все" }));
+
+    expect(seen).toEqual([[]]);
+  });
+
+  it("follows the options as they are chosen one by one", async () => {
+    const user = userEvent.setup();
+    function WithAll() {
+      const [chosen, setChosen] = useState<string[]>([]);
+      return (
+        <MultiSelect
+          items={items}
+          chosen={chosen}
+          onChange={setChosen}
+          allLabel="Все"
+          placeholder="Ответственный"
+          ariaLabel="Фильтр по ответственным"
+        />
+      );
+    }
+    render(<WithAll />);
+    await open(user);
+
+    const all = await screen.findByRole("menuitemcheckbox", { name: "Все" });
+    expect(all).toHaveAttribute("aria-checked", "false");
+    for (const name of ["Пётр", "Анна", "Не назначен"]) {
+      await user.click(screen.getByRole("menuitemcheckbox", { name }));
+    }
+    expect(all).toHaveAttribute("aria-checked", "true");
+
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "Анна" }));
+    expect(all).toHaveAttribute("aria-checked", "false");
   });
 });

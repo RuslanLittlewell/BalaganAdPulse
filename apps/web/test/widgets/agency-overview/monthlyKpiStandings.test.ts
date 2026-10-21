@@ -36,12 +36,12 @@ describe("this month's KPI standings", () => {
     const of = (conversions: number) =>
       monthlyKpiStandings(projects("a"), [figures("a", leads("62.0000"), { conversions })], OCTOBER_SO_FAR);
 
-    expect(of(30)).toMatchObject({ met: 1, behind: 0 });
-    expect(of(29)).toMatchObject({ met: 0, behind: 1 });
+    expect(of(27)).toMatchObject({ met: 1, behind: 0 });
+    expect(of(26)).toMatchObject({ met: 0, behind: 1 });
   });
 
   it("counts a project in the marker's yellow zone as behind", () => {
-    const standings = monthlyKpiStandings(projects("a"), [figures("a", leads("30.0000"), { conversions: 27 })], {
+    const standings = monthlyKpiStandings(projects("a"), [figures("a", leads("30.0000"), { conversions: 24 })], {
       from: "2026-09-01", to: "2026-09-30",
     });
 

@@ -23,7 +23,12 @@ export interface CrmCalendarProps {
   onOpen?: (lead: Lead) => void;
 }
 
-export function CrmCalendar({ boardKey, busy = false, today, onOpen }: CrmCalendarProps) {
+export function CrmCalendar({
+  boardKey,
+  busy = false,
+  today,
+  onOpen,
+}: CrmCalendarProps) {
   const now = today ?? toIso(new Date());
   const { data: leads, isLoading, isError } = useLeads(boardKey);
   const [weekStart, setWeekStart] = useState(() => startOfWeek(now));
@@ -32,7 +37,8 @@ export function CrmCalendar({ boardKey, busy = false, today, onOpen }: CrmCalend
   const board = leads ?? [];
   const loading = busy || isLoading;
 
-  if (isError && board.length === 0) return <EmptyState title={t("crm.loadFailed")} />;
+  if (isError && board.length === 0)
+    return <EmptyState title={t("crm.loadFailed")} />;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
@@ -55,7 +61,9 @@ export function CrmCalendar({ boardKey, busy = false, today, onOpen }: CrmCalend
         >
           <ChevronRight />
         </Button>
-        <h2 className="min-w-0 truncate text-sm font-semibold">{weekLabel(weekStart)}</h2>
+        <h2 className="min-w-0 truncate text-sm font-semibold">
+          {weekLabel(weekStart)}
+        </h2>
         <Button
           type="button"
           variant="outline"
@@ -97,7 +105,12 @@ export function CrmCalendar({ boardKey, busy = false, today, onOpen }: CrmCalend
                   <span className="truncate text-xs font-medium text-muted-foreground">
                     {weekdayName(day)}
                   </span>
-                  <span className={cn("text-sm font-semibold", day === now && "text-primary")}>
+                  <span
+                    className={cn(
+                      "text-sm font-semibold",
+                      day === now && "text-primary",
+                    )}
+                  >
                     {dayAndMonth(day)}
                   </span>
                 </header>

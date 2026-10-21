@@ -3,8 +3,8 @@ import { kpiInputOf, kpiProgress } from "@/entities/kpi/index.js";
 
 export type ProjectTone = "none" | "danger" | "behind" | "met";
 
-const MET_FROM = 100;
-const BEHIND_FROM = 80;
+const MET_FROM = 90;
+const BEHIND_FROM = 70;
 
 export function projectTone(
   kpi: ProjectFigures["kpi"] | undefined,

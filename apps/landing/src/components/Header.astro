@@ -1,0 +1,97 @@
+---
+import Menu from "@lucide/astro/icons/menu";
+import X from "@lucide/astro/icons/x";
+import { SECTIONS, SITE } from "../site";
+---
+
+<header data-site-header class="fixed top-3 left-1/2 z-40 w-[calc(100vw-1.5rem)] -translate-x-1/2 md:top-4 md:w-max">
+  <nav aria-label="Основная навигация">
+    <div class="glass-nav flex items-center gap-1 px-2 py-1.5">
+      <a href="/" class="shrink-0 px-3 text-base font-bold tracking-tight">
+        <span class="brand-gradient">Balagan</span>BI
+      </a>
+      <span aria-hidden="true" class="hidden h-5 w-px bg-foreground/15 md:block"></span>
+      <ul class="hidden items-center gap-1 md:flex">
+        {SECTIONS.map((section) => (
+          <li>
+            <a href={section.href} class="block rounded-full px-3.5 py-2 text-[15px] leading-none font-medium text-foreground/70 transition-colors hover:bg-foreground/5 hover:text-foreground">
+              {section.label}
+            </a>
+          </li>
+        ))}
+        <li>
+          <a href="/privacy" class="block rounded-full px-3.5 py-2 text-[15px] leading-none font-medium text-foreground/70 transition-colors hover:bg-foreground/5 hover:text-foreground">
+            Политика
+          </a>
+        </li>
+      </ul>
+      <span aria-hidden="true" class="hidden h-5 w-px bg-foreground/15 md:block"></span>
+      <a
+        href={SITE.appUrl}
+        class="ml-auto rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background transition-opacity hover:opacity-90 md:ml-1"
+      >
+        Войти
+      </a>
+      <button
+        data-menu-toggle
+        type="button"
+        aria-label="Открыть меню"
+        aria-expanded="false"
+        aria-controls="mobile-navigation"
+        hidden
+        class="group grid size-11 shrink-0 cursor-pointer place-items-center rounded-full transition-colors hover:bg-foreground/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:hidden"
+      >
+        <Menu class="size-5 group-aria-expanded:hidden" aria-hidden="true" />
+        <X class="hidden size-5 group-aria-expanded:block" aria-hidden="true" />
+      </button>
+    </div>
+    <ul
+      id="mobile-navigation"
+      hidden
+      class="absolute inset-x-0 top-full mt-2 max-h-[calc(100dvh-6rem)] overflow-y-auto rounded-3xl border border-border bg-card/95 p-2 shadow-xl backdrop-blur-xl md:hidden"
+    >
+      {[...SECTIONS, { href: "/privacy", label: "Политика" }].map((section) => (
+        <li>
+          <a href={section.href} class="flex min-h-11 items-center rounded-2xl px-4 py-3 text-base font-medium transition-colors hover:bg-foreground/5 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary">
+            {section.label}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+</header>
+
+<script>
+  for (const header of document.querySelectorAll<HTMLElement>("[data-site-header]")) {
+    const toggle = header.querySelector<HTMLButtonElement>("[data-menu-toggle]");
+    const menu = header.querySelector<HTMLElement>("#mobile-navigation");
+    if (!toggle || !menu) continue;
+
+    const setOpen = (open: boolean, restoreFocus = false) => {
+      menu.hidden = !open;
+      toggle.setAttribute("aria-expanded", String(open));
+      toggle.setAttribute("aria-label", open ? "Закрыть меню" : "Открыть меню");
+      if (restoreFocus) toggle.focus({ preventScroll: true });
+    };
+
+    toggle.hidden = false;
+    toggle.addEventListener("click", () => setOpen(menu.hidden));
+    menu.addEventListener("click", (event) => {
+      if (event.target instanceof Element && event.target.closest("a")) setOpen(false, true);
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !menu.hidden) {
+        event.preventDefault();
+        setOpen(false, true);
+      }
+    });
+    const closeOutside = (event: Event) => {
+      if (event.target instanceof Node && !header.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("focusin", closeOutside);
+    window.matchMedia("(min-width: 48rem)").addEventListener("change", (event) => {
+      if (event.matches) setOpen(false);
+    });
+  }
+</script>

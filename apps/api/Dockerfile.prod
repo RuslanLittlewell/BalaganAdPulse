@@ -11,6 +11,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
+COPY apps/landing/package.json apps/landing/
 COPY packages/access-policy/package.json packages/access-policy/
 COPY scripts/patch-avataaars-react.cjs scripts/
 RUN npm ci
@@ -34,12 +35,14 @@ WORKDIR /app
 COPY --from=deps /app/ ./
 COPY apps/api ./apps/api
 COPY apps/web ./apps/web
+COPY apps/landing ./apps/landing
 COPY packages ./packages
 RUN npx prisma generate --schema apps/api/prisma
 # Both apps import the permission matrix, so it is built before either.
 RUN npm run build -w @adpulse/access-policy
 RUN npm run build -w apps/api
 RUN npm run build -w @adpulse/web
+RUN npm run build -w @adpulse/landing
 
 FROM node:26-slim AS runtime
 # node:*-slim ships libssl but not the openssl CLI, which Prisma's engine
@@ -52,6 +55,7 @@ WORKDIR /app/apps/api
 COPY package.json package-lock.json /app/
 COPY apps/api/package.json /app/apps/api/
 COPY apps/web/package.json /app/apps/web/
+COPY apps/landing/package.json /app/apps/landing/
 COPY packages/access-policy/package.json /app/packages/access-policy/
 COPY scripts/patch-avataaars-react.cjs /app/scripts/
 # Production dependencies first: `npm ci` empties node_modules, so a client
@@ -62,6 +66,7 @@ COPY --from=build /app/node_modules/@prisma/client /app/node_modules/@prisma/cli
 COPY --from=build /app/packages/access-policy/dist /app/packages/access-policy/dist
 COPY --from=build /app/apps/api/dist /app/apps/api/dist
 COPY --from=build /app/apps/web/dist /app/apps/web/dist
+COPY --from=build /app/apps/landing/dist /app/apps/landing/dist
 COPY apps/api/prisma /app/apps/api/prisma
 COPY apps/api/prisma.config.ts /app/apps/api/
 USER node

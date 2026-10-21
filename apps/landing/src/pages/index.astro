@@ -1,0 +1,149 @@
+---
+import Clock from "@lucide/astro/icons/clock";
+import Eye from "@lucide/astro/icons/eye";
+import Hourglass from "@lucide/astro/icons/hourglass";
+import Layers from "@lucide/astro/icons/layers";
+import ShieldCheck from "@lucide/astro/icons/shield-check";
+import Target from "@lucide/astro/icons/target";
+import Base from "../layouts/Base.astro";
+import Hero from "../components/Hero.astro";
+import SectionHead from "../components/SectionHead.astro";
+import IntegrationGuides from "../components/IntegrationGuides.astro";
+import ModuleTabs from "../components/ModuleTabs.astro";
+import { SITE } from "../site";
+
+const delay = (index: number) => `--reveal-delay: ${index * 0.08}s`;
+
+const features = [
+  {
+    icon: Layers,
+    title: "Все кабинеты в одном месте",
+    text: "Расходы, показы, клики и конверсии из рекламных кабинетов собираются в проекте клиента. Без ручных выгрузок и таблиц.",
+  },
+  {
+    icon: Target,
+    title: "KPI с первого взгляда",
+    text: "У каждого проекта и кампании свой цвет: зелёный - от 90% плана, жёлтый - от 70% до 90%, красный - ниже 70%.",
+  },
+  {
+    icon: Clock,
+    title: "Свежие данные каждое утро",
+    text: "Статистика за последние 30 дней обновляется сама каждое утро, а при необходимости - по кнопке.",
+  },
+  {
+    icon: Eye,
+    title: "Прозрачно для клиента",
+    text: "Клиент видит свои проекты и их результаты, а команда агентства - всё, что ей открыто.",
+  },
+];
+
+const data = [
+  "Только данные выбранного кабинета Google Ads: названия и статусы кампаний, групп объявлений и объявлений, расходы, показы, клики, конверсии и ценность конверсий, а также валюту и часовой пояс аккаунта.",
+  "BalaganBI только читает данные: он не создаёт и не меняет кампании, ставки, бюджеты и объявления.",
+  "Данные используются только для отчётов агентства перед клиентом, чей это кабинет.",
+  "Мы не продаём данные, не передаём их третьим лицам, не используем для рекламы и для обучения моделей ИИ.",
+  "Доступ можно отозвать в любой момент: отключить интеграцию в проекте или удалить доступ на странице myaccount.google.com/permissions.",
+];
+---
+
+<Base
+  title="BalaganBI - аналитика рекламных кабинетов агентства Balagan"
+  description="BalaganBI собирает статистику рекламных кабинетов Meta и Google Ads в проектах клиентов агентства Balagan и показывает выполнение KPI."
+>
+  <Hero />
+
+  <section id="features" class="site-container py-8">
+    <div class="glass flex flex-col gap-10 p-3 sm:p-10 lg:p-14">
+      <SectionHead eyebrow="Возможности" title="Медиабайеру - меньше рутины, клиенту - понятные цифры" />
+      <ul class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {features.map(({ icon: Icon, title, text }, index) => (
+          <li data-reveal style={delay(index)} class="tile flex flex-col gap-3 p-3 sm:p-6">
+            <span class="grid size-11 place-items-center rounded-xl bg-primary/10 text-primary">
+              <Icon class="size-5" aria-hidden="true" />
+            </span>
+            <h3 class="text-lg font-semibold">{title}</h3>
+            <p class="text-sm leading-6 text-muted-foreground">{text}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+  <section id="modules" class="site-container py-8">
+    <div class="glass flex flex-col gap-12 p-3 sm:p-10 lg:p-14">
+      <SectionHead align="center" eyebrow="Модули" title="Всё, чем живёт агентство, в одном приложении">
+        <p class="max-w-2xl text-lg text-muted-foreground">
+          Шесть модулей и одни данные: кабинет, подключённый в проекте, сразу виден в дашборде и отчётах.
+        </p>
+      </SectionHead>
+      <ModuleTabs />
+    </div>
+  </section>
+
+  <section id="integrations" class="site-container py-8">
+    <div class="glass flex flex-col gap-10 p-3 sm:p-10 lg:p-14">
+      <SectionHead eyebrow="Подключения" title="Кабинеты клиентов подключаются к проекту за минуту">
+        <p class="text-lg text-muted-foreground">
+          Каждый проект подключает свои кабинеты сам. К одному проекту можно подключить несколько кабинетов, у каждого - своя вкладка с кампаниями.
+        </p>
+      </SectionHead>
+
+      <IntegrationGuides />
+
+      <div class="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <div id="data" data-reveal class="tile flex flex-col gap-5 p-3 sm:p-8">
+          <h3 class="flex items-center gap-3 text-2xl font-bold tracking-tight">
+            <ShieldCheck class="size-6 text-primary" aria-hidden="true" />
+            Какие данные мы получаем и зачем
+          </h3>
+          <ul class="flex list-disc flex-col gap-2 pl-5 leading-7 marker:text-primary">
+            {data.map((line) => <li>{line}</li>)}
+          </ul>
+          <p class="text-sm text-muted-foreground">
+            Подробности - в <a href="/privacy" class="font-semibold text-primary hover:underline">политике конфиденциальности</a>.
+          </p>
+        </div>
+        <div data-reveal style={delay(1)} class="tile flex flex-col gap-4 p-3 sm:p-8">
+          <h3 class="flex items-center gap-3 text-2xl font-bold tracking-tight">
+            <Hourglass class="size-6 text-primary" aria-hidden="true" />
+            Скоро
+          </h3>
+          <p class="leading-7 text-muted-foreground">Яндекс Директ и TikTok Ads.</p>
+          <h3 class="pt-2 text-lg font-semibold">Что важно знать</h3>
+          <ul class="flex list-disc flex-col gap-2 pl-5 text-sm leading-6 text-muted-foreground marker:text-primary">
+            <li>Каждый проект подключает свои кабинеты сам, их может быть несколько.</li>
+            <li>Все кабинеты проекта должны быть в одной валюте: суммы не пересчитываются.</li>
+            <li>Отключение кабинета сохраняет всё, что уже загружено.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="english" lang="en" class="site-container py-8">
+    <div data-reveal class="glass flex flex-col gap-4 p-3 sm:p-10 lg:p-14">
+      <h2 class="text-xl font-bold tracking-tight sm:text-2xl">BalaganBI - ad account analytics by Balagan agency</h2>
+      <p class="leading-7">
+        BalaganBI is the reporting tool of the Balagan advertising agency. It brings campaign statistics from
+        connected ad accounts into one place for the agency's media buyers and clients: spend, impressions, clicks,
+        conversions and KPI progress for each client project.
+      </p>
+      <p class="leading-7">
+        When a Google Ads account is connected, the account owner signs in with Google and grants BalaganBI access
+        to Google Ads. Once a day BalaganBI reads the account's campaigns, ad groups, ads and their statistics for
+        the last 30 days and shows them on the project's dashboard. BalaganBI only reads data; it never creates or
+        changes campaigns, bids, budgets or ads.
+      </p>
+      <p class="leading-7">
+        The data is used only for the agency's reporting to the client who owns the account. It is not sold, shared
+        with third parties, used for advertising or used to train AI models. Access can be revoked at any time by
+        disconnecting the integration or at myaccount.google.com/permissions.
+      </p>
+      <p class="flex flex-wrap gap-x-5 gap-y-1">
+        <a href="/privacy#english" class="font-semibold text-primary hover:underline">Privacy policy</a>
+        <a href={SITE.appUrl} class="font-semibold text-primary hover:underline">Sign in</a>
+        <a href={`mailto:${SITE.contact}`} class="font-semibold text-primary hover:underline">{SITE.contact}</a>
+      </p>
+    </div>
+  </section>
+</Base>

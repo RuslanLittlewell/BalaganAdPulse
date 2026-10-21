@@ -1,0 +1,17 @@
+---
+import Base from "../layouts/Base.astro";
+import { SITE } from "../site";
+---
+
+<Base title="Страница не найдена - BalaganBI" description="Такой страницы на сайте BalaganBI нет.">
+  <section class="site-container flex min-h-[70vh] flex-col justify-center pt-28">
+    <div class="glass flex flex-col items-start gap-4 p-3 sm:p-10 lg:p-14">
+    <h1 class="text-5xl font-bold tracking-tight"><span class="brand-gradient">404</span> · Страница не найдена</h1>
+    <p class="text-muted-foreground">Такой страницы здесь нет. Возможно, вы искали вход в {SITE.name}.</p>
+    <div class="flex flex-wrap gap-3">
+      <a href="/" class="rounded-full border border-foreground/10 bg-card/70 px-6 py-3 font-semibold hover:border-primary hover:text-primary">На главную</a>
+      <a href={SITE.appUrl} class="rounded-full bg-foreground px-6 py-3 font-semibold text-background hover:opacity-90">Войти в {SITE.name}</a>
+    </div>
+    </div>
+  </section>
+</Base>

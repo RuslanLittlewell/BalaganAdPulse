@@ -1,0 +1,28 @@
+---
+interface Props {
+  caption: string;
+  label: string;
+}
+
+const { caption, label } = Astro.props;
+---
+
+<figure class="@container relative overflow-hidden rounded-3xl border border-border bg-card/90 shadow-2xl">
+  <figcaption class="flex items-center gap-2.5 border-b border-border px-4 py-2.5">
+    <span aria-hidden="true" class="flex gap-1.5">
+      <span class="size-2 rounded-full bg-foreground/15"></span>
+      <span class="size-2 rounded-full bg-foreground/15"></span>
+      <span class="size-2 rounded-full bg-foreground/15"></span>
+    </span>
+    <span class="min-w-0 flex-1 truncate text-xs text-muted-foreground">{caption}</span>
+    <span class="font-mono text-[10px] text-primary">{label}</span>
+  </figcaption>
+  <div class="p-4">
+    <slot />
+  </div>
+  {Astro.slots.has("footer") && (
+    <div class="flex flex-wrap items-center gap-1.5 border-t border-border px-4 py-2.5 font-mono text-[10px] text-muted-foreground">
+      <slot name="footer" />
+    </div>
+  )}
+</figure>

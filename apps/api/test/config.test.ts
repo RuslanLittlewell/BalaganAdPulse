@@ -154,4 +154,18 @@ describe("loadConfig", () => {
       expect(loadConfig({ ...google, APP_URL: "", NODE_ENV: "production", JWT_SECRET: "x".repeat(40) }).googleAds).toBeNull();
     });
   });
+
+  describe("the landing host", () => {
+    it("is bi.balagan.pro unless set", () => {
+      expect(loadConfig({ JWT_SECRET: "s" }).landingHost).toBe("bi.balagan.pro");
+    });
+
+    it("can be moved, and is read in lower case", () => {
+      expect(loadConfig({ JWT_SECRET: "s", LANDING_HOST: " About.Example.com " }).landingHost).toBe("about.example.com");
+    });
+
+    it("can be switched off by leaving it empty", () => {
+      expect(loadConfig({ JWT_SECRET: "s", LANDING_HOST: "" }).landingHost).toBeNull();
+    });
+  });
 });

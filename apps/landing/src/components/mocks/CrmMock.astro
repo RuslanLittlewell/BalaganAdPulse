@@ -1,0 +1,40 @@
+---
+import MockWindow from "./MockWindow.astro";
+
+const columns = [
+  { title: "Новый", count: 3, leads: ["Анна К.", "Игорь П."] },
+  { title: "Квалифицированный", count: 2, leads: ["Ольга С.", "Марк Д."] },
+  { title: "Целевой", count: 1, leads: ["Дина Р."] },
+  { title: "КП", count: 1, leads: ["Павел Н."] },
+];
+---
+
+<MockWindow caption="CRM · Летний запуск" label="CRM">
+  <div class="grid grid-cols-2 gap-2.5 @2xl:grid-cols-4">
+    {columns.map((column, columnIndex) => (
+      <div class="flex min-w-0 flex-col gap-2 rounded-2xl bg-muted/60 p-2">
+        <p class="flex items-center justify-between gap-1 px-1 text-[10px] font-semibold text-muted-foreground">
+          <span class="truncate">{column.title}</span>
+          <span class="tabular-nums">{column.count}</span>
+        </p>
+        {columnIndex === 0 && (
+          <div class="mock-pop rounded-xl border border-primary/60 bg-card p-2 shadow-lg ring-2 ring-primary/30" style="--d: 0.9s">
+            <p class="mock-blur truncate text-[11px] font-medium">Елена В.</p>
+            <p class="mt-1 text-[9px] font-semibold text-primary">Meta · лид-форма</p>
+          </div>
+        )}
+        {column.leads.map((lead, index) => (
+          <div class="mock-rise rounded-xl border border-border bg-card p-2" style={`--d: ${columnIndex * 0.08 + index * 0.06}s`}>
+            <p class="mock-blur truncate text-[11px] font-medium">{lead}</p>
+            <p class="mock-blur mt-1 text-[9px] text-muted-foreground">+375 29 000-00-00</p>
+          </div>
+        ))}
+      </div>
+    ))}
+  </div>
+  <Fragment slot="footer">
+    <span class="mock-chip">доска</span>
+    <span class="mock-chip">календарь</span>
+    <span class="ml-auto font-sans text-xs text-foreground">Новый лид из лид-формы Meta</span>
+  </Fragment>
+</MockWindow>

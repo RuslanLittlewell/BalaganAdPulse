@@ -1,0 +1,48 @@
+---
+import MockWindow from "./MockWindow.astro";
+
+const members = [
+  { name: "Анна Белова", role: "Администратор", color: "#e8703a", online: true },
+  { name: "Игорь Петров", role: "Менеджер", color: "#4a8fe7", online: true },
+  { name: "Ольга Смирнова", role: "Гость", color: "#46b58a", online: false },
+  { name: "Марк Дорофеев", role: "Главный у клиента", color: "#b968d9", online: true },
+];
+const log = [
+  { who: "Анна", what: "подключила кабинет Google Ads" },
+  { who: "Игорь", what: "изменил KPI проекта" },
+  { who: "Анна", what: "пригласила сотрудника клиента" },
+];
+---
+
+<MockWindow caption="Команда · доступ к проектам" label="Команда">
+  <div class="grid gap-3 @2xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+    <ul class="overflow-hidden rounded-2xl border border-border">
+      {members.map((member, index) => (
+        <li class="mock-rise flex items-center gap-2.5 border-b border-border/60 px-3 py-2 last:border-b-0" style={`--d: ${index * 0.1}s`}>
+          <span class="relative grid size-7 shrink-0 place-items-center rounded-full text-[10px] font-bold text-white" style={`background: ${member.color}`}>
+            <span class="mock-blur">{member.name.slice(0, 1)}</span>
+            {member.online && <span class="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-card" style="background: var(--kpi-met)"></span>}
+          </span>
+          <span class="mock-blur min-w-0 flex-1 truncate text-xs font-medium">{member.name}</span>
+          <span class="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{member.role}</span>
+        </li>
+      ))}
+    </ul>
+    <div class="rounded-2xl border border-border p-3">
+      <p class="text-[11px] font-semibold">Журнал действий</p>
+      <ul class="mt-2 flex flex-col gap-2">
+        {log.map((entry, index) => (
+          <li class="mock-rise flex gap-2 text-[11px] leading-4" style={`--d: ${0.5 + index * 0.25}s`}>
+            <span class="mt-1 size-1.5 shrink-0 rounded-full bg-primary"></span>
+            <span><span class="mock-blur font-semibold">{entry.who}</span> <span class="text-muted-foreground">{entry.what}</span></span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </div>
+  <Fragment slot="footer">
+    <span class="mock-chip">роли</span>
+    <span class="mock-chip">приглашения</span>
+    <span class="mock-chip">журнал</span>
+  </Fragment>
+</MockWindow>

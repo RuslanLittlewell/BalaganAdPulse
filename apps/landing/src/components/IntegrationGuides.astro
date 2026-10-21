@@ -1,0 +1,113 @@
+---
+import Megaphone from "@lucide/astro/icons/megaphone";
+import Search from "@lucide/astro/icons/search";
+
+const guides = [
+  {
+    id: "meta",
+    icon: Megaphone,
+    name: "Meta",
+    detail: "Facebook и Instagram Ads",
+    lead: "Кабинет Meta подключается по Account ID и токену доступа. Загружаются кампании, группы объявлений, объявления, креативы и статистика, а лиды из лид-форм - в CRM.",
+    steps: [
+      {
+        title: "Подготовьте токен",
+        text: "В Business Manager создайте системного пользователя, откройте ему рекламный аккаунт клиента и выпустите токен с правом ads_read. Для лидов нужны ещё leads_retrieval, pages_manage_ads, pages_read_engagement, pages_show_list и ads_management.",
+      },
+      {
+        title: "Откройте проект клиента",
+        text: "В разделе «Интеграции» нажмите «Добавить интеграцию» и выберите Meta.",
+      },
+      {
+        title: "Вставьте Account ID и токен",
+        text: "Account ID можно указать с act_ или без него. Чтобы лиды приходили в CRM, включите «Загружать лиды для CRM».",
+      },
+      {
+        title: "Нажмите «Подключить»",
+        text: "BalaganBI проверит доступ к аккаунту, возьмёт его валюту для проекта и сразу загрузит кампании и статистику за последние 30 дней.",
+      },
+      {
+        title: "Дальше всё само",
+        text: "Данные обновляются каждое утро, а кнопкой «Обновить» - когда нужно. Лиды за последние 7 дней загрузятся сразу, новые появятся в CRM в течение 15 минут.",
+      },
+    ],
+  },
+  {
+    id: "google",
+    icon: Search,
+    name: "Google Ads",
+    detail: "Вход через Google",
+    lead: "Кабинет Google Ads подключается входом через Google: пароль и токены вводить не нужно. Загружаются кампании, группы объявлений, объявления и их статистика.",
+    steps: [
+      {
+        title: "Откройте проект клиента",
+        text: "В разделе «Интеграции» нажмите «Добавить интеграцию» и выберите Google.",
+      },
+      {
+        title: "Войдите через Google",
+        text: "Войдите в аккаунт Google, у которого есть доступ к кабинету: к самому кабинету или к менеджерскому аккаунту (MCC), под которым он лежит. Разрешите BalaganBI доступ к Google Ads.",
+      },
+      {
+        title: "Выберите кабинет",
+        text: "Вернувшись в проект, выберите кабинет из списка доступных этому входу и нажмите «Подключить».",
+      },
+      {
+        title: "Первая загрузка",
+        text: "BalaganBI проверит доступ и валюту кабинета и сразу загрузит кампании и статистику за последние 30 дней.",
+      },
+      {
+        title: "Если доступ отозвали",
+        text: "Подключение и загруженные данные остаются, а панель попросит «Войти заново» - после входа загрузка продолжится.",
+      },
+    ],
+  },
+];
+---
+
+<div data-tabs data-reveal class="flex flex-col gap-6 [overflow-anchor:none]">
+  <div role="tablist" aria-label="Гайды по подключению" hidden data-segment class="segment self-start">
+    {guides.map(({ id, icon: Icon, name }, index) => (
+      <button
+        type="button"
+        role="tab"
+        id={`tab-${id}`}
+        aria-controls={`guide-${id}`}
+        aria-selected={index === 0 ? "true" : "false"}
+        tabindex={index === 0 ? 0 : -1}
+      >
+        <Icon class="size-4" aria-hidden="true" />
+        {name}
+      </button>
+    ))}
+  </div>
+
+  {guides.map(({ id, icon: Icon, name, detail, lead, steps }) => (
+    <section id={`guide-${id}`} role="tabpanel" aria-labelledby={`tab-${id}`} class="tile grid gap-8 p-3 sm:p-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-12">
+      <div class="flex flex-col gap-4">
+        <span class="grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+          <Icon class="size-6" aria-hidden="true" />
+        </span>
+        <div>
+          <h3 class="text-2xl font-bold tracking-tight">Как подключить {name}</h3>
+          <p class="text-sm font-semibold text-primary">{detail}</p>
+        </div>
+        <p class="leading-7 text-muted-foreground">{lead}</p>
+      </div>
+      <ol class="flex flex-col gap-5">
+        {steps.map((step, index) => (
+          <li class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+            <span class="row-span-2 grid size-8 place-items-center rounded-full bg-primary text-sm font-bold text-primary-foreground">{index + 1}</span>
+            <h4 class="pt-1 font-semibold">{step.title}</h4>
+            <p class="text-sm leading-6 text-muted-foreground">{step.text}</p>
+          </li>
+        ))}
+      </ol>
+    </section>
+  ))}
+</div>
+
+<script>
+  import { mountTabs } from "../scripts/tabs";
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-tabs]")) mountTabs(root);
+</script>

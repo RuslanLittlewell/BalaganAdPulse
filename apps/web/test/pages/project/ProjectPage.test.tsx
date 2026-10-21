@@ -597,7 +597,7 @@ describe("each campaign's indicator", () => {
       ],
     });
     server.use(mock.get("/api/projects/:projectId/kpi", () =>
-      HttpResponse.json({ metric: "CPA", target: "18.0000", updatedAt: "2026-09-01T00:00:00.000Z" })));
+      HttpResponse.json({ metric: "CPA", target: "16.0000", updatedAt: "2026-09-01T00:00:00.000Z" })));
     renderWithProviders(<App />, route);
 
     await screen.findByText("Выполняет");

@@ -153,11 +153,11 @@ it, counting lower-is-better metrics in their favourable direction, rounded to t
 percent the tile shows. The marker SHALL be:
 
 - grey when the project has no KPI, or when the KPI's figure is not measured for the period;
-- red when progress is below 80%: the project is far behind and needs urgent measures —
+- red when progress is below 70%: the project is far behind and needs urgent measures —
   finding the causes, a plan to fix them and follow-up;
-- yellow when progress is from 80% up to 100%: the project is somewhat behind and someone
+- yellow when progress is from 70% up to 90%: the project is somewhat behind and someone
   should look closer and help;
-- green when progress is 100% or more: the plan is met or exceeded and nothing is needed.
+- green when progress is 90% or more: the plan is met or exceeded and nothing is needed.
 
 These are the zones of a campaign's indicator. In the wide list the marker SHALL be a bar
 beside the project; in the narrowed list it SHALL be a small circle on the project's picture.
@@ -172,15 +172,20 @@ project's context menu SHALL NOT offer a priority.
 - **WHEN** a project's KPI is 30 leads for the period and it has 30
 - **THEN** its marker is green
 
-#### Scenario: Behind
+#### Scenario: The lower boundary of green
 
 - **WHEN** a project has 27 leads against a KPI of 30
+- **THEN** its progress is 90% and its marker is green
+
+#### Scenario: Behind
+
+- **WHEN** a project has 24 leads against a KPI of 30
 - **THEN** its marker is yellow
 
 #### Scenario: The lower boundary of yellow
 
-- **WHEN** a project has 24 leads against a KPI of 30
-- **THEN** its progress is 80% and its marker is yellow
+- **WHEN** a project has 21 leads against a KPI of 30
+- **THEN** its progress is 70% and its marker is yellow
 
 #### Scenario: A whole month of 31 days
 
@@ -189,8 +194,8 @@ project's context menu SHALL NOT offer a priority.
 
 #### Scenario: Far behind
 
-- **WHEN** a project has 23 leads against a KPI of 30
-- **THEN** its marker is red
+- **WHEN** a project has 20 leads against a KPI of 30
+- **THEN** its progress is 67% and its marker is red
 
 #### Scenario: Lower is better
 
@@ -209,7 +214,7 @@ project's context menu SHALL NOT offer a priority.
 
 #### Scenario: Another period
 
-- **WHEN** a member selects a period in which the project's progress crosses 100%
+- **WHEN** a member selects a period in which the project's progress crosses 90%
 - **THEN** its marker turns green without a reload
 
 #### Scenario: Setting a KPI

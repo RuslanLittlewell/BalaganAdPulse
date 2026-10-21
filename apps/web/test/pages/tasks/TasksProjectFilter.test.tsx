@@ -97,10 +97,24 @@ describe("narrowing the task module to chosen projects", () => {
     await user.click(projectFilter());
 
     const offered = await screen.findAllByRole("menuitemcheckbox");
-    expect(offered).toHaveLength(3);
-    expect(offered[0]).toHaveAccessibleName("Магазин");
-    expect(offered[1]).toHaveAccessibleName("Сайт");
-    expect(offered[2]).toHaveAccessibleName("Без проекта");
+    expect(offered).toHaveLength(4);
+    expect(offered[0]).toHaveAccessibleName("Все");
+    expect(offered[1]).toHaveAccessibleName("Магазин");
+    expect(offered[2]).toHaveAccessibleName("Сайт");
+    expect(offered[3]).toHaveAccessibleName("Без проекта");
+  });
+
+  it("chooses every project at once with Все", async () => {
+    const user = userEvent.setup();
+    setup();
+    await screen.findByText("Сайт у Петра");
+
+    await user.click(projectFilter());
+    await choose(user, "Все");
+
+    for (const item of await screen.findAllByRole("menuitemcheckbox")) {
+      expect(item).toHaveAttribute("aria-checked", "true");
+    }
   });
 
   it("combines with the responsible-member filter", async () => {

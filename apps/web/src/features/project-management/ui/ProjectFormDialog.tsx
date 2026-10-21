@@ -53,13 +53,24 @@ interface Fields {
   name: string;
 }
 
-const ASSIGNABLE_ROLES = ["MANAGER", "GUEST"];
+const ASSIGNABLE_ROLES = ["ADMIN", "MANAGER", "GUEST"];
 
-function StaffPicker({ chosen, onChange }: { chosen: string[]; onChange: (next: string[]) => void }) {
+function useAssignable() {
   const members = useMembers();
-  const assignable = (members.data ?? []).filter(
+  return (members.data ?? []).filter(
     (member) => member.status === "ACTIVE" && ASSIGNABLE_ROLES.includes(member.role),
   );
+}
+
+function StaffPicker({
+  assignable,
+  chosen,
+  onChange,
+}: {
+  assignable: ReturnType<typeof useAssignable>;
+  chosen: string[];
+  onChange: (next: string[]) => void;
+}) {
 
   return (
     <div className="grid gap-1">
@@ -119,7 +130,9 @@ export function ProjectFormDialog({
   const [failure, setFailure] = useState<string | null>(null);
   const [creatingClient, setCreatingClient] = useState(false);
   const [createdClientId, setCreatedClientId] = useState<string | null>(null);
-  const [memberIds, setMemberIds] = useState<string[]>([]);
+  const [chosenIds, setChosenIds] = useState<string[] | null>(null);
+  const assignable = useAssignable();
+  const memberIds = chosenIds ?? assignable.filter((member) => member.role === "ADMIN").map((member) => member.id);
   const mayAssignStaff = useCan("update", "member") && !isEdit;
 
   const {
@@ -153,7 +166,7 @@ export function ProjectFormDialog({
         ? await update.mutateAsync({ id: project.id, body: toInput(fields) })
         : await create.mutateAsync({
             ...toInput(fields),
-            ...(memberIds.length > 0 ? { memberIds } : {}),
+            ...(mayAssignStaff && memberIds.length > 0 ? { memberIds } : {}),
           });
 
       const withLogo = logo
@@ -301,7 +314,7 @@ export function ProjectFormDialog({
                 <p className="text-xs text-muted-foreground">{t("project.client.empty")}</p>
               )}
             </div>
-            {mayAssignStaff && <StaffPicker chosen={memberIds} onChange={setMemberIds} />}
+            {mayAssignStaff && <StaffPicker assignable={assignable} chosen={memberIds} onChange={setChosenIds} />}
             </div>
           </div>
 

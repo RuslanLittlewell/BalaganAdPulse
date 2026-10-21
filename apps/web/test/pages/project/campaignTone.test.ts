@@ -18,9 +18,10 @@ describe("a campaign's indicator", () => {
   it.each([
     [30, "profitable"],
     [45, "profitable"],
-    [27, "stable"],
-    [24, "stable"],
-    [23, "danger"],
+    [27, "profitable"],
+    [26, "stable"],
+    [21, "stable"],
+    [20, "danger"],
     [0, "danger"],
   ] as const)("reads %s leads against a target of 30 as %s", (conversions, tone) => {
     expect(campaignTone(campaign({ performance: { ...performance, conversions } }), null, SEPTEMBER)).toBe(tone);
@@ -35,7 +36,7 @@ describe("a campaign's indicator", () => {
 
     expect(cpaOf(9)).toBe("profitable");
     expect(cpaOf(12)).toBe("stable");
-    expect(cpaOf(14)).toBe("danger");
+    expect(cpaOf(15)).toBe("danger");
   });
 
   it("falls back to the project's KPI when the campaign has none", () => {

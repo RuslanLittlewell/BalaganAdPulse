@@ -20,6 +20,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import {
+  isActiveColumn,
   occurrencesBetween,
   participantsOf,
   timeRange,
@@ -174,7 +175,7 @@ export function TaskCalendar({
   };
 
   const days = useMemo(() => weekDays(weekStart), [weekStart]);
-  const board = tasks ?? [];
+  const board = useMemo(() => (tasks ?? []).filter((task) => task.isCall || isActiveColumn(task.column)), [tasks]);
 
   const projectById = useMemo(
     () => new Map((projects ?? []).map((project) => [project.id, project])),

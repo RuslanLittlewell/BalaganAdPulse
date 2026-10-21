@@ -15,7 +15,7 @@ export class PrismaProjectStaffing implements ProjectStaffing {
         id: { in: [...memberIds] },
         orgId,
         status: "ACTIVE",
-        role: { in: ["MANAGER", "GUEST"] },
+        role: { in: ["ADMIN", "MANAGER", "GUEST"] },
       },
       select: { id: true },
     });

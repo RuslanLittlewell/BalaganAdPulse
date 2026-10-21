@@ -6,6 +6,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu.js";
 
@@ -21,6 +22,7 @@ export interface MultiSelectProps {
   onChange: (chosen: string[]) => void;
   placeholder: string;
   ariaLabel: string;
+  allLabel?: string;
   className?: string;
 }
 
@@ -30,10 +32,15 @@ export function MultiSelect({
   onChange,
   placeholder,
   ariaLabel,
+  allLabel,
   className,
 }: MultiSelectProps) {
   const picked = items.filter((item) => chosen.includes(item.value));
   const [first, ...rest] = picked;
+
+  const allChosen = items.length > 0 && items.every((item) => chosen.includes(item.value));
+
+  const toggleAll = () => onChange(allChosen ? [] : items.map((item) => item.value));
 
   const toggle = (value: string) =>
     onChange(
@@ -62,6 +69,18 @@ export function MultiSelect({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="max-h-96 overflow-y-auto">
+        {allLabel ? (
+          <>
+            <DropdownMenuCheckboxItem
+              checked={allChosen}
+              onSelect={(event) => event.preventDefault()}
+              onCheckedChange={toggleAll}
+            >
+              <span className="truncate">{allLabel}</span>
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuSeparator />
+          </>
+        ) : null}
         {items.map((item) => (
           <DropdownMenuCheckboxItem
             key={item.value}

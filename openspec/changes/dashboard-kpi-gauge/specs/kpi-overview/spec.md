@@ -13,8 +13,8 @@ day of the month to today, whatever period the dashboard has selected, prorating
 targets and rounding progress as the project's marker in the project list does. Each
 project SHALL count as:
 
-- met when its progress is 100% or more;
-- behind when its progress is below 100%;
+- met when its progress is 90% or more;
+- behind when its progress is below 90%;
 - unrated when it has no KPI or the KPI's figure is not measured for the month.
 
 The gauge's arc SHALL be divided in proportion to these counts: green for met, then red for

@@ -184,9 +184,10 @@ describe("a project's KPI marker", () => {
 
   it.each([
     ["met", 30, "KPI: план выполнен"],
-    ["somewhat behind", 27, "KPI: небольшое отставание"],
-    ["at the lower edge of somewhat behind", 24, "KPI: небольшое отставание"],
-    ["far behind", 23, "KPI: серьёзное отставание"],
+    ["met at its lower edge", 27, "KPI: план выполнен"],
+    ["somewhat behind", 24, "KPI: небольшое отставание"],
+    ["at the lower edge of somewhat behind", 21, "KPI: небольшое отставание"],
+    ["far behind", 20, "KPI: серьёзное отставание"],
   ])("names a KPI %s", async (_case, conversions, label) => {
     withFigures([leads(conversions)]);
     setup(september);

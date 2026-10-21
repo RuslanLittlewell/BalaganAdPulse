@@ -1,0 +1,68 @@
+---
+import BalaganSignature from "./BalaganSignature.astro";
+import DashboardDemo from "./DashboardDemo.astro";
+import { SITE } from "../site";
+---
+
+<section class="relative isolate overflow-hidden pt-28 pb-16 lg:pt-32">
+  <div aria-hidden="true" class="hero-backdrop pointer-events-none absolute inset-0 -z-10 bg-background">
+    <div data-rays class="absolute inset-0"></div>
+  </div>
+  <div class="site-container flex min-h-[calc(100vh-11rem)] flex-col items-center justify-center gap-10 lg:gap-14">
+    <BalaganSignature />
+    <div class="grid w-full items-center gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-12">
+      <div class="hero-copy flex flex-col gap-5">
+        <h1 class="text-3xl leading-[1.1] font-bold tracking-tight text-balance sm:text-4xl xl:text-5xl">
+          <span class="brand-gradient block">{SITE.name}:</span>
+          вся реклама клиентов в одном месте
+        </h1>
+        <p class="max-w-xl text-base leading-7 text-muted-foreground">
+          {SITE.name} - сервис рекламного агентства Balagan для медиабайеров и клиентов агентства. Он собирает
+          статистику рекламных кампаний из подключённых кабинетов в одном месте: расходы, показы, клики, конверсии
+          и выполнение KPI по каждому проекту клиента.
+        </p>
+        <p class="max-w-xl text-sm leading-6 text-muted-foreground">
+          Каждое утро данные обновляются сами и сверяются с KPI: зелёный - по плану, жёлтый - стоит присмотреться,
+          красный - нужна помощь.
+        </p>
+      </div>
+      <div class="hero-demo">
+        <DashboardDemo delay={700} />
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero-backdrop {
+    mask-image: linear-gradient(to bottom, black 75%, transparent);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .hero-copy {
+      animation: hero-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 1.1s both;
+    }
+
+    .hero-demo {
+      animation: hero-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 1.3s both;
+    }
+  }
+
+  @keyframes hero-rise {
+    from {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+</style>
+
+<script>
+  import { mountRays } from "../scripts/rays";
+
+  const rays = document.querySelector<HTMLElement>("[data-rays]");
+  if (rays) mountRays(rays);
+</script>

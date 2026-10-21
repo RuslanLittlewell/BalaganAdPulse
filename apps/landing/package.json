@@ -1,0 +1,22 @@
+{
+  "name": "@adpulse/landing",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check",
+    "test": "astro build && vitest run"
+  },
+  "devDependencies": {
+    "@lucide/astro": "^1.37.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "astro": "7.3.8",
+    "cookie": "^2.0.1",
+    "ogl": "^1.0.11",
+    "tailwindcss": "^4.3.3",
+    "vitest": "^4.1.10"
+  }
+}

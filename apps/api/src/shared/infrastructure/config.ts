@@ -26,6 +26,7 @@ export interface Config {
   documentation: boolean;
   production: boolean;
   appUrl: string | null;
+  landingHost: string | null;
   mail: MailConfig | null;
   taskTimeZone: string;
   telegramBot: TelegramBotConfig | null;
@@ -44,6 +45,8 @@ const PLACEHOLDER_JWT_SECRET = "dev-secret-change-me";
 const MIN_JWT_SECRET_LENGTH = 32;
 
 const DEVELOPMENT_APP_URL = "http://localhost:5173";
+
+const DEFAULT_LANDING_HOST = "bi.balagan.pro";
 
 const DEFAULT_TASK_TIME_ZONE = "Europe/Minsk";
 
@@ -141,6 +144,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     documentation: env.API_DOCS !== "off",
     production,
     appUrl,
+    landingHost: env.LANDING_HOST === undefined ? DEFAULT_LANDING_HOST : env.LANDING_HOST.trim().toLowerCase() || null,
     mail: mailConfig(env),
     taskTimeZone: taskTimeZone(env),
     telegramBot: telegramBotConfig(env),

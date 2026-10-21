@@ -88,6 +88,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:web
+      - run: npm run test:landing
 
   build:
     name: Type-check and build
@@ -105,6 +106,7 @@ jobs:
       - run: npx prisma generate --schema apps/api/prisma
       - run: npm run build -w apps/api
       - run: npm run build -w @adpulse/web
+      - run: npm run build -w @adpulse/landing
 
   image:
     name: Production image
@@ -159,6 +161,12 @@ jobs:
       - name: The SPA fallback works from inside the image
         run: |
           test "$(curl -s -o /dev/null -w '%{http_code}' localhost:3000/login)" = "200"
+
+      - name: The landing host gets the landing from inside the image
+        run: |
+          curl -fsS -H 'Host: bi.balagan.pro' localhost:3000/ | grep -q 'BalaganBI'
+          curl -fsS -H 'Host: bi.balagan.pro' localhost:3000/privacy/ | grep -q 'Limited Use'
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: bi.balagan.pro' localhost:3000/api/projects)" = "404"
 
       - name: An unmatched API path returns the json envelope, not html
         run: |

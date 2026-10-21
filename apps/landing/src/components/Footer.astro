@@ -1,0 +1,81 @@
+---
+import { SECTIONS, SITE } from "../site";
+
+const topics = ["Вопрос о сервисе", "Подключение кабинета", "Доступ и данные", "Другое"];
+---
+
+<footer class="site-container pt-8 pb-10">
+  <div class="glass p-3 sm:p-10 lg:p-14">
+  <div class="grid gap-12 lg:grid-cols-2 lg:gap-16">
+    <div class="flex flex-col gap-6">
+      <a href="/" class="text-2xl font-bold tracking-tight">
+        <span class="brand-gradient">Balagan</span>BI
+      </a>
+      <p class="max-w-sm text-muted-foreground">
+        {SITE.name} собирает рекламные кабинеты клиентов агентства Balagan в одном месте и показывает, как каждый проект идёт к своему KPI.
+      </p>
+      <a
+        href={SITE.appUrl}
+        class="self-start rounded-full bg-foreground px-5 py-3 text-sm font-semibold text-background shadow-lg transition-opacity hover:opacity-90"
+      >
+        Войти в {SITE.name}
+      </a>
+      <div class="grid max-w-md grid-cols-2 gap-8 pt-2">
+        <div class="flex flex-col gap-3">
+          <p class="text-xs font-bold tracking-wider text-muted-foreground uppercase">Сервис</p>
+          {SECTIONS.map((section) => (
+            <a href={section.href} class="text-sm hover:text-primary">{section.label}</a>
+          ))}
+        </div>
+        <div class="flex flex-col gap-3">
+          <p class="text-xs font-bold tracking-wider text-muted-foreground uppercase">Помощь</p>
+          <a href="/privacy" class="text-sm hover:text-primary">Политика конфиденциальности</a>
+          <a href={SITE.agencyUrl} class="text-sm hover:text-primary">Агентство Balagan</a>
+          <a href={`mailto:${SITE.contact}`} class="text-sm hover:text-primary">{SITE.contact}</a>
+        </div>
+      </div>
+    </div>
+
+    <form data-contact class="tile flex flex-col gap-4 p-3 sm:p-8" action={`mailto:${SITE.contact}`} method="get">
+      <h2 class="text-2xl font-bold tracking-tight">Нужна помощь?</h2>
+      <p class="text-sm text-muted-foreground">Вопрос, идея или что-то не работает? Напишите нам.</p>
+      <label class="flex flex-col gap-2 text-sm font-semibold">
+        Тема
+        <select name="subject" class="rounded-lg border border-border bg-card px-3 py-2.5 font-normal">
+          {topics.map((topic) => <option>{topic}</option>)}
+        </select>
+      </label>
+      <label class="flex flex-col gap-2 text-sm font-semibold">
+        Сообщение
+        <textarea name="body" rows="5" placeholder="Расскажите, что случилось или что хотелось бы видеть" class="resize-y rounded-lg border border-border bg-card px-3 py-2.5 font-normal"></textarea>
+      </label>
+      <button type="submit" class="rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90">
+        Написать письмо
+      </button>
+      <p class="text-xs text-muted-foreground">Откроется ваша почтовая программа с готовым письмом.</p>
+    </form>
+  </div>
+
+  <div class="mt-12 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-6 text-sm text-muted-foreground">
+    <p>© 2026 <a href={SITE.agencyUrl} class="hover:text-foreground">Balagan</a> · {SITE.name}</p>
+    <p class="flex gap-4">
+      <span class="font-semibold text-foreground">Русский</span>
+      <a href="/#english" class="hover:text-foreground" lang="en">English</a>
+    </p>
+  </div>
+  </div>
+</footer>
+
+<script>
+  import { SITE } from "../site";
+
+  for (const form of document.querySelectorAll<HTMLFormElement>("form[data-contact]")) {
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const data = new FormData(form);
+      const subject = encodeURIComponent(`${SITE.name}: ${data.get("subject") ?? ""}`);
+      const body = encodeURIComponent(String(data.get("body") ?? ""));
+      window.location.href = `mailto:${SITE.contact}?subject=${subject}&body=${body}`;
+    });
+  }
+</script>

@@ -114,7 +114,8 @@ from [deploy/compose.prod.yml](deploy/compose.prod.yml), runs the production ima
 API and the built SPA in one process — next to Postgres 16 and MinIO, whose data lives in
 Docker volumes on the server. nginx, configured from
 [deploy/nginx.conf](deploy/nginx.conf), forwards the domain to the app on
-`127.0.0.1:3100`, WebSocket upgrades included.
+`127.0.0.1:3100`, WebSocket upgrades included. The same process serves the public landing,
+<https://bi.balagan.pro>, to requests for that host; see [Landing](#landing).
 
 ### How a deploy runs
 
@@ -956,3 +957,36 @@ Projects can connect a Google Ads account by signing in with Google in the web
 interface; each project signs in on its own. See
 [Google Ads integration](docs/google-ads-integration.md) for the sign-in, what is
 imported and the server configuration it needs.
+
+## Landing
+
+The public site of BalaganBI lives in [apps/landing](apps/landing): Astro with Tailwind,
+rendered at build time into static HTML, so its text is in the document as served — Google's
+OAuth review reads it there. It wears the web app's palette, light or dark after the visitor's
+system, and the same animated waves.
+
+| Page | Path |
+|---|---|
+| Home: what BalaganBI does, its modules, connecting ad accounts, Google data use | `/` |
+| Privacy policy, Russian and English | `/privacy` |
+| Not found | `404.html` |
+
+```bash
+npm run dev:landing     # http://localhost:4321, reloads on save
+npm run build:landing   # apps/landing/dist
+npm run test:landing    # builds, then checks the pages carry what Google reads
+```
+
+The production image builds the landing next to the web app, and the API process answers
+requests for `LANDING_HOST` (default `bi.balagan.pro`; empty turns it off) from its build. Any
+other host gets the API and the web app as before. A path the landing does not have answers
+its 404 page, `/api` included.
+
+Putting it live once, on the server and at the registrar:
+
+1. At hoster.by add an `A` record `bi` → `45.87.219.63`.
+2. Copy the `bi.balagan.pro` server from [deploy/nginx.conf](deploy/nginx.conf) into the
+   server's nginx configuration, then `nginx -t && systemctl reload nginx`.
+3. Issue its certificate: `certbot --nginx -d bi.balagan.pro`.
+4. In Google Cloud, Branding: home page `https://bi.balagan.pro`, privacy policy
+   `https://bi.balagan.pro/privacy`.

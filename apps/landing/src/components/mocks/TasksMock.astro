@@ -1,0 +1,53 @@
+---
+import Mic from "@lucide/astro/icons/mic";
+import MockWindow from "./MockWindow.astro";
+
+const columns = [
+  { title: "Идея", cards: [{ text: "Новый креатив для осени", tag: "" }] },
+  { title: "В работе", cards: [{ text: "Запустить ретаргетинг", tag: "" }, { text: "Собрать отчёт клиенту", tag: "" }] },
+  { title: "На проверке", cards: [{ text: "Тексты для лид-формы", tag: "" }], moving: { text: "Обновить аудитории", tag: "" } },
+  { title: "Готово", cards: [{ text: "Созвон с клиентом", tag: "Созвон" }] },
+];
+---
+
+<MockWindow caption="Задачи · команда агентства" label="Задачи">
+  <div class="grid grid-cols-4 gap-2.5">
+    {columns.map((column, columnIndex) => (
+      <div class="flex min-w-0 flex-col gap-2 rounded-2xl bg-muted/60 p-2">
+        <p class="truncate px-1 text-[10px] font-semibold text-muted-foreground">{column.title}</p>
+        {column.moving && (
+          <div class="mock-move relative z-10 rounded-xl border border-primary/50 bg-card p-2 shadow-lg" style="--d: 0.6s">
+            <p class="mock-blur truncate text-[11px] font-medium">{column.moving.text}</p>
+            <div class="mt-2 flex gap-1">
+              <span class="size-4 rounded-full" style="background: #4a8fe7"></span>
+              <span class="size-4 rounded-full" style="background: #46b58a"></span>
+            </div>
+          </div>
+        )}
+        {column.cards.map((card, index) => (
+          <div class="mock-rise rounded-xl border border-border bg-card p-2" style={`--d: ${columnIndex * 0.08 + index * 0.06}s`}>
+            <p class="mock-blur truncate text-[11px] font-medium">{card.text}</p>
+            <div class="mt-2 flex items-center gap-1">
+              <span class="size-4 rounded-full" style="background: #e8703a"></span>
+              {card.tag && <span class="ml-auto rounded-full bg-primary/15 px-1.5 text-[9px] font-semibold text-primary">{card.tag}</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+    ))}
+  </div>
+  <div class="mock-pop mt-3 flex items-center gap-2.5 rounded-2xl border border-border p-3" style="--d: 1.6s">
+    <span class="grid size-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
+      <Mic class="size-4" aria-hidden="true" />
+    </span>
+    <p class="min-w-0 text-xs">
+      <span class="font-semibold">Telegram-бот:</span>
+      <span class="text-muted-foreground">задача из голосового сообщения создана</span>
+    </p>
+  </div>
+  <Fragment slot="footer">
+    <span class="mock-chip">канбан</span>
+    <span class="mock-chip">календарь</span>
+    <span class="mock-chip">созвоны</span>
+  </Fragment>
+</MockWindow>

@@ -6,11 +6,16 @@ import { errorHandler } from "#shared/presentation/error-handler.js";
 import { projectDocumentBody } from "#modules/project-documents/index.js";
 import { createContainer, type ApiContainer } from "./create-container.js";
 import { createRoutes, mountPath } from "./create-routes.js";
+import { landingFor } from "./landing.js";
+import { config } from "#shared/infrastructure/config.js";
 
 const DEFAULT_WEB_DIST = fileURLToPath(new URL("../../../web/dist/", import.meta.url));
+const DEFAULT_LANDING_DIST = fileURLToPath(new URL("../../../landing/dist/", import.meta.url));
 
 export interface AppOptions {
   webDistPath?: string;
+  landingDistPath?: string;
+  landingHost?: string | null;
   container?: ApiContainer;
 }
 
@@ -24,6 +29,10 @@ export function createApp(options: AppOptions = {}) {
   app.get("/healthz", (_req, res) => {
     res.json({ status: "ok" });
   });
+
+  const landingHost = options.landingHost === undefined ? config.landingHost : options.landingHost;
+  const landingDistPath = options.landingDistPath ?? DEFAULT_LANDING_DIST;
+  if (landingHost && existsSync(landingDistPath)) app.use(landingFor(landingHost, landingDistPath));
 
   app.use(createRoutes(options.container ?? createContainer()));
 

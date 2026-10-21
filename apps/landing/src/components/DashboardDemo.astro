@@ -1,0 +1,313 @@
+---
+import Check from "@lucide/astro/icons/check";
+import RefreshCw from "@lucide/astro/icons/refresh-cw";
+import Sparkles from "@lucide/astro/icons/sparkles";
+
+type Zone = "met" | "behind" | "danger";
+
+interface Props {
+  delay?: number;
+}
+
+const { delay = 0 } = Astro.props;
+
+const zoneOf = (kpi: number): Zone => (kpi >= 90 ? "met" : kpi >= 70 ? "behind" : "danger");
+
+const projects = [
+  { name: "Летний запуск", channel: "Meta", spend: 1240, leads: 86, kpi: 112 },
+  { name: "Студия йоги", channel: "Google Ads", spend: 520, leads: 31, kpi: 84 },
+  { name: "Онлайн-школа", channel: "Meta", spend: 2150, leads: 140, kpi: 103 },
+  { name: "Автосалон", channel: "Google Ads", spend: 1780, leads: 18, kpi: 62 },
+  { name: "Доставка цветов", channel: "Meta", spend: 640, leads: 57, kpi: 91 },
+].map((project) => ({ ...project, zone: zoneOf(project.kpi) }));
+
+const counts = {
+  met: projects.filter((project) => project.zone === "met").length,
+  behind: projects.filter((project) => project.zone === "behind").length,
+  danger: projects.filter((project) => project.zone === "danger").length,
+};
+const share = (count: number) => (count / projects.length) * 100;
+const metShare = share(counts.met);
+const ratedShare = share(counts.met + counts.behind);
+const money = (value: number) => `${value.toLocaleString("ru-RU")} $`;
+
+const ARC = "M 12 64 A 52 52 0 0 1 116 64";
+const legend = [
+  { key: "met", label: "Выполняют", color: "var(--kpi-met)" },
+  { key: "behind", label: "Немного отстают", color: "var(--kpi-behind)" },
+  { key: "danger", label: "Сильно отстают", color: "var(--kpi-danger)" },
+] as const;
+---
+
+<figure data-demo data-delay={delay} class="@container relative overflow-hidden rounded-3xl border border-border bg-card/90 shadow-2xl">
+  <figcaption class="sr-only">Пример дашборда BalaganBI: выполнение KPI за месяц по проектам агентства.</figcaption>
+
+  <div class="flex items-center gap-2.5 border-b border-border px-4 py-2.5">
+    <span class="grid size-6 place-items-center rounded-md bg-primary text-primary-foreground">
+      <RefreshCw class="size-3" aria-hidden="true" />
+    </span>
+    <p class="min-w-0 flex-1 truncate text-xs text-muted-foreground">Сентябрь · {projects.length} проектов · Meta и Google Ads</p>
+    <span class="font-mono text-[10px] text-primary">Дашборд</span>
+  </div>
+
+  <div class="grid gap-4 p-4 @2xl:grid-cols-[11.5rem_minmax(0,1fr)] @4xl:grid-cols-[15rem_minmax(0,1fr)] @4xl:gap-5 @4xl:p-5">
+    <section class="flex flex-col rounded-2xl border border-border p-3.5" aria-label="Выполнение KPI за месяц">
+      <h3 class="text-xs font-semibold @4xl:text-sm">Выполнение KPI за месяц</h3>
+      <svg viewBox="0 0 128 72" aria-hidden="true" class="mx-auto mt-3 w-full max-w-48">
+        <path d={ARC} pathLength="100" fill="none" stroke-width="12" stroke-dasharray="100 100" style="stroke: var(--kpi-none)" />
+        <path data-arc="danger" class="demo-arc" d={ARC} pathLength="100" fill="none" stroke-width="12" stroke-dasharray="100 100" style="stroke: var(--kpi-danger)" />
+        <path data-arc="behind" class="demo-arc" d={ARC} pathLength="100" fill="none" stroke-width="12" stroke-dasharray={`${ratedShare} 100`} style="stroke: var(--kpi-behind)" />
+        <path data-arc="met" class="demo-arc" d={ARC} pathLength="100" fill="none" stroke-width="12" stroke-dasharray={`${metShare} 100`} style="stroke: var(--kpi-met)" />
+        <line
+          data-needle
+          class="demo-needle"
+          x1="64"
+          y1="64"
+          x2="64"
+          y2="20"
+          stroke="currentColor"
+          stroke-width="3"
+          stroke-linecap="round"
+          style={`transform: rotate(${metShare * 1.8 - 90}deg)`}
+        />
+        <circle cx="64" cy="64" r="5" fill="currentColor" />
+      </svg>
+      <p class="mt-2 text-center text-2xl font-semibold tabular-nums">
+        <span data-gauge-met>{counts.met}</span> из {projects.length}
+      </p>
+      <p class="text-center text-xs text-muted-foreground">проектов выполняют KPI</p>
+      <ul class="mt-3 flex flex-col gap-1 text-xs @4xl:text-sm">
+        {legend.map((item) => (
+          <li class="flex items-center gap-2">
+            <span aria-hidden="true" class="size-2.5 shrink-0 rounded-full" style={`background: ${item.color}`}></span>
+            <span class="flex-1 text-muted-foreground">{item.label}</span>
+            <span data-legend={item.key} class="font-medium tabular-nums">{counts[item.key]}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section class="min-w-0 rounded-2xl border border-border" aria-label="Проекты">
+      <div class="grid grid-cols-[minmax(0,1fr)_minmax(5rem,7rem)] @xl:grid-cols-[minmax(0,1fr)_5rem_minmax(5rem,7.5rem)] @4xl:grid-cols-[minmax(0,1fr)_5.5rem_3.5rem_minmax(5rem,9rem)] items-center gap-3 border-b border-border px-4 py-2.5 text-xs font-semibold text-muted-foreground">
+        <span>Проект</span>
+        <span class="hidden text-right @xl:block">Расход</span>
+        <span class="hidden text-right @4xl:block">Лиды</span>
+        <span>KPI</span>
+      </div>
+      <ul>
+        {projects.map((project) => (
+          <li
+            data-row
+            data-zone={project.zone}
+            style={`--kpi-width: ${Math.min(project.kpi, 100)}%`}
+            class="demo-row grid grid-cols-[minmax(0,1fr)_minmax(5rem,7rem)] @xl:grid-cols-[minmax(0,1fr)_5rem_minmax(5rem,7.5rem)] @4xl:grid-cols-[minmax(0,1fr)_5.5rem_3.5rem_minmax(5rem,9rem)] items-center gap-3 border-b border-border/60 px-3.5 py-2 text-sm last:border-b-0"
+          >
+            <span class="flex min-w-0 items-center gap-2.5">
+              <span aria-hidden="true" class="demo-marker h-6 w-1 shrink-0 rounded-full"></span>
+              <span class="min-w-0">
+                <span class="demo-text demo-blur block truncate font-medium">{project.name}</span>
+                <span class="demo-text demo-blur block text-xs text-muted-foreground">{project.channel}</span>
+              </span>
+            </span>
+            <span class="hidden text-right tabular-nums @xl:block">
+              <span class="demo-text demo-blur" data-count={project.spend} data-format="money">{money(project.spend)}</span>
+            </span>
+            <span class="hidden text-right tabular-nums @4xl:block">
+              <span class="demo-text demo-blur" data-count={project.leads}>{project.leads}</span>
+            </span>
+            <span class="flex items-center gap-2">
+              <span class="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                <span class="demo-fill block h-full rounded-full"></span>
+              </span>
+              <span class="demo-text w-10 text-right text-xs font-semibold tabular-nums" data-count={project.kpi} data-format="percent">{project.kpi}%</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-1.5 border-t border-border px-4 py-2.5 font-mono text-[10px] text-muted-foreground">
+    <span class="rounded-full border border-border px-2.5 py-0.5">{projects.length} проектов</span>
+    <span class="rounded-full border border-border px-2.5 py-0.5">Meta + Google Ads</span>
+    <span class="rounded-full border border-border px-2.5 py-0.5">0 ручных выгрузок</span>
+    <span class="ml-auto font-sans text-xs text-foreground" data-status>Обновлено сегодня в 08:00</span>
+  </div>
+
+  <div data-pill aria-hidden="true" class="demo-pill pointer-events-none absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full bg-primary px-5 py-2.5 font-mono text-sm text-primary-foreground shadow-xl">
+    <Sparkles class="demo-pill-busy size-4" />
+    <Check class="demo-pill-done size-4" />
+    <span data-pill-text>Загружаем статистику из кабинетов…</span>
+  </div>
+</figure>
+
+<style>
+  .demo-marker {
+    background: var(--kpi-none);
+    transition: background-color 0.4s ease;
+  }
+  .demo-row[data-zone="met"] .demo-marker,
+  .demo-row[data-zone="met"] .demo-fill {
+    background: var(--kpi-met);
+  }
+  .demo-row[data-zone="behind"] .demo-marker,
+  .demo-row[data-zone="behind"] .demo-fill {
+    background: var(--kpi-behind);
+  }
+  .demo-row[data-zone="danger"] .demo-marker,
+  .demo-row[data-zone="danger"] .demo-fill {
+    background: var(--kpi-danger);
+  }
+  .demo-fill {
+    width: var(--kpi-width);
+    transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .demo-text {
+    transition: color 0.35s ease, background-color 0.35s ease;
+    border-radius: 0.375rem;
+  }
+  .demo-row[data-pending] .demo-marker {
+    background: var(--kpi-none);
+  }
+  .demo-row[data-pending] .demo-fill {
+    width: 0;
+  }
+  .demo-blur {
+    filter: blur(3.5px);
+    user-select: none;
+  }
+  .demo-row[data-pending] .demo-text {
+    color: transparent;
+    background: var(--muted);
+  }
+  .demo-arc {
+    transition: stroke-dasharray 0.6s ease;
+  }
+  .demo-needle {
+    transform-origin: 64px 64px;
+    transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .demo-pill {
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  [data-demo][data-state="loading"] .demo-pill,
+  [data-demo][data-state="done"] .demo-pill {
+    opacity: 1;
+  }
+  [data-demo][data-state="settled"] .demo-pill {
+    opacity: 0;
+  }
+  .demo-pill-done,
+  [data-demo][data-state="done"] .demo-pill-busy {
+    display: none;
+  }
+  [data-demo][data-state="done"] .demo-pill-done {
+    display: block;
+  }
+  [data-demo][data-state="loading"] .demo-pill-busy {
+    animation: demo-twinkle 1.2s ease-in-out infinite;
+  }
+  @keyframes demo-twinkle {
+    50% {
+      transform: scale(1.25) rotate(15deg);
+      opacity: 0.7;
+    }
+  }
+</style>
+
+<script>
+  const ROW_STEP_MS = 480;
+  const COUNT_MS = 650;
+  const ZONES = ["met", "behind", "danger"] as const;
+  type Zone = (typeof ZONES)[number];
+
+  const formatted = (value: number, format: string | undefined) =>
+    format === "money"
+      ? `${Math.round(value).toLocaleString("ru-RU")} $`
+      : format === "percent"
+        ? `${Math.round(value)}%`
+        : String(Math.round(value));
+
+  const countUp = (element: HTMLElement) => {
+    const target = Number(element.dataset.count);
+    const format = element.dataset.format;
+    const started = performance.now();
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - started) / COUNT_MS);
+      element.textContent = formatted(target * (1 - Math.pow(1 - progress, 3)), format);
+      if (progress < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  };
+
+  function stage(demo: HTMLElement): () => void {
+    const rows = [...demo.querySelectorAll<HTMLElement>("[data-row]")];
+    const arc = (zone: Zone) => demo.querySelector<SVGPathElement>(`[data-arc="${zone}"]`);
+    const legend = (zone: Zone) => demo.querySelector<HTMLElement>(`[data-legend="${zone}"]`);
+    const needle = demo.querySelector<SVGLineElement>("[data-needle]");
+    const metCount = demo.querySelector<HTMLElement>("[data-gauge-met]");
+    const status = demo.querySelector<HTMLElement>("[data-status]");
+    const pillText = demo.querySelector<HTMLElement>("[data-pill-text]");
+    const finalStatus = status?.textContent ?? "";
+    const finalPill = pillText?.textContent ?? "";
+    const tally: Record<Zone, number> = { met: 0, behind: 0, danger: 0 };
+
+    const draw = () => {
+      const share = (count: number) => (count / rows.length) * 100;
+      const met = share(tally.met);
+      arc("met")?.setAttribute("stroke-dasharray", `${met} 100`);
+      arc("behind")?.setAttribute("stroke-dasharray", `${share(tally.met + tally.behind)} 100`);
+      arc("danger")?.setAttribute("stroke-dasharray", `${share(tally.met + tally.behind + tally.danger)} 100`);
+      if (needle) needle.style.transform = `rotate(${met * 1.8 - 90}deg)`;
+      if (metCount) metCount.textContent = String(tally.met);
+      for (const zone of ZONES) {
+        const cell = legend(zone);
+        if (cell) cell.textContent = String(tally[zone]);
+      }
+    };
+
+    demo.dataset.state = "waiting";
+    for (const row of rows) row.setAttribute("data-pending", "");
+    draw();
+
+    return () => {
+      demo.dataset.state = "loading";
+      rows.forEach((row, index) => {
+        window.setTimeout(() => {
+          row.removeAttribute("data-pending");
+          for (const value of row.querySelectorAll<HTMLElement>("[data-count]")) countUp(value);
+          tally[row.dataset.zone as Zone] += 1;
+          draw();
+          if (status) status.textContent = `Загружено ${index + 1} из ${rows.length}`;
+        }, 300 + index * ROW_STEP_MS);
+      });
+
+      const finished = 300 + rows.length * ROW_STEP_MS + 300;
+      window.setTimeout(() => {
+        demo.dataset.state = "done";
+        if (pillText) pillText.textContent = "Готово: данные на месте";
+        if (status) status.textContent = finalStatus;
+      }, finished);
+      window.setTimeout(() => {
+        demo.dataset.state = "settled";
+        if (pillText) pillText.textContent = finalPill;
+      }, finished + 1600);
+    };
+  }
+
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  for (const demo of document.querySelectorAll<HTMLElement>("[data-demo]")) {
+    if (still || !("IntersectionObserver" in window)) continue;
+    const play = stage(demo);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        observer.disconnect();
+        window.setTimeout(play, Number(demo.dataset.delay ?? 0));
+      },
+      { threshold: 0.4 },
+    );
+    observer.observe(demo);
+  }
+</script>

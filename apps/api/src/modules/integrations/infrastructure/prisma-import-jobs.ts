@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { Prisma, type PrismaClient } from "@prisma/client";
+import { Prisma, type Channel, type PrismaClient } from "@prisma/client";
 import type { ImportJobs } from "../application/import-jobs.js";
-import { MetaError, type Integration } from "../domain/integration.js";
+import { ProviderError, type Integration } from "../domain/integration.js";
 import type { ImportedMetric, Snapshot } from "../domain/snapshot.js";
 import { nextMorning } from "../application/schedule.js";
 
@@ -41,22 +41,23 @@ export class PrismaImportJobs implements ImportJobs {
         const locked = await tx.projectIntegration.updateMany({ where: owned(job, now), data: { leaseUntil: leaseUntil(now) } });
         if (!locked.count) return false;
         const projects = await tx.$queryRaw<Array<{ budget_currency: string }>>`SELECT budget_currency FROM project WHERE id = ${job.projectId} FOR UPDATE`;
-        if (projects[0]?.budget_currency !== job.currency) throw new MetaError("CURRENCY");
+        if (projects[0]?.budget_currency !== job.currency) throw new ProviderError("CURRENCY");
+        const channel = job.provider as Channel;
         const campaignIds = new Map<string, string>();
         const adSetIds = new Map<string, string>();
         const adIds = new Map<string, string>();
         let campaignPosition = (await tx.campaign.aggregate({ where: { projectId: job.projectId }, _max: { position: true } }))._max.position ?? -1;
         for (const row of snapshot.campaigns) {
-          if (campaignIds.has(row.id)) throw new MetaError("INVALID_DATA");
-          const existing = await tx.campaign.findUnique({ where: { channel_externalId: { channel: "META", externalId: row.id } } });
-          if (existing && existing.projectId !== job.projectId) throw new MetaError("CONFLICT");
+          if (campaignIds.has(row.id)) throw new ProviderError("INVALID_DATA");
+          const existing = await tx.campaign.findUnique({ where: { channel_externalId: { channel, externalId: row.id } } });
+          if (existing && existing.projectId !== job.projectId) throw new ProviderError("CONFLICT");
           const data = { name: row.name, status: row.status, objective: row.objective ?? null, sourceAccountId: job.accountId };
-          const saved = existing ? await tx.campaign.update({ where: { id: existing.id }, data }) : await tx.campaign.create({ data: { ...data, projectId: job.projectId, channel: "META", externalId: row.id, position: ++campaignPosition } });
+          const saved = existing ? await tx.campaign.update({ where: { id: existing.id }, data }) : await tx.campaign.create({ data: { ...data, projectId: job.projectId, channel, externalId: row.id, position: ++campaignPosition } });
           campaignIds.set(row.id, saved.id);
         }
         for (const row of snapshot.adSets) {
           const campaignId = campaignIds.get(row.parentId ?? "");
-          if (!campaignId || adSetIds.has(row.id)) throw new MetaError("INVALID_DATA");
+          if (!campaignId || adSetIds.has(row.id)) throw new ProviderError("INVALID_DATA");
           const existing = await tx.adSet.findFirst({ where: { campaignId, externalId: row.id } });
           const data = { name: row.name, status: row.status };
           const position = existing?.position ?? ((await tx.adSet.aggregate({ where: { campaignId }, _max: { position: true } }))._max.position ?? -1) + 1;
@@ -65,7 +66,7 @@ export class PrismaImportJobs implements ImportJobs {
         }
         for (const row of snapshot.ads) {
           const adSetId = adSetIds.get(row.parentId ?? "");
-          if (!adSetId || adIds.has(row.id)) throw new MetaError("INVALID_DATA");
+          if (!adSetId || adIds.has(row.id)) throw new ProviderError("INVALID_DATA");
           const existing = await tx.ad.findFirst({ where: { adSetId, externalId: row.id } });
           const data = { name: row.name, status: row.status };
           const position = existing?.position ?? ((await tx.ad.aggregate({ where: { adSetId }, _max: { position: true } }))._max.position ?? -1) + 1;
@@ -74,7 +75,7 @@ export class PrismaImportJobs implements ImportJobs {
         }
         const resolve = (ids: Map<string, string>, row: ImportedMetric) => {
           const id = ids.get(row.externalId);
-          if (!id) throw new MetaError("INVALID_DATA");
+          if (!id) throw new ProviderError("INVALID_DATA");
           return id;
         };
         const campaignMetrics = snapshot.campaignMetrics.map((row) => ({ ...metricData(row, now), campaignId: resolve(campaignIds, row) }));
@@ -91,12 +92,12 @@ export class PrismaImportJobs implements ImportJobs {
         return true;
       }, { timeout: 60_000 });
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") throw new MetaError("CONFLICT");
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") throw new ProviderError("CONFLICT");
       throw error;
     }
   }
 
-  async fail(job: Integration, error: MetaError, now: Date): Promise<void> {
+  async fail(job: Integration, error: ProviderError, now: Date): Promise<void> {
     const delays = [60_000, 300_000, 900_000];
     const retry = error.code === "PROVIDER" && job.retryCount < delays.length;
     await this.prisma.projectIntegration.updateMany({ where: owned(job, now), data: {

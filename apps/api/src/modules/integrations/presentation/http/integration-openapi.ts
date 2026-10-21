@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { RouteDoc } from "#shared/presentation/openapi.js";
-const metadata = z.object({ id: z.uuid(), provider: z.enum(["META"]), accountId: z.string(), currency: z.string(), timezone: z.string(), status: z.enum(["QUEUED", "RUNNING", "SUCCESS", "ERROR", "AUTH_REQUIRED"]), lastSuccessAt: z.iso.datetime().nullable(), lastError: z.string().nullable(), nextDailyAt: z.iso.datetime(), leadsEnabled: z.boolean(), leads: z.object({ status: z.enum(["WAITING", "OK", "ACCESS_REQUIRED", "ERROR"]), lastSuccessAt: z.iso.datetime().nullable(), lastError: z.string().nullable() }) }).nullable();
+export const metadata = z.object({ id: z.uuid(), provider: z.enum(["META", "GOOGLE"]), accountId: z.string(), currency: z.string(), timezone: z.string(), status: z.enum(["QUEUED", "RUNNING", "SUCCESS", "ERROR", "AUTH_REQUIRED"]), lastSuccessAt: z.iso.datetime().nullable(), lastError: z.string().nullable(), nextDailyAt: z.iso.datetime(), leadsEnabled: z.boolean(), leads: z.object({ status: z.enum(["WAITING", "OK", "ACCESS_REQUIRED", "ERROR"]), lastSuccessAt: z.iso.datetime().nullable(), lastError: z.string().nullable() }) }).nullable();
 const credentials = z.object({ accountId: z.string().regex(/^(act_)?[0-9]{1,30}$/), token: z.string().min(1).max(8192).meta({ writeOnly: true }) });
 export const integrationDoc: RouteDoc = {
   tag: "Meta integration",
@@ -37,5 +37,22 @@ export const adPreviewDoc: RouteDoc = {
       errors: [401, 404],
     },
     { method: "get", path: "/:id/preview", summary: "Read the provider's rendered preview of one ad", success: { status: 200, description: "A short-lived frame address rendering the ad", schema: z.object({ url: z.url() }) }, errors: [401, 404] },
+  ],
+};
+
+const customerId = z.string().regex(/^\d{1,20}$/);
+export const googleIntegrationDoc: RouteDoc = {
+  tag: "Google Ads integration",
+  tagDescription: "Project editors connect Google Ads accounts by signing in with Google on the project. Each connection keeps its own credential, which is write-only.",
+  operations: [
+    { method: "post", path: "/:id/integrations/google/authorize", summary: "Start Google sign-in for a new connection, or for renewing an existing one", body: z.object({ integrationId: z.uuid().optional() }), bodyRequired: false, success: { status: 200, description: "The Google consent address to send the member to", schema: z.object({ url: z.url() }) }, errors: [400, 401, 403, 404] },
+    { method: "get", path: "/:id/integrations/google/accounts", summary: "List the Google Ads accounts a completed sign-in reaches and the project does not yet hold", query: z.object({ authorization: z.uuid() }), success: { status: 200, description: "Accounts to choose from; empty while renewing an existing connection", schema: z.object({ renewing: z.boolean(), accounts: z.array(z.object({ accountId: customerId, name: z.string(), currency: z.string(), timezone: z.string(), loginCustomerId: customerId.nullable() })) }) }, errors: [400, 401, 403, 404] },
+    { method: "post", path: "/:id/integrations/google", summary: "Connect the chosen account, or renew the credential of the connection the sign-in was started for; queue an import", body: z.object({ authorization: z.uuid(), accountId: customerId.optional(), loginCustomerId: customerId.nullish() }), success: { status: 201, description: "Saved connection; no credential is returned. 200 when an existing connection was renewed", schema: metadata }, errors: [400, 401, 403, 404, 409] },
+  ],
+};
+export const googleCallbackDoc: RouteDoc = {
+  tag: "Google Ads integration",
+  operations: [
+    { method: "get", path: "/callback", summary: "Receive Google's answer to a sign-in and send the browser back to the project", open: true, query: z.object({ state: z.string().optional(), code: z.string().optional() }), success: { status: 302, description: "Redirect to the project with the finished sign-in in the query, or google=failed" } },
   ],
 };

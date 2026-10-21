@@ -1,12 +1,12 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import type { CredentialCipher } from "../application/ports.js";
-import { MetaError } from "../domain/integration.js";
+import { ProviderError } from "../domain/integration.js";
 
 export class AesCredentialCipher implements CredentialCipher {
   constructor(private readonly encodedKey: string | undefined) {}
   private key() {
     const key = Buffer.from(this.encodedKey ?? "", "base64");
-    if (key.length !== 32) throw new MetaError("CONFIGURATION");
+    if (key.length !== 32) throw new ProviderError("CONFIGURATION");
     return key;
   }
   encrypt(token: string, projectId: string): string {
@@ -24,7 +24,7 @@ export class AesCredentialCipher implements CredentialCipher {
       cipher.setAuthTag(tag);
       return Buffer.concat([cipher.update(encrypted), cipher.final()]).toString("utf8");
     } catch {
-      throw new MetaError("CONFIGURATION");
+      throw new ProviderError("CONFIGURATION");
     }
   }
 }

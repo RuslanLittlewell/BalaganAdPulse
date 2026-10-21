@@ -27,6 +27,7 @@ import { wireTelegramBot, type TelegramPoller } from "./wiring/telegram-bot.js";
 
 export interface ApiContainer {
   readonly integrationRouter: Router;
+  readonly googleCallbackRouter: Router;
   readonly importWorker: ReturnType<typeof createImportWorker>;
   readonly leadPollWorker: ReturnType<typeof createLeadPollWorker>;
   readonly kpiRouter: Router;
@@ -131,6 +132,7 @@ export function createContainer(): ApiContainer {
     projectMetricRouter: advertising.projectMetricRouter,
     summaryRouter: advertising.summaryRouter,
     integrationRouter: advertising.integrationRouter,
+    googleCallbackRouter: advertising.googleCallbackRouter,
     adPreviewRouter: advertising.adPreviewRouter,
     importWorker: advertising.importWorker,
     leadPollWorker: advertising.leadPollWorker,

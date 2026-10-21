@@ -3,7 +3,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import type { TransactionContext } from "#shared/application/index.js";
 import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
 import { LEAD_ACCESS_RETRY_MS, LEAD_POLL_INTERVAL_MS, type LeadPollJobs, type LeadPollOutcome } from "../application/lead-poll-jobs.js";
-import type { LeadPollJob, MetaError } from "../domain/integration.js";
+import type { LeadPollJob, ProviderError } from "../domain/integration.js";
 import type { PolledAd } from "../domain/snapshot.js";
 
 const leaseUntil = (now: Date) => new Date(now.getTime() + 180_000);
@@ -17,6 +17,7 @@ export class PrismaLeadPollJobs implements LeadPollJobs {
 
   async claim(now: Date): Promise<LeadPollJob | null> {
     const available: Prisma.ProjectIntegrationWhereInput = {
+      provider: "META",
       status: { not: "AUTH_REQUIRED" },
       leadsEnabled: true,
       lastSuccessAt: { not: null },
@@ -87,7 +88,7 @@ export class PrismaLeadPollJobs implements LeadPollJobs {
     }
   }
 
-  async fail(job: LeadPollJob, error: MetaError, now: Date): Promise<void> {
+  async fail(job: LeadPollJob, error: ProviderError, now: Date): Promise<void> {
     const later = (delay: number) => new Date(now.getTime() + delay);
     const deferred = (delay: number) => ({
       nextLeadsAt: later(delay), leadsQueuedAt: null,

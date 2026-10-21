@@ -88,7 +88,7 @@ describe("GET /api/openapi.json", () => {
     for (const { where, operation } of operations) {
       expect(operation.summary, where).toBeTruthy();
       expect(operation.tags?.length, where).toBe(1);
-      const success = Object.keys(operation.responses).find((status) => status.startsWith("2"));
+      const success = Object.keys(operation.responses).find((status) => /^[23]/.test(status));
       expect(success, where).toBeDefined();
       expect(operation.responses[success!].description, where).toBeTruthy();
     }

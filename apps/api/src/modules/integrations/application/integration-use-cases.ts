@@ -1,25 +1,19 @@
-import { can } from "@adpulse/access-policy";
 import { AppError } from "#shared/domain/index.js";
 import type { ActorContext } from "#shared/application/index.js";
 import type { IntegrationDependencies } from "./ports.js";
-import { MetaError, publicIntegration } from "../domain/integration.js";
+import { publicIntegration } from "../domain/integration.js";
 import type {
   CreativeView,
   ImportedCreative,
   StoredCreative,
 } from "../domain/snapshot.js";
 import { nextMorning } from "./schedule.js";
+import { auditConnection, ensureConnectable, explained, reachableProject } from "./connection-rules.js";
 
 export function createIntegrationUseCases(d: IntegrationDependencies) {
   const creativeLoads = new Map<string, Promise<CreativeView[]>>();
 
-  const reach = async (actor: ActorContext, id: string) => {
-    const project = await d.projects.findReachable(actor, id);
-    if (!project) throw new AppError("not-found", "Project not found");
-    if (!can(actor, "update", "integration"))
-      throw new AppError("forbidden", "Your role may not manage integrations");
-    return project;
-  };
+  const reach = (actor: ActorContext, id: string) => reachableProject(d.projects, actor, id);
   const connection = async (
     actor: ActorContext,
     projectId: string,
@@ -37,34 +31,8 @@ export function createIntegrationUseCases(d: IntegrationDependencies) {
     replacing?: string,
   ) => {
     const account = await d.provider.account(input.accountId, input.token);
-    const others = (await d.repository.list(project.id)).filter(
-      (other) => other.id !== replacing,
-    );
-    if (others.some((other) => other.accountId === account.accountId)) {
-      throw new AppError(
-        "conflict",
-        "This account is already connected to the project",
-      );
-    }
-    if (others.some((other) => other.currency !== account.currency))
-      throw new MetaError("CURRENCY");
-    if (
-      account.currency !== project.budgetCurrency &&
-      (await d.repository.holdsFigures(project.id))
-    ) {
-      throw new MetaError("CURRENCY");
-    }
+    await ensureConnectable(d.repository, project, account, replacing);
     return account;
-  };
-
-  const explained = async <T>(work: () => Promise<T>): Promise<T> => {
-    try {
-      return await work();
-    } catch (error) {
-      if (error instanceof MetaError)
-        throw new AppError("validation", error.message, [{ code: error.code }]);
-      throw error;
-    }
   };
 
   const connectionData = (
@@ -79,25 +47,11 @@ export function createIntegrationUseCases(d: IntegrationDependencies) {
     nextDailyAt: nextMorning(d.clock.now()),
   });
 
-  const audited =
-    (
-      actor: ActorContext,
-      project: { id: string; clientId: string },
-      summary: string,
-    ) =>
-    (context: Parameters<typeof d.audit.append>[0]) =>
-      d.audit.append(
-        context,
-        {
-          action: "UPDATE",
-          entityType: "project",
-          entityId: project.id,
-          projectId: project.id,
-          clientId: project.clientId,
-          summary,
-        },
-        actor,
-      );
+  const audited = (
+    actor: ActorContext,
+    project: { id: string; clientId: string },
+    summary: string,
+  ) => auditConnection(d.audit, actor, project, summary);
 
   const integrationOf = async (found: {
     projectId: string;
@@ -160,7 +114,9 @@ export function createIntegrationUseCases(d: IntegrationDependencies) {
       id: string,
       input: { accountId: string; token: string },
     ) => {
-      const { project } = await connection(actor, projectId, id);
+      const { project, found } = await connection(actor, projectId, id);
+      if (found.provider !== "META")
+        throw new AppError("validation", "This connection is renewed by signing in again");
       return explained(async () => {
         const encryptedToken = d.cipher.encrypt(input.token, projectId);
         const account = await verified(project, input, id);
@@ -192,19 +148,23 @@ export function createIntegrationUseCases(d: IntegrationDependencies) {
       id: string,
       enabled: boolean,
     ) => {
-      await connection(actor, projectId, id);
+      const { found } = await connection(actor, projectId, id);
+      if (found.provider !== "META")
+        throw new AppError("validation", "Lead import is available for Meta only");
       await d.repository.setLeadsEnabled(id, enabled, d.clock.now());
       return publicIntegration(await d.repository.read(projectId, id));
     },
 
     disconnect: async (actor: ActorContext, projectId: string, id: string) => {
-      const { project } = await connection(actor, projectId, id);
+      const { project, found } = await connection(actor, projectId, id);
       await d.unitOfWork.run(async (context) => {
         await d.repository.remove(context, id);
         await audited(
           actor,
           project,
-          "Disconnected Meta advertising account",
+          found.provider === "GOOGLE"
+            ? "Disconnected Google Ads account"
+            : "Disconnected Meta advertising account",
         )(context);
       });
     },
@@ -227,7 +187,7 @@ export function createIntegrationUseCases(d: IntegrationDependencies) {
       const ad = found;
       const refreshed = async () => {
         const integration = await integrationOf(ad);
-        if (!integration) return stored;
+        if (!integration || integration.provider !== "META") return stored;
 
         const token = d.cipher.decrypt(
           integration.encryptedToken,
@@ -287,7 +247,8 @@ export function createIntegrationUseCases(d: IntegrationDependencies) {
       const found = await d.ads.locate(actor, adId);
       if (!found?.externalId) throw new AppError("not-found", "Ad not found");
       const integration = await integrationOf(found);
-      if (!integration) throw new AppError("not-found", "Ad preview not found");
+      if (!integration || integration.provider !== "META")
+        throw new AppError("not-found", "Ad preview not found");
       const token = d.cipher.decrypt(
         integration.encryptedToken,
         found.projectId,

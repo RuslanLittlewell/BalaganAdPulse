@@ -44,7 +44,15 @@ export interface LeadInbox {
   announce(target: { orgId: string; projectId: string }): void;
   link(projectId: string): Promise<void>;
 }
-export type ConnectionData = Account & { projectId: string; encryptedToken: string; nextDailyAt: Date; queuedAt: Date; leadsEnabled?: boolean };
+export type ConnectionData = Account & {
+  projectId: string;
+  encryptedToken: string;
+  nextDailyAt: Date;
+  queuedAt: Date;
+  leadsEnabled?: boolean;
+  provider?: string;
+  loginCustomerId?: string | null;
+};
 export interface IntegrationRepository {
   list(projectId: string): Promise<Integration[]>;
   read(projectId: string, id: string): Promise<Integration | null>;

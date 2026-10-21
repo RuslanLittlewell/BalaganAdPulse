@@ -5,6 +5,7 @@ import { createRoutes, ROUTE_MOUNTS } from "../../src/composition/create-routes.
 const expectedMounts = [
   "/api",
   "/api/auth",
+  "/api/integrations/google",
   "/api/regustration",
   "/api",
   "/api/auth/me",

@@ -28,6 +28,7 @@ model Project {
   tasks          Task[]
   invitations    InviteProject[]
   integrations   ProjectIntegration[]
+  googleAuthorizations GoogleAuthorization[]
   placements     ProjectPlacement[]
   reports        MonthlyReport[]
   documents      ProjectDocument[]

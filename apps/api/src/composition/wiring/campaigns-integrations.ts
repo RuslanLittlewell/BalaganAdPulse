@@ -10,17 +10,23 @@ import {
 } from "#modules/campaigns/infrastructure/prisma-campaign-repositories.js";
 import { PrismaMetricRepository } from "#modules/campaigns/infrastructure/prisma-metric-repository.js";
 import { createImportWorker } from "#modules/integrations/application/import-worker.js";
+import { createGoogleUseCases } from "#modules/integrations/application/google-use-cases.js";
 import { createIntegrationUseCases } from "#modules/integrations/application/integration-use-cases.js";
 import { createLeadPollWorker } from "#modules/integrations/application/lead-poll-worker.js";
 import { S3CreativeFiles } from "#modules/integrations/infrastructure/creative-files.js";
 import { AesCredentialCipher } from "#modules/integrations/infrastructure/credential-cipher.js";
+import { GoogleAdsProvider } from "#modules/integrations/infrastructure/google-ads-provider.js";
+import { GoogleOAuth } from "#modules/integrations/infrastructure/google-oauth.js";
+import { PrismaGoogleAuthorizations } from "#modules/integrations/infrastructure/prisma-google-authorizations.js";
 import { GraphProvider } from "#modules/integrations/infrastructure/graph-provider.js";
 import { PrismaAdLocator } from "#modules/integrations/infrastructure/prisma-ad-locator.js";
 import { PrismaCreativeStore } from "#modules/integrations/infrastructure/prisma-creative-store.js";
 import { PrismaImportJobs } from "#modules/integrations/infrastructure/prisma-import-jobs.js";
 import { PrismaIntegrationRepository } from "#modules/integrations/infrastructure/prisma-integration-repository.js";
 import { PrismaLeadPollJobs } from "#modules/integrations/infrastructure/prisma-lead-poll-jobs.js";
+import { addGoogleIntegrationRoutes, createGoogleCallbackRouter } from "#modules/integrations/presentation/http/google-integration-http.js";
 import { createAdPreviewRouter, createIntegrationRouter } from "#modules/integrations/presentation/http/integration-http.js";
+import { config } from "#shared/infrastructure/config.js";
 import type { ClientsAndProjects } from "./clients-projects.js";
 import type { Kernel } from "./kernel.js";
 import type { Leads } from "./leads.js";
@@ -34,8 +40,9 @@ export function wireCampaignsAndIntegrations(
   const cipher = new AesCredentialCipher(process.env.INTEGRATION_ENCRYPTION_KEY);
   const provider = new GraphProvider(process.env.META_GRAPH_VERSION ?? "v22.0");
   const campaignRepository = new PrismaCampaignRepository(prisma);
+  const integrationRepository = new PrismaIntegrationRepository(prisma, unitOfWork);
   const integrations = createIntegrationUseCases({
-    repository: new PrismaIntegrationRepository(prisma, unitOfWork),
+    repository: integrationRepository,
     cipher,
     provider,
     projects: projectRepository,
@@ -45,6 +52,25 @@ export function wireCampaignsAndIntegrations(
     clock,
     unitOfWork,
     audit,
+  });
+  const oauth = config.googleAds ? new GoogleOAuth(config.googleAds) : null;
+  const googleAds = config.googleAds && oauth ? new GoogleAdsProvider(oauth, config.googleAds) : null;
+  const googleIntegrations = createGoogleUseCases({
+    repository: integrationRepository,
+    cipher,
+    projects: projectRepository,
+    clock,
+    unitOfWork,
+    audit,
+    authorizations: new PrismaGoogleAuthorizations(prisma),
+    google: oauth && googleAds
+      ? {
+          authorizeUrl: (state) => oauth.authorizeUrl(state),
+          redeem: (code) => oauth.redeem(code),
+          accounts: (refreshToken) => googleAds.accounts(refreshToken),
+          account: (accountId, login, refreshToken) => googleAds.account(accountId, login, refreshToken),
+        }
+      : null,
   });
   const campaigns = createCampaignUseCases({
     campaigns: campaignRepository,
@@ -58,9 +84,16 @@ export function wireCampaignsAndIntegrations(
   return {
     campaignRepository,
     ...createCampaignHttpRouters(campaigns),
-    integrationRouter: createIntegrationRouter(integrations),
+    integrationRouter: createIntegrationRouter(integrations, (router) => addGoogleIntegrationRoutes(router, googleIntegrations)),
+    googleCallbackRouter: createGoogleCallbackRouter(googleIntegrations, config.appUrl),
     adPreviewRouter: createAdPreviewRouter(integrations),
-    importWorker: createImportWorker({ jobs: new PrismaImportJobs(prisma), cipher, provider, clock, leads: leadIntake, imports }),
+    importWorker: createImportWorker({
+      jobs: new PrismaImportJobs(prisma),
+      cipher,
+      providers: {
+        ...(googleAds ? { GOOGLE: googleAds } : {}),
+        META: { snapshot: (account, token, now, signal) => provider.snapshot(account.accountId, token, account.currency, now, signal) } },
+      clock, leads: leadIntake, imports }),
     leadPollWorker: createLeadPollWorker({
       jobs: new PrismaLeadPollJobs(prisma, unitOfWork),
       cipher,

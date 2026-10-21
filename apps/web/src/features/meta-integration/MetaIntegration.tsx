@@ -17,10 +17,11 @@ import {
 import { useCan } from "@/features/permissions/index.js";
 import { useModuleEnabled } from "@/features/auth/index.js";
 import { LeadsSetupInfo } from "./LeadsSetupInfo.js";
+import { GoogleConnectionCard, GoogleReturn, googleFailureOf, startGoogleSignIn } from "@/features/google-integration/index.js";
 
 export interface Connection {
   id: string;
-  provider: "META";
+  provider: "META" | "GOOGLE";
   accountId: string;
   currency: string;
   timezone: string;
@@ -38,7 +39,7 @@ interface LeadImport {
 }
 
 const PROVIDERS = ["META", "GOOGLE", "YANDEX", "TIKTOK", "GPT"] as const;
-const AVAILABLE: readonly (typeof PROVIDERS)[number][] = ["META"];
+const AVAILABLE: readonly (typeof PROVIDERS)[number][] = ["META", "GOOGLE"];
 
 const integrationsPath = (projectId: string) => `/projects/${projectId}/integrations`;
 const integrationsKey = (projectId: string) => ["integrations", projectId];
@@ -133,6 +134,7 @@ export function MetaIntegration({ projectId }: { projectId: string }) {
   const connections = useIntegrations(projectId, allowed);
   const [choosing, setChoosing] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [googleFailure, setGoogleFailure] = useState<string | null>(null);
   const square = useSquareByHeight<HTMLDivElement>();
   useRefreshOnImport(projectId, connections.data);
 
@@ -149,9 +151,18 @@ export function MetaIntegration({ projectId }: { projectId: string }) {
             </Button>
           </section>
         )}
-        {(connections.data ?? []).map((connection) => (
-          <MetaConnectionCard key={connection.id} projectId={projectId} connection={connection} />
-        ))}
+        <GoogleReturn projectId={projectId} />
+        {googleFailure && (
+          <section className="flex items-center gap-3 rounded-lg border border-border glass-card p-4">
+            <p role="alert" className="text-xs text-destructive">{googleFailure}</p>
+            <Button variant="outline" size="sm" onClick={() => setGoogleFailure(null)}>
+              {t("action.close")}
+            </Button>
+          </section>
+        )}
+        {(connections.data ?? []).map((connection) => connection.provider === "GOOGLE"
+          ? <GoogleConnectionCard key={connection.id} projectId={projectId} connection={connection} />
+          : <MetaConnectionCard key={connection.id} projectId={projectId} connection={connection} />)}
         <AddTile
           ref={square.ref}
           label={t("integrations.add")}
@@ -163,8 +174,13 @@ export function MetaIntegration({ projectId }: { projectId: string }) {
         <ProviderDialog
           open={choosing}
           onClose={() => setChoosing(false)}
-          onChoose={() => {
+          onChoose={(provider) => {
             setChoosing(false);
+            if (provider === "GOOGLE") {
+              setGoogleFailure(null);
+              startGoogleSignIn(projectId).catch((error: unknown) => setGoogleFailure(googleFailureOf(error)));
+              return;
+            }
             setAdding(true);
           }}
         />

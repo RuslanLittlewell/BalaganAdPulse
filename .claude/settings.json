@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "mcp__claude-in-chrome__tabs_context_mcp",
-      "ClaudeInChromeDomain(localhost:5173)"
+      "ClaudeInChromeDomain(localhost:5173)",
+      "ClaudeInChromeDomain(console.cloud.google.com)",
+      "ClaudeInChromeDomain(ads.google.com)"
     ]
   }
 }

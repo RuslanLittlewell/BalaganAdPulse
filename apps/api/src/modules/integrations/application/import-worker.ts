@@ -1,20 +1,21 @@
 import type { ImportJobs } from "./import-jobs.js";
 import type { CredentialCipher, LeadInbox } from "./ports.js";
-import { MetaError } from "../domain/integration.js";
+import { ProviderError, type Integration } from "../domain/integration.js";
 import type { Snapshot } from "../domain/snapshot.js";
+
+export interface SnapshotSource {
+  snapshot(
+    account: Pick<Integration, "accountId" | "currency" | "loginCustomerId">,
+    token: string,
+    now: Date,
+    signal?: AbortSignal,
+  ): Promise<Snapshot>;
+}
 
 export function createImportWorker(d: {
   jobs: ImportJobs;
   cipher: CredentialCipher;
-  provider: {
-    snapshot(
-      accountId: string,
-      token: string,
-      currency: string,
-      now: Date,
-      signal?: AbortSignal,
-    ): Promise<Snapshot>;
-  };
+  providers: Record<string, SnapshotSource>;
   clock: { now(): Date };
   leads: Pick<LeadInbox, "link">;
   imports: { finished(projectId: string): void };
@@ -44,13 +45,9 @@ export function createImportWorker(d: {
     try {
       if (stopped) return false;
       const token = d.cipher.decrypt(job.encryptedToken, job.projectId);
-      const snapshot = await d.provider.snapshot(
-        job.accountId,
-        token,
-        job.currency,
-        d.clock.now(),
-        signal,
-      );
+      const source = d.providers[job.provider];
+      if (!source) throw new ProviderError("CONFIGURATION");
+      const snapshot = await source.snapshot(job, token, d.clock.now(), signal);
       if (
         signal.aborted ||
         !(await d.jobs.complete(job, snapshot, d.clock.now()))
@@ -64,17 +61,17 @@ export function createImportWorker(d: {
         );
       });
     } catch (error) {
-      if (error instanceof MetaError) {
-        console.error("Meta import failed:", error.code, error.detail);
+      if (error instanceof ProviderError) {
+        console.error(`${job.provider} import failed:`, error.code, error.detail);
       } else {
         console.error(
-          "Meta import failed unexpectedly:",
+          `${job.provider} import failed unexpectedly:`,
           error instanceof Error ? error.message : error,
         );
       }
       await d.jobs.fail(
         job,
-        error instanceof MetaError ? error : new MetaError("PROVIDER"),
+        error instanceof ProviderError ? error : new ProviderError("PROVIDER"),
         d.clock.now(),
       );
     } finally {
@@ -92,7 +89,7 @@ export function createImportWorker(d: {
     })()
       .catch(() => {
         console.error(
-          "Meta import worker failed; pending work will be retried",
+          "Import worker failed; pending work will be retried",
         );
       })
       .finally(() => {

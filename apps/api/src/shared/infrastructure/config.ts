@@ -14,6 +14,13 @@ export interface TelegramBotConfig {
   taskModel: string;
 }
 
+export interface GoogleAdsConfig {
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+  apiVersion: string;
+}
+
 export interface Config {
   jwtSecret: string;
   documentation: boolean;
@@ -22,6 +29,7 @@ export interface Config {
   mail: MailConfig | null;
   taskTimeZone: string;
   telegramBot: TelegramBotConfig | null;
+  googleAds: GoogleAdsConfig | null;
   storage: {
     endpoint: string;
     region: string;
@@ -83,6 +91,18 @@ function telegramBotConfig(env: NodeJS.ProcessEnv): TelegramBotConfig | null {
   };
 }
 
+const DEFAULT_GOOGLE_ADS_API_VERSION = "v24";
+
+function googleAdsConfig(env: NodeJS.ProcessEnv, appUrl: string | null): GoogleAdsConfig | null {
+  const clientId = env.GOOGLE_OAUTH_CLIENT_ID?.trim();
+  const clientSecret = env.GOOGLE_OAUTH_CLIENT_SECRET?.trim();
+  const redirectUri = env.GOOGLE_OAUTH_REDIRECT_URI?.trim() || (appUrl ? `${appUrl}/api/integrations/google/callback` : "");
+  if (!clientId || !clientSecret || !redirectUri) return null;
+  const apiVersion = env.GOOGLE_ADS_API_VERSION?.trim() || DEFAULT_GOOGLE_ADS_API_VERSION;
+  if (!/^v\d{1,3}$/.test(apiVersion)) throw new Error("GOOGLE_ADS_API_VERSION must look like v24");
+  return { clientId, clientSecret, redirectUri, apiVersion };
+}
+
 function mailConfig(env: NodeJS.ProcessEnv): MailConfig | null {
   const user = env.SMTP_USER?.trim();
   const password = env.SMTP_PASSWORD?.trim();
@@ -114,14 +134,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     }
   }
 
+  const appUrl = env.APP_URL?.trim().replace(/\/+$/, "") || (production ? null : DEVELOPMENT_APP_URL);
+
   return {
     jwtSecret,
     documentation: env.API_DOCS !== "off",
     production,
-    appUrl: env.APP_URL?.trim().replace(/\/+$/, "") || (production ? null : DEVELOPMENT_APP_URL),
+    appUrl,
     mail: mailConfig(env),
     taskTimeZone: taskTimeZone(env),
     telegramBot: telegramBotConfig(env),
+    googleAds: googleAdsConfig(env, appUrl),
     storage: {
       endpoint: env.S3_ENDPOINT ?? "http://localhost:9000",
       region: env.S3_REGION ?? "us-east-1",

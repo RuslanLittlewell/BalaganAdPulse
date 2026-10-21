@@ -30,7 +30,7 @@ function fixture(initial: CreativeView[] = [], connected = true) {
   const dependencies = {
     ads: { locate: vi.fn(async () => ({ projectId: "p1", externalId: "meta-ad", accountId: "account" })) },
     creatives: { list: vi.fn(async () => stored), outdated: vi.fn(async () => false), save },
-    repository: { list: vi.fn(async () => connected ? [{ accountId: "account", encryptedToken: "cipher" }] : []) },
+    repository: { list: vi.fn(async () => connected ? [{ provider: "META", accountId: "account", encryptedToken: "cipher" }] : []) },
     cipher: { decrypt: vi.fn(() => "token") },
     provider: { adCreatives: provider },
     files: { copy: vi.fn(async () => ({ key: "creatives/key", contentType: "image/jpeg", bytes: 42 })) },
@@ -90,8 +90,8 @@ describe("the connection an ad is read through", () => {
     const service = createIntegrationUseCases({
       ads: { locate: vi.fn(async () => ({ projectId: "p1", externalId: "meta-ad", accountId: "second" })) },
       repository: { list: vi.fn(async () => [
-        { accountId: "first", encryptedToken: "first-cipher" },
-        { accountId: "second", encryptedToken: "second-cipher" },
+        { provider: "META", accountId: "first", encryptedToken: "first-cipher" },
+        { provider: "META", accountId: "second", encryptedToken: "second-cipher" },
       ]) },
       cipher: { decrypt },
       provider: { preview },

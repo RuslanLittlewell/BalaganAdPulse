@@ -172,14 +172,15 @@ describe("several connections", () => {
     expect(screen.getByRole("button", { name: "Добавить интеграцию" })).toBeInTheDocument();
   });
 
-  it("offers Meta and shows the other providers as not yet available", async () => {
+  it("offers Meta and Google and shows the other providers as not yet available", async () => {
     server.use(http.get(list, () => HttpResponse.json([connected])));
     renderWithProviders(<MetaIntegration projectId="p1" />);
     await userEvent.click(await screen.findByRole("button", { name: "Добавить интеграцию" }));
 
     const window = await screen.findByRole("dialog", { name: "Выберите интеграцию" });
     expect(within(window).getByRole("button", { name: "Meta" })).toBeEnabled();
-    for (const provider of ["Google", "Яндекс", "TikTok", "GPT"]) {
+    expect(within(window).getByRole("button", { name: "Google" })).toBeEnabled();
+    for (const provider of ["Яндекс", "TikTok", "GPT"]) {
       expect(within(window).getByRole("button", { name: new RegExp(`^${provider}`) })).toBeDisabled();
     }
   });

@@ -115,4 +115,43 @@ describe("loadConfig", () => {
     expect(() => loadConfig({ ...bot, GROQ_BASE_URL: "http://relay.example.com/openai/v1" })).toThrow(/https/);
     expect(() => loadConfig({ ...bot, GROQ_BASE_URL: "relay" })).toThrow(/GROQ_BASE_URL must be a URL/);
   });
+
+  describe("Google Ads", () => {
+    const google = {
+      JWT_SECRET: "s", APP_URL: "https://app.example.com/",
+      GOOGLE_OAUTH_CLIENT_ID: "id", GOOGLE_OAUTH_CLIENT_SECRET: "secret",
+    };
+
+    it("is off until the client and its secret are both given", () => {
+      expect(loadConfig({ JWT_SECRET: "s" }).googleAds).toBeNull();
+      for (const missing of ["GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET"]) {
+        expect(loadConfig({ ...google, [missing]: "" }).googleAds).toBeNull();
+      }
+    });
+
+    it("sends Google back to the API on the application's own address, on a current API version", () => {
+      expect(loadConfig(google).googleAds).toEqual({
+        clientId: "id", clientSecret: "secret",
+        redirectUri: "https://app.example.com/api/integrations/google/callback", apiVersion: "v24",
+      });
+    });
+
+    it("needs no developer token, since Google retired them, and ignores one left behind", () => {
+      expect(loadConfig({ ...google, GOOGLE_ADS_DEVELOPER_TOKEN: "old-token" }).googleAds).not.toHaveProperty("developerToken");
+    });
+
+    it("lets the redirect address and the API version be set", () => {
+      expect(loadConfig({
+        ...google, GOOGLE_OAUTH_REDIRECT_URI: "https://api.example.com/cb", GOOGLE_ADS_API_VERSION: "v26",
+      }).googleAds).toMatchObject({ redirectUri: "https://api.example.com/cb", apiVersion: "v26" });
+    });
+
+    it("refuses an API version that is not one", () => {
+      expect(() => loadConfig({ ...google, GOOGLE_ADS_API_VERSION: "../x" })).toThrow(/GOOGLE_ADS_API_VERSION/);
+    });
+
+    it("is off in production without an application address to return to", () => {
+      expect(loadConfig({ ...google, APP_URL: "", NODE_ENV: "production", JWT_SECRET: "x".repeat(40) }).googleAds).toBeNull();
+    });
+  });
 });

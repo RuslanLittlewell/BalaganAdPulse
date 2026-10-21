@@ -1,6 +1,6 @@
 import type { UnitOfWork } from "#shared/application/index.js";
 import type { IncomingLead } from "#modules/leads/index.js";
-import { MetaError, type LeadPollJob } from "../domain/integration.js";
+import { ProviderError, type LeadPollJob } from "../domain/integration.js";
 import type { PolledAd } from "../domain/snapshot.js";
 import type { LeadPollJobs } from "./lead-poll-jobs.js";
 import type { CredentialCipher, LeadInbox } from "./ports.js";
@@ -73,12 +73,12 @@ export function createLeadPollWorker(d: {
       if (stopped) return false;
       await poll(job, signal);
     } catch (error) {
-      if (error instanceof MetaError) {
+      if (error instanceof ProviderError) {
         console.error("Meta lead poll failed:", error.code, error.detail);
       } else {
         console.error("Meta lead poll failed unexpectedly:", error instanceof Error ? error.message : error);
       }
-      await d.jobs.fail(job, error instanceof MetaError ? error : new MetaError("PROVIDER"), d.clock.now());
+      await d.jobs.fail(job, error instanceof ProviderError ? error : new ProviderError("PROVIDER"), d.clock.now());
     } finally {
       clearInterval(heartbeat);
       controller = undefined;

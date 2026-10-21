@@ -3,7 +3,7 @@ import { prisma } from "../../src/shared/infrastructure/prisma.js";
 import { resetDb, seedProject, seedCampaign } from "../helpers/db.js";
 import { signInAs } from "../helpers/auth.js";
 import { PrismaImportJobs } from "../../src/modules/integrations/infrastructure/prisma-import-jobs.js";
-import { MetaError } from "../../src/modules/integrations/domain/integration.js";
+import { ProviderError } from "../../src/modules/integrations/domain/integration.js";
 import type { Snapshot } from "../../src/modules/integrations/domain/snapshot.js";
 const now = new Date("2026-09-08T06:00:00Z");
 const jobs = new PrismaImportJobs(prisma);
@@ -85,11 +85,11 @@ it("does not commit after replacement, disconnect, or currency changes", async (
 });
 it("retries transient failures with bounded backoff and stops automatic token retries", async () => {
   const job = (await jobs.claim(now))!;
-  await jobs.fail(job, new MetaError("PROVIDER", 120_000), now);
+  await jobs.fail(job, new ProviderError("PROVIDER", 120_000), now);
   expect(await jobs.claim(new Date(now.getTime() + 60_000))).toBeNull();
   const retry = (await jobs.claim(new Date(now.getTime() + 120_000)))!;
   expect(retry.retryCount).toBe(1);
-  await jobs.fail(retry, new MetaError("TOKEN"), now);
+  await jobs.fail(retry, new ProviderError("TOKEN"), now);
   expect(await jobs.claim(new Date("2026-09-10"))).toBeNull();
   expect((await prisma.projectIntegration.findFirstOrThrow({ where: { projectId } })).lastError).toBe("TOKEN");
 });
@@ -103,12 +103,12 @@ it("exhausts three retries and resumes at the next morning", async () => {
   let time = now;
   for (const delay of [60_000, 300_000, 900_000]) {
     const job = (await jobs.claim(time))!;
-    await jobs.fail(job, new MetaError("PROVIDER"), time);
+    await jobs.fail(job, new ProviderError("PROVIDER"), time);
     const row = await prisma.projectIntegration.findFirstOrThrow({ where: { projectId } });
     expect(row.queuedAt?.getTime()).toBe(time.getTime() + delay);
     time = row.queuedAt!;
   }
-  await jobs.fail((await jobs.claim(time))!, new MetaError("PROVIDER"), time);
+  await jobs.fail((await jobs.claim(time))!, new ProviderError("PROVIDER"), time);
   const failed = await prisma.projectIntegration.findFirstOrThrow({ where: { projectId } });
   expect(failed).toMatchObject({ status: "ERROR", queuedAt: null, retryCount: 0 });
   expect(await jobs.claim(new Date(time.getTime() + 60_000))).toBeNull();

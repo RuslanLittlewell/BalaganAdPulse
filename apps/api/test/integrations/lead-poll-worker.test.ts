@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createLeadPollWorker } from "../../src/modules/integrations/application/lead-poll-worker.js";
-import { MetaError, type LeadPollJob } from "../../src/modules/integrations/domain/integration.js";
+import { ProviderError, type LeadPollJob } from "../../src/modules/integrations/domain/integration.js";
 import type { IncomingLead } from "../../src/modules/leads/index.js";
 
 const now = new Date("2026-09-13T10:00:00Z");
@@ -87,7 +87,7 @@ describe("lead poll worker", () => {
   it("advances nothing when reading fails", async () => {
     const d = dependencies(job({ leadsCoveredUntil: now }));
     vi.spyOn(console, "error").mockImplementation(() => {});
-    d.provider.leads.mockRejectedValue(new MetaError("PROVIDER", 0, "http 503"));
+    d.provider.leads.mockRejectedValue(new ProviderError("PROVIDER", 0, "http 503"));
 
     await runOnce(d);
 
@@ -145,7 +145,7 @@ describe("lead poll worker", () => {
   it.each(["ACCESS", "TOKEN"] as const)("records a %s refusal for the schedule to act on", async (code) => {
     const d = dependencies();
     vi.spyOn(console, "error").mockImplementation(() => {});
-    d.provider.leads.mockRejectedValue(new MetaError(code));
+    d.provider.leads.mockRejectedValue(new ProviderError(code));
 
     await runOnce(d);
 

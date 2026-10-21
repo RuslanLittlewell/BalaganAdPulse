@@ -1,4 +1,4 @@
-import { adPreviewDoc, integrationDoc } from "#modules/integrations/presentation/http/integration-openapi.js";
+import { adPreviewDoc, googleCallbackDoc, googleIntegrationDoc, integrationDoc } from "#modules/integrations/presentation/http/integration-openapi.js";
 import { createRequire } from "node:module";
 import path from "node:path";
 import express, { Router } from "express";
@@ -97,6 +97,8 @@ export function apiDocument(): OpenApiDocument {
       { mount: mountPath("reports"), ...reportDoc },
       { mount: mountPath("report-index"), ...reportIndexDoc },
       { mount: mountPath("integrations"), ...integrationDoc },
+      { mount: mountPath("integrations"), ...googleIntegrationDoc },
+      { mount: mountPath("google-callback"), ...googleCallbackDoc },
       { mount: mountPath("ad-previews"), ...adPreviewDoc },
       { mount: mountPath("projects"), ...projectDoc },
       { mount: mountPath("project-layout"), ...projectLayoutDoc },

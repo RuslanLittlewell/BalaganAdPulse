@@ -5,6 +5,7 @@ import type { ApiContainer } from "./create-container.js";
 export const ROUTE_MOUNTS = [
   { id: "docs", path: "/api" },
   { id: "open-auth", path: "/api/auth" },
+  { id: "google-callback", path: "/api/integrations/google" },
   { id: "registration-resolver", path: "/api/regustration" },
   { id: "authentication", path: "/api" },
   { id: "session", path: "/api/auth/me" },
@@ -58,6 +59,7 @@ export function createRoutes(container: ApiContainer): Router {
   const handlers = [
     container.documentationRouter,
     container.authRouter,
+    container.googleCallbackRouter,
     container.registrationResolverRouter,
     container.authentication,
     container.sessionRouter,

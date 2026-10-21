@@ -153,7 +153,7 @@ Backups are gzipped `pg_dump` files in `/opt/adpulse/backups`, one per deploy, k
 
 | What | Where it lives | Who sets it |
 |---|---|---|
-| Postgres and MinIO credentials, `JWT_SECRET`, `INTEGRATION_ENCRYPTION_KEY`, `SEED_ADMIN_*`, `APP_URL`, `SMTP_*`, `TELEGRAM_BOT_TOKEN`, `GROQ_API_KEY` | `/opt/adpulse/.env` on the server, passed whole to the app | Operator, by hand |
+| Postgres and MinIO credentials, `JWT_SECRET`, `INTEGRATION_ENCRYPTION_KEY`, `GOOGLE_*`, `SEED_ADMIN_*`, `APP_URL`, `SMTP_*`, `TELEGRAM_BOT_TOKEN`, `GROQ_API_KEY` | `/opt/adpulse/.env` on the server, passed whole to the app | Operator, by hand |
 | `PRODUCTION_VPS_SSH_KEY` — the private key of `adpulse-deploy` | GitHub Actions repository secret | Operator |
 | The server's host key | [deploy/known_hosts](deploy/known_hosts), in the repository | Operator, when the server changes |
 | Access to the image registry | The job's own `GITHUB_TOKEN`, used for one deploy and logged out | Nobody |
@@ -949,3 +949,10 @@ npm test
 Projects can connect a Meta account by entering Account ID and a token in the web
 interface. See [Meta integration](docs/meta-integration.md) for manual refresh,
 daily imports and the required server encryption key.
+
+## Google Ads accounts
+
+Projects can connect a Google Ads account by signing in with Google in the web
+interface; each project signs in on its own. See
+[Google Ads integration](docs/google-ads-integration.md) for the sign-in, what is
+imported and the server configuration it needs.

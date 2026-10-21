@@ -4,10 +4,16 @@ export interface Account {
   timezone: string;
 }
 
+export interface GoogleAccountChoice extends Account {
+  name: string;
+  loginCustomerId: string | null;
+}
+
 export interface Integration extends Account {
   id: string;
   projectId: string;
   provider: string;
+  loginCustomerId: string | null;
   leadsEnabled: boolean;
   encryptedToken: string;
   revision: string;
@@ -44,12 +50,16 @@ export function publicIntegration(row: Integration | null) {
   return { id, provider, accountId, currency, timezone, status, lastSuccessAt, lastError, nextDailyAt, leadsEnabled, leads };
 }
 
-export class MetaError extends Error {
+export const PROVIDERS = ["META", "GOOGLE"] as const;
+export type Provider = (typeof PROVIDERS)[number];
+
+export class ProviderError extends Error {
   constructor(
     readonly code: "TOKEN" | "ACCESS" | "CURRENCY" | "PROVIDER" | "INVALID_DATA" | "CONFIGURATION" | "CONFLICT",
     readonly retryAfterMs = 0,
     readonly detail = "",
+    readonly provider = "Meta",
   ) {
-    super(`Meta integration: ${code}`);
+    super(`${provider} integration: ${code}`);
   }
 }

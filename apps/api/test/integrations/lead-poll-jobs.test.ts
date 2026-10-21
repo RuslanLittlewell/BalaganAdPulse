@@ -6,7 +6,7 @@ import { PrismaUnitOfWork } from "../../src/shared/infrastructure/prisma-unit-of
 import { PrismaLeadPollJobs } from "../../src/modules/integrations/infrastructure/prisma-lead-poll-jobs.js";
 import { PrismaImportJobs } from "../../src/modules/integrations/infrastructure/prisma-import-jobs.js";
 import { PrismaIntegrationRepository } from "../../src/modules/integrations/infrastructure/prisma-integration-repository.js";
-import { MetaError } from "../../src/modules/integrations/domain/integration.js";
+import { ProviderError } from "../../src/modules/integrations/domain/integration.js";
 import { resetDb, seedProject } from "../helpers/db.js";
 import { currentOrg, signInAs } from "../helpers/auth.js";
 
@@ -168,7 +168,7 @@ describe("recording lead polls", () => {
     await prisma.projectIntegration.updateMany({ where: { projectId }, data: { nextSweepAt: now } });
     const job = (await jobs.claim(now))!;
 
-    await jobs.fail(job, new MetaError("ACCESS"), now);
+    await jobs.fail(job, new ProviderError("ACCESS"), now);
 
     expect(await read()).toMatchObject({
       status: "SUCCESS", lastError: null, leadsStatus: "ACCESS_REQUIRED", leadsLastError: "ACCESS",
@@ -184,7 +184,7 @@ describe("recording lead polls", () => {
   it("sends a rejected token to credential replacement and stops polling", async () => {
     const job = (await jobs.claim(now))!;
 
-    await jobs.fail(job, new MetaError("TOKEN"), now);
+    await jobs.fail(job, new ProviderError("TOKEN"), now);
 
     expect(await read()).toMatchObject({ status: "AUTH_REQUIRED", lastError: "TOKEN", leadsLastError: "TOKEN" });
     expect(await jobs.claim(new Date("2026-09-20T00:00:00Z"))).toBeNull();
@@ -192,12 +192,12 @@ describe("recording lead polls", () => {
 
   it("retries a transient failure at the next poll or later when Meta asks", async () => {
     let job = (await jobs.claim(now))!;
-    await jobs.fail(job, new MetaError("PROVIDER"), now);
+    await jobs.fail(job, new ProviderError("PROVIDER"), now);
     expect(await read()).toMatchObject({ leadsStatus: "ERROR", leadsLastError: "PROVIDER", nextLeadsAt: new Date(now.getTime() + 600_000), status: "SUCCESS" });
 
     const later = new Date(now.getTime() + 600_000);
     job = (await jobs.claim(later))!;
-    await jobs.fail(job, new MetaError("PROVIDER", 1_800_000), later);
+    await jobs.fail(job, new ProviderError("PROVIDER", 1_800_000), later);
     expect((await read()).nextLeadsAt).toEqual(new Date(later.getTime() + 1_800_000));
   });
 
@@ -205,7 +205,7 @@ describe("recording lead polls", () => {
     const job = (await jobs.claim(now))!;
     await prisma.projectIntegration.updateMany({ where: { projectId }, data: { revision: "replaced" } });
 
-    await jobs.fail(job, new MetaError("ACCESS"), now);
+    await jobs.fail(job, new ProviderError("ACCESS"), now);
 
     expect(await read()).toMatchObject({ leadsStatus: "WAITING", leadsLeaseOwner: job.leadsLeaseOwner });
   });

@@ -11,13 +11,14 @@ const connectionSchema = z.object({
 const settingsSchema = z.object({ leadsEnabled: z.boolean() });
 const newConnectionSchema = connectionSchema.extend({ leadsEnabled: z.boolean().optional() });
 
-export function createIntegrationRouter(service: ReturnType<typeof createIntegrationUseCases>) {
+export function createIntegrationRouter(service: ReturnType<typeof createIntegrationUseCases>, addGoogle: (router: Router) => void) {
   const router = Router();
   router.use("/:id/integrations", (req, _res, next) => {
     if (!req.actor) return next(new AppError("unauthorized", "Authentication required"));
     next();
   });
   router.get("/:id/integrations", async (req, res) => { res.json(await service.list(req.actor!, req.params.id)); });
+  addGoogle(router);
   router.post("/:id/integrations/meta", async (req, res) => { res.status(201).json(await service.connect(req.actor!, req.params.id, newConnectionSchema.parse(req.body))); });
   router.put("/:id/integrations/:integrationId", async (req, res) => { res.json(await service.replace(req.actor!, req.params.id, req.params.integrationId, connectionSchema.parse(req.body))); });
   router.patch("/:id/integrations/:integrationId", async (req, res) => { res.json(await service.setLeadsEnabled(req.actor!, req.params.id, req.params.integrationId, settingsSchema.parse(req.body).leadsEnabled)); });

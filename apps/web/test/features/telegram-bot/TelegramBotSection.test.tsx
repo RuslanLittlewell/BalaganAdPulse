@@ -2,7 +2,7 @@ import { http, HttpResponse } from "msw";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders, server } from "@test/shared/index.js";
-import { TelegramBotSection, type TelegramStatus } from "@/features/telegram-bot/index.js";
+import { TelegramBotButton, TelegramBotSection, type TelegramStatus } from "@/features/telegram-bot/index.js";
 import { ProfileSettingsDialog } from "@/features/profile-settings/index.js";
 
 const LINK = "https://t.me/adpulse_bot?start=abc";
@@ -86,5 +86,36 @@ describe("the Telegram bot in the profile", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Не удалось получить ссылку на бота");
     expect(screen.queryByRole("link", { name: "Открыть Telegram" })).not.toBeInTheDocument();
+  });
+});
+
+describe("the Telegram button on the tasks page", () => {
+  it("is hidden when the bot is not available", async () => {
+    let asked = false;
+    server.use(http.get("/api/telegram", () => {
+      asked = true;
+      return HttpResponse.json(status({ available: false }));
+    }));
+    renderWithProviders(<TelegramBotButton />);
+
+    await waitFor(() => expect(asked).toBe(true));
+    expect(screen.queryByRole("button", { name: "Telegram" })).not.toBeInTheDocument();
+  });
+
+  it("opens the connection section", async () => {
+    serveStatus(status());
+    renderWithProviders(<TelegramBotButton />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Telegram" }));
+
+    expect(await section()).toHaveTextContent("Создавайте задачи голосом");
+    expect(screen.getByRole("button", { name: "Подключить" })).toBeInTheDocument();
+  });
+
+  it("marks the button as linked once connected", async () => {
+    serveStatus(status({ linked: true, username: "buyer" }));
+    renderWithProviders(<TelegramBotButton />);
+
+    expect(await screen.findByRole("button", { name: "Telegram" })).toHaveAttribute("data-linked", "true");
   });
 });

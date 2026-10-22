@@ -121,6 +121,7 @@ describe("TaskFormDialog", () => {
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "Написать бриф",
           description, column: "IDEA", priority: "HIGH", participantIds: ["member-1"],
           createdById: "member-1", visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, repeatEvery: "NONE", isCall: false, checklist: [], imageIds: ["image-1", "image-2"],
+          archivedAt: null,
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -149,6 +150,7 @@ describe("TaskFormDialog", () => {
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлами",
           description: null, column: "IDEA", priority: "LOW",           createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", isCall: false, checklist: [], imageIds: ["image-1", "image-2"],
+          archivedAt: null,
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -168,6 +170,7 @@ describe("TaskFormDialog", () => {
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "Без файлов",
           description: null, column: "IDEA", priority: "LOW",           createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", isCall: false, checklist: [], imageIds: [],
+          archivedAt: null,
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -544,6 +547,7 @@ describe("attachments", () => {
       task={{
         id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлами",
         description: null, column: "IDEA", priority: "LOW",         createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", isCall: false, checklist: [], imageIds,
+        archivedAt: null,
         createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
       }}
       onClose={() => {}}
@@ -638,6 +642,7 @@ describe("a freshly pasted image", () => {
         task={{
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлами",
           description: null, column: "IDEA", priority: "LOW",           createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", isCall: false, checklist: [], imageIds: ["image-1"],
+          archivedAt: null,
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -645,6 +650,7 @@ describe("a freshly pasted image", () => {
       { route: "/tasks" },
     );
 
+    await userEvent.click(await screen.findByRole("button", { name: "Изменить" }));
     pasteImage(await editorSurface());
 
     expect(await screen.findByTestId("task-attachment-image-9")).toBeInTheDocument();
@@ -691,6 +697,7 @@ describe("removing an attachment reaches the description", () => {
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлом",
           description: described("image-1"), column: "IDEA", priority: "LOW",
           createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", isCall: false, checklist: [], imageIds: ["image-1"],
+          archivedAt: null,
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -723,6 +730,7 @@ describe("removing an attachment reaches the description", () => {
           id: "task-1", projectId: "project-1", orgId: "org-1", title: "С файлом",
           description: described("image-1"), column: "IDEA", priority: "LOW",
           createdById: null, visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", isCall: false, checklist: [], imageIds: ["image-1"],
+          archivedAt: null,
           createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
         }}
         onClose={() => {}}
@@ -846,5 +854,42 @@ describe("opening a task", () => {
     await user.clear(title);
     await user.type(title, "Новое название");
     expect(title).toHaveValue("Новое название");
+  });
+});
+
+describe("the description of an existing task", () => {
+  const stored = {
+    id: "task-1", projectId: "project-1", orgId: "org-1", title: "С описанием",
+    description: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Текст брифа" }] }] },
+    column: "IDEA" as const, priority: "LOW" as const, createdById: null, visibleToClient: false, position: 0,
+    dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE" as const, isCall: false,
+    checklist: [], imageIds: [], archivedAt: null,
+    createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
+  };
+
+  it("is read-only until the member asks to change it", async () => {
+    renderWithProviders(<TaskFormDialog task={stored} onClose={() => {}} />, { route: "/tasks" });
+
+    expect(await screen.findByLabelText("Описание")).toHaveAttribute("contenteditable", "false");
+    expect(screen.getByText("Текст брифа")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Жирный" })).not.toBeInTheDocument();
+  });
+
+  it("becomes editable after Изменить, and read-only again after Готово", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<TaskFormDialog task={stored} onClose={() => {}} />, { route: "/tasks" });
+
+    await user.click(await screen.findByRole("button", { name: "Изменить" }));
+    expect(screen.getByLabelText("Описание")).toHaveAttribute("contenteditable", "true");
+
+    await user.click(screen.getByRole("button", { name: "Готово" }));
+    expect(screen.getByLabelText("Описание")).toHaveAttribute("contenteditable", "false");
+  });
+
+  it("is editable at once while a task is being created", async () => {
+    setup();
+
+    expect(await screen.findByLabelText("Описание")).toHaveAttribute("contenteditable", "true");
+    expect(screen.queryByRole("button", { name: "Изменить" })).not.toBeInTheDocument();
   });
 });

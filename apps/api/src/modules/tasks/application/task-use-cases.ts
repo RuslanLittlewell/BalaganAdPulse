@@ -342,9 +342,11 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
 
         return { ...task, column: input.column, position: target.indexOf(id) };
       });
-      dependencies.events.publish(taskMoved(moved));
-      if (task.column !== moved.column) dependencies.notices.changed(moved, actor, []);
-      return moved;
+      const { archivedAt } = await reach(actor, id);
+      const movedTask = { ...moved, archivedAt };
+      dependencies.events.publish(taskMoved(movedTask));
+      if (task.column !== movedTask.column) dependencies.notices.changed(movedTask, actor, []);
+      return movedTask;
     },
   };
 }

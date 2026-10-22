@@ -23,6 +23,7 @@ enum DeliveryStatus {
 enum CreativeKind {
   IMAGE
   VIDEO
+  TEXT
 
   @@map("creative_kind")
 }
@@ -105,6 +106,7 @@ model AdCreative {
   bytes             Int?
   posterKey         String?      @map("poster_key")
   posterContentType String?      @map("poster_content_type")
+  sourceUrl         String?      @map("source_url")
   quality           Int          @default(0)
   syncedAt          DateTime     @default(now()) @map("synced_at")
 

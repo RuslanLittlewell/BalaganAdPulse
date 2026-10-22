@@ -19,6 +19,15 @@ export interface AccountProvider {
   ): Promise<readonly ImportedCreative[]>;
 }
 
+export interface GoogleCreativeSource {
+  adCreatives(
+    adExternalId: string,
+    account: { accountId: string; loginCustomerId: string | null },
+    refreshToken: string,
+    signal?: AbortSignal,
+  ): Promise<readonly ImportedCreative[]>;
+}
+
 export interface CreativeStore {
   list(adId: string): Promise<CreativeView[]>;
   outdated(adId: string): Promise<boolean>;
@@ -72,6 +81,7 @@ export interface IntegrationDependencies {
   ads: AdLocator;
   creatives: CreativeStore;
   files: CreativeFiles;
+  googleCreatives?: GoogleCreativeSource;
   clock: { now(): Date };
   unitOfWork: UnitOfWork;
   audit: AuditWriter;

@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
   Label,
+  SearchableSelect,
   Select,
   SelectContent,
   SelectItem,
@@ -53,14 +54,14 @@ export function NewReportDialog({
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="report-project">{t("report.project")}</Label>
-            <Select value={projectId} onValueChange={(next) => { setProjectId(next); setMonth(undefined); }}>
-              <SelectTrigger id="report-project" className="w-full"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {projects.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              id="report-project"
+              value={projectId}
+              onValueChange={(next) => { setProjectId(next); setMonth(undefined); }}
+              options={projects.map((project) => ({ value: project.id, label: project.name }))}
+              searchLabel={t("select.search")}
+              emptyLabel={t("select.search.empty")}
+            />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="report-month">{t("report.month")}</Label>

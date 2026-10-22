@@ -14,7 +14,7 @@ const task = (partial: Partial<TaskRecord> = {}): TaskRecord => ({
   column: "IDEA", priority: "MEDIUM", createdById: "m1",
   participantIds: [], visibleToClient: false, position: 0,
   dueDate: null, dueTime: null, endTime: null, repeatEvery: "NONE", isCall: false, checklist: [], imageIds: [],
-  createdAt: new Date("2026-09-01T00:00:00.000Z"), updatedAt: new Date("2026-09-01T00:00:00.000Z"),
+  archivedAt: null, createdAt: new Date("2026-09-01T00:00:00.000Z"), updatedAt: new Date("2026-09-01T00:00:00.000Z"),
   ...partial,
 });
 
@@ -109,6 +109,7 @@ function fixture(options: {
       named: (named: TaskRecord, memberIds: readonly string[], actor: ActorContext) => {
         assigned.push({ taskId: named.id, memberIds: [...memberIds], actor: actor.membershipId });
       },
+      mentioned: () => {},
       changed: (changed: TaskRecord, actor: ActorContext, newcomers: readonly string[]) => {
         changes.push({ taskId: changed.id, actor: actor.membershipId, newcomers: [...newcomers] });
       },

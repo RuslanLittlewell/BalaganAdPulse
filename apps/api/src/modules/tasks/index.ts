@@ -23,3 +23,6 @@ export type { TaskImageRecord, TaskImageRepository, TaskImageStorage } from "./a
 export { taskCreated, taskDeleted, taskMoved, taskUpdated } from "./application/task-events.js";
 export type { TaskEvent, TaskEventKind, TaskEventPublisher } from "./application/task-events.js";
 export { createTaskRouter, createTaskImageRouter } from "./presentation/http/task-http.js";
+export { createTaskCommentUseCases } from "./application/task-comment-use-cases.js";
+export type { AddTaskCommentInput, TaskCommentUseCases } from "./application/task-comment-use-cases.js";
+export type { TaskCommentRecord, TaskCommentRepository, TaskCommentDependencies } from "./application/ports.js";

@@ -3,7 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Routes, Route, useLocation } from "react-router-dom";
 import type { ModuleKey } from "@adpulse/access-policy";
 import { DashboardPage } from "@/pages/dashboard/index.js";
-import { ModulePage } from "@/pages/module/index.js";
+import { ArchivePage } from "@/pages/archive/index.js";
 import { ProjectsPage } from "@/pages/projects/index.js";
 import { ReportsPage } from "@/pages/reports/index.js";
 import { LoginPage } from "@/pages/login/index.js";
@@ -45,7 +45,7 @@ function OrganizationArea() {
           <Route path={ROUTES.tasks} element={entitled("TASKS", <TasksPage />)} />
           <Route path={ROUTES.crm} element={entitled("CRM", <CrmPage />)} />
           <Route path={`${ROUTES.reports}/*`} element={entitled("REPORTS", <ReportsPage />)} />
-          <Route path={ROUTES.archive} element={<ModulePage title={t("nav.archive")} />} />
+          <Route path={ROUTES.archive} element={<ArchivePage />} />
           <Route path="/clients/*" element={<Navigate to={ROUTES.projects} replace />} />
           <Route path="/team" element={<Navigate to={ROUTES.dashboard} replace />} />
         </Routes>

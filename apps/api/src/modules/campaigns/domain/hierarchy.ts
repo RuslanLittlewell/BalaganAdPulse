@@ -52,7 +52,7 @@ export interface Ad {
   readonly position: number;
 }
 
-const CREATIVE_KINDS = ["IMAGE", "VIDEO"] as const;
+const CREATIVE_KINDS = ["IMAGE", "VIDEO", "TEXT"] as const;
 
 export type CreativeKind = (typeof CREATIVE_KINDS)[number];
 

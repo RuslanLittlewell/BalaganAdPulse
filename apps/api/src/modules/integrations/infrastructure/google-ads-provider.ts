@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { ProviderError, type Account, type GoogleAccountChoice } from "../domain/integration.js";
-import type { ImportedEntity, ImportedMetric, ImportedStatus, Snapshot } from "../domain/snapshot.js";
+import type { ImportedCreative, ImportedEntity, ImportedMetric, ImportedStatus, Snapshot } from "../domain/snapshot.js";
 import type { SnapshotSource } from "../application/import-worker.js";
+import type { GoogleCreativeSource } from "../application/ports.js";
 import { localDate, shiftDate } from "../application/schedule.js";
 import { exchange, type GoogleResponse } from "./google-http.js";
 import type { GoogleOAuth } from "./google-oauth.js";
@@ -53,6 +54,75 @@ const clientRow = z.object({
   }),
 });
 
+const textAsset = z.object({ text: z.string().default("") });
+const textList = z.array(textAsset).default([]);
+const assetRef = z.object({ asset: z.string().default("") });
+const refList = z.array(assetRef).default([]);
+const optionalText = z.string().optional();
+const adContentRow = z.object({
+  adGroupAd: z.object({
+    ad: z.object({
+      id: customerId,
+      imageAd: z.object({ imageUrl: optionalText, previewImageUrl: optionalText, name: optionalText }).optional(),
+      responsiveSearchAd: z.object({ headlines: textList, descriptions: textList }).optional(),
+      expandedTextAd: z.object({
+        headlinePart1: optionalText, headlinePart2: optionalText, headlinePart3: optionalText,
+        description: optionalText, description2: optionalText,
+      }).optional(),
+      responsiveDisplayAd: z.object({
+        marketingImages: refList, squareMarketingImages: refList, youtubeVideos: refList,
+        headlines: textList, longHeadline: textAsset.optional(), descriptions: textList,
+      }).optional(),
+      videoAd: z.object({ video: assetRef.optional() }).optional(),
+      videoResponsiveAd: z.object({ videos: refList, headlines: textList, longHeadlines: textList, descriptions: textList }).optional(),
+      demandGenMultiAssetAd: z.object({
+        marketingImages: refList, squareMarketingImages: refList, portraitMarketingImages: refList,
+        headlines: textList, descriptions: textList,
+      }).optional(),
+      demandGenVideoResponsiveAd: z.object({ videos: refList, headlines: textList, longHeadlines: textList, descriptions: textList }).optional(),
+    }),
+  }),
+});
+const assetRow = z.object({
+  asset: z.object({
+    resourceName: z.string(),
+    imageAsset: z.object({ fullSize: z.object({ url: optionalText }).optional() }).optional(),
+    youtubeVideoAsset: z.object({ youtubeVideoId: optionalText, youtubeVideoTitle: optionalText }).optional(),
+  }),
+});
+
+const AD_CONTENT_FIELDS = [
+  "ad_group_ad.ad.id",
+  "ad_group_ad.ad.image_ad.image_url", "ad_group_ad.ad.image_ad.preview_image_url", "ad_group_ad.ad.image_ad.name",
+  "ad_group_ad.ad.responsive_search_ad.headlines", "ad_group_ad.ad.responsive_search_ad.descriptions",
+  "ad_group_ad.ad.expanded_text_ad.headline_part1", "ad_group_ad.ad.expanded_text_ad.headline_part2", "ad_group_ad.ad.expanded_text_ad.headline_part3",
+  "ad_group_ad.ad.expanded_text_ad.description", "ad_group_ad.ad.expanded_text_ad.description2",
+  "ad_group_ad.ad.responsive_display_ad.marketing_images", "ad_group_ad.ad.responsive_display_ad.square_marketing_images",
+  "ad_group_ad.ad.responsive_display_ad.youtube_videos", "ad_group_ad.ad.responsive_display_ad.headlines",
+  "ad_group_ad.ad.responsive_display_ad.long_headline", "ad_group_ad.ad.responsive_display_ad.descriptions",
+  "ad_group_ad.ad.video_ad.video.asset",
+  "ad_group_ad.ad.video_responsive_ad.videos", "ad_group_ad.ad.video_responsive_ad.headlines",
+  "ad_group_ad.ad.video_responsive_ad.long_headlines", "ad_group_ad.ad.video_responsive_ad.descriptions",
+  "ad_group_ad.ad.demand_gen_multi_asset_ad.marketing_images", "ad_group_ad.ad.demand_gen_multi_asset_ad.square_marketing_images",
+  "ad_group_ad.ad.demand_gen_multi_asset_ad.portrait_marketing_images", "ad_group_ad.ad.demand_gen_multi_asset_ad.headlines",
+  "ad_group_ad.ad.demand_gen_multi_asset_ad.descriptions",
+  "ad_group_ad.ad.demand_gen_video_responsive_ad.videos", "ad_group_ad.ad.demand_gen_video_responsive_ad.headlines",
+  "ad_group_ad.ad.demand_gen_video_responsive_ad.long_headlines", "ad_group_ad.ad.demand_gen_video_responsive_ad.descriptions",
+].join(", ");
+
+const MAX_CREATIVE_IMAGES = 8;
+const MAX_CREATIVE_VIDEOS = 4;
+const MAX_CREATIVE_LINES = 30;
+const MAX_CREATIVE_LINE = 500;
+const ASSET_NAME = /^customers\/\d{1,20}\/assets\/(\d{1,20})$/;
+const YOUTUBE_ID = /^[A-Za-z0-9_-]{6,20}$/;
+
+const unique = <T>(items: readonly T[]) => [...new Set(items)];
+const lines = (items: readonly (string | undefined)[]) =>
+  unique(items.map((item) => item?.trim() ?? "").filter((item) => item !== "")).slice(0, MAX_CREATIVE_LINES).map((item) => item.slice(0, MAX_CREATIVE_LINE));
+const texts = (assets: readonly { text: string }[] | undefined) => (assets ?? []).map((asset) => asset.text);
+const refs = (assets: readonly { asset: string }[] | undefined) => (assets ?? []).map((ref) => ref.asset);
+
 const statuses: Record<z.infer<typeof status>, ImportedStatus> = { ENABLED: "ACTIVE", PAUSED: "PAUSED", REMOVED: "ENDED" };
 const ACCESS_CODES = new Set([
   "USER_PERMISSION_DENIED", "DEVELOPER_TOKEN_NOT_APPROVED", "DEVELOPER_TOKEN_PROHIBITED", "DEVELOPER_TOKEN_INVALID",
@@ -86,7 +156,7 @@ function metricOf(externalId: string, day: string, row: z.infer<typeof figures>)
   };
 }
 
-export class GoogleAdsProvider implements SnapshotSource {
+export class GoogleAdsProvider implements SnapshotSource, GoogleCreativeSource {
   constructor(
     private readonly oauth: Pick<GoogleOAuth, "accessToken">,
     private readonly settings: GoogleAdsSettings,
@@ -201,6 +271,99 @@ export class GoogleAdsProvider implements SnapshotSource {
       throw new ProviderError("INVALID_DATA", 0, "", "Google");
     }
     return { accountId, currency: row.customer.currencyCode, timezone: row.customer.timeZone };
+  }
+
+  async adCreatives(
+    adExternalId: string,
+    account: { accountId: string; loginCustomerId: string | null },
+    refreshToken: string,
+    signal?: AbortSignal,
+  ): Promise<ImportedCreative[]> {
+    if (
+      !customerId.safeParse(adExternalId).success
+      || !customerId.safeParse(account.accountId).success
+      || (account.loginCustomerId !== null && !customerId.safeParse(account.loginCustomerId).success)
+    ) {
+      throw new ProviderError("INVALID_DATA", 0, "", "Google");
+    }
+    const access = await this.oauth.accessToken(refreshToken, signal);
+    const run = (query: string) => this.search(account.accountId, account.loginCustomerId, access, query, signal);
+    const [row] = this.parsed(adContentRow, await run(
+      `SELECT ${AD_CONTENT_FIELDS} FROM ad_group_ad WHERE ad_group_ad.ad.id = ${adExternalId} AND ad_group_ad.status != 'REMOVED'`,
+    ));
+    if (!row) return [];
+    const ad = row.adGroupAd.ad;
+    const display = ad.responsiveDisplayAd;
+    const demand = ad.demandGenMultiAssetAd;
+    const videoResponsive = ad.videoResponsiveAd;
+    const demandVideo = ad.demandGenVideoResponsiveAd;
+    const expanded = ad.expandedTextAd;
+
+    const imageRefs = unique([
+      ...refs(display?.marketingImages), ...refs(display?.squareMarketingImages),
+      ...refs(demand?.marketingImages), ...refs(demand?.squareMarketingImages), ...refs(demand?.portraitMarketingImages),
+    ]).slice(0, MAX_CREATIVE_IMAGES);
+    const videoRefs = unique([
+      ...refs(display?.youtubeVideos), ...(ad.videoAd?.video ? [ad.videoAd.video.asset] : []),
+      ...refs(videoResponsive?.videos), ...refs(demandVideo?.videos),
+    ]).slice(0, MAX_CREATIVE_VIDEOS);
+    const headlines = lines([
+      ...texts(ad.responsiveSearchAd?.headlines),
+      expanded?.headlinePart1, expanded?.headlinePart2, expanded?.headlinePart3,
+      ...texts(display?.headlines), display?.longHeadline?.text,
+      ...texts(videoResponsive?.headlines), ...texts(videoResponsive?.longHeadlines),
+      ...texts(demand?.headlines),
+      ...texts(demandVideo?.headlines), ...texts(demandVideo?.longHeadlines),
+    ]);
+    const descriptions = lines([
+      ...texts(ad.responsiveSearchAd?.descriptions),
+      expanded?.description, expanded?.description2,
+      ...texts(display?.descriptions), ...texts(videoResponsive?.descriptions),
+      ...texts(demand?.descriptions), ...texts(demandVideo?.descriptions),
+    ]);
+
+    const wanted = unique([...imageRefs, ...videoRefs].filter((name) => ASSET_NAME.test(name)));
+    const assets = new Map<string, z.infer<typeof assetRow>["asset"]>();
+    if (wanted.length > 0) {
+      const found = this.parsed(assetRow, await run(
+        `SELECT asset.resource_name, asset.image_asset.full_size.url, asset.youtube_video_asset.youtube_video_id, asset.youtube_video_asset.youtube_video_title FROM asset WHERE asset.resource_name IN (${wanted.map((name) => `'${name}'`).join(", ")})`,
+      ));
+      for (const { asset } of found) assets.set(asset.resourceName, asset);
+    }
+
+    const creatives: ImportedCreative[] = [];
+    const add = (creative: Omit<ImportedCreative, "adExternalId" | "position">) =>
+      creatives.push({ adExternalId, position: creatives.length, ...creative });
+    const secure = (url: string | undefined) => (url && /^https:\/\//.test(url) ? url : undefined);
+
+    const imageUrl = secure(ad.imageAd?.imageUrl) ?? secure(ad.imageAd?.previewImageUrl);
+    if (imageUrl) add({ creativeId: "image", kind: "IMAGE", fileUrl: imageUrl, title: ad.imageAd?.name || undefined });
+    for (const name of imageRefs) {
+      const url = secure(assets.get(name)?.imageAsset?.fullSize?.url);
+      const id = ASSET_NAME.exec(name)?.[1];
+      if (url && id) add({ creativeId: id, kind: "IMAGE", fileUrl: url });
+    }
+    for (const name of videoRefs) {
+      const video = assets.get(name)?.youtubeVideoAsset;
+      const id = video?.youtubeVideoId;
+      if (!id || !YOUTUBE_ID.test(id)) continue;
+      add({
+        creativeId: id,
+        kind: "VIDEO",
+        title: video.youtubeVideoTitle || undefined,
+        posterUrl: `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
+        sourceUrl: `https://www.youtube.com/watch?v=${id}`,
+      });
+    }
+    if (headlines.length > 0 || descriptions.length > 0) {
+      add({
+        creativeId: "text",
+        kind: "TEXT",
+        title: headlines.length > 0 ? headlines.join("\n") : undefined,
+        body: descriptions.length > 0 ? descriptions.join("\n") : undefined,
+      });
+    }
+    return creatives;
   }
 
   async snapshot(

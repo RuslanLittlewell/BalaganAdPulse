@@ -13,6 +13,7 @@ import { t } from "@/shared/config/index.js";
 import { useAdCreatives, type Ad } from "@/entities/campaign/index.js";
 import { AdPreviewFrame } from "./AdPreviewFrame.js";
 import { CreativeMedia } from "./CreativeMedia.js";
+import { CreativeText } from "./CreativeText.js";
 
 export interface CreativePreviewDialogProps {
   ads: Pick<Ad, "id" | "name" | "externalId">[];
@@ -29,10 +30,15 @@ export function CreativePreviewDialog({ ads, initialAdId, onClose }: CreativePre
   if (!shown) return null;
 
   const variants = creatives.data ?? [];
+  const texts = variants.filter((creative) => creative.kind === "TEXT");
+  const linked = variants.filter(
+    (creative) => creative.kind === "VIDEO" && !creative.hasFile && creative.sourceUrl != null,
+  );
   const stored = variants.filter((creative) => creative.hasFile);
   const unplayable = variants.filter(
-    (creative) => creative.kind === "VIDEO" && !creative.hasFile,
+    (creative) => creative.kind === "VIDEO" && !creative.hasFile && creative.sourceUrl == null,
   );
+  const media = variants.filter((creative) => stored.includes(creative) || linked.includes(creative));
 
   const step = (by: number) => {
     const next = ads[index + by];
@@ -71,13 +77,17 @@ export function CreativePreviewDialog({ ads, initialAdId, onClose }: CreativePre
             />
           )}
 
-          {stored.map((creative) => (
+          {media.map((creative) => (
             <CreativeMedia
               key={creative.id}
               creative={creative}
               adName={shown.name}
               externalId={shown.externalId}
             />
+          ))}
+
+          {texts.map((creative) => (
+            <CreativeText key={creative.id} creative={creative} />
           ))}
         </div>
 

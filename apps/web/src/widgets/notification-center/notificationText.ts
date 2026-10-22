@@ -18,6 +18,8 @@ export function notificationText(notification: Notification): string {
       return `${t("notifications.taskUpdated.before")} ${task} ${t("notifications.taskUpdated.after")}`;
     case "DOCUMENT_ADDED":
       return `${t("notifications.documentAdded")} ${quoted(notification.document?.title)} ${t("notifications.inProject")} ${project}`;
+    case "TASK_MENTIONED":
+      return `${t("notifications.taskMentioned")} ${task}`;
     case "TASK_DUE_SOON":
       return `${t("notifications.dueSoon")} ${task}`;
   }

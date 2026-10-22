@@ -27,11 +27,12 @@ export const adPreviewDoc: RouteDoc = {
         schema: z.array(z.object({
           id: z.uuid(),
           position: z.int(),
-          kind: z.enum(["IMAGE", "VIDEO"]),
+          kind: z.enum(["IMAGE", "VIDEO", "TEXT"]),
           title: z.string().nullable(),
           body: z.string().nullable(),
           hasFile: z.boolean(),
           hasPoster: z.boolean(),
+          sourceUrl: z.string().nullable(),
         })),
       },
       errors: [401, 404],

@@ -4,11 +4,11 @@ import { CREATIVE_QUALITY, type CreativeView, type StoredCreative } from "../dom
 
 const toView = (row: {
   id: string; position: number; kind: string; title: string | null; body: string | null;
-  fileKey: string | null; posterKey: string | null;
+  fileKey: string | null; posterKey: string | null; sourceUrl: string | null;
 }): CreativeView => ({
   id: row.id, position: row.position, kind: row.kind as CreativeView["kind"],
   title: row.title, body: row.body,
-  hasFile: row.fileKey !== null, hasPoster: row.posterKey !== null,
+  hasFile: row.fileKey !== null, hasPoster: row.posterKey !== null, sourceUrl: row.sourceUrl,
 });
 
 export class PrismaCreativeStore implements CreativeStore {
@@ -34,7 +34,7 @@ export class PrismaCreativeStore implements CreativeStore {
           title: creative.title ?? null, body: creative.body ?? null,
           fileKey: creative.fileKey ?? null, contentType: creative.contentType ?? null,
           bytes: creative.bytes ?? null, posterKey: creative.posterKey ?? null,
-          posterContentType: creative.posterContentType ?? null,
+          posterContentType: creative.posterContentType ?? null, sourceUrl: creative.sourceUrl ?? null,
           quality: CREATIVE_QUALITY,
         })),
       });

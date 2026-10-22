@@ -11,6 +11,8 @@ interface ModuleMemoryState {
   taskViews: ByUser;
   taskParticipants: ListByUser;
   taskProjects: ListByUser;
+  archiveParticipants: ListByUser;
+  archiveProjects: ListByUser;
   crmViews: ByUser;
   taskCalendarZooms: ByUser;
   rememberBoard: (userId: string, board: string) => void;
@@ -20,6 +22,8 @@ interface ModuleMemoryState {
   rememberTaskView: (userId: string, view: string) => void;
   rememberTaskParticipants: (userId: string, participantIds: string[]) => void;
   rememberTaskProjects: (userId: string, projectIds: string[]) => void;
+  rememberArchiveParticipants: (userId: string, participantIds: string[]) => void;
+  rememberArchiveProjects: (userId: string, projectIds: string[]) => void;
   rememberCrmView: (userId: string, view: string) => void;
   rememberTaskCalendarZoom: (userId: string, level: string) => void;
 }
@@ -42,6 +46,8 @@ export const useModuleMemory = create<ModuleMemoryState>()(
       taskViews: {},
       taskParticipants: {},
       taskProjects: {},
+      archiveParticipants: {},
+      archiveProjects: {},
       crmViews: {},
       taskCalendarZooms: {},
       rememberBoard: (userId, board) =>
@@ -68,6 +74,14 @@ export const useModuleMemory = create<ModuleMemoryState>()(
         set((state) => ({
           taskProjects: { ...state.taskProjects, [userId]: projectIds },
         })),
+      rememberArchiveParticipants: (userId, participantIds) =>
+        set((state) => ({
+          archiveParticipants: { ...state.archiveParticipants, [userId]: participantIds },
+        })),
+      rememberArchiveProjects: (userId, projectIds) =>
+        set((state) => ({
+          archiveProjects: { ...state.archiveProjects, [userId]: projectIds },
+        })),
       rememberCrmView: (userId, view) =>
         set((state) => ({
           crmViews: withValue(state.crmViews, userId, view),
@@ -86,6 +100,8 @@ export const useModuleMemory = create<ModuleMemoryState>()(
         taskViews: state.taskViews,
         taskParticipants: state.taskParticipants,
         taskProjects: state.taskProjects,
+        archiveParticipants: state.archiveParticipants,
+        archiveProjects: state.archiveProjects,
         crmViews: state.crmViews,
         taskCalendarZooms: state.taskCalendarZooms,
       }),

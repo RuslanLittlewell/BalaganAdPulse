@@ -1,3 +1,4 @@
+import { TaskComments } from "./TaskComments.js";
 import type { ReactNode } from "react";
 import {
   Button,
@@ -161,6 +162,8 @@ export function TaskPreviewDialog({ task, onClose }: TaskPreviewDialogProps) {
           {task.imageIds.length > 0 ? (
             <TaskAttachments imageIds={task.imageIds} />
           ) : null}
+
+          <TaskComments task={task} />
         </div>
 
         <DialogFooter className="shrink-0">

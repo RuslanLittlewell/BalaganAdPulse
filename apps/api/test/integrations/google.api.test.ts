@@ -80,7 +80,7 @@ describe("Google connections over HTTP", () => {
     expect(audited).toContain("Disconnected Google Ads account");
   });
 
-  it("have no ad preview, since Google ads are text", async () => {
+  it("have no rendered ad preview, and no creatives to read while Google Ads is not configured", async () => {
     const campaign = await seedCampaign(projectId, "G", "GOOGLE");
     await prisma.campaign.update({ where: { id: campaign.id }, data: { sourceAccountId: "222" } });
     const adSet = await prisma.adSet.create({ data: { campaignId: campaign.id, name: "Group", position: 0, externalId: "9002" } });

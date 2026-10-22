@@ -41,6 +41,8 @@ export function wireCampaignsAndIntegrations(
   const provider = new GraphProvider(process.env.META_GRAPH_VERSION ?? "v22.0");
   const campaignRepository = new PrismaCampaignRepository(prisma);
   const integrationRepository = new PrismaIntegrationRepository(prisma, unitOfWork);
+  const oauth = config.googleAds ? new GoogleOAuth(config.googleAds) : null;
+  const googleAds = config.googleAds && oauth ? new GoogleAdsProvider(oauth, config.googleAds) : null;
   const integrations = createIntegrationUseCases({
     repository: integrationRepository,
     cipher,
@@ -49,12 +51,11 @@ export function wireCampaignsAndIntegrations(
     ads: new PrismaAdLocator(prisma),
     creatives: new PrismaCreativeStore(prisma),
     files: new S3CreativeFiles(),
+    ...(googleAds ? { googleCreatives: googleAds } : {}),
     clock,
     unitOfWork,
     audit,
   });
-  const oauth = config.googleAds ? new GoogleOAuth(config.googleAds) : null;
-  const googleAds = config.googleAds && oauth ? new GoogleAdsProvider(oauth, config.googleAds) : null;
   const googleIntegrations = createGoogleUseCases({
     repository: integrationRepository,
     cipher,

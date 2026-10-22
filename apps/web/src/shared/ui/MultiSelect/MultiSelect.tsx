@@ -1,6 +1,7 @@
-import type { ReactNode } from "react";
-import { ChevronDown } from "lucide-react";
+import { useState, type KeyboardEvent, type ReactNode } from "react";
+import { ChevronDown, SearchIcon } from "lucide-react";
 import { cn } from "@/shared/lib/index.js";
+import { t } from "@/shared/config/index.js";
 import { Button } from "../Button/Button.js";
 import {
   DropdownMenu,
@@ -23,6 +24,7 @@ export interface MultiSelectProps {
   placeholder: string;
   ariaLabel: string;
   allLabel?: string;
+  searchable?: boolean;
   className?: string;
 }
 
@@ -33,8 +35,15 @@ export function MultiSelect({
   placeholder,
   ariaLabel,
   allLabel,
+  searchable = false,
   className,
 }: MultiSelectProps) {
+  const [query, setQuery] = useState("");
+  const needle = query.trim().toLocaleLowerCase("ru");
+  const shownItems = needle === "" ? items : items.filter((item) => item.label.toLocaleLowerCase("ru").includes(needle));
+  const stopTyping = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Escape") event.stopPropagation();
+  };
   const picked = items.filter((item) => chosen.includes(item.value));
   const [first, ...rest] = picked;
 
@@ -50,7 +59,7 @@ export function MultiSelect({
     );
 
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={(open) => { if (!open) setQuery(""); }}>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
@@ -69,7 +78,25 @@ export function MultiSelect({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="max-h-96 overflow-y-auto">
-        {allLabel ? (
+        {searchable ? (
+          <div className="sticky top-0 z-10 -mt-1 mb-1 border-b bg-popover p-1.5">
+            <div className="relative">
+              <SearchIcon aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="search"
+                autoFocus
+                value={query}
+                placeholder={t("select.search")}
+                aria-label={t("select.search")}
+                autoComplete="off"
+                className="h-9 w-full rounded-md border border-input bg-transparent pl-8 pr-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring"
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={stopTyping}
+              />
+            </div>
+          </div>
+        ) : null}
+        {allLabel && needle === "" ? (
           <>
             <DropdownMenuCheckboxItem
               checked={allChosen}
@@ -81,7 +108,7 @@ export function MultiSelect({
             <DropdownMenuSeparator />
           </>
         ) : null}
-        {items.map((item) => (
+        {shownItems.map((item) => (
           <DropdownMenuCheckboxItem
             key={item.value}
             checked={chosen.includes(item.value)}
@@ -94,6 +121,9 @@ export function MultiSelect({
             </span>
           </DropdownMenuCheckboxItem>
         ))}
+        {searchable && shownItems.length === 0 ? (
+          <p role="status" className="px-3 py-2 text-sm text-muted-foreground">{t("select.search.empty")}</p>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );

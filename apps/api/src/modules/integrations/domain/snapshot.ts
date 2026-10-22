@@ -17,7 +17,7 @@ export interface ImportedMetric {
   results: number;
   revenue: string;
 }
-export type CreativeKind = "IMAGE" | "VIDEO";
+export type CreativeKind = "IMAGE" | "VIDEO" | "TEXT";
 export interface ImportedCreative {
   adExternalId: string;
   creativeId: string;
@@ -27,6 +27,7 @@ export interface ImportedCreative {
   body?: string;
   fileUrl?: string;
   posterUrl?: string;
+  sourceUrl?: string;
 }
 export const CREATIVE_QUALITY = 1;
 
@@ -38,6 +39,7 @@ export interface CreativeView {
   body: string | null;
   hasFile: boolean;
   hasPoster: boolean;
+  sourceUrl: string | null;
 }
 export interface StoredCreative {
   adExternalId: string;
@@ -51,6 +53,7 @@ export interface StoredCreative {
   bytes?: number;
   posterKey?: string;
   posterContentType?: string;
+  sourceUrl?: string;
 }
 export interface Snapshot {
   from: string;

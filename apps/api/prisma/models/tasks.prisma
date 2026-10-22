@@ -46,6 +46,7 @@ model Task {
   repeatEvery     TaskRepeat   @default(NONE) @map("repeat_every")
   isCall          Boolean      @default(false) @map("is_call")
   dueSoonFor      DateTime?    @map("due_soon_for")
+  archivedAt      DateTime?    @map("archived_at")
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
 
@@ -57,6 +58,7 @@ model Task {
   checklist     TaskChecklistItem[]
   participants  TaskParticipant[]
   notifications Notification[]
+  comments      TaskComment[]
 
   @@index([orgId, column, position])
   @@index([projectId])
@@ -105,4 +107,19 @@ model TaskImage {
   @@index([taskId])
   @@index([taskId, createdAt])
   @@map("task_image")
+}
+
+model TaskComment {
+  id         String   @id @default(uuid())
+  taskId     String   @map("task_id")
+  authorId   String?  @map("author_id")
+  body       String
+  mentionIds String[] @map("mention_ids")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  task   Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author Membership? @relation("TaskCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([taskId, createdAt])
+  @@map("task_comment")
 }

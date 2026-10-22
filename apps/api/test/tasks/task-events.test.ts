@@ -11,6 +11,7 @@ const task: TaskRecord = {
   id: "t1", projectId: "p1", orgId: "org1", title: "Write the brief", description: null,
   column: "IDEA", priority: "MEDIUM", createdById: "m1", participantIds: [], position: 0,
   imageIds: [], createdAt: new Date("2026-09-01T00:00:00.000Z"),
+  archivedAt: null,
   updatedAt: new Date("2026-09-01T00:00:00.000Z"),
 };
 

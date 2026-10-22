@@ -82,6 +82,12 @@ export function createNotificationUseCases(d: NotificationDependencies) {
       await notify((await shownTo(named, task)).map(aboutTask(task, "TASK_ASSIGNED", actor.membershipId)));
     },
 
+    async taskMentioned(task: NamedTask, memberIds: readonly string[], actor: ActorContext): Promise<void> {
+      const mentioned = othersThan(memberIds, actor.membershipId);
+      if (mentioned.length === 0) return;
+      await notify((await shownTo(mentioned, task)).map(aboutTask(task, "TASK_MENTIONED", actor.membershipId)));
+    },
+
     async taskChanged(task: WatchedTask, actor: ActorContext, newcomers: readonly string[]): Promise<void> {
       const watchers = othersThan(task.participantIds.filter((id) => !newcomers.includes(id)), actor.membershipId);
       if (watchers.length === 0) return;

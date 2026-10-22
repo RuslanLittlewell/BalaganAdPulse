@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TASK_COLUMNS, TASK_PRIORITIES } from "#modules/tasks/domain/board.js";
+import { MAX_COMMENT_LENGTH } from "#modules/tasks/domain/comment.js";
 import { TASK_REPEATS, isCalendarDay, isEndTime, isTimeOfDay } from "#modules/tasks/domain/schedule.js";
 
 const description = z.unknown().nullable().optional();
@@ -65,4 +66,9 @@ export const taskFilterSchema = z.object({
 export const moveTaskSchema = z.object({
   column: z.enum(TASK_COLUMNS),
   position: z.number().int().min(0, "position must be >= 0"),
+});
+
+export const addTaskCommentSchema = z.object({
+  body: z.string().trim().min(1, "A comment needs text").max(MAX_COMMENT_LENGTH, "The comment is too long"),
+  mentionIds: z.array(z.uuid("mentionIds must hold membership ids")).optional(),
 });

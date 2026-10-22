@@ -6,10 +6,11 @@ import type { CreativeKind } from "../domain/snapshot.js";
 const LIMITS: Record<CreativeKind, number> = {
   IMAGE: 10 * 1024 * 1024,
   VIDEO: 25 * 1024 * 1024,
+  TEXT: 0,
 };
 
-const FAMILY: Record<CreativeKind, string> = { IMAGE: "image/", VIDEO: "video/" };
-const FALLBACK: Record<CreativeKind, string> = { IMAGE: "image/jpeg", VIDEO: "video/mp4" };
+const FAMILY: Record<CreativeKind, string> = { IMAGE: "image/", VIDEO: "video/", TEXT: "text/" };
+const FALLBACK: Record<CreativeKind, string> = { IMAGE: "image/jpeg", VIDEO: "video/mp4", TEXT: "text/plain" };
 
 export class S3CreativeFiles implements CreativeFiles {
   private readonly seen = new Map<string, StoredFile | null>();

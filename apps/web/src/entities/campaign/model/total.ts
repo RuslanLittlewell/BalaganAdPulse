@@ -7,7 +7,7 @@ const NOTHING_MEASURED: Measured = {
 const ratio = (dividend: number, divisor: number): number | null =>
   divisor === 0 ? null : dividend / divisor;
 
-export function totalPerformance(performances: readonly Performance[]): Performance {
+export function totalPerformance(performances: readonly Measured[]): Performance {
   const measured = performances.reduce<Measured>((total, performance) => ({
     spend: total.spend + performance.spend,
     impressions: total.impressions + performance.impressions,

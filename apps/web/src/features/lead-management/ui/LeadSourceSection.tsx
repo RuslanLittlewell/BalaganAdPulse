@@ -1,5 +1,6 @@
 import type { LeadMetaSource } from "@/entities/lead/index.js";
 import { t } from "@/shared/config/index.js";
+import { formatDateTime } from "@/shared/lib/index.js";
 import { Button } from "@/shared/ui/index.js";
 
 export interface LeadSourceSectionProps {
@@ -38,7 +39,7 @@ export function LeadSourceSection({ source, onPreview }: LeadSourceSectionProps)
     { key: "campaign", label: t("crm.source.campaign"), value: source.campaign.name },
     { key: "adSet", label: t("crm.source.adSet"), value: source.adSet.name },
     { key: "ad", label: t("crm.source.ad"), value: source.ad.name },
-    { key: "submittedAt", label: t("crm.source.submittedAt"), value: new Date(source.submittedAt).toLocaleString("ru-RU") },
+    { key: "submittedAt", label: t("crm.source.submittedAt"), value: formatDateTime(source.submittedAt) },
   ];
 
   return (

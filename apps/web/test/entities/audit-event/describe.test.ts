@@ -22,6 +22,8 @@ describe("reading an audit event in Russian", () => {
     ["Generated the 2026-09 report", "report", { subject: "Отчёт", name: "сентябрь 2026", detail: null }],
     ["Published the 2026-09 report", "report", { subject: "Отчёт", name: "сентябрь 2026", detail: "опубликован" }],
     ["Set project KPI", "project", { subject: "KPI проекта", name: null, detail: null }],
+    ["Set project KPIs", "project", { subject: "KPI проекта", name: null, detail: null }],
+    ["Cleared project KPIs", "project", { subject: "KPI проекта", name: null, detail: "сброшен" }],
     ["Cleared organization KPI", "organization", { subject: "KPI организации", name: null, detail: "сброшен" }],
     ["Connected Meta advertising account", "project", { subject: "Рекламный аккаунт Meta", name: null, detail: "подключён" }],
     ["UPDATE lead column", "lead-column", { subject: "Колонка CRM", name: null, detail: null }],

@@ -8,3 +8,4 @@ export * from "./model/projects.js";
 export * from "./model/ProjectsSync.js";
 export * from "./model/selection.js";
 export * from "./model/layout.js";
+export * from "./model/sourceMemory.js";

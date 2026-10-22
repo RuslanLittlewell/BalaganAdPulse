@@ -14,6 +14,7 @@ export interface KpiTarget {
 export interface ProjectKpi extends KpiTarget {
   readonly name?: string;
   readonly value?: string;
+  readonly enabled: boolean;
 }
 
 export interface Campaign {

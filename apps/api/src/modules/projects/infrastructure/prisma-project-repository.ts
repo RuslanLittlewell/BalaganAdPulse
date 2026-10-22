@@ -10,7 +10,7 @@ function toDomain(row: ProjectRow): ProjectRecord {
     id: row.id, clientId: row.clientId, name: row.name,
     budgetCurrency: row.budgetCurrency,
     image: row.image, avatarPath: row.avatarPath,
-    position: row.position, createdAt: row.createdAt, updatedAt: row.updatedAt,
+    position: row.position, kpiTracked: row.kpiTracked, createdAt: row.createdAt, updatedAt: row.updatedAt,
   };
 }
 

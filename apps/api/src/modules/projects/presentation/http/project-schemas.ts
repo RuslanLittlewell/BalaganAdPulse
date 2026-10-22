@@ -9,4 +9,4 @@ export const createProjectSchema = projectFieldsSchema.extend({
   memberIds: z.array(z.uuid("memberIds must hold uuids")).optional(),
 });
 
-export const updateProjectSchema = projectFieldsSchema.partial();
+export const updateProjectSchema = projectFieldsSchema.extend({ kpiTracked: z.boolean() }).partial();

@@ -718,9 +718,17 @@ green share. Beside it, the Важная информация panel lists the pr
 to its project page with the dashboard's period; a KPI whose figure is unmeasured is grey on
 the gauge but not warned about.
 
+A project holds up to five KPIs, read and replaced as one ordered list on
+`GET`/`PUT /projects/:id/kpis`; each carries `enabled`, and a switched-off KPI does not count
+toward the project's result. The result is that of the least-met enabled KPI, which colours
+the project in the list, fills the dashboard's gauge and Выполнение KPI column, and decides
+the KPI-met notification: it is sent once a month, when every enabled KPI is met. The
+organization and each campaign still hold one KPI, on `/organization/kpi` and
+`/campaigns/:id/kpi`.
+
 A project's KPI can also be set by hand — **Вручную** in its KPI dialog — for a goal the
-platform does not measure: `{ "metric": "MANUAL", "name", "value", "target" }` on
-`PUT /projects/:id/kpi`. Its progress is the value over the target, whatever the period,
+platform does not measure: `{ "metric": "MANUAL", "name", "value", "target" }` as an item of
+that list. Its progress is the value over the target, whatever the period,
 and the value changes only when someone edits it. Campaigns and the organization refuse it
 with 400, and it never stands in for a campaign without a KPI of its own.
 

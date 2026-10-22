@@ -12,10 +12,18 @@ type StoredKpi = { kpiMetric: string | null; kpiTarget: { toFixed(digits: number
 const kpiOf = ({ kpiMetric, kpiTarget }: StoredKpi): KpiTarget | null =>
   kpiMetric && kpiTarget ? { metric: kpiMetric, target: kpiTarget.toFixed(4) } : null;
 
-const projectKpiOf = (row: StoredKpi & { kpiName: string | null; kpiValue: { toFixed(digits: number): string } | null }): ProjectKpi | null => {
-  const kpi = kpiOf(row);
-  if (!kpi || kpi.metric !== "MANUAL") return kpi;
-  return row.kpiName != null && row.kpiValue ? { ...kpi, name: row.kpiName, value: row.kpiValue.toFixed(4) } : null;
+type StoredProjectKpi = {
+  metric: string;
+  target: { toFixed(digits: number): string };
+  name: string | null;
+  value: { toFixed(digits: number): string } | null;
+  enabled: boolean;
+};
+
+const projectKpiOf = (row: StoredProjectKpi): ProjectKpi | null => {
+  const kpi = { metric: row.metric, target: row.target.toFixed(4), enabled: row.enabled };
+  if (kpi.metric !== "MANUAL") return kpi;
+  return row.name != null && row.value ? { ...kpi, name: row.name, value: row.value.toFixed(4) } : null;
 };
 
 const toCampaign = (row: StoredKpi & {
@@ -129,9 +137,13 @@ export class PrismaProjectReach implements ProjectReach {
   async listReachable(actor: ActorContext): Promise<ReachableProject[]> {
     const projects = await this.prisma.project.findMany({
       where: reachableProjects(actor),
-      select: { id: true, kpiMetric: true, kpiTarget: true, kpiName: true, kpiValue: true },
+      select: {
+        id: true,
+        kpiTracked: true,
+        kpis: { select: { metric: true, target: true, name: true, value: true, enabled: true }, orderBy: { position: "asc" } },
+      },
       orderBy: { position: "asc" },
     });
-    return projects.map((project) => ({ id: project.id, kpi: projectKpiOf(project) }));
+    return projects.map((project) => ({ id: project.id, kpis: project.kpiTracked ? project.kpis.flatMap((kpi) => projectKpiOf(kpi) ?? []) : [] }));
   }
 }

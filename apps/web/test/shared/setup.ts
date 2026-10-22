@@ -80,6 +80,7 @@ import { server } from "./server.js";
 import { resetStaff } from "@/entities/membership/model/staff.js";
 import { resetProjects } from "@/entities/project/model/projects.js";
 import { useModuleMemory } from "@/shared/lib/moduleMemory.js";
+import { useSourceMemory } from "@/entities/project/model/sourceMemory.js";
 import { useColumnWidths } from "@/widgets/performance-table/columnWidths.js";
 import { useHintMemory } from "@/features/hints/index.js";
 
@@ -91,6 +92,7 @@ afterEach(() => {
   useModuleMemory.setState({ boards: {}, projectPlaces: {}, taskCalendarZooms: {} });
   useColumnWidths.setState({ nameWidths: {}, columnWidths: {}, columnOrder: {}, visibleColumns: {} });
   useHintMemory.setState({ dismissed: {} });
+  useSourceMemory.setState({ sources: {} });
 });
 afterAll(() => server.close());
 

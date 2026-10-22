@@ -9,7 +9,8 @@ const HUB = { x: 64, y: 64 };
 
 const PARTS = [
   { key: "met", label: "dashboard.kpi.met", color: "var(--kpi-marker-met)" },
-  { key: "behind", label: "dashboard.kpi.behind", color: "var(--kpi-marker-danger)" },
+  { key: "behind", label: "dashboard.kpi.behind", color: "var(--kpi-marker-behind)" },
+  { key: "danger", label: "dashboard.kpi.danger", color: "var(--kpi-marker-danger)" },
   { key: "unrated", label: "dashboard.kpi.unrated", color: "var(--kpi-marker-none)" },
 ] as const;
 
@@ -34,16 +35,17 @@ function ArcPart({ length, color }: { length: number; color: string }) {
 
 export function KpiGauge({ range, counts }: KpiGaugeProps) {
   const titleId = useId();
-  const total = counts ? counts.met + counts.behind + counts.unrated : 0;
+  const total = counts ? counts.met + counts.behind + counts.danger + counts.unrated : 0;
   const shareOf = (count: number) => (total === 0 ? 0 : (count / total) * 100);
   const metShare = counts ? shareOf(counts.met) : 0;
-  const ratedShare = counts ? shareOf(counts.met + counts.behind) : 0;
+  const behindShare = counts ? shareOf(counts.met + counts.behind) : 0;
+  const ratedShare = counts ? shareOf(counts.met + counts.behind + counts.danger) : 0;
   const label = counts
     ? `${t("dashboard.kpi.title")}: ${PARTS.map((part) => `${t(part.label)} ${counts[part.key]}`).join(", ")}`
     : t("dashboard.kpi.title");
 
   return (
-    <section aria-labelledby={titleId} className="flex flex-col rounded-lg border border-border p-4">
+    <section aria-labelledby={titleId} className="flex max-h-[340px] flex-col overflow-y-auto rounded-lg border border-border p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h2 id={titleId} className="text-sm font-semibold text-foreground">{t("dashboard.kpi.title")}</h2>
         <span className="text-xs tabular-nums text-muted-foreground">
@@ -52,8 +54,9 @@ export function KpiGauge({ range, counts }: KpiGaugeProps) {
       </div>
 
       <svg viewBox="0 0 128 72" role="img" aria-label={label} className="mx-auto mt-4 w-full max-w-72">
-        <ArcPart length={100} color={PARTS[2].color} />
-        <ArcPart length={ratedShare} color={PARTS[1].color} />
+        <ArcPart length={100} color={PARTS[3].color} />
+        <ArcPart length={ratedShare} color={PARTS[2].color} />
+        <ArcPart length={behindShare} color={PARTS[1].color} />
         <ArcPart length={metShare} color={PARTS[0].color} />
         <line
           x1={HUB.x}

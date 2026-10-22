@@ -534,4 +534,28 @@ describe("a table limited to a number of visible rows", () => {
       expect(within(screen.getByRole("row", { name: /Итого/ })).getByText("900 ₽")).toBeInTheDocument();
     });
   });
+
+  describe("fitting its container", () => {
+    const widthOfScroller = (width: number) =>
+      vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(width);
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it("narrows the figure columns instead of scrolling sideways when the container is too narrow", () => {
+      widthOfScroller(1400);
+      const { container } = render(<PerformanceTable tableKey="fit-narrow" heading="Кампания" rows={rows} />);
+
+      const table = container.querySelector("table")!;
+      expect(parseFloat(table.style.width)).toBeLessThanOrEqual(1400);
+      for (const col of container.querySelectorAll("col")) expect(parseFloat((col as HTMLElement).style.width)).toBeGreaterThanOrEqual(40);
+    });
+
+    it("keeps the chosen widths when the container is wide enough", () => {
+      widthOfScroller(5000);
+      const { container } = render(<PerformanceTable tableKey="fit-wide" heading="Кампания" rows={rows} />);
+
+      const widths = [...container.querySelectorAll("col")].map((col) => (col as HTMLElement).style.width);
+      expect(widths.slice(1, -1).every((width) => width === "128px")).toBe(true);
+    });
+  });
 });

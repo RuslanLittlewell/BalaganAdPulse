@@ -34,7 +34,7 @@ export interface ChannelView {
 
 export interface ProjectFigures {
   readonly projectId: string;
-  readonly kpi: ProjectKpi | null;
+  readonly kpis: ProjectKpi[];
   readonly performance: Performance;
   readonly days: MeasuredDay[];
 }
@@ -207,10 +207,10 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
       ]);
       const campaignsByProject = groupedBy(campaigns, (campaign) => campaign.projectId);
       const daysByCampaign = groupedBy(await campaignDays(campaigns, range), (day) => day.campaignId);
-      return projects.map(({ id, kpi }) => {
+      return projects.map(({ id, kpis }) => {
         const days = (campaignsByProject.get(id) ?? [])
           .flatMap((campaign) => daysByCampaign.get(campaign.id) ?? []);
-        return { projectId: id, kpi, performance: performanceOf(days), days: sumByDay(days) };
+        return { projectId: id, kpis, performance: performanceOf(days), days: sumByDay(days) };
       });
     },
 

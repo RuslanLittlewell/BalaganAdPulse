@@ -1,5 +1,6 @@
 import { useLeadActivity, type LeadActivity, type LeadActivityField } from "@/entities/lead/index.js";
 import { t, type MessageKey } from "@/shared/config/index.js";
+import { formatDateTime } from "@/shared/lib/index.js";
 import { Loader } from "@/shared/ui/index.js";
 
 const FIELD_LABELS: Record<LeadActivityField, MessageKey> = {
@@ -48,7 +49,7 @@ export function LeadActivityTab({ boardKey, leadId }: { boardKey: string; leadId
           <div className="flex items-baseline justify-between gap-3">
             <span className="font-medium">{entry.actor?.name ?? ""}</span>
             <time dateTime={entry.at} className="shrink-0 text-xs text-muted-foreground">
-              {new Date(entry.at).toLocaleString("ru-RU")}
+              {formatDateTime(entry.at)}
             </time>
           </div>
           {linesOf(entry).map((line) => (

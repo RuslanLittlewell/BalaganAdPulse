@@ -10,7 +10,7 @@ export function ChannelPanel({ range }: { range: DateRange }) {
   }
 
   return (
-    <section className="rounded-lg border border-border p-4">
+    <section className="max-h-[340px] overflow-y-auto rounded-lg border border-border p-4">
       <h2 className="text-sm font-semibold text-foreground">{t("dashboard.sources")}</h2>
       {channels.isSuccess && channels.data.length === 0 && (
         <p className="mt-4 text-sm text-muted-foreground">{t("dashboard.sources.empty")}</p>

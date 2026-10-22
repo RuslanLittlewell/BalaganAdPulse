@@ -6,7 +6,23 @@ import { useProjects, type Project } from "@/entities/project/index.js";
 import { EMPTY_PERFORMANCE, useProjectsSummary, type DateRange } from "@/entities/campaign/index.js";
 import { LEAD_STAGES, useProjectStageCounts } from "@/entities/lead/index.js";
 import { useModuleEnabled } from "@/features/auth/index.js";
+import { kpiTrend } from "./kpiTrend.js";
+import { projectKpiPercent, toneOfPercent, type ProjectTone } from "@/widgets/project-list/projectTone.js";
 import { PerformanceTable, type ExtraColumn, type PerformanceRow } from "@/widgets/performance-table/index.js";
+
+const KPI_COLUMN: ExtraColumn = {
+  id: "kpi",
+  label: t("dashboard.kpiColumn"),
+  format: (value) => `${value}%`,
+  shown: true,
+};
+
+const ROW_TONE: Record<ProjectTone, NonNullable<PerformanceRow["tone"]>> = {
+  none: "idle",
+  danger: "danger",
+  behind: "stable",
+  met: "profitable",
+};
 
 const STAGE_COLUMNS: readonly ExtraColumn[] = LEAD_STAGES.map((stage) => ({
   id: `crm-${stage}`,
@@ -19,6 +35,7 @@ function useProjectFigures(projects: Project[], range: DateRange) {
   return projects.map((project) => ({
     project,
     performance: byProject.get(project.id)?.performance ?? EMPTY_PERFORMANCE,
+    kpis: byProject.get(project.id)?.kpis ?? [],
     days: byProject.get(project.id)?.days ?? [],
   }));
 }
@@ -32,31 +49,37 @@ export function ProjectPerformanceTable({ range }: { range: DateRange }) {
   const stageCounts = useProjectStageCounts(range, { enabled: crm });
   const countsByProject = new Map((stageCounts.data ?? []).map((counts) => [counts.projectId, counts]));
 
-  const rows: PerformanceRow[] = figures.map(({ project, performance, days }) => ({
-    id: project.id,
-    name: project.name,
-    badge: days.length === 0 ? undefined : (
-      <Sparkline
-        values={days.map((day) => day.spend)}
-        label={`${t("dashboard.spendByDay")}: ${project.name}`}
-        className="ml-auto"
-      />
-    ),
-    performance,
-    currency: project.budgetCurrency,
-    extra: crm
+  const rows: PerformanceRow[] = figures.map(({ project, performance, kpis, days }) => {
+    const percent = projectKpiPercent(kpis, performance, range);
+    const trend = kpiTrend(kpis, days, range);
+    const stageCounts = crm
       ? Object.fromEntries(
         LEAD_STAGES.map((stage) => [`crm-${stage}`, countsByProject.get(project.id)?.[stage] ?? 0]),
       )
-      : {},
-  }));
+      : {};
+    return {
+      id: project.id,
+      name: project.name,
+      badge: trend.length === 0 ? undefined : (
+        <Sparkline
+          values={trend}
+          label={`${t("dashboard.kpiTrend")}: ${project.name}`}
+          className="ml-auto"
+        />
+      ),
+      tone: ROW_TONE[toneOfPercent(percent)],
+      performance,
+      currency: project.budgetCurrency,
+      extra: { kpi: percent, ...stageCounts },
+    };
+  });
 
   return (
     <PerformanceTable
       tableKey="projects"
       heading={t("dashboard.project")}
       rows={rows}
-      extraColumns={crm ? STAGE_COLUMNS : []}
+      extraColumns={crm ? [KPI_COLUMN, ...STAGE_COLUMNS] : [KPI_COLUMN]}
       empty={projects.isSuccess ? t("projects.empty.title") : undefined}
       onOpen={(id) => navigate(`${projectPath(id)}${location.search}`)}
     />

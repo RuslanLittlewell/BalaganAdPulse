@@ -22,13 +22,20 @@ export type KpiInput = MeasuredKpiInput | ManualKpiInput;
 
 export type Kpi = KpiInput & { updatedAt: Date };
 
+export const MAX_PROJECT_KPIS = 5;
+
+export type ProjectKpiInput = KpiInput & { enabled: boolean };
+
+export type NewProjectKpi = Kpi & { enabled: boolean };
+
+export type ProjectKpi = NewProjectKpi & { id: string };
+
 export type KpiLevel =
   | { kind: 'organization' }
-  | { kind: 'project'; id: string }
   | { kind: 'campaign'; id: string };
 
 export interface KpiOwner {
-  entityType: 'organization' | 'project' | 'campaign';
+  entityType: 'organization' | 'campaign';
   entityId: string;
   clientId: string | null;
   projectId: string | null;

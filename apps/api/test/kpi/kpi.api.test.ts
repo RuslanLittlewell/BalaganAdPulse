@@ -12,7 +12,7 @@ let clientId: string;
 let projectId: string;
 let campaignId: string;
 
-const projectKpi = (id = projectId) => `/api/projects/${id}/kpi`;
+const projectKpis = (id = projectId) => `/api/projects/${id}/kpis`;
 const campaignKpi = (id = campaignId) => `/api/campaigns/${id}/kpi`;
 const organizationKpi = "/api/organization/kpi";
 
@@ -28,7 +28,6 @@ afterAll(() => prisma.$disconnect());
 
 describe("setting, reading and clearing a KPI", () => {
   it.each([
-    ["project", () => projectKpi()],
     ["campaign", () => campaignKpi()],
     ["organization", () => organizationKpi],
   ])("keeps one %s KPI, replaced by the next and gone once cleared", async (_level, path) => {
@@ -47,20 +46,21 @@ describe("setting, reading and clearing a KPI", () => {
   });
 
   it.each(["RESULTS", "COST_PER_RESULT"])("accepts %s as a metric", async (metric) => {
-    const res = await request(app).put(projectKpi()).set(admin).send({ metric, target: "60" });
+    const res = await request(app).put(campaignKpi()).set(admin).send({ metric, target: "60" });
 
     expect(res.status).toBe(200);
-    expect((await request(app).get(projectKpi()).set(admin)).body).toMatchObject({ metric, target: "60.0000" });
+    expect((await request(app).get(campaignKpi()).set(admin)).body).toMatchObject({ metric, target: "60.0000" });
   });
 
   it("keeps the levels independent", async () => {
-    await request(app).put(projectKpi()).set(admin).send({ metric: "SPEND", target: "1000" });
+    await request(app).put(projectKpis()).set(admin).send([{ metric: "SPEND", target: "1000" }]);
 
     await request(app).put(campaignKpi()).set(admin).send({ metric: "CTR", target: "2.5" });
     await request(app).put(organizationKpi).set(admin).send({ metric: "ROAS", target: "3" });
     await request(app).delete(campaignKpi()).set(admin);
 
-    expect((await request(app).get(projectKpi()).set(admin)).body).toMatchObject({ metric: "SPEND", target: "1000.0000" });
+    expect((await request(app).get(projectKpis()).set(admin)).body)
+      .toEqual([expect.objectContaining({ metric: "SPEND", target: "1000.0000" })]);
     expect((await request(app).get(organizationKpi).set(admin)).body).toMatchObject({ metric: "ROAS", target: "3.0000" });
     expect((await request(app).get(campaignKpi()).set(admin)).body).toBeNull();
   });
@@ -76,54 +76,86 @@ describe("setting, reading and clearing a KPI", () => {
     { metric: "CONVERSIONS" },
     { metric: "CONVERSIONS", target: "50", extra: true },
   ])("refuses %j and leaves the KPI unchanged", async (body) => {
-    await request(app).put(projectKpi()).set(admin).send({ metric: "SPEND", target: "1000" });
+    await request(app).put(campaignKpi()).set(admin).send({ metric: "SPEND", target: "1000" });
 
-    expect((await request(app).put(projectKpi()).set(admin).send(body)).status).toBe(400);
-    expect((await request(app).get(projectKpi()).set(admin)).body).toMatchObject({ metric: "SPEND", target: "1000.0000" });
+    expect((await request(app).put(campaignKpi()).set(admin).send(body)).status).toBe(400);
+    expect((await request(app).get(campaignKpi()).set(admin)).body).toMatchObject({ metric: "SPEND", target: "1000.0000" });
   });
 });
 
-describe("a project KPI set by hand", () => {
+describe("the KPIs of a project", () => {
   const manual = { metric: "MANUAL", name: "  Продажи ", value: "30", target: "50" };
+  const kept = { metric: "SPEND", target: "1000" };
+  const read = async (id = projectId) => (await request(app).get(projectKpis(id)).set(admin)).body;
 
-  it("is stored with its name, value and target and read back the same way", async () => {
-    const saved = await request(app).put(projectKpi()).set(admin).send(manual);
+  it("start as an empty list", async () => {
+    expect(await read()).toEqual([]);
+  });
+
+  it("are saved and read back in order, each enabled unless set otherwise", async () => {
+    const saved = await request(app).put(projectKpis()).set(admin).send([
+      { metric: "CONVERSIONS", target: "60" },
+      { metric: "CPA", target: "20.5", enabled: false },
+    ]);
 
     expect(saved.status).toBe(200);
-    expect(saved.body).toEqual({
-      metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000", updatedAt: expect.any(String),
+    expect(saved.body).toEqual([
+      { id: expect.any(String), metric: "CONVERSIONS", target: "60.0000", enabled: true, updatedAt: expect.any(String) },
+      { id: expect.any(String), metric: "CPA", target: "20.5000", enabled: false, updatedAt: expect.any(String) },
+    ]);
+    expect(await read()).toEqual(saved.body);
+  });
+
+  it("are replaced as a whole by the next list, and gone once it is empty", async () => {
+    await request(app).put(projectKpis()).set(admin).send([{ metric: "CONVERSIONS", target: "60" }, { metric: "CPA", target: "20" }]);
+
+    await request(app).put(projectKpis()).set(admin).send([{ metric: "CPA", target: "15" }]);
+    expect(await read()).toEqual([expect.objectContaining({ metric: "CPA", target: "15.0000" })]);
+
+    expect((await request(app).put(projectKpis()).set(admin).send([])).body).toEqual([]);
+    expect(await read()).toEqual([]);
+    expect(await prisma.projectKpi.count({ where: { projectId } })).toBe(0);
+  });
+
+  it("hold at most five", async () => {
+    await request(app).put(projectKpis()).set(admin).send([kept]);
+    const six = Array.from({ length: 6 }, () => ({ metric: "CONVERSIONS", target: "1" }));
+    const five = six.slice(1);
+
+    expect((await request(app).put(projectKpis()).set(admin).send(six)).status).toBe(400);
+    expect(await read()).toEqual([expect.objectContaining({ metric: "SPEND" })]);
+    expect((await request(app).put(projectKpis()).set(admin).send(five)).status).toBe(200);
+    expect(await read()).toHaveLength(5);
+  });
+
+  it.each([
+    { metric: "LIKES", target: "10" },
+    { metric: "CONVERSIONS", target: "0" },
+    { metric: "CONVERSIONS", target: "ten" },
+    { metric: "CONVERSIONS", target: 50 },
+    { metric: "CONVERSIONS" },
+    { metric: "CONVERSIONS", target: "50", extra: true },
+    { metric: "CONVERSIONS", target: "50", enabled: "yes" },
+  ])("refuse a list holding %j and stay unchanged", async (body) => {
+    await request(app).put(projectKpis()).set(admin).send([kept]);
+
+    expect((await request(app).put(projectKpis()).set(admin).send([{ metric: "CPA", target: "10" }, body])).status).toBe(400);
+    expect(await read()).toEqual([expect.objectContaining({ metric: "SPEND", target: "1000.0000" })]);
+  });
+
+  it("refuse a body that is not a list", async () => {
+    expect((await request(app).put(projectKpis()).set(admin).send(kept)).status).toBe(400);
+  });
+
+  it("may hold a KPI set by hand beside the others, with its name, value and target", async () => {
+    const saved = await request(app).put(projectKpis()).set(admin).send([{ metric: "CONVERSIONS", target: "60" }, manual]);
+
+    expect(saved.status).toBe(200);
+    expect(saved.body[1]).toEqual({
+      id: expect.any(String), metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000",
+      enabled: true, updatedAt: expect.any(String),
     });
-    expect((await request(app).get(projectKpi()).set(admin)).body)
-      .toMatchObject({ metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000" });
-  });
-
-  it("accepts a value of zero", async () => {
-    const saved = await request(app).put(projectKpi()).set(admin).send({ ...manual, value: "0" });
-
-    expect(saved.body).toMatchObject({ value: "0.0000" });
-  });
-
-  it("replaces a metric KPI and is replaced by one", async () => {
-    await request(app).put(projectKpi()).set(admin).send({ metric: "CONVERSIONS", target: "60" });
-    await request(app).put(projectKpi()).set(admin).send(manual);
-    expect((await request(app).get(projectKpi()).set(admin)).body).toMatchObject({ metric: "MANUAL", name: "Продажи" });
-
-    await request(app).put(projectKpi()).set(admin).send({ metric: "CPA", target: "10" });
-
-    const read = await request(app).get(projectKpi()).set(admin);
-    expect(read.body).toEqual({ metric: "CPA", target: "10.0000", updatedAt: expect.any(String) });
-    expect(await prisma.project.findUniqueOrThrow({ where: { id: projectId } }))
-      .toMatchObject({ kpiName: null, kpiValue: null });
-  });
-
-  it("is gone once cleared", async () => {
-    await request(app).put(projectKpi()).set(admin).send(manual);
-
-    expect((await request(app).delete(projectKpi()).set(admin)).status).toBe(204);
-
-    expect((await request(app).get(projectKpi()).set(admin)).body).toBeNull();
-    expect(await prisma.project.findUniqueOrThrow({ where: { id: projectId } }))
-      .toMatchObject({ kpiMetric: null, kpiName: null, kpiValue: null });
+    expect((await request(app).put(projectKpis()).set(admin).send([{ ...manual, value: "0" }])).body[0]).toMatchObject({ value: "0.0000" });
   });
 
   it.each([
@@ -138,28 +170,29 @@ describe("a project KPI set by hand", () => {
     { metric: "MANUAL", name: "Продажи", target: "50" },
     { ...manual, extra: true },
     { metric: "CONVERSIONS", name: "Продажи", value: "30", target: "50" },
-  ])("refuses %j and leaves the KPI unchanged", async (body) => {
-    await request(app).put(projectKpi()).set(admin).send({ metric: "SPEND", target: "1000" });
+  ])("refuse a KPI set by hand that is %j", async (body) => {
+    await request(app).put(projectKpis()).set(admin).send([kept]);
 
-    expect((await request(app).put(projectKpi()).set(admin).send(body)).status).toBe(400);
-    expect((await request(app).get(projectKpi()).set(admin)).body).toMatchObject({ metric: "SPEND", target: "1000.0000" });
+    expect((await request(app).put(projectKpis()).set(admin).send([body])).status).toBe(400);
+    expect(await read()).toEqual([expect.objectContaining({ metric: "SPEND", target: "1000.0000" })]);
   });
 
   it.each([
     ["campaign", () => campaignKpi()],
     ["organization", () => organizationKpi],
-  ])("is refused on the %s", async (_level, path) => {
+  ])("cannot be set by hand on the %s", async (_level, path) => {
     const res = await request(app).put(path()).set(admin).send(manual);
 
     expect(res.status).toBe(400);
     expect((await request(app).get(path()).set(admin)).body).toBeNull();
   });
 
-  it("is refused to a client like any KPI", async () => {
+  it("are refused to a client like any KPI", async () => {
     const customer = await signInAs("Client", { role: "CLIENT" });
     await grantAccess(customer.membership!.id, clientId);
 
-    expect((await request(app).put(projectKpi()).set(customer.auth).send(manual)).status).toBe(403);
+    expect((await request(app).put(projectKpis()).set(customer.auth).send([manual])).status).toBe(403);
+    expect(await read()).toEqual([]);
   });
 });
 
@@ -169,16 +202,16 @@ describe("who reaches and changes a KPI", () => {
     const outsider = await signInAsOutsider();
     const theirs = await prisma.project.create({ data: { clientId: outsider.client.id, name: "Theirs", position: 0 } });
 
-    for (const path of [projectKpi(), campaignKpi()]) {
-      expect((await request(app).get(path).set(stranger.auth)).status).toBe(404);
-      expect((await request(app).put(path).set(stranger.auth).send({ metric: "CONVERSIONS", target: "5" })).status).toBe(404);
-    }
-    expect((await request(app).get(projectKpi(theirs.id)).set(admin)).status).toBe(404);
+    expect((await request(app).get(projectKpis()).set(stranger.auth)).status).toBe(404);
+    expect((await request(app).put(projectKpis()).set(stranger.auth).send([{ metric: "CONVERSIONS", target: "5" }])).status).toBe(404);
+    expect((await request(app).get(campaignKpi()).set(stranger.auth)).status).toBe(404);
+    expect((await request(app).put(campaignKpi()).set(stranger.auth).send({ metric: "CONVERSIONS", target: "5" })).status).toBe(404);
+    expect((await request(app).get(projectKpis(theirs.id)).set(admin)).status).toBe(404);
     expect((await request(app).get(campaignKpi("00000000-0000-4000-8000-000000000000")).set(admin)).status).toBe(404);
   });
 
   it("lets readers of a project read its KPIs and only staff change them", async () => {
-    await request(app).put(projectKpi()).set(admin).send({ metric: "CONVERSIONS", target: "50" });
+    await request(app).put(projectKpis()).set(admin).send([{ metric: "CONVERSIONS", target: "50" }]);
     const client = await signInAs("Client", { role: "CLIENT" });
     await grantAccess(client.membership!.id, clientId);
     const guest = await signInAs("Guest", { role: "GUEST" });
@@ -187,12 +220,11 @@ describe("who reaches and changes a KPI", () => {
     await grantAccess(manager.membership!.id, clientId);
 
     for (const reader of [client, guest]) {
-      expect((await request(app).get(projectKpi()).set(reader.auth)).body).toMatchObject({ metric: "CONVERSIONS" });
-      expect((await request(app).put(projectKpi()).set(reader.auth).send({ metric: "CPA", target: "10" })).status).toBe(403);
+      expect((await request(app).get(projectKpis()).set(reader.auth)).body).toEqual([expect.objectContaining({ metric: "CONVERSIONS" })]);
+      expect((await request(app).put(projectKpis()).set(reader.auth).send([{ metric: "CPA", target: "10" }])).status).toBe(403);
       expect((await request(app).put(campaignKpi()).set(reader.auth).send({ metric: "CPA", target: "10" })).status).toBe(403);
-      expect((await request(app).delete(projectKpi()).set(reader.auth)).status).toBe(403);
     }
-    expect((await request(app).put(projectKpi()).set(manager.auth).send({ metric: "CPA", target: "10" })).status).toBe(200);
+    expect((await request(app).put(projectKpis()).set(manager.auth).send([{ metric: "CPA", target: "10" }])).status).toBe(200);
     expect((await request(app).put(campaignKpi()).set(manager.auth).send({ metric: "CPC", target: "1" })).status).toBe(200);
   });
 
@@ -207,7 +239,8 @@ describe("who reaches and changes a KPI", () => {
   });
 
   it("refuses requests without a session", async () => {
-    expect((await request(app).get(projectKpi())).status).toBe(401);
+    expect((await request(app).get(projectKpis())).status).toBe(401);
+    expect((await request(app).put(projectKpis()).send([])).status).toBe(401);
     expect((await request(app).put(organizationKpi).send({ metric: "SPEND", target: "1" })).status).toBe(401);
   });
 });
@@ -229,22 +262,31 @@ describe("auditing KPI changes", () => {
     expect(events[0]).toMatchObject({ entityId: campaignId, campaignId, projectId, clientId });
   });
 
-  it("records the name, value and target of a KPI set by hand", async () => {
-    await request(app).put(projectKpi()).set(admin).send({ metric: "MANUAL", name: "Продажи", value: "30", target: "50" });
-    await request(app).put(projectKpi()).set(admin).send({ metric: "MANUAL", name: "Продажи", value: "45", target: "50" });
+  it("records one event for a replaced list of project KPIs, with every KPI before and after", async () => {
+    await request(app).put(projectKpis()).set(admin).send([{ metric: "MANUAL", name: "Продажи", value: "30", target: "50" }]);
+    await request(app).put(projectKpis()).set(admin).send([
+      { metric: "CONVERSIONS", target: "60" },
+      { metric: "CPA", target: "20", enabled: false },
+    ]);
+    await request(app).put(projectKpis()).set(admin).send([]);
 
     const events = await prisma.auditEvent.findMany({ where: BUSINESS_EVENTS, orderBy: { createdAt: "asc" } });
+    const first = { metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000", enabled: true };
+    const second = [
+      { metric: "CONVERSIONS", target: "60.0000", enabled: true },
+      { metric: "CPA", target: "20.0000", enabled: false },
+    ];
     expect(events.map((event) => event.changes)).toEqual([
-      { before: null, after: { metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000" } },
-      {
-        before: { metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000" },
-        after: { metric: "MANUAL", name: "Продажи", value: "45.0000", target: "50.0000" },
-      },
+      { before: [], after: [first] },
+      { before: [first], after: second },
+      { before: second, after: [] },
     ]);
+    expect(events[0]).toMatchObject({ entityType: "project", entityId: projectId, projectId, clientId });
   });
 
-  it("records nothing for a refused change", async () => {
-    await request(app).put(projectKpi()).set(admin).send({ metric: "LIKES", target: "1" });
+  it("records nothing for a refused change or an empty list over an empty list", async () => {
+    await request(app).put(projectKpis()).set(admin).send([{ metric: "LIKES", target: "1" }]);
+    await request(app).put(projectKpis()).set(admin).send([]);
 
     expect(await prisma.auditEvent.count({ where: BUSINESS_EVENTS })).toBe(0);
   });

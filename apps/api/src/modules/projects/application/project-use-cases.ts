@@ -86,6 +86,9 @@ export function createProjectUseCases(dependencies: ProjectDependencies) {
     update: async (actor: ActorContext, id: string, input: ProjectChange): Promise<ProjectRecord> => {
       await reach(actor, id);
       assertCan(actor, "update");
+      if (input.kpiTracked !== undefined && !can(actor, "update", "kpi")) {
+        throw new AppError("forbidden", "Your role may not change whether a project's KPIs are tracked");
+      }
       if (input.clientId) await assertClientReachable(actor, input.clientId);
       const updated = await dependencies.unitOfWork.run(async (context) => {
         const project = await dependencies.projects.update(context, id, input);

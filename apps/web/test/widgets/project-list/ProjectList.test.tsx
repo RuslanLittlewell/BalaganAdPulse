@@ -166,8 +166,8 @@ describe("ProjectList", () => {
 
 describe("a project's KPI marker", () => {
   const september = "/?from=2026-09-01&to=2026-09-30";
-  const leads = (conversions: number, kpi: ProjectFigures["kpi"] = { metric: "CONVERSIONS", target: "30.0000" }) =>
-    ({ projectId: "p1", kpi, performance: { ...EMPTY_PERFORMANCE, conversions }, days: [] });
+  const leads = (conversions: number, kpis: ProjectFigures["kpis"] = [{ metric: "CONVERSIONS", target: "30.0000", enabled: true }]) =>
+    ({ projectId: "p1", kpis, performance: { ...EMPTY_PERFORMANCE, conversions }, days: [] });
 
   const withFigures = (figures: unknown[]) => {
     const asked: string[] = [];
@@ -196,7 +196,7 @@ describe("a project's KPI marker", () => {
   });
 
   it("names a project without a KPI", async () => {
-    withFigures([leads(30, null)]);
+    withFigures([leads(30, [])]);
     setup(september);
 
     await screen.findByText("Летний запуск");
@@ -206,7 +206,7 @@ describe("a project's KPI marker", () => {
   it("follows a KPI set by hand", async () => {
     withFigures([{
       projectId: "p1",
-      kpi: { metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000" },
+      kpis: [{ metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000", enabled: true }],
       performance: EMPTY_PERFORMANCE,
       days: [],
     }]);
@@ -224,16 +224,16 @@ describe("a project's KPI marker", () => {
   });
 
   it("follows a KPI set on the project without a reload", async () => {
-    let kpi: ProjectFigures["kpi"] = null;
+    let kpis: ProjectFigures["kpis"] = [];
     withFigures([]);
     server.use(
-      mock.get("/api/summary/projects", () => HttpResponse.json([leads(30, kpi)])),
-      mock.get("/api/projects/p1/kpi", () =>
-        HttpResponse.json(kpi && { ...kpi, updatedAt: "2026-09-14T10:00:00.000Z" })),
-      mock.put("/api/projects/p1/kpi", async ({ request }) => {
-        const body = await request.json() as { metric: string; target: string };
-        kpi = { metric: body.metric, target: Number(body.target).toFixed(4) };
-        return HttpResponse.json({ ...kpi, updatedAt: "2026-09-14T11:00:00.000Z" });
+      mock.get("/api/summary/projects", () => HttpResponse.json([leads(30, kpis)])),
+      mock.get("/api/projects/p1/kpis", () =>
+        HttpResponse.json(kpis.map((kpi, index) => ({ ...kpi, id: `k${index}`, updatedAt: "2026-09-14T10:00:00.000Z" })))),
+      mock.put("/api/projects/p1/kpis", async ({ request }) => {
+        const body = await request.json() as Array<{ metric: string; target: string; enabled: boolean }>;
+        kpis = body.map((kpi) => ({ ...kpi, target: Number(kpi.target).toFixed(4) }));
+        return HttpResponse.json(kpis.map((kpi, index) => ({ ...kpi, id: `k${index}`, updatedAt: "2026-09-14T11:00:00.000Z" })));
       }),
     );
     renderWithProviders(
@@ -394,7 +394,7 @@ describe("the narrowed project list", () => {
     withProjects();
     server.use(mock.get("/api/summary/projects", () => HttpResponse.json([{
       projectId: "summer",
-      kpi: { metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000" },
+      kpis: [{ metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000", enabled: true }],
       performance: EMPTY_PERFORMANCE,
       days: [],
     }])));

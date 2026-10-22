@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import {
   cn,
   formatCount,
@@ -194,11 +194,15 @@ export function PerformanceSummary({
         aria-label={t("summary.title")}
         className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
       >
-        {chosen.map((tile) => (
-          <div key={tile} data-testid="summary-tile" data-tile={tile}>
-            {render(tile)}
-          </div>
-        ))}
+        {chosen.map((tile) =>
+          tile === "KPI" && kpi?.scope.kind === "project" ? (
+            <Fragment key={tile}>{render(tile)}</Fragment>
+          ) : (
+            <div key={tile} data-testid="summary-tile" data-tile={tile}>
+              {render(tile)}
+            </div>
+          ),
+        )}
         {configurable ? (
           <AddTile
             label={t("summary.configure")}
@@ -220,7 +224,7 @@ export function PerformanceSummary({
               {atLimit ? t("summary.limit") : t("summary.choose")}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {offered.map((tile) => {
               const selected = chosen.includes(tile);
               return (
@@ -235,7 +239,7 @@ export function PerformanceSummary({
                     onTilesChange?.(toggledTiles(tiles, tile, offered))
                   }
                   className={cn(
-                    "rounded-xl border-2 p-1 text-left transition-colors",
+                    "h-full rounded-xl border-2 p-1 text-left transition-colors",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     "disabled:cursor-not-allowed disabled:opacity-50",
                     selected
@@ -243,7 +247,7 @@ export function PerformanceSummary({
                       : "border-transparent hover:border-border",
                   )}
                 >
-                  <div className="pointer-events-none">
+                  <div className="pointer-events-none h-full">
                     {render(tile, true)}
                   </div>
                 </button>

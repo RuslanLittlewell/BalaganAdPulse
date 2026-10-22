@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Download, Paperclip, Trash2 } from "lucide-react";
 import { leadsApi, useAttachLeadFile, useLeadFiles, useRemoveLeadFile, type LeadFile } from "@/entities/lead/index.js";
 import { t } from "@/shared/config/index.js";
-import { ApiError } from "@/shared/lib/index.js";
+import { ApiError, formatDateTime } from "@/shared/lib/index.js";
 import { Button, ConfirmDialog, Loader, useAlerts } from "@/shared/ui/index.js";
 
 export interface LeadFilesTabProps {
@@ -74,7 +74,7 @@ export function LeadFilesTab({ boardKey, leadId, editable }: LeadFilesTabProps) 
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{file.name}</p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {formatBytes(file.bytes)} · {file.uploader?.name ?? ""} · {new Date(file.createdAt).toLocaleString("ru-RU")}
+                  {formatBytes(file.bytes)} · {file.uploader?.name ?? ""} · {formatDateTime(file.createdAt)}
                 </p>
               </div>
               <Button type="button" variant="ghost" size="icon" aria-label={`${t("crm.files.download")} ${file.name}`} onClick={() => void download(file)}>

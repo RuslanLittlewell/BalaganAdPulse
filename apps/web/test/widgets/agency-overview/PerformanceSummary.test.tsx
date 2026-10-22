@@ -31,7 +31,7 @@ async function openDialog() {
 }
 
 beforeEach(() => {
-  server.use(mock.get("/api/projects/:id/kpi", () => HttpResponse.json(null)));
+  server.use(mock.get("/api/projects/:id/kpis", () => HttpResponse.json([])));
 });
 
 describe("the period summary", () => {

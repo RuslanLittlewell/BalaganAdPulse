@@ -18,7 +18,7 @@ export interface NotificationRecipients {
 }
 
 export interface ProjectKpiStandings {
-  read(projectId: string, range: IsoDateRange): Promise<{ kpi: KpiInput; figures: KpiFigures } | null>;
+  read(projectId: string, range: IsoDateRange): Promise<{ kpis: KpiInput[]; figures: KpiFigures } | null>;
 }
 
 export interface KpiMonthClaims {

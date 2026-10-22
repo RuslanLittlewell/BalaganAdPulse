@@ -33,6 +33,7 @@ export function aProject(overrides: Partial<Project> = {}): Project {
     image: null,
     avatarPath: null,
     position: 0,
+    kpiTracked: true,
     createdAt: "",
     updatedAt: "",
     ...overrides,

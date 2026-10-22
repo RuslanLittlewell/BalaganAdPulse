@@ -122,12 +122,13 @@ const decimal = (value: Prisma.Decimal | null) => value?.toNumber() ?? 0;
 export class PrismaProjectKpiStandings implements ProjectKpiStandings {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async read(projectId: string, range: IsoDateRange): Promise<{ kpi: KpiInput; figures: KpiFigures } | null> {
-    const project = await this.prisma.project.findUnique({
-      where: { id: projectId }, select: { kpiMetric: true, kpiTarget: true, kpiName: true, kpiValue: true },
+  async read(projectId: string, range: IsoDateRange): Promise<{ kpis: KpiInput[]; figures: KpiFigures } | null> {
+    const rows = await this.prisma.projectKpi.findMany({
+      where: { projectId, enabled: true, project: { kpiTracked: true } }, orderBy: { position: "asc" },
+      select: { metric: true, target: true, name: true, value: true },
     });
-    const kpi = project && kpiOf(project);
-    if (!kpi) return null;
+    const kpis = rows.flatMap((row) => kpiOf(row) ?? []);
+    if (kpis.length === 0) return null;
     const sums = await this.prisma.campaignDailyMetric.aggregate({
       where: {
         campaign: { projectId },
@@ -144,23 +145,21 @@ export class PrismaProjectKpiStandings implements ProjectKpiStandings {
       results: sums._sum.results ?? 0,
       revenue: decimal(sums._sum.revenue),
     }]);
-    return { kpi, figures };
+    return { kpis, figures };
   }
 }
 
-function kpiOf(project: {
-  kpiMetric: string | null;
-  kpiTarget: Prisma.Decimal | null;
-  kpiName: string | null;
-  kpiValue: Prisma.Decimal | null;
+function kpiOf(row: {
+  metric: string;
+  target: Prisma.Decimal;
+  name: string | null;
+  value: Prisma.Decimal | null;
 }): KpiInput | null {
-  const { kpiMetric: metric, kpiTarget, kpiName, kpiValue } = project;
-  if (!metric || !kpiTarget) return null;
-  const target = kpiTarget.toFixed(4);
-  if (metric === MANUAL_KPI) {
-    return kpiName !== null && kpiValue ? { metric: MANUAL_KPI, name: kpiName, value: kpiValue.toFixed(4), target } : null;
+  const target = row.target.toFixed(4);
+  if (row.metric === MANUAL_KPI) {
+    return row.name !== null && row.value ? { metric: MANUAL_KPI, name: row.name, value: row.value.toFixed(4), target } : null;
   }
-  return isKpiMetric(metric) ? { metric, target } : null;
+  return isKpiMetric(row.metric) ? { metric: row.metric, target } : null;
 }
 
 export class PrismaKpiMonthClaims implements KpiMonthClaims {

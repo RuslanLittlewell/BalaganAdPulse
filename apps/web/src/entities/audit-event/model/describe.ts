@@ -95,7 +95,7 @@ const READINGS: readonly [RegExp, Reading][] = [
     ([, month]) => ({ subject: t("activity.subject.report"), name: monthOf(month!), detail: t("activity.detail.coverSet") })],
   [/^Removed the cover of the (\d{4}-\d{2}) report$/,
     ([, month]) => ({ subject: t("activity.subject.report"), name: monthOf(month!), detail: t("activity.detail.coverRemoved") })],
-  [/^(Set|Cleared) (project|organization|campaign) KPI$/,
+  [/^(Set|Cleared) (project|organization|campaign) KPIs?$/,
     ([, verb, owner]) => ({
       subject: KPI_SUBJECTS[owner!]!, name: null, detail: verb === "Cleared" ? t("activity.detail.cleared") : null,
     })],

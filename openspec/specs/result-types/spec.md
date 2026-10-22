@@ -53,26 +53,15 @@ campaign SHALL be reported as unknown.
 - **THEN** it reports the results and spend of each type for the period, and so does each day of
   the dashboard project
 
-### Requirement: The tables show the result type
-
-The performance tables SHALL offer a «Тип результата» column on campaign, ad set and ad rows,
-shown by default and hideable like any column. A campaign with more than one type SHALL list
-them in the column.
-
-#### Scenario: The column
-- **WHEN** a member opens a project's campaigns
-- **THEN** each campaign row shows the type of its results
-
 ### Requirement: Results of different types are listed apart
 
 Where a row or the «Итого» row would add results of more than one type, the «Результаты» cell
-SHALL list each type with its count, such as «120 сообщений · 45 переходов в профиль», and the
-«Цена результата» cell SHALL be blank. Where all results are of one type, the cell SHALL show the
-number and the cost per result as before.
+SHALL show the total number of results and the «Цена результата» cell SHALL be blank. Where all
+results are of one type, the cells SHALL show the number and the cost per result as before.
 
 #### Scenario: Mixed totals
 - **WHEN** a project's campaigns include messages and profile visits
-- **THEN** the «Итого» row lists the two counts apart and shows no cost per result
+- **THEN** the «Итого» row shows the total results and no cost per result
 
 #### Scenario: One type
 - **WHEN** every campaign collects messages
@@ -81,15 +70,16 @@ number and the cost per result as before.
 ### Requirement: A column pair per result type
 
 The campaign and ad set tables SHALL offer, for each result type of the project's campaigns on the
-project page and of the campaign on the campaign page, a column with the results of that type and
-a column with their cost, shown by default. A row SHALL show the figures of that type, or a dash
-when it has none of that type; the «Итого» row SHALL show the sum of the type and its cost over
-the summed spend. Unknown SHALL get columns only when the campaigns have ad sets with no type.
+project page and of the campaign on the campaign page, one column with the results of that type,
+named «Результаты - <тип>» and shown by default. A row SHALL show its results of that type, or a
+dash when it has none of that type; the «Итого» row SHALL show the sum of the type. The tables
+SHALL NOT offer a column for the cost of a type. Unknown SHALL get a column only when the
+campaigns have ad sets with no type.
 
 #### Scenario: Two types
 - **WHEN** a project's campaigns optimise for messages and for profile visits
-- **THEN** the campaign table shows «Сообщения», «Цена · Сообщения», «Переходы в профиль» and
-  «Цена · Переходы в профиль», each campaign filled in its own type and dashed in the other
+- **THEN** the campaign table shows «Результаты - Сообщения» and «Результаты - Переходы в
+  профиль», each campaign filled in its own type and dashed in the other
 
 #### Scenario: A member who chose columns before
 - **WHEN** a member who has hidden some columns opens a table that now offers type columns

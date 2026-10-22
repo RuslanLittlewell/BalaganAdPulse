@@ -1,4 +1,3 @@
-import { formatCount } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import { RESULT_TYPES, type Measured, type ResultType, type ResultTypeFigure } from "../api/api.js";
 
@@ -37,33 +36,19 @@ export function typedResults(figures: Pick<Measured, "resultTypes">, type: Resul
   return figures.resultTypes?.find((figure) => figure.type === type)?.results ?? null;
 }
 
-export function typedCost(figures: Pick<Measured, "resultTypes">, type: ResultType): number | null {
-  const figure = figures.resultTypes?.find((entry) => entry.type === type);
-  return figure && figure.results > 0 ? figure.spend / figure.results : null;
+export function hasMixedResults(figures: readonly ResultTypeFigure[] | undefined): boolean {
+  return (figures ?? []).filter((figure) => figure.results > 0).length > 1;
 }
 
-export function resultTypesText(types: readonly ResultType[]): string {
-  return types.map(resultTypeLabel).join(", ");
+export function resultTypeColumnLabel(type: ResultType): string {
+  return `${t("metric.results")} - ${resultTypeLabel(type)}`;
 }
-
-export function resultsBreakdown(figures: readonly ResultTypeFigure[] | undefined): string | undefined {
-  const counted = (figures ?? []).filter((figure) => figure.results > 0);
-  if (counted.length < 2) return undefined;
-  return counted.map((figure) => `${resultTypeLabel(figure.type)}: ${formatCount(figure.results)}`).join(" · ");
-}
-
-export const RESULT_TYPE_COLUMN = { id: "resultType", label: t("resultType.column"), shown: true } as const;
 
 export const resultsColumnId = (type: ResultType) => `results.${type}`;
-
-export const costColumnId = (type: ResultType) => `costPerResult.${type}`;
 
 export function resultTypeFiguresOf(
   figures: Pick<Measured, "resultTypes">,
   types: readonly ResultType[],
 ): Record<string, number | null> {
-  return Object.fromEntries(types.flatMap((type) => [
-    [resultsColumnId(type), typedResults(figures, type)],
-    [costColumnId(type), typedCost(figures, type)],
-  ]));
+  return Object.fromEntries(types.map((type) => [resultsColumnId(type), typedResults(figures, type)]));
 }

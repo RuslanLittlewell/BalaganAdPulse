@@ -1,4 +1,3 @@
-import { formatRatio } from "@/shared/lib/index.js";
 import { http as mock, HttpResponse } from "msw";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -53,7 +52,6 @@ function api(options: { campaigns?: unknown[]; tasks?: unknown[]; summaryTiles?:
 
 const route = { route: "/projects/p1" };
 
-const shownAs = (text: string) => text.replace(/\s+/g, " ");
 
 const signedInAs = (role: string) => server.use(mock.get("/api/auth/me", () => HttpResponse.json({
   user: { id: "user-9", name: "Участник", email: "member@acme.com", image: null },
@@ -256,37 +254,31 @@ describe("ProjectPage", () => {
   const visits = { ...campaign("c2", "Профиль", "META", 1200), resultTypes: ["PROFILE_VISITS"],
     performance: performance(1200, { resultTypes: [{ type: "PROFILE_VISITS", results: 40, spend: 1200 }] }) };
 
-  it("shows each campaign's result type in its own column", async () => {
+  it("gives every result type of the project a results column, and no type or cost column", async () => {
     api({ campaigns: [messages, visits] });
     renderWithProviders(<App />, route);
 
-    expect(await screen.findByRole("columnheader", { name: /Тип результата/ })).toBeInTheDocument();
-    expect(within(await screen.findByRole("row", { name: /Переписки/ })).getByText("Сообщения")).toBeInTheDocument();
-    expect(within(screen.getByRole("row", { name: /Профиль/ })).getByText("Переходы в профиль")).toBeInTheDocument();
-  });
-
-  it("gives every result type of the project a column with its count and one with its cost", async () => {
-    api({ campaigns: [messages, visits] });
-    renderWithProviders(<App />, route);
-
-    for (const name of ["Сообщения", "Цена · Сообщения", "Переходы в профиль", "Цена · Переходы в профиль"]) {
+    for (const name of ["Результаты - Сообщения", "Результаты - Переходы в профиль"]) {
       expect(await screen.findByRole("columnheader", { name: new RegExp(`^${name}`) })).toBeInTheDocument();
     }
+    expect(screen.queryByRole("columnheader", { name: /Тип результата/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: /^Цена · / })).not.toBeInTheDocument();
     const row = await screen.findByRole("row", { name: /Переписки/ });
     expect(within(row).getByText("120")).toBeInTheDocument();
-    expect(within(row).getByText(shownAs(formatRatio(25, "BYN")))).toBeInTheDocument();
-    expect(within(row).getAllByText("—").length).toBeGreaterThanOrEqual(2);
   });
 
-  it("totals each result type apart, with its own cost", async () => {
-    api({ campaigns: [messages, visits] });
+  it("totals each result type in its column and the results as one number", async () => {
+    api({ campaigns: [
+      { ...messages, performance: { ...messages.performance, results: 120 } },
+      { ...visits, performance: { ...visits.performance, results: 40 } },
+    ] });
     renderWithProviders(<App />, route);
 
     const footer = await screen.findByRole("row", { name: /Итого/ });
-    expect(within(footer).getByText("Сообщения: 120 · Переходы в профиль: 40")).toBeInTheDocument();
+    expect(within(footer).getByText("160")).toBeInTheDocument();
     expect(within(footer).getByText("120")).toBeInTheDocument();
     expect(within(footer).getByText("40")).toBeInTheDocument();
-    expect(within(footer).getByText(shownAs(formatRatio(30, "BYN")))).toBeInTheDocument();
+    expect(within(footer).queryByText(/Сообщения: /)).not.toBeInTheDocument();
   });
 
   it("offers no type columns for a project whose campaigns have no result type", async () => {
@@ -294,7 +286,7 @@ describe("ProjectPage", () => {
     renderWithProviders(<App />, route);
 
     await screen.findByRole("row", { name: /Итого/ });
-    expect(screen.queryByRole("columnheader", { name: /^Цена · / })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: /^Результаты - / })).not.toBeInTheDocument();
   });
 
   it("opens a campaign when its row is chosen", async () => {

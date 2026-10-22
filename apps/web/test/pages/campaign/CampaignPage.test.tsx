@@ -83,15 +83,7 @@ describe("CampaignPage", () => {
     expect(screen.getByLabelText("До")).toBeInTheDocument();
   });
 
-  it("shows the type of an ad set's results in its own column", async () => {
-    api();
-    renderWithProviders(<App />, route);
-
-    expect(await screen.findByRole("columnheader", { name: /Тип результата/ })).toBeInTheDocument();
-    expect(within(await screen.findByRole("row", { name: /Москва/ })).getByText("Переходы в профиль")).toBeInTheDocument();
-  });
-
-  it("gives the campaign's result type a column with its count and one with its cost", async () => {
+  it("gives the campaign's result type a results column, and no type or cost column", async () => {
     api({ adSets: [
       { id: "s1", campaignId: "c1", name: "Москва · 28–55", audience: null, resultType: "PROFILE_VISITS",
         status: "ACTIVE", externalId: null, position: 0,
@@ -99,8 +91,9 @@ describe("CampaignPage", () => {
     ] });
     renderWithProviders(<App />, route);
 
-    expect(await screen.findByRole("columnheader", { name: /^Переходы в профиль/ })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: /^Цена · Переходы в профиль/ })).toBeInTheDocument();
+    expect(await screen.findByRole("columnheader", { name: /^Результаты - Переходы в профиль/ })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: /Тип результата/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: /^Цена · / })).not.toBeInTheDocument();
     const row = await screen.findByRole("row", { name: /Москва/ });
     expect(within(row).getByText("30")).toBeInTheDocument();
   });

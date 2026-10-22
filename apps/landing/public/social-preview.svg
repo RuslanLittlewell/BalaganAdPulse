@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="background" x2="1" y2="1"><stop stop-color="#f4f8f7"/><stop offset="1" stop-color="#d9eee7"/></linearGradient>
+    <linearGradient id="brand"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#2fb39c"/></linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#background)"/>
+  <circle cx="1120" cy="80" r="280" fill="#ffffff" opacity=".45"/>
+  <circle cx="1160" cy="630" r="340" fill="#0f766e" opacity=".04"/>
+  <g font-family="Arial, sans-serif">
+    <text x="80" y="116" font-size="23" fill="#536d66" letter-spacing="4">АНАЛИТИКА РЕКЛАМЫ</text>
+    <text x="76" y="245" font-size="108" font-weight="700" fill="url(#brand)">Balagan<tspan fill="#18332f">BI</tspan></text>
+    <text x="80" y="316" font-size="34" fill="#18332f">Рекламные кабинеты. Проекты. KPI.</text>
+    <g fill="#fff" stroke="#dce7e3">
+      <rect x="80" y="377" width="280" height="101" rx="24"/>
+      <rect x="384" y="377" width="280" height="101" rx="24"/>
+      <rect x="688" y="377" width="432" height="101" rx="24"/>
+    </g>
+    <g fill="#0f766e"><circle cx="120" cy="428" r="7"/><circle cx="424" cy="428" r="7"/><circle cx="728" cy="428" r="7"/></g>
+    <g fill="#18332f" font-size="28" font-weight="700">
+      <text x="145" y="438">Meta Ads</text><text x="449" y="438">Google Ads</text><text x="753" y="438">Контроль результатов</text>
+    </g>
+    <text x="80" y="560" font-size="24" fill="#536d66">Сервис агентства Balagan</text>
+    <text x="1120" y="560" text-anchor="end" font-size="24" fill="#0f766e">bi.balagan.pro</text>
+  </g>
+</svg>

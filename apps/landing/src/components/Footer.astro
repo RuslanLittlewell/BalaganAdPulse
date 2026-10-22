@@ -8,8 +8,8 @@ const topics = ["Вопрос о сервисе", "Подключение каб
   <div class="glass p-3 sm:p-10 lg:p-14">
   <div class="grid gap-12 lg:grid-cols-2 lg:gap-16">
     <div class="flex flex-col gap-6">
-      <a href="/" class="text-2xl font-bold tracking-tight">
-        <span class="brand-gradient">Balagan</span>BI
+      <a href="/" aria-label="BalaganBI" class="inline-block">
+        <img src="/balagan-logo.svg" alt="" width="93" height="32" class="block h-8 w-auto" />
       </a>
       <p class="max-w-sm text-muted-foreground">
         {SITE.name} собирает рекламные кабинеты клиентов агентства Balagan в одном месте и показывает, как каждый проект идёт к своему KPI.
@@ -36,7 +36,7 @@ const topics = ["Вопрос о сервисе", "Подключение каб
       </div>
     </div>
 
-    <form data-contact class="tile flex flex-col gap-4 p-3 sm:p-8" action={`mailto:${SITE.contact}`} method="get">
+    <form data-contact class="tile flex flex-col gap-4 p-3 sm:p-8" action="/#contact" method="get" id="contact">
       <h2 class="text-2xl font-bold tracking-tight">Нужна помощь?</h2>
       <p class="text-sm text-muted-foreground">Вопрос, идея или что-то не работает? Напишите нам.</p>
       <label class="flex flex-col gap-2 text-sm font-semibold">
@@ -49,10 +49,13 @@ const topics = ["Вопрос о сервисе", "Подключение каб
         Сообщение
         <textarea name="body" rows="5" placeholder="Расскажите, что случилось или что хотелось бы видеть" class="resize-y rounded-lg border border-border bg-card px-3 py-2.5 font-normal"></textarea>
       </label>
-      <button type="submit" class="rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90">
+      <button type="submit" disabled class="rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
         Написать письмо
       </button>
       <p class="text-xs text-muted-foreground">Откроется ваша почтовая программа с готовым письмом.</p>
+      <noscript>
+        <p class="text-sm">Напишите нам: <a href={`mailto:${SITE.contact}`} class="underline">{SITE.contact}</a>.</p>
+      </noscript>
     </form>
   </div>
 
@@ -77,5 +80,6 @@ const topics = ["Вопрос о сервисе", "Подключение каб
       const body = encodeURIComponent(String(data.get("body") ?? ""));
       window.location.href = `mailto:${SITE.contact}?subject=${subject}&body=${body}`;
     });
+    form.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled = false;
   }
 </script>

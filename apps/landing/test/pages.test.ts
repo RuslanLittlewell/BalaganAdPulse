@@ -104,7 +104,9 @@ describe("the home page Google reads", () => {
   });
 
   it("lets a visitor write to the agency even without scripts", () => {
-    expect(html).toMatch(/<form[^>]*action="mailto:balagan\.ads@gmail\.com"/);
+    expect(html).not.toMatch(/<form[^>]*action="mailto:/);
+    expect(html).toMatch(/<noscript>[\s\S]*href="mailto:balagan\.ads@gmail\.com"/);
+    expect(html).toMatch(/<button[^>]*type="submit"[^>]*disabled/);
   });
 
   it("is in Russian with an English section", () => {
@@ -145,5 +147,29 @@ describe("a page that does not exist", () => {
     const html = page("404.html");
     expect(textOf(html)).toContain("Страница не найдена");
     expect(linksOf(html)).toEqual(expect.arrayContaining(["/", "https://app.balagan.pro"]));
+  });
+});
+
+describe("the files agents and search engines read", () => {
+  it("lets search engines and AI assistants read the site and points them at the sitemap", () => {
+    const robots = readFileSync(new URL("../dist/robots.txt", import.meta.url), "utf8");
+    for (const bot of ["GPTBot", "ClaudeBot", "PerplexityBot", "Google-Extended"]) {
+      expect(robots).toContain(`User-agent: ${bot}`);
+    }
+    expect(robots).toContain("Sitemap: https://bi.balagan.pro/sitemap.xml");
+  });
+
+  it("describes the product in llms.txt with links to the home page and the policy", () => {
+    const llms = page("llms.txt");
+    expect(llms).toMatch(/^# BalaganBI/m);
+    expect(llms).toContain("https://bi.balagan.pro/");
+    expect(llms).toContain("https://bi.balagan.pro/privacy/");
+    expect(llms).toContain("https://www.googleapis.com/auth/adwords");
+  });
+
+  it("lists the public pages in the sitemap", () => {
+    const sitemap = readFileSync(new URL("../dist/sitemap.xml", import.meta.url), "utf8");
+    expect(sitemap).toContain("<loc>https://bi.balagan.pro/</loc>");
+    expect(sitemap).toContain("<loc>https://bi.balagan.pro/privacy/</loc>");
   });
 });

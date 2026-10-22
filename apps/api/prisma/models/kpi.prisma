@@ -28,6 +28,7 @@ model ProjectKpi {
   name      String?
   value     Decimal?  @db.Decimal(18, 4)
   enabled   Boolean   @default(true)
+  resultType String?  @map("result_type")
   updatedAt DateTime  @map("updated_at")
 
   @@index([projectId, position])

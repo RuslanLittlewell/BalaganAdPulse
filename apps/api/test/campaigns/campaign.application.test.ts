@@ -3,6 +3,7 @@ import type { ActorContext } from "../../src/shared/application/index.js";
 import { createCampaignUseCases } from "../../src/modules/campaigns/application/campaign-use-cases.js";
 import type { MeasuredDay } from "../../src/modules/campaigns/domain/metrics.js";
 import type { Ad, AdSet, Campaign } from "../../src/modules/campaigns/domain/hierarchy.js";
+import type { TypedDay } from "../../src/modules/campaigns/domain/result-type.js";
 
 const admin: ActorContext = { userId: "u1", membershipId: "m1", orgId: "org1", role: "ADMIN" };
 const customer: ActorContext = { ...admin, membershipId: "m4", role: "CLIENT" };
@@ -30,6 +31,7 @@ function fixture(options: {
   adSetDays?: Record<string, MeasuredDay[]>;
   adDays?: Record<string, MeasuredDay[]>;
   metricReads?: string[];
+  typedDays?: TypedDay[];
 } = {}) {
   const campaigns = options.campaigns ?? [campaign()];
   const reachable = options.reachableProjects ?? ["p1"];
@@ -66,7 +68,8 @@ function fixture(options: {
         return ids.flatMap((id) => (options.campaignDays?.[id] ?? []).map((entry) => ({ campaignId: id, ...entry })));
       },
       readAdSetRange: async (id) => options.adSetDays?.[id] ?? [],
-      readAdSetResults: async () => [],
+      readTypedDays: async () => options.typedDays ?? [],
+      readResultKinds: async () => [],
       readAdRange: async (id) => options.adDays?.[id] ?? [],
     },
   });

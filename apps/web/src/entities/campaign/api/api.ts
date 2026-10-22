@@ -12,9 +12,10 @@ export const RESULT_TYPES = [
 ] as const;
 export type ResultType = (typeof RESULT_TYPES)[number];
 
-export interface ResultsOfType {
+export interface ResultTypeFigure {
   type: ResultType;
   results: number;
+  spend: number;
 }
 
 export interface DateRange {
@@ -30,6 +31,7 @@ export interface Measured {
   conversions: number;
   results: number;
   revenue: number;
+  resultTypes?: ResultTypeFigure[];
 }
 
 export interface Derived {
@@ -60,7 +62,7 @@ export interface Campaign {
   position: number;
   kpi: { metric: string; target: string } | null;
   performance: Performance;
-  resultTypes: ResultsOfType[];
+  resultTypes: ResultType[];
 }
 
 export interface AdSet {
@@ -120,7 +122,7 @@ export interface CurrencyPerformance {
 
 export interface ProjectFigures {
   projectId: string;
-  kpis: Array<{ metric: string; target: string; name?: string; value?: string; enabled: boolean }>;
+  kpis: Array<{ metric: string; target: string; name?: string; value?: string; resultType?: string; enabled: boolean }>;
   performance: Performance;
   days: MeasuredDay[];
 }

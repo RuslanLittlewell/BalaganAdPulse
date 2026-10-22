@@ -24,14 +24,18 @@ const derived = {
   frequency: z.number().nullable(),
 };
 
-const performance = z.object({ ...measured, ...derived });
+const resultType = z.enum(RESULT_TYPES);
 
-const measuredDay = z.object({ date: z.iso.date(), ...measured });
+const resultTypeFigures = z.array(z.object({ type: resultType, results: z.number(), spend: z.number() }));
+
+const performance = z.object({ ...measured, ...derived, resultTypes: resultTypeFigures.optional() });
+
+const measuredDay = z.object({ date: z.iso.date(), ...measured, resultTypes: resultTypeFigures.optional() });
 
 const kpiTarget = z.object({ metric: z.string(), target: z.string() }).nullable();
 
 const projectKpi = z.union([
-  z.object({ metric: z.string(), target: z.string(), enabled: z.boolean() }),
+  z.object({ metric: z.string(), target: z.string(), resultType: resultType.optional(), enabled: z.boolean() }),
   z.object({ metric: z.literal("MANUAL"), name: z.string(), value: z.string(), target: z.string(), enabled: z.boolean() }),
 ]);
 
@@ -41,8 +45,6 @@ const projectFigures = z.object({
   performance,
   days: z.array(measuredDay),
 });
-
-const resultType = z.enum(RESULT_TYPES);
 
 const campaign = z.object({
   id: z.uuid(),
@@ -56,7 +58,7 @@ const campaign = z.object({
   position: z.int(),
   kpi: kpiTarget,
   performance,
-  resultTypes: z.array(z.object({ type: resultType, results: z.int() })),
+  resultTypes: z.array(resultType),
 });
 
 const adSet = z.object({

@@ -8,6 +8,7 @@ import { signInAs } from "../helpers/auth.js";
 const app = createApp();
 const RANGE = "?from=2026-08-01&to=2026-08-03";
 const DAY = new Date("2026-08-02T00:00:00.000Z");
+const NEXT_DAY = new Date("2026-08-03T00:00:00.000Z");
 
 let auth: { Authorization: string };
 let projectId: string;
@@ -20,79 +21,143 @@ beforeEach(async () => {
 });
 afterAll(async () => { await prisma.$disconnect(); });
 
-async function adSetOf(campaignId: string, name: string, optimizationGoal: string | null, results: number, position = 0) {
+async function adSetOf(campaignId: string, name: string, optimizationGoal: string | null, results: number, spend: number, position = 0) {
   const adSet = await prisma.adSet.create({ data: { campaignId, name, optimizationGoal, position } });
-  await prisma.adSetDailyMetric.create({ data: { adSetId: adSet.id, date: DAY, results } });
+  if (results > 0 || spend > 0) {
+    await prisma.adSetDailyMetric.create({ data: { adSetId: adSet.id, date: DAY, results, spend } });
+  }
   return adSet;
+}
+
+async function mixedCampaign() {
+  const campaign = await seedCampaign(projectId, "Смешанная", "META");
+  await adSetOf(campaign.id, "Сообщения", "CONVERSATIONS", 120, 3000);
+  await adSetOf(campaign.id, "Профиль", "PROFILE_VISIT", 45, 900, 1);
+  await prisma.campaignDailyMetric.create({ data: { campaignId: campaign.id, date: DAY, results: 165, spend: 3900 } });
+  return campaign;
 }
 
 const campaignOf = async (id: string) =>
   (await request(app).get(`/api/campaigns/${id}${RANGE}`).set(auth)).body;
 
 describe("the result types of a campaign", () => {
-  it("lists the results of each kind its ad sets produced", async () => {
-    const campaign = await seedCampaign(projectId, "Смешанная", "META");
-    await adSetOf(campaign.id, "Сообщения", "CONVERSATIONS", 120);
-    await adSetOf(campaign.id, "Профиль", "PROFILE_VISIT", 45, 1);
-    await prisma.campaignDailyMetric.create({ data: { campaignId: campaign.id, date: DAY, results: 165 } });
+  it("names the types it optimises for and reports results and spend of each", async () => {
+    const campaign = await mixedCampaign();
 
     const body = await campaignOf(campaign.id);
 
+    expect(body.resultTypes).toEqual(["MESSAGES", "PROFILE_VISITS"]);
     expect(body.performance.results).toBe(165);
-    expect(body.resultTypes).toEqual([
-      { type: "MESSAGES", results: 120 },
-      { type: "PROFILE_VISITS", results: 45 },
+    expect(body.performance.resultTypes).toEqual([
+      { type: "MESSAGES", results: 120, spend: 3000 },
+      { type: "PROFILE_VISITS", results: 45, spend: 900 },
     ]);
+  });
+
+  it("still names its types in a period with nothing measured", async () => {
+    const campaign = await seedCampaign(projectId, "Тихая", "META");
+    await adSetOf(campaign.id, "Группа", "CONVERSATIONS", 0, 0);
+
+    const body = await campaignOf(campaign.id);
+
+    expect(body.resultTypes).toEqual(["MESSAGES"]);
+    expect(body.performance.resultTypes).toEqual([]);
   });
 
   it("counts only the days of the range", async () => {
     const campaign = await seedCampaign(projectId, "Сообщения", "META");
-    const adSet = await adSetOf(campaign.id, "Группа", "CONVERSATIONS", 10);
-    await prisma.adSetDailyMetric.create({ data: { adSetId: adSet.id, date: new Date("2026-07-01T00:00:00.000Z"), results: 500 } });
+    const adSet = await adSetOf(campaign.id, "Группа", "CONVERSATIONS", 10, 100);
+    await prisma.adSetDailyMetric.create({ data: { adSetId: adSet.id, date: new Date("2026-07-01T00:00:00.000Z"), results: 500, spend: 5000 } });
 
-    expect((await campaignOf(campaign.id)).resultTypes).toEqual([{ type: "MESSAGES", results: 10 }]);
+    expect((await campaignOf(campaign.id)).performance.resultTypes).toEqual([{ type: "MESSAGES", results: 10, spend: 100 }]);
   });
 
   it("calls the results of a Google campaign conversions", async () => {
     const campaign = await seedCampaign(projectId, "Поиск", "GOOGLE");
-    await prisma.campaignDailyMetric.create({ data: { campaignId: campaign.id, date: DAY, conversions: 9, results: 9 } });
+    await prisma.campaignDailyMetric.create({ data: { campaignId: campaign.id, date: DAY, conversions: 9, results: 9, spend: 450 } });
 
-    expect((await campaignOf(campaign.id)).resultTypes).toEqual([{ type: "CONVERSIONS", results: 9 }]);
+    const body = await campaignOf(campaign.id);
+
+    expect(body.resultTypes).toEqual(["CONVERSIONS"]);
+    expect(body.performance.resultTypes).toEqual([{ type: "CONVERSIONS", results: 9, spend: 450 }]);
   });
 
   it("files results under unknown while no goal was imported", async () => {
     const campaign = await seedCampaign(projectId, "Старая", "META");
-    await adSetOf(campaign.id, "Группа", null, 30);
+    await adSetOf(campaign.id, "Группа", null, 30, 600);
 
-    expect((await campaignOf(campaign.id)).resultTypes).toEqual([{ type: "UNKNOWN", results: 30 }]);
+    const body = await campaignOf(campaign.id);
+
+    expect(body.resultTypes).toEqual(["UNKNOWN"]);
+    expect(body.performance.resultTypes).toEqual([{ type: "UNKNOWN", results: 30, spend: 600 }]);
   });
 
-  it("is empty for a campaign with nothing to count", async () => {
-    const campaign = await seedCampaign(projectId, "Пустая", "META");
-    expect((await campaignOf(campaign.id)).resultTypes).toEqual([]);
+  it("files the results of a campaign without ad sets under unknown", async () => {
+    const campaign = await seedCampaign(projectId, "Ручная", "YANDEX");
+    await prisma.campaignDailyMetric.create({ data: { campaignId: campaign.id, date: DAY, results: 5, spend: 50 } });
+
+    const body = await campaignOf(campaign.id);
+
+    expect(body.resultTypes).toEqual([]);
+    expect(body.performance.resultTypes).toEqual([{ type: "UNKNOWN", results: 5, spend: 50 }]);
   });
 
   it("comes with each campaign of a project's list", async () => {
-    const campaign = await seedCampaign(projectId, "Сообщения", "META");
-    await adSetOf(campaign.id, "Группа", "CONVERSATIONS", 4);
+    await mixedCampaign();
 
     const res = await request(app).get(`/api/projects/${projectId}/campaigns${RANGE}`).set(auth);
 
-    expect(res.body[0].resultTypes).toEqual([{ type: "MESSAGES", results: 4 }]);
+    expect(res.body[0].resultTypes).toEqual(["MESSAGES", "PROFILE_VISITS"]);
+    expect(res.body[0].performance.resultTypes).toHaveLength(2);
   });
 });
 
 describe("the result type of an ad set and its ads", () => {
-  it("is the ad set's, and its ads take it", async () => {
+  it("is the ad set's, and its ads take it, each with its own figures", async () => {
     const campaign = await seedCampaign(projectId, "Профиль", "META");
-    const adSet = await adSetOf(campaign.id, "Группа", "PROFILE_VISIT", 3);
-    await prisma.ad.create({ data: { adSetId: adSet.id, name: "Объявление", position: 0 } });
+    const adSet = await adSetOf(campaign.id, "Группа", "PROFILE_VISIT", 3, 60);
+    const ad = await prisma.ad.create({ data: { adSetId: adSet.id, name: "Объявление", position: 0 } });
+    await prisma.adDailyMetric.create({ data: { adId: ad.id, date: DAY, results: 2, spend: 40 } });
 
     const sets = await request(app).get(`/api/campaigns/${campaign.id}/ad-sets${RANGE}`).set(auth);
     const ads = await request(app).get(`/api/ad-sets/${adSet.id}/ads${RANGE}`).set(auth);
 
     expect(sets.body[0].resultType).toBe("PROFILE_VISITS");
     expect(sets.body[0]).not.toHaveProperty("optimizationGoal");
+    expect(sets.body[0].performance.resultTypes).toEqual([{ type: "PROFILE_VISITS", results: 3, spend: 60 }]);
     expect(ads.body[0].resultType).toBe("PROFILE_VISITS");
+    expect(ads.body[0].performance.resultTypes).toEqual([{ type: "PROFILE_VISITS", results: 2, spend: 40 }]);
+  });
+});
+
+describe("a project's figures by type", () => {
+  it("are in the project summary", async () => {
+    await mixedCampaign();
+
+    const res = await request(app).get(`/api/projects/${projectId}/summary${RANGE}`).set(auth);
+
+    expect(res.body.resultTypes).toEqual([
+      { type: "MESSAGES", results: 120, spend: 3000 },
+      { type: "PROFILE_VISITS", results: 45, spend: 900 },
+    ]);
+  });
+
+  it("are in the dashboard project and each of its days", async () => {
+    const campaign = await mixedCampaign();
+    const adSet = await prisma.adSet.findFirstOrThrow({ where: { campaignId: campaign.id, optimizationGoal: "CONVERSATIONS" } });
+    await prisma.adSetDailyMetric.create({ data: { adSetId: adSet.id, date: NEXT_DAY, results: 10, spend: 200 } });
+    await prisma.campaignDailyMetric.create({ data: { campaignId: campaign.id, date: NEXT_DAY, results: 10, spend: 200 } });
+
+    const res = await request(app).get(`/api/summary/projects${RANGE}`).set(auth);
+    const project = res.body.find((entry: { projectId: string }) => entry.projectId === projectId);
+
+    expect(project.performance.resultTypes).toEqual([
+      { type: "MESSAGES", results: 130, spend: 3200 },
+      { type: "PROFILE_VISITS", results: 45, spend: 900 },
+    ]);
+    expect(project.days.map((day: { date: string; resultTypes: unknown[] }) => [day.date, day.resultTypes])).toEqual([
+      ["2026-08-02", [{ type: "MESSAGES", results: 120, spend: 3000 }, { type: "PROFILE_VISITS", results: 45, spend: 900 }]],
+      ["2026-08-03", [{ type: "MESSAGES", results: 10, spend: 200 }]],
+    ]);
   });
 });

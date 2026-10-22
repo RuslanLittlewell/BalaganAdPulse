@@ -1,10 +1,13 @@
 import { useRef, useState, type FormEvent } from "react";
 import { PlusIcon, XIcon } from "lucide-react";
 import {
-  isMonthly, KPI_METRICS, MANUAL_KPI, MAX_PROJECT_KPIS, useSaveProjectKpis,
+  isKpiMetric, isMonthly, KPI_METRICS, MANUAL_KPI, MAX_PROJECT_KPIS, TYPED_KPI_METRICS, useSaveProjectKpis,
   type KpiFigures, type KpiMetric, type ProjectKpi, type ProjectKpiInput,
 } from "@/entities/kpi/index.js";
-import { PROJECTS_SUMMARY_KEY } from "@/entities/campaign/index.js";
+import {
+  isResultType, orderedResultTypes, PROJECTS_SUMMARY_KEY, resultTypeCostLabel, resultTypeLabel, useProjectCampaigns,
+  type ResultType,
+} from "@/entities/campaign/index.js";
 import { useQueryClient } from "@tanstack/react-query";
 import { t } from "@/shared/config/index.js";
 import { ApiError, cn, type Currency } from "@/shared/lib/index.js";
@@ -28,7 +31,19 @@ export interface ProjectKpiDialogProps {
 
 const noop = () => {};
 
-type Choice = KpiMetric | typeof MANUAL_KPI;
+type Choice = string;
+
+const typedChoice = (metric: KpiMetric, type: string) => `${metric}:${type}`;
+
+function measuredOf(choice: Choice): { metric: KpiMetric; resultType?: string } {
+  const [metric, resultType] = choice.split(":");
+  const measured = isKpiMetric(metric ?? "") ? metric as KpiMetric : "CONVERSIONS";
+  return resultType ? { metric: measured, resultType } : { metric: measured };
+}
+
+function typedTitle(metric: KpiMetric, type: ResultType): string {
+  return metric === "RESULTS" ? resultTypeLabel(type) : resultTypeCostLabel(type);
+}
 
 type Field = "name" | "value" | "target";
 
@@ -48,7 +63,14 @@ const isBlank = (draft: Draft) => draft.target.trim() === "" && draft.name.trim(
 function draftOf(kpi: ProjectKpi, key: number): Draft {
   return kpi.metric === MANUAL_KPI
     ? { key, choice: MANUAL_KPI, name: kpi.name, value: shown(kpi.value), target: shown(kpi.target), enabled: kpi.enabled }
-    : { key, choice: kpi.metric, name: "", value: "", target: shown(kpi.target), enabled: kpi.enabled };
+    : {
+      key,
+      choice: kpi.resultType ? typedChoice(kpi.metric, kpi.resultType) : kpi.metric,
+      name: "",
+      value: "",
+      target: shown(kpi.target),
+      enabled: kpi.enabled,
+    };
 }
 
 function validated(draft: Draft): { input: ProjectKpiInput } | { problems: Field[] } {
@@ -56,7 +78,9 @@ function validated(draft: Draft): { input: ProjectKpiInput } | { problems: Field
   const target = decimal(draft.target);
   if (!AMOUNT.test(target) || Number(target) <= 0) problems.push("target");
   if (draft.choice !== MANUAL_KPI) {
-    return problems.length > 0 ? { problems } : { input: { metric: draft.choice, target, enabled: draft.enabled } };
+    return problems.length > 0
+      ? { problems }
+      : { input: { ...measuredOf(draft.choice), target, enabled: draft.enabled } };
   }
   const name = draft.name.trim();
   const value = decimal(draft.value);
@@ -73,10 +97,12 @@ function KpiBlock({
   problems,
   disabled,
   preview,
+  resultTypes,
   onChange,
   onRemove,
 }: {
   draft: Draft;
+  resultTypes: readonly ResultType[];
   position: number;
   problems: ReadonlySet<Field>;
   disabled: boolean;
@@ -87,7 +113,9 @@ function KpiBlock({
   const manual = draft.choice === MANUAL_KPI;
   const empty = isBlank(draft);
   const result = empty ? null : validated(draft);
-  const hint = draft.choice === MANUAL_KPI ? t("kpi.manualHint") : isMonthly(draft.choice) ? t("kpi.monthly") : t("kpi.asIs");
+  const hint = draft.choice === MANUAL_KPI
+    ? t("kpi.manualHint")
+    : isMonthly(measuredOf(draft.choice).metric) ? t("kpi.monthly") : t("kpi.asIs");
   const metricId = `kpi-metric-${draft.key}`;
 
   return (
@@ -134,6 +162,11 @@ function KpiBlock({
               {KPI_METRICS.map((definition) => (
                 <SelectItem key={definition.id} value={definition.id}>{t(definition.label)}</SelectItem>
               ))}
+              {resultTypes.flatMap((type) => TYPED_KPI_METRICS.map((metric) => (
+                <SelectItem key={typedChoice(metric, type)} value={typedChoice(metric, type)}>
+                  {typedTitle(metric, type)}
+                </SelectItem>
+              )))}
               <SelectItem value={MANUAL_KPI}>{t("kpi.manual")}</SelectItem>
             </SelectContent>
           </Select>
@@ -198,6 +231,11 @@ export function ProjectKpiDialog({ projectId, kpis, onClose, ...preview }: Proje
     kpis.length > 0 ? kpis.map((kpi, index) => draftOf(kpi, index)) : [blank(0)]);
   const [problems, setProblems] = useState<ReadonlyMap<number, ReadonlySet<Field>>>(new Map());
   const pending = save.isPending;
+  const campaigns = useProjectCampaigns(projectId, preview.range);
+  const resultTypes = orderedResultTypes([
+    ...(campaigns.data ?? []).flatMap((campaign) => campaign.resultTypes),
+    ...kpis.flatMap((kpi) => (kpi.metric !== MANUAL_KPI && isResultType(kpi.resultType) ? [kpi.resultType] : [])),
+  ]).filter((type) => type !== "UNKNOWN");
 
   const update = (key: number, changes: Partial<Draft>) => {
     setProblems((current) => {
@@ -251,6 +289,7 @@ export function ProjectKpiDialog({ projectId, kpis, onClose, ...preview }: Proje
               problems={problems.get(draft.key) ?? new Set()}
               disabled={pending}
               preview={preview}
+              resultTypes={resultTypes}
               onChange={(changes) => update(draft.key, changes)}
               onRemove={isBlank(draft) ? undefined : () => remove(draft.key)}
             />

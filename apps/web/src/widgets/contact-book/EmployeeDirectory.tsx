@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Trash2 } from "lucide-react";
 import {
   MemberAvatar,
   useDeleteMember,
@@ -69,11 +70,12 @@ export function EmployeeDirectory() {
             <div className="flex justify-end">
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon-sm"
                 className="text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+                aria-label={t("contacts.employees.remove")}
                 onClick={() => setRemoving(selected)}
               >
-                {t("contacts.employees.remove")}
+                <Trash2 />
               </Button>
             </div>
           </Can>

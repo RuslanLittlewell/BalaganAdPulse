@@ -1,3 +1,5 @@
+import type { ResultType } from '#modules/campaigns/index.js';
+
 export const KPI_METRICS = ['SPEND', 'IMPRESSIONS', 'REACH', 'CLICKS', 'CONVERSIONS', 'RESULTS', 'REVENUE', 'CTR', 'CPC', 'CPM', 'CPA', 'COST_PER_RESULT', 'ROAS', 'FREQUENCY'] as const;
 export type KpiMetric = typeof KPI_METRICS[number];
 
@@ -6,9 +8,14 @@ export const isKpiMetric = (metric: string): metric is KpiMetric =>
 
 export const MANUAL_KPI = 'MANUAL';
 
+export const TYPED_KPI_METRICS: readonly KpiMetric[] = ['RESULTS', 'COST_PER_RESULT'];
+
+export const isTypedKpiMetric = (metric: string) => (TYPED_KPI_METRICS as readonly string[]).includes(metric);
+
 export interface MeasuredKpiInput {
   metric: KpiMetric;
   target: string;
+  resultType?: ResultType;
 }
 
 export interface ManualKpiInput {

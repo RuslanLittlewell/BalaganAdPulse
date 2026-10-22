@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resultTypeOfGoal, resultsByType } from "../../src/modules/campaigns/domain/result-type.js";
+import { resultTypeOfGoal, sumByType, typesOf } from "../../src/modules/campaigns/domain/result-type.js";
 
 describe("the result type of an optimization goal", () => {
   it.each([
@@ -30,25 +30,43 @@ describe("the result type of an optimization goal", () => {
   });
 });
 
-describe("a campaign's results by type", () => {
-  const adSet = (adSetId: string, optimizationGoal: string | null, results: number) =>
-    ({ adSetId, campaignId: "c1", optimizationGoal, results });
-
-  it("adds the ad sets of one type together", () => {
-    expect(resultsByType([adSet("a", "CONVERSATIONS", 100), adSet("b", "CONVERSATIONS", 20)]))
-      .toEqual([{ type: "MESSAGES", results: 120 }]);
+describe("summing figures by type", () => {
+  it("adds results and spend of one type together", () => {
+    expect(sumByType([
+      { type: "MESSAGES", results: 100, spend: 2000 },
+      { type: "MESSAGES", results: 20, spend: 500 },
+    ])).toEqual([{ type: "MESSAGES", results: 120, spend: 2500 }]);
   });
 
   it("keeps different types apart, the largest first", () => {
-    expect(resultsByType([adSet("a", "PROFILE_VISIT", 45), adSet("b", "CONVERSATIONS", 120)]))
-      .toEqual([{ type: "MESSAGES", results: 120 }, { type: "PROFILE_VISITS", results: 45 }]);
+    expect(sumByType([
+      { type: "PROFILE_VISITS", results: 45, spend: 900 },
+      { type: "MESSAGES", results: 120, spend: 3000 },
+    ])).toEqual([
+      { type: "MESSAGES", results: 120, spend: 3000 },
+      { type: "PROFILE_VISITS", results: 45, spend: 900 },
+    ]);
   });
 
-  it("keeps a type that produced nothing", () => {
-    expect(resultsByType([adSet("a", "CONVERSATIONS", 0)])).toEqual([{ type: "MESSAGES", results: 0 }]);
+  it("keeps a type that spent without results", () => {
+    expect(sumByType([{ type: "LEADS", results: 0, spend: 300 }])).toEqual([{ type: "LEADS", results: 0, spend: 300 }]);
   });
 
-  it("files an ad set without a goal under unknown", () => {
-    expect(resultsByType([adSet("a", null, 7)])).toEqual([{ type: "UNKNOWN", results: 7 }]);
+  it("drops a type with neither results nor spend", () => {
+    expect(sumByType([{ type: "LEADS", results: 0, spend: 0 }])).toEqual([]);
+  });
+});
+
+describe("the types a campaign optimises for", () => {
+  it("are the distinct types of its ad sets in a fixed order", () => {
+    expect(typesOf([
+      { campaignId: "c1", optimizationGoal: "PROFILE_VISIT" },
+      { campaignId: "c1", optimizationGoal: "CONVERSATIONS" },
+      { campaignId: "c1", optimizationGoal: "CONVERSATIONS" },
+    ])).toEqual(["MESSAGES", "PROFILE_VISITS"]);
+  });
+
+  it("include unknown for an ad set without a goal", () => {
+    expect(typesOf([{ campaignId: "c1", optimizationGoal: null }])).toEqual(["UNKNOWN"]);
   });
 });

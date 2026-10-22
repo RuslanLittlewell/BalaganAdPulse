@@ -66,7 +66,7 @@ export interface PerformanceRow {
 export interface ExtraColumn {
   id: string;
   label: string;
-  format?: (value: number) => string;
+  format?: (value: number, currency: Currency) => string;
   shown?: boolean;
 }
 
@@ -422,10 +422,11 @@ export function PerformanceTable({
   const savedColumns = useColumnWidths(
     (state) => state.visibleColumns?.[tableKey],
   );
+  const offeredColumns = useColumnWidths((state) => state.offeredColumns?.[tableKey]);
   const toggleColumn = useColumnWidths((state) => state.toggleColumn);
   const extraIds = extraColumns.map((column) => column.id);
   const shownExtraIds = extraColumns.filter((column) => column.shown).map((column) => column.id);
-  const visibleIds = visibleColumnIds(savedColumns, extraIds, shownExtraIds);
+  const visibleIds = visibleColumnIds(savedColumns, extraIds, shownExtraIds, offeredColumns);
   const allFigures: FigureColumn[] = [
     ...METRIC_COLUMNS.map((column) => ({
       id: column.id,
@@ -439,12 +440,12 @@ export function PerformanceTable({
     ...extraColumns.map((column) => ({
       id: column.id,
       label: column.label,
-      value: (_: Performance, __: Currency, extra?: Record<string, number | string | null>) => {
+      value: (_: Performance, figureCurrency: Currency, extra?: Record<string, number | string | null>) => {
         if (extra == null) return null;
         const value = extra[column.id] ?? null;
         if (typeof value === "string") return value;
         if (column.format == null) return formatCount(value ?? 0);
-        return value === null ? "—" : column.format(value);
+        return value === null ? "—" : column.format(value, figureCurrency);
       },
     })),
   ];

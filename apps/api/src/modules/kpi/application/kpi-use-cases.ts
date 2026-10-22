@@ -3,7 +3,7 @@ import { AppError } from '#shared/domain/index.js';
 import type { ActorContext, UnitOfWork } from '#shared/application/index.js';
 import type { AuditWriter } from '#modules/audit/index.js';
 import {
-  MANUAL_KPI, MAX_PROJECT_KPIS, normalizeAmount,
+  isTypedKpiMetric, MANUAL_KPI, MAX_PROJECT_KPIS, normalizeAmount,
   type Kpi, type KpiInput, type KpiLevel, type KpiOwner, type NewProjectKpi, type ProjectKpiInput,
 } from '../domain/kpi.js';
 import type { KpiReach, KpiRepository, ProjectKpiEvents, ProjectKpiRepository } from './ports.js';
@@ -12,7 +12,7 @@ const snapshot = (kpi: Kpi | null): Record<string, string> | null => {
   if (!kpi) return null;
   return kpi.metric === MANUAL_KPI
     ? { metric: kpi.metric, name: kpi.name, value: kpi.value, target: kpi.target }
-    : { metric: kpi.metric, target: kpi.target };
+    : { metric: kpi.metric, target: kpi.target, ...(kpi.resultType ? { resultType: kpi.resultType } : {}) };
 };
 
 const projectSnapshot = (kpi: NewProjectKpi): Record<string, string | boolean> => ({ ...snapshot(kpi)!, enabled: kpi.enabled });
@@ -21,7 +21,17 @@ function normalized(input: KpiInput, updatedAt: Date): Kpi {
   const target = normalizeAmount(input.target);
   return input.metric === MANUAL_KPI
     ? { metric: input.metric, name: input.name.trim(), value: normalizeAmount(input.value), target, updatedAt }
-    : { metric: input.metric, target, updatedAt };
+    : { metric: input.metric, target, ...(input.resultType ? { resultType: input.resultType } : {}), updatedAt };
+}
+
+function assertResultType(input: KpiInput) {
+  if (input.metric === MANUAL_KPI || !input.resultType) return;
+  if (!isTypedKpiMetric(input.metric)) {
+    throw new AppError('validation', 'Only a KPI on results or cost per result names a result type');
+  }
+  if (input.resultType === 'UNKNOWN') {
+    throw new AppError('validation', 'A KPI cannot aim at results of an unknown type');
+  }
 }
 
 export function createKpiUseCases(d: {
@@ -93,6 +103,7 @@ export function createKpiUseCases(d: {
       if (inputs.length > MAX_PROJECT_KPIS) {
         throw new AppError('validation', `A project holds at most ${MAX_PROJECT_KPIS} KPIs`);
       }
+      inputs.forEach(assertResultType);
       const now = d.clock.now();
       const next = inputs.map(({ enabled, ...input }) => ({ ...normalized(input, now), enabled }));
       const before = await d.projectKpis.list(projectId);

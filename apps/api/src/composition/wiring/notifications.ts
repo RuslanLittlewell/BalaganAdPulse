@@ -15,6 +15,7 @@ import {
   PrismaNotificationRepository,
   PrismaProjectKpiStandings,
 } from "#modules/notifications/infrastructure/prisma-notifications.js";
+import { PrismaMetricRepository } from "#modules/campaigns/infrastructure/prisma-metric-repository.js";
 import type { DocumentEvents } from "#modules/project-documents/index.js";
 import type { ProjectEvents } from "#modules/projects/index.js";
 import type { TaskNotices } from "#modules/tasks/index.js";
@@ -25,7 +26,7 @@ export function wireNotifications({ clock }: Kernel) {
   const notifications = createNotificationUseCases({
     notifications: new PrismaNotificationRepository(prisma),
     recipients: new PrismaNotificationRecipients(prisma),
-    standings: new PrismaProjectKpiStandings(prisma),
+    standings: new PrismaProjectKpiStandings(prisma, new PrismaMetricRepository(prisma)),
     claims: new PrismaKpiMonthClaims(prisma),
     dueTasks: new PrismaDueTasks(prisma),
     hub,

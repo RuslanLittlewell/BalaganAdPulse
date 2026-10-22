@@ -2,6 +2,7 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 import type { TransactionContext } from '#shared/application/index.js';
 import type { PrismaUnitOfWork } from '#shared/infrastructure/prisma-unit-of-work.js';
 import type { KpiRepository, ProjectKpiRepository } from '../application/ports.js';
+import { RESULT_TYPES, type ResultType } from '#modules/campaigns/index.js';
 import { MANUAL_KPI, type Kpi, type KpiOwner, type NewProjectKpi, type ProjectKpi } from '../domain/kpi.js';
 
 type KpiColumns = {
@@ -23,12 +24,18 @@ type ProjectKpiRow = {
   name: string | null;
   value: Prisma.Decimal | null;
   enabled: boolean;
+  resultType: string | null;
   updatedAt: Date;
 };
 
+const isResultType = (value: string | null): value is ResultType =>
+  value !== null && (RESULT_TYPES as readonly string[]).includes(value);
+
 function toProjectKpi(row: ProjectKpiRow): ProjectKpi | null {
   const base = { id: row.id, enabled: row.enabled, updatedAt: row.updatedAt, target: row.target.toFixed(4) };
-  if (row.metric !== MANUAL_KPI) return { ...base, metric: row.metric };
+  if (row.metric !== MANUAL_KPI) {
+    return isResultType(row.resultType) ? { ...base, metric: row.metric, resultType: row.resultType } : { ...base, metric: row.metric };
+  }
   if (row.name == null || !row.value) return null;
   return { ...base, metric: MANUAL_KPI, name: row.name, value: row.value.toFixed(4) };
 }
@@ -71,6 +78,7 @@ export class PrismaProjectKpiRepository implements ProjectKpiRepository {
         name: kpi.metric === MANUAL_KPI ? kpi.name : null,
         value: kpi.metric === MANUAL_KPI ? kpi.value : null,
         enabled: kpi.enabled,
+        resultType: kpi.metric !== MANUAL_KPI ? kpi.resultType ?? null : null,
         updatedAt: kpi.updatedAt,
       })),
     });

@@ -17,10 +17,13 @@ export function visibleColumnIds(
   saved: unknown,
   extraIds: readonly string[] = [],
   shownExtraIds: readonly string[] = [],
+  offered?: unknown,
 ): string[] {
   if (!Array.isArray(saved)) return [...ALL_COLUMN_IDS, ...shownExtraIds.filter((id) => extraIds.includes(id))];
+  const seen: readonly unknown[] = Array.isArray(offered) ? offered : [...ALL_COLUMN_IDS, ...saved];
+  const fresh = (id: string) => shownExtraIds.includes(id) && !seen.includes(id);
   const valid = [...ALL_COLUMN_IDS, ...extraIds]
-    .filter((id) => saved.includes(id) || isRequiredColumn(id));
+    .filter((id) => saved.includes(id) || isRequiredColumn(id) || fresh(id));
   return valid.length >= MIN_VISIBLE_COLUMNS ? valid : ALL_COLUMN_IDS;
 }
 
@@ -51,6 +54,7 @@ interface ColumnWidthsState {
   columnWidths: Record<string, Record<string, number>>;
   columnOrder: Record<string, string[]>;
   visibleColumns: Record<string, string[]>;
+  offeredColumns: Record<string, string[]>;
   toggleColumn: (
     tableKey: string,
     columnId: string,
@@ -75,16 +79,22 @@ export const useColumnWidths = create<ColumnWidthsState>()(
       columnWidths: {},
       columnOrder: {},
       visibleColumns: {},
+      offeredColumns: {},
       toggleColumn: (tableKey, columnId, extraIds = [], shownExtraIds = []) => {
         const known = ALL_COLUMN_IDS.includes(columnId) || extraIds.includes(columnId);
         if (!known || isRequiredColumn(columnId)) return;
         set((state) => {
-          const current = visibleColumnIds(state.visibleColumns?.[tableKey], extraIds, shownExtraIds);
+          const current = visibleColumnIds(
+            state.visibleColumns?.[tableKey], extraIds, shownExtraIds, state.offeredColumns?.[tableKey],
+          );
           if (current.includes(columnId) && current.length <= MIN_VISIBLE_COLUMNS) return state;
           const next = current.includes(columnId)
             ? current.filter((id) => id !== columnId)
             : [...current, columnId];
-          return { visibleColumns: { ...state.visibleColumns, [tableKey]: next } };
+          return {
+            visibleColumns: { ...state.visibleColumns, [tableKey]: next },
+            offeredColumns: { ...state.offeredColumns, [tableKey]: [...ALL_COLUMN_IDS, ...extraIds] },
+          };
         });
       },
       setNameWidth: (tableKey, width) => {
@@ -122,6 +132,7 @@ export const useColumnWidths = create<ColumnWidthsState>()(
         columnWidths: state.columnWidths,
         columnOrder: state.columnOrder,
         visibleColumns: state.visibleColumns,
+        offeredColumns: state.offeredColumns,
       }),
     },
   ),

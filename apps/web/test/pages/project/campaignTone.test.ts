@@ -11,6 +11,7 @@ const campaign = (overrides: Partial<Parameters<typeof campaignTone>[0]> = {}) =
   status: "ACTIVE" as const,
   kpi: { metric: "CONVERSIONS", target: "30.0000" },
   performance,
+  resultTypes: [] as Parameters<typeof campaignTone>[0]["resultTypes"],
   ...overrides,
 });
 
@@ -86,5 +87,20 @@ describe("a campaign's indicator", () => {
 
   it("counts a learning campaign as running", () => {
     expect(campaignTone(campaign({ status: "LEARNING" }), null, SEPTEMBER)).toBe("profitable");
+  });
+
+  it("judges a campaign only by the project KPIs on result types it optimises for", () => {
+    const typed = {
+      ...performance,
+      resultTypes: [{ type: "PROFILE_VISITS" as const, results: 400, spend: 800 }],
+    };
+    const projectKpis = [
+      { metric: "RESULTS", target: "300", resultType: "MESSAGES", enabled: true },
+      { metric: "RESULTS", target: "400", resultType: "PROFILE_VISITS", enabled: true },
+    ];
+
+    expect(campaignTone(
+      campaign({ kpi: null, performance: typed, resultTypes: ["PROFILE_VISITS"] }), projectKpis, SEPTEMBER,
+    )).toBe("profitable");
   });
 });

@@ -7,12 +7,13 @@ import {
   PrismaNotificationRepository,
   PrismaProjectKpiStandings,
 } from "../../src/modules/notifications/infrastructure/prisma-notifications.js";
+import { PrismaMetricRepository } from "../../src/modules/campaigns/infrastructure/prisma-metric-repository.js";
 import { resetDb, seedCampaign, seedProject } from "../helpers/db.js";
 import { grantAccess, signInAs, signInAsOutsider } from "../helpers/auth.js";
 
 const repository = new PrismaNotificationRepository(prisma);
 const recipients = new PrismaNotificationRecipients(prisma);
-const standings = new PrismaProjectKpiStandings(prisma);
+const standings = new PrismaProjectKpiStandings(prisma, new PrismaMetricRepository(prisma));
 const claims = new PrismaKpiMonthClaims(prisma);
 const dueTasks = new PrismaDueTasks(prisma);
 
@@ -165,6 +166,21 @@ describe("a project's standing this month", () => {
     ] });
 
     expect((await standings.read(projectId, OCTOBER_SO_FAR))?.kpis.map((kpi) => kpi.metric)).toEqual(["CONVERSIONS", "SPEND"]);
+  });
+
+  it("reads a KPI on one result type with the project's results by type", async () => {
+    await prisma.projectKpi.create({ data: {
+      projectId, position: 0, metric: "RESULTS", target: "300", resultType: "MESSAGES", updatedAt: new Date(),
+    } });
+    const campaign = await seedCampaign(projectId, "Сообщения", "META");
+    const adSet = await prisma.adSet.create({ data: { campaignId: campaign.id, name: "Группа", optimizationGoal: "CONVERSATIONS", position: 0 } });
+    await prisma.adSetDailyMetric.create({ data: { adSetId: adSet.id, date: new Date("2026-10-05T00:00:00Z"), results: 150, spend: 3000 } });
+    await prisma.adSetDailyMetric.create({ data: { adSetId: adSet.id, date: new Date("2026-09-30T00:00:00Z"), results: 999, spend: 1 } });
+
+    const standing = await standings.read(projectId, OCTOBER_SO_FAR);
+
+    expect(standing?.kpis).toEqual([{ metric: "RESULTS", target: "300.0000", resultType: "MESSAGES" }]);
+    expect(standing?.figures.resultTypes).toEqual([{ type: "MESSAGES", results: 150, spend: 3000 }]);
   });
 
   it("is nothing for a project whose KPIs are not tracked", async () => {

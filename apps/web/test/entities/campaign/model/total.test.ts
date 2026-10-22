@@ -11,7 +11,7 @@ describe("the total of a set of campaigns", () => {
 
     expect(total).toEqual({
       spend: 1000, impressions: 40000, reach: 15000, clicks: 400, conversions: 20, results: 40, revenue: 2000,
-      ctr: 1, cpc: 2.5, cpm: 25, cpa: 50, costPerResult: 25, roas: 2, frequency: 40000 / 15000,
+      ctr: 1, cpc: 2.5, cpm: 25, cpa: 50, costPerResult: 25, roas: 2, frequency: 40000 / 15000, resultTypes: [],
     });
   });
 
@@ -25,6 +25,6 @@ describe("the total of a set of campaigns", () => {
   });
 
   it("totals nothing as zero figures and absent ratios", () => {
-    expect(totalPerformance([])).toEqual(EMPTY_PERFORMANCE);
+    expect(totalPerformance([])).toEqual({ ...EMPTY_PERFORMANCE, resultTypes: [] });
   });
 });

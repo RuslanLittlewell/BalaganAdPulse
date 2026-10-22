@@ -18,11 +18,12 @@ type StoredProjectKpi = {
   name: string | null;
   value: { toFixed(digits: number): string } | null;
   enabled: boolean;
+  resultType: string | null;
 };
 
 const projectKpiOf = (row: StoredProjectKpi): ProjectKpi | null => {
   const kpi = { metric: row.metric, target: row.target.toFixed(4), enabled: row.enabled };
-  if (kpi.metric !== "MANUAL") return kpi;
+  if (kpi.metric !== "MANUAL") return row.resultType ? { ...kpi, resultType: row.resultType } : kpi;
   return row.name != null && row.value ? { ...kpi, name: row.name, value: row.value.toFixed(4) } : null;
 };
 
@@ -140,7 +141,7 @@ export class PrismaProjectReach implements ProjectReach {
       select: {
         id: true,
         kpiTracked: true,
-        kpis: { select: { metric: true, target: true, name: true, value: true, enabled: true }, orderBy: { position: "asc" } },
+        kpis: { select: { metric: true, target: true, name: true, value: true, enabled: true, resultType: true }, orderBy: { position: "asc" } },
       },
       orderBy: { position: "asc" },
     });

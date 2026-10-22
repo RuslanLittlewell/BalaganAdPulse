@@ -11,7 +11,7 @@ function actorOf(req: Request) {
 
 const rangeOf = (req: Request) => rangeSchema.parse(req.query);
 
-const asDays = (days: readonly MeasuredDay[]) =>
+const asDays = <T extends MeasuredDay>(days: readonly T[]) =>
   days.map(({ date, ...measured }) => ({ date: date.toISOString().slice(0, 10), ...measured }));
 
 function handle<TRequest extends Request>(

@@ -117,6 +117,47 @@ describe("the KPIs of a project", () => {
     expect(await prisma.projectKpi.count({ where: { projectId } })).toBe(0);
   });
 
+  it("may aim at the results or the cost of one result type", async () => {
+    const saved = await request(app).put(projectKpis()).set(admin).send([
+      { metric: "RESULTS", target: "300", resultType: "MESSAGES" },
+      { metric: "COST_PER_RESULT", target: "20", resultType: "PROFILE_VISITS" },
+      { metric: "RESULTS", target: "50" },
+    ]);
+
+    expect(saved.status).toBe(200);
+    expect(saved.body.map((kpi: { metric: string; resultType?: string }) => [kpi.metric, kpi.resultType])).toEqual([
+      ["RESULTS", "MESSAGES"],
+      ["COST_PER_RESULT", "PROFILE_VISITS"],
+      ["RESULTS", undefined],
+    ]);
+    expect(await read()).toEqual(saved.body);
+  });
+
+  it("refuse a result type on any other metric -> 400", async () => {
+    const res = await request(app).put(projectKpis()).set(admin).send([{ metric: "SPEND", target: "1000", resultType: "MESSAGES" }]);
+    expect(res.status).toBe(400);
+    expect(await read()).toEqual([]);
+  });
+
+  it("refuse the unknown result type -> 400", async () => {
+    const res = await request(app).put(projectKpis()).set(admin).send([{ metric: "RESULTS", target: "10", resultType: "UNKNOWN" }]);
+    expect(res.status).toBe(400);
+  });
+
+  it("refuse a result type that does not exist -> 400", async () => {
+    const res = await request(app).put(projectKpis()).set(admin).send([{ metric: "RESULTS", target: "10", resultType: "CALLS" }]);
+    expect(res.status).toBe(400);
+  });
+
+  it("travel with their result type to the dashboard figures", async () => {
+    await request(app).put(projectKpis()).set(admin).send([{ metric: "RESULTS", target: "300", resultType: "MESSAGES" }]);
+
+    const res = await request(app).get("/api/summary/projects?from=2026-09-01&to=2026-09-30").set(admin);
+    const project = res.body.find((entry: { projectId: string }) => entry.projectId === projectId);
+
+    expect(project.kpis).toEqual([{ metric: "RESULTS", target: "300.0000", resultType: "MESSAGES", enabled: true }]);
+  });
+
   it("hold at most five", async () => {
     await request(app).put(projectKpis()).set(admin).send([kept]);
     const six = Array.from({ length: 6 }, () => ({ metric: "CONVERSIONS", target: "1" }));
@@ -193,6 +234,13 @@ describe("the KPIs of a project", () => {
 
     expect((await request(app).put(projectKpis()).set(customer.auth).send([manual])).status).toBe(403);
     expect(await read()).toEqual([]);
+  });
+});
+
+describe("a campaign KPI", () => {
+  it("names no result type -> 400", async () => {
+    const res = await request(app).put(campaignKpi()).set(admin).send({ metric: "RESULTS", target: "10", resultType: "MESSAGES" });
+    expect(res.status).toBe(400);
   });
 });
 

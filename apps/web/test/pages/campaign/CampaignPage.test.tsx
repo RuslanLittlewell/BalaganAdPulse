@@ -64,6 +64,7 @@ function api(options: { adSets?: unknown[]; ads?: unknown[]; days?: unknown[]; s
     mock.get("/api/campaigns/:campaignId", () => HttpResponse.json({
       id: "c1", projectId: "p1", name: "Поиск / Москва", channel: "YANDEX", status: "ACTIVE",
       objective: "Заявки", externalId: null, position: 0, performance: performance(1500),
+      resultTypes: ["PROFILE_VISITS"],
     })),
   );
   return creativeRequests;
@@ -87,7 +88,21 @@ describe("CampaignPage", () => {
     renderWithProviders(<App />, route);
 
     expect(await screen.findByRole("columnheader", { name: /Тип результата/ })).toBeInTheDocument();
-    expect(await screen.findByText("Переходы в профиль")).toBeInTheDocument();
+    expect(within(await screen.findByRole("row", { name: /Москва/ })).getByText("Переходы в профиль")).toBeInTheDocument();
+  });
+
+  it("gives the campaign's result type a column with its count and one with its cost", async () => {
+    api({ adSets: [
+      { id: "s1", campaignId: "c1", name: "Москва · 28–55", audience: null, resultType: "PROFILE_VISITS",
+        status: "ACTIVE", externalId: null, position: 0,
+        performance: { ...performance(600), resultTypes: [{ type: "PROFILE_VISITS", results: 30, spend: 600 }] } },
+    ] });
+    renderWithProviders(<App />, route);
+
+    expect(await screen.findByRole("columnheader", { name: /^Переходы в профиль/ })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /^Цена · Переходы в профиль/ })).toBeInTheDocument();
+    const row = await screen.findByRole("row", { name: /Москва/ });
+    expect(within(row).getByText("30")).toBeInTheDocument();
   });
 
   it("returns to the campaign list through the back arrow in the title", async () => {

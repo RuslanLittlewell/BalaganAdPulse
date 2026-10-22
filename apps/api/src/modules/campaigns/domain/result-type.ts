@@ -43,23 +43,38 @@ export function resultTypeOfGoal(goal: string | null | undefined): ResultType {
   return BY_GOAL[goal.toUpperCase()] ?? "OTHER";
 }
 
-export interface ResultsOfType {
+export interface ResultTypeFigure {
   readonly type: ResultType;
   readonly results: number;
+  readonly spend: number;
 }
 
-export interface AdSetResults {
-  readonly adSetId: string;
+export interface TypedDay extends ResultTypeFigure {
+  readonly campaignId: string;
+  readonly date: Date;
+}
+
+export interface CampaignResultKind {
   readonly campaignId: string;
   readonly optimizationGoal: string | null;
-  readonly results: number;
 }
 
-export function resultsByType(adSets: readonly AdSetResults[]): ResultsOfType[] {
-  const totals = new Map<ResultType, number>();
-  for (const adSet of adSets) {
-    const type = resultTypeOfGoal(adSet.optimizationGoal);
-    totals.set(type, (totals.get(type) ?? 0) + adSet.results);
+const ORDER = new Map<ResultType, number>(RESULT_TYPES.map((type, index) => [type, index]));
+
+const byOrder = (a: ResultType, b: ResultType) => ORDER.get(a)! - ORDER.get(b)!;
+
+export function sumByType(figures: readonly ResultTypeFigure[]): ResultTypeFigure[] {
+  const totals = new Map<ResultType, { results: number; spend: number }>();
+  for (const figure of figures) {
+    const running = totals.get(figure.type) ?? { results: 0, spend: 0 };
+    totals.set(figure.type, { results: running.results + figure.results, spend: running.spend + figure.spend });
   }
-  return [...totals].map(([type, results]) => ({ type, results })).sort((a, b) => b.results - a.results);
+  return [...totals]
+    .filter(([, total]) => total.results > 0 || total.spend > 0)
+    .map(([type, total]) => ({ type, ...total }))
+    .sort((a, b) => b.results - a.results || byOrder(a.type, b.type));
+}
+
+export function typesOf(kinds: readonly CampaignResultKind[]): ResultType[] {
+  return [...new Set(kinds.map((kind) => resultTypeOfGoal(kind.optimizationGoal)))].sort(byOrder);
 }

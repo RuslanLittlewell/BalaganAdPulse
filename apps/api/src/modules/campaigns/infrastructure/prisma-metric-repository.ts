@@ -1,7 +1,7 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import type { MeasuredDay } from "../domain/metrics.js";
-import type { AdSetResults } from "../domain/result-type.js";
-import type { CampaignDay, MetricRepository } from "../application/metric-ports.js";
+import { resultTypeOfGoal, type CampaignResultKind, type TypedDay } from "../domain/result-type.js";
+import type { CampaignChannel, CampaignDay, MetricRepository } from "../application/metric-ports.js";
 
 interface StoredRow {
   date: Date;
@@ -55,21 +55,44 @@ export class PrismaMetricRepository implements MetricRepository {
     return rows.map(toMeasured);
   }
 
-  async readAdSetResults(campaignIds: readonly string[], from: Date, to: Date): Promise<AdSetResults[]> {
+  async readTypedDays(campaigns: readonly CampaignChannel[], from: Date, to: Date): Promise<TypedDay[]> {
+    if (campaigns.length === 0) return [];
+    const google = campaigns.filter((campaign) => campaign.channel === "GOOGLE").map((campaign) => campaign.id);
+    const others = campaigns.filter((campaign) => campaign.channel !== "GOOGLE").map((campaign) => campaign.id);
+    const withAdSets = new Set((await this.prisma.adSet.findMany({
+      where: { campaignId: { in: others } }, select: { campaignId: true }, distinct: ["campaignId"],
+    })).map((row) => row.campaignId));
+    const bare = others.filter((id) => !withAdSets.has(id));
+    const [adSetDays, campaignDays] = await Promise.all([
+      withAdSets.size === 0 ? [] : this.prisma.adSetDailyMetric.findMany({
+        where: { date: within(from, to), adSet: { campaignId: { in: [...withAdSets] } } },
+        select: { date: true, results: true, spend: true, adSet: { select: { campaignId: true, optimizationGoal: true } } },
+      }),
+      google.length + bare.length === 0 ? [] : this.prisma.campaignDailyMetric.findMany({
+        where: { date: within(from, to), campaignId: { in: [...google, ...bare] } },
+        select: { campaignId: true, date: true, results: true, spend: true },
+      }),
+    ]);
+    const googleIds = new Set(google);
+    return [
+      ...adSetDays.map((row) => ({
+        campaignId: row.adSet.campaignId, date: row.date, type: resultTypeOfGoal(row.adSet.optimizationGoal),
+        results: row.results, spend: row.spend.toNumber(),
+      })),
+      ...campaignDays.map((row) => ({
+        campaignId: row.campaignId, date: row.date, type: googleIds.has(row.campaignId) ? "CONVERSIONS" as const : "UNKNOWN" as const,
+        results: row.results, spend: row.spend.toNumber(),
+      })),
+    ];
+  }
+
+  async readResultKinds(campaignIds: readonly string[]): Promise<CampaignResultKind[]> {
     if (campaignIds.length === 0) return [];
-    const rows = await this.prisma.adSet.findMany({
+    return this.prisma.adSet.findMany({
       where: { campaignId: { in: [...campaignIds] } },
-      select: {
-        id: true, campaignId: true, optimizationGoal: true,
-        metrics: { where: { date: within(from, to) }, select: { results: true } },
-      },
+      select: { campaignId: true, optimizationGoal: true },
+      distinct: ["campaignId", "optimizationGoal"],
     });
-    return rows.map((row) => ({
-      adSetId: row.id,
-      campaignId: row.campaignId,
-      optimizationGoal: row.optimizationGoal,
-      results: row.metrics.reduce((sum, day) => sum + day.results, 0),
-    }));
   }
 
   async readAdRange(adId: string, from: Date, to: Date): Promise<MeasuredDay[]> {

@@ -984,10 +984,6 @@ its 404 page, `/api` included.
 
 Putting it live once, on the server and at the registrar:
 
-0. Copy [deploy/security-headers.conf](deploy/security-headers.conf) to
-   `/etc/nginx/snippets/security-headers.conf` (the `bi.balagan.pro` block includes it: HSTS, frame, COOP,
-   nosniff, referrer and permissions policies, and a report-only CSP). After `certbot`, check the
-   HTTPS block still includes it: `curl -sI https://bi.balagan.pro/`.
 1. At hoster.by add an `A` record `bi` → `45.87.219.63`.
 2. Copy the `bi.balagan.pro` server from [deploy/nginx.conf](deploy/nginx.conf) into the
    server's nginx configuration, then `nginx -t && systemctl reload nginx`.

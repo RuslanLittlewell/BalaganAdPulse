@@ -1,4 +1,5 @@
 import type { Measured, Performance } from "../api/api.js";
+import { mergeResultTypeFigures } from "./resultTypes.js";
 
 const NOTHING_MEASURED: Measured = {
   spend: 0, impressions: 0, reach: 0, clicks: 0, conversions: 0, results: 0, revenue: 0,
@@ -19,6 +20,7 @@ export function totalPerformance(performances: readonly Measured[]): Performance
   }), NOTHING_MEASURED);
   return {
     ...measured,
+    resultTypes: mergeResultTypeFigures(performances.map((performance) => performance.resultTypes)),
     ctr: ratio(measured.clicks * 100, measured.impressions),
     cpc: ratio(measured.spend, measured.clicks),
     cpm: ratio(measured.spend * 1000, measured.impressions),

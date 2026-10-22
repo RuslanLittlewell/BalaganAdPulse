@@ -1,10 +1,13 @@
-import { MANUAL_KPI, type KpiInput, type KpiMetric } from './kpi.js';
+import type { ResultTypeFigure } from '#modules/campaigns/index.js';
+import { MANUAL_KPI, type KpiInput, type KpiMetric, type MeasuredKpiInput } from './kpi.js';
 
 export type KpiFigure =
   | 'spend' | 'impressions' | 'reach' | 'clicks' | 'conversions' | 'results' | 'revenue'
   | 'ctr' | 'cpc' | 'cpm' | 'cpa' | 'costPerResult' | 'roas' | 'frequency';
 
-export type KpiFigures = Readonly<Record<KpiFigure, number | null>>;
+export type KpiFigures = Readonly<Record<KpiFigure, number | null>> & {
+  readonly resultTypes?: readonly ResultTypeFigure[];
+};
 
 export interface IsoDateRange {
   readonly from: string;
@@ -37,10 +40,17 @@ export function targetForRange(metric: KpiMetric, target: number, range: IsoDate
   return total;
 }
 
+function actualOf(kpi: MeasuredKpiInput, figures: KpiFigures): number | null {
+  if (!kpi.resultType) return figures[FIGURE[kpi.metric]];
+  const typed = figures.resultTypes?.find((figure) => figure.type === kpi.resultType);
+  if (kpi.metric === 'RESULTS') return typed?.results ?? 0;
+  return typed && typed.results > 0 ? typed.spend / typed.results : null;
+}
+
 export function kpiPercent(kpi: KpiInput, figures: KpiFigures, range: IsoDateRange): number | null {
   if (kpi.metric === MANUAL_KPI) return (Number(kpi.value) / Number(kpi.target)) * 100;
   const target = targetForRange(kpi.metric, Number(kpi.target), range);
-  const actual = figures[FIGURE[kpi.metric]];
+  const actual = actualOf(kpi, figures);
   if (actual === null) return null;
   if (LOWER_BETTER.has(kpi.metric)) return actual === 0 ? null : (target / actual) * 100;
   return (actual / target) * 100;

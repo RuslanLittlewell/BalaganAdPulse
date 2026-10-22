@@ -11,7 +11,7 @@ const figures = (values: Record<string, number | null> = {}) => ({
 const firstHalf = { from: "2026-09-01", to: "2026-09-15" };
 const path = "/api/projects/p1/kpis";
 
-type StoredKpi = { metric: string; target: string; name?: string; value?: string; enabled?: boolean };
+type StoredKpi = { metric: string; target: string; name?: string; value?: string; resultType?: string; enabled?: boolean };
 
 function kpis(initial: StoredKpi[]) {
   const stamp = (list: StoredKpi[]) => list.map((entry, index) => ({
@@ -366,6 +366,91 @@ describe("the KPI dialog of a project", () => {
 
     expect(await within(dialog).findByText("Введите положительное число, не больше 4 знаков после запятой")).toBeInTheDocument();
     expect(requests).toEqual([]);
+  });
+});
+
+describe("a KPI on one result type", () => {
+  const typedFigures = figures();
+  const withTypes = {
+    ...typedFigures,
+    resultTypes: [
+      { type: "MESSAGES", results: 150, spend: 3750 },
+      { type: "PROFILE_VISITS", results: 400, spend: 800 },
+    ],
+  };
+  const campaignsOf = (resultTypes: string[][]) => server.use(mock.get("/api/projects/p1/campaigns", () =>
+    HttpResponse.json(resultTypes.map((types, index) => ({
+      id: `c${index}`, projectId: "p1", name: `Кампания ${index}`, channel: "META", status: "ACTIVE",
+      objective: null, externalId: null, sourceAccountId: null, position: index, kpi: null,
+      performance: typedFigures, resultTypes: types,
+    })))));
+  const render = () => renderWithProviders(
+    <KpiTile scope={{ kind: "project", id: "p1" }} canEdit figures={withTypes} range={firstHalf} currency="BYN" />,
+  );
+  const openDialog = async (button = "Задать цель") => {
+    await userEvent.click(await screen.findByRole("button", { name: button }));
+    return screen.findByRole("dialog", { name: "Цель KPI" });
+  };
+
+  it("is offered for every type of the project's campaigns, with its cost, but never as unknown", async () => {
+    kpis([]);
+    campaignsOf([["MESSAGES"], ["PROFILE_VISITS", "UNKNOWN"]]);
+    render();
+
+    const dialog = await openDialog();
+    await userEvent.click(within(dialog).getByLabelText("Метрика"));
+
+    for (const name of ["Сообщения", "Цена · Сообщения", "Переходы в профиль", "Цена · Переходы в профиль"]) {
+      expect(await screen.findByRole("option", { name })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole("option", { name: /Не определён/ })).not.toBeInTheDocument();
+  });
+
+  it("is saved with its result type", async () => {
+    const requests = kpis([]);
+    campaignsOf([["MESSAGES"]]);
+    render();
+
+    const dialog = await openDialog();
+    await userEvent.click(within(dialog).getByLabelText("Метрика"));
+    await userEvent.click(await screen.findByRole("option", { name: "Сообщения" }));
+    expect(within(dialog).getByText("Цель на месяц, пересчитывается на выбранный период")).toBeInTheDocument();
+    await userEvent.type(within(dialog).getByLabelText("Цель"), "300");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Сохранить" }));
+
+    await waitFor(() => expect(requests).toEqual([
+      { method: "PUT", body: [{ metric: "RESULTS", resultType: "MESSAGES", target: "300", enabled: true }] },
+    ]));
+  });
+
+  it("counts only the results of its type on the tile", async () => {
+    kpis([{ metric: "RESULTS", target: "300.0000", resultType: "MESSAGES" }]);
+    campaignsOf([["MESSAGES"]]);
+    render();
+
+    expect(await screen.findByText("KPI · Сообщения")).toBeInTheDocument();
+    expect(within(tile()).getByText("150")).toBeInTheDocument();
+    expect(within(tile()).getByText("Цель 150 · 100%")).toBeInTheDocument();
+  });
+
+  it("takes the cost of its type as its spend over its results", async () => {
+    kpis([{ metric: "COST_PER_RESULT", target: "20.0000", resultType: "MESSAGES" }]);
+    campaignsOf([["MESSAGES"]]);
+    render();
+
+    expect(await screen.findByText("KPI · Цена · Сообщения")).toBeInTheDocument();
+    expect(tile()).toHaveAttribute("data-state", "behind");
+    expect(within(tile()).getByText("Цель 20,00 Br · 80%")).toBeInTheDocument();
+  });
+
+  it("opens for editing with its type chosen, even once the campaigns no longer have it", async () => {
+    kpis([{ metric: "COST_PER_RESULT", target: "20.0000", resultType: "LEADS" }]);
+    campaignsOf([["MESSAGES"]]);
+    render();
+
+    await screen.findByText("KPI · Цена · Лиды");
+    const dialog = await openDialog("Изменить цель");
+    expect(within(dialog).getByLabelText("Метрика")).toHaveTextContent("Цена · Лиды");
   });
 });
 

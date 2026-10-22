@@ -25,9 +25,9 @@ import {
   channelLabel,
   isRunning,
   statusLabel,
-  mergeResultTypes,
+  orderedResultTypes,
+  resultTypeFiguresOf,
   resultsBreakdown,
-  RESULT_TYPE_COLUMN,
   resultTypesText,
   totalPerformance,
   useProjectCampaigns,
@@ -52,6 +52,7 @@ import { TaskList } from "@/widgets/task-list/index.js";
 import { PerformanceSummary } from "@/widgets/agency-overview/index.js";
 import {
   PerformanceTable,
+  resultTypeColumns,
   type PerformanceRow,
 } from "@/widgets/performance-table/index.js";
 import { ProjectDocuments } from "@/widgets/project-documents/index.js";
@@ -165,16 +166,21 @@ export function ProjectPage() {
     ? running
     : [...running, ...inAccount.filter((campaign) => !isRunning(campaign.status))];
 
+  const offeredTypes = orderedResultTypes(all.flatMap((campaign) => campaign.resultTypes));
+
   const rows: PerformanceRow[] = listed.map((campaign) => ({
     id: campaign.id,
     name: campaign.name,
     note: `${channelLabel(campaign.channel)} · ${statusLabel(campaign.status)}`,
     performance: campaign.performance,
-    extra: { resultType: resultTypesText(campaign.resultTypes) || "—" },
-    resultsBreakdown: resultsBreakdown(campaign.resultTypes),
+    extra: {
+      resultType: resultTypesText(campaign.resultTypes) || "—",
+      ...resultTypeFiguresOf(campaign.performance, offeredTypes),
+    },
+    resultsBreakdown: resultsBreakdown(campaign.performance.resultTypes),
     tone: campaignTone(campaign, projectKpis.data, range),
   }));
-  const totalResultTypes = mergeResultTypes(listed.map((campaign) => campaign.resultTypes));
+  const totals = totalPerformance(listed.map((campaign) => campaign.performance));
 
   return (
     <div className="flex min-h-0 flex-col gap-6">
@@ -283,10 +289,13 @@ export function ProjectPage() {
                 heading={t("campaigns.one")}
                 rows={rows}
                 visibleRows={10}
-                totals={totalPerformance(listed.map((campaign) => campaign.performance))}
-                totalsExtra={{ resultType: resultTypesText(totalResultTypes) || "—" }}
-                totalsResultsBreakdown={resultsBreakdown(totalResultTypes)}
-                extraColumns={[RESULT_TYPE_COLUMN]}
+                totals={totals}
+                totalsExtra={{
+                  resultType: resultTypesText(orderedResultTypes(listed.flatMap((campaign) => campaign.resultTypes))) || "—",
+                  ...resultTypeFiguresOf(totals, offeredTypes),
+                }}
+                totalsResultsBreakdown={resultsBreakdown(totals.resultTypes)}
+                extraColumns={resultTypeColumns(offeredTypes)}
                 currency={project.budgetCurrency}
                 empty={
                   campaigns.isSuccess

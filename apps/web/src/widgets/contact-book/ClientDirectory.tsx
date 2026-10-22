@@ -132,6 +132,7 @@ export function ClientDirectory() {
                     <Button
                       variant="ghost"
                       size="icon-sm"
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
                       aria-label={t("contacts.delete")}
                       onClick={() => setDeleting(selected)}
                     >

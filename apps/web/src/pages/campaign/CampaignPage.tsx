@@ -8,7 +8,7 @@ import { projectPath } from "@/shared/lib/index.js";
 import {
   campaignsApi,
   channelLabel,
-  RESULT_TYPE_COLUMN,
+  resultTypeFiguresOf,
   resultTypeLabel,
   statusLabel,
   useAdSets,
@@ -28,6 +28,7 @@ import { PerformanceSummary } from "@/widgets/agency-overview/index.js";
 import { DailyChart } from "@/widgets/campaign-overview/index.js";
 import {
   PerformanceTable,
+  resultTypeColumns,
   type PerformanceRow,
 } from "@/widgets/performance-table/index.js";
 import { CreativePreviewDialog } from "@/widgets/creative-preview/index.js";
@@ -72,6 +73,8 @@ export function CampaignPage() {
     projects.data?.find((candidate) => candidate.id === projectId)
       ?.budgetCurrency ?? null;
 
+  const offeredTypes = campaign.data?.resultTypes ?? [];
+
   const rows: PerformanceRow[] = (adSets.data ?? []).map((adSet) => ({
     id: adSet.id,
     name: adSet.name,
@@ -79,14 +82,14 @@ export function CampaignPage() {
       .filter(Boolean)
       .join(" · "),
     performance: adSet.performance,
-    extra: { resultType: resultTypeLabel(adSet.resultType) },
+    extra: { resultType: resultTypeLabel(adSet.resultType), ...resultTypeFiguresOf(adSet.performance, offeredTypes) },
     expandable: true,
     children: (adsBySet.get(adSet.id) ?? []).map((ad) => ({
       id: ad.id,
       name: ad.name,
       note: [ad.format, statusLabel(ad.status)].filter(Boolean).join(" · "),
       performance: ad.performance,
-      extra: { resultType: resultTypeLabel(ad.resultType) },
+      extra: { resultType: resultTypeLabel(ad.resultType), ...resultTypeFiguresOf(ad.performance, offeredTypes) },
     })),
   }));
 
@@ -145,7 +148,7 @@ export function CampaignPage() {
           heading={t("adSets.one")}
           rows={rows}
           currency={currency}
-          extraColumns={[RESULT_TYPE_COLUMN]}
+          extraColumns={resultTypeColumns(offeredTypes)}
           onExpandedChange={setOpenSets}
           onOpen={(adId) => {
             for (const [adSetId, ads] of adsBySet) {

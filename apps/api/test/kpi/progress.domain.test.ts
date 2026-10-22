@@ -47,6 +47,40 @@ describe("a KPI's progress", () => {
   });
 });
 
+describe("a KPI on one result type", () => {
+  const typed = {
+    ...figures,
+    resultTypes: [
+      { type: "MESSAGES" as const, results: 150, spend: 3750 },
+      { type: "PROFILE_VISITS" as const, results: 400, spend: 800 },
+    ],
+  };
+
+  it("counts only the results of its type against the prorated target", () => {
+    expect(kpiPercent({ metric: "RESULTS", target: "300", resultType: "MESSAGES" }, typed, {
+      from: "2026-09-01", to: "2026-09-15",
+    })).toBeCloseTo(100);
+  });
+
+  it("takes the cost of its type as spend over results, lower being better", () => {
+    expect(kpiPercent({ metric: "COST_PER_RESULT", target: "20", resultType: "MESSAGES" }, typed, SEPTEMBER))
+      .toBeCloseTo(80);
+  });
+
+  it("counts no results of a type that produced none", () => {
+    expect(kpiPercent({ metric: "RESULTS", target: "10", resultType: "LEADS" }, typed, SEPTEMBER)).toBe(0);
+  });
+
+  it("has no cost for a type that produced no results", () => {
+    expect(kpiPercent({ metric: "COST_PER_RESULT", target: "10", resultType: "LEADS" }, typed, SEPTEMBER)).toBeNull();
+  });
+
+  it("is green only by its own type", () => {
+    expect(isKpiGreen({ metric: "RESULTS", target: "400", resultType: "PROFILE_VISITS" }, typed, SEPTEMBER)).toBe(true);
+    expect(isKpiGreen({ metric: "RESULTS", target: "400", resultType: "MESSAGES" }, typed, SEPTEMBER)).toBe(false);
+  });
+});
+
 describe("a green KPI", () => {
   it.each([
     [30, true],

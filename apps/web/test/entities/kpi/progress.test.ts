@@ -135,3 +135,41 @@ describe("reading a carried KPI", () => {
     expect(kpiInputOf({ metric: "MANUAL", target: "50.0000" })).toBeNull();
   });
 });
+
+describe("a KPI on one result type", () => {
+  const typed = {
+    ...figures({ results: 550, costPerResult: 8 }),
+    resultTypes: [
+      { type: "MESSAGES", results: 150, spend: 3750 },
+      { type: "PROFILE_VISITS", results: 400, spend: 800 },
+    ],
+  };
+
+  it("counts only its type's results against the prorated target", () => {
+    expect(kpiProgress(typed, { metric: "RESULTS", target: "300", resultType: "MESSAGES" }, { from: "2026-09-01", to: "2026-09-15" }))
+      .toMatchObject({ actual: 150, target: 150, percent: 100, state: "met" });
+  });
+
+  it("costs its type's spend over its results, lower being better", () => {
+    expect(kpiProgress(typed, { metric: "COST_PER_RESULT", target: "20", resultType: "MESSAGES" }, september))
+      .toMatchObject({ actual: 25, percent: 80, state: "behind" });
+  });
+
+  it("has no results of a type the figures do not hold", () => {
+    expect(kpiProgress(typed, { metric: "RESULTS", target: "10", resultType: "LEADS" }, september)).toMatchObject({ actual: 0 });
+  });
+
+  it("is not measured for the cost of a type without results", () => {
+    expect(kpiProgress(typed, { metric: "COST_PER_RESULT", target: "10", resultType: "LEADS" }, september))
+      .toMatchObject({ actual: null, state: "unmeasured" });
+  });
+
+  it("keeps its type when read from a carried KPI", () => {
+    expect(kpiInputOf({ metric: "RESULTS", target: "300", resultType: "MESSAGES" }))
+      .toEqual({ metric: "RESULTS", target: "300", resultType: "MESSAGES" });
+  });
+
+  it("drops a type carried on a metric that takes none", () => {
+    expect(kpiInputOf({ metric: "SPEND", target: "300", resultType: "MESSAGES" })).toEqual({ metric: "SPEND", target: "300" });
+  });
+});

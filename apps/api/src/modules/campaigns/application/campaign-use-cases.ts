@@ -3,7 +3,9 @@ import { AppError } from "#shared/domain/index.js";
 import type { ActorContext } from "#shared/application/index.js";
 import { isOrderedRange, type Ad, type AdSet, type Campaign, type Channel, type CreativeFile, type DateRange, type ProjectKpi } from "../domain/hierarchy.js";
 import { performanceOf, sumByDay, type MeasuredDay, type Performance } from "../domain/metrics.js";
-import { resultTypeOfGoal, resultsByType, type AdSetResults, type ResultType, type ResultsOfType } from "../domain/result-type.js";
+import {
+  resultTypeOfGoal, sumByType, typesOf, type CampaignResultKind, type ResultType, type ResultTypeFigure, type TypedDay,
+} from "../domain/result-type.js";
 import type { AdRepository, AdSetRepository, CampaignRepository, CreativeRepository, CreativeStorage, ProjectReach } from "./ports.js";
 import type { CampaignDay, MetricRepository } from "./metric-ports.js";
 
@@ -33,11 +35,15 @@ export interface ChannelView {
   readonly performance: Performance;
 }
 
+export type TypedPerformance = Performance & { readonly resultTypes: ResultTypeFigure[] };
+
+export type TypedMeasuredDay = MeasuredDay & { readonly resultTypes: ResultTypeFigure[] };
+
 export interface ProjectFigures {
   readonly projectId: string;
   readonly kpis: ProjectKpi[];
-  readonly performance: Performance;
-  readonly days: MeasuredDay[];
+  readonly performance: TypedPerformance;
+  readonly days: TypedMeasuredDay[];
 }
 
 export interface CampaignReference {
@@ -46,11 +52,27 @@ export interface CampaignReference {
   readonly channel: Channel;
 }
 
-export type CampaignView = Campaign & WithPerformance<Campaign> & { readonly resultTypes: ResultsOfType[] };
-export type AdSetView = Omit<AdSet, "optimizationGoal"> & WithPerformance<AdSet> & { readonly resultType: ResultType };
-export type AdView = Ad & WithPerformance<Ad> & { readonly resultType: ResultType };
+export type CampaignView = Campaign & { readonly performance: TypedPerformance; readonly resultTypes: ResultType[] };
+export type AdSetView = Omit<AdSet, "optimizationGoal"> & { readonly performance: TypedPerformance; readonly resultType: ResultType };
+export type AdView = Ad & { readonly performance: TypedPerformance; readonly resultType: ResultType };
 
 const NOT_FOUND = "Campaign not found";
+
+const typed = (performance: Performance, figures: readonly ResultTypeFigure[]): TypedPerformance =>
+  ({ ...performance, resultTypes: sumByType(figures) });
+
+const ownTyped = (performance: Performance, type: ResultType): TypedPerformance =>
+  typed(performance, [{ type, results: performance.results, spend: performance.spend }]);
+
+function typedByDay(days: readonly MeasuredDay[], typedDays: readonly TypedDay[]): TypedMeasuredDay[] {
+  const byDate = groupedBy(typedDays, (day) => String(day.date.getTime()));
+  return days.map((day) => ({ ...day, resultTypes: sumByType(byDate.get(String(day.date.getTime())) ?? []) }));
+}
+
+function kindsOf(campaign: Campaign, kinds: readonly CampaignResultKind[]): ResultType[] {
+  if (campaign.channel === "GOOGLE") return ["CONVERSIONS"];
+  return typesOf(kinds.filter((kind) => kind.campaignId === campaign.id));
+}
 
 function groupedBy<T>(items: readonly T[], keyOf: (item: T) => string): Map<string, T[]> {
   const groups = new Map<string, T[]>();
@@ -90,23 +112,22 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
   const campaignPerformance = async (id: string, range: DateRange): Promise<Performance> =>
     performanceOf(await dependencies.metrics.readCampaignRange(id, range.from, range.to));
 
-  const campaignResultTypes = (
-    campaign: Campaign,
-    performance: Performance,
-    adSets: readonly AdSetResults[],
-  ): ResultsOfType[] => {
-    if (campaign.channel === "GOOGLE") return [{ type: "CONVERSIONS", results: performance.results }];
-    const own = adSets.filter((adSet) => adSet.campaignId === campaign.id);
-    if (own.length > 0) return resultsByType(own);
-    return performance.results > 0 ? [{ type: "UNKNOWN", results: performance.results }] : [];
-  };
+  const typedDaysOf = (campaigns: readonly Campaign[], range: DateRange): Promise<TypedDay[]> =>
+    dependencies.metrics.readTypedDays(
+      campaigns.map(({ id, channel }) => ({ id, channel })), range.from, range.to,
+    );
 
   const viewOfCampaigns = async (campaigns: readonly Campaign[], range: DateRange): Promise<CampaignView[]> => {
-    const adSets = await dependencies.metrics.readAdSetResults(campaigns.map((campaign) => campaign.id), range.from, range.to);
-    return Promise.all(campaigns.map(async (campaign) => {
-      const performance = await campaignPerformance(campaign.id, range);
-      return { ...campaign, performance, resultTypes: campaignResultTypes(campaign, performance, adSets) };
-    }));
+    const [typedDays, kinds] = await Promise.all([
+      typedDaysOf(campaigns, range),
+      dependencies.metrics.readResultKinds(campaigns.map((campaign) => campaign.id)),
+    ]);
+    const typedByCampaign = groupedBy(typedDays, (day) => day.campaignId);
+    return Promise.all(campaigns.map(async (campaign) => ({
+      ...campaign,
+      resultTypes: kindsOf(campaign, kinds),
+      performance: typed(await campaignPerformance(campaign.id, range), typedByCampaign.get(campaign.id) ?? []),
+    })));
   };
 
   const campaignDays = (campaigns: readonly Campaign[], range: DateRange): Promise<CampaignDay[]> =>
@@ -157,24 +178,29 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
       assertRange(range);
       await reachCampaign(actor, campaignId);
       const adSets = await dependencies.adSets.listByCampaign(campaignId);
-      return Promise.all(adSets.map(async ({ optimizationGoal, ...adSet }) => ({
-        ...adSet,
-        resultType: resultTypeOfGoal(optimizationGoal),
-        performance: performanceOf(
-          await dependencies.metrics.readAdSetRange(adSet.id, range.from, range.to),
-        ),
-      })));
+      return Promise.all(adSets.map(async ({ optimizationGoal, ...adSet }) => {
+        const resultType = resultTypeOfGoal(optimizationGoal);
+        return {
+          ...adSet,
+          resultType,
+          performance: ownTyped(
+            performanceOf(await dependencies.metrics.readAdSetRange(adSet.id, range.from, range.to)),
+            resultType,
+          ),
+        };
+      }));
     },
 
     listAds: async (actor: ActorContext, adSetId: string, range: DateRange): Promise<AdView[]> => {
       assertCanRead(actor);
       assertRange(range);
       const adSet = await reachAdSet(actor, adSetId);
+      const resultType = resultTypeOfGoal(adSet.optimizationGoal);
       const ads = await dependencies.ads.listByAdSet(adSetId);
       return Promise.all(ads.map(async (ad) => ({
         ...ad,
-        resultType: resultTypeOfGoal(adSet.optimizationGoal),
-        performance: performanceOf(await dependencies.metrics.readAdRange(ad.id, range.from, range.to)),
+        resultType,
+        performance: ownTyped(performanceOf(await dependencies.metrics.readAdRange(ad.id, range.from, range.to)), resultType),
       })));
     },
 
@@ -211,10 +237,12 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
 
     projectSummary: async (
       actor: ActorContext, projectId: string, range: DateRange,
-    ): Promise<Performance> => {
+    ): Promise<TypedPerformance> => {
       assertCanRead(actor);
       assertRange(range);
-      return performanceOf(await campaignDays(await reachableProjectCampaigns(actor, projectId), range));
+      const campaigns = await reachableProjectCampaigns(actor, projectId);
+      const [days, typedDays] = await Promise.all([campaignDays(campaigns, range), typedDaysOf(campaigns, range)]);
+      return typed(performanceOf(days), typedDays);
     },
 
     projectsSummary: async (actor: ActorContext, range: DateRange): Promise<ProjectFigures[]> => {
@@ -225,11 +253,17 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
         dependencies.campaigns.listReachable(actor),
       ]);
       const campaignsByProject = groupedBy(campaigns, (campaign) => campaign.projectId);
-      const daysByCampaign = groupedBy(await campaignDays(campaigns, range), (day) => day.campaignId);
+      const [allDays, allTypedDays] = await Promise.all([campaignDays(campaigns, range), typedDaysOf(campaigns, range)]);
+      const daysByCampaign = groupedBy(allDays, (day) => day.campaignId);
+      const typedByCampaign = groupedBy(allTypedDays, (day) => day.campaignId);
       return projects.map(({ id, kpis }) => {
-        const days = (campaignsByProject.get(id) ?? [])
-          .flatMap((campaign) => daysByCampaign.get(campaign.id) ?? []);
-        return { projectId: id, kpis, performance: performanceOf(days), days: sumByDay(days) };
+        const own = campaignsByProject.get(id) ?? [];
+        const days = own.flatMap((campaign) => daysByCampaign.get(campaign.id) ?? []);
+        const typedDays = own.flatMap((campaign) => typedByCampaign.get(campaign.id) ?? []);
+        return {
+          projectId: id, kpis, performance: typed(performanceOf(days), typedDays),
+          days: typedByDay(sumByDay(days), typedDays),
+        };
       });
     },
 

@@ -102,7 +102,7 @@ export const ru = {
   "campaigns.empty.description": "Кампании появятся, когда будут подключены рекламные кабинеты",
   "metric.spend": "Расход", "metric.impressions": "Показы", "metric.reach": "Охват",
   "metric.clicks": "Клики", "metric.conversions": "Лиды",
-  "resultType.column": "Тип результата",
+  "resultType.column": "Тип результата", "resultType.cost": "Цена",
   "resultType.MESSAGES": "Сообщения", "resultType.PROFILE_VISITS": "Переходы в профиль",
   "resultType.LEADS": "Лиды", "resultType.LINK_CLICKS": "Клики по ссылке",
   "resultType.LANDING_PAGE_VIEWS": "Просмотры страницы", "resultType.CONVERSIONS": "Конверсии",

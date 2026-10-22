@@ -28,8 +28,10 @@ function useFirstPeopleHint(contactsOpen: boolean) {
   const staff = useMembers();
   const empty =
     isAdmin &&
-    clients.isSuccess && clients.data.length === 0 &&
-    staff.isSuccess && (staff.data ?? []).every((member) => member.userId === user?.id);
+    clients.isSuccess &&
+    clients.data.length === 0 &&
+    staff.isSuccess &&
+    (staff.data ?? []).every((member) => member.userId === user?.id);
   return useHint(HINTS.contactsFirstPeople, empty && !contactsOpen);
 }
 
@@ -46,7 +48,6 @@ export function AppHeader() {
   return (
     <>
       <header className="flex min-h-16 w-full items-center justify-end gap-2 border-b border-border px-5">
-
         <TooltipProvider delayDuration={200}>
           <div className="flex items-center gap-2">
             <NotificationCenter />
@@ -87,9 +88,12 @@ export function AppHeader() {
               </Tooltip>
             </Can>
             <HeaderDivider />
-          <OnlineUsers />
-          <UserMenu onSettings={() => setSettingsOpen(true)} avatarVersion={avatarVersion} />
-          <ThemeToggle />
+            <OnlineUsers />
+            <UserMenu
+              onSettings={() => setSettingsOpen(true)}
+              avatarVersion={avatarVersion}
+            />
+            <ThemeToggle />
           </div>
         </TooltipProvider>
       </header>

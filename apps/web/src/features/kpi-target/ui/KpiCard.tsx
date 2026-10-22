@@ -12,6 +12,7 @@ import { cn, type Currency } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import { Button, RollingNumber } from "@/shared/ui/index.js";
 import { formatKpiValue } from "./format.js";
+import { kpiTitle } from "./kpiTitle.js";
 
 const STATUS = { exceeded: "kpi.exceeded", met: "kpi.met" } as const;
 
@@ -41,7 +42,7 @@ export function KpiCard({
   testId = "kpi-tile",
 }: KpiCardProps) {
   const definition = current && current.metric !== MANUAL_KPI ? kpiMetricDefinition(current.metric) ?? null : null;
-  const title = current?.metric === MANUAL_KPI ? current.name : definition ? t(definition.label) : null;
+  const title = current?.metric === MANUAL_KPI ? current.name : current ? kpiTitle(current) : null;
   const format: KpiFormat | null = current?.metric === MANUAL_KPI ? "number" : definition?.format ?? null;
   const progress = current && format ? kpiProgress(figures, current, range) : null;
   const monetary =

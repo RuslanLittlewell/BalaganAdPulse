@@ -15,7 +15,10 @@ export const isKpiMetric = (metric: string): metric is KpiMetric =>
 export interface MeasuredKpiInput {
   metric: KpiMetric;
   target: string;
+  resultType?: string;
 }
+
+export const TYPED_KPI_METRICS: readonly KpiMetric[] = ["RESULTS", "COST_PER_RESULT"];
 
 export interface ManualKpiInput {
   metric: typeof MANUAL_KPI;
@@ -39,6 +42,7 @@ export interface CarriedKpi {
   target: string;
   name?: string | null;
   value?: string | null;
+  resultType?: string | null;
   enabled?: boolean;
 }
 
@@ -49,7 +53,10 @@ export function kpiInputOf(carried: CarriedKpi | null | undefined): KpiInput | n
       ? { metric: MANUAL_KPI, name: carried.name, value: carried.value, target: carried.target }
       : null;
   }
-  return isKpiMetric(carried.metric) ? { metric: carried.metric, target: carried.target } : null;
+  if (!isKpiMetric(carried.metric)) return null;
+  return carried.resultType && TYPED_KPI_METRICS.includes(carried.metric)
+    ? { metric: carried.metric, target: carried.target, resultType: carried.resultType }
+    : { metric: carried.metric, target: carried.target };
 }
 
 export type SingleKpiScope =

@@ -1,11 +1,17 @@
 import type { MessageKey } from "@/shared/config/index.js";
-import { kpiInputOf, MANUAL_KPI, type CarriedKpi, type KpiInput, type KpiMetric } from "../api/api.js";
+import { kpiInputOf, MANUAL_KPI, type CarriedKpi, type KpiInput, type KpiMetric, type MeasuredKpiInput } from "../api/api.js";
 
 export type KpiFigure =
   | "spend" | "impressions" | "reach" | "clicks" | "conversions" | "results" | "revenue"
   | "ctr" | "cpc" | "cpm" | "cpa" | "costPerResult" | "roas" | "frequency";
 
-export type KpiFigures = Record<KpiFigure, number | null>;
+export interface KpiTypedFigure {
+  type: string;
+  results: number;
+  spend: number;
+}
+
+export type KpiFigures = Record<KpiFigure, number | null> & { resultTypes?: readonly KpiTypedFigure[] };
 
 export type KpiFormat = "currency" | "count" | "percent" | "ratio" | "multiple" | "number";
 
@@ -69,10 +75,17 @@ function manualProgress(actual: number, target: number): KpiProgress {
   return { actual, target, percent: (actual / target) * 100, state };
 }
 
+function actualOf(kpi: MeasuredKpiInput, figures: KpiFigures): number | null {
+  if (!kpi.resultType) return figures[kpiMetricDefinition(kpi.metric).figure];
+  const typed = figures.resultTypes?.find((figure) => figure.type === kpi.resultType);
+  if (kpi.metric === "RESULTS") return typed?.results ?? 0;
+  return typed && typed.results > 0 ? typed.spend / typed.results : null;
+}
+
 export function kpiProgress(figures: KpiFigures, kpi: KpiInput, range: { from: string; to: string }): KpiProgress {
   if (kpi.metric === MANUAL_KPI) return manualProgress(Number(kpi.value), Number(kpi.target));
   const target = targetForRange(kpi.metric, Number(kpi.target), range);
-  const actual = figures[kpiMetricDefinition(kpi.metric).figure];
+  const actual = actualOf(kpi, figures);
   if (actual === null) return { actual, target, percent: null, state: "unmeasured" };
   const better = isLowerBetter(kpi.metric) ? target - actual : actual - target;
   const state: KpiState = better > 0 ? "exceeded" : better === 0 ? "met" : "behind";

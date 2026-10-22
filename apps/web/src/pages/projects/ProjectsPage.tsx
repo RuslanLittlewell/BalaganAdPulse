@@ -8,7 +8,12 @@ import { parseSelection, useProjects } from "@/entities/project/index.js";
 import { useAuth } from "@/features/auth/index.js";
 import { EmptyState } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
-import { cn, readProjectListCollapsed, useModuleMemory, writeProjectListCollapsed } from "@/shared/lib/index.js";
+import {
+  cn,
+  readProjectListCollapsed,
+  useModuleMemory,
+  writeProjectListCollapsed,
+} from "@/shared/lib/index.js";
 
 function useRememberProjectPlace() {
   const { user } = useAuth();
@@ -16,7 +21,8 @@ function useRememberProjectPlace() {
   const remember = useModuleMemory((state) => state.rememberProjectPlace);
 
   useEffect(() => {
-    if (user && parseSelection(pathname).projectId) remember(user.id, `${pathname}${search}`);
+    if (user && parseSelection(pathname).projectId)
+      remember(user.id, `${pathname}${search}`);
   }, [user, pathname, search, remember]);
 }
 
@@ -36,13 +42,18 @@ function Unselected() {
 
 function ProjectsHome() {
   const { user } = useAuth();
-  const place = useModuleMemory((state) => (user ? state.projectPlaces[user.id] : undefined));
+  const place = useModuleMemory((state) =>
+    user ? state.projectPlaces[user.id] : undefined,
+  );
   const forget = useModuleMemory((state) => state.forgetProjectPlace);
   const projects = useProjects();
 
-  const projectId = place ? parseSelection(place.split("?")[0]).projectId : undefined;
+  const projectId = place
+    ? parseSelection(place.split("?")[0]).projectId
+    : undefined;
   const settled = projects.isSuccess && !projects.isFetching;
-  const reachable = settled && projects.data.some((project) => project.id === projectId);
+  const reachable =
+    settled && projects.data.some((project) => project.id === projectId);
 
   useEffect(() => {
     if (user && place && settled && !reachable) forget(user.id);
@@ -67,7 +78,9 @@ export function ProjectsPage() {
     <div
       className={cn(
         "grid overflow-hidden max-h-screen h-full min-h-0 gap-4 transition-[grid-template-columns] duration-200 motion-reduce:transition-none",
-        collapsed ? "lg:grid-cols-[32px_minmax(0,1fr)]" : "lg:grid-cols-[200px_minmax(0,1fr)]",
+        collapsed
+          ? "lg:grid-cols-[32px_minmax(0,1fr)]"
+          : "lg:grid-cols-[200px_minmax(0,1fr)]",
         "lg:[&>*:last-child]:border-l lg:[&>*:last-child]:border-border lg:[&>*:last-child]:pl-6",
       )}
     >
@@ -77,20 +90,30 @@ export function ProjectsPage() {
           type="button"
           onClick={toggle}
           aria-expanded={!collapsed}
-          aria-label={t(collapsed ? "projects.list.expand" : "projects.list.collapse")}
+          aria-label={t(
+            collapsed ? "projects.list.expand" : "projects.list.collapse",
+          )}
           className="absolute top-1/2 left-0 z-20 hidden h-12 w-4 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:grid"
         >
-          {collapsed
-            ? <ChevronRightIcon aria-hidden className="size-3" />
-            : <ChevronLeftIcon aria-hidden className="size-3" />}
+          {collapsed ? (
+            <ChevronRightIcon aria-hidden className="size-3" />
+          ) : (
+            <ChevronLeftIcon aria-hidden className="size-3" />
+          )}
         </button>
         <div className="h-full min-w-0 overflow-y-auto overflow-x-hidden pr-4">
           <Routes>
             <Route path="/" element={<ProjectsHome />} />
             <Route path=":projectId" element={<ProjectPage />} />
             <Route path=":projectId/documents" element={<ProjectPage />} />
-            <Route path=":projectId/documents/:documentId" element={<ProjectPage />} />
-            <Route path=":projectId/campaigns/:campaignId" element={<CampaignPage />} />
+            <Route
+              path=":projectId/documents/:documentId"
+              element={<ProjectPage />}
+            />
+            <Route
+              path=":projectId/campaigns/:campaignId"
+              element={<CampaignPage />}
+            />
           </Routes>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { isCustomer } from "@adpulse/access-policy";
-import { performanceOf } from "#modules/campaigns/index.js";
+import { performanceOf, sumByType, type MetricRepository, type ResultType } from "#modules/campaigns/index.js";
 import { isKpiMetric, MANUAL_KPI, type IsoDateRange, type KpiFigures, type KpiInput } from "#modules/kpi/index.js";
 import type {
   DueTask,
@@ -120,12 +120,15 @@ export class PrismaNotificationRecipients implements NotificationRecipients {
 const decimal = (value: Prisma.Decimal | null) => value?.toNumber() ?? 0;
 
 export class PrismaProjectKpiStandings implements ProjectKpiStandings {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly metrics: Pick<MetricRepository, "readTypedDays">,
+  ) {}
 
   async read(projectId: string, range: IsoDateRange): Promise<{ kpis: KpiInput[]; figures: KpiFigures } | null> {
     const rows = await this.prisma.projectKpi.findMany({
       where: { projectId, enabled: true, project: { kpiTracked: true } }, orderBy: { position: "asc" },
-      select: { metric: true, target: true, name: true, value: true },
+      select: { metric: true, target: true, name: true, value: true, resultType: true },
     });
     const kpis = rows.flatMap((row) => kpiOf(row) ?? []);
     if (kpis.length === 0) return null;
@@ -145,7 +148,11 @@ export class PrismaProjectKpiStandings implements ProjectKpiStandings {
       results: sums._sum.results ?? 0,
       revenue: decimal(sums._sum.revenue),
     }]);
-    return { kpis, figures };
+    const campaigns = await this.prisma.campaign.findMany({ where: { projectId }, select: { id: true, channel: true } });
+    const typedDays = await this.metrics.readTypedDays(
+      campaigns, new Date(`${range.from}T00:00:00Z`), new Date(`${range.to}T00:00:00Z`),
+    );
+    return { kpis, figures: { ...figures, resultTypes: sumByType(typedDays) } };
   }
 }
 
@@ -154,12 +161,14 @@ function kpiOf(row: {
   target: Prisma.Decimal;
   name: string | null;
   value: Prisma.Decimal | null;
+  resultType: string | null;
 }): KpiInput | null {
   const target = row.target.toFixed(4);
   if (row.metric === MANUAL_KPI) {
     return row.name !== null && row.value ? { metric: MANUAL_KPI, name: row.name, value: row.value.toFixed(4), target } : null;
   }
-  return isKpiMetric(row.metric) ? { metric: row.metric, target } : null;
+  if (!isKpiMetric(row.metric)) return null;
+  return row.resultType ? { metric: row.metric, target, resultType: row.resultType as ResultType } : { metric: row.metric, target };
 }
 
 export class PrismaKpiMonthClaims implements KpiMonthClaims {

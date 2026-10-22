@@ -281,7 +281,6 @@ export const ru = {
   "employee.access.remove.title": "Убрать доступ к проекту?",
   "employee.access.remove.body": "Сотрудник перестанет видеть проект",
   "employee.access.remove.confirm": "Убрать проект", "employee.access.none": "Проекты не назначены",
-  "employee.access.wholeClient": "все проекты клиента",
   "contacts.people": "Люди клиента", "contacts.people.empty": "У этого клиента пока нет людей",
   "contacts.people.invite": "Пригласить в компанию",
   "contacts.title": "Контактная книга", "contacts.empty": "Клиентов пока нет", "contacts.choose": "Выберите клиента слева",

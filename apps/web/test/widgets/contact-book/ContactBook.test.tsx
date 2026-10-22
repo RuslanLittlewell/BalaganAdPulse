@@ -321,7 +321,7 @@ describe("choosing which directory to show", () => {
       expect(await screen.findByTestId("employee-access")).toHaveTextContent("Летний запуск");
     });
 
-    it("shows a client-wide grant as covering the client, with nothing to remove", async () => {
+    it("shows a client-wide grant as the client's projects, with nothing to remove", async () => {
       const user = userEvent.setup();
       withDirectory();
       withAccess([{ id: "g1", clientId: "1", projectId: null }]);
@@ -329,8 +329,29 @@ describe("choosing which directory to show", () => {
       await openEmployee(user);
 
       const access = await screen.findByTestId("employee-access");
-      expect(access).toHaveTextContent("Acme");
+      const items = within(access).getAllByRole("listitem");
+      expect(items).toHaveLength(2);
+      expect(items[0]).toHaveTextContent("Летний запуск");
+      expect(items[1]).toHaveTextContent("Второй проект");
+      expect(access).not.toHaveTextContent("все проекты клиента");
       expect(within(access).queryByRole("button", { name: /Убрать/ })).toBeNull();
+    });
+
+    it("lists a project once when it is granted both by name and with its client", async () => {
+      const user = userEvent.setup();
+      withDirectory();
+      withAccess([
+        { id: "g1", clientId: "1", projectId: "project-1" },
+        { id: "g2", clientId: "1", projectId: null },
+      ]);
+
+      await openEmployee(user);
+
+      const access = await screen.findByTestId("employee-access");
+      const items = within(access).getAllByRole("listitem");
+      expect(items).toHaveLength(2);
+      expect(items[0]).toHaveTextContent("Летний запуск");
+      expect(items[1]).toHaveTextContent("Второй проект");
     });
 
     it("says so when they reach nothing", async () => {

@@ -10,8 +10,7 @@ import {
 } from "@/shared/ui/index.js";
 import { cn } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
-import { useClients } from "@/entities/client/index.js";
-import { ProjectAvatar, useProjects } from "@/entities/project/index.js";
+import { ProjectAvatar, useProjects, type Project } from "@/entities/project/index.js";
 import {
   useMemberAccess,
   useSetMemberAccess,
@@ -19,10 +18,29 @@ import {
 } from "@/entities/membership/index.js";
 import { useCan } from "@/features/permissions/index.js";
 
+interface ReachedProject {
+  grant: ClientAccessGrant;
+  project: Project;
+  removable: boolean;
+}
+
+function reachedProjects(grants: readonly ClientAccessGrant[], projects: readonly Project[]): ReachedProject[] {
+  const named = grants.flatMap((grant) => {
+    const project = grant.projectId ? projects.find((candidate) => candidate.id === grant.projectId) : undefined;
+    return project ? [{ grant, project, removable: true }] : [];
+  });
+  const namedIds = new Set(named.map(({ project }) => project.id));
+  const covered = grants
+    .filter((grant) => grant.projectId == null)
+    .flatMap((grant) => projects
+      .filter((project) => project.clientId === grant.clientId && !namedIds.has(project.id))
+      .map((project) => ({ grant, project, removable: false })));
+  return [...named, ...covered];
+}
+
 export function EmployeeAccess({ membershipId }: { membershipId: string }) {
   const grants = useMemberAccess(membershipId);
   const projects = useProjects();
-  const clients = useClients();
   const setAccess = useSetMemberAccess();
   const mayChange = useCan("update", "member");
   const [removing, setRemoving] = useState<{
@@ -33,15 +51,14 @@ export function EmployeeAccess({ membershipId }: { membershipId: string }) {
   const held = grants.data ?? [];
   const projectOf = (id: string) =>
     projects.data?.find((project) => project.id === id);
-  const clientOf = (id: string) =>
-    clients.data?.find((client) => client.id === id);
 
   const stated = (grant: ClientAccessGrant) => ({
     clientId: grant.clientId,
     projectId: grant.projectId ?? null,
   });
 
-  const granted = new Set(held.map((grant) => grant.projectId).filter(Boolean));
+  const reached = reachedProjects(held, projects.data ?? []);
+  const granted = new Set(reached.map(({ project }) => project.id));
   const available = (projects.data ?? []).filter(
     (project) => !granted.has(project.id),
   );
@@ -91,27 +108,21 @@ export function EmployeeAccess({ membershipId }: { membershipId: string }) {
         )}
       </div>
 
-      {held.length === 0 ? (
+      {reached.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">
           {t("employee.access.none")}
         </p>
       ) : (
-        <ul className="mt-3 flex flex-row gap-1.5">
-          {held.map((grant) => {
-            const project = grant.projectId
-              ? projectOf(grant.projectId)
-              : undefined;
-            const wholeClient = grant.projectId == null;
-            const label = wholeClient
-              ? `${clientOf(grant.clientId)?.name ?? ""} — ${t("employee.access.wholeClient")}`
-              : (project?.name ?? "");
+        <ul className="mt-3 flex flex-row flex-wrap gap-1.5">
+          {reached.map(({ grant, project, removable }) => {
+            const label = project.name;
 
             return (
               <li
-                key={grant.id ?? `${grant.clientId}:${grant.projectId}`}
+                key={project.id}
                 className="group relative flex min-w-0 items-center gap-2 rounded-md bg-muted/50 px-2 py-1.5"
               >
-                {mayChange && !wholeClient && (
+                {mayChange && removable && (
                   <button
                     type="button"
                     aria-label={`${t("employee.access.remove")} ${label}`}
@@ -128,9 +139,7 @@ export function EmployeeAccess({ membershipId }: { membershipId: string }) {
                 )}
 
                 <span className="relative shrink-0">
-                  {project ? (
-                    <ProjectAvatar project={project} size="sm" />
-                  ) : null}
+                  <ProjectAvatar project={project} size="sm" />
                 </span>
                 <span className="min-w-0 flex-1 truncate text-sm">{label}</span>
               </li>

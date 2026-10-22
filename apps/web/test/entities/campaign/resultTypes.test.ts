@@ -1,12 +1,10 @@
-import { formatCount } from "@/shared/lib/index.js";
 import {
+  hasMixedResults,
   mergeResultTypeFigures,
   orderedResultTypes,
-  resultsBreakdown,
+  resultTypeColumnLabel,
   resultTypeFiguresOf,
-  resultTypesText,
   totalPerformance,
-  typedCost,
   typedResults,
 } from "@/entities/campaign/index.js";
 
@@ -45,26 +43,19 @@ describe("the figures of one type", () => {
     expect(typedResults(figures, "MESSAGES")).toBe(120);
   });
 
-  it("cost its spend over its results", () => {
-    expect(typedCost(figures, "MESSAGES")).toBe(25);
-  });
-
-  it("have no cost without results", () => {
-    expect(typedCost(figures, "LEADS")).toBeNull();
-  });
-
   it("are nothing for a type the figures do not hold", () => {
     expect(typedResults(figures, "PROFILE_VISITS")).toBeNull();
-    expect(typedCost(figures, "PROFILE_VISITS")).toBeNull();
   });
 
-  it("fill a pair of columns per type", () => {
+  it("fill one column per type", () => {
     expect(resultTypeFiguresOf(figures, ["MESSAGES", "PROFILE_VISITS"])).toEqual({
       "results.MESSAGES": 120,
-      "costPerResult.MESSAGES": 25,
       "results.PROFILE_VISITS": null,
-      "costPerResult.PROFILE_VISITS": null,
     });
+  });
+
+  it("name their column after the results", () => {
+    expect(resultTypeColumnLabel("MESSAGES")).toBe("Результаты - Сообщения");
   });
 });
 
@@ -74,28 +65,22 @@ describe("ordering result types", () => {
   });
 });
 
-describe("naming result types", () => {
-  it("joins their labels", () => {
-    expect(resultTypesText(["MESSAGES", "PROFILE_VISITS"])).toBe("Сообщения, Переходы в профиль");
-  });
-});
-
-describe("listing results by type", () => {
-  it("lists each type with its count when there are two or more", () => {
-    expect(resultsBreakdown([
+describe("mixed results", () => {
+  it("are results of two or more types", () => {
+    expect(hasMixedResults([
       { type: "MESSAGES", results: 1200, spend: 0 },
       { type: "PROFILE_VISITS", results: 45, spend: 0 },
-    ])).toBe(`Сообщения: ${formatCount(1200)} · Переходы в профиль: 45`);
+    ])).toBe(true);
   });
 
-  it("lists nothing for one type", () => {
-    expect(resultsBreakdown([{ type: "MESSAGES", results: 120, spend: 0 }])).toBeUndefined();
+  it("are not results of one type", () => {
+    expect(hasMixedResults([{ type: "MESSAGES", results: 120, spend: 0 }])).toBe(false);
   });
 
-  it("ignores a type that produced nothing", () => {
-    expect(resultsBreakdown([
+  it("ignore a type that produced nothing", () => {
+    expect(hasMixedResults([
       { type: "MESSAGES", results: 120, spend: 0 },
       { type: "PROFILE_VISITS", results: 0, spend: 10 },
-    ])).toBeUndefined();
+    ])).toBe(false);
   });
 });

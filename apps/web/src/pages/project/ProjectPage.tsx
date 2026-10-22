@@ -27,8 +27,7 @@ import {
   statusLabel,
   orderedResultTypes,
   resultTypeFiguresOf,
-  resultsBreakdown,
-  resultTypesText,
+  hasMixedResults,
   totalPerformance,
   useProjectCampaigns,
   useProjectSummary,
@@ -173,11 +172,8 @@ export function ProjectPage() {
     name: campaign.name,
     note: `${channelLabel(campaign.channel)} · ${statusLabel(campaign.status)}`,
     performance: campaign.performance,
-    extra: {
-      resultType: resultTypesText(campaign.resultTypes) || "—",
-      ...resultTypeFiguresOf(campaign.performance, offeredTypes),
-    },
-    resultsBreakdown: resultsBreakdown(campaign.performance.resultTypes),
+    extra: resultTypeFiguresOf(campaign.performance, offeredTypes),
+    mixedResults: hasMixedResults(campaign.performance.resultTypes),
     tone: campaignTone(campaign, projectKpis.data, range),
   }));
   const totals = totalPerformance(listed.map((campaign) => campaign.performance));
@@ -290,11 +286,8 @@ export function ProjectPage() {
                 rows={rows}
                 visibleRows={10}
                 totals={totals}
-                totalsExtra={{
-                  resultType: resultTypesText(orderedResultTypes(listed.flatMap((campaign) => campaign.resultTypes))) || "—",
-                  ...resultTypeFiguresOf(totals, offeredTypes),
-                }}
-                totalsResultsBreakdown={resultsBreakdown(totals.resultTypes)}
+                totalsExtra={resultTypeFiguresOf(totals, offeredTypes)}
+                totalsMixedResults={hasMixedResults(totals.resultTypes)}
                 extraColumns={resultTypeColumns(offeredTypes)}
                 currency={project.budgetCurrency}
                 empty={

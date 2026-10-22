@@ -9,7 +9,6 @@ import {
   campaignsApi,
   channelLabel,
   resultTypeFiguresOf,
-  resultTypeLabel,
   statusLabel,
   useAdSets,
   useCampaign,
@@ -82,14 +81,14 @@ export function CampaignPage() {
       .filter(Boolean)
       .join(" · "),
     performance: adSet.performance,
-    extra: { resultType: resultTypeLabel(adSet.resultType), ...resultTypeFiguresOf(adSet.performance, offeredTypes) },
+    extra: resultTypeFiguresOf(adSet.performance, offeredTypes),
     expandable: true,
     children: (adsBySet.get(adSet.id) ?? []).map((ad) => ({
       id: ad.id,
       name: ad.name,
       note: [ad.format, statusLabel(ad.status)].filter(Boolean).join(" · "),
       performance: ad.performance,
-      extra: { resultType: resultTypeLabel(ad.resultType), ...resultTypeFiguresOf(ad.performance, offeredTypes) },
+      extra: resultTypeFiguresOf(ad.performance, offeredTypes),
     })),
   }));
 

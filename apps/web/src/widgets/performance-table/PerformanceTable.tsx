@@ -60,7 +60,7 @@ export interface PerformanceRow {
   children?: PerformanceRow[];
   expandable?: boolean;
   extra?: Record<string, number | string | null>;
-  resultsBreakdown?: string;
+  mixedResults?: boolean;
 }
 
 export interface ExtraColumn {
@@ -76,7 +76,7 @@ export interface PerformanceTableProps {
   rows: PerformanceRow[];
   totals?: Performance;
   totalsExtra?: Record<string, number | string | null>;
-  totalsResultsBreakdown?: string;
+  totalsMixedResults?: boolean;
   currency?: Currency;
   onOpen?: (id: string) => void;
   onExpandedChange?: (ids: ReadonlySet<string>) => void;
@@ -185,7 +185,7 @@ interface FigureColumn {
     performance: Performance,
     currency: Currency,
     extra?: Record<string, number | string | null>,
-    breakdown?: string,
+    mixedResults?: boolean,
   ) => ReactNode;
 }
 
@@ -194,13 +194,13 @@ function Figures({
   currency,
   figures,
   extra,
-  breakdown,
+  mixedResults,
 }: {
   performance: Performance;
   currency: Currency;
   figures: readonly FigureColumn[];
   extra?: Record<string, number | string | null>;
-  breakdown?: string;
+  mixedResults?: boolean;
 }) {
   return (
     <>
@@ -209,7 +209,7 @@ function Figures({
           key={column.id}
           className="overflow-hidden text-right tabular-nums whitespace-nowrap last:pr-5"
         >
-          {column.value(performance, currency, extra, breakdown)}
+          {column.value(performance, currency, extra, mixedResults)}
         </TableCell>
       ))}
     </>
@@ -394,7 +394,7 @@ export function PerformanceTable({
   rows,
   totals,
   totalsExtra,
-  totalsResultsBreakdown,
+  totalsMixedResults,
   currency = "RUB",
   onOpen,
   onExpandedChange,
@@ -431,9 +431,8 @@ export function PerformanceTable({
     ...METRIC_COLUMNS.map((column) => ({
       id: column.id,
       label: column.label,
-      value: (performance: Performance, figureCurrency: Currency, _?: unknown, breakdown?: string) => {
-        if (breakdown != null && column.id === "results") return breakdown;
-        if (breakdown != null && column.id === "costPerResult") return "—";
+      value: (performance: Performance, figureCurrency: Currency, _?: unknown, mixedResults?: boolean) => {
+        if (mixedResults && column.id === "costPerResult") return "—";
         return column.format(performance, figureCurrency);
       },
     })),
@@ -506,7 +505,7 @@ export function PerformanceTable({
         <Figures
           figures={figures}
           extra={row.extra ?? {}}
-          breakdown={row.resultsBreakdown}
+          mixedResults={row.mixedResults}
           performance={row.performance}
           currency={row.currency ?? currency}
         />
@@ -662,7 +661,7 @@ export function PerformanceTable({
               <Figures
                 figures={figures}
                 extra={totalsExtra}
-                breakdown={totalsResultsBreakdown}
+                mixedResults={totalsMixedResults}
                 performance={totals}
                 currency={currency}
               />

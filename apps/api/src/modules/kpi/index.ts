@@ -6,4 +6,5 @@ export { kpiDoc } from './presentation/http/kpi-openapi.js';
 export { isKpiGreen, kpiPercent, monthToDate, targetForRange } from './domain/progress.js';
 export type { IsoDateRange, KpiFigure, KpiFigures } from './domain/progress.js';
 export { isKpiMetric, MANUAL_KPI } from './domain/kpi.js';
-export type { KpiInput, KpiMetric } from './domain/kpi.js';
+export { MAX_PROJECT_KPIS } from './domain/kpi.js';
+export type { KpiInput, KpiMetric, ProjectKpi } from './domain/kpi.js';

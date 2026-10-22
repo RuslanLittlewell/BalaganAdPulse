@@ -1,4 +1,4 @@
-import { formatDay, nextDay, shiftDays, todayIso } from "@/shared/lib/format.js";
+import { formatDateTime, formatDay, nextDay, shiftDays, todayIso } from "@/shared/lib/format.js";
 
 describe("formatDay", () => {
   it("renders an ISO date as day and short month", () => {
@@ -46,5 +46,11 @@ describe("shiftDays", () => {
     expect(shiftDays("2026-08-31", 1)).toBe("2026-09-01");
     expect(shiftDays("2026-01-01", -1)).toBe("2025-12-31");
     expect(shiftDays("2024-02-28", 1)).toBe("2024-02-29");
+  });
+});
+
+describe("formatDateTime", () => {
+  it("shows the day and the time to the minute, without seconds", () => {
+    expect(formatDateTime(new Date(2026, 9, 22, 8, 5, 41).toISOString())).toBe("22.10.2026, 08:05");
   });
 });

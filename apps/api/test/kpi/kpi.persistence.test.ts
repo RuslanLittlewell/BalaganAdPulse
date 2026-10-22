@@ -16,30 +16,31 @@ describe("KPI storage", () => {
     const campaign = await seedCampaign(projectId);
 
     expect(await prisma.organization.findUniqueOrThrow({ where: { id: (await currentOrg()).id } })).toMatchObject({ kpiMetric: null, kpiTarget: null, kpiUpdatedAt: null });
-    expect(await prisma.project.findUniqueOrThrow({ where: { id: projectId } })).toMatchObject({ kpiMetric: null, kpiTarget: null });
+    expect(await prisma.projectKpi.count({ where: { projectId } })).toBe(0);
     expect(await prisma.campaign.findUniqueOrThrow({ where: { id: campaign.id } })).toMatchObject({ kpiMetric: null, kpiTarget: null });
   });
 
-  it("refuses a metric without a target and a target without a metric", async () => {
+  it("refuses a metric without a target on an organization or a campaign", async () => {
     const member = await signInAs();
     const { projectId } = await seedProject(member.user.id);
+    const campaign = await seedCampaign(projectId);
+    const where = { id: campaign.id };
 
-    await expect(prisma.project.update({ where: { id: projectId }, data: { kpiMetric: "CONVERSIONS" } })).rejects.toThrow();
-    await expect(prisma.project.update({ where: { id: projectId }, data: { kpiTarget: "50" } })).rejects.toThrow();
-    await expect(prisma.project.update({ where: { id: projectId }, data: { kpiMetric: "CONVERSIONS", kpiTarget: "50", kpiUpdatedAt: new Date() } })).resolves.toMatchObject({ kpiMetric: "CONVERSIONS" });
+    await expect(prisma.campaign.update({ where, data: { kpiMetric: "CONVERSIONS" } })).rejects.toThrow();
+    await expect(prisma.campaign.update({ where, data: { kpiTarget: "50" } })).rejects.toThrow();
+    await expect(prisma.campaign.update({ where, data: { kpiMetric: "CONVERSIONS", kpiTarget: "50", kpiUpdatedAt: new Date() } })).resolves.toMatchObject({ kpiMetric: "CONVERSIONS" });
   });
 
-  it("keeps a project's name and value with a KPI set by hand and nowhere else", async () => {
+  it("keeps a project KPI's name and value with a KPI set by hand and nowhere else", async () => {
     const member = await signInAs();
     const { projectId } = await seedProject(member.user.id);
-    const where = { id: projectId };
-    const manual = { kpiMetric: "MANUAL", kpiTarget: "50", kpiUpdatedAt: new Date() } as const;
+    const base = { projectId, position: 0, target: "50", updatedAt: new Date() };
 
-    await expect(prisma.project.update({ where, data: manual })).rejects.toThrow();
-    await expect(prisma.project.update({ where, data: { ...manual, kpiName: "Продажи" } })).rejects.toThrow();
-    await expect(prisma.project.update({ where, data: { kpiMetric: "CONVERSIONS", kpiTarget: "50", kpiName: "Продажи", kpiValue: "1" } })).rejects.toThrow();
-    await expect(prisma.project.update({ where, data: { ...manual, kpiName: "Продажи", kpiValue: "30" } }))
-      .resolves.toMatchObject({ kpiMetric: "MANUAL", kpiName: "Продажи" });
+    await expect(prisma.projectKpi.create({ data: { ...base, metric: "MANUAL" } })).rejects.toThrow();
+    await expect(prisma.projectKpi.create({ data: { ...base, metric: "MANUAL", name: "Продажи" } })).rejects.toThrow();
+    await expect(prisma.projectKpi.create({ data: { ...base, metric: "CONVERSIONS", name: "Продажи", value: "1" } })).rejects.toThrow();
+    await expect(prisma.projectKpi.create({ data: { ...base, metric: "MANUAL", name: "Продажи", value: "30" } }))
+      .resolves.toMatchObject({ metric: "MANUAL", name: "Продажи", enabled: true });
   });
 
   it("refuses a KPI set by hand on a campaign or the organization", async () => {
@@ -60,9 +61,12 @@ describe("KPI storage", () => {
     await prisma.organization.update({ where: { id: orgId }, data: { kpiMetric: "SPEND", kpiTarget: "1000", kpiUpdatedAt: new Date() } });
     await prisma.campaign.update({ where: { id: campaign.id }, data: { kpiMetric: "CPA", kpiTarget: "20", kpiUpdatedAt: new Date() } });
 
+    await prisma.projectKpi.create({ data: { projectId, position: 0, metric: "CONVERSIONS", target: "50", updatedAt: new Date() } });
+
     await prisma.project.delete({ where: { id: projectId } });
 
     expect(await prisma.campaign.count()).toBe(0);
+    expect(await prisma.projectKpi.count()).toBe(0);
     expect(await prisma.organization.findUniqueOrThrow({ where: { id: orgId } })).toMatchObject({ kpiMetric: "SPEND" });
   });
 
@@ -99,6 +103,37 @@ it("applies the KPI migration to populated tables without changing their rows", 
       const rows = await tx.$queryRawUnsafe<Array<Record<string, unknown>>>(`SELECT id, name, kpi_metric, kpi_target, kpi_updated_at FROM ${table}`);
       expect(rows).toEqual([expect.objectContaining({ kpi_metric: null, kpi_target: null, kpi_updated_at: null })]);
     }
+    await tx.$executeRawUnsafe(`DROP SCHEMA "${schema}" CASCADE`);
+  });
+});
+
+it("moves each project's KPI into the project KPI table and drops the old columns", async () => {
+  const schema = `migration_${randomUUID().replaceAll("-", "")}`;
+  const sql = readFileSync(new URL("../../prisma/migrations/20261022120000_project_kpis/migration.sql", import.meta.url), "utf8");
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`CREATE SCHEMA "${schema}"`);
+    await tx.$executeRawUnsafe(`SET LOCAL search_path TO "${schema}"`);
+    await tx.$executeRawUnsafe("CREATE TYPE kpi_metric AS ENUM ('CONVERSIONS', 'MANUAL')");
+    await tx.$executeRawUnsafe(`CREATE TABLE project (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, kpi_metric kpi_metric, kpi_target DECIMAL(18,4),
+      kpi_name TEXT, kpi_value DECIMAL(18,4), kpi_updated_at TIMESTAMP(3))`);
+    await tx.$executeRaw`INSERT INTO project (id, name, kpi_metric, kpi_target, kpi_updated_at)
+      VALUES ('measured', 'Clinic', 'CONVERSIONS', 50, '2026-10-01T10:00:00Z')`;
+    await tx.$executeRaw`INSERT INTO project (id, name, kpi_metric, kpi_target, kpi_name, kpi_value, kpi_updated_at)
+      VALUES ('manual', 'Studio', 'MANUAL', 40, 'Продажи', 12, '2026-10-02T10:00:00Z')`;
+    await tx.$executeRaw`INSERT INTO project (id, name) VALUES ('bare', 'Garage')`;
+
+    for (const statement of sql.split(";").filter((part) => part.trim())) await tx.$executeRawUnsafe(statement);
+
+    const kpis = await tx.$queryRawUnsafe<Array<Record<string, unknown>>>(
+      "SELECT project_id, position, metric::text, target::text, name, value::text, enabled FROM project_kpi ORDER BY project_id");
+    expect(kpis).toEqual([
+      { project_id: "manual", position: 0, metric: "MANUAL", target: "40.0000", name: "Продажи", value: "12.0000", enabled: true },
+      { project_id: "measured", position: 0, metric: "CONVERSIONS", target: "50.0000", name: null, value: null, enabled: true },
+    ]);
+    const columns = await tx.$queryRawUnsafe<Array<{ column_name: string }>>(
+      `SELECT column_name FROM information_schema.columns WHERE table_schema = '${schema}' AND table_name = 'project' ORDER BY column_name`);
+    expect(columns.map((column) => column.column_name)).toEqual(["id", "name"]);
     await tx.$executeRawUnsafe(`DROP SCHEMA "${schema}" CASCADE`);
   });
 });

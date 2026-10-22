@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type ReactNode, type UIEvent } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject, type UIEvent } from "react";
 import {
   ChevronRightIcon,
   EllipsisVerticalIcon,
@@ -41,6 +41,7 @@ import {
   MIN_NAME_WIDTH,
   MIN_VISIBLE_COLUMNS,
   columnWidth,
+  fitWidths,
   isRequiredColumn,
   orderedColumnIds,
   useColumnWidths,
@@ -58,12 +59,14 @@ export interface PerformanceRow {
   currency?: Currency;
   children?: PerformanceRow[];
   expandable?: boolean;
-  extra?: Record<string, number>;
+  extra?: Record<string, number | null>;
 }
 
 export interface ExtraColumn {
   id: string;
   label: string;
+  format?: (value: number) => string;
+  shown?: boolean;
 }
 
 export interface PerformanceTableProps {
@@ -156,13 +159,29 @@ function useRowWindow(total: number, limit: number | undefined) {
   };
 }
 
+const RESERVED_COLUMN_WIDTH = 40;
+
+function useAvailableWidth(scroller: RefObject<HTMLDivElement | null>, active: boolean): number {
+  const [available, setAvailable] = useState(0);
+  useLayoutEffect(() => {
+    const element = scroller.current;
+    if (!active || !element) return;
+    const measure = () => setAvailable(element.clientWidth);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [scroller, active]);
+  return available;
+}
+
 interface FigureColumn {
   id: string;
   label: string;
   value: (
     performance: Performance,
     currency: Currency,
-    extra?: Record<string, number>,
+    extra?: Record<string, number | null>,
   ) => ReactNode;
 }
 
@@ -175,7 +194,7 @@ function Figures({
   performance: Performance;
   currency: Currency;
   figures: readonly FigureColumn[];
-  extra?: Record<string, number>;
+  extra?: Record<string, number | null>;
 }) {
   return (
     <>
@@ -397,7 +416,8 @@ export function PerformanceTable({
   );
   const toggleColumn = useColumnWidths((state) => state.toggleColumn);
   const extraIds = extraColumns.map((column) => column.id);
-  const visibleIds = visibleColumnIds(savedColumns, extraIds);
+  const shownExtraIds = extraColumns.filter((column) => column.shown).map((column) => column.id);
+  const visibleIds = visibleColumnIds(savedColumns, extraIds, shownExtraIds);
   const allFigures: FigureColumn[] = [
     ...METRIC_COLUMNS.map((column) => ({
       id: column.id,
@@ -408,8 +428,12 @@ export function PerformanceTable({
     ...extraColumns.map((column) => ({
       id: column.id,
       label: column.label,
-      value: (_: Performance, __: Currency, extra?: Record<string, number>) =>
-        extra == null ? null : formatCount(extra[column.id] ?? 0),
+      value: (_: Performance, __: Currency, extra?: Record<string, number | null>) => {
+        if (extra == null) return null;
+        const value = extra[column.id] ?? null;
+        if (column.format == null) return formatCount(value ?? 0);
+        return value === null ? "—" : column.format(value);
+      },
     })),
   ];
   const figureIds = allFigures.map((column) => column.id);
@@ -417,7 +441,12 @@ export function PerformanceTable({
     .filter((id) => visibleIds.includes(id))
     .map((id) => allFigures.find((column) => column.id === id)!);
   const shownFigureIds = figures.map((column) => column.id);
-  const widthOf = (id: string) => columnWidth(savedWidths?.[id]);
+  const available = useAvailableWidth(rowWindow.scroller, !(rows.length === 0 && empty != null));
+  const fitted = fitWidths(
+    figures.map((column) => columnWidth(savedWidths?.[column.id])),
+    available - nameWidth - RESERVED_COLUMN_WIDTH,
+  );
+  const widthOf = (id: string) => fitted[shownFigureIds.indexOf(id)] ?? columnWidth(savedWidths?.[id]);
   const move = (id: string, direction: MoveDirection) =>
     moveColumn(tableKey, id, direction, shownFigureIds, figureIds);
   const choices = [...METRIC_COLUMNS, ...extraColumns]
@@ -492,8 +521,8 @@ export function PerformanceTable({
         style={{
           width:
             nameWidth +
-            figures.reduce((sum, column) => sum + widthOf(column.id), 0) +
-            40,
+            fitted.reduce((sum, width) => sum + width, 0) +
+            RESERVED_COLUMN_WIDTH,
           minWidth: "100%",
         }}
       >
@@ -502,7 +531,7 @@ export function PerformanceTable({
           {figures.map((column) => (
             <col key={column.id} style={{ width: widthOf(column.id) }} />
           ))}
-          <col style={{ width: 40 }} />
+          <col style={{ width: RESERVED_COLUMN_WIDTH }} />
         </colgroup>
         <TableHeader className="sticky top-0 z-20 [&_th]:backdrop-blur-xl">
           <TableRow aria-rowindex={rowWindow.windowed ? 1 : undefined} className="bg-muted/50 hover:bg-muted/50">
@@ -591,7 +620,7 @@ export function PerformanceTable({
                       }
                       onSelect={(event) => event.preventDefault()}
                       onCheckedChange={() =>
-                        toggleColumn(tableKey, column.id, extraIds)
+                        toggleColumn(tableKey, column.id, extraIds, shownExtraIds)
                       }
                     >
                       {column.label}

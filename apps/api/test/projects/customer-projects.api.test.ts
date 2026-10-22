@@ -24,6 +24,41 @@ async function customer(role: "CLIENT" | "CLIENT_ADMIN" = "CLIENT") {
   return member.auth;
 }
 
+describe("whether a project's KPIs are tracked", () => {
+  const patch = (auth: { Authorization: string }, body: object) =>
+    request(app).patch(`/api/projects/${projectId}`).set(auth).send(body);
+
+  it("is on for a new project and shown in its record", async () => {
+    const read = await request(app).get(`/api/projects/${projectId}`).set(admin);
+
+    expect(read.body).toMatchObject({ kpiTracked: true });
+  });
+
+  it("is turned off and on by staff who may change KPIs", async () => {
+    const manager = await signInAs("Manager", { role: "MANAGER" });
+    await grantAccess(manager.membership!.id, clientId);
+
+    const off = await patch(manager.auth, { kpiTracked: false });
+    expect(off.status).toBe(200);
+    expect(off.body).toMatchObject({ kpiTracked: false, name: "Клиника" });
+    expect((await request(app).get(`/api/projects/${projectId}`).set(admin)).body).toMatchObject({ kpiTracked: false });
+
+    expect((await patch(admin, { kpiTracked: true })).body).toMatchObject({ kpiTracked: true });
+  });
+
+  it("is refused to a customer who may edit the project, whose other changes still go through", async () => {
+    const auth = await customer("CLIENT_ADMIN");
+
+    expect((await patch(auth, { kpiTracked: false })).status).toBe(403);
+    expect((await request(app).get(`/api/projects/${projectId}`).set(admin)).body).toMatchObject({ kpiTracked: true });
+    expect((await patch(auth, { name: "Новое имя" })).status).toBe(200);
+  });
+
+  it("refuses a value that is not true or false", async () => {
+    expect((await patch(admin, { kpiTracked: "no" })).status).toBe(400);
+  });
+});
+
 describe("a customer managing their client's projects", () => {
   it.each(["CLIENT", "CLIENT_ADMIN"] as const)("lets a %s create a project the agency then sees", async (role) => {
     const auth = await customer(role);
@@ -79,8 +114,8 @@ describe("a customer managing their client's projects", () => {
     expect((await request(app).post(`/api/projects/${projectId}/integrations/meta`).set(auth).send({ accountId: "123", token: "secret" })).status).toBe(403);
     expect((await request(app).patch(someConnection).set(auth).send({ leadsEnabled: false })).status).toBe(403);
     expect((await request(app).post(`${someConnection}/sync`).set(auth)).status).toBe(403);
-    expect((await request(app).put(`/api/projects/${projectId}/kpi`).set(auth).send({ metric: "CONVERSIONS", target: "10" })).status).toBe(403);
+    expect((await request(app).put(`/api/projects/${projectId}/kpis`).set(auth).send([{ metric: "CONVERSIONS", target: "10" }])).status).toBe(403);
     expect((await request(app).put(`/api/campaigns/${campaign.id}/kpi`).set(auth).send({ metric: "CPA", target: "10" })).status).toBe(403);
-    expect((await request(app).get(`/api/projects/${projectId}/kpi`).set(auth)).status).toBe(200);
+    expect((await request(app).get(`/api/projects/${projectId}/kpis`).set(auth)).status).toBe(200);
   });
 });

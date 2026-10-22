@@ -37,7 +37,7 @@ it("refreshes manually, displays success and disconnects while leaving dashboard
   expect(refresh).toBeDisabled();
   await userEvent.click(refresh);
   expect(refreshes).toBe(1);
-  await userEvent.click(screen.getByRole("button", { name: "Meta API" }));
+  await userEvent.click(screen.getByRole("button", { name: "API" }));
   expect(screen.getByLabelText("Account ID")).toHaveValue("123");
   expect(screen.getByLabelText("Токен доступа")).toHaveValue("");
   await userEvent.click(screen.getByRole("button", { name: "Отключить" }));
@@ -47,7 +47,7 @@ it("shows Russian errors without echoing provider text and permits token replace
   server.use(http.get(list, () => HttpResponse.json([{ ...connected, status: "AUTH_REQUIRED", lastError: "TOKEN" }])), http.put(path, () => HttpResponse.json({ error: { message: "raw-secret", details: [{ code: "TOKEN" }] } }, { status: 400 })));
   renderWithProviders(<MetaIntegration projectId="p1" />);
   expect(await screen.findByText("Токен недействителен или истёк. Вставьте новый токен." )).toBeInTheDocument();
-  await userEvent.click(screen.getByRole("button", { name: "Meta API" }));
+  await userEvent.click(screen.getByRole("button", { name: "API" }));
   await userEvent.type(screen.getByLabelText("Токен доступа"), "replacement");
   await userEvent.click(screen.getByRole("button", { name: "Сохранить" }));
   await waitFor(() => expect(screen.getAllByRole("alert").length).toBeGreaterThan(0));
@@ -57,7 +57,7 @@ it("does not fetch or show connection settings for guests", async () => {
   let reads = 0;
   server.use(http.get("/api/auth/me", () => HttpResponse.json({ user: { id: "u", name: "Guest", email: "g@example.com" }, organization: { id: "o", name: "O", slug: "o" }, role: "GUEST", clientIds: [] })), http.get(list, () => { reads++; return HttpResponse.json([connected]); }));
   renderWithProviders(<MetaIntegration projectId="p1" />);
-  await waitFor(() => expect(screen.queryByRole("button", { name: "Meta API" })).not.toBeInTheDocument());
+  await waitFor(() => expect(screen.queryByRole("button", { name: "API" })).not.toBeInTheDocument());
   expect(screen.queryByRole("button", { name: "Добавить интеграцию" })).toBeNull();
   expect(reads).toBe(0);
 });
@@ -91,7 +91,7 @@ describe("the Meta panel at rest", () => {
     renderWithProviders(<MetaIntegration projectId="p1" />);
 
     const panel = await screen.findByRole("region", { name: "Meta · Facebook Ads" });
-    expect(await within(panel).findByText(/^Проверка лидов:/)).toBeInTheDocument();
+    expect(await within(panel).findByText(/^Лиды:/)).toBeInTheDocument();
     expect(within(panel).getByText(/^Обновление:/)).toBeInTheDocument();
     expect(within(panel).getByRole("heading", { name: "Meta · Facebook Ads" })).toBeInTheDocument();
     expect(within(panel).queryByText("Автообновление каждый день в 08:00")).not.toBeInTheDocument();
@@ -125,7 +125,7 @@ describe("the Meta panel at rest", () => {
     renderWithProviders(<MetaIntegration projectId="p1" />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Не удалось загрузить лиды из Meta. Повторим при следующей проверке.");
-    expect(screen.getByText(/^Проверка лидов:/)).toBeInTheDocument();
+    expect(screen.getByText(/^Лиды:/)).toBeInTheDocument();
     expect(screen.queryByText(/Лиды из форм/)).not.toBeInTheDocument();
   });
 
@@ -156,7 +156,7 @@ it("keeps the Meta panel from a client who may edit the project", async () => {
   );
   renderWithProviders(<MetaIntegration projectId="p1" />);
 
-  await waitFor(() => expect(screen.queryByRole("button", { name: "Meta API" })).not.toBeInTheDocument());
+  await waitFor(() => expect(screen.queryByRole("button", { name: "API" })).not.toBeInTheDocument());
   await new Promise((resolve) => setTimeout(resolve, 50));
   expect(reads).toBe(0);
 });
@@ -275,7 +275,7 @@ describe("the lead import switch", () => {
       http.patch(path, async ({ request }) => { sent = await request.json(); return HttpResponse.json({ ...connected, leadsEnabled: false }); }),
     );
     renderWithProviders(<MetaIntegration projectId="p1" />);
-    await userEvent.click(await screen.findByRole("button", { name: "Meta API" }));
+    await userEvent.click(await screen.findByRole("button", { name: "API" }));
 
     const toggle = screen.getByRole("switch", { name: "Загружать лиды для CRM" });
     expect(toggle).toBeChecked();

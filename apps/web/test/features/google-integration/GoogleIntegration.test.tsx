@@ -183,7 +183,7 @@ describe("a Google connection's panel", () => {
     renderWithProviders(<MetaIntegration projectId="p1" />, { route: "/projects/p1" });
 
     expect(await screen.findByText("Доступ Google отозван или истёк. Войдите через Google заново.")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Google Ads API" }));
+    await userEvent.click(screen.getByRole("button", { name: "API" }));
     expect(screen.queryByLabelText(/токен/i)).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Войти заново" }));
 
@@ -199,7 +199,7 @@ describe("a Google connection's panel", () => {
     );
     renderWithProviders(<MetaIntegration projectId="p1" />, { route: "/projects/p1" });
 
-    await userEvent.click(await screen.findByRole("button", { name: "Google Ads API" }));
+    await userEvent.click(await screen.findByRole("button", { name: "API" }));
     await userEvent.click(screen.getByRole("button", { name: "Отключить" }));
 
     await waitFor(() => expect(removed).toBe(true));

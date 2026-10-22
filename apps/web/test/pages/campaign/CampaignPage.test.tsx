@@ -113,7 +113,7 @@ describe("CampaignPage", () => {
 
   it("shows the tiles chosen for its project and nothing to configure", async () => {
     api({ summaryTiles: ["CLICKS", "CONVERSIONS", "KPI"] });
-    server.use(mock.get("/api/projects/:projectId/kpi", () => HttpResponse.json(null)));
+    server.use(mock.get("/api/projects/:projectId/kpis", () => HttpResponse.json([])));
     renderWithProviders(<App />, route);
 
     const summary = await screen.findByRole("group", { name: "Показатели за период" });
@@ -126,8 +126,8 @@ describe("CampaignPage", () => {
     api({ summaryTiles: ["KPI"] });
     let campaignKpiAsked = false;
     server.use(
-      mock.get("/api/projects/p1/kpi", () =>
-        HttpResponse.json({ metric: "CONVERSIONS", target: "60.0000", updatedAt: "2026-09-14T10:00:00.000Z" })),
+      mock.get("/api/projects/p1/kpis", () =>
+        HttpResponse.json([{ id: "k1", metric: "CONVERSIONS", target: "60.0000", enabled: true, updatedAt: "2026-09-14T10:00:00.000Z" }])),
       mock.get("/api/campaigns/:campaignId/kpi", () => {
         campaignKpiAsked = true;
         return HttpResponse.json(null);

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckIcon, RefreshCwIcon } from "lucide-react";
-import { ApiError, http } from "@/shared/lib/index.js";
+import { ApiError, formatDateTime, http } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import {
   AddTile,
@@ -255,14 +255,14 @@ function MetaConnectionCard({ projectId, connection }: { projectId: string; conn
 
   return (
     <section
-      className="flex flex-wrap w-min items-center justify-between gap-3 rounded-lg border border-border glass-card p-4"
+      className="flex w-min flex-col justify-between gap-3 rounded-lg border border-border glass-card p-4"
       aria-label={t("meta.title")}
     >
       <div className="grid gap-1">
         <h2 className="text-sm font-semibold">{t("meta.title")}</h2>
         {connection.lastSuccessAt && (
           <p className="text-xs text-muted-foreground">
-            {t("meta.lastSuccess")} {new Date(connection.lastSuccessAt).toLocaleString("ru-RU")}
+            {t("meta.lastSuccess")} {formatDateTime(connection.lastSuccessAt)}
           </p>
         )}
         {connection.lastError && (
@@ -270,7 +270,7 @@ function MetaConnectionCard({ projectId, connection }: { projectId: string; conn
         )}
         {leads?.lastSuccessAt && (
           <p className="text-xs text-muted-foreground">
-            {t("meta.leads.lastSuccess")} {new Date(leads.lastSuccessAt).toLocaleString("ru-RU")}
+            {t("meta.leads.lastSuccess")} {formatDateTime(leads.lastSuccessAt)}
           </p>
         )}
         {leadFailure && (

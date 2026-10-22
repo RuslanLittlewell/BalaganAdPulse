@@ -9,6 +9,7 @@ export interface Project {
   image: string | null;
   avatarPath: string | null;
   position: number;
+  kpiTracked: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -17,6 +18,7 @@ export interface ProjectInput {
   clientId?: string;
   name?: string;
   memberIds?: string[];
+  kpiTracked?: boolean;
 }
 
 export const projectsApi = {

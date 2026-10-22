@@ -1,5 +1,5 @@
 import type { MessageKey } from "@/shared/config/index.js";
-import { MANUAL_KPI, type KpiInput, type KpiMetric } from "../api/api.js";
+import { kpiInputOf, MANUAL_KPI, type CarriedKpi, type KpiInput, type KpiMetric } from "../api/api.js";
 
 export type KpiFigure =
   | "spend" | "impressions" | "reach" | "clicks" | "conversions" | "results" | "revenue"
@@ -80,4 +80,26 @@ export function kpiProgress(figures: KpiFigures, kpi: KpiInput, range: { from: s
     ? (actual === 0 ? null : (target / actual) * 100)
     : (actual / target) * 100;
   return { actual, target, percent, state };
+}
+
+export function enabledKpis(kpis: readonly CarriedKpi[] | null | undefined, withManual = true): KpiInput[] {
+  return (kpis ?? []).flatMap((carried) => {
+    const kpi = carried.enabled === false ? null : kpiInputOf(carried);
+    return kpi && (withManual || kpi.metric !== MANUAL_KPI) ? [kpi] : [];
+  });
+}
+
+export function leastMetProgress(
+  kpis: readonly CarriedKpi[] | null | undefined,
+  figures: KpiFigures,
+  range: { from: string; to: string },
+  withManual = true,
+): KpiProgress | null {
+  let least: KpiProgress | null = null;
+  for (const kpi of enabledKpis(kpis, withManual)) {
+    const progress = kpiProgress(figures, kpi, range);
+    if (progress.percent === null) continue;
+    if (least === null || progress.percent < least.percent!) least = progress;
+  }
+  return least;
 }

@@ -2,7 +2,7 @@ import { Router, type Request } from 'express';
 import { AppError } from '#shared/domain/index.js';
 import type { KpiLevel } from '#modules/kpi/domain/kpi.js';
 import type { KpiUseCases } from '#modules/kpi/application/kpi-use-cases.js';
-import { kpiInputSchema } from './kpi-schemas.js';
+import { kpiInputSchema, projectKpiListSchema } from './kpi-schemas.js';
 
 export function createKpiRouter(kpis: KpiUseCases) {
   const router = Router();
@@ -12,7 +12,6 @@ export function createKpiRouter(kpis: KpiUseCases) {
   };
   const levels: Array<[string, (req: Request<{ id?: string }>) => KpiLevel]> = [
     ['/organization/kpi', () => ({ kind: 'organization' })],
-    ['/projects/:id/kpi', (req) => ({ kind: 'project', id: req.params.id! })],
     ['/campaigns/:id/kpi', (req) => ({ kind: 'campaign', id: req.params.id! })],
   ];
   for (const [path, levelOf] of levels) {
@@ -23,5 +22,9 @@ export function createKpiRouter(kpis: KpiUseCases) {
     });
     router.delete(path, async (req, res) => { await kpis.clear(actor(req), levelOf(req)); res.status(204).end(); });
   }
+  router.get('/projects/:id/kpis', async (req, res) => { res.json(await kpis.listProject(actor(req), req.params.id)); });
+  router.put('/projects/:id/kpis', async (req, res) => {
+    res.json(await kpis.replaceProject(actor(req), req.params.id, projectKpiListSchema.parse(req.body)));
+  });
   return router;
 }

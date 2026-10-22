@@ -30,7 +30,7 @@ export interface CreativeStorage {
 
 export interface ReachableProject {
   readonly id: string;
-  readonly kpi: ProjectKpi | null;
+  readonly kpis: ProjectKpi[];
 }
 
 export interface ProjectReach {

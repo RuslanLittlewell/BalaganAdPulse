@@ -20,7 +20,7 @@ const figures: KpiFigures = {
 function fixture(options: {
   staff?: string[];
   members?: Array<{ id: string; customer: boolean }>;
-  kpi?: KpiInput | null;
+  kpis?: KpiInput[];
   conversions?: number;
   now?: Date;
   unread?: string[];
@@ -62,8 +62,8 @@ function fixture(options: {
     standings: {
       read: async (projectId, range) => {
         readsAsked.push({ projectId, range });
-        const kpi = options.kpi === undefined ? { metric: "CONVERSIONS", target: "62.0000" } as const : options.kpi;
-        return kpi ? { kpi, figures: { ...figures, conversions: options.conversions ?? 30 } } : null;
+        const kpis = options.kpis ?? [{ metric: "CONVERSIONS", target: "62.0000" } as const];
+        return kpis.length > 0 ? { kpis, figures: { ...figures, conversions: options.conversions ?? 30 } } : null;
       },
     },
     claims: {
@@ -285,11 +285,24 @@ describe("a project's KPI being met", () => {
   });
 
   it("tells nobody about a project without a KPI", async () => {
-    const { useCases, created } = fixture({ kpi: null });
+    const { useCases, created } = fixture({ kpis: [] });
 
     await useCases.projectKpiChanged("p1", null);
 
     expect(created).toEqual([]);
+  });
+
+  it("waits until every KPI of the project is met", async () => {
+    const leads = { metric: "CONVERSIONS", target: "62.0000" } as const;
+    const behind = { metric: "CONVERSIONS", target: "200.0000" } as const;
+    const apart = fixture({ kpis: [leads, behind] });
+    const together = fixture({ kpis: [leads, leads] });
+
+    await apart.useCases.projectKpiChanged("p1", null);
+    await together.useCases.projectKpiChanged("p1", null);
+
+    expect(apart.created).toEqual([]);
+    expect(together.created).not.toEqual([]);
   });
 
   it("tells once a month, however often it is met again", async () => {

@@ -30,13 +30,13 @@ const measuredDay = z.object({ date: z.iso.date(), ...measured });
 const kpiTarget = z.object({ metric: z.string(), target: z.string() }).nullable();
 
 const projectKpi = z.union([
-  z.object({ metric: z.string(), target: z.string() }),
-  z.object({ metric: z.literal("MANUAL"), name: z.string(), value: z.string(), target: z.string() }),
-]).nullable();
+  z.object({ metric: z.string(), target: z.string(), enabled: z.boolean() }),
+  z.object({ metric: z.literal("MANUAL"), name: z.string(), value: z.string(), target: z.string(), enabled: z.boolean() }),
+]);
 
 const projectFigures = z.object({
   projectId: z.uuid(),
-  kpi: projectKpi,
+  kpis: z.array(projectKpi),
   performance,
   days: z.array(measuredDay),
 });

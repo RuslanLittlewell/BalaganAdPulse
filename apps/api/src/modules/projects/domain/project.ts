@@ -6,6 +6,7 @@ export interface ProjectRecord {
   readonly image: string | null;
   readonly avatarPath: string | null;
   readonly position: number;
+  readonly kpiTracked: boolean;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -13,6 +14,7 @@ export interface ProjectRecord {
 export interface ProjectChange {
   readonly clientId?: string;
   readonly name?: string;
+  readonly kpiTracked?: boolean;
 }
 
 export interface NewProject extends ProjectChange {

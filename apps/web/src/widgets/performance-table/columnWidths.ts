@@ -16,8 +16,9 @@ export function isRequiredColumn(columnId: string): boolean {
 export function visibleColumnIds(
   saved: unknown,
   extraIds: readonly string[] = [],
+  shownExtraIds: readonly string[] = [],
 ): string[] {
-  if (!Array.isArray(saved)) return ALL_COLUMN_IDS;
+  if (!Array.isArray(saved)) return [...ALL_COLUMN_IDS, ...shownExtraIds.filter((id) => extraIds.includes(id))];
   const valid = [...ALL_COLUMN_IDS, ...extraIds]
     .filter((id) => saved.includes(id) || isRequiredColumn(id));
   return valid.length >= MIN_VISIBLE_COLUMNS ? valid : ALL_COLUMN_IDS;
@@ -37,6 +38,12 @@ export function columnWidth(saved: unknown): number {
     : DEFAULT_COLUMN_WIDTH;
 }
 
+export function fitWidths(wanted: readonly number[], room: number): number[] {
+  const total = wanted.reduce((sum, width) => sum + width, 0);
+  if (room <= 0 || total <= room) return [...wanted];
+  return wanted.map((width) => Math.max(MIN_COLUMN_WIDTH, Math.floor((width * room) / total)));
+}
+
 export type MoveDirection = "left" | "right";
 
 interface ColumnWidthsState {
@@ -44,7 +51,12 @@ interface ColumnWidthsState {
   columnWidths: Record<string, Record<string, number>>;
   columnOrder: Record<string, string[]>;
   visibleColumns: Record<string, string[]>;
-  toggleColumn: (tableKey: string, columnId: string, extraIds?: readonly string[]) => void;
+  toggleColumn: (
+    tableKey: string,
+    columnId: string,
+    extraIds?: readonly string[],
+    shownExtraIds?: readonly string[],
+  ) => void;
   setNameWidth: (tableKey: string, width: number) => void;
   setColumnWidth: (tableKey: string, columnId: string, width: number) => void;
   moveColumn: (
@@ -63,11 +75,11 @@ export const useColumnWidths = create<ColumnWidthsState>()(
       columnWidths: {},
       columnOrder: {},
       visibleColumns: {},
-      toggleColumn: (tableKey, columnId, extraIds = []) => {
+      toggleColumn: (tableKey, columnId, extraIds = [], shownExtraIds = []) => {
         const known = ALL_COLUMN_IDS.includes(columnId) || extraIds.includes(columnId);
         if (!known || isRequiredColumn(columnId)) return;
         set((state) => {
-          const current = visibleColumnIds(state.visibleColumns?.[tableKey], extraIds);
+          const current = visibleColumnIds(state.visibleColumns?.[tableKey], extraIds, shownExtraIds);
           if (current.includes(columnId) && current.length <= MIN_VISIBLE_COLUMNS) return state;
           const next = current.includes(columnId)
             ? current.filter((id) => id !== columnId)

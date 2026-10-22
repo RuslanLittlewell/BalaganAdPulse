@@ -163,7 +163,7 @@ describe("what is notified", () => {
     await grantAccess(customer.membership!.id, clientId);
     const kpi = { metric: "MANUAL", name: "Продажи", value: "50", target: "40" };
 
-    expect((await request(app).put(`/api/projects/${projectId}/kpi`).set(manager.auth).send(kpi)).status).toBe(200);
+    expect((await request(app).put(`/api/projects/${projectId}/kpis`).set(manager.auth).send([kpi])).status).toBe(200);
 
     await vi.waitFor(async () => {
       expect(await notificationsOf(anna)).toHaveLength(1);
@@ -173,7 +173,7 @@ describe("what is notified", () => {
     expect(await notificationsOf(manager)).toEqual([]);
     expect(await notificationsOf(customer)).toEqual([]);
 
-    await request(app).put(`/api/projects/${projectId}/kpi`).set(anna.auth).send({ ...kpi, value: "60" });
+    await request(app).put(`/api/projects/${projectId}/kpis`).set(anna.auth).send([{ ...kpi, value: "60" }]);
     await vi.waitFor(async () => {
       expect((await prisma.project.findUniqueOrThrow({ where: { id: projectId } })).kpiMetMonth).not.toBeNull();
     });

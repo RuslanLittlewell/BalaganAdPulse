@@ -84,7 +84,7 @@ export function ProjectsPage() {
             ? <ChevronRightIcon aria-hidden className="size-3" />
             : <ChevronLeftIcon aria-hidden className="size-3" />}
         </button>
-        <div className="h-full min-w-0 overflow-auto pr-4">
+        <div className="h-full min-w-0 overflow-y-auto overflow-x-hidden pr-4">
           <Routes>
             <Route path="/" element={<ProjectsHome />} />
             <Route path=":projectId" element={<ProjectPage />} />

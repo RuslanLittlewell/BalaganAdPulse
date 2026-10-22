@@ -16,7 +16,7 @@ export function ImportantInfo({
   return (
     <section
       aria-labelledby={titleId}
-      className="flex min-h-0 flex-col rounded-lg border border-border p-4"
+      className="flex min-h-0 max-h-[340px] flex-col overflow-y-auto rounded-lg border border-border p-4"
     >
       <div className="flex items-center justify-between gap-2">
         <h2 id={titleId} className="text-sm font-semibold text-foreground">

@@ -40,22 +40,39 @@ describe("a campaign's indicator", () => {
   });
 
   it("falls back to the project's KPI when the campaign has none", () => {
-    const projectKpi = { metric: "CONVERSIONS" as const, target: "20.0000" };
-    expect(campaignTone(campaign({ kpi: null }), projectKpi, SEPTEMBER)).toBe("profitable");
+    const projectKpis = [{ metric: "CONVERSIONS", target: "20.0000", enabled: true }];
+    expect(campaignTone(campaign({ kpi: null }), projectKpis, SEPTEMBER)).toBe("profitable");
+  });
+
+  it("falls back to the project's least-met KPI", () => {
+    const projectKpis = [
+      { metric: "CONVERSIONS", target: "20.0000", enabled: true },
+      { metric: "CPA", target: "8.0000", enabled: true },
+    ];
+    expect(campaignTone(campaign({ kpi: null }), projectKpis, SEPTEMBER)).toBe("stable");
+  });
+
+  it("does not fall back to a project KPI that is switched off", () => {
+    const projectKpis = [
+      { metric: "CONVERSIONS", target: "20.0000", enabled: true },
+      { metric: "CPA", target: "1.0000", enabled: false },
+    ];
+    expect(campaignTone(campaign({ kpi: null }), projectKpis, SEPTEMBER)).toBe("profitable");
+    expect(campaignTone(campaign({ kpi: null }), [projectKpis[1]!], SEPTEMBER)).toBe("idle");
   });
 
   it("does not fall back to a project KPI set by hand", () => {
-    const projectKpi = { metric: "MANUAL" as const, name: "Продажи", value: "500.0000", target: "50.0000" };
-    expect(campaignTone(campaign({ kpi: null }), projectKpi, SEPTEMBER)).toBe("idle");
+    const projectKpis = [{ metric: "MANUAL", name: "Продажи", value: "500.0000", target: "50.0000", enabled: true }];
+    expect(campaignTone(campaign({ kpi: null }), projectKpis, SEPTEMBER)).toBe("idle");
   });
 
   it("prefers the campaign's own KPI over the project's", () => {
-    const projectKpi = { metric: "CONVERSIONS" as const, target: "10.0000" };
-    expect(campaignTone(campaign({ kpi: { metric: "CONVERSIONS", target: "100.0000" } }), projectKpi, SEPTEMBER)).toBe("danger");
+    const projectKpis = [{ metric: "CONVERSIONS", target: "10.0000", enabled: true }];
+    expect(campaignTone(campaign({ kpi: { metric: "CONVERSIONS", target: "100.0000" } }), projectKpis, SEPTEMBER)).toBe("danger");
   });
 
   it("is grey without any KPI", () => {
-    expect(campaignTone(campaign({ kpi: null }), null, SEPTEMBER)).toBe("idle");
+    expect(campaignTone(campaign({ kpi: null }), [], SEPTEMBER)).toBe("idle");
   });
 
   it("is grey when the KPI's figure is not measured", () => {

@@ -18,6 +18,8 @@ import {
   ProjectHeader,
   useActiveProjectId,
   useProjects,
+  useSourceMemory,
+  useUpdateProject,
 } from "@/entities/project/index.js";
 import {
   channelLabel,
@@ -28,7 +30,7 @@ import {
   useProjectSummary,
 } from "@/entities/campaign/index.js";
 import { ACTIVE_TASK_COLUMNS, useTasks } from "@/entities/task/index.js";
-import { useKpi } from "@/entities/kpi/index.js";
+import { useProjectKpis } from "@/entities/kpi/index.js";
 import {
   useChooseSummaryTiles,
   useSummaryTiles,
@@ -76,9 +78,7 @@ export function ProjectPage() {
   const clients = useClients();
   const summary = useProjectSummary(projectId, range);
   const campaigns = useProjectCampaigns(projectId, range);
-  const projectKpi = useKpi(
-    projectId ? { kind: "project", id: projectId } : undefined,
-  );
+  const projectKpis = useProjectKpis(projectId);
   const tiles = useSummaryTiles(
     projectId ? { kind: "project", id: projectId } : undefined,
   );
@@ -93,6 +93,8 @@ export function ProjectPage() {
   const { user } = useAuth();
   const members = useMembers();
   const editsProjectKpi = useCan("update", "kpi");
+  const editsProject = useCan("update", "project");
+  const updateProject = useUpdateProject();
   const arrangesSummary = useCan("update", "project-summary");
   const { raise } = useAlerts();
   const readsDocuments = useCan("read", "project-document");
@@ -104,10 +106,10 @@ export function ProjectPage() {
     projectId ?? "",
     managesIntegrations && projectId != null,
   );
-  const [source, setSource] = useState<string | null>(null);
+  const source = useSourceMemory((state) => (projectId ? state.sources[projectId] : undefined)) ?? null;
+  const rememberSource = useSourceMemory((state) => state.rememberSource);
   const [runningOnly, setRunningOnly] = useState(true);
   useEffect(() => {
-    setSource(null);
     setRunningOnly(true);
   }, [projectId]);
 
@@ -164,12 +166,22 @@ export function ProjectPage() {
     name: campaign.name,
     note: `${channelLabel(campaign.channel)} · ${statusLabel(campaign.status)}`,
     performance: campaign.performance,
-    tone: campaignTone(campaign, projectKpi.data, range),
+    tone: campaignTone(campaign, projectKpis.data, range),
   }));
 
   return (
     <div className="flex min-h-0 flex-col gap-6">
-      <ProjectHeader project={project} clientName={clientName} />
+      <ProjectHeader
+        project={project}
+        clientName={clientName}
+        kpiTrackedPending={updateProject.isPending}
+        onKpiTrackedChange={editsProject && editsProjectKpi
+          ? (kpiTracked) => updateProject.mutate(
+            { id: project.id, body: { kpiTracked } },
+            { onError: () => raise(t("project.kpiTrackedFailed")) },
+          )
+          : undefined}
+      />
 
       {readsDocuments ? (
         <div className="border-b border-border pb-4">
@@ -247,7 +259,7 @@ export function ProjectPage() {
                     <Tabs
                       items={[...sources].map(([id, label]) => ({ id, label }))}
                       activeId={chosen}
-                      onSelect={setSource}
+                      onSelect={(id) => rememberSource(project.id, id)}
                       ariaLabel={t("campaigns.sources")}
                     />
                   )}

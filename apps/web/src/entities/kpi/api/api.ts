@@ -28,11 +28,18 @@ export type KpiInput = MeasuredKpiInput | ManualKpiInput;
 
 export type Kpi = KpiInput & { updatedAt: string };
 
+export const MAX_PROJECT_KPIS = 5;
+
+export type ProjectKpiInput = KpiInput & { enabled: boolean };
+
+export type ProjectKpi = Kpi & { id: string; enabled: boolean };
+
 export interface CarriedKpi {
   metric: string;
   target: string;
   name?: string | null;
   value?: string | null;
+  enabled?: boolean;
 }
 
 export function kpiInputOf(carried: CarriedKpi | null | undefined): KpiInput | null {
@@ -45,17 +52,25 @@ export function kpiInputOf(carried: CarriedKpi | null | undefined): KpiInput | n
   return isKpiMetric(carried.metric) ? { metric: carried.metric, target: carried.target } : null;
 }
 
-export type KpiScope =
+export type SingleKpiScope =
   | { kind: "organization" }
-  | { kind: "project"; id: string }
   | { kind: "campaign"; id: string };
 
-const pathOf = (scope: KpiScope) => scope.kind === "organization"
+export type KpiScope = SingleKpiScope | { kind: "project"; id: string };
+
+const pathOf = (scope: SingleKpiScope) => scope.kind === "organization"
   ? "/organization/kpi"
-  : `/${scope.kind === "project" ? "projects" : "campaigns"}/${encodeURIComponent(scope.id)}/kpi`;
+  : `/campaigns/${encodeURIComponent(scope.id)}/kpi`;
 
 export const kpiApi = {
-  read: (scope: KpiScope) => http.get<Kpi | null>(pathOf(scope)),
-  save: (scope: KpiScope, body: KpiInput) => http.put<Kpi>(pathOf(scope), body),
-  clear: (scope: KpiScope) => http.del(pathOf(scope)),
+  read: (scope: SingleKpiScope) => http.get<Kpi | null>(pathOf(scope)),
+  save: (scope: SingleKpiScope, body: KpiInput) => http.put<Kpi>(pathOf(scope), body),
+  clear: (scope: SingleKpiScope) => http.del(pathOf(scope)),
+};
+
+const projectPathOf = (projectId: string) => `/projects/${encodeURIComponent(projectId)}/kpis`;
+
+export const projectKpisApi = {
+  read: (projectId: string) => http.get<ProjectKpi[]>(projectPathOf(projectId)),
+  save: (projectId: string, body: ProjectKpiInput[]) => http.put<ProjectKpi[]>(projectPathOf(projectId), body),
 };

@@ -30,11 +30,19 @@ const project = (id: string, name: string) => ({
 });
 
 const days = [
-  { date: "2026-08-01", spend: 400, impressions: 0, reach: 0, clicks: 0, conversions: 0, revenue: 0 },
-  { date: "2026-08-02", spend: 900, impressions: 0, reach: 0, clicks: 0, conversions: 0, revenue: 0 },
+  { date: "2026-08-01", spend: 400, impressions: 0, reach: 0, clicks: 0, conversions: 5, results: 0, revenue: 0 },
+  { date: "2026-08-02", spend: 900, impressions: 0, reach: 0, clicks: 0, conversions: 9, results: 0, revenue: 0 },
 ];
 
-const figures = (projectId: string, spend: number) => ({ projectId, performance: performance(spend), days });
+const AUGUST = "/?from=2026-08-01&to=2026-08-02";
+
+type Goal = { metric: string; target: string; name?: string; value?: string; enabled?: boolean };
+
+const goals = (kpi: Goal | Goal[] | null) =>
+  (kpi === null ? [] : Array.isArray(kpi) ? kpi : [kpi]).map((goal) => ({ enabled: true, ...goal }));
+
+const figures = (projectId: string, spend: number, kpi: Goal | Goal[] | null = { metric: "CONVERSIONS", target: "62.0000" }) =>
+  ({ projectId, kpis: goals(kpi), performance: performance(spend), days });
 
 function api(options: {
   projects?: unknown[]; agency?: unknown; channels?: unknown[]; stageCounts?: unknown[]; projectFigures?: unknown[];
@@ -158,12 +166,26 @@ describe("DashboardPage", () => {
     expect(screen.getByRole("row", { name: /Автосалон/ })).toBeInTheDocument();
   });
 
-  it("draws each project's shape over the period", async () => {
+  it("draws how each project's KPI progress developed over the period", async () => {
     api();
+    renderWithProviders(<DashboardPage />, { route: AUGUST });
+
+    await screen.findByRole("row", { name: /Клиника/ });
+    expect(await screen.findAllByRole("img", { name: /Динамика выполнения KPI/ })).toHaveLength(2);
+    expect(screen.queryByRole("img", { name: /Расход по дням/ })).not.toBeInTheDocument();
+  });
+
+  it("draws no chart for a project without a KPI or with one set by hand", async () => {
+    api({
+      projectFigures: [
+        figures("p1", 3000, null),
+        figures("p2", 1200, { metric: "MANUAL", name: "Продажи", value: "5.0000", target: "9.0000" }),
+      ],
+    });
     renderWithProviders(<DashboardPage />);
 
     await screen.findByRole("row", { name: /Клиника/ });
-    expect(await screen.findAllByRole("img", { name: /Расход по дням/ })).toHaveLength(2);
+    expect(screen.queryByRole("img", { name: /Динамика выполнения KPI/ })).not.toBeInTheDocument();
   });
 
   it("reads every project's figures in one request, however many projects there are", async () => {
@@ -180,10 +202,10 @@ describe("DashboardPage", () => {
         return HttpResponse.json([]);
       }),
     );
-    renderWithProviders(<DashboardPage />);
+    renderWithProviders(<DashboardPage />, { route: AUGUST });
 
     await screen.findByRole("row", { name: /Проект 29/ });
-    expect(await screen.findAllByRole("img", { name: /Расход по дням/ })).toHaveLength(30);
+    expect(await screen.findAllByRole("img", { name: /Динамика выполнения KPI/ })).toHaveLength(30);
     expect([...new Set(asked)]).toEqual(["/api/summary/projects"]);
   });
 
@@ -194,7 +216,7 @@ describe("DashboardPage", () => {
     await within(await screen.findByRole("row", { name: /Клиника/ })).findByText("3 000 Br");
     const quiet = screen.getByRole("row", { name: /Автосалон/ });
     expect(within(quiet).getAllByText("0 Br").length).toBeGreaterThan(0);
-    expect(within(quiet).queryByRole("img", { name: /Расход по дням/ })).not.toBeInTheDocument();
+    expect(within(quiet).queryByRole("img", { name: /Динамика выполнения KPI/ })).not.toBeInTheDocument();
   });
 
   it("opens a project when its row is chosen", async () => {
@@ -262,8 +284,8 @@ describe("DashboardPage", () => {
 
 describe("this month's KPI on the dashboard", () => {
   const leads = (target: string) => ({ metric: "CONVERSIONS", target });
-  const withKpi = (projectId: string, kpi: unknown, extra = {}) =>
-    ({ projectId, kpi, performance: performance(1000, extra), days: [] });
+  const withKpi = (projectId: string, kpi: Goal | Goal[] | null, extra = {}) =>
+    ({ projectId, kpis: goals(kpi), performance: performance(1000, extra), days: [] });
   const three = [project("p1", "Клиника"), project("p2", "Автосалон"), project("p3", "Фитнес")];
 
   beforeEach(() => {
@@ -277,22 +299,24 @@ describe("this month's KPI on the dashboard", () => {
 
   it("gauges how many projects meet their KPI and names each part", async () => {
     api({
-      projects: three,
+      projects: [...three, project("p4", "Стоматология")],
       projectFigures: [
         withKpi("p1", leads("62.0000"), { conversions: 30 }),
         withKpi("p2", leads("62.0000"), { conversions: 10 }),
         withKpi("p3", null),
+        withKpi("p4", leads("62.0000"), { conversions: 24 }),
       ],
     });
     renderWithProviders(<DashboardPage />);
 
     const gauge = await screen.findByRole("region", { name: "Выполнение KPI за месяц" });
     expect(await within(gauge).findByRole("img", {
-      name: "Выполнение KPI за месяц: Выполняют 1, Не выполняют 1, Без оценки 1",
+      name: "Выполнение KPI за месяц: Выполняют 1, Небольшое отставание 1, Сильное отставание 1, Без оценки 1",
     })).toBeInTheDocument();
-    expect(within(gauge).getByText("1 из 3")).toBeInTheDocument();
+    expect(within(gauge).getByText("1 из 4")).toBeInTheDocument();
     expect(within(gauge).getByText("Выполняют").nextSibling).toHaveTextContent("1");
-    expect(within(gauge).getByText("Не выполняют").nextSibling).toHaveTextContent("1");
+    expect(within(gauge).getByText("Небольшое отставание").nextSibling).toHaveTextContent("1");
+    expect(within(gauge).getByText("Сильное отставание").nextSibling).toHaveTextContent("1");
     expect(within(gauge).getByText("Без оценки").nextSibling).toHaveTextContent("1");
   });
 
@@ -319,9 +343,57 @@ describe("this month's KPI on the dashboard", () => {
 
     const gauge = await screen.findByRole("region", { name: "Выполнение KPI за месяц" });
     expect(await within(gauge).findByRole("img", {
-      name: "Выполнение KPI за месяц: Выполняют 0, Не выполняют 0, Без оценки 0",
+      name: "Выполнение KPI за месяц: Выполняют 0, Небольшое отставание 0, Сильное отставание 0, Без оценки 0",
     })).toBeInTheDocument();
     expect(within(gauge).getByText("—")).toBeInTheDocument();
+  });
+
+  describe("in the project table", () => {
+    const month = "/?from=2026-10-01&to=2026-10-15";
+    const four = [...three, project("p4", "Стоматология")];
+    const kpiFigures = () => [
+      withKpi("p1", leads("62.0000"), { conversions: 30 }),
+      withKpi("p2", leads("62.0000"), { conversions: 10 }),
+      withKpi("p3", null),
+      withKpi("p4", leads("62.0000"), { conversions: 24 }),
+    ];
+    const names = () => screen.getAllByRole("row").slice(1).map((row) =>
+      (within(row).getAllByRole("rowheader")[0]?.textContent ?? "").replace(/(KPI выполнен|Немного не дотягивает до KPI|Сильно отстаёт от KPI|Не идёт или без KPI)$/, ""));
+
+    it("marks each project by its KPI zone and shows the progress in percent", async () => {
+      api({ projects: four, projectFigures: kpiFigures() });
+      renderWithProviders(<DashboardPage />, { route: month });
+
+      const row = async (name: string) => (await screen.findByRole("row", { name: new RegExp(name) }));
+      const cell = (tr: HTMLElement) => within(tr).getAllByRole("cell").map((c) => c.textContent);
+      const on = await row("Клиника");
+      expect(within(on).getByText("KPI выполнен")).toBeInTheDocument();
+      expect(cell(on)).toContain("100%");
+      const little = await row("Стоматология");
+      expect(within(little).getByText("Немного не дотягивает до KPI")).toBeInTheDocument();
+      expect(cell(little)).toContain("80%");
+      const far = await row("Автосалон");
+      expect(within(far).getByText("Сильно отстаёт от KPI")).toBeInTheDocument();
+      expect(cell(far)).toContain("33%");
+      const none = await row("Фитнес");
+      expect(within(none).getByText("Не идёт или без KPI")).toBeInTheDocument();
+      expect(cell(none)).toContain("—");
+    });
+
+    it("sorts the projects by KPI progress, highest first, and keeps those without a KPI last", async () => {
+      api({ projects: four, projectFigures: kpiFigures() });
+      const user = userEvent.setup();
+      renderWithProviders(<DashboardPage />, { route: month });
+      await screen.findByRole("row", { name: /Клиника/ });
+      expect(names()).toEqual(["Клиника", "Автосалон", "Фитнес", "Стоматология"]);
+
+      await user.click(screen.getByRole("button", { name: "Выполнение KPI" }));
+      expect(names()).toEqual(["Клиника", "Стоматология", "Автосалон", "Фитнес"]);
+      expect(screen.getByRole("columnheader", { name: "Выполнение KPI" })).toHaveAttribute("aria-sort", "descending");
+
+      await user.click(screen.getByRole("button", { name: "Выполнение KPI" }));
+      expect(names()).toEqual(["Автосалон", "Стоматология", "Клиника", "Фитнес"]);
+    });
   });
 
   it("warns about each project without a KPI, and not about one whose figure is unmeasured", async () => {

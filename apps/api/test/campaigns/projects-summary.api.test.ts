@@ -54,29 +54,46 @@ describe("GET /api/summary/projects", () => {
     expect(res.body).toHaveLength(2);
     expect(res.body).toContainEqual({
       projectId: dealer.projectId,
-      kpi: null,
+      kpis: [],
       performance: expect.objectContaining({ spend: 0, cpc: null }),
       days: [],
     });
   });
 
-  it("carries each project's own KPI beside its figures", async () => {
-    await request(app).put(`/api/projects/${clinic.projectId}/kpi`).set(auth).send({ metric: "CONVERSIONS", target: "60" });
+  it("carries each project's own KPIs beside its figures, in order, with their switches", async () => {
+    await request(app).put(`/api/projects/${clinic.projectId}/kpis`).set(auth)
+      .send([{ metric: "CONVERSIONS", target: "60" }, { metric: "CPA", target: "20", enabled: false }]);
 
     const res = await read(auth);
 
     const clinicFigures = res.body.find((entry: { projectId: string }) => entry.projectId === clinic.projectId);
-    expect(clinicFigures.kpi).toEqual({ metric: "CONVERSIONS", target: "60.0000" });
+    expect(clinicFigures.kpis).toEqual([
+      { metric: "CONVERSIONS", target: "60.0000", enabled: true },
+      { metric: "CPA", target: "20.0000", enabled: false },
+    ]);
+  });
+
+  it("returns no KPIs for a project whose KPIs are not tracked, and its KPIs again once they are", async () => {
+    await request(app).put(`/api/projects/${clinic.projectId}/kpis`).set(auth).send([{ metric: "CONVERSIONS", target: "60" }]);
+    await request(app).patch(`/api/projects/${clinic.projectId}`).set(auth).send({ kpiTracked: false });
+
+    const left = (await read(auth)).body.find((entry: { projectId: string }) => entry.projectId === clinic.projectId);
+    expect(left.kpis).toEqual([]);
+    expect(await prisma.projectKpi.count({ where: { projectId: clinic.projectId } })).toBe(1);
+
+    await request(app).patch(`/api/projects/${clinic.projectId}`).set(auth).send({ kpiTracked: true });
+    const back = (await read(auth)).body.find((entry: { projectId: string }) => entry.projectId === clinic.projectId);
+    expect(back.kpis).toEqual([expect.objectContaining({ metric: "CONVERSIONS" })]);
   });
 
   it("carries the name and value of a KPI set by hand", async () => {
-    await request(app).put(`/api/projects/${clinic.projectId}/kpi`).set(auth)
-      .send({ metric: "MANUAL", name: "Продажи", value: "30", target: "50" });
+    await request(app).put(`/api/projects/${clinic.projectId}/kpis`).set(auth)
+      .send([{ metric: "MANUAL", name: "Продажи", value: "30", target: "50" }]);
 
     const res = await read(auth);
 
     const clinicFigures = res.body.find((entry: { projectId: string }) => entry.projectId === clinic.projectId);
-    expect(clinicFigures.kpi).toEqual({ metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000" });
+    expect(clinicFigures.kpis).toEqual([{ metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000", enabled: true }]);
   });
 
   it("never lets a campaign's KPI stand in for its project's", async () => {
@@ -86,7 +103,7 @@ describe("GET /api/summary/projects", () => {
     const res = await read(auth);
 
     const dealerFigures = res.body.find((entry: { projectId: string }) => entry.projectId === dealer.projectId);
-    expect(dealerFigures.kpi).toBeNull();
+    expect(dealerFigures.kpis).toEqual([]);
   });
 
   it("counts only the days inside the range", async () => {

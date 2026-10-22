@@ -11,6 +11,7 @@ const project = z.object({
   image: z.string().nullable(),
   avatarPath: z.string().nullable(),
   position: z.int(),
+  kpiTracked: z.boolean(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });

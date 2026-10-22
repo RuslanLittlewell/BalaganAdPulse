@@ -132,7 +132,7 @@ describe("stored notifications", () => {
 
 describe("a project's standing this month", () => {
   it("sums its campaigns' days within the month so far", async () => {
-    await prisma.project.update({ where: { id: projectId }, data: { kpiMetric: "CONVERSIONS", kpiTarget: "62" } });
+    await prisma.projectKpi.create({ data: { projectId, position: 0, metric: "CONVERSIONS", target: "62", updatedAt: new Date() } });
     const campaign = await seedCampaign(projectId);
     const day = (date: string, conversions: number, spend: number) =>
       ({ campaignId: campaign.id, date: new Date(`${date}T00:00:00Z`), conversions, spend });
@@ -142,18 +142,42 @@ describe("a project's standing this month", () => {
 
     const standing = await standings.read(projectId, OCTOBER_SO_FAR);
 
-    expect(standing?.kpi).toEqual({ metric: "CONVERSIONS", target: "62.0000" });
+    expect(standing?.kpis).toEqual([{ metric: "CONVERSIONS", target: "62.0000" }]);
     expect(standing?.figures).toMatchObject({ conversions: 30, spend: 300, cpa: 10 });
   });
 
   it("reads a KPI set by hand with its name and value", async () => {
-    await prisma.project.update({ where: { id: projectId }, data: {
-      kpiMetric: "MANUAL", kpiTarget: "40", kpiName: "Продажи", kpiValue: "50",
+    await prisma.projectKpi.create({ data: {
+      projectId, position: 0, metric: "MANUAL", target: "40", name: "Продажи", value: "50", updatedAt: new Date(),
     } });
 
-    expect((await standings.read(projectId, OCTOBER_SO_FAR))?.kpi).toEqual({
+    expect((await standings.read(projectId, OCTOBER_SO_FAR))?.kpis).toEqual([{
       metric: "MANUAL", name: "Продажи", value: "50.0000", target: "40.0000",
-    });
+    }]);
+  });
+
+  it("reads every enabled KPI in order and none that is switched off", async () => {
+    const base = { projectId, target: "10", updatedAt: new Date() };
+    await prisma.projectKpi.createMany({ data: [
+      { ...base, position: 0, metric: "CONVERSIONS" },
+      { ...base, position: 1, metric: "CPA", enabled: false },
+      { ...base, position: 2, metric: "SPEND" },
+    ] });
+
+    expect((await standings.read(projectId, OCTOBER_SO_FAR))?.kpis.map((kpi) => kpi.metric)).toEqual(["CONVERSIONS", "SPEND"]);
+  });
+
+  it("is nothing for a project whose KPIs are not tracked", async () => {
+    await prisma.projectKpi.create({ data: { projectId, position: 0, metric: "CONVERSIONS", target: "62", updatedAt: new Date() } });
+    await prisma.project.update({ where: { id: projectId }, data: { kpiTracked: false } });
+
+    expect(await standings.read(projectId, OCTOBER_SO_FAR)).toBeNull();
+  });
+
+  it("is nothing when every KPI is switched off", async () => {
+    await prisma.projectKpi.create({ data: { projectId, position: 0, metric: "CPA", target: "10", enabled: false, updatedAt: new Date() } });
+
+    expect(await standings.read(projectId, OCTOBER_SO_FAR)).toBeNull();
   });
 
   it("is nothing for a project without a KPI", async () => {

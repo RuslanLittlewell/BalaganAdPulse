@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { Link, Route, Routes, useLocation } from "react-router-dom";
 import { aSession, aTask, renderWithProviders, server } from "@test/shared/index.js";
 import { ProjectPage } from "@/pages/project/index.js";
+import { useSourceMemory } from "@/entities/project/model/sourceMemory.js";
 
 const performance = (spend: number, extra = {}) => ({
   spend, impressions: 100000, reach: 40000, clicks: 2000, conversions: 50, revenue: 4000,
@@ -36,7 +37,7 @@ function api(options: { campaigns?: unknown[]; tasks?: unknown[]; summaryTiles?:
     mock.get("/api/projects", () => HttpResponse.json([{
       id: "p1", clientId: "cl1", name: "Клиника",
       budgetCurrency: "BYN",
-      priority: "HIGH", image: null, avatarPath: null, position: 0, createdAt: "", updatedAt: "",
+      priority: "HIGH", image: null, avatarPath: null, position: 0, kpiTracked: true, createdAt: "", updatedAt: "",
     }])),
     mock.get("/api/clients", () => HttpResponse.json([{ id: "cl1", name: "Acme", orgId: "o1" }])),
     mock.get("/api/projects/:projectId/summary-tiles", () =>
@@ -59,11 +60,70 @@ const signedInAs = (role: string) => server.use(mock.get("/api/auth/me", () => H
   modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"],
 })));
 
-const projectKpi = () => server.use(mock.get("/api/projects/p1/kpi", () =>
-  HttpResponse.json({ metric: "CONVERSIONS", target: "100.0000", updatedAt: "2026-09-14T10:00:00.000Z" })));
+const projectKpi = () => server.use(mock.get("/api/projects/p1/kpis", () =>
+  HttpResponse.json([{ id: "k1", metric: "CONVERSIONS", target: "100.0000", enabled: true, updatedAt: "2026-09-14T10:00:00.000Z" }])));
 
 const shownTiles = () => within(screen.getByRole("group", { name: "Показатели за период" }))
   .queryAllByTestId("summary-tile").map((tile) => tile.getAttribute("data-tile"));
+
+describe("whether the project's KPIs are tracked", () => {
+  const trackedProject = (kpiTracked: boolean) => ({
+    id: "p1", clientId: "cl1", name: "Клиника", budgetCurrency: "BYN", image: null, avatarPath: null,
+    position: 0, kpiTracked, createdAt: "", updatedAt: "",
+  });
+
+  it("is a switch in the header that a manager turns off and on", async () => {
+    api();
+    let tracked = true;
+    const bodies: unknown[] = [];
+    server.use(
+      mock.get("/api/projects", () => HttpResponse.json([trackedProject(tracked)])),
+      mock.patch("/api/projects/p1", async ({ request }) => {
+        const body = await request.json() as { kpiTracked: boolean };
+        bodies.push(body);
+        tracked = body.kpiTracked;
+        return HttpResponse.json(trackedProject(tracked));
+      }),
+    );
+    signedInAs("MANAGER");
+    renderWithProviders(<App />, route);
+
+    const header = await screen.findByRole("banner");
+    const toggle = await within(header).findByRole("switch", { name: "Отслеживать KPI" });
+    expect(toggle).toBeChecked();
+    expect(toggle).toBeEnabled();
+
+    await userEvent.click(toggle);
+    await waitFor(() => expect(within(header).getByRole("switch", { name: "Отслеживать KPI" })).not.toBeChecked());
+    expect(bodies).toEqual([{ kpiTracked: false }]);
+
+    await userEvent.click(within(header).getByRole("switch", { name: "Отслеживать KPI" }));
+    await waitFor(() => expect(within(header).getByRole("switch", { name: "Отслеживать KPI" })).toBeChecked());
+    expect(bodies).toEqual([{ kpiTracked: false }, { kpiTracked: true }]);
+  });
+
+  it("shows a reader its state without letting them change it", async () => {
+    api();
+    server.use(mock.get("/api/projects", () => HttpResponse.json([trackedProject(false)])));
+    signedInAs("GUEST");
+    renderWithProviders(<App />, route);
+
+    const toggle = await within(await screen.findByRole("banner")).findByRole("switch", { name: "Отслеживать KPI" });
+    expect(toggle).not.toBeChecked();
+    expect(toggle).toBeDisabled();
+  });
+
+  it("says so when the change is refused", async () => {
+    api();
+    server.use(mock.patch("/api/projects/p1", () => HttpResponse.json({ error: { message: "no" } }, { status: 403 })));
+    signedInAs("MANAGER");
+    renderWithProviders(<App />, route);
+
+    await userEvent.click(await within(await screen.findByRole("banner")).findByRole("switch", { name: "Отслеживать KPI" }));
+
+    expect(await screen.findByText("Не удалось изменить отслеживание KPI")).toBeInTheDocument();
+  });
+});
 
 describe("ProjectPage", () => {
   it("shows a client the project's tiles and KPI without letting them change either", async () => {
@@ -536,6 +596,31 @@ describe("switching the campaigns by advertising account", () => {
     expect(within(screen.getByRole("row", { name: /Итого/ })).getByText("1 200 Br")).toBeInTheDocument();
   });
 
+  it("remembers the chosen account when the member opens a campaign and comes back", async () => {
+    const user = userEvent.setup();
+    api({ campaigns: twoAccounts });
+    const first = renderWithProviders(<App />, route);
+    await screen.findByText("Поиск / Москва");
+    await user.click(screen.getByRole("radio", { name: "Meta · 222" }));
+    await user.click(screen.getByText("Лента / Россия"));
+    expect(await screen.findByRole("heading", { name: "Экран кампании" })).toBeInTheDocument();
+    first.unmount();
+
+    renderWithProviders(<App />, route);
+
+    expect(await screen.findByRole("radio", { name: "Meta · 222" })).toBeChecked();
+    expect(screen.getByText("Лента / Россия")).toBeInTheDocument();
+    expect(screen.queryByText("Поиск / Москва")).toBeNull();
+  });
+
+  it("starts on the first account when the remembered one is no longer there", async () => {
+    useSourceMemory.setState({ sources: { p1: "META:999" } });
+    api({ campaigns: twoAccounts });
+    renderWithProviders(<App />, route);
+
+    expect(await screen.findByRole("radio", { name: "Meta · 111" })).toBeChecked();
+  });
+
   it("offers a tab for a second connection that has no campaigns yet", async () => {
     api({ campaigns: [campaign("c1", "Поиск / Москва", "META", 3000, "111")] });
     server.use(mock.get("/api/projects/:projectId/integrations", () => HttpResponse.json([
@@ -596,8 +681,8 @@ describe("each campaign's indicator", () => {
         { ...campaign("c4", "На паузе", "META", 1000), status: "PAUSED", kpi: { metric: "CPA", target: "25.0000" } },
       ],
     });
-    server.use(mock.get("/api/projects/:projectId/kpi", () =>
-      HttpResponse.json({ metric: "CPA", target: "16.0000", updatedAt: "2026-09-01T00:00:00.000Z" })));
+    server.use(mock.get("/api/projects/:projectId/kpis", () =>
+      HttpResponse.json([{ id: "k1", metric: "CPA", target: "16.0000", enabled: true, updatedAt: "2026-09-01T00:00:00.000Z" }])));
     renderWithProviders(<App />, route);
 
     await screen.findByText("Выполняет");

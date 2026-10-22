@@ -6,19 +6,19 @@ Give the organization, each project and each campaign one measurable goal, a met
 ## Requirements
 
 ### Requirement: One KPI per organization, project and campaign
-The organization, every project and every campaign SHALL each hold at most one KPI, made of a metric and a positive target stored with four decimal places. The metric SHALL be one of spend, impressions, reach, clicks, leads, revenue, CTR, CPC, CPM, CPL, ROAS and frequency. Setting a KPI SHALL replace the previous one at that level, and clearing it SHALL leave none. KPIs of different levels SHALL be independent. Deleting a project or campaign SHALL delete its KPI. Advertising imports SHALL NOT change KPIs.
+The organization and every campaign SHALL each hold at most one KPI, and a project SHALL hold up to five. A KPI SHALL be made of a metric and a positive target stored with four decimal places. The metric SHALL be one of spend, impressions, reach, clicks, leads, revenue, CTR, CPC, CPM, CPL, ROAS and frequency. Setting the KPI of the organization or of a campaign SHALL replace the previous one at that level, and clearing it SHALL leave none. KPIs of different levels SHALL be independent. Deleting a project or campaign SHALL delete its KPIs. Advertising imports SHALL NOT change KPIs.
 
 #### Scenario: Set and replace
-- **WHEN** a manager sets a project KPI of 50 leads and then of 20 CPL
-- **THEN** the project holds only the CPL KPI
+- **WHEN** a manager sets a campaign KPI of 50 leads and then of 20 CPL
+- **THEN** the campaign holds only the CPL KPI
 
 #### Scenario: Independent levels
 - **WHEN** a campaign KPI is set
-- **THEN** its project's KPI and the organization KPI are unchanged
+- **THEN** its project's KPIs and the organization KPI are unchanged
 
 #### Scenario: Invalid target
 - **WHEN** a request names an unknown metric or a target that is not a positive number
-- **THEN** the API responds 400 and the KPI is unchanged
+- **THEN** the API responds 400 and the KPIs are unchanged
 
 #### Scenario: Import keeps the KPI
 - **WHEN** a Meta import updates a campaign that has a KPI
@@ -212,3 +212,227 @@ has a KPI.
 
 - **WHEN** a manager opens the dialog of a project whose KPI was set by hand
 - **THEN** Вручную is chosen and Название, Значение and Цель hold its name, value and target
+
+### Requirement: The dashboard gauge separates the zones
+
+The dashboard's monthly KPI gauge SHALL count every project in one of four groups by its
+progress for the month so far: meets the plan at 90% or more, a little behind from 70% up to
+90%, far behind below 70%, and unrated when it has no KPI or its figure is not measured. The
+groups SHALL be drawn in that order along the arc in green, yellow, red and grey, and each SHALL
+be listed with its count.
+
+#### Scenario: A project a little behind
+- **WHEN** a project has 24 leads against a month-to-date KPI of 30
+- **THEN** it is counted as a little behind and drawn yellow
+
+#### Scenario: A project far behind
+- **WHEN** a project has 20 leads against a month-to-date KPI of 30
+- **THEN** it is counted as far behind and drawn red
+
+#### Scenario: Unrated projects
+- **WHEN** a project has no KPI
+- **THEN** it is counted as unrated
+
+### Requirement: The dashboard project table shows KPI progress
+
+Each project row in the dashboard's project table SHALL carry a mark beside its name coloured
+by the project's progress against its KPI for the selected period, in the zones of the project
+list, and exposed to assistive technology in words. The table SHALL offer a Выполнение KPI
+column with that progress in percent, visible until a member hides it, and a dash for a
+project with no KPI or no measured figure. The column SHALL be sortable like the others, with
+projects without a value always last.
+
+#### Scenario: A project on plan
+- **WHEN** a project's progress is 95%
+- **THEN** its row carries a green mark and its Выполнение KPI cell shows 95%
+
+#### Scenario: A project a little behind
+- **WHEN** a project's progress is 80%
+- **THEN** its row carries a yellow mark
+
+#### Scenario: A project without a KPI
+- **WHEN** a project has no KPI
+- **THEN** its row carries a grey mark and its Выполнение KPI cell shows a dash
+
+#### Scenario: Sorting by progress
+- **WHEN** a member chooses the Выполнение KPI header
+- **THEN** the projects are ordered from the highest progress to the lowest, projects
+  without a value last, and choosing it again reverses the order
+
+### Requirement: The dashboard project table charts KPI progress
+
+Beside each project's name the dashboard's project table SHALL draw a mini chart of the
+project's KPI progress over the selected period. Each point SHALL be the progress reached on
+a day with figures, counting the figures from the start of the period up to that day against
+the target for the same days, so the last point equals the progress in the Выполнение KPI
+column. A project with no KPI, a KPI set by hand, or no measured progress SHALL show no
+chart. The chart SHALL be named for assistive technology.
+
+#### Scenario: A project approaching its plan
+- **WHEN** a project's KPI is 62 leads for the month, and by the 15th it has gained 30
+- **THEN** its chart rises to the progress shown in the Выполнение KPI column
+
+#### Scenario: A project without a KPI
+- **WHEN** a project has no KPI
+- **THEN** its row shows no chart
+
+#### Scenario: A KPI set by hand
+- **WHEN** a project's KPI was entered by hand
+- **THEN** its row shows no chart
+
+### Requirement: A project holds several KPIs that can be switched off
+
+A project SHALL hold its KPIs as an ordered list that is read and replaced as a whole. Each
+KPI of the list SHALL carry an enabled flag, on unless set otherwise. A list of more than five
+KPIs SHALL be refused with 400 and leave the project's KPIs unchanged. Readers and writers
+SHALL be the same as for any other KPI, and each replacement SHALL record one audit event with
+the list before and after.
+
+#### Scenario: Several KPIs
+- **WHEN** a manager saves a project's KPIs as 60 leads and a CPL of 20
+- **THEN** the project holds both, in that order, both enabled
+
+#### Scenario: Replacing the list
+- **WHEN** a manager saves a list holding only the CPL KPI to a project that held two
+- **THEN** the project holds only the CPL KPI
+
+#### Scenario: Too many
+- **WHEN** a request carries six KPIs
+- **THEN** the API responds 400 and the project's KPIs are unchanged
+
+#### Scenario: A customer
+- **WHEN** a customer tries to save a project's KPIs
+- **THEN** the API responds 403
+
+### Requirement: The project dialog edits the KPIs as blocks
+
+The KPI dialog of a project SHALL show one block per KPI, in order, each with its metric, its
+target and a switch that turns the KPI on or off, and one empty block when the project holds no
+KPI. It SHALL offer a plus control after the last block that adds an empty block, as long as the
+project holds fewer than five blocks and the last block is not itself empty. No block SHALL be
+added by filling another. A block SHALL offer removing its KPI. Saving SHALL store the filled
+blocks in order, ignore the empty ones and apply the switches. The dialogs of the organization
+and of a campaign SHALL stay as they are.
+
+#### Scenario: Adding a second KPI
+- **WHEN** a manager opens the dialog of a project holding one KPI and presses the plus control
+- **THEN** an empty block follows that KPI's block
+
+#### Scenario: Filling a block adds nothing
+- **WHEN** the manager fills the empty block
+- **THEN** no other block appears until the plus control is pressed
+
+#### Scenario: Another empty block follows
+- **WHEN** the manager has filled the empty block and presses the plus control
+- **THEN** a new empty block appears after it
+
+#### Scenario: One empty block at a time
+- **WHEN** the last block is empty
+- **THEN** the plus control is disabled
+
+#### Scenario: The limit
+- **WHEN** the dialog holds five blocks
+- **THEN** it offers no plus control
+
+#### Scenario: Switching a KPI off
+- **WHEN** the manager turns a block's switch off and saves
+- **THEN** the KPI stays in the project, switched off
+
+#### Scenario: Removing a KPI
+- **WHEN** the manager removes a block and saves
+- **THEN** the project no longer holds that KPI
+
+### Requirement: A project shows one KPI tile per KPI
+
+Where a project's KPI tile is shown, the project page and the page of one of its campaigns,
+it SHALL show one tile for each KPI the project holds, in order, each as the KPI tile does for
+a single KPI. Every tile and every preview of one in the KPI dialog SHALL carry a small circle
+at its top left, green when the KPI counts toward the project's result and grey when it is
+switched off, and the circle SHALL be named for assistive technology. A switched-off KPI SHALL
+otherwise be drawn like any other. A project without a KPI SHALL show a single tile saying that
+no target is set. The control that opens the dialog SHALL be on every tile of a member allowed
+to change the KPIs.
+
+#### Scenario: Two KPIs
+- **WHEN** a project holds a leads KPI and a CPL KPI
+- **THEN** two KPI tiles are shown, in that order, each with a green circle
+
+#### Scenario: A KPI switched off
+- **WHEN** one of the KPIs is switched off
+- **THEN** its tile carries a grey circle and keeps its figures and status
+
+### Requirement: A project's result is its least-met enabled KPI
+
+A project's result SHALL be the percentage of its enabled KPIs that is the lowest, counting
+lower-is-better metrics in their favourable direction, and SHALL colour the project in the
+project list, mark its row and fill its Выполнение KPI column in the dashboard's project
+table, place it in a group of the dashboard's gauge, and decide the KPI-met notification, in
+the zones used by each. A KPI that is switched off SHALL NOT count, and neither SHALL one whose
+figure is not measured. A project with no enabled KPI that can be measured SHALL be unrated.
+The KPI-met notification SHALL be sent once in a month, when every enabled KPI is met.
+
+#### Scenario: The weakest KPI decides
+- **WHEN** a project's leads KPI is at 100% and its CPL KPI at 80%
+- **THEN** its result is 80% and it is a little behind
+
+#### Scenario: A KPI switched off
+- **WHEN** the CPL KPI of that project is switched off
+- **THEN** its result is 100%
+
+#### Scenario: All switched off
+- **WHEN** every KPI of a project is switched off
+- **THEN** the project is unrated
+
+#### Scenario: Notification
+- **WHEN** the leads KPI is met and the CPL KPI is not
+- **THEN** no KPI-met notification is sent until both are met
+
+### Requirement: A campaign's indicator uses the project's least-met KPI
+
+When a campaign has no KPI of its own, its indicator SHALL follow the least-met of its
+project's enabled KPIs that are measured by figures. A KPI set by hand and a KPI switched off
+SHALL NOT count.
+
+#### Scenario: Two project KPIs
+- **WHEN** a campaign has no KPI and its project's KPIs are met by 100% and 80% by the campaign's figures
+- **THEN** its indicator is yellow
+
+### Requirement: A project can be left out of KPI tracking
+
+A project SHALL carry a flag telling whether its KPIs are tracked, set unless turned off, shown
+as a switch labelled Отслеживать KPI in the project's header. Only members who may change both
+the project and its KPIs SHALL be able to change it; the API SHALL refuse anyone else with 403
+and leave the flag unchanged. A project that is not tracked SHALL keep its KPIs, which its own
+page SHALL still show and let members who may change them edit. Elsewhere it SHALL be treated as
+a project with no KPI that nobody is meant to set: the dashboard's gauge SHALL NOT count it, the
+Важная информация panel SHALL NOT list it as a project without a KPI, its row in the dashboard's
+project table SHALL show no progress and a grey mark, its marker in the project list SHALL be
+grey, and no KPI-met notification SHALL be sent for it.
+
+#### Scenario: Leaving a project out
+- **WHEN** a manager turns the switch off in the header of a project that holds a KPI
+- **THEN** the project stays out of the dashboard's gauge and the notices, and its KPIs are still on its page
+
+#### Scenario: A project not counted by the gauge
+- **WHEN** the dashboard holds six projects and one is not tracked
+- **THEN** the gauge counts five
+
+#### Scenario: Not warned about
+- **WHEN** a project without any KPI is not tracked
+- **THEN** the Важная информация panel does not list it
+
+#### Scenario: Turning it back on
+- **WHEN** the manager turns the switch on again
+- **THEN** the project's KPIs count as they did before
+
+#### Scenario: Someone who may not change KPIs
+- **WHEN** a member who may update the project but not change its KPIs sends a change of the flag
+- **THEN** the API responds 403 and the flag is unchanged
+
+#### Scenario: A reader
+- **WHEN** a guest opens a project
+- **THEN** the header shows whether it is tracked, without a control to change it
+
+#### Scenario: No notification
+- **WHEN** every KPI of an untracked project is met
+- **THEN** no KPI-met notification is sent

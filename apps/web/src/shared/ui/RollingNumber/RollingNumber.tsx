@@ -9,7 +9,7 @@ function Digit({ value }: { value: number }) {
   return (
     <span
       data-glyph={value}
-      className="relative inline-block [clip-path:inset(0)] before:invisible before:content-[attr(data-glyph)]"
+      className="relative inline-block overflow-clip before:invisible before:content-[attr(data-glyph)]"
     >
       <motion.span
         data-glyph={COLUMN}

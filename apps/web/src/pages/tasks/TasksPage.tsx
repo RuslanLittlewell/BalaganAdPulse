@@ -1,30 +1,28 @@
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useMemo, useState } from "react";
 import { TaskBoard } from "@/widgets/task-board/index.js";
+import { TaskFilters } from "@/widgets/task-filters/index.js";
 import { TaskCalendar } from "@/widgets/task-calendar/index.js";
-import { TaskDialogs, type OpenedTask } from "@/features/task-management/index.js";
+import { TaskDialogs, useTaskAddress } from "@/features/task-management/index.js";
+import { TelegramBotButton } from "@/features/telegram-bot/index.js";
 import { Can } from "@/features/permissions/index.js";
 import { useAuth } from "@/features/auth/index.js";
-import { Button, FadeContent, MultiSelect, Tabs } from "@/shared/ui/index.js";
-import { useModuleMemory } from "@/shared/lib/index.js";
+import { Button, FadeContent, Tabs } from "@/shared/ui/index.js";
+import { useModuleMemory, useNow } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import {
-  NO_PARTICIPANTS,
-  NO_PROJECT_TASK,
-  participantChoices,
-  projectChoices,
+  isShelved,
   tasksOfParticipants,
   tasksOfProjects,
   useTaskEvents,
   useTasks,
   type Task,
 } from "@/entities/task/index.js";
-import { MemberAvatar, useMembers } from "@/entities/membership/index.js";
-import { ProjectAvatar, useProjects } from "@/entities/project/index.js";
 
 const VIEWS = ["board", "calendar", "calls"] as const;
 
 const EMPTY: string[] = [];
+
+const EMPTY_TASKS: Task[] = [];
 
 type View = (typeof VIEWS)[number];
 
@@ -33,10 +31,8 @@ function isView(value: string | undefined): value is View {
 }
 
 export function TasksPage() {
-  const [opened, setOpened] = useState<OpenedTask>({ mode: "closed" });
   const { data: tasks, isLoading, isError } = useTasks();
-  const { data: members } = useMembers();
-  const { data: projects } = useProjects();
+  const { opened, open, create, close } = useTaskAddress(tasks);
   useTaskEvents();
 
   const userId = useAuth().user?.id ?? "";
@@ -50,70 +46,28 @@ export function TasksPage() {
   const chosenProjects = useModuleMemory((state) => state.taskProjects[userId]) ?? EMPTY;
   const rememberProjects = useModuleMemory((state) => state.rememberTaskProjects);
 
-  const choices = useMemo(
-    () => participantChoices(tasks ?? [], members ?? [], chosenPeople),
-    [tasks, members, chosenPeople],
-  );
-  const projectOptions = useMemo(
-    () => projectChoices(tasks ?? [], projects ?? [], chosenProjects),
-    [tasks, projects, chosenProjects],
+  const now = useNow();
+  const onShelf = useMemo(
+    () => (tasks ?? EMPTY_TASKS).filter((task) => !isShelved(task, now)),
+    [tasks, now],
   );
   const shown = useMemo(
-    () => tasksOfProjects(tasksOfParticipants(tasks ?? [], chosenPeople), chosenProjects),
-    [tasks, chosenPeople, chosenProjects],
+    () => tasksOfProjects(tasksOfParticipants(onShelf, chosenPeople), chosenProjects),
+    [onShelf, chosenPeople, chosenProjects],
   );
   const work = useMemo(() => shown.filter((task) => !task.isCall), [shown]);
   const calls = useMemo(() => shown.filter((task) => task.isCall), [shown]);
 
-  const open = (task: Task) => setOpened({ mode: "open", task });
-
-  const [searchParams, setSearchParams] = useSearchParams();
-  const linkedTaskId = searchParams.get("task");
-  useEffect(() => {
-    if (!linkedTaskId || !tasks) return;
-    const linked = tasks.find((candidate) => candidate.id === linkedTaskId);
-    if (linked) setOpened({ mode: "open", task: linked });
-    setSearchParams((params) => {
-      params.delete("task");
-      return params;
-    }, { replace: true });
-  }, [linkedTaskId, tasks, setSearchParams]);
-
   return (
     <section className="flex h-full flex-col gap-4">
       <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3">
-        <div className="flex min-w-0 items-center gap-3 justify-self-start">
-          <MultiSelect
-            items={choices.map((choice) => ({
-              value: choice.id,
-              label: choice.id === NO_PARTICIPANTS
-                ? t("tasks.participants.nobody")
-                : choice.name,
-              icon: choice.member
-                ? <MemberAvatar member={choice.member} size="sm" />
-                : undefined,
-            }))}
-            chosen={chosenPeople}
-            onChange={(next) => rememberPeople(userId, next)}
-            allLabel={t("tasks.filter.all")}
-            placeholder={t("tasks.participants.filter")}
-            ariaLabel={t("tasks.participants.filterLabel")}
-            className="max-w-52"
-          />
-          <MultiSelect
-            items={projectOptions.map((choice) => ({
-              value: choice.id,
-              label: choice.id === NO_PROJECT_TASK ? t("tasks.noProject") : choice.name,
-              icon: choice.project
-                ? <ProjectAvatar project={choice.project} size="sm" />
-                : undefined,
-            }))}
-            chosen={chosenProjects}
-            onChange={(next) => rememberProjects(userId, next)}
-            allLabel={t("tasks.filter.all")}
-            placeholder={t("tasks.projects.filter")}
-            ariaLabel={t("tasks.projects.filterLabel")}
-            className="max-w-52"
+        <div className="justify-self-start">
+          <TaskFilters
+            tasks={onShelf}
+            chosenPeople={chosenPeople}
+            chosenProjects={chosenProjects}
+            onPeopleChange={(next) => rememberPeople(userId, next)}
+            onProjectsChange={(next) => rememberProjects(userId, next)}
           />
         </div>
 
@@ -133,11 +87,14 @@ export function TasksPage() {
           className="justify-self-center"
         />
 
-        <Can action="create" resource="task">
-          <Button className="justify-self-end" onClick={() => setOpened({ mode: "create" })}>
-            {t("tasks.create")}
-          </Button>
-        </Can>
+        <div className="flex items-center gap-2 justify-self-end">
+          <TelegramBotButton />
+          <Can action="create" resource="task">
+            <Button onClick={() => create()}>
+              {t("tasks.create")}
+            </Button>
+          </Can>
+        </div>
       </header>
 
 
@@ -149,7 +106,7 @@ export function TasksPage() {
               isLoading={isLoading}
               isError={isError}
               onOpen={open}
-              onCreate={(column) => setOpened({ mode: "create", column })}
+              onCreate={(column) => create({ column })}
             />
           ) : (
             <TaskCalendar
@@ -162,7 +119,7 @@ export function TasksPage() {
         </FadeContent>
       </div>
 
-      <TaskDialogs opened={opened} onClose={() => setOpened({ mode: "closed" })} />
+      <TaskDialogs opened={opened} onClose={close} />
     </section>
   );
 }

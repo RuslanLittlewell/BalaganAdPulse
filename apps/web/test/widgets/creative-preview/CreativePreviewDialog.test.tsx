@@ -1,5 +1,5 @@
 import { http as mock, HttpResponse, delay } from "msw";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders, server } from "@test/shared/index.js";
 import { CreativePreviewDialog } from "@/widgets/creative-preview/index.js";
@@ -13,7 +13,7 @@ const performance = {
 
 const creative = (overrides: Partial<Creative> = {}): Creative => ({
   id: "cr1", position: 0, kind: "IMAGE", title: "Заголовок", body: "Текст",
-  hasFile: true, hasPoster: false, ...overrides,
+  hasFile: true, hasPoster: false, sourceUrl: null, ...overrides,
 });
 
 const ad = (overrides: Partial<Ad> = {}): Ad => ({
@@ -138,5 +138,56 @@ describe("CreativePreviewDialog", () => {
     await screen.findByRole("dialog");
     await user.keyboard("{Escape}");
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("shows a text creative as headings over its headlines and descriptions, one line each", async () => {
+    api({ a1: [creative({ id: "t1", kind: "TEXT", title: "Окна от производителя\nСкидка 20%", body: "Замер бесплатно", hasFile: false })] });
+    renderWithProviders(<CreativePreviewDialog ads={[ad()]} initialAdId="a1" onClose={() => {}} />);
+
+    expect(await screen.findByRole("heading", { name: "Заголовки" })).toBeInTheDocument();
+    const headlines = screen.getByRole("heading", { name: "Заголовки" }).closest("section")!;
+    expect(within(headlines).getAllByRole("listitem").map((item) => item.textContent)).toEqual(["Окна от производителя", "Скидка 20%"]);
+    const descriptions = screen.getByRole("heading", { name: "Описания" }).closest("section")!;
+    expect(within(descriptions).getAllByRole("listitem").map((item) => item.textContent)).toEqual(["Замер бесплатно"]);
+    expect(screen.queryByText("У объявления нет креатива")).not.toBeInTheDocument();
+  });
+
+  it("leaves a heading out when its text is missing", async () => {
+    api({ a1: [creative({ id: "t1", kind: "TEXT", title: "Только заголовок", body: null, hasFile: false })] });
+    renderWithProviders(<CreativePreviewDialog ads={[ad()]} initialAdId="a1" onClose={() => {}} />);
+
+    expect(await screen.findByRole("heading", { name: "Заголовки" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Описания" })).not.toBeInTheDocument();
+  });
+
+  it("shows a YouTube video as its thumbnail with a link to watch it, without Meta's rendered preview", async () => {
+    const asked = api({ a1: [creative({
+      id: "v1", kind: "VIDEO", title: "Ролик", body: null, hasFile: false, hasPoster: true,
+      sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    })] });
+    let previewAsked = false;
+    server.use(mock.get("/api/ads/:id/preview", () => { previewAsked = true; return HttpResponse.json({ url: "https://frame.invalid" }); }));
+    renderWithProviders(<CreativePreviewDialog ads={[ad()]} initialAdId="a1" onClose={() => {}} />);
+
+    const image = await screen.findByAltText("Ролик");
+    await waitFor(() => expect(image).toHaveAttribute("src", expect.stringContaining("blob:")));
+    expect(screen.getByRole("link", { name: "Смотреть на YouTube" })).toHaveAttribute("href", "https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+    expect(screen.queryByRole("link", { name: "Смотреть в Ads Manager" })).not.toBeInTheDocument();
+    expect(asked).toContain("poster:v1");
+    expect(previewAsked).toBe(false);
+  });
+
+  it("shows images, then video, then text in the order the ad gives them, text last", async () => {
+    api({ a1: [
+      creative({ id: "i1", title: "Первая", body: null }),
+      creative({ id: "t1", kind: "TEXT", title: "Заголовок", body: null, hasFile: false }),
+      creative({ id: "v1", kind: "VIDEO", title: "Видео", body: null, hasFile: false, hasPoster: true, sourceUrl: "https://www.youtube.com/watch?v=abcdefghijk" }),
+    ] });
+    renderWithProviders(<CreativePreviewDialog ads={[ad()]} initialAdId="a1" onClose={() => {}} />);
+
+    await screen.findByAltText("Первая");
+    const dialog = screen.getByRole("dialog");
+    const order = [...dialog.querySelectorAll("figure, h3")].map((node) => node.tagName === "H3" ? "text" : "media");
+    expect(order).toEqual(["media", "media", "text"]);
   });
 });

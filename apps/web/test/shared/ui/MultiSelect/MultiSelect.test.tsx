@@ -197,3 +197,39 @@ describe("the all entry of a multi-select", () => {
     expect(all).toHaveAttribute("aria-checked", "false");
   });
 });
+
+describe("a multiple select with a search", () => {
+  const searchable = () => render(
+    <MultiSelect items={items} chosen={[]} onChange={() => {}} allLabel="Все" searchable placeholder="Ответственный" ariaLabel="Фильтр по ответственным" />,
+  );
+
+  it("has no search unless asked", async () => {
+    show();
+    await userEvent.click(trigger());
+
+    expect(await screen.findAllByRole("menuitemcheckbox")).toHaveLength(3);
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+  });
+
+  it("narrows the items as the member types, leaving out the select-all item", async () => {
+    searchable();
+    await userEvent.click(trigger());
+    expect(await screen.findAllByRole("menuitemcheckbox")).toHaveLength(4);
+
+    await userEvent.type(screen.getByRole("searchbox", { name: "Поиск" }), "ан");
+
+    const shown = screen.getAllByRole("menuitemcheckbox");
+    expect(shown).toHaveLength(1);
+    expect(shown[0]).toHaveTextContent("Анна");
+  });
+
+  it("says so when nothing matches", async () => {
+    searchable();
+    await userEvent.click(trigger());
+
+    await userEvent.type(await screen.findByRole("searchbox", { name: "Поиск" }), "zzz");
+
+    expect(screen.getByText("Ничего не найдено")).toBeInTheDocument();
+    expect(screen.queryAllByRole("menuitemcheckbox")).toEqual([]);
+  });
+});

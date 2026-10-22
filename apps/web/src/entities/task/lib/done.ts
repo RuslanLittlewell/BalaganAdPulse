@@ -5,7 +5,7 @@ export type DoneToggle =
   | { readonly kind: "move"; readonly move: TaskMove };
 
 export function isDone(task: Pick<Task, "column">): boolean {
-  return task.column === "DONE";
+  return task.column === "DONE" || task.column === "ARCHIVED";
 }
 
 export function doneToggleFor(task: Pick<Task, "column" | "repeatEvery">): DoneToggle {

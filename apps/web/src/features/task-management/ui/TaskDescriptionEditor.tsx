@@ -1,5 +1,5 @@
 import type React from "react";
-import { forwardRef, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -118,6 +118,8 @@ export const TaskDescriptionEditor = forwardRef<
 
   const report = useRef(onChange);
   report.current = onChange;
+  const mayEdit = useRef(editable);
+  mayEdit.current = editable;
 
   const editor = useEditor({
     extensions: [
@@ -143,9 +145,13 @@ export const TaskDescriptionEditor = forwardRef<
         class: RICH_TEXT_CLASS,
       },
       handlePaste: (_view, event) =>
-        editable ? insertFrom(event.clipboardData?.files) : false,
+        mayEdit.current ? insertFrom(event.clipboardData?.files) : false,
     },
   });
+
+  useEffect(() => {
+    editor?.setEditable(editable, false);
+  }, [editor, editable]);
 
   useImperativeHandle(
     ref,

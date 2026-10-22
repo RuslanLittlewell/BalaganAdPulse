@@ -10,7 +10,7 @@ const actor: ActorContext = {
 
 const storedCreative: CreativeView = {
   id: "cr1", position: 0, kind: "IMAGE", title: "Banner", body: null,
-  hasFile: true, hasPoster: false,
+  hasFile: true, hasPoster: false, sourceUrl: null,
 };
 
 function fixture(initial: CreativeView[] = [], connected = true) {

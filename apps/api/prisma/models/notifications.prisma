@@ -5,6 +5,7 @@ enum NotificationKind {
   TASK_UPDATED
   DOCUMENT_ADDED
   TASK_DUE_SOON
+  TASK_MENTIONED
 
   @@map("notification_kind")
 }

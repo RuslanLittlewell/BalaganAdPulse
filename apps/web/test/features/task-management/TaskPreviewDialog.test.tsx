@@ -47,6 +47,12 @@ describe("TaskPreviewDialog", () => {
     expect(await screen.findByText("Заголовки под гео")).toBeInTheDocument();
   });
 
+  it("lets the reader leave a comment", async () => {
+    open(aTask({ title: "Переписать объявления" }));
+
+    expect(await screen.findByRole("textbox", { name: "Текст комментария" })).toBeInTheDocument();
+  });
+
   it("says so when the task has no description", async () => {
     open(aTask({ description: null }));
 
@@ -66,7 +72,8 @@ describe("TaskPreviewDialog", () => {
     for (const name of ["Сохранить", "Удалить", "Создать задачу", "Редактировать"]) {
       expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
     }
-    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("textbox").map((box) => box.getAttribute("aria-label")))
+      .toEqual(["Текст комментария"]);
     expect(await screen.findByLabelText("Описание")).toHaveAttribute("contenteditable", "false");
   });
 

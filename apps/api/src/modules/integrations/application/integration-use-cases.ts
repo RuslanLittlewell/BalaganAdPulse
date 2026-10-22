@@ -187,17 +187,28 @@ export function createIntegrationUseCases(d: IntegrationDependencies) {
       const ad = found;
       const refreshed = async () => {
         const integration = await integrationOf(ad);
-        if (!integration || integration.provider !== "META") return stored;
+        if (!integration) return stored;
+        const reads = integration.provider === "META" || (integration.provider === "GOOGLE" && d.googleCreatives !== undefined);
+        if (!reads) return stored;
 
         const token = d.cipher.decrypt(
           integration.encryptedToken,
           ad.projectId,
         );
-        const read = await d.provider.adCreatives(
-          ad.externalId!,
-          token,
-          integration.accountId,
-        );
+        let read: readonly ImportedCreative[];
+        if (integration.provider === "META") {
+          read = await d.provider.adCreatives(
+            ad.externalId!,
+            token,
+            integration.accountId,
+          );
+        } else {
+          read = await d.googleCreatives!.adCreatives(
+            ad.externalId!,
+            { accountId: integration.accountId, loginCustomerId: integration.loginCustomerId },
+            token,
+          );
+        }
         if (read.length === 0) return stored;
 
         const copied = await Promise.all(

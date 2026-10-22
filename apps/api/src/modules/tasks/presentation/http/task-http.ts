@@ -1,9 +1,10 @@
 import { Router, type NextFunction, type Request, type RequestHandler, type Response } from "express";
 import { AppError } from "#shared/domain/index.js";
 import type { TaskUseCases } from "#modules/tasks/application/task-use-cases.js";
+import type { TaskCommentUseCases } from "#modules/tasks/application/task-comment-use-cases.js";
 import type { TaskImageUseCases } from "#modules/tasks/application/task-image-use-cases.js";
 import {
-  createTaskSchema, moveTaskSchema, taskFilterSchema, updateTaskSchema,
+  addTaskCommentSchema, createTaskSchema, moveTaskSchema, taskFilterSchema, updateTaskSchema,
 } from "./task-schemas.js";
 
 function actorOf(req: Request) {
@@ -17,7 +18,7 @@ function handle<TRequest extends Request>(
   return (req: TRequest, res: Response, next: NextFunction) => { action(req, res).catch(next); };
 }
 
-export function createTaskRouter(useCases: TaskUseCases): Router {
+export function createTaskRouter(useCases: TaskUseCases, comments: TaskCommentUseCases): Router {
   const router = Router();
 
   router.get("/", handle(async (req, res) => {
@@ -46,6 +47,17 @@ export function createTaskRouter(useCases: TaskUseCases): Router {
   }));
   router.post("/:id/complete", handle(async (req: Request<{ id: string }>, res) => {
     res.json(await useCases.complete(actorOf(req), req.params.id));
+  }));
+
+  router.get("/:id/comments", handle(async (req: Request<{ id: string }>, res) => {
+    res.json(await comments.list(actorOf(req), req.params.id));
+  }));
+  router.post("/:id/comments", handle(async (req: Request<{ id: string }>, res) => {
+    res.status(201).json(await comments.add(actorOf(req), req.params.id, addTaskCommentSchema.parse(req.body)));
+  }));
+  router.delete("/:id/comments/:commentId", handle(async (req: Request<{ id: string; commentId: string }>, res) => {
+    await comments.remove(actorOf(req), req.params.id, req.params.commentId);
+    res.status(204).send();
   }));
 
   return router;

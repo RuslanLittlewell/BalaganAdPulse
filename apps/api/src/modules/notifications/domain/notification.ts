@@ -1,5 +1,6 @@
 export const NOTIFICATION_KINDS = [
   "KPI_MET", "PROJECT_CREATED", "TASK_ASSIGNED", "TASK_UPDATED", "DOCUMENT_ADDED", "TASK_DUE_SOON",
+  "TASK_MENTIONED",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 

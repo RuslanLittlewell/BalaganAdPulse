@@ -37,6 +37,7 @@ function toDomain(row: RowWithImages): TaskRecord {
     dueTime: row.dueTime, endTime: row.endTime, repeatEvery: row.repeatEvery, isCall: row.isCall,
     checklist: row.checklist ?? [],
     imageIds: (row.images ?? []).map((image) => image.id),
+    archivedAt: row.archivedAt,
     createdAt: row.createdAt, updatedAt: row.updatedAt,
   };
 }
@@ -95,6 +96,7 @@ export class PrismaTaskRepository implements TaskRepository {
       include: WITH_IMAGES,
       data: {
         ...task,
+        archivedAt: task.column === "ARCHIVED" ? new Date() : null,
         dueDate: input.dueDate ? dayToDate(input.dueDate) : null,
         description: input.description === null || input.description === undefined
           ? undefined
@@ -204,6 +206,15 @@ export class PrismaTaskRepository implements TaskRepository {
     const client = this.client(context);
     await Promise.all(ids.map((id, index) =>
       client.task.update({ where: { id }, data: { column, position: index } })));
+    if (column === "ARCHIVED") {
+      await client.task.updateMany({
+        where: { id: { in: [...ids] }, archivedAt: null }, data: { archivedAt: new Date() },
+      });
+    } else {
+      await client.task.updateMany({
+        where: { id: { in: [...ids] }, archivedAt: { not: null } }, data: { archivedAt: null },
+      });
+    }
   }
 
   async updateChecklist(

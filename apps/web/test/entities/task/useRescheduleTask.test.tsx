@@ -7,6 +7,7 @@ const task = (id: string, dueDate: string | null, dueTime: string | null = null)
   id, projectId: "p1", orgId: "org1", title: id, description: null,
   column: "IDEA", priority: "LOW", createdById: null,
   visibleToClient: false, position: 0, dueDate, dueTime, endTime: null, participantIds: [], repeatEvery: "NONE", isCall: false, checklist: [],
+  archivedAt: null,
   imageIds: [], createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
 });
 

@@ -53,7 +53,7 @@ describe("Ad creatives on demand", () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual([{
       id: expect.any(String), position: 0, kind: "IMAGE",
-      title: "Баннер", body: null, hasFile: true, hasPoster: false,
+      title: "Баннер", body: null, hasFile: true, hasPoster: false, sourceUrl: null,
     }]);
     expect(JSON.stringify(res.body)).not.toContain("creatives/one");
     expect(await prisma.adCreative.count()).toBe(1);

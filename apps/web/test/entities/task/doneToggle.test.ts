@@ -20,8 +20,9 @@ describe("what ticking Готово does", () => {
       .toEqual({ kind: "move", move: { column: "IN_PROGRESS", position: 0 } });
   });
 
-  it("counts a task as done exactly when it is in Готово", () => {
+  it("counts a task as done when it is in Готово or in the archive", () => {
     expect(isDone({ column: "DONE" })).toBe(true);
+    expect(isDone({ column: "ARCHIVED" })).toBe(true);
     expect(isDone({ column: "IN_REVIEW" })).toBe(false);
   });
 });

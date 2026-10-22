@@ -1,13 +1,18 @@
 import { http as mock, HttpResponse } from "msw";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { aProject, aTask, renderWithProviders, server } from "@test/shared/index.js";
 import { TasksPage } from "@/pages/tasks/index.js";
 
 function Where() {
   const location = useLocation();
   return <output aria-label="Адрес">{`${location.pathname}${location.search}`}</output>;
+}
+
+function Back() {
+  const navigate = useNavigate();
+  return <button type="button" onClick={() => navigate(-1)}>Назад</button>;
 }
 
 function setup() {
@@ -73,7 +78,7 @@ describe("TasksPage", () => {
     expect(await screen.findByLabelText("Название")).toHaveValue("Написать бриф");
   });
 
-  it("opens the task named in the address, then forgets the name", async () => {
+  it("opens the task named in the address and keeps naming it", async () => {
     server.use(mock.get("/api/tasks", () => HttpResponse.json([
       aTask({ id: "task-7", title: "Позвонить клиенту" }),
       aTask({ id: "task-8", title: "Написать бриф" }),
@@ -81,7 +86,35 @@ describe("TasksPage", () => {
     renderWithProviders(<><TasksPage /><Where /></>, { route: "/tasks?task=task-7" });
 
     expect(await screen.findByLabelText("Название")).toHaveValue("Позвонить клиенту");
-    await waitFor(() => expect(screen.getByText("/tasks")).toBeInTheDocument());
+    expect(screen.getByLabelText("Адрес")).toHaveTextContent("/tasks?task=task-7");
+  });
+
+  it("puts a task in the address when it is opened and takes it out when it is closed", async () => {
+    server.use(mock.get("/api/tasks", () => HttpResponse.json([
+      aTask({ id: "task-7", title: "Позвонить клиенту", priority: "URGENT" }),
+    ])));
+    renderWithProviders(<><TasksPage /><Where /></>, { route: "/tasks" });
+
+    await userEvent.click(await screen.findByText("Срочный"));
+    await screen.findByLabelText("Название");
+    expect(screen.getByLabelText("Адрес")).toHaveTextContent("/tasks?task=task-7");
+
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByLabelText("Название")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText("Адрес")).toHaveTextContent(/^\/tasks$/));
+  });
+
+  it("closes the task when the browser goes back", async () => {
+    server.use(mock.get("/api/tasks", () => HttpResponse.json([
+      aTask({ id: "task-7", title: "Позвонить клиенту", priority: "URGENT" }),
+    ])));
+    renderWithProviders(<><TasksPage /><Back /></>, { route: "/tasks" });
+
+    await userEvent.click(await screen.findByText("Срочный"));
+    await screen.findByLabelText("Название");
+    fireEvent.click(screen.getByText("Назад"));
+
+    await waitFor(() => expect(screen.queryByLabelText("Название")).not.toBeInTheDocument());
   });
 
   it("opens nothing for a task it does not have", async () => {

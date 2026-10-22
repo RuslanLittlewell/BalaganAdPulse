@@ -42,6 +42,8 @@ export function wireNotifications({ clock }: Kernel) {
   const taskNotices: TaskNotices = {
     named: (task, memberIds, actor) =>
       runDetached("Failed to notify of a task assignment:", notifications.participantsNamed(task, memberIds, actor)),
+    mentioned: (task, memberIds, actor) =>
+      runDetached("Failed to notify of a mention:", notifications.taskMentioned(task, memberIds, actor)),
     changed: (task, actor, newcomers) =>
       runDetached("Failed to notify of a task change:", notifications.taskChanged(task, actor, newcomers)),
   };

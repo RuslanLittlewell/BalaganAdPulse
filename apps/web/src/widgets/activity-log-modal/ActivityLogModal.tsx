@@ -7,11 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  SearchableSelect,
   Tabs,
 } from "@/shared/ui/index.js";
 import { ActivityList } from "./ActivityList.js";
@@ -43,15 +39,16 @@ function FilterSelect({ label, allLabel, options, value, onChange }: {
   onChange: (value: string) => void;
 }) {
   return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger aria-label={label} className="w-full sm:w-64"><SelectValue /></SelectTrigger>
-      <SelectContent>
-        <SelectItem value={ALL}>{allLabel}</SelectItem>
-        {options.map((option) => (
-          <SelectItem key={option.id} value={option.id}>{option.name}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <SearchableSelect
+      value={value}
+      onValueChange={onChange}
+      pinned={[{ value: ALL, label: allLabel }]}
+      options={options.map((option) => ({ value: option.id, label: option.name }))}
+      searchLabel={t("select.search")}
+      emptyLabel={t("select.search.empty")}
+      ariaLabel={label}
+      className="sm:w-64"
+    />
   );
 }
 

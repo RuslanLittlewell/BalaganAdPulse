@@ -53,6 +53,7 @@ export interface Task {
   isCall: boolean;
   checklist: ChecklistItem[];
   imageIds: string[];
+  archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -110,4 +111,25 @@ export const taskImagesApi = {
     const blob = await http.getBlob(`/task-images/${id}`);
     return URL.createObjectURL(blob);
   },
+};
+
+export interface TaskComment {
+  id: string;
+  taskId: string;
+  authorId: string | null;
+  body: string;
+  mentionIds: string[];
+  createdAt: string;
+}
+
+export interface TaskCommentInput {
+  body: string;
+  mentionIds: string[];
+}
+
+export const taskCommentsApi = {
+  list: (taskId: string) => http.get<TaskComment[]>(`/tasks/${taskId}/comments`),
+  add: (taskId: string, body: TaskCommentInput) =>
+    http.post<TaskComment>(`/tasks/${taskId}/comments`, body),
+  remove: (taskId: string, id: string) => http.del(`/tasks/${taskId}/comments/${id}`),
 };

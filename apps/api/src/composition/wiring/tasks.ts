@@ -1,12 +1,14 @@
 import { prisma } from "#shared/infrastructure/prisma.js";
 import { createTaskEventDelivery } from "#modules/realtime/index.js";
 import {
+  createTaskCommentUseCases,
   createTaskImageRouter,
   createTaskImageUseCases,
   createTaskRouter,
   createTaskUseCases,
   type TaskEvent,
 } from "#modules/tasks/index.js";
+import { PrismaTaskCommentRepository } from "#modules/tasks/infrastructure/prisma-task-comment-repository.js";
 import { PrismaTaskImageRepository, S3TaskImageStorage } from "#modules/tasks/infrastructure/prisma-task-image-repository.js";
 import {
   PrismaTaskMemberReach,
@@ -42,7 +44,13 @@ export function wireTasks(
   const taskUseCases = createTaskUseCases(dependencies);
   return {
     taskUseCases,
-    taskRouter: createTaskRouter(taskUseCases),
+    taskRouter: createTaskRouter(taskUseCases, createTaskCommentUseCases({
+      tasks: dependencies.tasks,
+      comments: new PrismaTaskCommentRepository(prisma),
+      members: dependencies.members,
+      notices: taskNotices,
+      ids,
+    })),
     taskImageRouter: createTaskImageRouter(createTaskImageUseCases(dependencies), taskImageUpload.single("image")),
   };
 }

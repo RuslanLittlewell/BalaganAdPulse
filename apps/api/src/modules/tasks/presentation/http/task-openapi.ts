@@ -3,7 +3,7 @@ import { arrayOf, ref, type ComponentDocs, type RouteDoc } from "#shared/present
 import { MAX_TASK_IMAGE_BYTES } from "#modules/tasks/domain/image.js";
 import { TASK_COLUMNS, TASK_PRIORITIES } from "#modules/tasks/domain/board.js";
 import { TASK_REPEATS } from "#modules/tasks/domain/schedule.js";
-import { createTaskSchema, moveTaskSchema, updateTaskSchema } from "./task-schemas.js";
+import { addTaskCommentSchema, createTaskSchema, moveTaskSchema, updateTaskSchema } from "./task-schemas.js";
 
 const task = z.object({
   id: z.uuid(),
@@ -29,6 +29,7 @@ const task = z.object({
     position: z.int(),
   })),
   imageIds: z.array(z.uuid()),
+  archivedAt: z.iso.datetime().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
@@ -43,8 +44,18 @@ const taskImage = z.object({
   createdAt: z.iso.datetime(),
 });
 
+const taskComment = z.object({
+  id: z.uuid(),
+  taskId: z.uuid(),
+  authorId: z.uuid().nullable(),
+  body: z.string(),
+  mentionIds: z.array(z.uuid()),
+  createdAt: z.iso.datetime(),
+});
+
 export const taskComponents: ComponentDocs = {
   Task: task,
+  TaskComment: taskComment,
   TaskImage: taskImage,
 };
 
@@ -111,6 +122,30 @@ export const taskDoc: RouteDoc = {
       description: "Moves the task's due date on by its interval, keeps its time of day, unticks its checklist, and leaves it where it sits on the board. Refused for a task that does not repeat.",
       success: { status: 200, description: "The task, due next time", schema: ref("Task") },
       errors: [400, 401, 403, 404],
+    },
+    {
+      method: "get",
+      path: "/:id/comments",
+      summary: "List the comments on a task",
+      success: { status: 200, description: "The comments, oldest first", schema: arrayOf(ref("TaskComment")) },
+      errors: [401, 403, 404],
+    },
+    {
+      method: "post",
+      path: "/:id/comments",
+      summary: "Comment on a task",
+      description: "The members named in mentionIds are tagged and notified. A client's person tags nobody, and a client's person is tagged only on a task shared with the client.",
+      body: addTaskCommentSchema,
+      success: { status: 201, description: "The comment", schema: ref("TaskComment") },
+      errors: [400, 401, 403, 404],
+    },
+    {
+      method: "delete",
+      path: "/:id/comments/:commentId",
+      summary: "Delete a comment",
+      description: "Only the comment's author or an admin may delete it.",
+      success: { status: 204, description: "The comment is gone" },
+      errors: [401, 403, 404],
     },
   ],
 };

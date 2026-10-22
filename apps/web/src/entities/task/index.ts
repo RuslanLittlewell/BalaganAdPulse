@@ -48,6 +48,7 @@ export type { ParticipantChoice, ParticipantNamed } from "./lib/participants.js"
 export { NO_PROJECT_TASK, projectChoices, tasksOfProjects } from "./lib/projects.js";
 export type { ProjectChoice, ProjectNamed } from "./lib/projects.js";
 export { doneToggleFor, isDone } from "./lib/done.js";
+export { SHELF_AFTER_DAYS, isShelved } from "./lib/shelved.js";
 export type { DoneToggle } from "./lib/done.js";
 export {
   END_OF_DAY,
@@ -64,3 +65,15 @@ export {
 } from "./lib/schedule.js";
 export { MAX_TASK_IMAGE_BYTES, TASK_IMAGE_TYPES, imageRefusal } from "./lib/images.js";
 export type { ImageRefusal } from "./lib/images.js";
+export { taskCommentsApi } from "./api/api.js";
+export type { TaskComment, TaskCommentInput } from "./api/api.js";
+export { taskCommentsKey, useAddTaskComment, useDeleteTaskComment, useTaskComments } from "./api/commentQueries.js";
+export {
+  bodySegments,
+  insertMention,
+  matchingMembers,
+  mentionQueryAt,
+  taggableMembers,
+  tagsStillIn,
+} from "./lib/mentions.js";
+export type { BodySegment, MentionedMember, MentionQuery, Taggable } from "./lib/mentions.js";

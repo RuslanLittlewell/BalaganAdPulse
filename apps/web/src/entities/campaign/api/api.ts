@@ -62,7 +62,7 @@ export interface AdSet {
   performance: Performance;
 }
 
-export const CREATIVE_KINDS = ["IMAGE", "VIDEO"] as const;
+export const CREATIVE_KINDS = ["IMAGE", "VIDEO", "TEXT"] as const;
 
 export type CreativeKind = (typeof CREATIVE_KINDS)[number];
 
@@ -74,6 +74,7 @@ export interface Creative {
   body: string | null;
   hasFile: boolean;
   hasPoster: boolean;
+  sourceUrl: string | null;
 }
 
 export interface Ad {

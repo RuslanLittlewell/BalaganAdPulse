@@ -12,6 +12,7 @@ import {
   DialogTitle,
   Label,
   MultiSelect,
+  SearchableSelect,
   Select,
   SelectContent,
   SelectItem,
@@ -59,6 +60,7 @@ import {
   type TaskDescriptionEditorHandle,
 } from "./TaskDescriptionEditor.js";
 import { TaskChecklist } from "./TaskChecklist.js";
+import { TaskComments } from "./TaskComments.js";
 import { TaskSchedule } from "./TaskSchedule.js";
 
 export interface TaskFormDialogProps {
@@ -187,6 +189,7 @@ export function TaskFormDialog({
   );
   const { raise } = useAlerts();
   const editor = useRef<TaskDescriptionEditorHandle>(null);
+  const [editingDescription, setEditingDescription] = useState(!task);
   const content = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(true);
   const requestClose = () => setOpen(false);
@@ -466,12 +469,25 @@ export function TaskFormDialog({
                 data-testid="task-form-main"
               >
                 <div className="flex flex-col gap-2">
-                  <Label>{t("tasks.form.description")}</Label>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label>{t("tasks.form.description")}</Label>
+                    {task ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingDescription((editing) => !editing)}
+                      >
+                        {editingDescription ? t("tasks.description.done") : t("tasks.description.edit")}
+                      </Button>
+                    ) : null}
+                  </div>
                   <TaskDescriptionEditor
                     ref={editor}
-                    className="flex min-h-125 flex-col"
+                    className="flex min-h-62 flex-col"
                     value={description}
                     onChange={setDescription}
+                    editable={editingDescription}
                   />
                 </div>
 
@@ -504,6 +520,8 @@ export function TaskFormDialog({
                   onRemoved={(imageId) => editor.current?.removeImage(imageId)}
                   onAttach={(imageId) => editor.current?.appendImage(imageId)}
                 />
+
+                {task ? <TaskComments task={task} /> : null}
               </div>
 
               <div
@@ -578,38 +596,24 @@ export function TaskFormDialog({
                               control={control}
                               name="projectId"
                               render={({ field }) => (
-                                <Select
+                                <SearchableSelect
+                                  id="task-project"
                                   value={field.value}
                                   onValueChange={field.onChange}
-                                >
-                                  <SelectTrigger
-                                    id="task-project"
-                                    className="w-full"
-                                  >
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value={NO_PROJECT}>
-                                      {t("tasks.noProject")}
-                                    </SelectItem>
-                                    {(projects ?? []).map((project) => (
-                                      <SelectItem
-                                        key={project.id}
-                                        value={project.id}
-                                      >
-                                        <span className="flex min-w-0 items-center gap-2">
-                                          <ProjectAvatar
-                                            project={project}
-                                            size="sm"
-                                          />
-                                          <span className="truncate">
-                                            {project.name}
-                                          </span>
-                                        </span>
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                  pinned={[{ value: NO_PROJECT, label: t("tasks.noProject") }]}
+                                  options={(projects ?? []).map((project) => ({
+                                    value: project.id,
+                                    label: project.name,
+                                    node: (
+                                      <span className="flex min-w-0 items-center gap-2">
+                                        <ProjectAvatar project={project} size="sm" />
+                                        <span className="truncate">{project.name}</span>
+                                      </span>
+                                    ),
+                                  }))}
+                                  searchLabel={t("select.search")}
+                                  emptyLabel={t("select.search.empty")}
+                                />
                               )}
                             />
                             <FieldError message={errors.projectId?.message} />

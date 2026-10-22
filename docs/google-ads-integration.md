@@ -17,7 +17,19 @@ keeps what was imported. Each run reads campaigns, ad groups, ads and their dail
 impressions, clicks, conversions and conversion value. Cost arrives in millionths of the
 currency and is stored with four decimals. Conversions are rounded to whole numbers and also
 fill the results column. Google does not report reach at every level, so reach stays zero.
-Creative files and leads from lead form extensions are not imported.
+Leads from lead form extensions are not imported.
+
+## Creatives
+
+Creatives are not read by the daily import. The first time someone opens an ad's preview the
+server reads the ad from Google Ads, with the same credential, and keeps the result: an image
+ad gives its image; responsive display and Demand Gen ads give their images, marketing ones
+before square ones, and their YouTube videos; video ads give their YouTube videos; search and
+text ads give their headlines and descriptions as one text creative. Images are copied into the
+system's storage like Meta's. A YouTube video is not copied: its thumbnail is stored, and the
+preview shows it with a link to watch the video on YouTube. Google offers no API for rendering an
+ad as the audience sees it, so there is no rendered preview, and the ads of Performance Max
+campaigns, which have none of their own, and ad types not listed here show nothing.
 
 When Google rejects or revokes the credential, the connection keeps its data and shows that
 it needs a new sign-in. **Google Ads API → Войти заново** signs in again on the same

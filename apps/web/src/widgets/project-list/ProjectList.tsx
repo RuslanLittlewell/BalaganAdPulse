@@ -232,14 +232,20 @@ export function ProjectList({ collapsed = false }: { collapsed?: boolean }) {
       : shown(item.projectId),
   );
   const searchField = (
-    <Input
-      type="search"
-      className="focus-visible:ring-0"
-      value={search}
-      onChange={(event) => setSearch(event.target.value)}
-      placeholder={t("projects.search.placeholder")}
-      aria-label={t("projects.search")}
-    />
+    <div className="relative">
+      <SearchIcon
+        aria-hidden
+        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+      />
+      <Input
+        type="search"
+        className="pl-9 focus-visible:ring-0"
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        placeholder={t("projects.search.placeholder")}
+        aria-label={t("projects.search")}
+      />
+    </div>
   );
   const nothingFound =
     searching &&

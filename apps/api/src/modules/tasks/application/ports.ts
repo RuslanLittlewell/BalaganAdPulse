@@ -37,6 +37,7 @@ export interface TaskRecord {
   readonly isCall: boolean;
   readonly checklist: readonly ChecklistItemRecord[];
   readonly imageIds: readonly string[];
+  readonly archivedAt: Date | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -121,6 +122,7 @@ export interface MemberReach {
 export interface TaskNotices {
   named(task: TaskRecord, memberIds: readonly string[], actor: ActorContext): void;
   changed(task: TaskRecord, actor: ActorContext, newcomers: readonly string[]): void;
+  mentioned(task: TaskRecord, memberIds: readonly string[], actor: ActorContext): void;
 }
 
 export interface TaskDependencies {
@@ -166,4 +168,36 @@ export interface TaskImageStorage {
   put(key: string, bytes: Buffer, contentType: string): Promise<void>;
   get(key: string): Promise<{ body: Uint8Array; contentType: string | undefined }>;
   remove(keys: readonly string[]): Promise<void>;
+}
+
+export interface TaskCommentRecord {
+  readonly id: string;
+  readonly taskId: string;
+  readonly authorId: string | null;
+  readonly body: string;
+  readonly mentionIds: readonly string[];
+  readonly createdAt: Date;
+}
+
+export interface NewTaskComment {
+  readonly id: string;
+  readonly taskId: string;
+  readonly authorId: string;
+  readonly body: string;
+  readonly mentionIds: readonly string[];
+}
+
+export interface TaskCommentRepository {
+  list(taskId: string): Promise<TaskCommentRecord[]>;
+  find(taskId: string, id: string): Promise<TaskCommentRecord | null>;
+  create(input: NewTaskComment): Promise<TaskCommentRecord>;
+  delete(id: string): Promise<void>;
+}
+
+export interface TaskCommentDependencies {
+  readonly tasks: Pick<TaskRepository, "findReachable">;
+  readonly comments: TaskCommentRepository;
+  readonly members: MemberReach;
+  readonly notices: Pick<TaskNotices, "mentioned">;
+  readonly ids: IdGenerator;
 }

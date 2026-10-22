@@ -60,8 +60,19 @@ export function CreativeMedia({
         {creative.body != null && (
           <span className="text-xs text-muted-foreground">{creative.body}</span>
         )}
+        {creative.sourceUrl != null && (
+          <a
+            className="text-xs text-primary underline"
+            href={creative.sourceUrl}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            {t("creatives.youtube")}
+          </a>
+        )}
         {creative.kind === "VIDEO" &&
           !creative.hasFile &&
+          creative.sourceUrl == null &&
           externalId != null && (
             <a
               className="text-xs text-primary underline"

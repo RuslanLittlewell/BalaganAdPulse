@@ -5,11 +5,7 @@ import { ariaSortOf, cn, reportPath, ROUTES, useTableSort, type SortValue } from
 import { t } from "@/shared/config/index.js";
 import {
   Button,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  SearchableSelect,
   SortButton,
 } from "@/shared/ui/index.js";
 import { useClients } from "@/entities/client/index.js";
@@ -70,15 +66,16 @@ function ReportsList({ projects }: { projects: Project[] }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-foreground">{t("nav.reports")}</h1>
         <div className="flex flex-wrap items-center gap-2">
-          <Select value={filter} onValueChange={setFilter}>
-            <SelectTrigger aria-label={t("report.filter")} className="w-56"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>{t("report.filter.all")}</SelectItem>
-              {projects.map((project) => (
-                <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={filter}
+            onValueChange={setFilter}
+            pinned={[{ value: ALL, label: t("report.filter.all") }]}
+            options={projects.map((project) => ({ value: project.id, label: project.name }))}
+            searchLabel={t("select.search")}
+            emptyLabel={t("select.search.empty")}
+            ariaLabel={t("report.filter")}
+            className="w-56"
+          />
           {creates ? (
             <Button onClick={() => setCreating(true)}><PlusIcon /> {t("report.new")}</Button>
           ) : null}

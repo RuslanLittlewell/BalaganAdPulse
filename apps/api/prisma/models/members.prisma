@@ -84,6 +84,7 @@ model Membership {
 
   notifications       Notification[] @relation("NotificationRecipient")
   causedNotifications Notification[] @relation("NotificationActor")
+  taskComments        TaskComment[]  @relation("TaskCommentAuthor")
 
   telegramLink      TelegramLink?
   telegramLinkToken TelegramLinkToken?

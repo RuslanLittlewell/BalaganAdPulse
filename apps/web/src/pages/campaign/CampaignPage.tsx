@@ -8,6 +8,8 @@ import { projectPath } from "@/shared/lib/index.js";
 import {
   campaignsApi,
   channelLabel,
+  RESULT_TYPE_COLUMN,
+  resultTypeLabel,
   statusLabel,
   useAdSets,
   useCampaign,
@@ -77,12 +79,14 @@ export function CampaignPage() {
       .filter(Boolean)
       .join(" · "),
     performance: adSet.performance,
+    extra: { resultType: resultTypeLabel(adSet.resultType) },
     expandable: true,
     children: (adsBySet.get(adSet.id) ?? []).map((ad) => ({
       id: ad.id,
       name: ad.name,
       note: [ad.format, statusLabel(ad.status)].filter(Boolean).join(" · "),
       performance: ad.performance,
+      extra: { resultType: resultTypeLabel(ad.resultType) },
     })),
   }));
 
@@ -141,6 +145,7 @@ export function CampaignPage() {
           heading={t("adSets.one")}
           rows={rows}
           currency={currency}
+          extraColumns={[RESULT_TYPE_COLUMN]}
           onExpandedChange={setOpenSets}
           onOpen={(adId) => {
             for (const [adSetId, ads] of adsBySet) {

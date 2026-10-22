@@ -54,18 +54,19 @@ model Campaign {
 }
 
 model AdSet {
-  id         String             @id @default(uuid())
-  campaignId String             @map("campaign_id")
-  campaign   Campaign           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  name       String
-  audience   String?
-  status     DeliveryStatus     @default(ACTIVE)
-  externalId String?            @map("external_id")
-  position   Int
-  createdAt  DateTime           @default(now()) @map("created_at")
-  updatedAt  DateTime           @updatedAt @map("updated_at")
-  ads        Ad[]
-  metrics    AdSetDailyMetric[]
+  id               String             @id @default(uuid())
+  campaignId       String             @map("campaign_id")
+  campaign         Campaign           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  name             String
+  audience         String?
+  optimizationGoal String?            @map("optimization_goal")
+  status           DeliveryStatus     @default(ACTIVE)
+  externalId       String?            @map("external_id")
+  position         Int
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  ads              Ad[]
+  metrics          AdSetDailyMetric[]
 
   @@index([campaignId, position])
   @@map("ad_set")

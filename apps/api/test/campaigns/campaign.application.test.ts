@@ -66,6 +66,7 @@ function fixture(options: {
         return ids.flatMap((id) => (options.campaignDays?.[id] ?? []).map((entry) => ({ campaignId: id, ...entry })));
       },
       readAdSetRange: async (id) => options.adSetDays?.[id] ?? [],
+      readAdSetResults: async () => [],
       readAdRange: async (id) => options.adDays?.[id] ?? [],
     },
   });

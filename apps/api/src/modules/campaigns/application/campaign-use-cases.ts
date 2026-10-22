@@ -3,6 +3,7 @@ import { AppError } from "#shared/domain/index.js";
 import type { ActorContext } from "#shared/application/index.js";
 import { isOrderedRange, type Ad, type AdSet, type Campaign, type Channel, type CreativeFile, type DateRange, type ProjectKpi } from "../domain/hierarchy.js";
 import { performanceOf, sumByDay, type MeasuredDay, type Performance } from "../domain/metrics.js";
+import { resultTypeOfGoal, resultsByType, type AdSetResults, type ResultType, type ResultsOfType } from "../domain/result-type.js";
 import type { AdRepository, AdSetRepository, CampaignRepository, CreativeRepository, CreativeStorage, ProjectReach } from "./ports.js";
 import type { CampaignDay, MetricRepository } from "./metric-ports.js";
 
@@ -45,9 +46,9 @@ export interface CampaignReference {
   readonly channel: Channel;
 }
 
-export type CampaignView = Campaign & WithPerformance<Campaign>;
-export type AdSetView = AdSet & WithPerformance<AdSet>;
-export type AdView = Ad & WithPerformance<Ad>;
+export type CampaignView = Campaign & WithPerformance<Campaign> & { readonly resultTypes: ResultsOfType[] };
+export type AdSetView = Omit<AdSet, "optimizationGoal"> & WithPerformance<AdSet> & { readonly resultType: ResultType };
+export type AdView = Ad & WithPerformance<Ad> & { readonly resultType: ResultType };
 
 const NOT_FOUND = "Campaign not found";
 
@@ -89,6 +90,25 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
   const campaignPerformance = async (id: string, range: DateRange): Promise<Performance> =>
     performanceOf(await dependencies.metrics.readCampaignRange(id, range.from, range.to));
 
+  const campaignResultTypes = (
+    campaign: Campaign,
+    performance: Performance,
+    adSets: readonly AdSetResults[],
+  ): ResultsOfType[] => {
+    if (campaign.channel === "GOOGLE") return [{ type: "CONVERSIONS", results: performance.results }];
+    const own = adSets.filter((adSet) => adSet.campaignId === campaign.id);
+    if (own.length > 0) return resultsByType(own);
+    return performance.results > 0 ? [{ type: "UNKNOWN", results: performance.results }] : [];
+  };
+
+  const viewOfCampaigns = async (campaigns: readonly Campaign[], range: DateRange): Promise<CampaignView[]> => {
+    const adSets = await dependencies.metrics.readAdSetResults(campaigns.map((campaign) => campaign.id), range.from, range.to);
+    return Promise.all(campaigns.map(async (campaign) => {
+      const performance = await campaignPerformance(campaign.id, range);
+      return { ...campaign, performance, resultTypes: campaignResultTypes(campaign, performance, adSets) };
+    }));
+  };
+
   const campaignDays = (campaigns: readonly Campaign[], range: DateRange): Promise<CampaignDay[]> =>
     dependencies.metrics.readCampaignsRange(campaigns.map((campaign) => campaign.id), range.from, range.to);
 
@@ -104,7 +124,7 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
       assertCanRead(actor);
       assertRange(range);
       const campaign = await reachCampaign(actor, id);
-      return { ...campaign, performance: await campaignPerformance(id, range) };
+      return (await viewOfCampaigns([campaign], range))[0];
     },
 
     listCampaigns: async (
@@ -116,10 +136,7 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
         throw new AppError("not-found", "Project not found");
       }
       const campaigns = await dependencies.campaigns.listReachableByProject(actor, projectId);
-      return Promise.all(campaigns.map(async (campaign) => ({
-        ...campaign,
-        performance: await campaignPerformance(campaign.id, range),
-      })));
+      return viewOfCampaigns(campaigns, range);
     },
 
     listCampaignReferences: async (
@@ -140,8 +157,9 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
       assertRange(range);
       await reachCampaign(actor, campaignId);
       const adSets = await dependencies.adSets.listByCampaign(campaignId);
-      return Promise.all(adSets.map(async (adSet) => ({
+      return Promise.all(adSets.map(async ({ optimizationGoal, ...adSet }) => ({
         ...adSet,
+        resultType: resultTypeOfGoal(optimizationGoal),
         performance: performanceOf(
           await dependencies.metrics.readAdSetRange(adSet.id, range.from, range.to),
         ),
@@ -151,10 +169,11 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
     listAds: async (actor: ActorContext, adSetId: string, range: DateRange): Promise<AdView[]> => {
       assertCanRead(actor);
       assertRange(range);
-      await reachAdSet(actor, adSetId);
+      const adSet = await reachAdSet(actor, adSetId);
       const ads = await dependencies.ads.listByAdSet(adSetId);
       return Promise.all(ads.map(async (ad) => ({
         ...ad,
+        resultType: resultTypeOfGoal(adSet.optimizationGoal),
         performance: performanceOf(await dependencies.metrics.readAdRange(ad.id, range.from, range.to)),
       })));
     },

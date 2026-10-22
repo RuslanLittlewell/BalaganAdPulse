@@ -5,6 +5,7 @@ export interface ImportedEntity {
   status: ImportedStatus;
   parentId?: string;
   objective?: string;
+  optimizationGoal?: string;
 }
 export interface ImportedMetric {
   externalId: string;

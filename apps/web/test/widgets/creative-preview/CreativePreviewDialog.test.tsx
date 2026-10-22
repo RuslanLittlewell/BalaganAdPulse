@@ -17,7 +17,7 @@ const creative = (overrides: Partial<Creative> = {}): Creative => ({
 });
 
 const ad = (overrides: Partial<Ad> = {}): Ad => ({
-  id: "a1", adSetId: "s1", name: "Первое", format: null, headline: null,
+  id: "a1", adSetId: "s1", name: "Первое", format: null, headline: null, resultType: "UNKNOWN",
   status: "ACTIVE", externalId: "111", position: 0,
   performance: performance as Ad["performance"], ...overrides,
 });

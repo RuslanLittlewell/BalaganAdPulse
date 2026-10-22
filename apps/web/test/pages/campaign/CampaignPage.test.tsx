@@ -43,11 +43,11 @@ function api(options: { adSets?: unknown[]; ads?: unknown[]; days?: unknown[]; s
     mock.get("/api/campaigns/:campaignId/daily", () =>
       HttpResponse.json(options.days ?? [day("2026-08-01", 400), day("2026-08-02", 900)])),
     mock.get("/api/campaigns/:campaignId/ad-sets", () => HttpResponse.json(options.adSets ?? [
-      { id: "s1", campaignId: "c1", name: "Москва · 28–55", audience: "Гео Москва",
+      { id: "s1", campaignId: "c1", name: "Москва · 28–55", audience: "Гео Москва", resultType: "PROFILE_VISITS",
         status: "ACTIVE", externalId: null, position: 0, performance: performance(600) },
     ])),
     mock.get("/api/ad-sets/:adSetId/ads", () => HttpResponse.json(options.ads ?? [
-      { id: "a1", adSetId: "s1", name: "Приём сегодня", format: "Текст", headline: null,
+      { id: "a1", adSetId: "s1", name: "Приём сегодня", format: "Текст", headline: null, resultType: "PROFILE_VISITS",
         status: "PAUSED", externalId: null, position: 0, performance: performance(300) },
     ])),
     mock.get("/api/ads/:adId/creatives", ({ params }) => {
@@ -80,6 +80,14 @@ describe("CampaignPage", () => {
     expect(screen.getByText("Яндекс Директ · Активна · Заявки")).toBeInTheDocument();
     expect(screen.getByLabelText("От")).toBeInTheDocument();
     expect(screen.getByLabelText("До")).toBeInTheDocument();
+  });
+
+  it("shows the type of an ad set's results in its own column", async () => {
+    api();
+    renderWithProviders(<App />, route);
+
+    expect(await screen.findByRole("columnheader", { name: /Тип результата/ })).toBeInTheDocument();
+    expect(await screen.findByText("Переходы в профиль")).toBeInTheDocument();
   });
 
   it("returns to the campaign list through the back arrow in the title", async () => {

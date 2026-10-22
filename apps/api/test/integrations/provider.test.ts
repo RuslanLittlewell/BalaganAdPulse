@@ -52,6 +52,20 @@ it("requests Results apart from the other figures at each level and counts them 
   expect(fields.filter((list) => list.split(",").includes("results")))
     .toEqual(["campaign_id,date_start,results", "adset_id,date_start,results", "ad_id,date_start,results"]);
 });
+it("reads the optimization goal of each ad set", async () => {
+  const fetcher = vi.fn(async (url: URL) => {
+    if (url.pathname.endsWith("/act_123")) return json({ account_id: "123", currency: "USD", timezone_name: "UTC" });
+    if (url.pathname.endsWith("/adsets")) return json({ data: [{ id: "2", name: "Set", effective_status: "ACTIVE", campaign_id: "1", optimization_goal: "PROFILE_VISIT" }] });
+    if (url.pathname.endsWith("/campaigns")) return json({ data: [{ id: "1", name: "C", effective_status: "ACTIVE", objective: "OUTCOME_ENGAGEMENT" }] });
+    if (url.pathname.endsWith("/ads")) return json({ data: [{ id: "3", name: "Ad", effective_status: "ACTIVE", adset_id: "2" }] });
+    return json({ data: [] });
+  });
+  const provider = new GraphProvider("v22.0", fetcher);
+  const data = await provider.snapshot("123", "secret", "USD", new Date("2026-09-08T01:00:00Z"));
+  expect(data.adSets[0]).toMatchObject({ id: "2", optimizationGoal: "PROFILE_VISIT" });
+  const asked = fetcher.mock.calls.map(([url]) => url).find((url) => url.pathname.endsWith("/adsets"))!;
+  expect(asked.searchParams.get("fields")).toBe("id,name,effective_status,campaign_id,optimization_goal");
+});
 it("counts no results when Meta reports none", async () => {
   const data = await snapshotOf(insightsReturning({}));
   expect(data.campaignMetrics[0]).toMatchObject({ results: 0 });

@@ -60,6 +60,20 @@ it("imports the full hierarchy repeatedly, replaces corrected days and preserves
   await jobs.complete(job, changed, now);
   expect(await prisma.campaignDailyMetric.count()).toBe(2);
 });
+it("records an ad set's optimization goal and refreshes it on the next import", async () => {
+  let job = (await jobs.claim(now))!;
+  const first = snapshot();
+  first.adSets[0].optimizationGoal = "CONVERSATIONS";
+  await jobs.complete(job, first, now);
+  expect((await prisma.adSet.findFirstOrThrow({ where: { externalId: "102" } })).optimizationGoal).toBe("CONVERSATIONS");
+
+  await prisma.projectIntegration.updateMany({ where: { projectId }, data: { queuedAt: now, status: "QUEUED" } });
+  job = (await jobs.claim(now))!;
+  const second = snapshot();
+  second.adSets[0].optimizationGoal = "PROFILE_VISIT";
+  await jobs.complete(job, second, now);
+  expect((await prisma.adSet.findFirstOrThrow({ where: { externalId: "102" } })).optimizationGoal).toBe("PROFILE_VISIT");
+});
 it("rolls back all changes on foreign external IDs or invalid hierarchy", async () => {
   const other = await seedProject("unused", "Other");
   await prisma.campaign.create({ data: { projectId: other.projectId, name: "Private", channel: "META", externalId: "101", position: 0 } });

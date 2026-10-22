@@ -50,7 +50,7 @@ describe("guest controls", () => {
       http.get("/api/projects/:projectId/summary", () => HttpResponse.json(performance)),
       http.get("/api/projects/:projectId/campaigns", () => HttpResponse.json([{
         id: "c1", projectId: "p1", name: "Поиск", channel: "YANDEX", status: "ACTIVE",
-        objective: null, externalId: null, position: 0, performance,
+        objective: null, externalId: null, position: 0, performance, resultTypes: [],
       }])),
     );
 

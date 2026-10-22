@@ -13,7 +13,7 @@ const performance = (spend: number, extra = {}) => ({
 
 const campaign = (id: string, name: string, channel: string, spend: number, sourceAccountId: string | null = null) => ({
   id, projectId: "p1", name, channel, status: "ACTIVE", objective: null,
-  externalId: null, sourceAccountId, position: 0, performance: performance(spend),
+  externalId: null, sourceAccountId, position: 0, performance: performance(spend), resultTypes: [],
 });
 
 function CampaignDestination() {
@@ -246,6 +246,40 @@ describe("ProjectPage", () => {
     const footer = await screen.findByRole("row", { name: /Итого/ });
     expect(within(footer).getByText("4 200 Br")).toBeInTheDocument();
     expect(within(footer).getByText("1,90x")).toBeInTheDocument();
+  });
+
+  it("shows each campaign's result type in its own column", async () => {
+    api({ campaigns: [
+      { ...campaign("c1", "Переписки", "META", 3000), resultTypes: [{ type: "MESSAGES", results: 120 }] },
+      { ...campaign("c2", "Профиль", "META", 1200), resultTypes: [{ type: "PROFILE_VISITS", results: 45 }] },
+    ] });
+    renderWithProviders(<App />, route);
+
+    expect(await screen.findByRole("columnheader", { name: /Тип результата/ })).toBeInTheDocument();
+    expect(within(await screen.findByRole("row", { name: /Переписки/ })).getByText("Сообщения")).toBeInTheDocument();
+    expect(within(screen.getByRole("row", { name: /Профиль/ })).getByText("Переходы в профиль")).toBeInTheDocument();
+  });
+
+  it("lists results of different types apart in the totals instead of adding them", async () => {
+    api({ campaigns: [
+      { ...campaign("c1", "Переписки", "META", 3000), resultTypes: [{ type: "MESSAGES", results: 120 }] },
+      { ...campaign("c2", "Профиль", "META", 1200), resultTypes: [{ type: "PROFILE_VISITS", results: 45 }] },
+    ] });
+    renderWithProviders(<App />, route);
+
+    const footer = await screen.findByRole("row", { name: /Итого/ });
+    expect(within(footer).getByText("Сообщения: 120 · Переходы в профиль: 45")).toBeInTheDocument();
+  });
+
+  it("keeps one number in the totals when every campaign has the same result type", async () => {
+    api({ campaigns: [
+      { ...campaign("c1", "Переписки", "META", 3000), resultTypes: [{ type: "MESSAGES", results: 120 }] },
+      { ...campaign("c2", "Ещё переписки", "META", 1200), resultTypes: [{ type: "MESSAGES", results: 30 }] },
+    ] });
+    renderWithProviders(<App />, route);
+
+    const footer = await screen.findByRole("row", { name: /Итого/ });
+    expect(within(footer).queryByText(/Сообщения: /)).not.toBeInTheDocument();
   });
 
   it("opens a campaign when its row is chosen", async () => {

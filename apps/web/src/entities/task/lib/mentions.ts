@@ -32,17 +32,15 @@ export function mentionQueryAt(text: string, caret: number): MentionQuery | null
 }
 
 export function taggableMembers<TMember extends Taggable>(
-  task: Pick<Task, "participantIds" | "createdById" | "visibleToClient">,
+  task: Pick<Task, "participantIds" | "visibleToClient">,
   members: readonly TMember[],
   ownId: string | undefined,
 ): TMember[] {
-  const involved = new Set<string>(task.participantIds);
-  if (task.createdById) involved.add(task.createdById);
+  const named = new Set<string>(task.participantIds);
   return members.filter((member) =>
     member.id !== ownId
     && member.status === "ACTIVE"
-    && (member.role === "ADMIN" || involved.has(member.id))
-    && (task.visibleToClient || member.role !== "CLIENT"));
+    && (member.role !== "CLIENT" || (task.visibleToClient && named.has(member.id))));
 }
 
 export function matchingMembers<TMember extends { readonly name: string }>(

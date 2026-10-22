@@ -18,6 +18,7 @@ export interface AppShellProps {
   sidebar: ReactNode;
   header: ReactNode;
   moduleKey: string;
+  preview?: boolean;
   children: ReactNode;
 }
 
@@ -25,6 +26,7 @@ export function AppShell({
   sidebar,
   header,
   moduleKey,
+  preview = false,
   children,
 }: AppShellProps) {
   const { collapsed, toggle } = useNavCollapse();
@@ -48,6 +50,7 @@ export function AppShell({
           zoom={1.1}
         />
       </div>
+      {preview ? null : (
       <div className="relative z-20 flex min-h-0 shrink-0">
         <div
           className={`${GLASS} grid min-h-0 grid-rows-[1fr] bg-sidebar/65 transition-[width] duration-200 ${
@@ -68,10 +71,11 @@ export function AppShell({
             : <ChevronLeftIcon aria-hidden className="size-3" />}
         </button>
       </div>
+      )}
       <div
         className={`${GLASS} relative z-10 flex min-w-0 flex-1 flex-col bg-card/65`}
       >
-        <div className="min-w-0">{header}</div>
+        {preview ? null : <div className="min-w-0">{header}</div>}
         <main className="min-h-0 min-w-0 flex-1 overflow-auto p-4">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div

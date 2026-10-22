@@ -207,7 +207,7 @@ function Figures({
       {figures.map((column) => (
         <TableCell
           key={column.id}
-          className="overflow-hidden text-right tabular-nums whitespace-nowrap last:pr-5"
+          className="overflow-hidden pr-[33px] text-right tabular-nums whitespace-nowrap"
         >
           {column.value(performance, currency, extra, mixedResults)}
         </TableCell>

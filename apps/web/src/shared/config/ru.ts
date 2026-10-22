@@ -249,6 +249,7 @@ export const ru = {
   "project.delete.title": "Удалить проект?",
   "project.delete.body": "Проект и все его листы будут удалены безвозвратно.",
   "project.notFound.title": "Проект не найден", "project.metrics": "Метрики",
+  "preview.enter": "Превью", "preview.leave": "Выйти из превью", "preview.project": "Проект",
   "form.new.title": "Новый клиент", "form.edit.title": "Редактирование клиента", "form.name.label": "Имя",
   "form.email.label": "Email клиента", "form.email.invalid": "Введите корректный email",
   "action.cancel": "Отмена", "action.copied": "Скопировано", "action.create": "Создать", "action.save": "Сохранить", "action.delete": "Удалить", "action.close": "Закрыть", "action.add": "Добавить",

@@ -3,6 +3,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { ProjectList } from "@/widgets/project-list/index.js";
 import { ProjectPage } from "@/pages/project/index.js";
+import { PreviewBar, previewedProjectId, usePreviewMode } from "@/features/preview-mode/index.js";
 import { CampaignPage } from "@/pages/campaign/index.js";
 import { parseSelection, useProjects } from "@/entities/project/index.js";
 import { useAuth } from "@/features/auth/index.js";
@@ -69,6 +70,9 @@ function ProjectsHome() {
 export function ProjectsPage() {
   useRememberProjectPlace();
   const [collapsed, setCollapsed] = useState(readProjectListCollapsed);
+  const location = useLocation();
+  const previewedId = previewedProjectId(location.pathname);
+  const previewing = usePreviewMode().previewing && previewedId !== null;
   const toggle = () => {
     writeProjectListCollapsed(!collapsed);
     setCollapsed(!collapsed);
@@ -78,14 +82,18 @@ export function ProjectsPage() {
     <div
       className={cn(
         "grid overflow-hidden max-h-screen h-full min-h-0 gap-4 transition-[grid-template-columns] duration-200 motion-reduce:transition-none",
-        collapsed
-          ? "lg:grid-cols-[32px_minmax(0,1fr)]"
-          : "lg:grid-cols-[200px_minmax(0,1fr)]",
-        "lg:[&>*:last-child]:border-l lg:[&>*:last-child]:border-border lg:[&>*:last-child]:pl-6",
+        previewing
+          ? "grid-cols-1"
+          : collapsed
+            ? "lg:grid-cols-[32px_minmax(0,1fr)]"
+            : "lg:grid-cols-[200px_minmax(0,1fr)]",
+        !previewing && "lg:[&>*:last-child]:border-l lg:[&>*:last-child]:border-border lg:[&>*:last-child]:pl-6",
       )}
     >
-      <ProjectList collapsed={collapsed} />
-      <div className="relative min-h-0 min-w-0">
+      {previewing ? null : <ProjectList collapsed={collapsed} />}
+      <div className={cn("relative min-h-0 min-w-0", previewing && "flex flex-col gap-4")}>
+        {previewing && previewedId ? <PreviewBar projectId={previewedId} /> : null}
+        {previewing ? null : (
         <button
           type="button"
           onClick={toggle}
@@ -101,7 +109,8 @@ export function ProjectsPage() {
             <ChevronLeftIcon aria-hidden className="size-3" />
           )}
         </button>
-        <div className="h-full min-w-0 overflow-y-auto overflow-x-hidden pr-4">
+        )}
+        <div className={cn("min-w-0 overflow-y-auto overflow-x-hidden pr-4", previewing ? "min-h-0 flex-1" : "h-full")}>
           <Routes>
             <Route path="/" element={<ProjectsHome />} />
             <Route path=":projectId" element={<ProjectPage />} />

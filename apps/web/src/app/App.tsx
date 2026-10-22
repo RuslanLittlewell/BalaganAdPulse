@@ -18,6 +18,7 @@ import { NavCollapseProvider } from "@/features/nav-collapse/index.js";
 import { ProjectsSync } from "@/entities/project/index.js";
 import { StaffSync } from "@/entities/membership/index.js";
 import { AppShell } from "@/widgets/app-shell/index.js";
+import { previewedProjectId, usePreviewMode } from "@/features/preview-mode/index.js";
 import { AppHeader } from "@/widgets/app-header/index.js";
 import { MainNav } from "@/widgets/main-nav/index.js";
 import { PlatformHeader } from "@/widgets/platform-header/index.js";
@@ -31,6 +32,7 @@ const queryClient = createQueryClient();
 function OrganizationArea() {
   const location = useLocation();
   const { modules } = useAuth();
+  const { previewing } = usePreviewMode();
   const entitled = (module: ModuleKey, page: ReactNode) =>
     modules.includes(module) ? page : <Navigate to={ROUTES.dashboard} replace />;
   return (
@@ -38,7 +40,7 @@ function OrganizationArea() {
       <StaffSync />
       <ProjectsSync />
       <SessionHeartbeat />
-      <AppShell sidebar={<MainNav />} header={<AppHeader />} moduleKey={moduleKeyFromPathname(location.pathname)}>
+      <AppShell sidebar={<MainNav />} header={<AppHeader />} moduleKey={moduleKeyFromPathname(location.pathname)} preview={previewing && previewedProjectId(location.pathname) !== null}>
         <Routes location={location}>
           <Route path={ROUTES.dashboard} element={<DashboardPage />} />
           <Route path={`${ROUTES.projects}/*`} element={<ProjectsPage />} />

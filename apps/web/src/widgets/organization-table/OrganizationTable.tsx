@@ -5,11 +5,23 @@ import {
 } from "@/entities/platform-organization/index.js";
 import { OrganizationActions, registrationLink } from "@/features/organization-admin/index.js";
 import { t } from "@/shared/config/index.js";
-import { cn, formatCalendarDate } from "@/shared/lib/index.js";
-import { CopyButton, Loader } from "@/shared/ui/index.js";
+import { ariaSortOf, cn, formatCalendarDate, useTableSort, type SortValue } from "@/shared/lib/index.js";
+import { CopyButton, Loader, SortButton } from "@/shared/ui/index.js";
+
+type SortableColumn = "name" | "status" | "modules" | "members" | "firstAdmin" | "createdAt";
+
+const SORT_VALUES: Record<SortableColumn, (organization: PlatformOrganization) => SortValue> = {
+  name: (organization) => organization.name,
+  status: (organization) => t(`platform.status.${organization.status}`),
+  modules: (organization) => organization.modules.length,
+  members: (organization) => organization.activeMembers,
+  firstAdmin: (organization) => organization.firstAdmin?.email,
+  createdAt: (organization) => Date.parse(organization.createdAt),
+};
 
 export function OrganizationTable() {
   const organizations = usePlatformOrganizations();
+  const sorting = useTableSort(organizations.data ?? [], SORT_VALUES);
 
   if (organizations.isPending) return <Loader label={t("state.loading")} />;
   if (organizations.isError) {
@@ -23,21 +35,42 @@ export function OrganizationTable() {
     <table aria-label={t("platform.organizations.list")} className="w-full text-sm">
       <thead className="text-left text-xs text-muted-foreground">
         <tr className="border-b">
-          <th className="py-2 pl-4 font-medium">{t("platform.column.name")}</th>
-          <th className="py-2 font-medium">{t("platform.column.status")}</th>
-          <th className="py-2 font-medium">{t("platform.column.modules")}</th>
-          <th className="py-2 text-right font-medium">{t("platform.column.members")}</th>
-          <th className="py-2 pl-4 font-medium">{t("platform.column.firstAdmin")}</th>
-          <th className="py-2 font-medium">{t("platform.column.createdAt")}</th>
+          <SortableHeader column="name" label={t("platform.column.name")} sorting={sorting} className="pl-4" />
+          <SortableHeader column="status" label={t("platform.column.status")} sorting={sorting} />
+          <SortableHeader column="modules" label={t("platform.column.modules")} sorting={sorting} />
+          <SortableHeader column="members" label={t("platform.column.members")} sorting={sorting} align="end" />
+          <SortableHeader column="firstAdmin" label={t("platform.column.firstAdmin")} sorting={sorting} className="pl-4" />
+          <SortableHeader column="createdAt" label={t("platform.column.createdAt")} sorting={sorting} />
           <th className="py-2 text-right font-medium">{t("platform.column.actions")}</th>
         </tr>
       </thead>
       <tbody>
-        {organizations.data.map((organization) => (
+        {sorting.rows.map((organization) => (
           <OrganizationRow key={organization.id} organization={organization} />
         ))}
       </tbody>
     </table>
+  );
+}
+
+function SortableHeader({
+  column,
+  label,
+  sorting,
+  align,
+  className,
+}: {
+  column: SortableColumn;
+  label: string;
+  sorting: ReturnType<typeof useTableSort<PlatformOrganization, SortableColumn>>;
+  align?: "start" | "end";
+  className?: string;
+}) {
+  const direction = sorting.directionOf(column);
+  return (
+    <th scope="col" aria-sort={ariaSortOf(direction)} className={cn("py-2 font-medium", className)}>
+      <SortButton label={label} direction={direction} align={align} onSort={() => sorting.toggle(column)} />
+    </th>
   );
 }
 

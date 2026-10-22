@@ -74,6 +74,48 @@ describe("ReportsPage", () => {
     expect(listed).toContain("p1");
   });
 
+  it("sorts the reports by any column in both directions", async () => {
+    server.use(
+      mock.get("/api/projects", () => HttpResponse.json([project("p1", "Окна"), project("p2", "Перегородки")])),
+      mock.get("/api/clients", () => HttpResponse.json([{ id: "cl1", name: "AURORA", orgId: "o1" }])),
+      mock.get("/api/reports", () => HttpResponse.json([
+        { ...summary("r1", "p1", "2026-08"), spend: "900.0000", leads: 10, costPerLead: "90.0000" },
+        { ...summary("r2", "p2", "2026-07", "DRAFT"), spend: "1000.0000", leads: 2, costPerLead: null },
+        { ...summary("r3", "p1", "2026-09"), spend: "50.0000", leads: 30, costPerLead: "1.6667" },
+      ])),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<App />, { route: "/reports" });
+    await waitFor(() => expect(rows()).toHaveLength(3));
+    const months = () => rows().map((row) => within(row).getAllByRole("cell")[0]!.textContent);
+    const header = (name: string) => screen.getByRole("columnheader", { name });
+
+    expect(months()).toEqual(["Август 2026", "Июль 2026", "Сентябрь 2026"]);
+
+    await user.click(screen.getByRole("button", { name: "Реализованный бюджет" }));
+    expect(months()).toEqual(["Июль 2026", "Август 2026", "Сентябрь 2026"]);
+    expect(header("Реализованный бюджет")).toHaveAttribute("aria-sort", "descending");
+
+    await user.click(screen.getByRole("button", { name: "Реализованный бюджет" }));
+    expect(months()).toEqual(["Сентябрь 2026", "Август 2026", "Июль 2026"]);
+    expect(header("Реализованный бюджет")).toHaveAttribute("aria-sort", "ascending");
+
+    await user.click(screen.getByRole("button", { name: "Заявки" }));
+    expect(months()).toEqual(["Сентябрь 2026", "Август 2026", "Июль 2026"]);
+    expect(header("Реализованный бюджет")).toHaveAttribute("aria-sort", "none");
+    expect(header("Заявки")).toHaveAttribute("aria-sort", "descending");
+
+    await user.click(screen.getByRole("button", { name: "Стоимость заявки" }));
+    expect(months()).toEqual(["Август 2026", "Сентябрь 2026", "Июль 2026"]);
+    await user.click(screen.getByRole("button", { name: "Стоимость заявки" }));
+    expect(months()).toEqual(["Сентябрь 2026", "Август 2026", "Июль 2026"]);
+
+    await user.click(screen.getByRole("button", { name: "Проект" }));
+    expect(rows()[0]).toHaveTextContent("Перегородки");
+    await user.click(screen.getByRole("button", { name: "Проект" }));
+    expect(rows()[2]).toHaveTextContent("Перегородки");
+  });
+
   it("shows a client the reports without status or a create control", async () => {
     asClient();
     api();

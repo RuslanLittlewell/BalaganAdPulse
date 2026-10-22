@@ -20,3 +20,4 @@ export * from "./debounce.js";
 export * from "./projectListCollapse.js";
 export * from "./useNow.js";
 export * from "./navigation.js";
+export * from "./tableSort.js";

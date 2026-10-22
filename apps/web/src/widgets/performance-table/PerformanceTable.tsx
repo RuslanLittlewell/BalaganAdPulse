@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import {
   Button,
+  SortButton,
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
@@ -19,7 +20,15 @@ import {
   TableRow,
 } from "@/shared/ui/index.js";
 import { cn } from "@/shared/lib/utils.js";
-import { formatCount, type Currency } from "@/shared/lib/index.js";
+import {
+  ariaSortOf,
+  formatCount,
+  sortRows,
+  useSortState,
+  type Currency,
+  type SortValue,
+  type TableSort,
+} from "@/shared/lib/index.js";
 import {
   METRIC_COLUMNS,
   type Performance,
@@ -73,6 +82,21 @@ export interface PerformanceTableProps {
 const NO_EXTRA_COLUMNS: readonly ExtraColumn[] = [];
 const ESTIMATED_ROW_HEIGHT = 53;
 const OVERSCAN = 5;
+
+const NAME_COLUMN = "name";
+
+function figureOf(row: PerformanceRow, key: string): SortValue {
+  const own = (row.performance as unknown as Record<string, SortValue>)[key];
+  return own !== undefined ? own : row.extra?.[key];
+}
+
+function sortTree(rows: PerformanceRow[], sort: TableSort | null): PerformanceRow[] {
+  if (sort === null) return rows;
+  const value = (row: PerformanceRow): SortValue => (sort.key === NAME_COLUMN ? row.name : figureOf(row, sort.key));
+  return sortRows(rows, value, sort.direction).map((row) =>
+    row.children == null ? row : { ...row, children: sortTree(row.children, sort) },
+  );
+}
 
 interface ShownRow {
   key: string;
@@ -352,7 +376,8 @@ export function PerformanceTable({
   visibleRows,
 }: PerformanceTableProps) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
-  const shown = shownRows(rows, expanded);
+  const sorting = useSortState();
+  const shown = shownRows(sortTree(rows, sorting.sort), expanded);
   const rowWindow = useRowWindow(shown.length, visibleRows);
   const savedWidth = useColumnWidths((state) => state.nameWidths?.[tableKey]);
   const nameWidth =
@@ -484,11 +509,14 @@ export function PerformanceTable({
             <TableHead
               scope="col"
               aria-label={heading}
+              aria-sort={ariaSortOf(sorting.directionOf(NAME_COLUMN))}
               className="sticky left-0 z-10 pr-3 backdrop-blur-xl"
             >
-              <span className="block truncate" title={heading}>
-                {heading}
-              </span>
+              <SortButton
+                label={heading}
+                direction={sorting.directionOf(NAME_COLUMN)}
+                onSort={() => sorting.toggle(NAME_COLUMN)}
+              />
               <ColumnResizer
                 label={t("table.resizeName")}
                 width={nameWidth}
@@ -501,11 +529,15 @@ export function PerformanceTable({
                 key={column.id}
                 scope="col"
                 aria-label={column.label}
+                aria-sort={ariaSortOf(sorting.directionOf(column.id))}
                 className="group/column relative pl-3 pr-6 text-right whitespace-nowrap"
               >
-                <span className="block truncate" title={column.label}>
-                  {column.label}
-                </span>
+                <SortButton
+                  label={column.label}
+                  direction={sorting.directionOf(column.id)}
+                  align="end"
+                  onSort={() => sorting.toggle(column.id)}
+                />
                 {index > 0 && (
                   <MoveButton
                     label={column.label}

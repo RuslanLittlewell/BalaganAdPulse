@@ -1,5 +1,6 @@
 import { http as mock, HttpResponse } from "msw";
 import { screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { aPlatformOrganization, renderWithProviders, server } from "@test/shared/index.js";
 import { OrganizationTable } from "@/widgets/organization-table/index.js";
 
@@ -83,5 +84,63 @@ describe("the organization table", () => {
     server.use(mock.get("/api/platform/organizations", () => new HttpResponse(null, { status: 500 })));
     renderWithProviders(<OrganizationTable />);
     expect(await screen.findByRole("alert")).toHaveTextContent("Не удалось загрузить организации");
+  });
+
+  describe("sorting", () => {
+    const names = () => screen.getAllByRole("rowheader").map((header) => header.textContent ?? "");
+
+    const populate = () => listed(
+      aPlatformOrganization({ id: "o1", name: "Beta", slug: "beta", activeMembers: 3, createdAt: "2026-09-01T00:00:00.000Z", firstAdmin: { email: "z@beta.io", state: "ACCEPTED", registrationUrl: null } }),
+      aPlatformOrganization({ id: "o2", name: "alpha", slug: "alpha", activeMembers: 20, status: "SUSPENDED", modules: ["DASHBOARD"], createdAt: "2026-10-01T00:00:00.000Z", firstAdmin: { email: "a@alpha.io", state: "ACCEPTED", registrationUrl: null } }),
+      aPlatformOrganization({ id: "o3", name: "Gamma", slug: "gamma", activeMembers: 9, createdAt: "2026-08-01T00:00:00.000Z", firstAdmin: null }),
+    );
+
+    it("sorts a column descending, then ascending, then back to the listed order", async () => {
+      populate();
+      const user = userEvent.setup();
+      renderWithProviders(<OrganizationTable />);
+      await screen.findByRole("rowheader", { name: /Beta/ });
+      const nameHeader = () => screen.getByRole("columnheader", { name: "Название" });
+      expect(names()).toEqual(["Betabeta", "alphaalpha", "Gammagamma"]);
+
+      await user.click(screen.getByRole("button", { name: "Название" }));
+      expect(names()).toEqual(["Gammagamma", "Betabeta", "alphaalpha"]);
+      expect(nameHeader()).toHaveAttribute("aria-sort", "descending");
+
+      await user.click(screen.getByRole("button", { name: "Название" }));
+      expect(names()).toEqual(["alphaalpha", "Betabeta", "Gammagamma"]);
+      expect(nameHeader()).toHaveAttribute("aria-sort", "ascending");
+
+      await user.click(screen.getByRole("button", { name: "Название" }));
+      expect(names()).toEqual(["Betabeta", "alphaalpha", "Gammagamma"]);
+      expect(nameHeader()).toHaveAttribute("aria-sort", "none");
+    });
+
+    it("sorts the member count by value and puts a missing administrator last either way", async () => {
+      populate();
+      const user = userEvent.setup();
+      renderWithProviders(<OrganizationTable />);
+      await screen.findByRole("rowheader", { name: /Beta/ });
+
+      await user.click(screen.getByRole("button", { name: "Участники" }));
+      expect(names().map((entry) => entry.slice(0, 4))).toEqual(["alph", "Gamm", "Beta"]);
+
+      await user.click(screen.getByRole("button", { name: "Первый администратор" }));
+      expect(names().at(-1)).toMatch(/^Gamma/);
+      expect(screen.getByRole("columnheader", { name: "Участники" })).toHaveAttribute("aria-sort", "none");
+      await user.click(screen.getByRole("button", { name: "Первый администратор" }));
+      expect(names().at(-1)).toMatch(/^Gamma/);
+    });
+
+    it("sorts by creation date, newest first, and leaves the actions column unsortable", async () => {
+      populate();
+      const user = userEvent.setup();
+      renderWithProviders(<OrganizationTable />);
+      await screen.findByRole("rowheader", { name: /Beta/ });
+
+      await user.click(screen.getByRole("button", { name: "Создана" }));
+      expect(names().map((entry) => entry.slice(0, 4))).toEqual(["alph", "Beta", "Gamm"]);
+      expect(screen.queryByRole("button", { name: "Действия" })).not.toBeInTheDocument();
+    });
   });
 });

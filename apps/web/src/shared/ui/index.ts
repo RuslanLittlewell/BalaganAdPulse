@@ -37,6 +37,7 @@ export * from "./MultiSelect/MultiSelect.js";
 export * from "./SectionLabel/SectionLabel.js";
 export * from "./Sidebar/Sidebar.js";
 export * from "./Tabs/Tabs.js";
+export * from "./SortButton/SortButton.js";
 export * from "./TextField/TextField.js";
 export * from "./TimeInput/TimeInput.js";
 export { Sparkline } from "./Sparkline/Sparkline.js";

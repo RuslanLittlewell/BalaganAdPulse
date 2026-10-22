@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, Route, Routes, useParams } from "react-router-dom";
 import { ArrowLeftIcon, PlusIcon } from "lucide-react";
-import { cn, reportPath, ROUTES } from "@/shared/lib/index.js";
+import { ariaSortOf, cn, reportPath, ROUTES, useTableSort, type SortValue } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import {
   Button,
@@ -10,16 +10,51 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SortButton,
 } from "@/shared/ui/index.js";
 import { useClients } from "@/entities/client/index.js";
 import { useProjects, type Project } from "@/entities/project/index.js";
-import { formatMoney, monthTitle, useAllReports } from "@/entities/report/index.js";
+import { formatMoney, monthTitle, useAllReports, type ReportSummary } from "@/entities/report/index.js";
 import { useCan } from "@/features/permissions/index.js";
 import { ReportDownload } from "@/features/report-pdf/index.js";
 import { MonthlyReport } from "@/widgets/monthly-report/index.js";
 import { NewReportDialog } from "./NewReportDialog.js";
 
 const ALL = "all";
+
+type SortableColumn = "month" | "project" | "spend" | "leads" | "costPerLead" | "status";
+
+const optionalNumber = (value: string | null) => (value === null ? null : Number(value));
+
+const sortValues = (names: Map<string, Project>): Record<SortableColumn, (report: ReportSummary) => SortValue> => ({
+  month: (report) => report.month,
+  project: (report) => names.get(report.projectId)?.name,
+  spend: (report) => optionalNumber(report.spend),
+  leads: (report) => report.leads,
+  costPerLead: (report) => optionalNumber(report.costPerLead),
+  status: (report) => t(`report.status.${report.status}`),
+});
+
+function ReportHeader({
+  column,
+  label,
+  sorting,
+  align,
+  className,
+}: {
+  column: SortableColumn;
+  label: string;
+  sorting: ReturnType<typeof useTableSort<ReportSummary, SortableColumn>>;
+  align?: "start" | "end";
+  className?: string;
+}) {
+  const direction = sorting.directionOf(column);
+  return (
+    <th scope="col" aria-sort={ariaSortOf(direction)} className={cn("py-2 font-medium", className)}>
+      <SortButton label={label} direction={direction} align={align} onSort={() => sorting.toggle(column)} />
+    </th>
+  );
+}
 
 function ReportsList({ projects }: { projects: Project[] }) {
   const [filter, setFilter] = useState(ALL);
@@ -28,6 +63,7 @@ function ReportsList({ projects }: { projects: Project[] }) {
   const staff = useCan("update", "report");
   const creates = useCan("create", "report");
   const names = new Map(projects.map((project) => [project.id, project]));
+  const sorting = useTableSort(reports.data ?? [], sortValues(names));
 
   return (
     <section className="flex flex-col gap-4">
@@ -55,16 +91,16 @@ function ReportsList({ projects }: { projects: Project[] }) {
         <table aria-label={t("report.list")} className="w-full text-sm">
           <thead className="text-left text-xs text-muted-foreground">
             <tr className="border-b">
-              <th className="py-2 font-medium">{t("report.month")}</th>
-              <th className="py-2 font-medium">{t("report.project")}</th>
-              <th className="py-2 text-right font-medium">{t("report.spend")}</th>
-              <th className="py-2 text-right font-medium">{t("report.leads")}</th>
-              <th className="py-2 text-right font-medium">{t("report.costPerLead")}</th>
-              {staff ? <th className="py-2 pl-4 font-medium">{t("report.status")}</th> : null}
+              <ReportHeader column="month" label={t("report.month")} sorting={sorting} />
+              <ReportHeader column="project" label={t("report.project")} sorting={sorting} />
+              <ReportHeader column="spend" label={t("report.spend")} sorting={sorting} align="end" />
+              <ReportHeader column="leads" label={t("report.leads")} sorting={sorting} align="end" />
+              <ReportHeader column="costPerLead" label={t("report.costPerLead")} sorting={sorting} align="end" />
+              {staff ? <ReportHeader column="status" label={t("report.status")} sorting={sorting} className="pl-4" /> : null}
             </tr>
           </thead>
           <tbody>
-            {(reports.data ?? []).map((report) => {
+            {sorting.rows.map((report) => {
               const project = names.get(report.projectId);
               const currency = report.currency ?? project?.budgetCurrency ?? null;
               return (

@@ -103,6 +103,7 @@ export const ru = {
   "metric.results": "Результаты", "metric.costPerResult": "Цена результата",
   "metric.ctr": "CTR", "metric.cpc": "CPC", "metric.cpm": "CPM", "metric.cpa": "CPL",
   "metric.roas": "ROAS", "metric.frequency": "Частота", "metric.revenue": "Выручка", "metric.total": "Итого",
+  "table.sortBy": "Сортировать по",
   "table.resizeName": "Изменить ширину столбца названия",
   "table.resizeColumn": "Изменить ширину столбца",
   "table.moveLeft": "Сдвинуть столбец влево",

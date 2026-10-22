@@ -442,4 +442,96 @@ describe("a table limited to a number of visible rows", () => {
 
     expect(onOpen).toHaveBeenCalledWith("c33");
   });
+
+  describe("sorting", () => {
+    const sortable: PerformanceRow[] = [
+      { id: "a", name: "Бета", performance: performance(300, { cpc: null }) },
+      { id: "b", name: "альфа", performance: performance(100, { cpc: 2 }) },
+      { id: "c", name: "Гамма", performance: performance(200, { cpc: 1 }) },
+    ];
+    const order = () => screen.getAllByRole("row").slice(1).map((row) => within(row).getAllByRole("rowheader")[0]?.textContent ?? "").filter(Boolean);
+
+    it("sorts by a figure column descending, ascending and back to the given order", async () => {
+      const user = userEvent.setup();
+      render(<PerformanceTable tableKey="sort-figures" heading="Кампания" rows={sortable} />);
+      expect(order()).toEqual(["Бета", "альфа", "Гамма"]);
+
+      await user.click(screen.getByRole("button", { name: "Расход" }));
+      expect(order()).toEqual(["Бета", "Гамма", "альфа"]);
+      expect(screen.getByRole("columnheader", { name: "Расход" })).toHaveAttribute("aria-sort", "descending");
+      expect(screen.getByRole("columnheader", { name: "Показы" })).toHaveAttribute("aria-sort", "none");
+
+      await user.click(screen.getByRole("button", { name: "Расход" }));
+      expect(order()).toEqual(["альфа", "Гамма", "Бета"]);
+      expect(screen.getByRole("columnheader", { name: "Расход" })).toHaveAttribute("aria-sort", "ascending");
+
+      await user.click(screen.getByRole("button", { name: "Расход" }));
+      expect(order()).toEqual(["Бета", "альфа", "Гамма"]);
+    });
+
+    it("sorts by the name column and keeps rows without a value last in both directions", async () => {
+      const user = userEvent.setup();
+      render(<PerformanceTable tableKey="sort-name" heading="Кампания" rows={sortable} />);
+
+      await user.click(screen.getByRole("button", { name: "Кампания" }));
+      expect(order()).toEqual(["Гамма", "Бета", "альфа"]);
+      await user.click(screen.getByRole("button", { name: "Кампания" }));
+      expect(order()).toEqual(["альфа", "Бета", "Гамма"]);
+
+      await user.click(screen.getByRole("button", { name: "CPC" }));
+      expect(order()).toEqual(["альфа", "Гамма", "Бета"]);
+      await user.click(screen.getByRole("button", { name: "CPC" }));
+      expect(order()).toEqual(["Гамма", "альфа", "Бета"]);
+    });
+
+    it("sorts the extra columns too", async () => {
+      const user = userEvent.setup();
+      render(
+        <PerformanceTable
+          tableKey="sort-extra"
+          heading="Кампания"
+          extraColumns={[{ id: "ads", label: "Объявления" }]}
+          rows={[
+            { id: "a", name: "Бета", performance: performance(1), extra: { ads: 9 } },
+            { id: "b", name: "Альфа", performance: performance(1), extra: { ads: 2 } },
+          ]}
+        />,
+      );
+      await user.click(screen.getByRole("button", { name: "Отображаемые столбцы" }));
+      await user.click(screen.getByRole("menuitemcheckbox", { name: "Объявления" }));
+      await user.keyboard("{Escape}");
+      await user.click(screen.getByRole("button", { name: "Объявления" }));
+      expect(order()).toEqual(["Бета", "Альфа"]);
+    });
+
+    it("orders each level among itself and leaves the totals last", async () => {
+      const user = userEvent.setup();
+      render(
+        <PerformanceTable
+          tableKey="sort-tree"
+          heading="Проект"
+          totals={performance(900)}
+          rows={[
+            {
+              id: "p1", name: "Клиника", performance: performance(100),
+              children: [
+                { id: "k1", name: "Поиск", performance: performance(30) },
+                { id: "k2", name: "Лента", performance: performance(70) },
+              ],
+            },
+            {
+              id: "p2", name: "Студия", performance: performance(800),
+              children: [{ id: "k3", name: "Баннер", performance: performance(5) }],
+            },
+          ]}
+        />,
+      );
+      await user.click(screen.getByRole("button", { name: /Клиника/ }));
+      await user.click(screen.getByRole("button", { name: "Расход" }));
+
+      const names = screen.getAllByRole("row").slice(1).map((row) => within(row).getAllByRole("rowheader")[0]?.textContent ?? "");
+      expect(names).toEqual(["Студия", "Клиника", "Лента", "Поиск", "Итого"]);
+      expect(within(screen.getByRole("row", { name: /Итого/ })).getByText("900 ₽")).toBeInTheDocument();
+    });
+  });
 });

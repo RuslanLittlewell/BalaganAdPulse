@@ -2,14 +2,65 @@
 import "../styles/global.css";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
+import { SITE } from "../site";
 
 interface Props {
   title: string;
   description: string;
+  noindex?: boolean;
 }
 
-const { title, description } = Astro.props;
-const canonical = new URL(Astro.url.pathname, Astro.site);
+const { title, description, noindex = false } = Astro.props;
+const pathname = Astro.url.pathname.replace(/\/$/, "");
+const canonical = new URL(noindex ? Astro.url.pathname : `${pathname}/`, Astro.site);
+const siteUrl = Astro.site!.href;
+const imageUrl = new URL("/social-preview.png", Astro.site).href;
+const organizationId = `${SITE.agencyUrl}/#organization`;
+const websiteId = `${siteUrl}#website`;
+const applicationId = `${siteUrl}#application`;
+const structuredData = JSON.stringify({
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": organizationId,
+      name: "Balagan",
+      url: SITE.agencyUrl,
+      email: SITE.contact,
+    },
+    {
+      "@type": "WebSite",
+      "@id": websiteId,
+      name: SITE.name,
+      url: siteUrl,
+      inLanguage: "ru",
+      publisher: { "@id": organizationId },
+    },
+    {
+      "@type": "WebPage",
+      "@id": `${canonical.href}#webpage`,
+      url: canonical.href,
+      name: title,
+      description,
+      inLanguage: "ru",
+      isPartOf: { "@id": websiteId },
+      ...(pathname === "" ? { mainEntity: { "@id": applicationId } } : {}),
+    },
+    ...(pathname === "" ? [{
+      "@type": "WebApplication",
+      "@id": applicationId,
+      name: SITE.name,
+      url: SITE.appUrl,
+      description,
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web browser",
+      browserRequirements: "Requires JavaScript",
+      inLanguage: "ru",
+      provider: { "@id": organizationId },
+      featureList: ["Аналитика Meta и Google Ads", "Контроль KPI", "Проекты", "Задачи", "CRM", "Отчёты", "Команда и доступ"],
+    }] : []),
+  ],
+}).replace(/</g, "\\u003c");
 ---
 
 <!doctype html>
@@ -19,12 +70,26 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <link rel="canonical" href={canonical} />
+    <meta name="robots" content={noindex ? "noindex, follow" : "index, follow, max-image-preview:large"} />
+    {!noindex && <link rel="canonical" href={canonical} />}
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
     <meta property="og:url" content={canonical} />
+    <meta property="og:site_name" content={SITE.name} />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:image" content={imageUrl} />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="BalaganBI — аналитика Meta и Google Ads, проекты и контроль KPI" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={imageUrl} />
+    <meta name="twitter:image:alt" content="BalaganBI — аналитика Meta и Google Ads, проекты и контроль KPI" />
+    {!noindex && <script type="application/ld+json" set:html={structuredData} />}
   </head>
   <body class="min-h-screen bg-background text-foreground antialiased">
     <div data-waves aria-hidden="true" class="pointer-events-none fixed inset-0"></div>
@@ -36,8 +101,19 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
       <Footer />
     </div>
     <script>
+      import { onCLS, onFCP, onINP, onLCP, onTTFB, type MetricWithAttribution } from "web-vitals/attribution";
       import { mountWaves } from "../scripts/waves";
       import { revealOnScroll } from "../scripts/reveal";
+
+      const logWebVital = (metric: MetricWithAttribution) => {
+        console.info(`[web-vitals] ${metric.name}`, metric);
+      };
+
+      onCLS(logWebVital);
+      onFCP(logWebVital);
+      onINP(logWebVital);
+      onLCP(logWebVital);
+      onTTFB(logWebVital);
 
       revealOnScroll();
       const backdrop = document.querySelector<HTMLElement>("[data-waves]");

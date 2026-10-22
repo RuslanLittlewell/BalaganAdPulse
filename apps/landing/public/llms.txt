@@ -1,0 +1,20 @@
+# BalaganBI
+
+> BalaganBI — сервис рекламного агентства Balagan для медиабайеров и клиентов агентства. Собирает статистику рекламных кампаний Meta (Facebook и Instagram Ads) и Google Ads из подключённых рекламных кабинетов в одном месте: расходы, показы, клики, конверсии и выполнение KPI по каждому проекту клиента. Только чтение: сервис не создаёт и не меняет кампании. Данные не продаются и не используются для обучения моделей ИИ.
+
+BalaganBI — a reporting tool of the Balagan advertising agency. It pulls campaign statistics (spend, impressions, clicks, conversions, KPI progress) from connected Meta and Google Ads accounts into one place per client project. Read-only.
+
+## Главные страницы
+
+- [Главная](https://bi.balagan.pro/): что делает BalaganBI, модули, как подключаются кабинеты Meta и Google Ads. На странице есть английский раздел.
+- [Политика конфиденциальности](https://bi.balagan.pro/privacy/): какие данные обрабатываются, какие разрешения Google используются и зачем, как отозвать доступ и удалить данные. Есть английская версия.
+
+## Ключевые факты
+
+- Вход: приложение работает в браузере, войти можно по ссылке https://app.balagan.pro. Лендинг входа не содержит.
+- Google Ads подключается входом через Google (scope https://www.googleapis.com/auth/adwords), токен хранится на сервере в зашифрованном виде, отдельно для каждого проекта.
+- Meta подключается по Account ID и токену доступа.
+- Данные обновляются каждое утро (08:00, Europe/Warsaw), за последние 30 полных дней.
+- KPI: зелёный — от 90% плана, жёлтый — от 70% до 90%, красный — ниже 70%.
+- Модули: Дашборд, Проекты, Задачи, CRM, Отчёты, Команда и доступ.
+- Контакт: balagan.ads@gmail.com. Агентство: https://balagan.pro

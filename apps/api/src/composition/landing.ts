@@ -4,8 +4,6 @@ import { readFileSync, readdirSync } from "node:fs";
 import express, { type RequestHandler, type Response } from "express";
 
 export function landingFor(host: string, root: string): RequestHandler {
-  // Only trusted, built HTML enters this cache. Request paths never become
-  // filesystem paths, and user input is never inserted into these documents.
   const pages = new Map<string, string>();
   const directories = new Set<string>();
   const collect = (directory: string) => {
@@ -46,7 +44,6 @@ export function landingFor(host: string, root: string): RequestHandler {
         "upgrade-insecure-requests",
         documentPolicy,
       ].join("; "),
-      // Nonces must not be reused through a browser or shared response cache.
       "Cache-Control": "private, no-store",
     });
     if (status === 404) res.setHeader("X-Robots-Tag", "noindex");

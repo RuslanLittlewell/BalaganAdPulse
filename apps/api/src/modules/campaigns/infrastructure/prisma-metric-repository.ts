@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import type { MeasuredDay } from "../domain/metrics.js";
+import type { AdSetResults } from "../domain/result-type.js";
 import type { CampaignDay, MetricRepository } from "../application/metric-ports.js";
 
 interface StoredRow {
@@ -52,6 +53,23 @@ export class PrismaMetricRepository implements MetricRepository {
       orderBy: { date: "asc" },
     });
     return rows.map(toMeasured);
+  }
+
+  async readAdSetResults(campaignIds: readonly string[], from: Date, to: Date): Promise<AdSetResults[]> {
+    if (campaignIds.length === 0) return [];
+    const rows = await this.prisma.adSet.findMany({
+      where: { campaignId: { in: [...campaignIds] } },
+      select: {
+        id: true, campaignId: true, optimizationGoal: true,
+        metrics: { where: { date: within(from, to) }, select: { results: true } },
+      },
+    });
+    return rows.map((row) => ({
+      adSetId: row.id,
+      campaignId: row.campaignId,
+      optimizationGoal: row.optimizationGoal,
+      results: row.metrics.reduce((sum, day) => sum + day.results, 0),
+    }));
   }
 
   async readAdRange(adId: string, from: Date, to: Date): Promise<MeasuredDay[]> {

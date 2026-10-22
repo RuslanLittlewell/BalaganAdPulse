@@ -9,7 +9,7 @@ import { localDate, shiftDate } from "../application/schedule.js";
 const id = z.string().regex(/^\d+$/);
 const money = z.string().regex(/^\d{1,14}(\.\d{1,4})?$/);
 const count = z.string().regex(/^\d+$/).transform(Number).pipe(z.number().int().min(0).max(2147483647));
-const entity = z.object({ id, name: z.string().min(1), effective_status: z.string(), campaign_id: id.optional(), adset_id: id.optional(), objective: z.string().optional() });
+const entity = z.object({ id, name: z.string().min(1), effective_status: z.string(), campaign_id: id.optional(), adset_id: id.optional(), objective: z.string().optional(), optimization_goal: z.string().optional() });
 const action = z.object({ action_type: z.string(), value: z.string() });
 const resultValue = z.object({ value: z.string().regex(/^\d{1,10}(\.\d+)?$/), attribution_windows: z.array(z.string()).default([]) });
 const result = z.object({ indicator: z.string().optional(), values: z.array(resultValue).default([]) });
@@ -207,7 +207,7 @@ export class GraphProvider implements AccountProvider {
   }
 
   private async entities(accountId: string, token: string, edge: "campaigns" | "adsets" | "ads", signal?: AbortSignal): Promise<ImportedEntity[]> {
-    const parent = edge === "adsets" ? "campaign_id" : edge === "ads" ? "adset_id" : "objective";
+    const parent = edge === "adsets" ? "campaign_id,optimization_goal" : edge === "ads" ? "adset_id" : "objective";
     const rows = await this.pages(`act_${accountId}/${edge}`, token, { fields: `id,name,effective_status,${parent}` }, signal);
     return rows.map((row) => {
       const result = entity.safeParse(row);
@@ -215,7 +215,7 @@ export class GraphProvider implements AccountProvider {
       const value = result.data;
       const parentId = edge === "adsets" ? value.campaign_id : value.adset_id;
       if (edge !== "campaigns" && !parentId) throw new ProviderError("INVALID_DATA");
-      return { id: value.id, name: value.name, status: statuses[value.effective_status], parentId, objective: value.objective };
+      return { id: value.id, name: value.name, status: statuses[value.effective_status], parentId, objective: value.objective, optimizationGoal: value.optimization_goal };
     });
   }
   campaigns(accountId: string, token: string, signal?: AbortSignal) { return this.entities(accountId, token, "campaigns", signal); }

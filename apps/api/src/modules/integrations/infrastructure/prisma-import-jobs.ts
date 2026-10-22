@@ -59,7 +59,7 @@ export class PrismaImportJobs implements ImportJobs {
           const campaignId = campaignIds.get(row.parentId ?? "");
           if (!campaignId || adSetIds.has(row.id)) throw new ProviderError("INVALID_DATA");
           const existing = await tx.adSet.findFirst({ where: { campaignId, externalId: row.id } });
-          const data = { name: row.name, status: row.status };
+          const data = { name: row.name, status: row.status, optimizationGoal: row.optimizationGoal ?? null };
           const position = existing?.position ?? ((await tx.adSet.aggregate({ where: { campaignId }, _max: { position: true } }))._max.position ?? -1) + 1;
           const saved = existing ? await tx.adSet.update({ where: { id: existing.id }, data }) : await tx.adSet.create({ data: { ...data, campaignId, externalId: row.id, position } });
           adSetIds.set(row.id, saved.id);

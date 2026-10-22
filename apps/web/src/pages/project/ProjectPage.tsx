@@ -25,6 +25,10 @@ import {
   channelLabel,
   isRunning,
   statusLabel,
+  mergeResultTypes,
+  resultsBreakdown,
+  RESULT_TYPE_COLUMN,
+  resultTypesText,
   totalPerformance,
   useProjectCampaigns,
   useProjectSummary,
@@ -166,8 +170,11 @@ export function ProjectPage() {
     name: campaign.name,
     note: `${channelLabel(campaign.channel)} · ${statusLabel(campaign.status)}`,
     performance: campaign.performance,
+    extra: { resultType: resultTypesText(campaign.resultTypes) || "—" },
+    resultsBreakdown: resultsBreakdown(campaign.resultTypes),
     tone: campaignTone(campaign, projectKpis.data, range),
   }));
+  const totalResultTypes = mergeResultTypes(listed.map((campaign) => campaign.resultTypes));
 
   return (
     <div className="flex min-h-0 flex-col gap-6">
@@ -277,6 +284,9 @@ export function ProjectPage() {
                 rows={rows}
                 visibleRows={10}
                 totals={totalPerformance(listed.map((campaign) => campaign.performance))}
+                totalsExtra={{ resultType: resultTypesText(totalResultTypes) || "—" }}
+                totalsResultsBreakdown={resultsBreakdown(totalResultTypes)}
+                extraColumns={[RESULT_TYPE_COLUMN]}
                 currency={project.budgetCurrency}
                 empty={
                   campaigns.isSuccess

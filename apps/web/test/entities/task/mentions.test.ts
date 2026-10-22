@@ -36,26 +36,26 @@ describe("finding the tag being typed", () => {
 });
 
 describe("who can be tagged on a task", () => {
-  const task = { participantIds: ["a"], createdById: "b", visibleToClient: false };
+  const task = { participantIds: ["a"], visibleToClient: false };
   const members = [
-    member("a", "Анна"), member("b", "Борис"), member("c", "Вера"),
-    member("d", "Дмитрий", "ADMIN"), member("e", "Егор", "MANAGER", "SUSPENDED"),
-    member("f", "Клиент", "CLIENT"), member("me", "Я", "ADMIN"),
+    member("a", "Анна"), member("b", "Борис"), member("d", "Дмитрий", "ADMIN"),
+    member("e", "Егор", "MANAGER", "SUSPENDED"), member("f", "Клиент", "CLIENT"), member("me", "Я", "ADMIN"),
   ];
 
-  it("are its participants, its creator and the admins, without the author", () => {
+  it("is every active employee, without the author", () => {
     expect(taggableMembers(task, members, "me").map((m) => m.id)).toEqual(["a", "b", "d"]);
   });
 
   it("leaves out the suspended", () => {
-    expect(taggableMembers({ ...task, participantIds: ["e"] }, members, "me").map((m) => m.id))
-      .not.toContain("e");
+    expect(taggableMembers(task, members, "me").map((m) => m.id)).not.toContain("e");
   });
 
   it("includes a client's person only on a shared task they are named on", () => {
-    const shared = { ...task, participantIds: ["f"], visibleToClient: true };
+    const shared = { participantIds: ["f"], visibleToClient: true };
     expect(taggableMembers(shared, members, "me").map((m) => m.id)).toContain("f");
     expect(taggableMembers({ ...shared, visibleToClient: false }, members, "me").map((m) => m.id))
+      .not.toContain("f");
+    expect(taggableMembers({ participantIds: [], visibleToClient: true }, members, "me").map((m) => m.id))
       .not.toContain("f");
   });
 });

@@ -59,7 +59,8 @@ export interface PerformanceRow {
   currency?: Currency;
   children?: PerformanceRow[];
   expandable?: boolean;
-  extra?: Record<string, number | null>;
+  extra?: Record<string, number | string | null>;
+  resultsBreakdown?: string;
 }
 
 export interface ExtraColumn {
@@ -74,6 +75,8 @@ export interface PerformanceTableProps {
   heading: string;
   rows: PerformanceRow[];
   totals?: Performance;
+  totalsExtra?: Record<string, number | string | null>;
+  totalsResultsBreakdown?: string;
   currency?: Currency;
   onOpen?: (id: string) => void;
   onExpandedChange?: (ids: ReadonlySet<string>) => void;
@@ -181,7 +184,8 @@ interface FigureColumn {
   value: (
     performance: Performance,
     currency: Currency,
-    extra?: Record<string, number | null>,
+    extra?: Record<string, number | string | null>,
+    breakdown?: string,
   ) => ReactNode;
 }
 
@@ -190,11 +194,13 @@ function Figures({
   currency,
   figures,
   extra,
+  breakdown,
 }: {
   performance: Performance;
   currency: Currency;
   figures: readonly FigureColumn[];
-  extra?: Record<string, number | null>;
+  extra?: Record<string, number | string | null>;
+  breakdown?: string;
 }) {
   return (
     <>
@@ -203,7 +209,7 @@ function Figures({
           key={column.id}
           className="overflow-hidden text-right tabular-nums whitespace-nowrap last:pr-5"
         >
-          {column.value(performance, currency, extra)}
+          {column.value(performance, currency, extra, breakdown)}
         </TableCell>
       ))}
     </>
@@ -387,6 +393,8 @@ export function PerformanceTable({
   heading,
   rows,
   totals,
+  totalsExtra,
+  totalsResultsBreakdown,
   currency = "RUB",
   onOpen,
   onExpandedChange,
@@ -422,15 +430,19 @@ export function PerformanceTable({
     ...METRIC_COLUMNS.map((column) => ({
       id: column.id,
       label: column.label,
-      value: (performance: Performance, figureCurrency: Currency) =>
-        column.format(performance, figureCurrency),
+      value: (performance: Performance, figureCurrency: Currency, _?: unknown, breakdown?: string) => {
+        if (breakdown != null && column.id === "results") return breakdown;
+        if (breakdown != null && column.id === "costPerResult") return "—";
+        return column.format(performance, figureCurrency);
+      },
     })),
     ...extraColumns.map((column) => ({
       id: column.id,
       label: column.label,
-      value: (_: Performance, __: Currency, extra?: Record<string, number | null>) => {
+      value: (_: Performance, __: Currency, extra?: Record<string, number | string | null>) => {
         if (extra == null) return null;
         const value = extra[column.id] ?? null;
+        if (typeof value === "string") return value;
         if (column.format == null) return formatCount(value ?? 0);
         return value === null ? "—" : column.format(value);
       },
@@ -493,6 +505,7 @@ export function PerformanceTable({
         <Figures
           figures={figures}
           extra={row.extra ?? {}}
+          breakdown={row.resultsBreakdown}
           performance={row.performance}
           currency={row.currency ?? currency}
         />
@@ -647,6 +660,8 @@ export function PerformanceTable({
               </TableHead>
               <Figures
                 figures={figures}
+                extra={totalsExtra}
+                breakdown={totalsResultsBreakdown}
                 performance={totals}
                 currency={currency}
               />

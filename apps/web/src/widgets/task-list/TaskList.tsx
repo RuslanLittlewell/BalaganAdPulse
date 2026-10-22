@@ -31,7 +31,7 @@ export function TaskList({ title, tasks, onOpen, onCreate, empty }: TaskListProp
           {empty ?? t("tasks.empty")}
         </p>
       ) : (
-        <ul className="grid grid-cols-[repeat(auto-fill,minmax(12rem,1fr))] gap-3">
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {tasks.map((task) => (
             <li key={task.id} className="min-w-0">
               <TaskCardView

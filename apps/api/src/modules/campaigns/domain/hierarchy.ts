@@ -36,6 +36,7 @@ export interface AdSet {
   readonly campaignId: string;
   readonly name: string;
   readonly audience: string | null;
+  readonly optimizationGoal: string | null;
   readonly status: DeliveryStatus;
   readonly externalId: string | null;
   readonly position: number;

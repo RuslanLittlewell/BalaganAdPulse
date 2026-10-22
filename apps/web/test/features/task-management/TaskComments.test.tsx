@@ -84,7 +84,7 @@ describe("the comments of a task", () => {
     expect(screen.getByRole("button", { name: "Отправить" })).toBeDisabled();
   });
 
-  it("offer the people on the task when @ is typed", async () => {
+  it("offer every employee, not only those on the task, when @ is typed", async () => {
     serve();
     const user = userEvent.setup();
     renderWithProviders(<TaskComments task={task} />);
@@ -93,9 +93,10 @@ describe("the comments of a task", () => {
     await user.type(field(), "@");
 
     const options = within(await screen.findByRole("listbox", { name: "Упомянуть участника" })).getAllByRole("option");
-    expect(options).toHaveLength(2);
+    expect(options).toHaveLength(3);
     expect(options[0]).toHaveTextContent("Анна");
     expect(options[1]).toHaveTextContent("Борис");
+    expect(options[2]).toHaveTextContent("Вера");
   });
 
   it("narrow the offer as letters are typed", async () => {

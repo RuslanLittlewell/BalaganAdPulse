@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { arrayOf, ref, type ComponentDocs, type RouteDoc } from "#shared/presentation/openapi.js";
 import { CHANNELS, DELIVERY_STATUSES } from "#modules/campaigns/domain/hierarchy.js";
+import { RESULT_TYPES } from "#modules/campaigns/domain/result-type.js";
 import { rangeSchema } from "./campaign-schemas.js";
 
 const measured = {
@@ -41,6 +42,8 @@ const projectFigures = z.object({
   days: z.array(measuredDay),
 });
 
+const resultType = z.enum(RESULT_TYPES);
+
 const campaign = z.object({
   id: z.uuid(),
   projectId: z.uuid(),
@@ -53,6 +56,7 @@ const campaign = z.object({
   position: z.int(),
   kpi: kpiTarget,
   performance,
+  resultTypes: z.array(z.object({ type: resultType, results: z.int() })),
 });
 
 const adSet = z.object({
@@ -60,6 +64,7 @@ const adSet = z.object({
   campaignId: z.uuid(),
   name: z.string(),
   audience: z.string().nullable(),
+  resultType,
   status: z.enum(DELIVERY_STATUSES),
   externalId: z.string().nullable(),
   position: z.int(),
@@ -72,6 +77,7 @@ const ad = z.object({
   name: z.string(),
   format: z.string().nullable(),
   headline: z.string().nullable(),
+  resultType,
   status: z.enum(DELIVERY_STATUSES),
   externalId: z.string().nullable(),
   position: z.int(),

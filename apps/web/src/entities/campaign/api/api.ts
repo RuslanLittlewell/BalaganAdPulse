@@ -6,6 +6,17 @@ export type Channel = (typeof CHANNELS)[number];
 export const DELIVERY_STATUSES = ["ACTIVE", "LEARNING", "PAUSED", "REJECTED", "ENDED"] as const;
 export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number];
 
+export const RESULT_TYPES = [
+  "MESSAGES", "PROFILE_VISITS", "LEADS", "LINK_CLICKS", "LANDING_PAGE_VIEWS", "CONVERSIONS",
+  "ENGAGEMENT", "REACH", "VIDEO_VIEWS", "APP_INSTALLS", "OTHER", "UNKNOWN",
+] as const;
+export type ResultType = (typeof RESULT_TYPES)[number];
+
+export interface ResultsOfType {
+  type: ResultType;
+  results: number;
+}
+
 export interface DateRange {
   from: string;
   to: string;
@@ -49,6 +60,7 @@ export interface Campaign {
   position: number;
   kpi: { metric: string; target: string } | null;
   performance: Performance;
+  resultTypes: ResultsOfType[];
 }
 
 export interface AdSet {
@@ -56,6 +68,7 @@ export interface AdSet {
   campaignId: string;
   name: string;
   audience: string | null;
+  resultType: ResultType;
   status: DeliveryStatus;
   externalId: string | null;
   position: number;
@@ -83,6 +96,7 @@ export interface Ad {
   name: string;
   format: string | null;
   headline: string | null;
+  resultType: ResultType;
   status: DeliveryStatus;
   externalId: string | null;
   position: number;

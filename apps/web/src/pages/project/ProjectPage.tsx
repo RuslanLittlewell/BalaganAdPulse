@@ -12,7 +12,7 @@ import {
   useAlerts,
 } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
-import { projectDocumentsPath, projectPath } from "@/shared/lib/index.js";
+import { cn, projectDocumentsPath, projectPath } from "@/shared/lib/index.js";
 import { useClients } from "@/entities/client/index.js";
 import {
   ProjectHeader,
@@ -39,6 +39,7 @@ import {
   useSummaryTiles,
 } from "@/entities/summary-tiles/index.js";
 import { PeriodControl, usePeriod } from "@/features/period/index.js";
+import { usePreviewMode } from "@/features/preview-mode/index.js";
 import { campaignTone } from "./campaignTone.js";
 import {
   TaskDialogs,
@@ -77,6 +78,7 @@ export function ProjectPage() {
   const projectId = useActiveProjectId();
   const navigate = useNavigate();
   const location = useLocation();
+  const { previewing, enter: enterPreview } = usePreviewMode();
   const { range } = usePeriod();
   const projects = useProjects();
   const clients = useClients();
@@ -180,6 +182,7 @@ export function ProjectPage() {
 
   return (
     <div className="flex min-h-0 flex-col gap-6">
+      {previewing ? null : (
       <ProjectHeader
         project={project}
         clientName={clientName}
@@ -190,9 +193,11 @@ export function ProjectPage() {
             { onError: () => raise(t("project.kpiTrackedFailed")) },
           )
           : undefined}
+        onPreview={enterPreview}
       />
+      )}
 
-      {readsDocuments ? (
+      {readsDocuments && !previewing ? (
         <div className="border-b border-border pb-4">
           <Tabs
             items={[
@@ -210,7 +215,7 @@ export function ProjectPage() {
         </div>
       ) : null}
 
-      {inDocuments ? (
+      {inDocuments && !previewing ? (
         <ProjectDocuments
           key={project.id}
           projectId={project.id}
@@ -224,9 +229,9 @@ export function ProjectPage() {
         />
       ) : (
         <>
-          <MetaIntegration key={project.id} projectId={project.id} />
+          {previewing ? null : <MetaIntegration key={project.id} projectId={project.id} />}
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-2">
+          <div className={cn("flex flex-wrap items-center justify-between gap-3", !previewing && "border-t pt-2")}>
             <h2 className="text-sm font-semibold text-foreground">
               {t("project.metrics")}
             </h2>
@@ -236,7 +241,7 @@ export function ProjectPage() {
           <PerformanceSummary
             tiles={tiles.data?.tiles ?? []}
             onTilesChange={
-              arrangesSummary && tiles.data
+              arrangesSummary && tiles.data && !previewing
                 ? (next) =>
                     chooseTiles.mutate(next, {
                       onError: () => raise(t("summary.notSaved")),
@@ -248,7 +253,7 @@ export function ProjectPage() {
             currency={project.budgetCurrency}
             kpi={{
               scope: { kind: "project", id: project.id },
-              canEdit: editsProjectKpi,
+              canEdit: editsProjectKpi && !previewing,
             }}
           />
 
@@ -304,7 +309,7 @@ export function ProjectPage() {
             </div>
           )}
 
-          {tracksTasks && (
+          {tracksTasks && !previewing && (
             <TaskList
               title={t("tasks.inFlight.title")}
               tasks={inFlight}

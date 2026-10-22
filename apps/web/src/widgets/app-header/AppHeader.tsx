@@ -15,6 +15,7 @@ import { t } from "@/shared/config/index.js";
 import {
   Button,
   Hint,
+  ToolbarDivider,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -35,10 +36,6 @@ function useFirstPeopleHint(contactsOpen: boolean) {
   return useHint(HINTS.contactsFirstPeople, empty && !contactsOpen);
 }
 
-function HeaderDivider() {
-  return <div aria-hidden="true" className="mx-1 h-6 w-px bg-border" />;
-}
-
 export function AppHeader() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [contactsOpen, setContactsOpen] = useState(false);
@@ -51,7 +48,7 @@ export function AppHeader() {
         <TooltipProvider delayDuration={200}>
           <div className="flex items-center gap-2">
             <NotificationCenter />
-            <HeaderDivider />
+            <ToolbarDivider />
             <Tooltip>
               <Hint
                 open={firstPeople.open}
@@ -72,7 +69,7 @@ export function AppHeader() {
               <TooltipContent>{t("contacts.title")}</TooltipContent>
             </Tooltip>
             <Can action="read" resource="audit">
-              <HeaderDivider />
+              <ToolbarDivider />
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -87,7 +84,7 @@ export function AppHeader() {
                 <TooltipContent>{t("activity.title")}</TooltipContent>
               </Tooltip>
             </Can>
-            <HeaderDivider />
+            <ToolbarDivider />
             <OnlineUsers />
             <UserMenu
               onSettings={() => setSettingsOpen(true)}

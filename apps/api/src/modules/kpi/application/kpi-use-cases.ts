@@ -64,6 +64,10 @@ export function createKpiUseCases(d: {
     if (next?.metric === MANUAL_KPI) {
       throw new AppError('validation', 'Only a project KPI can be set by hand');
     }
+    if (next) assertResultType(next);
+    if (next?.resultType && level.kind === 'organization') {
+      throw new AppError('validation', 'The organization KPI cannot name a result type');
+    }
     const owner = await ownerOf(actor, level);
     if (owner.entityType !== 'organization' && !can(actor, 'update', 'kpi')) {
       throw new AppError('forbidden', `Your role may not change a ${owner.entityType} KPI`);

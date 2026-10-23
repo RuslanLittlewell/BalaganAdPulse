@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject, type UIEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject, type UIEvent } from "react";
 import {
   ChevronRightIcon,
   EllipsisVerticalIcon,
@@ -83,6 +83,7 @@ export interface PerformanceTableProps {
   empty?: string;
   extraColumns?: readonly ExtraColumn[];
   visibleRows?: number;
+  highlightedId?: string;
 }
 
 const NO_EXTRA_COLUMNS: readonly ExtraColumn[] = [];
@@ -144,8 +145,16 @@ function useRowWindow(total: number, limit: number | undefined) {
     return () => observer.disconnect();
   }, [windowed]);
 
+  const reveal = useCallback((index: number) => {
+    const element = scroller.current;
+    if (!windowed || limit == null || !element || (index >= first && index < first + limit)) return;
+    const top = Math.max(0, index - Math.floor(limit / 2)) * rowHeight;
+    element.scrollTop = top;
+    setFirst(Math.floor(top / rowHeight));
+  }, [windowed, limit, first, rowHeight]);
+
   if (!windowed) {
-    return { scroller, windowed, start: 0, end: total, before: 0, after: 0 };
+    return { scroller, windowed, start: 0, end: total, before: 0, after: 0, reveal };
   }
   const start = Math.max(0, first - OVERSCAN);
   const end = Math.min(total, first + limit + OVERSCAN);
@@ -159,6 +168,7 @@ function useRowWindow(total: number, limit: number | undefined) {
     maxHeight: frame + limit * rowHeight,
     onScroll: (event: UIEvent<HTMLDivElement>) =>
       setFirst(Math.floor(event.currentTarget.scrollTop / rowHeight)),
+    reveal,
   };
 }
 
@@ -360,7 +370,7 @@ function Name({
   return (
     <TableHead
       scope="row"
-      className="sticky left-0 z-10 overflow-hidden bg-muted/50 font-normal shadow-[inset_0_1px_0_var(--border)] backdrop-blur-xl"
+      className="sticky left-0 z-10 overflow-hidden bg-muted/50 font-normal shadow-[inset_0_1px_0_var(--border)] backdrop-blur-xl group-data-[highlighted=true]:bg-primary/20"
       style={{
         paddingLeft: depth === 0 ? undefined : `${depth * 1.5 + 0.75}rem`,
       }}
@@ -401,11 +411,17 @@ export function PerformanceTable({
   empty,
   extraColumns = NO_EXTRA_COLUMNS,
   visibleRows,
+  highlightedId,
 }: PerformanceTableProps) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const sorting = useSortState();
   const shown = shownRows(sortTree(rows, sorting.sort), expanded);
   const rowWindow = useRowWindow(shown.length, visibleRows);
+  const highlightedIndex = highlightedId == null ? -1 : shown.findIndex(({ row }) => row.id === highlightedId);
+  const { reveal } = rowWindow;
+  useEffect(() => {
+    if (highlightedIndex >= 0) reveal(highlightedIndex);
+  }, [highlightedIndex, reveal]);
   const savedWidth = useColumnWidths((state) => state.nameWidths?.[tableKey]);
   const nameWidth =
     typeof savedWidth === "number" && Number.isFinite(savedWidth)
@@ -488,12 +504,18 @@ export function PerformanceTable({
         ? () => onOpen(row.id)
         : undefined;
 
+    const highlighted = highlightedId != null && row.id === highlightedId;
+
     return (
       <TableRow
         key={key}
         aria-rowindex={rowWindow.windowed ? index + 2 : undefined}
+        data-highlighted={highlighted ? "true" : undefined}
         onClick={activate}
-        className="group cursor-pointer"
+        className={cn(
+          "group cursor-pointer",
+          highlighted && "bg-primary/15 outline-1 -outline-offset-1 outline-primary/60 hover:bg-primary/15",
+        )}
       >
         <Name
           row={row}

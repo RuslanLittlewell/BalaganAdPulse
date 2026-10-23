@@ -60,7 +60,7 @@ export interface Campaign {
   externalId: string | null;
   sourceAccountId: string | null;
   position: number;
-  kpi: { metric: string; target: string } | null;
+  kpi: { metric: string; target: string; resultType?: string } | null;
   performance: Performance;
   resultTypes: ResultType[];
 }

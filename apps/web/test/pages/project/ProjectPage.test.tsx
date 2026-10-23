@@ -726,12 +726,102 @@ describe("each campaign's indicator", () => {
       HttpResponse.json([{ id: "k1", metric: "CPA", target: "16.0000", enabled: true, updatedAt: "2026-09-01T00:00:00.000Z" }])));
     renderWithProviders(<App />, route);
 
-    await screen.findByText("Выполняет");
+    await screen.findByRole("row", { name: /Выполняет/ });
     await user.click(screen.getByRole("switch", { name: "Только активные" }));
     await waitFor(() => expect(toneOf("По проекту")).toBe("stable"));
     expect(toneOf("Выполняет")).toBe("profitable");
     expect(toneOf("Отстаёт")).toBe("danger");
     expect(toneOf("На паузе")).toBe("idle");
+  });
+});
+
+describe("the campaign KPI blocks above the table", () => {
+  const withKpis = [
+    { ...campaign("c1", "Выполняет", "META", 1000), kpi: { metric: "CPA", target: "25.0000" } },
+    campaign("c2", "Без цели", "META", 1000),
+    { ...campaign("c3", "Отстаёт", "META", 1000), kpi: { metric: "CPA", target: "10.0000" } },
+    { ...campaign("c4", "На паузе", "META", 1000), status: "PAUSED", kpi: { metric: "CPA", target: "25.0000" } },
+  ];
+  const blocks = () => within(screen.getByRole("group", { name: "KPI кампаний" })).getAllByRole("button");
+  const highlightedRows = () =>
+    screen.getAllByRole("row").filter((row) => row.getAttribute("data-highlighted") === "true");
+
+  it("shows one block per listed campaign holding a KPI, in the table's order, with its progress", async () => {
+    api({ campaigns: withKpis });
+    renderWithProviders(<App />, route);
+
+    await screen.findByRole("group", { name: "KPI кампаний" });
+    expect(blocks()).toHaveLength(2);
+    expect(blocks()[0]).toHaveTextContent("Выполняет");
+    expect(blocks()[0]).toHaveTextContent("CPL");
+    expect(blocks()[0]).toHaveTextContent("125%");
+    expect(blocks()[0]).toHaveAttribute("data-tone", "profitable");
+    expect(blocks()[1]).toHaveTextContent("Отстаёт");
+    expect(blocks()[1]).toHaveTextContent("50%");
+    expect(blocks()[1]).toHaveAttribute("data-tone", "danger");
+  });
+
+  it("shows a paused campaign's block grey once paused campaigns are listed", async () => {
+    const user = userEvent.setup();
+    api({ campaigns: withKpis });
+    renderWithProviders(<App />, route);
+    await screen.findByRole("group", { name: "KPI кампаний" });
+
+    await user.click(screen.getByRole("switch", { name: "Только активные" }));
+
+    expect(blocks()).toHaveLength(3);
+    expect(blocks()[2]).toHaveTextContent("На паузе");
+    expect(blocks()[2]).toHaveAttribute("data-tone", "idle");
+  });
+
+  it("shows no blocks when no listed campaign holds a KPI", async () => {
+    api();
+    renderWithProviders(<App />, route);
+
+    await screen.findByRole("row", { name: /Поиск \/ Москва/ });
+    expect(screen.queryByRole("group", { name: "KPI кампаний" })).toBeNull();
+  });
+
+  it("highlights the campaign's row while its block is hovered or focused", async () => {
+    const user = userEvent.setup();
+    api({ campaigns: withKpis });
+    renderWithProviders(<App />, route);
+    await screen.findByRole("group", { name: "KPI кампаний" });
+
+    await user.hover(blocks()[1]!);
+    expect(highlightedRows()).toEqual([screen.getByRole("row", { name: /Отстаёт/ })]);
+
+    await user.unhover(blocks()[1]!);
+    expect(highlightedRows()).toEqual([]);
+
+    blocks()[0]!.focus();
+    await waitFor(() => expect(highlightedRows()).toEqual([screen.getByRole("row", { name: /Выполняет/ })]));
+  });
+
+  it("brings a highlighted row into a long table's window", async () => {
+    const user = userEvent.setup();
+    const many = Array.from({ length: 24 }, (_, index) => campaign(`c${index}`, `Кампания ${index + 1}`, "META", 100));
+    many[23] = { ...many[23]!, kpi: { metric: "CPA", target: "25.0000" } } as (typeof many)[number];
+    api({ campaigns: many });
+    renderWithProviders(<App />, route);
+    await screen.findByRole("group", { name: "KPI кампаний" });
+    expect(screen.queryByRole("row", { name: /Кампания 24/ })).toBeNull();
+
+    await user.hover(blocks()[0]!);
+
+    expect(await screen.findByRole("row", { name: /Кампания 24/ })).toHaveAttribute("data-highlighted", "true");
+  });
+
+  it("opens the campaign with the period when its block is pressed", async () => {
+    const user = userEvent.setup();
+    api({ campaigns: withKpis });
+    renderWithProviders(<App />, { route: "/projects/p1?from=2026-09-01&to=2026-09-30" });
+    await screen.findByRole("group", { name: "KPI кампаний" });
+
+    await user.click(blocks()[1]!);
+
+    expect(await screen.findByRole("heading", { name: "Экран кампании" })).toBeInTheDocument();
+    expect(screen.getByText("?from=2026-09-01&to=2026-09-30")).toBeInTheDocument();
   });
 });
 

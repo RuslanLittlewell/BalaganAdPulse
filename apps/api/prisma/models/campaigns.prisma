@@ -47,6 +47,7 @@ model Campaign {
   kpiMetric       KpiMetric?            @map("kpi_metric")
   kpiTarget       Decimal?              @map("kpi_target") @db.Decimal(18, 4)
   kpiUpdatedAt    DateTime?             @map("kpi_updated_at")
+  kpiResultType   String?               @map("kpi_result_type")
 
   @@unique([channel, externalId])
   @@index([projectId, position])

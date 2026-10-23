@@ -10,7 +10,8 @@ TBD - created by archiving change project-preview-mode. Update Purpose after arc
 The project header SHALL offer a preview button, drawn as a full-screen icon, named «Превью»,
 placed before the KPI-tracking switch and parted from it by a divider. In preview
 the page SHALL show only the metrics heading with the period controls, the summary tiles, the
-account tabs, the running-only switch and the campaign table, across the whole width. The
+account tabs, the running-only switch, the campaign KPI blocks and the campaign table, across the
+whole width. The
 navigation, the app header, the project list, the project header and its tabs, the integrations
 and the tasks SHALL be hidden. The summary SHALL offer no tile configuration and the KPI tiles no
 edit control.

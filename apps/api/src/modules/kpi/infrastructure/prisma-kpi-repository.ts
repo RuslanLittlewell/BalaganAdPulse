@@ -9,13 +9,10 @@ type KpiColumns = {
   kpiMetric: Kpi['metric'] | null;
   kpiTarget: Prisma.Decimal | null;
   kpiUpdatedAt: Date | null;
+  kpiResultType?: string | null;
 };
 const columns = { kpiMetric: true, kpiTarget: true, kpiUpdatedAt: true } as const;
-
-function toKpi(row: KpiColumns | null): Kpi | null {
-  if (!row?.kpiMetric || !row.kpiTarget || row.kpiMetric === MANUAL_KPI) return null;
-  return { metric: row.kpiMetric, target: row.kpiTarget.toFixed(4), updatedAt: row.kpiUpdatedAt ?? new Date(0) };
-}
+const campaignColumns = { ...columns, kpiResultType: true } as const;
 
 type ProjectKpiRow = {
   id: string;
@@ -28,8 +25,14 @@ type ProjectKpiRow = {
   updatedAt: Date;
 };
 
-const isResultType = (value: string | null): value is ResultType =>
-  value !== null && (RESULT_TYPES as readonly string[]).includes(value);
+const isResultType = (value: string | null | undefined): value is ResultType =>
+  value != null && (RESULT_TYPES as readonly string[]).includes(value);
+
+function toKpi(row: KpiColumns | null): Kpi | null {
+  if (!row?.kpiMetric || !row.kpiTarget || row.kpiMetric === MANUAL_KPI) return null;
+  const kpi = { metric: row.kpiMetric, target: row.kpiTarget.toFixed(4), updatedAt: row.kpiUpdatedAt ?? new Date(0) };
+  return isResultType(row.kpiResultType) ? { ...kpi, resultType: row.kpiResultType } : kpi;
+}
 
 function toProjectKpi(row: ProjectKpiRow): ProjectKpi | null {
   const base = { id: row.id, enabled: row.enabled, updatedAt: row.updatedAt, target: row.target.toFixed(4) };
@@ -46,7 +49,7 @@ export class PrismaKpiRepository implements KpiRepository {
   async read(owner: KpiOwner) {
     const where = { id: owner.entityId };
     if (owner.entityType === 'organization') return toKpi(await this.prisma.organization.findUnique({ where, select: columns }));
-    return toKpi(await this.prisma.campaign.findUnique({ where, select: columns }));
+    return toKpi(await this.prisma.campaign.findUnique({ where, select: campaignColumns }));
   }
 
   async write(context: TransactionContext, owner: KpiOwner, kpi: Kpi | null) {
@@ -54,7 +57,10 @@ export class PrismaKpiRepository implements KpiRepository {
     const data = { kpiMetric: kpi?.metric ?? null, kpiTarget: kpi?.target ?? null, kpiUpdatedAt: kpi?.updatedAt ?? null };
     const where = { id: owner.entityId };
     if (owner.entityType === 'organization') await client.organization.update({ where, data });
-    else await client.campaign.update({ where, data });
+    else {
+      const kpiResultType = kpi && kpi.metric !== MANUAL_KPI ? kpi.resultType ?? null : null;
+      await client.campaign.update({ where, data: { ...data, kpiResultType } });
+    }
   }
 }
 

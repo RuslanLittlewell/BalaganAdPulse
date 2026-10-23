@@ -2,7 +2,7 @@ import { http as mock, HttpResponse } from "msw";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes, useLocation } from "react-router-dom";
-import { aTask, renderWithProviders, server } from "@test/shared/index.js";
+import { aSession, aTask, renderWithProviders, server } from "@test/shared/index.js";
 import { CampaignPage } from "@/pages/campaign/index.js";
 
 const performance = (spend: number, extra = {}) => ({
@@ -129,7 +129,7 @@ describe("CampaignPage", () => {
 
   it("shows the tiles chosen for its project and nothing to configure", async () => {
     api({ summaryTiles: ["CLICKS", "CONVERSIONS", "KPI"] });
-    server.use(mock.get("/api/projects/:projectId/kpis", () => HttpResponse.json([])));
+    server.use(mock.get("/api/campaigns/:campaignId/kpi", () => HttpResponse.json(null)));
     renderWithProviders(<App />, route);
 
     const summary = await screen.findByRole("group", { name: "Показатели за период" });
@@ -138,24 +138,98 @@ describe("CampaignPage", () => {
     expect(screen.queryByRole("button", { name: "Настроить показатели" })).not.toBeInTheDocument();
   });
 
-  it("shows the project's KPI against the campaign's figures, with nothing to change it", async () => {
+  it("shows the campaign's own KPI against the campaign's figures, with a control to change it", async () => {
     api({ summaryTiles: ["KPI"] });
-    let campaignKpiAsked = false;
+    let projectKpisAsked = false;
     server.use(
-      mock.get("/api/projects/p1/kpis", () =>
-        HttpResponse.json([{ id: "k1", metric: "CONVERSIONS", target: "60.0000", enabled: true, updatedAt: "2026-09-14T10:00:00.000Z" }])),
-      mock.get("/api/campaigns/:campaignId/kpi", () => {
-        campaignKpiAsked = true;
-        return HttpResponse.json(null);
+      mock.get("/api/projects/p1/kpis", () => {
+        projectKpisAsked = true;
+        return HttpResponse.json([]);
       }),
+      mock.get("/api/campaigns/:campaignId/kpi", () =>
+        HttpResponse.json({ metric: "CONVERSIONS", target: "60.0000", updatedAt: "2026-09-14T10:00:00.000Z" })),
     );
     renderWithProviders(<App />, { route: "/projects/p1/campaigns/c1?from=2026-09-01&to=2026-09-30" });
 
     const tile = await screen.findByTestId("kpi-tile");
     await waitFor(() => expect(tile).toHaveTextContent("KPI · Лиды"));
     expect(tile).toHaveTextContent("Цель 60 · 83%");
+    expect(within(tile).getByRole("button", { name: "Изменить цель" })).toBeInTheDocument();
+    expect(within(tile).queryByRole("img", { name: "Учитывается в результате проекта" })).not.toBeInTheDocument();
+    expect(projectKpisAsked).toBe(false);
+  });
+
+  it("adds the campaign's KPI tile after the chosen tiles when the choice holds no KPI", async () => {
+    api({ summaryTiles: ["CLICKS", "CONVERSIONS"] });
+    server.use(mock.get("/api/campaigns/:campaignId/kpi", () => HttpResponse.json(null)));
+    renderWithProviders(<App />, route);
+
+    const summary = await screen.findByRole("group", { name: "Показатели за период" });
+    await waitFor(() => expect(within(summary).getAllByTestId("summary-tile").map((tile) => tile.getAttribute("data-tile")))
+      .toEqual(["CLICKS", "CONVERSIONS", "KPI"]));
+    expect(await within(summary).findByRole("button", { name: "Задать цель" })).toBeInTheDocument();
+  });
+
+  it("sets the campaign's KPI and fetches the campaign again for its colour", async () => {
+    const user = userEvent.setup();
+    api({ summaryTiles: ["KPI"] });
+    let current: Record<string, string> | null = null;
+    let campaignReads = 0;
+    const saved: unknown[] = [];
+    server.use(
+      mock.get("/api/campaigns/:campaignId/kpi", () => HttpResponse.json(current)),
+      mock.put("/api/campaigns/:campaignId/kpi", async ({ request }) => {
+        const body = await request.json() as { metric: string; target: string };
+        saved.push(body);
+        current = { ...body, target: Number(body.target).toFixed(4), updatedAt: "2026-09-14T10:00:00.000Z" };
+        return HttpResponse.json(current);
+      }),
+      mock.get("/api/campaigns/:campaignId", () => {
+        campaignReads += 1;
+        return HttpResponse.json({
+          id: "c1", projectId: "p1", name: "Поиск / Москва", channel: "YANDEX", status: "ACTIVE",
+          objective: null, externalId: null, position: 0, performance: performance(1500),
+          resultTypes: ["MESSAGES"], kpi: current,
+        });
+      }),
+    );
+    renderWithProviders(<App />, route);
+
+    await user.click(await screen.findByRole("button", { name: "Задать цель" }));
+    const dialog = await screen.findByRole("dialog", { name: "Цель KPI" });
+    await user.click(within(dialog).getByLabelText("Метрика"));
+    await user.click(await screen.findByRole("option", { name: "Цена · Сообщения" }));
+    await user.type(within(dialog).getByLabelText("Цель"), "20");
+    const readsBefore = campaignReads;
+    await user.click(within(dialog).getByRole("button", { name: "Сохранить" }));
+
+    await waitFor(() => expect(saved).toEqual([{ metric: "COST_PER_RESULT", target: "20", resultType: "MESSAGES" }]));
+    await waitFor(() => expect(campaignReads).toBeGreaterThan(readsBefore));
+    expect(await screen.findByText("KPI · Цена · Сообщения")).toBeInTheDocument();
+  });
+
+  it("offers a guest no control to set the campaign's KPI", async () => {
+    api({ summaryTiles: ["KPI"] });
+    server.use(
+      mock.get("/api/auth/me", () => HttpResponse.json(aSession({ role: "GUEST", clientIds: ["cl1"] }))),
+      mock.get("/api/campaigns/:campaignId/kpi", () => HttpResponse.json(null)),
+    );
+    renderWithProviders(<App />, route);
+
+    const tile = await screen.findByTestId("kpi-tile");
+    await waitFor(() => expect(tile).toHaveTextContent("Цель не задана"));
     expect(within(tile).queryByRole("button")).not.toBeInTheDocument();
-    expect(campaignKpiAsked).toBe(false);
+  });
+
+  it("offers no control to change the campaign's KPI in preview", async () => {
+    api({ summaryTiles: ["KPI"] });
+    server.use(mock.get("/api/campaigns/:campaignId/kpi", () =>
+      HttpResponse.json({ metric: "CONVERSIONS", target: "60.0000", updatedAt: "2026-09-14T10:00:00.000Z" })));
+    renderWithProviders(<App />, { route: "/projects/p1/campaigns/c1?preview=1" });
+
+    const tile = await screen.findByTestId("kpi-tile");
+    await waitFor(() => expect(tile).toHaveTextContent("KPI · Лиды"));
+    expect(within(tile).queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("draws the measured days", async () => {

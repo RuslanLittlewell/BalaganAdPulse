@@ -33,7 +33,7 @@ import {
   useProjectSummary,
 } from "@/entities/campaign/index.js";
 import { ACTIVE_TASK_COLUMNS, useTasks } from "@/entities/task/index.js";
-import { useProjectKpis } from "@/entities/kpi/index.js";
+import { kpiInputOf, MANUAL_KPI, useProjectKpis } from "@/entities/kpi/index.js";
 import {
   useChooseSummaryTiles,
   useSummaryTiles,
@@ -56,6 +56,7 @@ import {
   type PerformanceRow,
 } from "@/widgets/performance-table/index.js";
 import { ProjectDocuments } from "@/widgets/project-documents/index.js";
+import { CampaignKpiStrip, type CampaignKpiItem } from "@/widgets/campaign-kpi-strip/index.js";
 
 const sourceKey = (provider: string, accountId: string) => `${provider}:${accountId}`;
 
@@ -115,6 +116,7 @@ export function ProjectPage() {
   const source = useSourceMemory((state) => (projectId ? state.sources[projectId] : undefined)) ?? null;
   const rememberSource = useSourceMemory((state) => state.rememberSource);
   const [runningOnly, setRunningOnly] = useState(true);
+  const [highlighted, setHighlighted] = useState<string | null>(null);
   useEffect(() => {
     setRunningOnly(true);
   }, [projectId]);
@@ -169,6 +171,7 @@ export function ProjectPage() {
 
   const offeredTypes = orderedResultTypes(all.flatMap((campaign) => campaign.resultTypes));
 
+  const toneOf = (campaign: (typeof listed)[number]) => campaignTone(campaign, projectKpis.data, range);
   const rows: PerformanceRow[] = listed.map((campaign) => ({
     id: campaign.id,
     name: campaign.name,
@@ -176,8 +179,16 @@ export function ProjectPage() {
     performance: campaign.performance,
     extra: resultTypeFiguresOf(campaign.performance, offeredTypes),
     mixedResults: hasMixedResults(campaign.performance.resultTypes),
-    tone: campaignTone(campaign, projectKpis.data, range),
+    tone: toneOf(campaign),
   }));
+  const withKpi: CampaignKpiItem[] = listed.flatMap((campaign) => {
+    const kpi = kpiInputOf(campaign.kpi);
+    return kpi && kpi.metric !== MANUAL_KPI
+      ? [{ id: campaign.id, name: campaign.name, kpi, performance: campaign.performance, tone: toneOf(campaign) }]
+      : [];
+  });
+  const openCampaign = (campaignId: string) =>
+    navigate(`${projectPath(project.id, campaignId)}${location.search}`);
   const totals = totalPerformance(listed.map((campaign) => campaign.performance));
 
   return (
@@ -285,8 +296,16 @@ export function ProjectPage() {
                   )}
                 </div>
               )}
+              <CampaignKpiStrip
+                campaigns={withKpi}
+                range={range}
+                highlightedId={highlighted ?? undefined}
+                onHighlight={setHighlighted}
+                onOpen={openCampaign}
+              />
               <PerformanceTable
                 tableKey="campaigns"
+                highlightedId={highlighted ?? undefined}
                 heading={t("campaigns.one")}
                 rows={rows}
                 visibleRows={10}
@@ -300,11 +319,7 @@ export function ProjectPage() {
                     ? t(inAccount.length > 0 ? "campaigns.noneRunning" : "campaigns.empty.title")
                     : undefined
                 }
-                onOpen={(campaignId) =>
-                  navigate(
-                    `${projectPath(project.id, campaignId)}${location.search}`,
-                  )
-                }
+                onOpen={openCampaign}
               />
             </div>
           )}

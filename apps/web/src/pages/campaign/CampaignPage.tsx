@@ -21,8 +21,10 @@ import {
   useActiveProjectId,
   useProjects,
 } from "@/entities/project/index.js";
-import { useSummaryTiles } from "@/entities/summary-tiles/index.js";
+import { useSummaryTiles, type SummaryTile } from "@/entities/summary-tiles/index.js";
 import { PeriodControl, usePeriod } from "@/features/period/index.js";
+import { useCan } from "@/features/permissions/index.js";
+import { usePreviewMode } from "@/features/preview-mode/index.js";
 import { PerformanceSummary } from "@/widgets/agency-overview/index.js";
 import { DailyChart } from "@/widgets/campaign-overview/index.js";
 import {
@@ -31,6 +33,9 @@ import {
   type PerformanceRow,
 } from "@/widgets/performance-table/index.js";
 import { CreativePreviewDialog } from "@/widgets/creative-preview/index.js";
+
+const withKpi = (tiles: readonly SummaryTile[]): SummaryTile[] =>
+  tiles.includes("KPI") ? [...tiles] : [...tiles, "KPI"];
 
 function useAdsOfOpenSets(openIds: ReadonlySet<string>, range: DateRange) {
   const ids = [...openIds];
@@ -51,6 +56,8 @@ export function CampaignPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { range } = usePeriod();
+  const { previewing: inPreview } = usePreviewMode();
+  const editsKpi = useCan("update", "kpi");
   const campaign = useCampaign(campaignId, range);
   const days = useCampaignDaily(campaignId, range);
   const adSets = useAdSets(campaignId, range);
@@ -129,11 +136,11 @@ export function CampaignPage() {
       </header>
 
       <PerformanceSummary
-        tiles={projectTiles.data?.tiles ?? []}
+        tiles={projectTiles.data ? withKpi(projectTiles.data.tiles) : []}
         range={range}
         performance={campaign.data?.performance}
         currency={currency}
-        kpi={projectId ? { scope: { kind: "project", id: projectId }, canEdit: false } : undefined}
+        kpi={campaignId ? { scope: { kind: "campaign", id: campaignId }, canEdit: editsKpi && !inPreview } : undefined}
       />
 
       <DailyChart days={days.data ?? []} currency={currency} />

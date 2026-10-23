@@ -31,7 +31,7 @@ export interface KpiCardProps {
 
 export function KpiCard({
   kpi: current,
-  enabled = true,
+  enabled,
   pending,
   figures,
   range,
@@ -66,12 +66,14 @@ export function KpiCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          <span
-            role="img"
-            aria-label={t(enabled ? "kpi.on" : "kpi.off")}
-            title={t(enabled ? "kpi.on" : "kpi.off")}
-            className={cn("size-2 shrink-0 rounded-full", enabled ? "bg-emerald-500" : "bg-muted-foreground/50")}
-          />
+          {enabled === undefined ? null : (
+            <span
+              role="img"
+              aria-label={t(enabled ? "kpi.on" : "kpi.off")}
+              title={t(enabled ? "kpi.on" : "kpi.off")}
+              className={cn("size-2 shrink-0 rounded-full", enabled ? "bg-emerald-500" : "bg-muted-foreground/50")}
+            />
+          )}
           {title ? `${t("summary.kpi")} · ${title}` : t("summary.kpi")}
         </div>
         {controls && current ? (

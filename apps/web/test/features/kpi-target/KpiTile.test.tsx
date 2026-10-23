@@ -541,6 +541,13 @@ describe("a KPI set by hand", () => {
 });
 
 describe("the KPI of a campaign or the organization", () => {
+  beforeEach(() => {
+    server.use(mock.get("/api/campaigns/c1", () => HttpResponse.json({
+      id: "c1", projectId: "p1", name: "Поиск", channel: "META", status: "ACTIVE", objective: null,
+      externalId: null, sourceAccountId: null, position: 0, kpi: null, performance: figures(), resultTypes: [],
+    })));
+  });
+
   const levels = [
     ["campaign", { kind: "campaign" as const, id: "c1" }, "/api/campaigns/c1/kpi"],
     ["organization", { kind: "organization" as const }, "/api/organization/kpi"],
@@ -557,6 +564,46 @@ describe("the KPI of a campaign or the organization", () => {
 
     expect(await screen.findByRole("option", { name: "Лиды" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Вручную" })).not.toBeInTheDocument();
+  });
+
+  it("offers a campaign the results and cost of its result types, and saves the type", async () => {
+    const requests: unknown[] = [];
+    server.use(
+      mock.get("/api/campaigns/c1/kpi", () => HttpResponse.json(null)),
+      mock.get("/api/campaigns/c1", () => HttpResponse.json({
+        id: "c1", projectId: "p1", name: "Поиск", channel: "META", status: "ACTIVE", objective: null,
+        externalId: null, sourceAccountId: null, position: 0, kpi: null, performance: figures(),
+        resultTypes: ["MESSAGES", "UNKNOWN"],
+      })),
+      mock.put("/api/campaigns/c1/kpi", async ({ request }) => {
+        const body = await request.json() as { metric: string; target: string };
+        requests.push(body);
+        return HttpResponse.json({ ...body, target: Number(body.target).toFixed(4), updatedAt: "2026-09-14T11:00:00.000Z" });
+      }),
+    );
+    renderWithProviders(<KpiTile scope={{ kind: "campaign", id: "c1" }} canEdit figures={figures()} range={firstHalf} currency="BYN" />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Задать цель" }));
+    const dialog = await screen.findByRole("dialog", { name: "Цель KPI" });
+    await userEvent.click(within(dialog).getByLabelText("Метрика"));
+    expect(await screen.findByRole("option", { name: "Цена · Сообщения" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /Не определён/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("option", { name: "Сообщения" }));
+    await userEvent.type(within(dialog).getByLabelText("Цель"), "40");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Сохранить" }));
+
+    await waitFor(() => expect(requests).toEqual([{ metric: "RESULTS", target: "40", resultType: "MESSAGES" }]));
+  });
+
+  it("offers the organization no result type", async () => {
+    server.use(mock.get("/api/organization/kpi", () => HttpResponse.json(null)));
+    renderWithProviders(<KpiTile scope={{ kind: "organization" }} canEdit figures={figures()} range={firstHalf} currency="BYN" />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Задать цель" }));
+    await userEvent.click(within(await screen.findByRole("dialog", { name: "Цель KPI" })).getByLabelText("Метрика"));
+
+    expect(await screen.findByRole("option", { name: "Лиды" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /^Цена · / })).not.toBeInTheDocument();
   });
 
   it("is set, replaced and cleared as before", async () => {

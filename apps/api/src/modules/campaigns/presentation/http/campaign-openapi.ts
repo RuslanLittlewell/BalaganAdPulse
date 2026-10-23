@@ -32,7 +32,7 @@ const performance = z.object({ ...measured, ...derived, resultTypes: resultTypeF
 
 const measuredDay = z.object({ date: z.iso.date(), ...measured, resultTypes: resultTypeFigures.optional() });
 
-const kpiTarget = z.object({ metric: z.string(), target: z.string() }).nullable();
+const kpiTarget = z.object({ metric: z.string(), target: z.string(), resultType: resultType.optional() }).nullable();
 
 const projectKpi = z.union([
   z.object({ metric: z.string(), target: z.string(), resultType: resultType.optional(), enabled: z.boolean() }),

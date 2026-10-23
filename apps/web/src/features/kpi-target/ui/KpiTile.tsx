@@ -36,7 +36,7 @@ function SingleKpiTile({ scope, canEdit, preview = false, ...rest }: KpiTileProp
         controls={canEdit && !preview}
         onEdit={() => setEditing(true)}
       />
-      {editing ? <KpiTargetDialog scope={scope} kpi={current} onClose={() => setEditing(false)} /> : null}
+      {editing ? <KpiTargetDialog scope={scope} kpi={current} range={rest.range} onClose={() => setEditing(false)} /> : null}
     </>
   );
 }

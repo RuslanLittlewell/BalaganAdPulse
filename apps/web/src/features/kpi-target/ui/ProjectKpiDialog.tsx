@@ -1,12 +1,11 @@
 import { useRef, useState, type FormEvent } from "react";
 import { PlusIcon, XIcon } from "lucide-react";
 import {
-  isKpiMetric, isMonthly, KPI_METRICS, MANUAL_KPI, MAX_PROJECT_KPIS, TYPED_KPI_METRICS, useSaveProjectKpis,
-  type KpiFigures, type KpiMetric, type ProjectKpi, type ProjectKpiInput,
+  isMonthly, MANUAL_KPI, MAX_PROJECT_KPIS, useSaveProjectKpis,
+  type KpiFigures, type ProjectKpi, type ProjectKpiInput,
 } from "@/entities/kpi/index.js";
 import {
-  isResultType, orderedResultTypes, PROJECTS_SUMMARY_KEY, resultTypeCostLabel, resultTypeLabel, useProjectCampaigns,
-  type ResultType,
+  isResultType, orderedResultTypes, PROJECTS_SUMMARY_KEY, useProjectCampaigns, type ResultType,
 } from "@/entities/campaign/index.js";
 import { useQueryClient } from "@tanstack/react-query";
 import { t } from "@/shared/config/index.js";
@@ -18,6 +17,7 @@ import {
 import { Switch } from "@/shared/ui/ui/switch.js";
 import { KpiCard } from "./KpiCard.js";
 import { AMOUNT, decimal, NAME_LIMIT, shown } from "./kpiForm.js";
+import { choiceOf, MeasuredChoices, measuredOf, type Choice } from "./kpiChoice.js";
 
 export interface ProjectKpiDialogProps {
   projectId: string;
@@ -30,20 +30,6 @@ export interface ProjectKpiDialogProps {
 }
 
 const noop = () => {};
-
-type Choice = string;
-
-const typedChoice = (metric: KpiMetric, type: string) => `${metric}:${type}`;
-
-function measuredOf(choice: Choice): { metric: KpiMetric; resultType?: string } {
-  const [metric, resultType] = choice.split(":");
-  const measured = isKpiMetric(metric ?? "") ? metric as KpiMetric : "CONVERSIONS";
-  return resultType ? { metric: measured, resultType } : { metric: measured };
-}
-
-function typedTitle(metric: KpiMetric, type: ResultType): string {
-  return metric === "RESULTS" ? resultTypeLabel(type) : resultTypeCostLabel(type);
-}
 
 type Field = "name" | "value" | "target";
 
@@ -63,14 +49,7 @@ const isBlank = (draft: Draft) => draft.target.trim() === "" && draft.name.trim(
 function draftOf(kpi: ProjectKpi, key: number): Draft {
   return kpi.metric === MANUAL_KPI
     ? { key, choice: MANUAL_KPI, name: kpi.name, value: shown(kpi.value), target: shown(kpi.target), enabled: kpi.enabled }
-    : {
-      key,
-      choice: kpi.resultType ? typedChoice(kpi.metric, kpi.resultType) : kpi.metric,
-      name: "",
-      value: "",
-      target: shown(kpi.target),
-      enabled: kpi.enabled,
-    };
+    : { key, choice: choiceOf(kpi), name: "", value: "", target: shown(kpi.target), enabled: kpi.enabled };
 }
 
 function validated(draft: Draft): { input: ProjectKpiInput } | { problems: Field[] } {
@@ -159,14 +138,7 @@ function KpiBlock({
           <Select value={draft.choice} onValueChange={(next) => onChange({ choice: next as Choice })} disabled={disabled}>
             <SelectTrigger id={metricId} className="w-full"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {KPI_METRICS.map((definition) => (
-                <SelectItem key={definition.id} value={definition.id}>{t(definition.label)}</SelectItem>
-              ))}
-              {resultTypes.flatMap((type) => TYPED_KPI_METRICS.map((metric) => (
-                <SelectItem key={typedChoice(metric, type)} value={typedChoice(metric, type)}>
-                  {typedTitle(metric, type)}
-                </SelectItem>
-              )))}
+              <MeasuredChoices resultTypes={resultTypes} />
               <SelectItem value={MANUAL_KPI}>{t("kpi.manual")}</SelectItem>
             </SelectContent>
           </Select>

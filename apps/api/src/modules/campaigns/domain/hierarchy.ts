@@ -9,12 +9,12 @@ export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number];
 export interface KpiTarget {
   readonly metric: string;
   readonly target: string;
+  readonly resultType?: string;
 }
 
 export interface ProjectKpi extends KpiTarget {
   readonly name?: string;
   readonly value?: string;
-  readonly resultType?: string;
   readonly enabled: boolean;
 }
 

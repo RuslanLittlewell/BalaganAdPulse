@@ -7,10 +7,13 @@ import type {
 } from "../application/ports.js";
 import { reachableProjects } from "#shared/infrastructure/project-reach.js";
 
-type StoredKpi = { kpiMetric: string | null; kpiTarget: { toFixed(digits: number): string } | null };
+type StoredKpi = { kpiMetric: string | null; kpiTarget: { toFixed(digits: number): string } | null; kpiResultType: string | null };
 
-const kpiOf = ({ kpiMetric, kpiTarget }: StoredKpi): KpiTarget | null =>
-  kpiMetric && kpiTarget ? { metric: kpiMetric, target: kpiTarget.toFixed(4) } : null;
+function kpiOf({ kpiMetric, kpiTarget, kpiResultType }: StoredKpi): KpiTarget | null {
+  if (!kpiMetric || !kpiTarget) return null;
+  const kpi = { metric: kpiMetric, target: kpiTarget.toFixed(4) };
+  return kpiResultType ? { ...kpi, resultType: kpiResultType } : kpi;
+}
 
 type StoredProjectKpi = {
   metric: string;

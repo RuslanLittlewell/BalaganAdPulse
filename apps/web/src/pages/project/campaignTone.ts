@@ -1,5 +1,5 @@
 import { isRunning, type Campaign, type PerformanceTone } from "@/entities/campaign/index.js";
-import { isKpiMetric, kpiProgress, leastMetProgress, type CarriedKpi } from "@/entities/kpi/index.js";
+import { kpiInputOf, kpiProgress, leastMetProgress, type CarriedKpi } from "@/entities/kpi/index.js";
 
 const GOOD_FROM = 90;
 const MIDDLE_FROM = 70;
@@ -17,9 +17,7 @@ export function campaignTone(
   range: { from: string; to: string },
 ): PerformanceTone {
   if (!isRunning(campaign.status)) return "idle";
-  const own = campaign.kpi && isKpiMetric(campaign.kpi.metric)
-    ? { metric: campaign.kpi.metric, target: campaign.kpi.target }
-    : null;
+  const own = kpiInputOf(campaign.kpi);
   const percent = own
     ? kpiProgress(campaign.performance, own, range).percent
     : leastMetProgress(ownTypes(projectKpis, campaign.resultTypes), campaign.performance, range, false)?.percent ?? null;

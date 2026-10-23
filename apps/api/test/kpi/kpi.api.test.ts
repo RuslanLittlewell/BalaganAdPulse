@@ -238,9 +238,41 @@ describe("the KPIs of a project", () => {
 });
 
 describe("a campaign KPI", () => {
-  it("names no result type -> 400", async () => {
-    const res = await request(app).put(campaignKpi()).set(admin).send({ metric: "RESULTS", target: "10", resultType: "MESSAGES" });
+  it("may aim at the cost of one result type, and travels with it on the campaign", async () => {
+    const saved = await request(app).put(campaignKpi()).set(admin).send({ metric: "COST_PER_RESULT", target: "20", resultType: "MESSAGES" });
+
+    expect(saved.status).toBe(200);
+    expect(saved.body).toEqual({ metric: "COST_PER_RESULT", target: "20.0000", resultType: "MESSAGES", updatedAt: expect.any(String) });
+    expect((await request(app).get(campaignKpi()).set(admin)).body).toMatchObject({ resultType: "MESSAGES" });
+    const campaign = await request(app).get(`/api/campaigns/${campaignId}?from=2026-09-01&to=2026-09-30`).set(admin);
+    expect(campaign.body.kpi).toEqual({ metric: "COST_PER_RESULT", target: "20.0000", resultType: "MESSAGES" });
+  });
+
+  it("loses the result type when replaced by a KPI without one", async () => {
+    await request(app).put(campaignKpi()).set(admin).send({ metric: "RESULTS", target: "10", resultType: "MESSAGES" });
+    await request(app).put(campaignKpi()).set(admin).send({ metric: "RESULTS", target: "12" });
+
+    expect((await request(app).get(campaignKpi()).set(admin)).body).toEqual({ metric: "RESULTS", target: "12.0000", updatedAt: expect.any(String) });
+  });
+
+  it.each([
+    ["on any other metric", { metric: "SPEND", target: "1000", resultType: "MESSAGES" }],
+    ["of the unknown type", { metric: "RESULTS", target: "10", resultType: "UNKNOWN" }],
+    ["that does not exist", { metric: "RESULTS", target: "10", resultType: "CALLS" }],
+  ])("refuses a result type %s -> 400", async (_case, body) => {
+    const res = await request(app).put(campaignKpi()).set(admin).send(body);
+
     expect(res.status).toBe(400);
+    expect((await request(app).get(campaignKpi()).set(admin)).body).toBeNull();
+  });
+});
+
+describe("the organization KPI", () => {
+  it("names no result type -> 400", async () => {
+    const res = await request(app).put(organizationKpi).set(admin).send({ metric: "RESULTS", target: "10", resultType: "MESSAGES" });
+
+    expect(res.status).toBe(400);
+    expect((await request(app).get(organizationKpi).set(admin)).body).toBeNull();
   });
 });
 

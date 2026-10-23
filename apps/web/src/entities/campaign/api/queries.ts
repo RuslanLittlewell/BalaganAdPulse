@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { campaignsApi, type DateRange } from "./api.js";
 
 const keyed = (parts: readonly unknown[], range: DateRange) =>
@@ -77,6 +77,16 @@ export function useAgencySummary(range: DateRange) {
 }
 
 export const PROJECTS_SUMMARY_KEY = ["summary", "projects"] as const;
+
+export function useRefreshCampaign() {
+  const qc = useQueryClient();
+  return (campaignId: string) =>
+    qc.invalidateQueries({
+      predicate: ({ queryKey }) =>
+        (queryKey[0] === "campaigns" && queryKey[1] === campaignId && typeof queryKey[2] === "object") ||
+        (queryKey[0] === "projects" && queryKey[2] === "campaigns" && typeof queryKey[3] === "object"),
+    });
+}
 
 export function useProjectsSummary(range: DateRange) {
   return useQuery({

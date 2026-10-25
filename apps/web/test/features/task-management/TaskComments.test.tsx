@@ -169,3 +169,153 @@ describe("the comments of a task", () => {
     await waitFor(() => expect(deleted).toBe(true));
   });
 });
+
+describe("the comment field", () => {
+  it("sends on Enter and empties itself", async () => {
+    const posted = serve();
+    const user = userEvent.setup();
+    renderWithProviders(<TaskComments task={task} />);
+    await screen.findByText("Комментариев пока нет");
+
+    await user.type(field(), "Привет{Enter}");
+
+    await waitFor(() => expect(posted).toEqual([{ body: "Привет", mentionIds: [] }]));
+    await waitFor(() => expect(field()).toHaveValue(""));
+  });
+
+  it("starts a new line on Shift+Enter without sending", async () => {
+    const posted = serve();
+    const user = userEvent.setup();
+    renderWithProviders(<TaskComments task={task} />);
+    await screen.findByText("Комментариев пока нет");
+
+    await user.type(field(), "Первая{Shift>}{Enter}{/Shift}вторая");
+    expect(field()).toHaveValue("Первая\nвторая");
+    expect(posted).toEqual([]);
+
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(posted).toEqual([{ body: "Первая\nвторая", mentionIds: [] }]));
+  });
+
+  it("sends nothing on Enter while it holds only spaces", async () => {
+    const posted = serve();
+    const user = userEvent.setup();
+    renderWithProviders(<TaskComments task={task} />);
+    await screen.findByText("Комментариев пока нет");
+
+    await user.type(field(), "   {Enter}");
+
+    expect(posted).toEqual([]);
+  });
+
+  it("chooses a person on Enter while the offer is open, without sending", async () => {
+    const posted = serve();
+    const user = userEvent.setup();
+    renderWithProviders(<TaskComments task={task} />);
+    await screen.findByText("Комментариев пока нет");
+
+    await user.type(field(), "@бо{Enter}");
+
+    expect(field()).toHaveValue("@Борис ");
+    expect(posted).toEqual([]);
+  });
+});
+
+describe("editing a comment", () => {
+  const mine = (overrides: Record<string, unknown> = {}) => written({ id: "c-mine", authorId: "m-me", body: "Опечатак", ...overrides });
+
+  function serveEdits(comments: unknown[]) {
+    serve(comments);
+    const patched: unknown[] = [];
+    server.use(mock.patch("/api/tasks/task-1/comments/:commentId", async ({ request, params }) => {
+      const body = await request.json() as Record<string, unknown>;
+      patched.push({ id: params.commentId, ...body });
+      return HttpResponse.json(mine({ ...body, editedAt: "2026-10-20T11:00:00.000Z" }));
+    }));
+    return patched;
+  }
+
+  it("is offered on the member's own comments only, even to an admin", async () => {
+    serveEdits([written(), mine()]);
+    renderWithProviders(<TaskComments task={task} />);
+
+    await screen.findByText("Опечатак");
+    expect(screen.getAllByRole("button", { name: "Изменить комментарий" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Удалить комментарий" })).toHaveLength(2);
+  });
+
+  it("loads the comment into the field under the editing bar and saves it on Enter", async () => {
+    const patched = serveEdits([mine()]);
+    const user = userEvent.setup();
+    renderWithProviders(<TaskComments task={task} />);
+
+    await user.click(await screen.findByRole("button", { name: "Изменить комментарий" }));
+    expect(screen.getByText("Редактирование")).toBeInTheDocument();
+    expect(field()).toHaveValue("Опечатак");
+    await user.clear(field());
+    await user.type(field(), "Опечатка{Enter}");
+
+    await waitFor(() => expect(patched).toEqual([{ id: "c-mine", body: "Опечатка", mentionIds: [] }]));
+    await waitFor(() => expect(screen.queryByText("Редактирование")).toBeNull());
+    expect(field()).toHaveValue("");
+  });
+
+  it("keeps the comment's tags", async () => {
+    const patched = serveEdits([mine({ body: "@Борис глянь", mentionIds: ["m-boris"] })]);
+    const user = userEvent.setup();
+    renderWithProviders(<TaskComments task={task} />);
+
+    await user.click(await screen.findByRole("button", { name: "Изменить комментарий" }));
+    await user.type(field(), " срочно{Enter}");
+
+    await waitFor(() => expect(patched).toEqual([{ id: "c-mine", body: "@Борис глянь срочно", mentionIds: ["m-boris"] }]));
+  });
+
+  it("is cancelled by Escape and by the bar's close control", async () => {
+    const patched = serveEdits([mine()]);
+    const user = userEvent.setup();
+    renderWithProviders(<TaskComments task={task} />);
+
+    await user.click(await screen.findByRole("button", { name: "Изменить комментарий" }));
+    await user.keyboard("{Escape}");
+    expect(screen.queryByText("Редактирование")).toBeNull();
+    expect(field()).toHaveValue("");
+
+    await user.click(screen.getByRole("button", { name: "Изменить комментарий" }));
+    await user.click(screen.getByRole("button", { name: "Отменить редактирование" }));
+    expect(field()).toHaveValue("");
+    expect(patched).toEqual([]);
+  });
+
+  it("opens the member's last comment on the up arrow in an empty field", async () => {
+    serveEdits([mine({ id: "c-old", body: "Старое" }), written(), mine({ id: "c-last", body: "Последнее" })]);
+    const user = userEvent.setup();
+    renderWithProviders(<TaskComments task={task} />);
+    await screen.findByText("Последнее");
+
+    await user.click(field());
+    await user.keyboard("{ArrowUp}");
+
+    expect(field()).toHaveValue("Последнее");
+    expect(screen.getByText("Редактирование")).toBeInTheDocument();
+  });
+
+  it("sends nothing when saved unchanged", async () => {
+    const patched = serveEdits([mine()]);
+    const user = userEvent.setup();
+    renderWithProviders(<TaskComments task={task} />);
+
+    await user.click(await screen.findByRole("button", { name: "Изменить комментарий" }));
+    await user.keyboard("{Enter}");
+
+    expect(screen.queryByText("Редактирование")).toBeNull();
+    expect(patched).toEqual([]);
+  });
+
+  it("marks an edited comment", async () => {
+    serve([written({ body: "Поправил", editedAt: "2026-10-20T11:00:00.000Z" })]);
+    renderWithProviders(<TaskComments task={task} />);
+
+    expect(await screen.findByText("изменено")).toBeInTheDocument();
+  });
+});

@@ -42,6 +42,7 @@ export * from "./SortButton/SortButton.js";
 export * from "./TextField/TextField.js";
 export * from "./TimeInput/TimeInput.js";
 export * from "./ToolbarDivider/ToolbarDivider.js";
+export * from "./ThemeToggle/ThemeToggle.js";
 export { Sparkline } from "./Sparkline/Sparkline.js";
 export type { SparklineProps } from "./Sparkline/Sparkline.js";
 export { RollingNumber } from "./RollingNumber/RollingNumber.js";

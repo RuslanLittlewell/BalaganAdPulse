@@ -21,7 +21,7 @@ import type { MembersAndPresence } from "./members-presence.js";
 import type { Notifications } from "./notifications.js";
 
 export function wireTasks(
-  { unitOfWork, ids, audit, connections }: Kernel,
+  { unitOfWork, ids, audit, connections, clock }: Kernel,
   { members }: Pick<MembersAndPresence, "members">,
   { taskNotices }: Pick<Notifications, "taskNotices">,
 ) {
@@ -50,6 +50,7 @@ export function wireTasks(
       members: dependencies.members,
       notices: taskNotices,
       ids,
+      clock,
     })),
     taskImageRouter: createTaskImageRouter(createTaskImageUseCases(dependencies), taskImageUpload.single("image")),
   };

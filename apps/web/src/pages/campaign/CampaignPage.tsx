@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { ArrowLeftIcon } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Button, EmptyState } from "@/shared/ui/index.js";
+import { Button, EmptyState, Switch } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
 import { projectPath } from "@/shared/lib/index.js";
 import {
   campaignsApi,
   channelLabel,
+  isRunning,
   resultTypeFiguresOf,
   statusLabel,
   useAdSets,
@@ -15,6 +16,7 @@ import {
   useCampaignDaily,
   type Ad,
   type DateRange,
+  type DeliveryStatus,
 } from "@/entities/campaign/index.js";
 import {
   useActiveCampaignId,
@@ -33,6 +35,11 @@ import {
   type PerformanceRow,
 } from "@/widgets/performance-table/index.js";
 import { CreativePreviewDialog } from "@/widgets/creative-preview/index.js";
+
+function runningFirst<T extends { status: DeliveryStatus }>(items: readonly T[], runningOnly: boolean): T[] {
+  const running = items.filter((item) => isRunning(item.status));
+  return runningOnly ? running : [...running, ...items.filter((item) => !isRunning(item.status))];
+}
 
 const withKpi = (tiles: readonly SummaryTile[]): SummaryTile[] =>
   tiles.includes("KPI") ? [...tiles] : [...tiles, "KPI"];
@@ -71,6 +78,10 @@ export function CampaignPage() {
     adId: string;
   } | null>(null);
   const adsBySet = useAdsOfOpenSets(openSets, range);
+  const [runningOnly, setRunningOnly] = useState(true);
+  useEffect(() => {
+    setRunningOnly(true);
+  }, [campaignId]);
 
   if (campaign.isError)
     return <EmptyState title={t("campaign.notFound.title")} />;
@@ -81,7 +92,10 @@ export function CampaignPage() {
 
   const offeredTypes = campaign.data?.resultTypes ?? [];
 
-  const rows: PerformanceRow[] = (adSets.data ?? []).map((adSet) => ({
+  const allAdSets = adSets.data ?? [];
+  const listedAds = (adSetId: string) => runningFirst(adsBySet.get(adSetId) ?? [], runningOnly);
+
+  const rows: PerformanceRow[] = runningFirst(allAdSets, runningOnly).map((adSet) => ({
     id: adSet.id,
     name: adSet.name,
     note: [adSet.audience, statusLabel(adSet.status)]
@@ -90,7 +104,7 @@ export function CampaignPage() {
     performance: adSet.performance,
     extra: resultTypeFiguresOf(adSet.performance, offeredTypes),
     expandable: true,
-    children: (adsBySet.get(adSet.id) ?? []).map((ad) => ({
+    children: listedAds(adSet.id).map((ad) => ({
       id: ad.id,
       name: ad.name,
       note: [ad.format, statusLabel(ad.status)].filter(Boolean).join(" · "),
@@ -146,9 +160,17 @@ export function CampaignPage() {
       <DailyChart days={days.data ?? []} currency={currency} />
 
       <div>
-        <h2 className="mb-3 text-sm font-semibold text-foreground">
-          {t("adSets.title")}
-        </h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-foreground">
+            {t("adSets.title")}
+          </h2>
+          {allAdSets.length > 0 && (
+            <label className="ml-auto flex items-center gap-2 text-sm">
+              <Switch checked={runningOnly} onCheckedChange={setRunningOnly} />
+              {t("campaigns.runningOnly")}
+            </label>
+          )}
+        </div>
         <PerformanceTable
           tableKey="ad-sets"
           heading={t("adSets.one")}
@@ -162,13 +184,13 @@ export function CampaignPage() {
                 setPreviewing({ adSetId, adId });
             }
           }}
-          empty={adSets.isSuccess ? t("adSets.empty") : undefined}
+          empty={adSets.isSuccess ? t(allAdSets.length > 0 ? "adSets.noneRunning" : "adSets.empty") : undefined}
         />
       </div>
 
       {previewing ? (
         <CreativePreviewDialog
-          ads={adsBySet.get(previewing.adSetId) ?? []}
+          ads={listedAds(previewing.adSetId)}
           initialAdId={previewing.adId}
           onClose={() => setPreviewing(null)}
         />

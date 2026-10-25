@@ -177,6 +177,7 @@ export interface TaskCommentRecord {
   readonly body: string;
   readonly mentionIds: readonly string[];
   readonly createdAt: Date;
+  readonly editedAt: Date | null;
 }
 
 export interface NewTaskComment {
@@ -191,6 +192,7 @@ export interface TaskCommentRepository {
   list(taskId: string): Promise<TaskCommentRecord[]>;
   find(taskId: string, id: string): Promise<TaskCommentRecord | null>;
   create(input: NewTaskComment): Promise<TaskCommentRecord>;
+  edit(id: string, changes: { body: string; mentionIds: readonly string[]; editedAt: Date }): Promise<TaskCommentRecord>;
   delete(id: string): Promise<void>;
 }
 
@@ -200,4 +202,5 @@ export interface TaskCommentDependencies {
   readonly members: MemberReach;
   readonly notices: Pick<TaskNotices, "mentioned">;
   readonly ids: IdGenerator;
+  readonly clock: { now(): Date };
 }

@@ -116,6 +116,7 @@ model TaskComment {
   body       String
   mentionIds String[] @map("mention_ids")
   createdAt  DateTime @default(now()) @map("created_at")
+  editedAt   DateTime? @map("edited_at")
 
   task   Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
   author Membership? @relation("TaskCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)

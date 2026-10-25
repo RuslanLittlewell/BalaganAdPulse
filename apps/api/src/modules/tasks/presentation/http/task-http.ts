@@ -55,6 +55,9 @@ export function createTaskRouter(useCases: TaskUseCases, comments: TaskCommentUs
   router.post("/:id/comments", handle(async (req: Request<{ id: string }>, res) => {
     res.status(201).json(await comments.add(actorOf(req), req.params.id, addTaskCommentSchema.parse(req.body)));
   }));
+  router.patch("/:id/comments/:commentId", handle(async (req: Request<{ id: string; commentId: string }>, res) => {
+    res.json(await comments.edit(actorOf(req), req.params.id, req.params.commentId, addTaskCommentSchema.parse(req.body)));
+  }));
   router.delete("/:id/comments/:commentId", handle(async (req: Request<{ id: string; commentId: string }>, res) => {
     await comments.remove(actorOf(req), req.params.id, req.params.commentId);
     res.status(204).send();

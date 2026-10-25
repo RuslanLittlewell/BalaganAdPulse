@@ -5,7 +5,6 @@ import { HINTS, useHint } from "@/features/hints/index.js";
 import { useClients } from "@/entities/client/index.js";
 import { useMembers } from "@/entities/membership/index.js";
 import { ProfileSettingsDialog } from "@/features/profile-settings/index.js";
-import { ThemeToggle } from "@/features/theme-toggle/index.js";
 import { Can } from "@/features/permissions/index.js";
 import { ContactBook } from "@/widgets/contact-book/index.js";
 import { OnlineUsers } from "@/widgets/online-users/index.js";
@@ -15,6 +14,7 @@ import { t } from "@/shared/config/index.js";
 import {
   Button,
   Hint,
+  ThemeToggle,
   ToolbarDivider,
   Tooltip,
   TooltipContent,

@@ -18,6 +18,14 @@ export function useAddTaskComment(taskId: string) {
   });
 }
 
+export function useEditTaskComment(taskId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: TaskCommentInput & { id: string }) => taskCommentsApi.edit(taskId, id, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: taskCommentsKey(taskId) }),
+  });
+}
+
 export function useDeleteTaskComment(taskId: string) {
   const qc = useQueryClient();
   return useMutation({

@@ -67,7 +67,7 @@ export { MAX_TASK_IMAGE_BYTES, TASK_IMAGE_TYPES, imageRefusal } from "./lib/imag
 export type { ImageRefusal } from "./lib/images.js";
 export { taskCommentsApi } from "./api/api.js";
 export type { TaskComment, TaskCommentInput } from "./api/api.js";
-export { taskCommentsKey, useAddTaskComment, useDeleteTaskComment, useTaskComments } from "./api/commentQueries.js";
+export { taskCommentsKey, useAddTaskComment, useDeleteTaskComment, useEditTaskComment, useTaskComments } from "./api/commentQueries.js";
 export {
   bodySegments,
   insertMention,

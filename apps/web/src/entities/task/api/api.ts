@@ -120,6 +120,7 @@ export interface TaskComment {
   body: string;
   mentionIds: string[];
   createdAt: string;
+  editedAt?: string | null;
 }
 
 export interface TaskCommentInput {
@@ -131,5 +132,7 @@ export const taskCommentsApi = {
   list: (taskId: string) => http.get<TaskComment[]>(`/tasks/${taskId}/comments`),
   add: (taskId: string, body: TaskCommentInput) =>
     http.post<TaskComment>(`/tasks/${taskId}/comments`, body),
+  edit: (taskId: string, id: string, body: TaskCommentInput) =>
+    http.patch<TaskComment>(`/tasks/${taskId}/comments/${id}`, body),
   remove: (taskId: string, id: string) => http.del(`/tasks/${taskId}/comments/${id}`),
 };

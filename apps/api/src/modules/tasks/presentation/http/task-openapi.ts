@@ -51,6 +51,7 @@ const taskComment = z.object({
   body: z.string(),
   mentionIds: z.array(z.uuid()),
   createdAt: z.iso.datetime(),
+  editedAt: z.iso.datetime().nullable(),
 });
 
 export const taskComponents: ComponentDocs = {
@@ -137,6 +138,15 @@ export const taskDoc: RouteDoc = {
       description: "The members named in mentionIds are tagged and notified. A client's person tags nobody, and a client's person is tagged only on a task shared with the client.",
       body: addTaskCommentSchema,
       success: { status: 201, description: "The comment", schema: ref("TaskComment") },
+      errors: [400, 401, 403, 404],
+    },
+    {
+      method: "patch",
+      path: "/:id/comments/:commentId",
+      summary: "Edit a comment",
+      description: "Only the comment's author may edit it. The body and mentionIds replace the comment's own; only members newly named in mentionIds are notified.",
+      body: addTaskCommentSchema,
+      success: { status: 200, description: "The edited comment, with editedAt set", schema: ref("TaskComment") },
       errors: [400, 401, 403, 404],
     },
     {

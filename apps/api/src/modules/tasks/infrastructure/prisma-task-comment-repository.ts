@@ -4,7 +4,7 @@ import type { NewTaskComment, TaskCommentRecord, TaskCommentRepository } from ".
 function toDomain(row: CommentRow): TaskCommentRecord {
   return {
     id: row.id, taskId: row.taskId, authorId: row.authorId, body: row.body,
-    mentionIds: row.mentionIds, createdAt: row.createdAt,
+    mentionIds: row.mentionIds, createdAt: row.createdAt, editedAt: row.editedAt,
   };
 }
 
@@ -29,6 +29,14 @@ export class PrismaTaskCommentRepository implements TaskCommentRepository {
         id: input.id, taskId: input.taskId, authorId: input.authorId, body: input.body,
         mentionIds: [...input.mentionIds],
       },
+    });
+    return toDomain(row);
+  }
+
+  async edit(id: string, changes: { body: string; mentionIds: readonly string[]; editedAt: Date }): Promise<TaskCommentRecord> {
+    const row = await this.prisma.taskComment.update({
+      where: { id },
+      data: { body: changes.body, mentionIds: [...changes.mentionIds], editedAt: changes.editedAt },
     });
     return toDomain(row);
   }

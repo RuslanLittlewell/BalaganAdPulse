@@ -1,5 +1,5 @@
 import { UserMenu } from "@/features/auth/index.js";
-import { ThemeToggle } from "@/features/theme-toggle/index.js";
+import { ThemeToggle } from "@/shared/ui/index.js";
 
 export function PlatformHeader() {
   return (

@@ -19,6 +19,15 @@ export function createTaskCommentUseCases(dependencies: TaskCommentDependencies)
     return task;
   };
 
+  const textOf = (input: AddTaskCommentInput) => {
+    const body = input.body.trim();
+    if (body.length === 0) throw new AppError("validation", "A comment needs text");
+    if (body.length > MAX_COMMENT_LENGTH) {
+      throw new AppError("validation", `A comment holds at most ${MAX_COMMENT_LENGTH} characters`);
+    }
+    return body;
+  };
+
   const assertMentionable = async (actor: ActorContext, task: TaskRecord, mentionIds: readonly string[]) => {
     if (mentionIds.length === 0) return;
     if (isCustomer(actor.role)) {
@@ -46,11 +55,7 @@ export function createTaskCommentUseCases(dependencies: TaskCommentDependencies)
 
     add: async (actor: ActorContext, taskId: string, input: AddTaskCommentInput): Promise<TaskCommentRecord> => {
       const task = await reach(actor, taskId);
-      const body = input.body.trim();
-      if (body.length === 0) throw new AppError("validation", "A comment needs text");
-      if (body.length > MAX_COMMENT_LENGTH) {
-        throw new AppError("validation", `A comment holds at most ${MAX_COMMENT_LENGTH} characters`);
-      }
+      const body = textOf(input);
       const mentionIds = uniqueIds(input.mentionIds ?? []);
       await assertMentionable(actor, task, mentionIds);
 
@@ -59,6 +64,23 @@ export function createTaskCommentUseCases(dependencies: TaskCommentDependencies)
       });
       dependencies.notices.mentioned(task, mentionIds, actor);
       return comment;
+    },
+
+    edit: async (actor: ActorContext, taskId: string, commentId: string, input: AddTaskCommentInput): Promise<TaskCommentRecord> => {
+      const task = await reach(actor, taskId);
+      const comment = await dependencies.comments.find(taskId, commentId);
+      if (!comment) throw new AppError("not-found", "Comment not found");
+      if (comment.authorId !== actor.membershipId) {
+        throw new AppError("forbidden", "Only the author edits a comment");
+      }
+      const body = textOf(input);
+      const mentionIds = uniqueIds(input.mentionIds ?? []);
+      await assertMentionable(actor, task, mentionIds);
+
+      const edited = await dependencies.comments.edit(commentId, { body, mentionIds, editedAt: dependencies.clock.now() });
+      const tagged = new Set(comment.mentionIds);
+      dependencies.notices.mentioned(task, mentionIds.filter((id) => !tagged.has(id)), actor);
+      return edited;
     },
 
     remove: async (actor: ActorContext, taskId: string, commentId: string): Promise<void> => {

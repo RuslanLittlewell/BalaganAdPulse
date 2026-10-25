@@ -134,6 +134,68 @@ describe("deleting a comment", () => {
   });
 });
 
+describe("editing a comment", () => {
+  const editOf = (by: SignedIn, taskId: string, commentId: string, body: Record<string, unknown>) =>
+    request(app).patch(`/api/tasks/${taskId}/comments/${commentId}`).set(by.auth).send(body);
+
+  it("is the author's to do, keeping its place and marking it edited", async () => {
+    const taskId = await create();
+    const first = await comment(manager, taskId, { body: "Опечатак" });
+    await comment(colleague, taskId, { body: "Ответ" });
+    expect(first.body.editedAt).toBeNull();
+
+    const res = await editOf(manager, taskId, first.body.id, { body: "  Опечатка  " });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ id: first.body.id, body: "Опечатка", createdAt: first.body.createdAt });
+    expect(res.body.editedAt).toEqual(expect.any(String));
+    expect((await list(admin, taskId)).body.map((c: { body: string }) => c.body)).toEqual(["Опечатка", "Ответ"]);
+  });
+
+  it.each([["an admin", () => admin], ["another member", () => colleague]])("is refused to %s -> 403", async (_who, by) => {
+    const taskId = await create();
+    const written = await comment(manager, taskId, { body: "Моё" });
+
+    const res = await editOf(by(), taskId, written.body.id, { body: "Чужое" });
+
+    expect(res.status).toBe(403);
+    expect((await list(manager, taskId)).body[0]).toMatchObject({ body: "Моё", editedAt: null });
+  });
+
+  it("refuses an empty text -> 400", async () => {
+    const taskId = await create();
+    const written = await comment(manager, taskId, { body: "Моё" });
+
+    expect((await editOf(manager, taskId, written.body.id, { body: "   " })).status).toBe(400);
+  });
+
+  it("reports a missing comment -> 404", async () => {
+    const taskId = await create();
+    expect((await editOf(manager, taskId, MISSING, { body: "Текст" })).status).toBe(404);
+  });
+
+  it("notifies only the members it newly tags", async () => {
+    const taskId = await create();
+    const written = await comment(manager, taskId, { body: "@Colleague глянь", mentionIds: [idOf(colleague)] });
+    await vi.waitFor(async () => expect(await mentionsOf(colleague)).toHaveLength(1));
+
+    const res = await editOf(manager, taskId, written.body.id, {
+      body: "@Colleague @Admin глянь", mentionIds: [idOf(colleague), idOf(admin)],
+    });
+
+    expect(res.body.mentionIds).toEqual([idOf(colleague), idOf(admin)]);
+    await vi.waitFor(async () => expect(await mentionsOf(admin)).toHaveLength(1));
+    expect(await mentionsOf(colleague)).toHaveLength(1);
+  });
+
+  it("refuses to tag a stranger -> 400", async () => {
+    const taskId = await create();
+    const written = await comment(manager, taskId, { body: "Моё" });
+
+    expect((await editOf(manager, taskId, written.body.id, { body: "@X", mentionIds: [MISSING] })).status).toBe(400);
+  });
+});
+
 describe("tagging in a comment", () => {
   it("is kept on the comment and notifies the tagged member", async () => {
     const taskId = await create();

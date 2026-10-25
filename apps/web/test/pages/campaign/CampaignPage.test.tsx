@@ -1,7 +1,7 @@
 import { http as mock, HttpResponse } from "msw";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Route, Routes, useLocation } from "react-router-dom";
+import { Link, Route, Routes, useLocation } from "react-router-dom";
 import { aSession, aTask, renderWithProviders, server } from "@test/shared/index.js";
 import { CampaignPage } from "@/pages/campaign/index.js";
 
@@ -48,7 +48,7 @@ function api(options: { adSets?: unknown[]; ads?: unknown[]; days?: unknown[]; s
     ])),
     mock.get("/api/ad-sets/:adSetId/ads", () => HttpResponse.json(options.ads ?? [
       { id: "a1", adSetId: "s1", name: "Приём сегодня", format: "Текст", headline: null, resultType: "PROFILE_VISITS",
-        status: "PAUSED", externalId: null, position: 0, performance: performance(300) },
+        status: "ACTIVE", externalId: null, position: 0, performance: performance(300) },
     ])),
     mock.get("/api/ads/:adId/creatives", ({ params }) => {
       creativeRequests.push(String(params.adId));
@@ -283,5 +283,87 @@ describe("CampaignPage", () => {
     renderWithProviders(<App />, route);
 
     expect(await screen.findByText("Групп объявлений пока нет")).toBeInTheDocument();
+  });
+});
+
+describe("showing only the running ad sets and ads", () => {
+  const adSet = (id: string, name: string, status: string) => ({
+    id, campaignId: "c1", name, audience: null, resultType: "PROFILE_VISITS",
+    status, externalId: null, position: 0, performance: performance(100),
+  });
+  const ad = (id: string, name: string, status: string) => ({
+    id, adSetId: "s2", name, format: null, headline: null, resultType: "PROFILE_VISITS",
+    status, externalId: null, position: 0, performance: performance(50),
+  });
+  const mixed = [
+    adSet("s1", "Осень", "PAUSED"),
+    adSet("s2", "Лето", "ACTIVE"),
+    adSet("s3", "Зима", "ENDED"),
+    adSet("s4", "Весна", "LEARNING"),
+  ];
+  const listedNames = () =>
+    screen.getAllByText(/^(Осень|Лето|Зима|Весна|Свежий|Старый)$/).map((name) => name.textContent);
+
+  it("lists only the running ad sets when a campaign is opened", async () => {
+    api({ adSets: mixed });
+    renderWithProviders(<App />, route);
+
+    await screen.findByText("Лето");
+    expect(screen.getByRole("switch", { name: "Только активные" })).toBeChecked();
+    expect(listedNames()).toEqual(["Лето", "Весна"]);
+  });
+
+  it("lists everything, running ones first, once the switch is off", async () => {
+    const user = userEvent.setup();
+    api({ adSets: mixed });
+    renderWithProviders(<App />, route);
+    await screen.findByText("Лето");
+
+    await user.click(screen.getByRole("switch", { name: "Только активные" }));
+
+    expect(listedNames()).toEqual(["Лето", "Весна", "Осень", "Зима"]);
+  });
+
+  it("lists only the running ads of an expanded ad set until the switch is off", async () => {
+    const user = userEvent.setup();
+    api({ adSets: [adSet("s2", "Лето", "ACTIVE")], ads: [ad("a1", "Старый", "PAUSED"), ad("a2", "Свежий", "ACTIVE")] });
+    renderWithProviders(<App />, route);
+
+    await user.click(await screen.findByRole("button", { name: /Лето/ }));
+    await screen.findByText("Свежий");
+    expect(listedNames()).toEqual(["Лето", "Свежий"]);
+
+    await user.click(screen.getByRole("switch", { name: "Только активные" }));
+    expect(listedNames()).toEqual(["Лето", "Свежий", "Старый"]);
+  });
+
+  it("says no ad set is running rather than that there are none", async () => {
+    api({ adSets: [adSet("s1", "Осень", "PAUSED")] });
+    renderWithProviders(<App />, route);
+
+    expect(await screen.findByText("Активных групп нет")).toBeInTheDocument();
+    expect(screen.queryByText("Групп объявлений пока нет")).toBeNull();
+  });
+
+  it("is on again when another campaign is opened", async () => {
+    const user = userEvent.setup();
+    api({ adSets: mixed });
+    renderWithProviders(<><App /><Link to="/projects/p1/campaigns/c2">Другая</Link></>, route);
+    await screen.findByText("Лето");
+    await user.click(screen.getByRole("switch", { name: "Только активные" }));
+    expect(screen.getByRole("switch", { name: "Только активные" })).not.toBeChecked();
+
+    await user.click(screen.getByRole("link", { name: "Другая" }));
+
+    await waitFor(() => expect(screen.getByRole("switch", { name: "Только активные" })).toBeChecked());
+    expect(listedNames()).toEqual(["Лето", "Весна"]);
+  });
+
+  it("offers no switch when the campaign has no ad sets", async () => {
+    api({ adSets: [] });
+    renderWithProviders(<App />, route);
+
+    await screen.findByText("Групп объявлений пока нет");
+    expect(screen.queryByRole("switch", { name: "Только активные" })).toBeNull();
   });
 });

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card.js";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "../ui/card.js";
 import { LightRays } from "../LightRays/index.js";
+import { ThemeToggle } from "../ThemeToggle/ThemeToggle.js";
 
 export interface CenteredPanelProps {
   title: string;
@@ -31,6 +32,9 @@ export function CenteredPanel({ title, children, wide = false, above }: Centered
             <CardTitle>
               <h1 className="text-xl font-bold">{title}</h1>
             </CardTitle>
+            <CardAction className="-my-2 -mr-2 self-center">
+              <ThemeToggle />
+            </CardAction>
           </CardHeader>
           <CardContent>{children}</CardContent>
         </Card>

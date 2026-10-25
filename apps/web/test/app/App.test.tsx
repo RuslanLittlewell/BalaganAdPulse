@@ -43,6 +43,13 @@ describe("App", () => {
     expect(screen.queryByText("Проекты")).not.toBeInTheDocument();
   });
 
+  it.each(["/login", "/regustration/ABCDEFGH", "/password-reset"])("offers the theme toggle at %s before signing in", (path) => {
+    server.use(mock.get("/api/regustration/:code", () => HttpResponse.json({ message: "Not found" }, { status: 404 })));
+    renderAppAt(path);
+
+    expect(screen.getByRole("button", { name: /Включить (тёмную|светлую) тему/ })).toBeInTheDocument();
+  });
+
   it("sends a bookmark for the removed Team section to the dashboard", async () => {
     writeTokens({ accessToken: makeAccessToken(), refreshToken: "r" });
 

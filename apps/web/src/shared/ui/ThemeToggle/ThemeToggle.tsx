@@ -3,7 +3,7 @@ import { Moon, Sun } from "lucide";
 import { MorphIcon } from "morphicons/react";
 import { getPreferredTheme, setTheme, type Theme } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
-import { Button } from "@/shared/ui/index.js";
+import { Button } from "../Button/Button.js";
 
 export function ThemeToggle() {
   const [theme, updateTheme] = useState<Theme>(getPreferredTheme);

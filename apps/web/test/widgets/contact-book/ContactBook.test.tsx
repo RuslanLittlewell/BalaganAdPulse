@@ -218,7 +218,7 @@ describe("ContactBook editing", () => {
 const employeeInvite = {
   id: "invite-1", code: "ABCDEFGH", registrationType: "EMPLOYEE", role: "MANAGER",
   projectIds: ["project-1"], email: null, expiresAt: null, revokedAt: null, usedAt: null,
-  status: "PENDING", registrationUrl: "/regustration/ABCDEFGH",
+  status: "PENDING", registrationUrl: "/registration/ABCDEFGH",
   createdAt: "2026-09-01T00:00:00.000Z",
 };
 
@@ -590,7 +590,7 @@ describe("choosing which directory to show", () => {
       server.use(http.post("/api/invites", async ({ request }) => {
         body = await request.json() as Record<string, unknown>;
         return HttpResponse.json(
-          { ...employeeInvite, id: "invite-new", registrationUrl: "/regustration/NEWCODE1" },
+          { ...employeeInvite, id: "invite-new", registrationUrl: "/registration/NEWCODE1" },
           { status: 201 },
         );
       }));
@@ -604,7 +604,7 @@ describe("choosing which directory to show", () => {
 
       await waitFor(() => expect(body).not.toBeNull());
       expect(body).toMatchObject({ registrationType: "CLIENT_STAFF", clientId: "1" });
-      expect(await screen.findByText(/\/regustration\/NEWCODE1$/)).toBeInTheDocument();
+      expect(await screen.findByText(/\/registration\/NEWCODE1$/)).toBeInTheDocument();
     });
 
     it("offers one invite control, not two", async () => {
@@ -713,7 +713,7 @@ describe("inviting from the contact book", () => {
 
     await user.click(screen.getByRole("button", { name: "Пригласить сотрудника" }));
 
-    expect(await screen.findByText(`${window.location.origin}/regustration/ABCDEFGH`))
+    expect(await screen.findByText(`${window.location.origin}/registration/ABCDEFGH`))
       .toBeInTheDocument();
   });
 
@@ -867,7 +867,7 @@ describe("inviting from the contact book", () => {
 
     await user.click(await screen.findByRole("button", { name: "Скопировать ссылку" }));
 
-    expect(written).toEqual([`${window.location.origin}/regustration/ABCDEFGH`]);
+    expect(written).toEqual([`${window.location.origin}/registration/ABCDEFGH`]);
   });
 });
 
@@ -975,7 +975,7 @@ describe("the invitation form's second step", () => {
     await user.click(await within(form).findByRole("checkbox", { name: "Летний запуск" }));
     await user.click(within(form).getByRole("button", { name: "Создать приглашение" }));
 
-    const link = `${window.location.origin}/regustration/ABCDEFGH`;
+    const link = `${window.location.origin}/registration/ABCDEFGH`;
     expect(await within(form).findByText(link)).toBeInTheDocument();
     expect(within(form).queryByRole("checkbox", { name: "Летний запуск" })).not.toBeInTheDocument();
   });
@@ -990,17 +990,17 @@ describe("the invitation form's second step", () => {
 
     await user.click(await within(form).findByRole("checkbox", { name: "Летний запуск" }));
     await user.click(within(form).getByRole("button", { name: "Создать приглашение" }));
-    await within(form).findByText(`${window.location.origin}/regustration/ABCDEFGH`);
+    await within(form).findByText(`${window.location.origin}/registration/ABCDEFGH`);
     await user.click(within(form).getByRole("button", { name: "Скопировать ссылку" }));
 
-    expect(written).toEqual([`${window.location.origin}/regustration/ABCDEFGH`]);
+    expect(written).toEqual([`${window.location.origin}/registration/ABCDEFGH`]);
   });
 
   it("closes from that step, and offers a blank form next time", async () => {
     const { user, form } = await openForm();
     await user.click(await within(form).findByRole("checkbox", { name: "Летний запуск" }));
     await user.click(within(form).getByRole("button", { name: "Создать приглашение" }));
-    await within(form).findByText(`${window.location.origin}/regustration/ABCDEFGH`);
+    await within(form).findByText(`${window.location.origin}/registration/ABCDEFGH`);
 
     await user.click(within(form).getByRole("button", { name: "Готово" }));
     await waitFor(() =>

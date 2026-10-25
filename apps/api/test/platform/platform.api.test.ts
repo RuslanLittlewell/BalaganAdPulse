@@ -144,7 +144,7 @@ describe("adding an organization", () => {
       modules: ["DASHBOARD", "PROJECTS", "CRM", "REPORTS"],
       activeMembers: 0,
     });
-    expect(res.body.registrationUrl).toMatch(/^\/regustration\/[23456789A-HJ-NP-Z]{8}$/);
+    expect(res.body.registrationUrl).toMatch(/^\/registration\/[23456789A-HJ-NP-Z]{8}$/);
 
     const stored = await prisma.organization.findUniqueOrThrow({
       where: { id: res.body.organization.id },
@@ -159,7 +159,7 @@ describe("adding an organization", () => {
       createdById: null,
       expiresAt: null,
     });
-    expect(res.body.registrationUrl).toBe(`/regustration/${stored.invites[0]!.code}`);
+    expect(res.body.registrationUrl).toBe(`/registration/${stored.invites[0]!.code}`);
   });
 
   it("enrols the invited person as an admin of the new organization and of no other", async () => {
@@ -167,7 +167,7 @@ describe("adding an organization", () => {
     const created = await addOrganization(auth);
     const code = created.body.registrationUrl.split("/").pop();
 
-    expect((await request(app).get(`/api/regustration/${code}`)).body)
+    expect((await request(app).get(`/api/registration/${code}`)).body)
       .toEqual({ registrationType: "EMPLOYEE", email: "owner@acme.com" });
     const registered = await request(app).post("/api/auth/register").send({
       name: "Owner", email: "owner@acme.com", password: "hunter2hunter2", inviteCode: code,

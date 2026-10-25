@@ -38,7 +38,7 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
   const view = (invite: Invite): InviteView => ({
     ...invite,
     status: inviteStatus(invite, dependencies.clock.now()),
-    registrationUrl: `/regustration/${invite.code}`,
+    registrationUrl: `/registration/${invite.code}`,
   });
 
   const assertCan = (actor: ActorContext, action: "read" | "create" | "delete") => {

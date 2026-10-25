@@ -7,7 +7,7 @@ import { EmployeeRegistrationForm } from "@/pages/registration/index.js";
 function open() {
   return renderWithProviders(
     <EmployeeRegistrationForm code="ABCDEFGH" />,
-    { route: "/regustration/ABCDEFGH", signedIn: false },
+    { route: "/registration/ABCDEFGH", signedIn: false },
   );
 }
 

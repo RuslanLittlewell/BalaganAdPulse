@@ -9,10 +9,10 @@ import { ClientRegistrationForm } from "@/pages/registration/index.js";
 function open() {
   return renderWithProviders(
     <Routes>
-      <Route path="/regustration/:code" element={<ClientRegistrationForm code="ABCDEFGH" />} />
+      <Route path="/registration/:code" element={<ClientRegistrationForm code="ABCDEFGH" />} />
       <Route path="/login" element={<h1>Вход</h1>} />
     </Routes>,
-    { route: "/regustration/ABCDEFGH", signedIn: false },
+    { route: "/registration/ABCDEFGH", signedIn: false },
   );
 }
 

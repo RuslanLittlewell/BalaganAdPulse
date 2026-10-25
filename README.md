@@ -809,7 +809,7 @@ All four roles may read audit history, but the same grants constrain which event
 
 Registration is by invitation, and by nothing else: the invitation link is the only way
 in, and no screen asks anybody to type a code. The invitation carries its own type, and
-`GET /api/regustration/:code` answers it publicly — so `/regustration/:code` shows the
+`GET /api/registration/:code` answers it publicly — so `/registration/:code` shows the
 form the code calls for, and nothing else about the agency. An unknown, revoked, used or
 expired code gives one answer for all four.
 

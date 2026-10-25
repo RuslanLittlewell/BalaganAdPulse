@@ -2,7 +2,7 @@ import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { ChevronDown, SearchIcon } from "lucide-react";
 import { cn } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
-import { Button } from "../Button/Button.js";
+import { selectTriggerClassName } from "../ui/select.js";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -61,11 +61,12 @@ export function MultiSelect({
   return (
     <DropdownMenu onOpenChange={(open) => { if (!open) setQuery(""); }}>
       <DropdownMenuTrigger asChild>
-        <Button
+        <button
           type="button"
-          variant="outline"
           aria-label={ariaLabel}
-          className={cn("h-10 min-w-0 justify-between gap-2 font-normal", className)}
+          data-size="default"
+          data-placeholder={first ? undefined : ""}
+          className={cn(selectTriggerClassName, "min-w-0", className)}
         >
           <span className="flex min-w-0 items-center gap-1.5">
             {first?.icon ? <span aria-hidden className="shrink-0">{first.icon}</span> : null}
@@ -75,7 +76,7 @@ export function MultiSelect({
             ) : null}
           </span>
           <ChevronDown aria-hidden className="size-4 shrink-0 opacity-50" />
-        </Button>
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="max-h-96 overflow-y-auto">
         {searchable ? (

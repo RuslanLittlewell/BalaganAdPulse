@@ -192,7 +192,7 @@ describe("typed invitation creation", () => {
       role: null,
       projectIds: [],
       code: "ABCDEFGH",
-      registrationUrl: "/regustration/ABCDEFGH",
+      registrationUrl: "/registration/ABCDEFGH",
     });
   });
 
@@ -263,7 +263,7 @@ describe("typed invitation creation", () => {
     } as never);
     expect(invite.code).toBe("NEWCODE8");
     expect((invite as typeof invite & { registrationUrl: string }).registrationUrl)
-      .toBe("/regustration/NEWCODE8");
+      .toBe("/registration/NEWCODE8");
   });
 });
 

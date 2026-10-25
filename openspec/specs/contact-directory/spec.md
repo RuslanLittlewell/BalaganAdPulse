@@ -59,7 +59,7 @@ Every pending invitation row and newly created invitation result SHALL display t
 
 #### Scenario: Copying a pending employee invitation
 - **WHEN** an admin copies an employee invitation from the contact book
-- **THEN** the clipboard receives its `/regustration/{code}` link rather than the bare code
+- **THEN** the clipboard receives its `/registration/{code}` link rather than the bare code
 
 ### Requirement: An employee's reach is shown and changed where they are read
 

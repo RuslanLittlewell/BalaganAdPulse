@@ -73,7 +73,7 @@ export function TaskSchedule({
               setPicking(false);
             }}
           >
-            <Button type="button" variant="outline" className="min-w-0 flex-1 justify-start gap-2">
+            <Button type="button" variant="outline" className="min-w-0 flex-1 justify-start gap-2 bg-transparent dark:bg-transparent">
               <CalendarIcon className="size-4 shrink-0" />
               <span className="truncate">
                 {dueDate === null ? t("tasks.form.noDue") : dayLabel(dueDate)}

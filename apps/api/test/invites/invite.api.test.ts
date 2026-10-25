@@ -140,7 +140,7 @@ describe("POST /api/invites", () => {
   it("issues a short code from the unambiguous alphabet", async () => {
     const res = await request(app).post("/api/invites").set(admin).send(employee());
     expect(res.body.code).toMatch(/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/);
-    expect(res.body.registrationUrl).toBe(`/regustration/${res.body.code}`);
+    expect(res.body.registrationUrl).toBe(`/registration/${res.body.code}`);
   });
 });
 

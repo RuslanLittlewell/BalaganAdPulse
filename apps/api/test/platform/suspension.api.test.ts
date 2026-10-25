@@ -100,7 +100,7 @@ describe("a suspended organization", () => {
     await createInvite("suspended", { role: "MANAGER" });
     await setStatus("SUSPENDED");
 
-    expect((await request(app).get("/api/regustration/suspended")).status).toBe(404);
+    expect((await request(app).get("/api/registration/suspended")).status).toBe(404);
     const res = await request(app).post("/api/auth/register").send({
       name: "Newcomer", email: "newcomer@acme.com", password: "hunter2hunter2", inviteCode: "suspended",
     });

@@ -6,7 +6,7 @@ import { AddOrganization, OrganizationFormDialog } from "@/features/organization
 
 function captureCreate(response: () => Response = () => HttpResponse.json({
   organization: aPlatformOrganization({ id: "org-2", name: "Acme" }),
-  registrationUrl: "/regustration/ABCDEFGH",
+  registrationUrl: "/registration/ABCDEFGH",
 }, { status: 201 })) {
   const bodies: unknown[] = [];
   server.use(mock.post("/api/platform/organizations", async ({ request }) => {
@@ -56,7 +56,7 @@ describe("adding an organization", () => {
     await userEvent.click(screen.getByRole("checkbox", { name: "CRM" }));
     await userEvent.click(screen.getByRole("button", { name: "Создать организацию" }));
 
-    expect(await screen.findByText(`${window.location.origin}/regustration/ABCDEFGH`)).toBeInTheDocument();
+    expect(await screen.findByText(`${window.location.origin}/registration/ABCDEFGH`)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Скопировать ссылку регистрации" })).toBeInTheDocument();
     expect(bodies).toEqual([{ name: "Acme", modules: ["REPORTS", "CRM"], adminEmail: "owner@acme.com" }]);
   });
@@ -72,7 +72,7 @@ describe("adding an organization", () => {
     expect(screen.getByRole("checkbox", { name: "Задачи" })).not.toBeChecked();
     await userEvent.click(screen.getByRole("button", { name: "Создать организацию" }));
 
-    await screen.findByText(/regustration/);
+    await screen.findByText(/registration/);
     expect(bodies).toEqual([{ name: "Acme", modules: [], adminEmail: "owner@acme.com" }]);
   });
 

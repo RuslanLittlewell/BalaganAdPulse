@@ -8,7 +8,7 @@ const created = {
   id: "invite-1", code: "ABCDEFGH", registrationType: "EMPLOYEE", role: "MANAGER",
   projectIds: [], clientId: null, email: null, expiresAt: null, revokedAt: null, usedAt: null,
   usedById: null, createdById: null, createdAt: "2026-10-01T00:00:00.000Z",
-  status: "PENDING", registrationUrl: "/regustration/ABCDEFGH",
+  status: "PENDING", registrationUrl: "/registration/ABCDEFGH",
 };
 
 function capturing() {
@@ -38,7 +38,7 @@ describe("inviting an employee", () => {
 
     await user.click(screen.getByRole("button", { name: "Создать приглашение" }));
 
-    expect(await screen.findByText(/regustration\/ABCDEFGH/)).toBeInTheDocument();
+    expect(await screen.findByText(/registration\/ABCDEFGH/)).toBeInTheDocument();
     expect(bodies).toEqual([{ registrationType: "EMPLOYEE", role: "MANAGER", projectIds: [] }]);
   });
 

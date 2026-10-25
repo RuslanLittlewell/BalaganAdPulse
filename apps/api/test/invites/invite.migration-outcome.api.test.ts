@@ -52,7 +52,7 @@ describe("a database migrated from untyped invitations", () => {
   it("leaves a legacy link resolving and redeemable, though it grants nothing", async () => {
     await legacy();
 
-    const resolved = await request(app).get("/api/regustration/LEGPENDA");
+    const resolved = await request(app).get("/api/registration/LEGPENDA");
     expect(resolved.status).toBe(200);
     expect(resolved.body).toEqual({ registrationType: "EMPLOYEE", email: null });
 
@@ -75,7 +75,7 @@ describe("a database migrated from untyped invitations", () => {
 
     await request(app).delete(`/api/invites/${pending.id}`).set(admin);
 
-    expect((await request(app).get("/api/regustration/LEGPENDA")).status).toBe(404);
+    expect((await request(app).get("/api/registration/LEGPENDA")).status).toBe(404);
   });
 
   it("still lists invitations issued after the deploy", async () => {

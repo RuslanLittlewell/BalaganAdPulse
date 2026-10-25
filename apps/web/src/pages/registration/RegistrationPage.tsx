@@ -16,7 +16,7 @@ export function RegistrationPage() {
   const { code = "" } = useParams<{ code: string }>();
   const resolved = useQuery<Resolved, ApiError>({
     queryKey: ["registration", code],
-    queryFn: () => http.get<Resolved>(`/regustration/${code}`, { authenticated: false }),
+    queryFn: () => http.get<Resolved>(`/registration/${code}`, { authenticated: false }),
     retry: false,
   });
 

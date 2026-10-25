@@ -24,12 +24,12 @@ describe("an employee invitation end to end", () => {
     });
     expect(created.status).toBe(201);
     const { id, code } = created.body;
-    expect(created.body.registrationUrl).toBe(`/regustration/${code}`);
+    expect(created.body.registrationUrl).toBe(`/registration/${code}`);
 
     const listed = await request(app).get("/api/invites?registrationType=EMPLOYEE").set(admin);
     expect(listed.body.map((invite: { id: string }) => invite.id)).toEqual([id]);
 
-    const resolved = await request(app).get(`/api/regustration/${code}`);
+    const resolved = await request(app).get(`/api/registration/${code}`);
     expect(resolved.status).toBe(200);
     expect(resolved.body).toEqual({ registrationType: "EMPLOYEE", email: null });
 
@@ -41,7 +41,7 @@ describe("an employee invitation end to end", () => {
     expect(stored.role).toBe("GUEST");
     expect(await prisma.inviteProject.count({ where: { inviteId: id } })).toBe(1);
 
-    const afterRevoke = await request(app).get(`/api/regustration/${code}`);
+    const afterRevoke = await request(app).get(`/api/registration/${code}`);
     expect(afterRevoke.status).toBe(404);
   });
 
@@ -111,7 +111,7 @@ describe("a client invitation end to end", () => {
     expect(created.status).toBe(201);
     expect(created.body).toMatchObject({ registrationType: "CLIENT", role: null, projectIds: [] });
 
-    const resolved = await request(app).get(`/api/regustration/${created.body.code}`);
+    const resolved = await request(app).get(`/api/registration/${created.body.code}`);
 
     expect(resolved.status).toBe(200);
     expect(resolved.body).toEqual({ registrationType: "CLIENT", email: null });
@@ -263,7 +263,7 @@ describe("an invitation to join an existing client", () => {
     const created = await request(app).post("/api/invites").set(admin)
       .send({ registrationType: "CLIENT_STAFF", clientId: client.id });
 
-    const resolved = await request(app).get(`/api/regustration/${created.body.code}`);
+    const resolved = await request(app).get(`/api/registration/${created.body.code}`);
 
     expect(resolved.status).toBe(200);
     expect(resolved.body).toEqual({ registrationType: "CLIENT_STAFF", email: null });

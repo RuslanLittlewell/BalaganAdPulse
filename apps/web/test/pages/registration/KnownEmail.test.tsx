@@ -16,10 +16,10 @@ const BOUND = "smoke@gmail.com";
 function openAt(element: ReactElement) {
   return renderWithProviders(
     <Routes>
-      <Route path="/regustration/:code" element={element} />
+      <Route path="/registration/:code" element={element} />
       <Route path="/login" element={<h1>Вход</h1>} />
     </Routes>,
-    { route: "/regustration/ABCDEFGH", signedIn: false },
+    { route: "/registration/ABCDEFGH", signedIn: false },
   );
 }
 
@@ -50,7 +50,7 @@ describe("a link bound to an address", () => {
     ["CLIENT", "Регистрация клиента"],
     ["CLIENT_STAFF", "Присоединиться к компании"],
   ] as const)("opens the %s form with the address filled in", async (registrationType, heading) => {
-    server.use(mock.get("/api/regustration/:code", () =>
+    server.use(mock.get("/api/registration/:code", () =>
       HttpResponse.json({ registrationType, email: BOUND })));
     openAt(<RegistrationPage />);
 
@@ -59,7 +59,7 @@ describe("a link bound to an address", () => {
   });
 
   it("still asks for an email when the link names none", async () => {
-    server.use(mock.get("/api/regustration/:code", () =>
+    server.use(mock.get("/api/registration/:code", () =>
       HttpResponse.json({ registrationType: "EMPLOYEE", email: null })));
     openAt(<RegistrationPage />);
 

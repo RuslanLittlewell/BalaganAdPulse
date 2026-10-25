@@ -108,7 +108,7 @@ export function JoinClientForm({ code, knownEmail = null }: JoinClientFormProps)
 
       <AvatarStep value={avatar} onChange={setAvatar} />
 
-      <Button type="submit" disabled={isSubmitting}>{t("registration.submit")}</Button>
+      <Button type="submit" className="h-11" disabled={isSubmitting}>{t("registration.submit")}</Button>
     </form>
   );
 }

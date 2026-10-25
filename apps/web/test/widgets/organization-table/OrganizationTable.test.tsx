@@ -40,7 +40,7 @@ describe("the organization table", () => {
 
   it("offers the pending first administrator's link for copying", async () => {
     listed(aPlatformOrganization({
-      firstAdmin: { email: "owner@acme.com", state: "PENDING", registrationUrl: "/regustration/ABCDEFGH" },
+      firstAdmin: { email: "owner@acme.com", state: "PENDING", registrationUrl: "/registration/ABCDEFGH" },
     }));
     renderWithProviders(<OrganizationTable />);
 

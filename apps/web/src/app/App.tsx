@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route, useLocation, useParams } from "react-router-dom";
 import type { ModuleKey } from "@adpulse/access-policy";
 import { DashboardPage } from "@/pages/dashboard/index.js";
 import { ArchivePage } from "@/pages/archive/index.js";
@@ -93,6 +93,12 @@ function Dashboard() {
   );
 }
 
+function MisspeltRegistration() {
+  const { code = "" } = useParams<{ code: string }>();
+  const { search } = useLocation();
+  return <Navigate to={`/registration/${encodeURIComponent(code)}${search}`} replace />;
+}
+
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -102,7 +108,8 @@ export function App() {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<Navigate to="/login" replace />} />
-            <Route path="/regustration/:code" element={<RegistrationPage />} />
+            <Route path="/registration/:code" element={<RegistrationPage />} />
+            <Route path="/regustration/:code" element={<MisspeltRegistration />} />
             <Route path="/password-reset" element={<RequestResetPage />} />
             <Route path="/password-reset/:token" element={<ResetPasswordPage />} />
             <Route path="/*" element={<Dashboard />} />

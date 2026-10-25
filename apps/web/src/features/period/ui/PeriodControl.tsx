@@ -87,7 +87,7 @@ export function PeriodControl() {
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="size-8 shrink-0"
+                  className="size-8 shrink-0 bg-transparent dark:bg-transparent"
                   aria-label={t(side === "from" ? "period.from.open" : "period.to.open")}
                 >
                   <CalendarIcon />

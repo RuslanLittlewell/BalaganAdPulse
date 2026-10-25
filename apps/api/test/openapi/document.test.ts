@@ -71,7 +71,7 @@ describe("GET /api/openapi.json", () => {
       ["/api/auth/login", "post"],
       ["/api/auth/refresh", "post"],
       ["/api/auth/logout", "post"],
-      ["/api/regustration/{code}", "get"],
+      ["/api/registration/{code}", "get"],
     ];
     for (const [path, method] of open) {
       expect(document.paths[path]?.[method]?.security, `${method} ${path}`).toEqual([]);

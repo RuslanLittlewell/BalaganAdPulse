@@ -57,7 +57,7 @@ The invitation dialog SHALL offer the project picker only while the chosen role 
 
 ### Requirement: The backend generates short invitation links
 
-The backend SHALL generate each invitation code as eight cryptographically random characters, SHALL retry on a uniqueness collision, and SHALL return `registrationUrl` in the exact relative form `/regustration/{code}`. A caller SHALL NOT provide or override the code or URL.
+The backend SHALL generate each invitation code as eight cryptographically random characters, SHALL retry on a uniqueness collision, and SHALL return `registrationUrl` in the exact relative form `/registration/{code}`. A caller SHALL NOT provide or override the code or URL.
 
 #### Scenario: Invitation is created
 - **WHEN** a valid invitation creation request succeeds
@@ -158,7 +158,7 @@ blank page.
 
 ### Requirement: An invitation link opens the form its type calls for
 
-Opening `/regustration/:code` SHALL resolve the invitation's registration type and show
+Opening `/registration/:code` SHALL resolve the invitation's registration type and show
 the form for it: the employee form for `EMPLOYEE`, the client form for `CLIENT`. A code
 that is unknown, revoked, used or expired SHALL show one message that does not say which
 of those it is.
@@ -335,3 +335,13 @@ email. An invitation bound to no address SHALL keep asking for one.
 
 - **WHEN** a visitor opens the link of an invitation bound to no address
 - **THEN** the form asks for an email as before
+
+### Requirement: Links with the old spelling still open the form
+
+Opening `/regustration/:code`, the address invitations carried before its spelling was fixed,
+SHALL replace the address with `/registration/:code` for the same code and show what that address
+shows.
+
+#### Scenario: An invitation sent before the fix
+- **WHEN** a visitor opens `/regustration/ABCDEFGH`
+- **THEN** the address becomes `/registration/ABCDEFGH` and the invitation's form is shown

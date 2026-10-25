@@ -43,8 +43,8 @@ describe("App", () => {
     expect(screen.queryByText("Проекты")).not.toBeInTheDocument();
   });
 
-  it.each(["/login", "/regustration/ABCDEFGH", "/password-reset"])("offers the theme toggle at %s before signing in", (path) => {
-    server.use(mock.get("/api/regustration/:code", () => HttpResponse.json({ message: "Not found" }, { status: 404 })));
+  it.each(["/login", "/registration/ABCDEFGH", "/password-reset"])("offers the theme toggle at %s before signing in", (path) => {
+    server.use(mock.get("/api/registration/:code", () => HttpResponse.json({ message: "Not found" }, { status: 404 })));
     renderAppAt(path);
 
     expect(screen.getByRole("button", { name: /Включить (тёмную|светлую) тему/ })).toBeInTheDocument();
@@ -57,6 +57,14 @@ describe("App", () => {
 
     await screen.findByRole("link", { name: "Проекты" });
     expect(window.location.pathname).toBe("/");
+  });
+
+  it("sends an invitation link with the old spelling to the registration page", async () => {
+    server.use(mock.get("/api/registration/:code", () => HttpResponse.json({ registrationType: "CLIENT", email: null })));
+    renderAppAt("/regustration/ABCDEFGH");
+
+    expect(await screen.findByRole("heading", { name: "Регистрация клиента" })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/registration/ABCDEFGH");
   });
 
   it("sends a bookmark for the removed sign-up screen to the sign-in form", () => {

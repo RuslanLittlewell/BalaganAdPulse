@@ -11,7 +11,7 @@ import {
 const invitation = (partial: Partial<Invitation> = {}): Invitation => ({
   id: "invite-1", code: "ABCDEFGH", registrationType: "EMPLOYEE", role: "MANAGER",
   projectIds: ["project-1"], email: null, expiresAt: null, revokedAt: null, usedAt: null,
-  status: "PENDING", registrationUrl: "/regustration/ABCDEFGH",
+  status: "PENDING", registrationUrl: "/registration/ABCDEFGH",
   createdAt: "2026-09-01T00:00:00.000Z",
   ...partial,
 });
@@ -65,7 +65,7 @@ describe("listing invitations", () => {
     const { result } = renderHook(() => useInvitations(), { wrapper: hookWrapper() });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data![0]!.registrationUrl).toBe("/regustration/ABCDEFGH");
+    expect(result.current.data![0]!.registrationUrl).toBe("/registration/ABCDEFGH");
   });
 });
 

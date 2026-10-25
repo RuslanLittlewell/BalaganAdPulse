@@ -6,13 +6,13 @@ import { RegistrationPage } from "@/pages/registration/index.js";
 
 function open(code = "ABCDEFGH") {
   return renderWithProviders(
-    <Routes><Route path="/regustration/:code" element={<RegistrationPage />} /></Routes>,
-    { route: `/regustration/${code}`, signedIn: false },
+    <Routes><Route path="/registration/:code" element={<RegistrationPage />} /></Routes>,
+    { route: `/registration/${code}`, signedIn: false },
   );
 }
 
 const resolves = (registrationType: "CLIENT" | "EMPLOYEE" | "CLIENT_STAFF") =>
-  server.use(mock.get("/api/regustration/:code", () => HttpResponse.json({ registrationType, email: null })));
+  server.use(mock.get("/api/registration/:code", () => HttpResponse.json({ registrationType, email: null })));
 
 describe("RegistrationPage", () => {
   it("shows the employee form for an employee invitation", async () => {
@@ -40,7 +40,7 @@ describe("RegistrationPage", () => {
   });
 
   it("shows one message for a code that cannot be used", async () => {
-    server.use(mock.get("/api/regustration/:code", () =>
+    server.use(mock.get("/api/registration/:code", () =>
       HttpResponse.json({ error: { message: "Invalid invite code" } }, { status: 404 })));
     open("ZZZZZZZZ");
 
@@ -49,7 +49,7 @@ describe("RegistrationPage", () => {
   });
 
   it("offers a way back to the sign-in form", async () => {
-    server.use(mock.get("/api/regustration/:code", () =>
+    server.use(mock.get("/api/registration/:code", () =>
       HttpResponse.json({ error: { message: "Invalid invite code" } }, { status: 404 })));
     open("ZZZZZZZZ");
 
@@ -58,7 +58,7 @@ describe("RegistrationPage", () => {
 
   it("asks the server about the code in the address", async () => {
     const seen: string[] = [];
-    server.use(mock.get("/api/regustration/:code", ({ params }) => {
+    server.use(mock.get("/api/registration/:code", ({ params }) => {
       seen.push(String(params.code));
       return HttpResponse.json({ registrationType: "EMPLOYEE" });
     }));

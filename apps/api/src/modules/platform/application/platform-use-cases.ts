@@ -18,7 +18,7 @@ export interface CreateOrganizationInput {
   readonly adminEmail: string;
 }
 
-const registrationUrlFor = (code: string) => `/regustration/${code}`;
+const registrationUrlFor = (code: string) => `/registration/${code}`;
 
 export function createPlatformUseCases(dependencies: PlatformDependencies) {
   const view = (record: OrganizationRecord) => {

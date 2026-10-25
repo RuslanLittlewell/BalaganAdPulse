@@ -6,7 +6,7 @@ export const ROUTE_MOUNTS = [
   { id: "docs", path: "/api" },
   { id: "open-auth", path: "/api/auth" },
   { id: "google-callback", path: "/api/integrations/google" },
-  { id: "registration-resolver", path: "/api/regustration" },
+  { id: "registration-resolver", path: "/api/registration" },
   { id: "authentication", path: "/api" },
   { id: "session", path: "/api/auth/me" },
   { id: "platform", path: "/api/platform" },

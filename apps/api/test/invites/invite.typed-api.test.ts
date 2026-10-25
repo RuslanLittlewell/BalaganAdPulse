@@ -25,7 +25,7 @@ describe("typed invitation HTTP contracts", () => {
     expect(client.status).toBe(201);
     expect(client.body).toMatchObject({ registrationType: "CLIENT", role: null, projectIds: [] });
     expect(client.body.code).toMatch(/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/);
-    expect(client.body.registrationUrl).toBe(`/regustration/${client.body.code}`);
+    expect(client.body.registrationUrl).toBe(`/registration/${client.body.code}`);
 
     const employee = await request(app).post("/api/invites").set(admin).send({
       registrationType: "EMPLOYEE",
@@ -81,13 +81,13 @@ describe("typed invitation HTTP contracts", () => {
   });
 });
 
-describe("GET /api/regustration/:code", () => {
+describe("GET /api/registration/:code", () => {
   it("is public and returns the registration type and no address for an unbound code", async () => {
     const org = await currentOrg();
     await prisma.invite.create({
       data: { orgId: org.id, code: "PUBLCAAB", registrationType: "CLIENT", role: null },
     });
-    const response = await request(app).get("/api/regustration/PUBLCAAB");
+    const response = await request(app).get("/api/registration/PUBLCAAB");
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ registrationType: "CLIENT", email: null });
   });
@@ -100,7 +100,7 @@ describe("GET /api/regustration/:code", () => {
         email: "owner@acme.com",
       },
     });
-    const response = await request(app).get("/api/regustration/BNDXAAB2");
+    const response = await request(app).get("/api/registration/BNDXAAB2");
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ registrationType: "EMPLOYEE", email: "owner@acme.com" });
   });
@@ -122,7 +122,7 @@ describe("GET /api/regustration/:code", () => {
         },
       });
     }
-    const response = await request(app).get(`/api/regustration/${code}`);
+    const response = await request(app).get(`/api/registration/${code}`);
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ error: { message: "Invalid invite code" } });
   });
@@ -132,7 +132,7 @@ describe("GET /api/regustration/:code", () => {
     ["a character outside the alphabet", "REVOKEDA"],
     ["lowercase", "abcdefgh"],
   ])("returns the same response for a code with %s", async (_label, code) => {
-    const response = await request(app).get(`/api/regustration/${code}`);
+    const response = await request(app).get(`/api/registration/${code}`);
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ error: { message: "Invalid invite code" } });
   });
@@ -140,7 +140,7 @@ describe("GET /api/regustration/:code", () => {
   it("rate limits repeated public lookups", async () => {
     let status = 0;
     for (let attempt = 0; attempt < 40; attempt += 1) {
-      status = (await request(app).get("/api/regustration/PRBEABCD")).status;
+      status = (await request(app).get("/api/registration/PRBEABCD")).status;
       if (status === 429) break;
     }
     expect(status).toBe(429);

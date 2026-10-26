@@ -38,11 +38,11 @@ const memberPort: TelegramMembers = {
 
 function linksFake() {
   const tokens = new Map<string, { membershipId: string; expiresAt: Date }>();
-  const chats = new Map<number, { membershipId: string; username: string | null; linkedAt: Date }>();
+  const chats = new Map<number, { membershipId: string; username: string | null; linkedAt: Date; notifications: boolean }>();
   const links: TelegramLinks = {
     find: async (membershipId) => {
       const link = [...chats.values()].find((each) => each.membershipId === membershipId);
-      return link ? { username: link.username, linkedAt: link.linkedAt } : null;
+      return link ? { username: link.username, linkedAt: link.linkedAt, notifications: link.notifications } : null;
     },
     memberOf: async (chatId) => chats.get(chatId)?.membershipId ?? null,
     issueToken: async (membershipId, hash, expiresAt) => {
@@ -54,11 +54,20 @@ function linksFake() {
       tokens.delete(hash);
       if (!token || token.expiresAt <= at) return null;
       for (const [key, link] of chats) if (link.membershipId === token.membershipId) chats.delete(key);
-      chats.set(chat.id, { membershipId: token.membershipId, username: chat.username, linkedAt: at });
+      chats.set(chat.id, { membershipId: token.membershipId, username: chat.username, linkedAt: at, notifications: true });
       return token.membershipId;
     },
     unlink: async (membershipId) => {
       for (const [key, link] of chats) if (link.membershipId === membershipId) chats.delete(key);
+    },
+    chatFor: async (membershipId) => {
+      const entry = [...chats].find(([, link]) => link.membershipId === membershipId && link.notifications);
+      return entry ? entry[0] : null;
+    },
+    setNotifications: async (membershipId, on) => {
+      const link = [...chats.values()].find((each) => each.membershipId === membershipId);
+      if (link) link.notifications = on;
+      return link !== undefined;
     },
   };
   return { links, tokens, chats };
@@ -114,7 +123,7 @@ describe("linking a Telegram chat", () => {
     expect(await useCases.redeem("token-1", { id: CHAT, username: "anna_t" })).toBe(true);
     expect(await useCases.redeem("token-1", { id: 2002, username: null })).toBe(false);
     expect(await useCases.status(admin)).toEqual({
-      available: true, linked: true, username: "anna_t", linkedAt: NOW,
+      available: true, linked: true, username: "anna_t", linkedAt: NOW, notifications: true,
     });
     expect(await useCases.isLinked(CHAT)).toBe(true);
   });
@@ -148,7 +157,7 @@ describe("linking a Telegram chat", () => {
     await expect(configured.useCases.issueLink(guest)).rejects.toMatchObject({ category: "not-found" });
 
     const bare = setup(false);
-    expect(await bare.useCases.status(admin)).toEqual({ available: false, linked: false, username: null, linkedAt: null });
+    expect(await bare.useCases.status(admin)).toEqual({ available: false, linked: false, username: null, linkedAt: null, notifications: false });
     await expect(bare.useCases.issueLink(admin)).rejects.toMatchObject({ category: "not-found" });
   });
 });

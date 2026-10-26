@@ -8,6 +8,7 @@ export interface TelegramStatus {
   readonly linked: boolean;
   readonly username: string | null;
   readonly linkedAt: Date | null;
+  readonly notifications: boolean;
 }
 
 export async function botActorOf(members: TelegramMembers, membershipId: string): Promise<ActorContext | null> {
@@ -27,7 +28,15 @@ export function createTelegramLinkUseCases(d: TelegramLinkDependencies) {
         linked: link !== null,
         username: link?.username ?? null,
         linkedAt: link?.linkedAt ?? null,
+        notifications: link?.notifications ?? false,
       };
+    },
+
+    async setNotifications(actor: ActorContext, on: boolean): Promise<TelegramStatus> {
+      if (!(await d.links.setNotifications(actor.membershipId, on))) {
+        throw new AppError("not-found", "No Telegram chat is linked");
+      }
+      return this.status(actor);
     },
 
     async issueLink(actor: ActorContext): Promise<{ url: string; expiresAt: Date }> {

@@ -40,6 +40,10 @@ export interface DueTasks {
   claim(taskId: string, deadline: Date): Promise<boolean>;
 }
 
+export interface NotificationRelay {
+  forward(notifications: readonly AddressedNotification[]): void;
+}
+
 export interface NotificationDependencies {
   readonly notifications: NotificationRepository;
   readonly recipients: NotificationRecipients;
@@ -47,6 +51,7 @@ export interface NotificationDependencies {
   readonly claims: KpiMonthClaims;
   readonly dueTasks: DueTasks;
   readonly hub: NotificationHub;
+  readonly relay: NotificationRelay;
   readonly clock: Clock;
   readonly timeZone: string;
 }

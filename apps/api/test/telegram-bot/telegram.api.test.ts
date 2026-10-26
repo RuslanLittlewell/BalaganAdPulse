@@ -46,7 +46,7 @@ describe("the Telegram bot in the API", () => {
     const status = await request(bare).get("/api/telegram").set(anna.auth);
 
     expect(status.status).toBe(200);
-    expect(status.body).toEqual({ available: false, linked: false, username: null, linkedAt: null });
+    expect(status.body).toEqual({ available: false, linked: false, username: null, linkedAt: null, notifications: false });
     expect((await request(bare).post("/api/telegram/link").set(anna.auth)).status).toBe(404);
     expect((await request(bare).delete("/api/telegram/link").set(anna.auth)).status).toBe(204);
   });
@@ -66,7 +66,28 @@ describe("the Telegram bot in the API", () => {
     await links.redeem(stored.tokenHash, new Date(), { id: 555, username: "anna_t" });
     const status = await request(configured).get("/api/telegram").set(anna.auth);
 
-    expect(status.body).toEqual({ available: true, linked: true, username: "anna_t", linkedAt: expect.any(String) });
+    expect(status.body).toEqual({
+      available: true, linked: true, username: "anna_t", linkedAt: expect.any(String), notifications: true,
+    });
+  });
+
+  it("turns the member's notifications in Telegram off and on again", async () => {
+    await links.issueToken(anna.membership!.id, "hash", new Date(Date.now() + 60_000));
+    await links.redeem("hash", new Date(), { id: 555, username: null });
+
+    const off = await request(configured).patch("/api/telegram").set(anna.auth).send({ notifications: false });
+    expect(off.status).toBe(200);
+    expect(off.body).toMatchObject({ linked: true, notifications: false });
+    expect(await links.chatFor(anna.membership!.id)).toBeNull();
+
+    const on = await request(configured).patch("/api/telegram").set(anna.auth).send({ notifications: true });
+    expect(on.body.notifications).toBe(true);
+    expect(await links.chatFor(anna.membership!.id)).toBe(555);
+  });
+
+  it("refuses the switch without a linked chat -> 404, and a body that is not a switch -> 400", async () => {
+    expect((await request(configured).patch("/api/telegram").set(anna.auth).send({ notifications: false })).status).toBe(404);
+    expect((await request(configured).patch("/api/telegram").set(anna.auth).send({ notifications: "no" })).status).toBe(400);
   });
 
   it("unlinks the member", async () => {

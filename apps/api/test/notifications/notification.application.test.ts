@@ -28,6 +28,7 @@ function fixture(options: {
 } = {}) {
   const created: NewNotification[] = [];
   const refreshed: NewNotification[] = [];
+  const forwarded: string[] = [];
   const dueClaimed = new Set<string>();
   const readsAsked: Array<{ projectId: string; range: { from: string; to: string } }> = [];
   const claimed = new Set<string>();
@@ -85,13 +86,40 @@ function fixture(options: {
       },
     },
     hub,
+    relay: { forward: (notifications) => forwarded.push(...notifications.map((notification) => notification.id)) },
     clock: { now: () => options.now ?? new Date("2026-10-15T12:00:00Z") },
     timeZone: "Europe/Minsk",
   });
-  return { useCases, created, refreshed, readsAsked, hub };
+  return { useCases, created, refreshed, forwarded, readsAsked, hub };
 }
 
 const recipientsOf = (created: NewNotification[]) => created.map((notification) => notification.recipientId);
+
+describe("forwarding notifications", () => {
+  it("passes every newly created notification on", async () => {
+    const { useCases, forwarded } = fixture();
+
+    await useCases.projectCreated({ id: "p1" }, anna);
+
+    expect(forwarded).toEqual(["n1-0", "n2-1"]);
+  });
+
+  it("does not pass on an unread notification that a later change refreshes", async () => {
+    const { useCases, forwarded } = fixture({ unread: ["boris"] });
+
+    await useCases.taskChanged({ id: "t1", projectId: "p1", visibleToClient: false, participantIds: ["boris", "vera"] }, anna, []);
+
+    expect(forwarded).toEqual(["n1-0"]);
+  });
+
+  it("passes nothing on when nobody is told", async () => {
+    const { useCases, forwarded } = fixture({ staff: ["anna"] });
+
+    await useCases.projectCreated({ id: "p1" }, anna);
+
+    expect(forwarded).toEqual([]);
+  });
+});
 
 describe("a new project", () => {
   it("is told to everyone on the project's staff but the one who created it", async () => {

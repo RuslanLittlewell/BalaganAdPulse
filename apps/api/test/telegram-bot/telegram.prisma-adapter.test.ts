@@ -55,7 +55,27 @@ describe("Telegram links", () => {
     expect(await links.redeem("new", NOW, { id: BIG_CHAT, username: "anna_t" })).toBe(idOf(anna));
     expect(await links.redeem("new", NOW, { id: BIG_CHAT, username: "anna_t" })).toBeNull();
     expect(await links.memberOf(BIG_CHAT)).toBe(idOf(anna));
-    expect(await links.find(idOf(anna))).toEqual({ username: "anna_t", linkedAt: NOW });
+    expect(await links.find(idOf(anna))).toEqual({ username: "anna_t", linkedAt: NOW, notifications: true });
+  });
+
+  it("names the chat to notify only while notifications are on", async () => {
+    await links.issueToken(idOf(anna), "t", LATER);
+    await links.redeem("t", NOW, { id: BIG_CHAT, username: null });
+
+    expect(await links.chatFor(idOf(anna))).toBe(BIG_CHAT);
+    expect(await links.setNotifications(idOf(anna), false)).toBe(true);
+    expect(await links.chatFor(idOf(anna))).toBeNull();
+    expect(await links.setNotifications(idOf(boris), false)).toBe(false);
+  });
+
+  it("starts a new link with notifications on, whatever the last one had", async () => {
+    await links.issueToken(idOf(anna), "t1", LATER);
+    await links.redeem("t1", NOW, { id: 7, username: null });
+    await links.setNotifications(idOf(anna), false);
+    await links.issueToken(idOf(anna), "t2", LATER);
+    await links.redeem("t2", NOW, { id: 7, username: null });
+
+    expect(await links.chatFor(idOf(anna))).toBe(7);
   });
 
   it("spends an expired token without linking", async () => {

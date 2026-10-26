@@ -8,7 +8,7 @@ import { ProfileSettingsDialog } from "@/features/profile-settings/index.js";
 const LINK = "https://t.me/adpulse_bot?start=abc";
 
 const status = (fields: Partial<TelegramStatus> = {}): TelegramStatus => ({
-  available: true, linked: false, username: null, linkedAt: null, ...fields,
+  available: true, linked: false, username: null, linkedAt: null, notifications: false, ...fields,
 });
 
 function serveStatus(initial: TelegramStatus) {
@@ -74,6 +74,37 @@ describe("the Telegram bot in the profile", () => {
 
     await waitFor(() => expect(unlinked).toBe(true));
     expect(await screen.findByRole("button", { name: "Подключить" })).toBeInTheDocument();
+  });
+
+  it("offers the notifications switch only once linked", async () => {
+    serveStatus(status());
+    renderWithProviders(<TelegramBotSection />);
+
+    await screen.findByRole("button", { name: "Подключить" });
+    expect(screen.queryByRole("switch", { name: "Присылать уведомления" })).not.toBeInTheDocument();
+  });
+
+  it("turns notifications in Telegram off and back on", async () => {
+    const setStatus = serveStatus(status({ linked: true, username: "anna_t", linkedAt: "2026-10-19T12:01:00.000Z", notifications: true }));
+    const asked: unknown[] = [];
+    server.use(http.patch("/api/telegram", async ({ request }) => {
+      const body = await request.json() as { notifications: boolean };
+      asked.push(body);
+      const next = status({ linked: true, username: "anna_t", linkedAt: "2026-10-19T12:01:00.000Z", notifications: body.notifications });
+      setStatus(next);
+      return HttpResponse.json(next);
+    }));
+    renderWithProviders(<TelegramBotSection />);
+
+    const toggle = await screen.findByRole("switch", { name: "Присылать уведомления" });
+    expect(toggle).toBeChecked();
+    await userEvent.click(toggle);
+
+    await waitFor(() => expect(screen.getByRole("switch", { name: "Присылать уведомления" })).not.toBeChecked());
+    await userEvent.click(screen.getByRole("switch", { name: "Присылать уведомления" }));
+
+    await waitFor(() => expect(screen.getByRole("switch", { name: "Присылать уведомления" })).toBeChecked());
+    expect(asked).toEqual([{ notifications: false }, { notifications: true }]);
   });
 
   it("says when a link could not be had", async () => {

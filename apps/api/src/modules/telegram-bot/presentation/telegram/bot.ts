@@ -22,11 +22,13 @@ export function escapeHtml(text: string): string {
 
 const DUE_DAY = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", weekday: "short", timeZone: "UTC" });
 
-function dueLine(draft: TaskDraft): string | null {
-  if (draft.dueDate === null) return null;
-  const day = DUE_DAY.format(new Date(`${draft.dueDate}T00:00:00Z`));
-  return draft.dueTime ? `${day}, ${draft.dueTime}` : day;
+export function dueText(dueDate: string | null, dueTime: string | null): string | null {
+  if (dueDate === null) return null;
+  const day = DUE_DAY.format(new Date(`${dueDate}T00:00:00Z`));
+  return dueTime ? `${day}, ${dueTime}` : day;
 }
+
+const dueLine = (draft: TaskDraft) => dueText(draft.dueDate, draft.dueTime);
 
 export function draftCard(draft: TaskDraft, heard: string | null): string {
   const field = (label: string, value: string) => `${label}: ${escapeHtml(value)}`;

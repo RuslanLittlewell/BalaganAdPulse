@@ -149,6 +149,7 @@ describe("the notification stream's upkeep", () => {
       claims: { claim: async () => false },
       dueTasks: { dueBetween: async () => [], claim: async () => false },
       hub,
+      relay: { forward: () => undefined },
       clock: { now: () => new Date() },
       timeZone: "Europe/Minsk",
     });

@@ -3,6 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { aProject, aTask, renderWithProviders, server } from "@test/shared/index.js";
 import { TasksPage } from "@/pages/tasks/index.js";
+import { toIso } from "@/shared/ui/index.js";
 import { useModuleMemory } from "@/shared/lib/index.js";
 
 const members = [
@@ -10,7 +11,7 @@ const members = [
   { id: "m2", userId: "u2", name: "Анна", email: "a@acme.com", image: null, phone: null, telegram: null, role: "MANAGER", status: "ACTIVE", createdAt: "2026-09-01T00:00:00.000Z" },
 ];
 
-const today = new Date().toISOString().slice(0, 10);
+const today = toIso(new Date());
 
 const board = [
   aTask({ id: "t1", title: "Сайт у Петра", projectId: "p1", participantIds: ["m1"], dueDate: today }),

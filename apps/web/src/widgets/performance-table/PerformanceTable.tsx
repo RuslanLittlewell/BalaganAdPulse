@@ -44,6 +44,7 @@ import {
   fitWidths,
   isRequiredColumn,
   orderedColumnIds,
+  resizedWidths,
   useColumnWidths,
   visibleColumnIds,
   type MoveDirection,
@@ -72,6 +73,7 @@ export interface ExtraColumn {
 
 export interface PerformanceTableProps {
   tableKey?: string;
+  inheritFrom?: string;
   heading: string;
   rows: PerformanceRow[];
   totals?: Performance;
@@ -400,6 +402,7 @@ function Name({
 
 export function PerformanceTable({
   tableKey = "performance",
+  inheritFrom,
   heading,
   rows,
   totals,
@@ -414,6 +417,10 @@ export function PerformanceTable({
   highlightedId,
 }: PerformanceTableProps) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const inherit = useColumnWidths((state) => state.inherit);
+  useLayoutEffect(() => {
+    if (inheritFrom != null && inheritFrom !== tableKey) inherit(tableKey, inheritFrom);
+  }, [inherit, tableKey, inheritFrom]);
   const sorting = useSortState();
   const shown = shownRows(sortTree(rows, sorting.sort), expanded);
   const rowWindow = useRowWindow(shown.length, visibleRows);
@@ -432,7 +439,7 @@ export function PerformanceTable({
   const savedWidths = useColumnWidths(
     (state) => state.columnWidths?.[tableKey],
   );
-  const setColumnWidth = useColumnWidths((state) => state.setColumnWidth);
+  const setColumnWidths = useColumnWidths((state) => state.setColumnWidths);
   const savedOrder = useColumnWidths((state) => state.columnOrder?.[tableKey]);
   const moveColumn = useColumnWidths((state) => state.moveColumn);
   const savedColumns = useColumnWidths(
@@ -470,11 +477,19 @@ export function PerformanceTable({
     .map((id) => allFigures.find((column) => column.id === id)!);
   const shownFigureIds = figures.map((column) => column.id);
   const available = useAvailableWidth(rowWindow.scroller, !(rows.length === 0 && empty != null));
+  const room = available - nameWidth - RESERVED_COLUMN_WIDTH;
   const fitted = fitWidths(
     figures.map((column) => columnWidth(savedWidths?.[column.id])),
-    available - nameWidth - RESERVED_COLUMN_WIDTH,
+    room,
   );
   const widthOf = (id: string) => fitted[shownFigureIds.indexOf(id)] ?? columnWidth(savedWidths?.[id]);
+  const resize = (id: string, width: number) => {
+    const next = resizedWidths(fitted, shownFigureIds.indexOf(id), width, room);
+    setColumnWidths(tableKey, Object.fromEntries(
+      shownFigureIds.flatMap((shownId, index) =>
+        next[index] === columnWidth(savedWidths?.[shownId]) ? [] : [[shownId, next[index]!]]),
+    ));
+  };
   const move = (id: string, direction: MoveDirection) =>
     moveColumn(tableKey, id, direction, shownFigureIds, figureIds);
   const choices = [...METRIC_COLUMNS, ...extraColumns]
@@ -566,7 +581,7 @@ export function PerformanceTable({
           {figures.map((column) => (
             <col key={column.id} style={{ width: widthOf(column.id) }} />
           ))}
-          <col style={{ width: RESERVED_COLUMN_WIDTH }} />
+          <col />
         </colgroup>
         <TableHeader className="sticky top-0 z-20 [&_th]:backdrop-blur-xl">
           <TableRow aria-rowindex={rowWindow.windowed ? 1 : undefined} className="bg-muted/50 hover:bg-muted/50">
@@ -620,13 +635,11 @@ export function PerformanceTable({
                   label={`${t("table.resizeColumn")} «${column.label}»`}
                   width={widthOf(column.id)}
                   min={MIN_COLUMN_WIDTH}
-                  onResize={(width) =>
-                    setColumnWidth(tableKey, column.id, width)
-                  }
+                  onResize={(width) => resize(column.id, width)}
                 />
               </TableHead>
             ))}
-            <TableHead className="sticky right-0 z-20">
+            <TableHead className="sticky right-0 z-20 text-right">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button

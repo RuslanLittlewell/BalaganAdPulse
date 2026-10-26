@@ -304,7 +304,8 @@ export function ProjectPage() {
                 onOpen={openCampaign}
               />
               <PerformanceTable
-                tableKey="campaigns"
+                tableKey={chosen ? `campaigns:${chosen}` : "campaigns"}
+                inheritFrom="campaigns"
                 highlightedId={highlighted ?? undefined}
                 heading={t("campaigns.one")}
                 rows={rows}

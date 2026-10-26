@@ -47,7 +47,30 @@ export function fitWidths(wanted: readonly number[], room: number): number[] {
   return wanted.map((width) => Math.max(MIN_COLUMN_WIDTH, Math.floor((width * room) / total)));
 }
 
+export function resizedWidths(widths: readonly number[], index: number, width: number, room: number): number[] {
+  const next = [...widths];
+  const before = next[index] ?? MIN_COLUMN_WIDTH;
+  next[index] = Math.max(MIN_COLUMN_WIDTH, width);
+  if (room <= 0) return next;
+  let excess = next.reduce((sum, value) => sum + value, 0) - room;
+  for (let at = index + 1; at < next.length && excess > 0; at += 1) {
+    const given = Math.min(excess, Math.max(0, next[at]! - MIN_COLUMN_WIDTH));
+    next[at] = next[at]! - given;
+    excess -= given;
+  }
+  if (excess > 0 && next[index]! > before) {
+    next[index] = Math.max(before, next[index]! - excess);
+  }
+  return next;
+}
+
 export type MoveDirection = "left" | "right";
+
+function copyOf<T>(value: T): T {
+  if (Array.isArray(value)) return [...value] as T;
+  if (value !== null && typeof value === "object") return { ...value };
+  return value;
+}
 
 interface ColumnWidthsState {
   nameWidths: Record<string, number>;
@@ -63,6 +86,8 @@ interface ColumnWidthsState {
   ) => void;
   setNameWidth: (tableKey: string, width: number) => void;
   setColumnWidth: (tableKey: string, columnId: string, width: number) => void;
+  setColumnWidths: (tableKey: string, widths: Record<string, number>) => void;
+  inherit: (tableKey: string, fromKey: string) => void;
   moveColumn: (
     tableKey: string,
     columnId: string,
@@ -111,6 +136,31 @@ export const useColumnWidths = create<ColumnWidthsState>()(
             [tableKey]: { ...state.columnWidths?.[tableKey], [columnId]: Math.max(MIN_COLUMN_WIDTH, width) },
           },
         }));
+      },
+      setColumnWidths: (tableKey, widths) => {
+        const valid = Object.entries(widths).filter(([, width]) => Number.isFinite(width));
+        if (valid.length === 0) return;
+        set((state) => ({
+          columnWidths: {
+            ...state.columnWidths,
+            [tableKey]: {
+              ...state.columnWidths?.[tableKey],
+              ...Object.fromEntries(valid.map(([id, width]) => [id, Math.max(MIN_COLUMN_WIDTH, width)])),
+            },
+          },
+        }));
+      },
+      inherit: (tableKey, fromKey) => {
+        set((state) => {
+          const layouts = ["nameWidths", "columnWidths", "columnOrder", "visibleColumns", "offeredColumns"] as const;
+          if (layouts.some((layout) => state[layout]?.[tableKey] !== undefined)) return state;
+          const copied = layouts.filter((layout) => state[layout]?.[fromKey] !== undefined);
+          if (copied.length === 0) return state;
+          return Object.fromEntries(copied.map((layout) => [
+            layout,
+            { ...state[layout], [tableKey]: copyOf(state[layout][fromKey]) },
+          ])) as Partial<ColumnWidthsState>;
+        });
       },
       moveColumn: (tableKey, columnId, direction, visibleIds, allIds) => {
         set((state) => {

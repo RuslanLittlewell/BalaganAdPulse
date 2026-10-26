@@ -5,6 +5,7 @@ import { Link, Route, Routes, useLocation } from "react-router-dom";
 import { aSession, aTask, renderWithProviders, server } from "@test/shared/index.js";
 import { ProjectPage } from "@/pages/project/index.js";
 import { useSourceMemory } from "@/entities/project/model/sourceMemory.js";
+import { useColumnWidths } from "@/widgets/performance-table/columnWidths.js";
 
 const performance = (spend: number, extra = {}) => ({
   spend, impressions: 100000, reach: 40000, clicks: 2000, conversions: 50, revenue: 4000,
@@ -705,6 +706,50 @@ describe("switching the campaigns by advertising account", () => {
 
     await screen.findByText("Лента / Россия");
     expect(screen.queryByRole("radiogroup", { name: "Источник кампаний" })).toBeNull();
+  });
+});
+
+describe("column layouts per advertising account", () => {
+  const twoAccounts = [
+    campaign("c1", "Поиск / Москва", "META", 3000, "111"),
+    campaign("c2", "Лента / Россия", "META", 1200, "222"),
+  ];
+  const columnHeaders = () =>
+    screen.getAllByRole("columnheader").map((header) => header.getAttribute("aria-label")).filter(Boolean);
+
+  beforeEach(() => useColumnWidths.setState({
+    nameWidths: {}, columnWidths: {}, columnOrder: {}, visibleColumns: {}, offeredColumns: {},
+  }));
+
+  it("keeps a column hidden on one account's tab only", async () => {
+    const user = userEvent.setup();
+    api({ campaigns: twoAccounts });
+    renderWithProviders(<App />, route);
+    await screen.findByRole("row", { name: /Поиск \/ Москва/ });
+    expect(columnHeaders()).toContain("CPL");
+
+    await user.click(screen.getByRole("button", { name: "Отображаемые столбцы" }));
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "CPL" }));
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(columnHeaders()).not.toContain("CPL"));
+
+    await user.click(screen.getByRole("radio", { name: "Meta · 222" }));
+    await screen.findByRole("row", { name: /Лента \/ Россия/ });
+    expect(columnHeaders()).toContain("CPL");
+
+    await user.click(screen.getByRole("radio", { name: "Meta · 111" }));
+    await screen.findByRole("row", { name: /Поиск \/ Москва/ });
+    expect(columnHeaders()).not.toContain("CPL");
+  });
+
+  it("starts an account's layout from the one the table had before", async () => {
+    useColumnWidths.setState({ visibleColumns: { campaigns: ["name", "spend", "clicks"] } });
+    api({ campaigns: twoAccounts });
+    renderWithProviders(<App />, route);
+
+    await screen.findByRole("row", { name: /Поиск \/ Москва/ });
+    await waitFor(() => expect(columnHeaders()).not.toContain("CPL"));
+    expect(columnHeaders()).toEqual(expect.arrayContaining(["Расход", "Клики"]));
   });
 });
 

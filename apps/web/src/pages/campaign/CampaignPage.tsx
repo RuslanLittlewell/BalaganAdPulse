@@ -172,7 +172,10 @@ export function CampaignPage() {
           )}
         </div>
         <PerformanceTable
-          tableKey="ad-sets"
+          tableKey={campaign.data?.sourceAccountId
+            ? `ad-sets:${campaign.data.channel}:${campaign.data.sourceAccountId}`
+            : "ad-sets"}
+          inheritFrom="ad-sets"
           heading={t("adSets.one")}
           rows={rows}
           currency={currency}

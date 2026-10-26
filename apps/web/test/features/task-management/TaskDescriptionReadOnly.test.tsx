@@ -52,6 +52,36 @@ describe("a description that cannot be edited", () => {
     expect(changes).toEqual([]);
   });
 
+  it("stays for reading on a click when nobody may edit it", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <TaskDescriptionEditor value={document} onChange={() => {}} editable={false} />,
+      { route: "/projects" },
+    );
+
+    await user.click(await screen.findByText("Переписать заголовки"));
+
+    expect(screen.getByLabelText("Описание")).toHaveAttribute("contenteditable", "false");
+  });
+
+  it("asks to be edited when its text is clicked", async () => {
+    const user = userEvent.setup();
+    const asked: string[] = [];
+    renderWithProviders(
+      <TaskDescriptionEditor
+        value={document}
+        onChange={() => {}}
+        editable={false}
+        onEdit={() => asked.push("edit")}
+      />,
+      { route: "/projects" },
+    );
+
+    await user.click(await screen.findByText("Переписать заголовки"));
+
+    expect(asked).toEqual(["edit"]);
+  });
+
   it("ignores a dropped image", async () => {
     let uploaded = false;
     server.use(mock.post("/api/task-images", () => {

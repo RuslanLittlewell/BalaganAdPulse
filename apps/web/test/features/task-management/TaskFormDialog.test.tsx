@@ -1,5 +1,5 @@
 import { http as mock, HttpResponse } from "msw";
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { aProject, aTask, renderWithProviders, server } from "@test/shared/index.js";
 import { TaskFormDialog } from "@/features/task-management/index.js";
@@ -884,6 +884,46 @@ describe("the description of an existing task", () => {
 
     await user.click(screen.getByRole("button", { name: "Готово" }));
     expect(screen.getByLabelText("Описание")).toHaveAttribute("contenteditable", "false");
+  });
+
+  it("becomes editable when the member clicks its text", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<TaskFormDialog task={stored} onClose={() => {}} />, { route: "/tasks" });
+
+    await user.click(await screen.findByText("Текст брифа"));
+
+    expect(screen.getByLabelText("Описание")).toHaveAttribute("contenteditable", "true");
+    expect(screen.getByRole("button", { name: "Жирный" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Готово" })).toBeInTheDocument();
+  });
+
+  it("opens an attachment's preview without becoming editable", async () => {
+    const user = userEvent.setup();
+    const withImage = {
+      ...stored,
+      description: { type: "doc", content: [{ type: "paragraph", content: [
+        { type: "text", text: "Макет " }, { type: "taskImage", attrs: { imageId: "image-1" } },
+      ] }] },
+      imageIds: ["image-1"],
+    };
+    renderWithProviders(<TaskFormDialog task={withImage} onClose={() => {}} />, { route: "/tasks" });
+
+    const description = await screen.findByTestId("task-description-editor");
+    await user.click(await within(description).findByRole("button", { name: "Вложение 1" }));
+
+    expect(await screen.findByRole("dialog", { name: "Вложение 1" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Описание")).toHaveAttribute("contenteditable", "false");
+  });
+
+  it("stays for reading when the member has selected part of it", async () => {
+    renderWithProviders(<TaskFormDialog task={stored} onClose={() => {}} />, { route: "/tasks" });
+    const text = await screen.findByText("Текст брифа");
+
+    window.getSelection()!.selectAllChildren(text);
+    fireEvent.click(text);
+
+    expect(screen.getByLabelText("Описание")).toHaveAttribute("contenteditable", "false");
+    window.getSelection()!.removeAllRanges();
   });
 
   it("is editable at once while a task is being created", async () => {

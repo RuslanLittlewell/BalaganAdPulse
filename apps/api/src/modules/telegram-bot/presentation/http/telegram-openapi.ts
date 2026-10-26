@@ -1,11 +1,13 @@
 import { z } from "zod";
 import type { RouteDoc } from "#shared/presentation/openapi.js";
+import { telegramSettingsSchema } from "./telegram-http.js";
 
 const statusSchema = z.object({
   available: z.boolean(),
   linked: z.boolean(),
   username: z.string().nullable(),
   linkedAt: z.iso.datetime().nullable(),
+  notifications: z.boolean(),
 });
 
 const linkSchema = z.object({
@@ -24,6 +26,15 @@ export const telegramDoc: RouteDoc = {
       summary: "Whether the bot is offered to the caller and whether their Telegram is linked",
       success: { status: 200, description: "The caller's bot status", schema: statusSchema },
       errors: [401],
+    },
+    {
+      method: "patch",
+      path: "/",
+      summary: "Turn the caller's notifications in Telegram on or off",
+      description: "While on, every new in-app notification of the caller is also sent to their linked chat. It is on for a new link.",
+      body: telegramSettingsSchema,
+      success: { status: 200, description: "The caller's bot status", schema: statusSchema },
+      errors: [400, 401, 404],
     },
     {
       method: "post",

@@ -1,11 +1,14 @@
 import { config, type TelegramBotConfig } from "#shared/infrastructure/config.js";
 import { prisma } from "#shared/infrastructure/prisma.js";
+import type { NotificationRelay } from "#modules/notifications/index.js";
 import {
   createTaskDraftUseCases,
   createTelegramBot,
   createTelegramLinkUseCases,
+  createTelegramNotificationRelay,
   createTelegramRouter,
   createUpdatePoller,
+  notificationMessage,
   type TaskCreation,
 } from "#modules/telegram-bot/index.js";
 import { GroqSpeechToText, GroqTaskReader } from "#modules/telegram-bot/infrastructure/groq.js";
@@ -17,7 +20,7 @@ import {
   RandomLinkTokens,
 } from "#modules/telegram-bot/infrastructure/prisma-telegram.js";
 import { TelegramClient } from "#modules/telegram-bot/infrastructure/telegram-client.js";
-import type { Kernel } from "./kernel.js";
+import { runDetached, type Kernel } from "./kernel.js";
 
 export interface TelegramPoller {
   start(): void;
@@ -25,6 +28,21 @@ export interface TelegramPoller {
 }
 
 const IDLE_POLLER: TelegramPoller = { start: () => undefined, stop: async () => undefined };
+
+export function wireTelegramNotifications(
+  settings: TelegramBotConfig | null = config.telegramBot,
+): NotificationRelay | undefined {
+  if (!settings) return undefined;
+  const relay = createTelegramNotificationRelay({
+    links: new PrismaTelegramLinks(prisma),
+    api: new TelegramClient(settings.botToken),
+    render: (notification) => notificationMessage(notification, config.appUrl),
+  });
+  return {
+    forward: (notifications) =>
+      runDetached("Failed to forward notifications to Telegram:", relay.forward(notifications)),
+  };
+}
 
 export function wireTelegramBot(
   { clock, ids }: Kernel,

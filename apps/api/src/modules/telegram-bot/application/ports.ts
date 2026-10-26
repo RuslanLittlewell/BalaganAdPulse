@@ -19,6 +19,7 @@ export interface TelegramChat {
 export interface TelegramLinkView {
   readonly username: string | null;
   readonly linkedAt: Date;
+  readonly notifications: boolean;
 }
 
 export interface TelegramLinks {
@@ -27,6 +28,8 @@ export interface TelegramLinks {
   issueToken(membershipId: string, tokenHash: string, expiresAt: Date): Promise<void>;
   redeem(tokenHash: string, now: Date, chat: TelegramChat): Promise<string | null>;
   unlink(membershipId: string): Promise<void>;
+  chatFor(membershipId: string): Promise<number | null>;
+  setNotifications(membershipId: string, on: boolean): Promise<boolean>;
 }
 
 export interface TelegramMembers {

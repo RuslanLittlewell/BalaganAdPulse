@@ -7,6 +7,7 @@ import {
   createNotificationHub,
   createNotificationRouter,
   createNotificationUseCases,
+  type NotificationRelay,
 } from "#modules/notifications/index.js";
 import {
   PrismaDueTasks,
@@ -21,7 +22,9 @@ import type { ProjectEvents } from "#modules/projects/index.js";
 import type { TaskNotices } from "#modules/tasks/index.js";
 import { runDetached, type Kernel } from "./kernel.js";
 
-export function wireNotifications({ clock }: Kernel) {
+const NO_RELAY: NotificationRelay = { forward: () => undefined };
+
+export function wireNotifications({ clock }: Kernel, relay: NotificationRelay = NO_RELAY) {
   const hub = createNotificationHub();
   const notifications = createNotificationUseCases({
     notifications: new PrismaNotificationRepository(prisma),
@@ -30,6 +33,7 @@ export function wireNotifications({ clock }: Kernel) {
     claims: new PrismaKpiMonthClaims(prisma),
     dueTasks: new PrismaDueTasks(prisma),
     hub,
+    relay,
     clock,
     timeZone: config.taskTimeZone,
   });

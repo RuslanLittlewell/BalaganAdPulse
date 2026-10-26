@@ -35,4 +35,15 @@ export const BOT_COPY = {
   gone: "Этого черновика уже нет.",
   notCreated: "Не удалось создать задачу. Отправьте сообщение ещё раз.",
   priorities: { LOW: "низкий", MEDIUM: "средний", HIGH: "высокий", URGENT: "срочный" } satisfies Record<TaskPriority, string>,
+  notice: {
+    kpiMet: ["Проект", "выполнил KPI"],
+    projectCreated: "Новый проект",
+    taskAssigned: "Вас назначили участником задачи",
+    taskMentioned: "Вас упомянули в комментарии к задаче",
+    taskUpdated: ["Задача", "изменена"],
+    documentAdded: ["Новый документ", "в проекте"],
+    dueSoon: "Подходит срок задачи",
+    from: "От",
+    open: "Открыть в Balagan BI",
+  },
 } as const;

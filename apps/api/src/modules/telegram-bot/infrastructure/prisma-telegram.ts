@@ -35,8 +35,20 @@ export class PrismaTelegramLinks implements TelegramLinks {
 
   async find(membershipId: string): Promise<TelegramLinkView | null> {
     return this.prisma.telegramLink.findUnique({
-      where: { membershipId }, select: { username: true, linkedAt: true },
+      where: { membershipId }, select: { username: true, linkedAt: true, notifications: true },
     });
+  }
+
+  async chatFor(membershipId: string): Promise<number | null> {
+    const link = await this.prisma.telegramLink.findFirst({
+      where: { membershipId, notifications: true }, select: { chatId: true },
+    });
+    return link ? Number(link.chatId) : null;
+  }
+
+  async setNotifications(membershipId: string, on: boolean): Promise<boolean> {
+    const { count } = await this.prisma.telegramLink.updateMany({ where: { membershipId }, data: { notifications: on } });
+    return count > 0;
   }
 
   async memberOf(chatId: number): Promise<string | null> {

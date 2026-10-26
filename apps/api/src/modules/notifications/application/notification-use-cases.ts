@@ -24,7 +24,9 @@ export interface WatchedTask extends NamedTask {
 export function createNotificationUseCases(d: NotificationDependencies) {
   const notify = async (drafts: readonly NewNotification[]) => {
     if (drafts.length === 0) return;
-    for (const notification of await d.notifications.createMany(drafts)) d.hub.publish(notification);
+    const created = await d.notifications.createMany(drafts);
+    for (const notification of created) d.hub.publish(notification);
+    if (created.length > 0) d.relay.forward(created);
   };
 
   const shownTo = async (memberIds: readonly string[], task: NamedTask) =>

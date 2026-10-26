@@ -1,6 +1,8 @@
 export { createTelegramLinkUseCases } from "./application/link-use-cases.js";
 export type { TelegramLinkUseCases, TelegramStatus } from "./application/link-use-cases.js";
 export { createTaskDraftUseCases } from "./application/draft-use-cases.js";
+export { createTelegramNotificationRelay } from "./application/notification-relay.js";
+export type { TelegramNotificationRelay, TelegramNotificationRelayDependencies } from "./application/notification-relay.js";
 export type { CancelOutcome, ConfirmOutcome, DraftOutcome, TaskDraftUseCases, Voice } from "./application/draft-use-cases.js";
 export { ServiceBusyError } from "./application/ports.js";
 export type {
@@ -36,7 +38,8 @@ export type { CalendarDay, LocalMoment } from "./domain/moment.js";
 export { createTelegramRouter } from "./presentation/http/telegram-http.js";
 export { telegramDoc } from "./presentation/http/telegram-openapi.js";
 export { BOT_COPY } from "./presentation/telegram/bot-copy.js";
-export { createTelegramBot, draftCard, escapeHtml } from "./presentation/telegram/bot.js";
+export { createTelegramBot, draftCard, dueText, escapeHtml } from "./presentation/telegram/bot.js";
+export { notificationMessage, notificationPath } from "./presentation/telegram/notification-message.js";
 export type { TelegramBot, TelegramBotDependencies } from "./presentation/telegram/bot.js";
 export { createUpdatePoller, POLL_TIMEOUT_SECONDS, RETRY_INITIAL_MS, RETRY_MAX_MS } from "./presentation/telegram/update-poller.js";
 export type { UpdatePoller } from "./presentation/telegram/update-poller.js";

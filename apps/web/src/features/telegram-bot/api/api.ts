@@ -5,6 +5,7 @@ export interface TelegramStatus {
   linked: boolean;
   username: string | null;
   linkedAt: string | null;
+  notifications: boolean;
 }
 
 export interface TelegramLink {
@@ -16,4 +17,5 @@ export const telegramApi = {
   status: () => http.get<TelegramStatus>("/telegram"),
   link: () => http.post<TelegramLink>("/telegram/link", {}),
   unlink: () => http.del("/telegram/link"),
+  notify: (notifications: boolean) => http.patch<TelegramStatus>("/telegram", { notifications }),
 };

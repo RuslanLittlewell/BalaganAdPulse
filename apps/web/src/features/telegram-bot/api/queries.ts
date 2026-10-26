@@ -17,6 +17,14 @@ export function useTelegramLink() {
   return useMutation({ mutationFn: telegramApi.link });
 }
 
+export function useTelegramNotifications() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: telegramApi.notify,
+    onSuccess: (status) => qc.setQueryData(TELEGRAM_KEY, status),
+  });
+}
+
 export function useTelegramUnlink() {
   const qc = useQueryClient();
   return useMutation({

@@ -23,7 +23,7 @@ import { wireReportsAndKpi } from "./wiring/reports-kpi.js";
 import { wireSummaryTiles } from "./wiring/summary-tiles.js";
 import { wireProjectDocuments } from "./wiring/project-documents.js";
 import { wireTasks } from "./wiring/tasks.js";
-import { wireTelegramBot, type TelegramPoller } from "./wiring/telegram-bot.js";
+import { wireTelegramBot, wireTelegramNotifications, type TelegramPoller } from "./wiring/telegram-bot.js";
 
 export interface ApiContainer {
   readonly integrationRouter: Router;
@@ -76,7 +76,7 @@ export interface ApiContainer {
 
 export function createContainer(): ApiContainer {
   const kernel = createKernel();
-  const notices = wireNotifications(kernel);
+  const notices = wireNotifications(kernel, wireTelegramNotifications());
   const catalog = wireClientsAndProjects(kernel, notices);
   const invites = wireInvites(kernel, catalog);
   const people = wireMembersAndPresence(kernel, catalog);

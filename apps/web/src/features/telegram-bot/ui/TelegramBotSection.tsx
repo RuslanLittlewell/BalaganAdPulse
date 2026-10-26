@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { Send } from "lucide-react";
 import { t } from "@/shared/config/index.js";
-import { Button, useAlerts } from "@/shared/ui/index.js";
-import { useTelegramLink, useTelegramStatus, useTelegramUnlink } from "../api/queries.js";
+import { Button, Switch, useAlerts } from "@/shared/ui/index.js";
+import { useTelegramLink, useTelegramNotifications, useTelegramStatus, useTelegramUnlink } from "../api/queries.js";
 
 export function TelegramBotSection() {
   const [linkUrl, setLinkUrl] = useState<string | null>(null);
   const status = useTelegramStatus(linkUrl !== null);
   const link = useTelegramLink();
   const unlink = useTelegramUnlink();
+  const notify = useTelegramNotifications();
   const { raise } = useAlerts();
 
   const bot = status.data;
@@ -48,6 +49,17 @@ export function TelegramBotSection() {
               {pendingUrl ? t("telegram.pending") : t("telegram.hint")}
             </p>
           )}
+          {bot.linked ? (
+            <label className="mt-1 flex items-center gap-2 text-xs">
+              <Switch
+                checked={bot.notifications}
+                disabled={notify.isPending}
+                onCheckedChange={(on) =>
+                  notify.mutate(on, { onError: () => raise(t("telegram.notificationsFailed")) })}
+              />
+              {t("telegram.notifications")}
+            </label>
+          ) : null}
         </div>
       </div>
       {bot.linked ? (

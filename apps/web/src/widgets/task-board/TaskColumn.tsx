@@ -71,7 +71,7 @@ export function TaskColumnPanel({
         ) : null}
       </header>
 
-      <SortableContext items={tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
+      <SortableContext id={column} items={tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
         <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
           {tasks.map((task) => (
             <TaskCard

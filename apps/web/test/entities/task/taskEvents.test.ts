@@ -50,6 +50,47 @@ describe("applying an event another member caused", () => {
     expect(at("b")).toMatchObject({ column: "IDEA", position: 0 });
   });
 
+  it("puts a task moved up its own column where the move put it", () => {
+    const board = [
+      task({ id: "a", column: "IN_PROGRESS", position: 0 }),
+      task({ id: "b", column: "IN_PROGRESS", position: 1 }),
+      task({ id: "c", column: "IN_PROGRESS", position: 2 }),
+    ];
+
+    const next = applyTaskEvent(board, {
+      kind: "task.moved", orgId: "org1", projectId: "p1",
+      task: task({ id: "c", column: "IN_PROGRESS", position: 0 }),
+    });
+
+    const order = [...next].sort((x, y) => x.position - y.position).map((t) => t.id);
+    expect(order).toEqual(["c", "a", "b"]);
+  });
+
+  it("puts a task moved into the middle of another column where the move put it", () => {
+    const board = [
+      task({ id: "x", column: "IDEA", position: 0 }),
+      task({ id: "a", column: "DONE", position: 0 }),
+      task({ id: "b", column: "DONE", position: 1 }),
+    ];
+
+    const next = applyTaskEvent(board, {
+      kind: "task.moved", orgId: "org1", projectId: "p1",
+      task: task({ id: "x", column: "DONE", position: 1 }),
+    });
+
+    const order = next.filter((t) => t.column === "DONE").sort((x, y) => x.position - y.position).map((t) => t.id);
+    expect(order).toEqual(["a", "x", "b"]);
+  });
+
+  it("puts a task moved into view at its place, not after the cards already there", () => {
+    const board = [task({ id: "a", column: "DONE", position: 0 })];
+    const next = applyTaskEvent(board, {
+      kind: "task.moved", orgId: "org1", projectId: "p1",
+      task: task({ id: "z", column: "DONE", position: 0 }),
+    });
+    expect([...next].sort((x, y) => x.position - y.position).map((t) => t.id)).toEqual(["z", "a"]);
+  });
+
   it("adds a task moved into view that the board had never seen", () => {
     const board = [task({ id: "a", column: "DONE", position: 0 })];
     const next = applyTaskEvent(board, {

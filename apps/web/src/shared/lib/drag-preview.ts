@@ -24,8 +24,8 @@ export function useDragPreview<T>(items: T[] | undefined) {
     setPreview((current) => current && { ...current, board: next(current.board) });
   }, []);
 
-  const settle = useCallback(() => {
-    setPreview((current) => current && { ...current, draggingId: null, basis: items });
+  const settle = useCallback((dropped: (board: T[]) => T[] = (board) => board) => {
+    setPreview((current) => current && { draggingId: null, basis: items, board: dropped(current.board) });
   }, [items]);
 
   const cancel = useCallback(() => setPreview(null), []);

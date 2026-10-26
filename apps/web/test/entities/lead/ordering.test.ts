@@ -1,4 +1,4 @@
-import { applyLeadMove, LEAD_STAGES, leadPlacementFor, leadPreviewFor, type Lead } from "@/entities/lead/index.js";
+import { applyLeadMove, LEAD_STAGES, leadPlacementFor, leadPreviewFor, resolveLeadDrop, type Lead } from "@/entities/lead/index.js";
 
 const lead = (id: string, stage: Lead["stage"], position: number): Lead => ({
   id, orgId: "org-1", name: id, company: null, phone: null, email: null,
@@ -102,5 +102,24 @@ describe("leadPreviewFor", () => {
     expect(entered).not.toBe(board);
     expect(entered.find((row) => row.id === "a")).toMatchObject({ stage: "PROPOSAL", position: 0 });
     expect(leadPreviewFor(entered, "a", "x")).toBe(entered);
+  });
+
+  it("puts the card after the lead it is dropped below in another stage, but not in its own", () => {
+    const board = [...stage, lead("x", "PROPOSAL", 0), lead("y", "PROPOSAL", 1)];
+
+    expect(order(leadPreviewFor(board, "a", "y", LEAD_STAGES, true), "PROPOSAL")).toEqual(["x", "y", "a"]);
+    expect(leadPlacementFor(stage, "a", "b", LEAD_STAGES, true)).toEqual({ stage: "NEW", position: 1 });
+  });
+});
+
+describe("resolveLeadDrop where the placeholder landed", () => {
+  const board = [lead("a", "NEW", 0), lead("b", "NEW", 1), lead("x", "PROPOSAL", 0)];
+
+  it("saves the lead where its placeholder stands", () => {
+    expect(resolveLeadDrop(board, null, "b", "a", LEAD_STAGES, { container: "NEW", index: 0 })).toEqual({ stage: "NEW", position: 0 });
+  });
+
+  it("saves nothing when the placeholder stayed put", () => {
+    expect(resolveLeadDrop(board, null, "a", "a", LEAD_STAGES, { container: "NEW", index: 0 })).toBeNull();
   });
 });

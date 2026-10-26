@@ -171,19 +171,19 @@ export function applyTaskEvent(
 
   if (filter && !matchesFilter(filter, event.task)) return without(event.task.id);
 
-  const known = tasks.some((task) => task.id === event.task.id);
-  if (!known) return renumber([...tasks, event.task], event.task.column);
+  const before = tasks.find((task) => task.id === event.task.id);
+  if (before && event.kind === "task.updated" && before.column === event.task.column) {
+    return tasks.map((task) => (task.id === event.task.id ? event.task : task));
+  }
 
-  const before = tasks.find((task) => task.id === event.task.id)!;
-  const withTask = tasks.map((task) => (task.id === event.task.id ? event.task : task));
-  if (event.kind === "task.updated" && before.column === event.task.column) return withTask;
-
-  return renumber(renumber(withTask, before.column, event.task.id), event.task.column);
+  const held = before ? tasks : [...tasks, event.task];
+  const placed = applyMove(held, event.task.id, { column: event.task.column, position: event.task.position });
+  return placed.map((task) => (task.id === event.task.id ? { ...event.task, position: task.position } : task));
 }
 
-function renumber(tasks: Task[], column: TaskColumn, pinned?: string): Task[] {
+function renumber(tasks: Task[], column: TaskColumn): Task[] {
   const ordered = tasks
-    .filter((task) => task.column === column && task.id !== pinned)
+    .filter((task) => task.column === column)
     .sort((a, b) => a.position - b.position);
   const positions = new Map(ordered.map((task, index) => [task.id, index]));
   return tasks.map((task) => {
@@ -229,6 +229,7 @@ export function placementFor(
   tasks: Task[],
   activeId: string,
   overId: string,
+  below = false,
 ): TaskMove | null {
   const active = tasks.find((task) => task.id === activeId);
   if (!active) return null;
@@ -245,17 +246,34 @@ export function placementFor(
   if (!over) return null;
 
   const index = columnOf(over.column).findIndex((task) => task.id === overId);
-  return { column: over.column, position: index < 0 ? columnOf(over.column).length : index };
+  if (index < 0) return { column: over.column, position: columnOf(over.column).length };
+  return { column: over.column, position: below && over.column !== active.column ? index + 1 : index };
 }
 
-export function previewFor(board: Task[], activeId: string, overId: string): Task[] {
+export function previewFor(board: Task[], activeId: string, overId: string, below = false): Task[] {
   const active = board.find((task) => task.id === activeId);
   if (!active) return board;
 
-  const placement = placementFor(board, activeId, overId);
+  const placement = placementFor(board, activeId, overId, below);
   if (!placement || placement.column === active.column) return board;
 
   return applyMove(board, activeId, placement);
+}
+
+export function placementAmong(all: Task[], shown: Task[], activeId: string, move: TaskMove): TaskMove {
+  const othersIn = (tasks: Task[]) => tasks
+    .filter((task) => task.column === move.column && task.id !== activeId)
+    .sort((a, b) => a.position - b.position)
+    .map((task) => task.id);
+  const shownIds = othersIn(shown);
+  const allIds = othersIn(all);
+  const next = shownIds[move.position];
+  if (next !== undefined && allIds.includes(next)) return { column: move.column, position: allIds.indexOf(next) };
+  const previous = shownIds[Math.min(move.position, shownIds.length) - 1];
+  if (previous !== undefined && allIds.includes(previous)) {
+    return { column: move.column, position: allIds.indexOf(previous) + 1 };
+  }
+  return { column: move.column, position: allIds.length };
 }
 
 export function resolveDrop(
@@ -263,9 +281,19 @@ export function resolveDrop(
   preview: Task[] | null,
   activeId: string,
   overId: string | null,
+  landing: { readonly container: string; readonly index: number } | null = null,
 ): TaskMove | null {
   const original = server.find((task) => task.id === activeId);
   if (!original) return null;
+
+  if (landing && isColumn(landing.container)) {
+    const shownAt = server
+      .filter((task) => task.column === original.column)
+      .sort((a, b) => a.position - b.position)
+      .findIndex((task) => task.id === activeId);
+    const unmoved = landing.container === original.column && landing.index === shownAt;
+    return unmoved ? null : { column: landing.container, position: landing.index };
+  }
 
   const previewed = preview?.find((task) => task.id === activeId);
   if (previewed && (previewed.column !== original.column || previewed.position !== original.position)) {

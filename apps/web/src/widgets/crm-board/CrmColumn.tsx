@@ -47,7 +47,7 @@ export function CrmColumnPanel({
         {actions}
       </header>
 
-      <SortableContext items={leads.map((lead) => lead.id)} strategy={verticalListSortingStrategy}>
+      <SortableContext id={column.id} items={leads.map((lead) => lead.id)} strategy={verticalListSortingStrategy}>
         <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
           {leads.map((lead) => (
             <LeadCard

@@ -20,6 +20,7 @@ export type {
 export {
   applyMove,
   placementFor,
+  placementAmong,
   previewFor,
   resolveDrop,
   useCompleteTask,

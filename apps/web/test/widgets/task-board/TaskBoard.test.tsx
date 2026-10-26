@@ -94,6 +94,21 @@ describe("TaskBoard", () => {
     await user.keyboard("{Escape}");
   });
 
+  it("keeps the done check on the card being carried", async () => {
+    const user = userEvent.setup();
+    server.use(mock.get("/api/tasks", () => HttpResponse.json([aTask({ id: "task-1", title: "Перетаскиваемая" })])));
+    const { container } = setup();
+
+    const handle = await screen.findByTestId("task-drag-task-1");
+    handle.focus();
+    await user.keyboard(" ");
+
+    await waitFor(() => expect(screen.getAllByTestId("task-done-task-1")).toHaveLength(2));
+    expect(screen.getAllByTestId("task-done-task-1").some((check) => !container.contains(check))).toBe(true);
+
+    await user.keyboard("{Escape}");
+  });
+
   it("does not let a guest drag a card, but still lets them open it", async () => {
     server.use(
       mock.get("/api/auth/me", () => HttpResponse.json({

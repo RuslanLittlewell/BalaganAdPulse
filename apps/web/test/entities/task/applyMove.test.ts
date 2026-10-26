@@ -1,4 +1,4 @@
-import { applyMove, placementFor, previewFor, resolveDrop, type Task } from "@/entities/task/index.js";
+import { applyMove, placementAmong, placementFor, previewFor, resolveDrop, type Task } from "@/entities/task/index.js";
 
 const task = (id: string, column: Task["column"], position: number): Task => ({
   id, projectId: "p1", orgId: "org1", title: id, description: null,
@@ -107,6 +107,27 @@ describe("resolveDrop", () => {
     task("x", "DONE", 0),
   ];
 
+  describe("where the placeholder landed", () => {
+    it("is where the card is saved", () => {
+      expect(resolveDrop(server, null, "b", "a", { container: "IDEA", index: 0 })).toEqual({ column: "IDEA", position: 0 });
+      expect(resolveDrop(server, null, "a", "x", { container: "DONE", index: 1 })).toEqual({ column: "DONE", position: 1 });
+    });
+
+    it("saves nothing when the placeholder stayed where the card was", () => {
+      expect(resolveDrop(server, null, "b", "b", { container: "IDEA", index: 1 })).toBeNull();
+    });
+
+    it("wins over the preview, which may lag a reorder in the new column", () => {
+      const preview = applyMove(server, "a", { column: "DONE", position: 1 });
+      expect(resolveDrop(server, preview, "a", "x", { container: "DONE", index: 0 })).toEqual({ column: "DONE", position: 0 });
+    });
+
+    it("counts the shown cards, whatever positions the server gave them", () => {
+      const sparse = [task("a", "IDEA", 3), task("b", "IDEA", 7)];
+      expect(resolveDrop(sparse, null, "b", "b", { container: "IDEA", index: 1 })).toBeNull();
+    });
+  });
+
   it("saves what the preview is showing", () => {
     const preview = applyMove(server, "a", { column: "DONE", position: 0 });
     expect(resolveDrop(server, preview, "a", "x")).toEqual({ column: "DONE", position: 0 });
@@ -175,6 +196,31 @@ describe("what applyMove leaves alone", () => {
   });
 });
 
+describe("placementAmong", () => {
+  const all = [
+    task("a", "IDEA", 0), task("hidden", "IDEA", 1), task("b", "IDEA", 2), task("c", "IDEA", 3),
+  ];
+  const shown = all.filter((t) => t.id !== "hidden");
+
+  it("puts the card just before the shown card that follows it", () => {
+    expect(placementAmong(all, shown, "c", { column: "IDEA", position: 1 })).toEqual({ column: "IDEA", position: 2 });
+    expect(placementAmong(all, shown, "c", { column: "IDEA", position: 0 })).toEqual({ column: "IDEA", position: 0 });
+  });
+
+  it("puts the card just after the last shown card when it lands at the end", () => {
+    expect(placementAmong(all, shown, "a", { column: "IDEA", position: 2 })).toEqual({ column: "IDEA", position: 3 });
+  });
+
+  it("puts the card at the end of a column whose cards are all hidden", () => {
+    const board = [...all, task("y", "DONE", 0)];
+    expect(placementAmong(board, shown, "a", { column: "DONE", position: 0 })).toEqual({ column: "DONE", position: 1 });
+  });
+
+  it("changes nothing when every card is shown", () => {
+    expect(placementAmong(shown, shown, "c", { column: "IDEA", position: 1 })).toEqual({ column: "IDEA", position: 1 });
+  });
+});
+
 describe("previewFor", () => {
   const column = [task("a", "IDEA", 0), task("b", "IDEA", 1), task("c", "IDEA", 2)];
 
@@ -203,6 +249,18 @@ describe("previewFor", () => {
 
     expect(previewFor(entered, "a", "x")).toBe(entered);
     expect(previewFor(entered, "a", "y")).toBe(entered);
+  });
+
+  it("puts the card after the card it is dropped below in another column", () => {
+    const board = [...column, task("x", "DONE", 0), task("y", "DONE", 1)];
+
+    expect(previewFor(board, "a", "y", true).find((t) => t.id === "a")).toMatchObject({ column: "DONE", position: 2 });
+    expect(previewFor(board, "a", "x", true).find((t) => t.id === "a")).toMatchObject({ column: "DONE", position: 1 });
+  });
+
+  it("leaves a card dropped below another in its own column to the sortable order", () => {
+    expect(placementFor(column, "a", "b", true)).toEqual({ column: "IDEA", position: 1 });
+    expect(placementFor(column, "c", "a", true)).toEqual({ column: "IDEA", position: 0 });
   });
 
   it("previews the way back to the column the card came from", () => {

@@ -15,7 +15,9 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import {
   TASK_COLUMNS,
+  applyMove,
   participantsOf,
+  placementAmong,
   previewFor,
   resolveDrop,
   useMoveTask,
@@ -27,7 +29,7 @@ import { useProjects } from "@/entities/project/index.js";
 import { useCan } from "@/features/permissions/index.js";
 import { useDoneToggle } from "@/features/task-management/index.js";
 import { t } from "@/shared/config/index.js";
-import { useDragPreview } from "@/shared/lib/index.js";
+import { droppedBelow, landingOf, useDragPreview } from "@/shared/lib/index.js";
 import { EmptyState, Loader } from "@/shared/ui/index.js";
 import { TaskCard } from "./TaskCard.js";
 import { boardCollisionDetection } from "./collision.js";
@@ -35,13 +37,14 @@ import { TaskColumnPanel } from "./TaskColumn.js";
 
 export interface TaskBoardProps {
   tasks: Task[] | undefined;
+  allTasks?: Task[];
   isLoading?: boolean;
   isError?: boolean;
   onOpen?: (task: Task) => void;
   onCreate?: (column: TaskColumn) => void;
 }
 
-export function TaskBoard({ tasks, isLoading, isError, onOpen, onCreate }: TaskBoardProps) {
+export function TaskBoard({ tasks, allTasks, isLoading, isError, onOpen, onCreate }: TaskBoardProps) {
   const move = useMoveTask();
   const draggable = useCan("update", "task");
   const creatable = useCan("create", "task");
@@ -76,6 +79,9 @@ export function TaskBoard({ tasks, isLoading, isError, onOpen, onCreate }: TaskB
 
 
   const dragging = board.find((task) => task.id === draggingId) ?? null;
+  const toggleTask = draggable
+    ? (task: Task) => { setMoveError(null); toggleDone(task); }
+    : undefined;
 
   if (isLoading) return <Loader />;
   if (isError) return <EmptyState title={t("tasks.loadFailed")} />;
@@ -88,24 +94,25 @@ export function TaskBoard({ tasks, isLoading, isError, onOpen, onCreate }: TaskB
   function handleDragOver(event: DragOverEvent) {
     const { active, over } = event;
     if (!over) return;
-    drag.preview((current) => previewFor(current, String(active.id), String(over.id)));
+    const below = droppedBelow(active, over);
+    drag.preview((current) => previewFor(current, String(active.id), String(over.id), below));
   }
 
   function handleDragEnd(event: DragEndEvent) {
     const activeId = String(event.active.id);
     const overId = event.over ? String(event.over.id) : null;
-    const placement = resolveDrop(tasks ?? [], drag.previewed, activeId, overId);
+    const placement = resolveDrop(tasks ?? [], drag.previewed, activeId, overId, landingOf(event.over));
 
     if (!placement) { drag.cancel(); return; }
 
     move.mutate(
-      { id: activeId, body: placement },
+      { id: activeId, body: placementAmong(allTasks ?? tasks ?? [], tasks ?? [], activeId, placement) },
       {
         onError: () => setMoveError(t("tasks.moveFailed")),
         onSettled: drag.release,
       },
     );
-    drag.settle();
+    drag.settle((current) => applyMove(current, activeId, placement));
   }
 
   return (
@@ -133,7 +140,7 @@ export function TaskBoard({ tasks, isLoading, isError, onOpen, onCreate }: TaskB
             projects={projectById}
             members={memberById}
             onOpen={onOpen}
-            onToggleDone={draggable ? (task) => { setMoveError(null); toggleDone(task); } : undefined}
+            onToggleDone={toggleTask}
             onCreate={creatable && onCreate ? onCreate : undefined}
           />
         ))}
@@ -146,6 +153,7 @@ export function TaskBoard({ tasks, isLoading, isError, onOpen, onCreate }: TaskB
               draggable={false}
               project={dragging.projectId ? projectById.get(dragging.projectId) : undefined}
               people={participantsOf(dragging, memberById)}
+              onToggleDone={toggleTask}
             />
           ) : null}
         </DragOverlay>,

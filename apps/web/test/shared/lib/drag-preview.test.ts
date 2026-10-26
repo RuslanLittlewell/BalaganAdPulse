@@ -37,6 +37,16 @@ describe("the board shown around a drag", () => {
     expect(result.current.board).toEqual(moved);
   });
 
+  it("shows a reorder within a column as soon as the card is dropped, before the items catch up", () => {
+    const { result } = setup();
+    const swapped = (cards: Card[]) => [cards[1]!, cards[0]!];
+    act(() => result.current.start("a"));
+    act(() => result.current.settle(swapped));
+
+    expect(result.current.draggingId).toBeNull();
+    expect(result.current.board.map((card) => card.id)).toEqual(["b", "a"]);
+  });
+
   it("hands the board back to the items once they change", () => {
     const { result, rerender } = setup();
     act(() => result.current.start("a"));

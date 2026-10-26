@@ -103,6 +103,7 @@ export function TasksPage() {
           {view === "board" ? (
             <TaskBoard
               tasks={work}
+              allTasks={tasks}
               isLoading={isLoading}
               isError={isError}
               onOpen={open}

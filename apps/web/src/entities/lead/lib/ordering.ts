@@ -34,6 +34,7 @@ export function leadPlacementFor(
   activeId: string,
   overId: string,
   stages: readonly string[] = LEAD_STAGES,
+  below = false,
 ): LeadMove | null {
   const active = board.find((lead) => lead.id === activeId);
   if (!active) return null;
@@ -49,7 +50,8 @@ export function leadPlacementFor(
   if (!over) return null;
 
   const index = stageOf(over.stage).findIndex((lead) => lead.id === overId);
-  return { stage: over.stage, position: index < 0 ? stageOf(over.stage).length : index };
+  if (index < 0) return { stage: over.stage, position: stageOf(over.stage).length };
+  return { stage: over.stage, position: below && over.stage !== active.stage ? index + 1 : index };
 }
 
 export function leadPreviewFor(
@@ -57,11 +59,12 @@ export function leadPreviewFor(
   activeId: string,
   overId: string,
   stages: readonly string[] = LEAD_STAGES,
+  below = false,
 ): Lead[] {
   const active = board.find((lead) => lead.id === activeId);
   if (!active) return board;
 
-  const placement = leadPlacementFor(board, activeId, overId, stages);
+  const placement = leadPlacementFor(board, activeId, overId, stages, below);
   if (!placement || placement.stage === active.stage) return board;
 
   return applyLeadMove(board, activeId, placement);
@@ -73,9 +76,19 @@ export function resolveLeadDrop(
   activeId: string,
   overId: string | null,
   stages: readonly string[] = LEAD_STAGES,
+  landing: { readonly container: string; readonly index: number } | null = null,
 ): LeadMove | null {
   const original = server.find((lead) => lead.id === activeId);
   if (!original) return null;
+
+  if (landing && stages.includes(landing.container)) {
+    const shownAt = server
+      .filter((lead) => lead.stage === original.stage)
+      .sort((a, b) => a.position - b.position)
+      .findIndex((lead) => lead.id === activeId);
+    const unmoved = landing.container === original.stage && landing.index === shownAt;
+    return unmoved ? null : { stage: landing.container, position: landing.index };
+  }
 
   const previewed = preview?.find((lead) => lead.id === activeId);
   if (previewed && (previewed.stage !== original.stage || previewed.position !== original.position)) {

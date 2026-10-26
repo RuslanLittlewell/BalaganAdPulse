@@ -15,6 +15,7 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import {
   FIXED_LEAD_COLUMNS,
+  applyLeadMove,
   leadPreviewFor,
   resolveLeadDrop,
   useLeadColumns,
@@ -28,7 +29,7 @@ import {
   LeadColumnMenu,
 } from "@/features/lead-column-management/index.js";
 import { t } from "@/shared/config/index.js";
-import { boardCollisionDetection, useDragPreview } from "@/shared/lib/index.js";
+import { boardCollisionDetection, droppedBelow, landingOf, useDragPreview } from "@/shared/lib/index.js";
 import { EmptyState, Loader } from "@/shared/ui/index.js";
 import { CrmColumnPanel } from "./CrmColumn.js";
 import { LeadCard } from "./LeadCard.js";
@@ -91,8 +92,9 @@ export function CrmBoard({
   function handleDragOver(event: DragOverEvent) {
     const { active, over } = event;
     if (!over) return;
+    const below = droppedBelow(active, over);
     drag.preview((current) =>
-      leadPreviewFor(current, String(active.id), String(over.id), stages),
+      leadPreviewFor(current, String(active.id), String(over.id), stages, below),
     );
   }
 
@@ -105,6 +107,7 @@ export function CrmBoard({
       activeId,
       overId,
       stages,
+      landingOf(event.over),
     );
 
     if (!placement) {
@@ -119,7 +122,7 @@ export function CrmBoard({
         onSettled: drag.release,
       },
     );
-    drag.settle();
+    drag.settle((current) => applyLeadMove(current, activeId, placement));
   }
 
   return (

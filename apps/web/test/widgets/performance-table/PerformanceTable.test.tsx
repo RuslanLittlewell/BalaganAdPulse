@@ -547,7 +547,25 @@ describe("a table limited to a number of visible rows", () => {
 
       const table = container.querySelector("table")!;
       expect(parseFloat(table.style.width)).toBeLessThanOrEqual(1400);
-      for (const col of container.querySelectorAll("col")) expect(parseFloat((col as HTMLElement).style.width)).toBeGreaterThanOrEqual(40);
+      for (const col of [...container.querySelectorAll("col")].slice(0, -1)) {
+        expect(parseFloat((col as HTMLElement).style.width)).toBeGreaterThanOrEqual(40);
+      }
+    });
+
+    it("widens a column at capacity by narrowing the column to its right, leaving the one to its left", async () => {
+      const user = userEvent.setup();
+      const handles = () => screen.getAllByRole("separator").slice(1);
+      widthOfScroller(5000);
+      const probe = render(<PerformanceTable tableKey="fit-push-probe" heading="Кампания" rows={rows} />);
+      const figures = handles().length;
+      probe.unmount();
+      widthOfScroller(280 + figures * 128 + 40);
+      render(<PerformanceTable tableKey="fit-push" heading="Кампания" rows={rows} />);
+
+      handles()[1]!.focus();
+      await user.keyboard("{ArrowRight}");
+
+      expect(handles().slice(0, 3).map((handle) => handle.getAttribute("aria-valuenow"))).toEqual(["128", "138", "118"]);
     });
 
     it("keeps the chosen widths when the container is wide enough", () => {

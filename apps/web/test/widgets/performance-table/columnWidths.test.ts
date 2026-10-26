@@ -1,6 +1,69 @@
 import {
-  ALL_COLUMN_IDS, fitWidths, MIN_COLUMN_WIDTH, useColumnWidths, visibleColumnIds,
+  ALL_COLUMN_IDS, fitWidths, MIN_COLUMN_WIDTH, resizedWidths, useColumnWidths, visibleColumnIds,
 } from "@/widgets/performance-table/columnWidths.js";
+
+describe("resizedWidths", () => {
+  it("changes only the resized column while the columns fit, or when the room is unknown", () => {
+    expect(resizedWidths([128, 128, 128], 1, 160, 500)).toEqual([128, 160, 128]);
+    expect(resizedWidths([128, 128, 128], 1, 300, 0)).toEqual([128, 300, 128]);
+  });
+
+  it("takes the excess from the columns to the right, nearest first, down to the minimum", () => {
+    expect(resizedWidths([128, 128, 128, 128], 1, 148, 512)).toEqual([128, 148, 108, 128]);
+    expect(resizedWidths([128, 128, 128, 128], 0, 240, 512)).toEqual([240, MIN_COLUMN_WIDTH, MIN_COLUMN_WIDTH, 128]);
+  });
+
+  it("stops widening once the columns to the right are at their minimum", () => {
+    const widths = resizedWidths([128, 128, 128], 1, 400, 384);
+    expect(widths).toEqual([128, 128 + (128 - MIN_COLUMN_WIDTH), MIN_COLUMN_WIDTH]);
+    expect(widths.reduce((sum, width) => sum + width, 0)).toBe(384);
+  });
+
+  it("never narrows a column below the minimum", () => {
+    expect(resizedWidths([128, 128], 0, 10, 500)).toEqual([MIN_COLUMN_WIDTH, 128]);
+  });
+});
+
+describe("a table's layout copied for an account", () => {
+  beforeEach(() => useColumnWidths.setState({
+    nameWidths: {}, columnWidths: {}, columnOrder: {}, visibleColumns: {}, offeredColumns: {},
+  }));
+
+  it("starts as a copy of the plain table's layout", () => {
+    useColumnWidths.setState({
+      nameWidths: { campaigns: 200 },
+      columnWidths: { campaigns: { spend: 90 } },
+      visibleColumns: { campaigns: ["name", "spend", "clicks"] },
+    });
+
+    useColumnWidths.getState().inherit("campaigns:META:1", "campaigns");
+
+    const state = useColumnWidths.getState();
+    expect(state.nameWidths["campaigns:META:1"]).toBe(200);
+    expect(state.columnWidths["campaigns:META:1"]).toEqual({ spend: 90 });
+    expect(state.visibleColumns["campaigns:META:1"]).toEqual(["name", "spend", "clicks"]);
+    expect(state.columnOrder["campaigns:META:1"]).toBeUndefined();
+  });
+
+  it("is a copy, so changing the account leaves the plain table as it was", () => {
+    useColumnWidths.setState({ columnWidths: { campaigns: { spend: 90 } } });
+    useColumnWidths.getState().inherit("campaigns:META:1", "campaigns");
+
+    useColumnWidths.getState().setColumnWidth("campaigns:META:1", "spend", 150);
+
+    expect(useColumnWidths.getState().columnWidths.campaigns).toEqual({ spend: 90 });
+  });
+
+  it("is not copied again over an account's own layout", () => {
+    useColumnWidths.setState({
+      columnWidths: { campaigns: { spend: 90 }, "campaigns:META:1": { spend: 150 } },
+    });
+
+    useColumnWidths.getState().inherit("campaigns:META:1", "campaigns");
+
+    expect(useColumnWidths.getState().columnWidths["campaigns:META:1"]).toEqual({ spend: 150 });
+  });
+});
 
 describe("fitWidths", () => {
   it("keeps the wanted widths when they fit, and when the room is unknown", () => {

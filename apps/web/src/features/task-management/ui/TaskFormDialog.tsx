@@ -488,6 +488,7 @@ export function TaskFormDialog({
                     value={description}
                     onChange={setDescription}
                     editable={editingDescription}
+                    onEdit={() => setEditingDescription(true)}
                   />
                 </div>
 

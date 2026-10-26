@@ -1,6 +1,6 @@
 import type React from "react";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { EditorContent, useEditor, type Editor } from "@tiptap/react";
+import { EditorContent, useEditor, type Editor, type FocusPosition } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import {
@@ -25,6 +25,7 @@ export interface TaskDescriptionEditorProps {
   value: unknown | null;
   onChange: (value: unknown) => void;
   editable?: boolean;
+  onEdit?: () => void;
 }
 
 export interface TaskDescriptionEditorHandle {
@@ -110,7 +111,7 @@ export const TaskDescriptionEditor = forwardRef<
   TaskDescriptionEditorHandle,
   TaskDescriptionEditorProps
 >(function TaskDescriptionEditor(
-  { value, onChange, editable = true, className },
+  { value, onChange, editable = true, onEdit, className },
   ref,
 ) {
   const [status, setStatus] = useState<string | null>(null);
@@ -120,6 +121,7 @@ export const TaskDescriptionEditor = forwardRef<
   report.current = onChange;
   const mayEdit = useRef(editable);
   mayEdit.current = editable;
+  const caret = useRef<FocusPosition>(null);
 
   const editor = useEditor({
     extensions: [
@@ -150,7 +152,10 @@ export const TaskDescriptionEditor = forwardRef<
   });
 
   useEffect(() => {
-    editor?.setEditable(editable, false);
+    if (!editor) return;
+    editor.setEditable(editable, false);
+    if (editable && caret.current !== null) editor.commands.focus(caret.current);
+    caret.current = null;
   }, [editor, editable]);
 
   useImperativeHandle(
@@ -221,6 +226,15 @@ export const TaskDescriptionEditor = forwardRef<
     }
   }
 
+  function editAt(event: React.MouseEvent<HTMLDivElement>) {
+    if (!editor || !onEdit) return;
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target || !event.currentTarget.contains(target) || target.closest("button")) return;
+    if (window.getSelection()?.isCollapsed === false) return;
+    caret.current = editor.view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? "end";
+    onEdit();
+  }
+
   function handleDrop(event: React.DragEvent<HTMLDivElement>) {
     if (!editable) return;
     if (!event.dataTransfer?.files?.length) return;
@@ -230,10 +244,11 @@ export const TaskDescriptionEditor = forwardRef<
 
   return (
     <div
-      className={cn("rounded-md border", className)}
+      className={cn("rounded-md border", !editable && onEdit && "cursor-text", className)}
       onClick={(event) => {
         if (followLink(event)) return;
         if (editable) editor?.commands.focus();
+        else editAt(event);
       }}
       onDrop={handleDrop}
       onDragOver={(event) => {

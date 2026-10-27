@@ -163,12 +163,14 @@ describe("marking a task as a call in the form", () => {
     await userEvent.click(await screen.findByRole("option", { name: label }));
   }
 
-  it("is not offered for a timed task that does not repeat", async () => {
+  it("is offered for a timed task that does not repeat, and sent when ticked", async () => {
     edit({ dueDate: "2026-10-19", dueTime: "10:00" });
     await open("Даты");
-    await screen.findByLabelText("Повтор");
 
-    expect(callBox()).not.toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("switch", { name: "Созвон" }));
+    await save();
+
+    await waitFor(() => expect(sent).toMatchObject({ repeatEvery: "NONE", isCall: true }));
   });
 
   it("is not offered for a repeating task with no time", async () => {
@@ -197,15 +199,91 @@ describe("marking a task as a call in the form", () => {
     expect(await screen.findByRole("switch", { name: "Созвон" })).toBeChecked();
   });
 
-  it("goes away with the repetition, and the task is no longer sent as a call", async () => {
+  it("stays when the repetition goes", async () => {
     edit({ dueDate: "2026-10-19", dueTime: "10:00", repeatEvery: "WEEKLY", isCall: true });
     await open("Даты");
     await screen.findByRole("switch", { name: "Созвон" });
 
     await repeat("Не повторяется");
+    expect(callBox()).toBeChecked();
+    await save();
+
+    await waitFor(() => expect(sent).toMatchObject({ repeatEvery: "NONE", isCall: true }));
+  });
+
+  it("goes away with the time, and the task is no longer sent as a call", async () => {
+    edit({ dueDate: "2026-10-19", dueTime: "10:00", isCall: true });
+    await open("Даты");
+    await screen.findByRole("switch", { name: "Созвон" });
+
+    await userEvent.clear(screen.getByLabelText("Начало"));
     expect(callBox()).not.toBeInTheDocument();
     await save();
 
-    await waitFor(() => expect(sent).toMatchObject({ repeatEvery: "NONE", isCall: false }));
+    await waitFor(() => expect(sent).toMatchObject({ dueTime: null, isCall: false }));
+  });
+});
+
+describe("skipping weekends in the form", () => {
+  const weekendsBox = () => screen.queryByRole("checkbox", { name: "Пропускать выходные" });
+
+  async function repeat(label: string) {
+    await userEvent.click(await screen.findByLabelText("Повтор"));
+    await userEvent.click(await screen.findByRole("option", { name: label }));
+  }
+
+  it("is offered once the task repeats, and sent when ticked", async () => {
+    edit({ dueDate: "2026-10-19" });
+    await open("Даты");
+    await screen.findByLabelText("Повтор");
+    expect(weekendsBox()).not.toBeInTheDocument();
+
+    await repeat("Каждый день");
+    await userEvent.click(await screen.findByRole("checkbox", { name: "Пропускать выходные" }));
+    await save();
+
+    await waitFor(() => expect(sent).toMatchObject({ repeatEvery: "DAILY", skipWeekends: true }));
+  });
+
+  it("shows a task that skips weekends ticked", async () => {
+    edit({ dueDate: "2026-10-19", repeatEvery: "DAILY", skipWeekends: true });
+    await open("Даты");
+
+    expect(await screen.findByRole("checkbox", { name: "Пропускать выходные" })).toBeChecked();
+  });
+
+  it("goes away with the repetition, and the task no longer skips weekends", async () => {
+    edit({ dueDate: "2026-10-19", repeatEvery: "DAILY", skipWeekends: true });
+    await open("Даты");
+    await screen.findByRole("checkbox", { name: "Пропускать выходные" });
+
+    await repeat("Не повторяется");
+    expect(weekendsBox()).not.toBeInTheDocument();
+    await save();
+
+    await waitFor(() => expect(sent).toMatchObject({ repeatEvery: "NONE", skipWeekends: false }));
+  });
+});
+
+describe("the time zone of a task's schedule in the form", () => {
+  it("is left alone when the day and times are", async () => {
+    edit({ title: "Планёрка", dueDate: "2026-10-19", dueTime: "10:00", endTime: "11:00", timeZone: "Europe/Minsk" });
+    await userEvent.type(await screen.findByLabelText("Название"), "!");
+    await save();
+
+    await waitFor(() => expect(sent).toMatchObject({ title: "Планёрка!" }));
+    expect(sent).not.toHaveProperty("dueDate");
+    expect(sent).not.toHaveProperty("dueTime");
+    expect(sent).not.toHaveProperty("timeZone");
+  });
+
+  it("is the member's own once they change the time", async () => {
+    edit({ dueDate: "2026-10-19", dueTime: "10:00", timeZone: "Europe/Minsk" });
+    await open("Даты");
+    await userEvent.clear(await screen.findByLabelText("Начало"));
+    await userEvent.type(screen.getByLabelText("Начало"), "12:00");
+    await save();
+
+    await waitFor(() => expect(sent).toMatchObject({ dueDate: "2026-10-19", dueTime: "12:00", timeZone: "Asia/Tokyo" }));
   });
 });

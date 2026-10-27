@@ -84,6 +84,7 @@ interface FormValues {
   endTime: string | null;
   repeatEvery: TaskRepeat;
   isCall: boolean;
+  skipWeekends: boolean;
 }
 
 const NO_PROJECT = "__no_project__";
@@ -228,6 +229,7 @@ export function TaskFormDialog({
       endTime: task?.endTime ?? null,
       repeatEvery: task?.repeatEvery ?? "NONE",
       isCall: task?.isCall ?? false,
+      skipWeekends: task?.skipWeekends ?? false,
     },
   });
 
@@ -247,6 +249,7 @@ export function TaskFormDialog({
   const endTime = watch("endTime");
   const repeatEvery = watch("repeatEvery");
   const isCall = watch("isCall");
+  const skipWeekends = watch("skipWeekends");
 
   const chosenProject = (projects ?? []).find((project) => project.id === projectId);
   const { data: projectPeople } = useClientMembers(
@@ -298,6 +301,7 @@ export function TaskFormDialog({
       setValue("endTime", null);
       setValue("repeatEvery", "NONE");
       setValue("isCall", false);
+      setValue("skipWeekends", false);
     }
     if (block === "checklist") checklist.clear();
     if (block === "assign") {
@@ -319,6 +323,14 @@ export function TaskFormDialog({
       setError("endTime", { message: t("tasks.form.endBeforeStart") });
       return;
     }
+    const when = {
+      dueDate: values.dueDate,
+      dueTime: values.dueDate === null ? null : values.dueTime,
+      endTime: values.dueDate === null || values.dueTime === null ? null : values.endTime,
+    };
+    const unmoved = task !== undefined
+      && when.dueDate === task.dueDate && when.dueTime === task.dueTime && when.endTime === task.endTime;
+    const repeatEvery = values.dueDate === null ? "NONE" : values.repeatEvery;
     const body: TaskInput = {
       projectId: values.projectId === NO_PROJECT ? null : values.projectId,
       title: values.title,
@@ -326,10 +338,9 @@ export function TaskFormDialog({
       ...(mayShareWithClient && values.projectId !== NO_PROJECT
         ? { visibleToClient: values.visibleToClient }
         : {}),
-      dueDate: values.dueDate,
-      dueTime: values.dueDate === null ? null : values.dueTime,
-      endTime: values.dueDate === null || values.dueTime === null ? null : values.endTime,
-      repeatEvery: values.dueDate === null ? "NONE" : values.repeatEvery,
+      ...(unmoved ? {} : when),
+      repeatEvery,
+      skipWeekends: repeatEvery !== "NONE" && values.skipWeekends,
       isCall: values.dueDate !== null && values.isCall && mayBeCall(values),
       checklist: checklist.items.map((item) => ({
         title: item.title,
@@ -562,6 +573,7 @@ export function TaskFormDialog({
                           dueTime={dueTime}
                           endTime={endTime}
                           repeatEvery={repeatEvery}
+                          skipWeekends={skipWeekends}
                           isCall={isCall}
                           today={toIso(new Date())}
                           onDueDateChange={(value) => {
@@ -571,6 +583,7 @@ export function TaskFormDialog({
                             setValue("endTime", null);
                             setValue("repeatEvery", "NONE");
                             setValue("isCall", false);
+                            setValue("skipWeekends", false);
                           }}
                           onDueTimeChange={(value) =>
                             setValue("dueTime", value)
@@ -580,9 +593,11 @@ export function TaskFormDialog({
                             clearErrors("endTime");
                           }}
                           endError={errors.endTime?.message}
-                          onRepeatChange={(value) =>
-                            setValue("repeatEvery", value)
-                          }
+                          onRepeatChange={(value) => {
+                            setValue("repeatEvery", value);
+                            if (value === "NONE") setValue("skipWeekends", false);
+                          }}
+                          onSkipWeekendsChange={(value) => setValue("skipWeekends", value)}
                           onCallChange={(value) => setValue("isCall", value)}
                         />
                       ) : null}

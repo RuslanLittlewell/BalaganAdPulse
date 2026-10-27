@@ -14,6 +14,7 @@ const notificationSchema = z.object({
     projectId: z.uuid().nullable(),
     dueDate: z.iso.date().nullable(),
     dueTime: z.string().nullable(),
+    timeZone: z.string(),
   }).nullable(),
   document: z.object({ id: z.uuid(), title: z.string() }).nullable(),
   actor: z.object({ name: z.string() }).nullable(),

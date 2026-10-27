@@ -225,7 +225,7 @@ describe("a new document", () => {
 
 describe("a deadline drawing near", () => {
   const due = (partial: Partial<DueTask> = {}): DueTask => ({
-    id: "t1", projectId: "p1", dueDate: "2026-10-20", dueTime: "18:00",
+    id: "t1", projectId: "p1", dueDate: "2026-10-20", dueTime: "18:00", timeZone: null,
     participantIds: ["boris"], createdById: "anna", visibleToClient: false, ...partial,
   });
   const minsk = (wallClock: string) => new Date(`${wallClock}+03:00`);
@@ -240,6 +240,19 @@ describe("a deadline drawing near", () => {
     expect(inTime.created).toEqual([
       { recipientId: "boris", kind: "TASK_DUE_SOON", projectId: "p1", taskId: "t1", documentId: null, actorId: null },
     ]);
+  });
+
+  it("reads the deadline in the task's own time zone", async () => {
+    const warsaw = due({ timeZone: "Europe/Warsaw" });
+
+    expect(await fixture({ due: [warsaw], now: minsk("2026-10-19T18:10:00") }).useCases.remindDueTasks()).toBe(0);
+    expect(await fixture({ due: [warsaw], now: minsk("2026-10-19T19:10:00") }).useCases.remindDueTasks()).toBe(1);
+  });
+
+  it("finds a task whose day is a day off in the agency's zone", async () => {
+    const tokyo = due({ dueDate: "2026-10-21", dueTime: "01:00", timeZone: "Asia/Tokyo" });
+
+    expect(await fixture({ due: [tokyo], now: minsk("2026-10-19T20:00:00") }).useCases.remindDueTasks()).toBe(1);
   });
 
   it("reads a due date without a time as its end", async () => {

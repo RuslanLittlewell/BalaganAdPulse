@@ -1,4 +1,5 @@
 import type { Notification } from "@/entities/notification/index.js";
+import { localTask } from "@/entities/task/index.js";
 import { t } from "@/shared/config/index.js";
 import { formatDay, projectDocumentsPath, projectPath, ROUTES } from "@/shared/lib/index.js";
 
@@ -26,8 +27,9 @@ export function notificationText(notification: Notification): string {
 }
 
 export function notificationDeadline(notification: Notification): string | null {
-  const due = notification.kind === "TASK_DUE_SOON" ? notification.task : null;
-  if (!due?.dueDate) return null;
+  const task = notification.kind === "TASK_DUE_SOON" ? notification.task : null;
+  if (!task?.dueDate) return null;
+  const due = localTask({ dueDate: task.dueDate, dueTime: task.dueTime, endTime: null, timeZone: task.timeZone });
   return `${t("notifications.deadline")} ${formatDay(due.dueDate)}${due.dueTime ? `, ${due.dueTime}` : ""}`;
 }
 

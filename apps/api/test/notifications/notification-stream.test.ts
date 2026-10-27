@@ -111,7 +111,7 @@ describe("the notification stream of the API", () => {
       data: {
         id: expect.any(String), kind: "TASK_ASSIGNED", createdAt: expect.any(String), readAt: null,
         project: { id: projectId, name: "Клиника" },
-        task: { id: task.body.id, title: "Позвонить клиенту", projectId, dueDate: null, dueTime: null },
+        task: { id: task.body.id, title: "Позвонить клиенту", projectId, dueDate: null, dueTime: null, timeZone: "Europe/Minsk" },
         document: null,
         actor: { name: "Анна" },
       },

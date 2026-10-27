@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { applyTaskEvent, filterOfKey, TASKS_KEY, type TaskEvent } from "./queries.js";
 import type { Task } from "./api.js";
+import { localTask } from "../lib/zone.js";
 
 const REALTIME_PATH = "/api/realtime";
 
@@ -69,7 +70,8 @@ export function useTaskEvents(options: TaskEventsOptions = {}): void {
           return;
         }
         if (!TASK_EVENT_KINDS.has(payload.kind as TaskEvent["kind"])) return;
-        apply(payload as TaskEvent);
+        const event = payload as TaskEvent;
+        apply(event.kind === "task.deleted" ? event : { ...event, task: localTask(event.task) });
       };
 
       client.onclose = () => { if (socket === client) scheduleRetry(); };

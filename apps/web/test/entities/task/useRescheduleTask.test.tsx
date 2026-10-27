@@ -6,7 +6,7 @@ import { useRescheduleTask, type Task } from "@/entities/task/index.js";
 const task = (id: string, dueDate: string | null, dueTime: string | null = null): Task => ({
   id, projectId: "p1", orgId: "org1", title: id, description: null,
   column: "IDEA", priority: "LOW", createdById: null,
-  visibleToClient: false, position: 0, dueDate, dueTime, endTime: null, participantIds: [], repeatEvery: "NONE", isCall: false, checklist: [],
+  visibleToClient: false, position: 0, dueDate, dueTime, endTime: null, participantIds: [], repeatEvery: "NONE", isCall: false, skipWeekends: false, checklist: [],
   archivedAt: null,
   imageIds: [], createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
 });
@@ -48,7 +48,7 @@ describe("useRescheduleTask", () => {
     expect(read(wrapper)[0]).toMatchObject({ dueDate: "2026-09-17", dueTime: "12:00" });
   });
 
-  it("sends the day and nothing else, so the time of day survives", async () => {
+  it("sends the day with the time the task already has, in the member's time zone", async () => {
     let sent: unknown = null;
     server.use(mock.patch("/api/tasks/a", async ({ request }) => {
       sent = await request.json();
@@ -58,7 +58,7 @@ describe("useRescheduleTask", () => {
 
     act(() => { result.current.mutate({ id: "a", dueDate: "2026-09-17" }); });
 
-    await waitFor(() => expect(sent).toEqual({ dueDate: "2026-09-17" }));
+    await waitFor(() => expect(sent).toEqual({ dueDate: "2026-09-17", dueTime: "12:00", timeZone: "Asia/Tokyo" }));
   });
 
   it("sends the time when a calendar drop chooses a slot", async () => {
@@ -71,7 +71,7 @@ describe("useRescheduleTask", () => {
 
     act(() => { result.current.mutate({ id: "a", dueDate: "2026-09-17", dueTime: "09:30" }); });
 
-    await waitFor(() => expect(sent).toEqual({ dueDate: "2026-09-17", dueTime: "09:30" }));
+    await waitFor(() => expect(sent).toEqual({ dueDate: "2026-09-17", dueTime: "09:30", timeZone: "Asia/Tokyo" }));
     expect(read(wrapper)[0]).toMatchObject({ dueDate: "2026-09-17", dueTime: "09:30" });
   });
 

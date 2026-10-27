@@ -9,7 +9,7 @@ import {
 const task = (partial: Partial<Task> = {}): Task => ({
   id: "t1", projectId: null, orgId: "org1", title: "Задача", description: null,
   column: "IDEA", priority: "MEDIUM", createdById: null, participantIds: [],
-  visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, repeatEvery: "NONE", isCall: false,
+  visibleToClient: false, position: 0, dueDate: null, dueTime: null, endTime: null, repeatEvery: "NONE", isCall: false, skipWeekends: false,
   checklist: [], imageIds: [],
   archivedAt: null,
   createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",

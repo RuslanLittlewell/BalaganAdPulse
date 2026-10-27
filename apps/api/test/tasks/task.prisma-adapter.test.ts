@@ -17,7 +17,7 @@ function adapters() {
   const unitOfWork = new PrismaUnitOfWork<Prisma.TransactionClient>(prisma);
   return {
     unitOfWork,
-    tasks: new PrismaTaskRepository(prisma, unitOfWork),
+    tasks: new PrismaTaskRepository(prisma, unitOfWork, "Europe/Minsk"),
     projects: new PrismaTaskProjectReach(prisma),
     members: new PrismaTaskMemberReach(prisma),
   };

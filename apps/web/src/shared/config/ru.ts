@@ -471,7 +471,7 @@ export const ru = {
   "tasks.form.previousMonth": "Предыдущий месяц", "tasks.form.nextMonth": "Следующий месяц",
   "tasks.form.start": "Начало", "tasks.form.end": "Окончание",
   "tasks.form.endBeforeStart": "Окончание должно быть позже начала",
-  "tasks.form.repeat": "Повтор", "tasks.form.call": "Созвон", "tasks.call": "Созвон",
+  "tasks.form.repeat": "Повтор", "tasks.form.skipWeekends": "Пропускать выходные", "tasks.form.call": "Созвон", "tasks.call": "Созвон",
   "tasks.repeat.NONE": "Не повторяется", "tasks.repeat.DAILY": "Каждый день",
   "tasks.repeat.WEEKLY": "Каждую неделю", "tasks.repeat.BIWEEKLY": "Каждые 2 недели",
   "tasks.repeat.MONTHLY": "Каждый месяц",

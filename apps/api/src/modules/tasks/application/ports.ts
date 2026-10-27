@@ -35,6 +35,8 @@ export interface TaskRecord {
   readonly endTime: string | null;
   readonly repeatEvery: TaskRepeat;
   readonly isCall: boolean;
+  readonly skipWeekends: boolean;
+  readonly timeZone: string;
   readonly checklist: readonly ChecklistItemRecord[];
   readonly imageIds: readonly string[];
   readonly archivedAt: Date | null;
@@ -59,6 +61,8 @@ export interface NewTask {
   readonly endTime: string | null;
   readonly repeatEvery: TaskRepeat;
   readonly isCall: boolean;
+  readonly skipWeekends: boolean;
+  readonly timeZone: string | null;
   readonly checklist: readonly { id: string; title: string; done: boolean }[];
 }
 
@@ -74,6 +78,8 @@ export interface TaskChange {
   readonly endTime?: string | null;
   readonly repeatEvery?: TaskRepeat;
   readonly isCall?: boolean;
+  readonly skipWeekends?: boolean;
+  readonly timeZone?: string | null;
   readonly checklist?: readonly { title: string; done?: boolean }[];
 }
 

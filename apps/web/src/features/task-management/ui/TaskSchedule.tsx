@@ -14,6 +14,7 @@ import {
   TimeInput,
   dayLabel,
 } from "@/shared/ui/index.js";
+import SpringCheck from "@/shared/ui/SpringCheck/SpringCheck.js";
 import {
   TASK_REPEATS,
   endEnteredAs,
@@ -28,12 +29,14 @@ export interface TaskScheduleProps {
   dueTime: string | null;
   endTime: string | null;
   repeatEvery: TaskRepeat;
+  skipWeekends: boolean;
   isCall: boolean;
   today: string;
   onDueDateChange: (dueDate: string | null) => void;
   onDueTimeChange: (dueTime: string | null) => void;
   onEndTimeChange: (endTime: string | null) => void;
   onRepeatChange: (repeatEvery: TaskRepeat) => void;
+  onSkipWeekendsChange: (skipWeekends: boolean) => void;
   onCallChange: (isCall: boolean) => void;
   endError?: string;
 }
@@ -43,12 +46,14 @@ export function TaskSchedule({
   dueTime,
   endTime,
   repeatEvery,
+  skipWeekends,
   isCall,
   today,
   onDueDateChange,
   onDueTimeChange,
   onEndTimeChange,
   onRepeatChange,
+  onSkipWeekendsChange,
   onCallChange,
   endError,
 }: TaskScheduleProps) {
@@ -129,7 +134,23 @@ export function TaskSchedule({
             </Select>
           </div>
 
-          {mayBeCall({ dueTime, repeatEvery }) ? (
+          {repeatEvery === "NONE" ? null : (
+            <SpringCheck
+              checked={skipWeekends}
+              onChange={onSkipWeekendsChange}
+              label={t("tasks.form.skipWeekends")}
+              strike="none"
+              doneOpacity={1}
+              boxSize={18}
+              boxRadius={6}
+              fontSize={14}
+              color="var(--foreground)"
+              fillColor="var(--primary)"
+              checkColor="var(--primary-foreground)"
+            />
+          )}
+
+          {mayBeCall({ dueTime }) ? (
             <div className="flex items-center gap-2">
               <Switch id="task-call" checked={isCall} onCheckedChange={onCallChange} />
               <Label htmlFor="task-call" className="text-sm font-normal">{t("tasks.form.call")}</Label>

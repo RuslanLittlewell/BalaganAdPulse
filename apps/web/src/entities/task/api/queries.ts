@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TASK_COLUMNS, tasksApi, type Task, type TaskColumn, type TaskInput, type TaskMove } from "./api.js";
 import type { QueryClient } from "@tanstack/react-query";
-import { endKeepingLength, nextOccurrence } from "../lib/schedule.js";
+import { endKeepingLength, nextDueDate } from "../lib/schedule.js";
+import { viewerTimeZone } from "../lib/zone.js";
 
 export const TASKS_KEY = ["tasks"] as const;
 
@@ -57,11 +58,19 @@ function writeTask(qc: QueryClient, task: Task): void {
   }
 }
 
+function cachedTask(qc: QueryClient, id: string): Task | undefined {
+  return qc.getQueriesData<Task[]>({ queryKey: TASKS_KEY })
+    .flatMap(([, tasks]) => tasks ?? [])
+    .find((task) => task.id === id);
+}
+
 export function useRescheduleTask() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, dueDate, dueTime }: { id: string; dueDate: string | null; dueTime?: string | null }) =>
-      tasksApi.update(id, dueTime === undefined ? { dueDate } : { dueDate, dueTime }),
+    mutationFn: ({ id, dueDate, dueTime }: { id: string; dueDate: string | null; dueTime?: string | null }) => {
+      const time = dueTime === undefined ? cachedTask(qc, id)?.dueTime : dueTime;
+      return tasksApi.update(id, time === undefined ? { dueDate } : { dueDate, dueTime: time });
+    },
     onMutate: async ({ id, dueDate, dueTime }) => {
       const snapshots = qc.getQueriesData<Task[]>({ queryKey: TASKS_KEY });
       for (const [key, tasks] of snapshots) {
@@ -71,6 +80,7 @@ export function useRescheduleTask() {
             ? {
                 ...task,
                 dueDate,
+                timeZone: viewerTimeZone(),
                 ...(dueTime === undefined
                   ? {}
                   : { dueTime, endTime: endKeepingLength(task.dueTime, task.endTime, dueTime) }),
@@ -91,7 +101,7 @@ function completed(task: Task): Task {
   if (task.repeatEvery === "NONE" || task.dueDate === null) return task;
   return {
     ...task,
-    dueDate: nextOccurrence(task.dueDate, task.repeatEvery),
+    dueDate: nextDueDate(task.dueDate, task.repeatEvery, task.skipWeekends),
     checklist: task.checklist.map((item) => (item.done ? { ...item, done: false } : item)),
   };
 }

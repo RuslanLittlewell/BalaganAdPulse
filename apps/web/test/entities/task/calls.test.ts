@@ -43,9 +43,8 @@ describe("the days a task falls on within a week", () => {
 });
 
 describe("what may be a call", () => {
-  it("is a task with a time that repeats", () => {
-    expect(mayBeCall({ dueTime: "10:00", repeatEvery: "WEEKLY" })).toBe(true);
-    expect(mayBeCall({ dueTime: null, repeatEvery: "WEEKLY" })).toBe(false);
-    expect(mayBeCall({ dueTime: "10:00", repeatEvery: "NONE" })).toBe(false);
+  it("is a task with a time, whether it repeats or not", () => {
+    expect(mayBeCall({ dueTime: "10:00" })).toBe(true);
+    expect(mayBeCall({ dueTime: null })).toBe(false);
   });
 });

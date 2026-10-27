@@ -91,6 +91,7 @@ export function aTask(overrides: Partial<Task> = {}): Task {
     endTime: null,
     repeatEvery: "NONE",
     isCall: false,
+    skipWeekends: false,
     checklist: [],
     imageIds: [],
     archivedAt: null,

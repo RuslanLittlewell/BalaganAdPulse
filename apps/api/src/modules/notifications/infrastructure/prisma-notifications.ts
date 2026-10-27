@@ -15,7 +15,7 @@ import type { AddressedNotification, NewNotification, NotificationView } from ".
 
 const shown = {
   project: { select: { id: true, name: true } },
-  task: { select: { id: true, title: true, projectId: true, dueDate: true, dueTime: true } },
+  task: { select: { id: true, title: true, projectId: true, dueDate: true, dueTime: true, timeZone: true } },
   document: { select: { id: true, title: true } },
   actor: { select: { user: { select: { name: true } } } },
 } satisfies Prisma.NotificationInclude;
@@ -24,24 +24,29 @@ const dayOf = (date: Date | null) => date?.toISOString().slice(0, 10) ?? null;
 
 type StoredNotification = Prisma.NotificationGetPayload<{ include: typeof shown }>;
 
-const viewOf = (row: StoredNotification): NotificationView => ({
+const viewOf = (row: StoredNotification, defaultTimeZone: string): NotificationView => ({
   id: row.id,
   kind: row.kind,
   createdAt: row.createdAt,
   readAt: row.readAt,
   project: row.project,
-  task: row.task ? { ...row.task, dueDate: dayOf(row.task.dueDate) } : null,
+  task: row.task
+    ? { ...row.task, dueDate: dayOf(row.task.dueDate), timeZone: row.task.timeZone ?? defaultTimeZone }
+    : null,
   document: row.document,
   actor: row.actor ? { name: row.actor.user.name } : null,
 });
 
 export class PrismaNotificationRepository implements NotificationRepository {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly defaultTimeZone: string,
+  ) {}
 
   async createMany(notifications: readonly NewNotification[]): Promise<AddressedNotification[]> {
     const rows = await this.prisma.$transaction(notifications.map((data) =>
       this.prisma.notification.create({ data, include: shown })));
-    return rows.map((row) => ({ ...viewOf(row), recipientId: row.recipientId }));
+    return rows.map((row) => ({ ...viewOf(row, this.defaultTimeZone), recipientId: row.recipientId }));
   }
 
   async refreshUnread(notification: NewNotification, at: Date): Promise<AddressedNotification | null> {
@@ -54,7 +59,7 @@ export class PrismaNotificationRepository implements NotificationRepository {
     const row = await this.prisma.notification.update({
       where: { id: unread.id }, data: { createdAt: at, actorId }, include: shown,
     });
-    return { ...viewOf(row), recipientId: row.recipientId };
+    return { ...viewOf(row, this.defaultTimeZone), recipientId: row.recipientId };
   }
 
   async latest(recipientId: string, limit: number): Promise<NotificationView[]> {
@@ -64,7 +69,7 @@ export class PrismaNotificationRepository implements NotificationRepository {
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: limit,
     });
-    return rows.map(viewOf);
+    return rows.map((row) => viewOf(row, this.defaultTimeZone));
   }
 
   unreadCount(recipientId: string): Promise<number> {
@@ -208,7 +213,7 @@ export class PrismaDueTasks implements DueTasks {
         org: { status: "ACTIVE", modules: { has: "TASKS" } },
       },
       select: {
-        id: true, projectId: true, dueDate: true, dueTime: true, createdById: true, visibleToClient: true,
+        id: true, projectId: true, dueDate: true, dueTime: true, timeZone: true, createdById: true, visibleToClient: true,
         participants: { select: { membershipId: true } },
       },
       orderBy: { dueDate: "asc" },

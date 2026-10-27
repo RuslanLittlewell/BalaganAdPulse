@@ -9,11 +9,11 @@ they have reached, so an agency can see what a week holds and move work to anoth
 
 ### Requirement: The tasks screen offers a board and a calendar
 
-The tasks screen SHALL offer two views of the same tasks — `Канбан` and `Календарь` —
-chosen from a tab list. Exactly one SHALL be shown at a time, and the view being left SHALL
-fade out as the view being entered fades in, rather than appearing abruptly. The tabs SHALL
-be reachable and switchable from the keyboard, and each SHALL expose whether it is the
-selected one.
+The tasks screen SHALL offer three views of the same tasks — `Канбан`, `Календарь` and
+`Созвоны` — chosen from a tab list. Exactly one SHALL be shown at a time, and the view being
+left SHALL fade out as the view being entered fades in, rather than appearing abruptly. The
+tabs SHALL be reachable and switchable from the keyboard, and each SHALL expose whether it is
+the selected one.
 
 The chosen view SHALL be remembered for that person in that browser and SHALL be the view
 they return to. A person who has never chosen SHALL see the board.
@@ -23,6 +23,11 @@ they return to. A person who has never chosen SHALL see the board.
 - **WHEN** a member selects `Календарь`
 - **THEN** the board is replaced by the calendar, and the calendar is marked as the selected
   tab
+
+#### Scenario: Switching to the calls
+
+- **WHEN** a member selects `Созвоны`
+- **THEN** the calls calendar is shown, and `Созвоны` is marked as the selected tab
 
 #### Scenario: The choice outlives the session
 
@@ -73,7 +78,8 @@ The calendar SHALL open on the week that holds today.
 ### Requirement: The calendar shows only tasks that have a due date
 
 A task SHALL appear in the calendar exactly on its due day, and only if it has a due date. A
-task without one SHALL NOT appear in any day — it is found on the board.
+task without one SHALL NOT appear in any day — it is found on the board. A call SHALL NOT
+appear in the calendar at all — it is found in `Созвоны`.
 
 Within a day, tasks with a time of day SHALL be shown first, earliest first, followed by
 tasks with no time. A card SHALL show its time when it has one, its priority, its
@@ -103,6 +109,11 @@ A day with no tasks SHALL still be drawn, empty, in its place in the week.
 
 - **WHEN** a day holds a task that repeats weekly
 - **THEN** its card is marked as repeating
+
+#### Scenario: A call is not in the calendar
+
+- **WHEN** a call is due today at 10:00
+- **THEN** today's column of the calendar does not hold it
 
 ### Requirement: Dragging a card to another day moves the due date
 
@@ -194,18 +205,11 @@ The calendar SHALL offer, beside Сегодня, the controls Уменьшить
 - **WHEN** a member drops a task at the 14:30 line of a zoomed-out grid
 - **THEN** the task is rescheduled to 14:30
 
-### Requirement: A calendar card names its assignee on hover
-A task card in the calendar that shows its assignee's picture SHALL show the assignee's name in a tooltip when the picture is hovered or focused.
-
-#### Scenario: Hovering the assignee
-- **WHEN** a member hovers the assignee picture on a calendar card assigned to Мария
-- **THEN** a tooltip reads Мария
-
 ### Requirement: A compact calendar card tells its details on hover
-When the calendar shows a task as a compact card, hovering or focusing the card SHALL show a tooltip with the task's full title, its time, its project and its assignee, leaving out what the task does not have. Dragging the card SHALL NOT be prevented by the tooltip.
+When the calendar shows a task as a compact card, hovering or focusing the card SHALL show a tooltip with the task's full title, its time, its project and its participants, leaving out what the task does not have. Dragging the card SHALL NOT be prevented by the tooltip.
 
 #### Scenario: Hovering a compact card
-- **WHEN** a member hovers a compact card of the task Созвон at 10:00 on project Сайт assigned to Мария
+- **WHEN** a member hovers a compact card of the task Созвон at 10:00 on project Сайт that Мария takes part in
 - **THEN** a tooltip shows Созвон, 10:00, Сайт and Мария
 
 #### Scenario: A full-size card
@@ -277,3 +281,91 @@ is reopened.
 
 - **WHEN** a done task is moved back to In progress on the board
 - **THEN** it is drawn again on its day
+
+### Requirement: A calendar card names its participants on hover
+
+A full-size task card in the calendar SHALL show the pictures of up to three participants and,
+when there are more, how many others there are; each picture SHALL show its member's name in a
+tooltip when it is hovered or focused.
+
+#### Scenario: Hovering a participant
+
+- **WHEN** a member hovers Мария's picture on the calendar card of a task Мария takes part in
+- **THEN** a tooltip reads Мария
+
+### Requirement: The calls view shows every occurrence of each call
+
+The `Созвоны` view SHALL be a week calendar with the same hour grid, week travel and zoom as
+the task calendar, holding the calls and nothing else, whatever stage they are in. A call SHALL
+be drawn on its due day and on every later day of the week shown on which it recurs, counting
+from its due date by its repetition, and on no day before its due date; a call that does not
+repeat SHALL be drawn on its due day alone, and a call that skips weekends SHALL NOT be drawn on an
+occurrence its repetition leaves out. A monthly call due on a day a month does not have SHALL fall
+on that month's last day. Each occurrence SHALL be drawn at the call's time on that day in the
+call's time zone, as the reader's clock reads it, so the hour an occurrence is drawn at follows a
+change of clocks in either zone. The view SHALL follow the participant and project filters of the
+tasks screen.
+
+The card on a call's due day SHALL be dragged to another day and time as a task card in the
+calendar is, moving the call as a whole. A card on a day the call only recurs on SHALL open the
+call when clicked and SHALL NOT be dragged. No card of a call SHALL offer the `Готово` tick.
+
+#### Scenario: A daily stand-up
+
+- **WHEN** a call due Monday 19 October at 10:00 repeats daily and the week of 19 October is
+  shown
+- **THEN** it is drawn at 10:00 on each of the seven days
+
+#### Scenario: A fortnightly call
+
+- **WHEN** a call due Wednesday 14 October repeats every two weeks
+- **THEN** it is drawn on Wednesday 28 October and not on Wednesday 21 October
+
+#### Scenario: Not before it starts
+
+- **WHEN** a call due Thursday 22 October repeats daily and the week of 19 October is shown
+- **THEN** it is drawn from Thursday to Sunday and not on Monday to Wednesday
+
+#### Scenario: A day the call recurs on
+
+- **WHEN** a member clicks the Friday card of a daily call due on Monday
+- **THEN** the call opens, and that card could not have been dragged
+
+#### Scenario: Only calls
+
+- **WHEN** a weekly task at 12:00 is not marked as a call
+- **THEN** it is not in the calls view, and is on the board and in the calendar
+
+#### Scenario: A one-off call
+
+- **WHEN** a call due Tuesday 20 October at 15:00 does not repeat and the week of 19 October is
+  shown
+- **THEN** it is drawn at 15:00 on Tuesday alone
+
+#### Scenario: A stand-up on weekdays
+
+- **WHEN** a call due Monday 19 October at 10:00 repeats daily and skips weekends
+- **THEN** it is drawn from Monday to Friday and not on Saturday or Sunday
+
+#### Scenario: Across a change of clocks
+
+- **WHEN** a call is due Monday 19 October at 10:00 in Warsaw, repeating daily, and a member in
+  Minsk shows the week of 19 October
+- **THEN** it is drawn at 11:00 from Monday to Saturday and at 12:00 on Sunday 25 October, when
+  Warsaw has turned its clocks back
+
+### Requirement: Today's column marks the current time
+
+The task calendar and the calls view SHALL draw a line across today's column at the current
+time of day in the interface's primary colour, and SHALL move it as time passes. No other
+column SHALL carry the line, and a week that does not hold today SHALL show none.
+
+#### Scenario: Looking at today
+
+- **WHEN** a member opens the calendar on Tuesday 20 October at 14:32
+- **THEN** a line is drawn across Tuesday's column at 14:32, and on no other day
+
+#### Scenario: Another week
+
+- **WHEN** the member moves to the next week
+- **THEN** no current-time line is drawn

@@ -45,6 +45,8 @@ model Task {
   endTime         String?      @map("end_time") @db.VarChar(5)
   repeatEvery     TaskRepeat   @default(NONE) @map("repeat_every")
   isCall          Boolean      @default(false) @map("is_call")
+  skipWeekends    Boolean      @default(false) @map("skip_weekends")
+  timeZone        String?      @map("time_zone")
   dueSoonFor      DateTime?    @map("due_soon_for")
   archivedAt      DateTime?    @map("archived_at")
   createdAt       DateTime     @default(now()) @map("created_at")

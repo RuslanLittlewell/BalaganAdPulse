@@ -476,10 +476,38 @@ describe("a KPI on one result type", () => {
     const dialog = await openDialog();
     await userEvent.click(within(dialog).getByLabelText("Метрика"));
 
-    for (const name of ["Сообщения", "Цена · Сообщения", "Переходы в профиль", "Цена · Переходы в профиль"]) {
+    for (const name of ["Результаты - Сообщения", "Цена · Сообщения", "Результаты - Переходы в профиль", "Цена · Переходы в профиль"]) {
       expect(await screen.findByRole("option", { name })).toBeInTheDocument();
     }
     expect(screen.queryByRole("option", { name: /Не определён/ })).not.toBeInTheDocument();
+  });
+
+  it("tells the leads of a lead campaign apart from the leads of every campaign", async () => {
+    kpis([]);
+    campaignsOf([["LEADS"]]);
+    render();
+
+    const dialog = await openDialog();
+    await userEvent.click(within(dialog).getByLabelText("Метрика"));
+
+    expect(await screen.findByRole("option", { name: "Результаты - Лиды" })).toBeInTheDocument();
+    expect(screen.getAllByRole("option", { name: "Лиды" })).toHaveLength(1);
+  });
+
+  it("lists the metrics in alphabetical order, Latin labels after Russian ones and set by hand last", async () => {
+    kpis([]);
+    campaignsOf([["MESSAGES"]]);
+    render();
+
+    const dialog = await openDialog();
+    await userEvent.click(within(dialog).getByLabelText("Метрика"));
+    await screen.findByRole("option", { name: "Результаты - Сообщения" });
+
+    const names = screen.getAllByRole("option").map((option) => option.textContent);
+    expect(names).toEqual([
+      "Выручка", "Клики", "Лиды", "Охват", "Показы", "Расход", "Результаты", "Результаты - Сообщения",
+      "Цена · Сообщения", "Цена результата", "Частота", "CPC", "CPL", "CPM", "CTR", "ROAS", "Вручную",
+    ]);
   });
 
   it("is saved with its result type", async () => {
@@ -489,7 +517,7 @@ describe("a KPI on one result type", () => {
 
     const dialog = await openDialog();
     await userEvent.click(within(dialog).getByLabelText("Метрика"));
-    await userEvent.click(await screen.findByRole("option", { name: "Сообщения" }));
+    await userEvent.click(await screen.findByRole("option", { name: "Результаты - Сообщения" }));
     expect(within(dialog).getByText("Цель на месяц, пересчитывается на выбранный период")).toBeInTheDocument();
     await userEvent.type(within(dialog).getByLabelText("Цель"), "300");
     await userEvent.click(within(dialog).getByRole("button", { name: "Сохранить" }));
@@ -504,7 +532,7 @@ describe("a KPI on one result type", () => {
     campaignsOf([["MESSAGES"]]);
     render();
 
-    expect(await screen.findByText("KPI · Сообщения")).toBeInTheDocument();
+    expect(await screen.findByText("KPI · Результаты - Сообщения")).toBeInTheDocument();
     expect(within(tile()).getByText("150")).toBeInTheDocument();
     expect(within(tile()).getByText("Цель 150 · 100%")).toBeInTheDocument();
   });
@@ -664,7 +692,7 @@ describe("the KPI of a campaign or the organization", () => {
     await userEvent.click(within(dialog).getByLabelText("Метрика"));
     expect(await screen.findByRole("option", { name: "Цена · Сообщения" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: /Не определён/ })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("option", { name: "Сообщения" }));
+    await userEvent.click(screen.getByRole("option", { name: "Результаты - Сообщения" }));
     await userEvent.type(within(dialog).getByLabelText("Цель"), "40");
     await userEvent.click(within(dialog).getByRole("button", { name: "Сохранить" }));
 

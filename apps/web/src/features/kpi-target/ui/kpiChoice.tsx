@@ -1,9 +1,9 @@
 import {
   isKpiMetric, KPI_METRICS, MANUAL_KPI, TYPED_KPI_METRICS, type KpiInput, type KpiMetric,
 } from "@/entities/kpi/index.js";
-import { resultTypeCostLabel, resultTypeLabel, type ResultType } from "@/entities/campaign/index.js";
-import { t } from "@/shared/config/index.js";
+import type { ResultType } from "@/entities/campaign/index.js";
 import { SelectItem } from "@/shared/ui/index.js";
+import { measuredTitle } from "./kpiTitle.js";
 
 export type Choice = string;
 
@@ -20,21 +20,21 @@ export function measuredOf(choice: Choice): { metric: KpiMetric; resultType?: st
   return resultType ? { metric: measured, resultType } : { metric: measured };
 }
 
-function typedTitle(metric: KpiMetric, type: ResultType): string {
-  return metric === "RESULTS" ? resultTypeLabel(type) : resultTypeCostLabel(type);
+function measuredOptions(resultTypes: readonly ResultType[]): { choice: Choice; title: string }[] {
+  return [
+    ...KPI_METRICS.map(({ id }) => ({ choice: id, title: measuredTitle(id) })),
+    ...resultTypes.flatMap((type) => TYPED_KPI_METRICS.map((metric) => ({
+      choice: typedChoice(metric, type), title: measuredTitle(metric, type),
+    }))),
+  ].sort((a, b) => a.title.localeCompare(b.title, "ru"));
 }
 
 export function MeasuredChoices({ resultTypes }: { resultTypes: readonly ResultType[] }) {
   return (
     <>
-      {KPI_METRICS.map((definition) => (
-        <SelectItem key={definition.id} value={definition.id}>{t(definition.label)}</SelectItem>
+      {measuredOptions(resultTypes).map(({ choice, title }) => (
+        <SelectItem key={choice} value={choice}>{title}</SelectItem>
       ))}
-      {resultTypes.flatMap((type) => TYPED_KPI_METRICS.map((metric) => (
-        <SelectItem key={typedChoice(metric, type)} value={typedChoice(metric, type)}>
-          {typedTitle(metric, type)}
-        </SelectItem>
-      )))}
     </>
   );
 }

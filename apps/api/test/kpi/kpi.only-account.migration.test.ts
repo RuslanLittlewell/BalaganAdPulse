@@ -10,7 +10,8 @@ it("moves the KPIs naming no account to the project's only account, and leaves e
   const sql = readFileSync(new URL("../../prisma/migrations/20261027110000_project_kpi_only_account/migration.sql", import.meta.url), "utf8");
   await prisma.$transaction(async (tx) => {
     await tx.$executeRawUnsafe(`CREATE SCHEMA "${schema}"`);
-    await tx.$executeRawUnsafe(`SET LOCAL search_path TO "${schema}", public`);
+    await tx.$executeRawUnsafe(`SET LOCAL search_path TO "${schema}"`);
+    await tx.$executeRawUnsafe("CREATE TYPE channel AS ENUM ('META', 'GOOGLE', 'YANDEX', 'VK', 'TIKTOK', 'LINKEDIN', 'TELEGRAM')");
     await tx.$executeRawUnsafe("CREATE TABLE campaign (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, channel channel NOT NULL, source_account_id TEXT)");
     await tx.$executeRawUnsafe("CREATE TABLE project_integration (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, provider TEXT NOT NULL, account_id TEXT NOT NULL)");
     await tx.$executeRawUnsafe("CREATE TABLE project_kpi (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, channel channel, source_account_id TEXT)");

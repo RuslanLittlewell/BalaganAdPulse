@@ -15,7 +15,7 @@ import {
   UNSCHEDULED,
   mayBeCall,
   minutesOf,
-  nextOccurrence,
+  nextDueDate,
   rescheduled,
   type TaskRepeat,
   type TaskSchedule,
@@ -37,6 +37,8 @@ export interface CreateTaskInput {
   readonly endTime?: string | null;
   readonly repeatEvery?: TaskRepeat;
   readonly isCall?: boolean;
+  readonly skipWeekends?: boolean;
+  readonly timeZone?: string;
   readonly checklist?: readonly { title: string; done?: boolean }[];
 }
 
@@ -138,7 +140,10 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
       throw new AppError("validation", "A repeating task needs a due date to count from");
     }
     if (schedule.isCall && !mayBeCall(schedule)) {
-      throw new AppError("validation", "A call needs a time of day and a repetition");
+      throw new AppError("validation", "A call needs a time of day");
+    }
+    if (schedule.skipWeekends && schedule.repeatEvery === "NONE") {
+      throw new AppError("validation", "Only a repeating task skips weekends");
     }
     if (schedule.endTime === null) return;
     if (schedule.dueTime === null) {
@@ -299,7 +304,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
         throw new AppError("validation", "Only a repeating task is completed into its next occurrence");
       }
       const context = await projectContext(actor, task.projectId);
-      const dueDate = nextOccurrence(task.dueDate, task.repeatEvery);
+      const dueDate = nextDueDate(task.dueDate, task.repeatEvery, task.skipWeekends);
 
       const completed = await dependencies.unitOfWork.run(async (transaction) => {
         await dependencies.tasks.untickChecklist(transaction, task.id);

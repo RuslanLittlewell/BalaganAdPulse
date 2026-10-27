@@ -27,7 +27,7 @@ const NO_RELAY: NotificationRelay = { forward: () => undefined };
 export function wireNotifications({ clock }: Kernel, relay: NotificationRelay = NO_RELAY) {
   const hub = createNotificationHub();
   const notifications = createNotificationUseCases({
-    notifications: new PrismaNotificationRepository(prisma),
+    notifications: new PrismaNotificationRepository(prisma, config.taskTimeZone),
     recipients: new PrismaNotificationRecipients(prisma),
     standings: new PrismaProjectKpiStandings(prisma, new PrismaMetricRepository(prisma)),
     claims: new PrismaKpiMonthClaims(prisma),

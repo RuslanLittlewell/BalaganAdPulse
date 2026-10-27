@@ -27,6 +27,7 @@ export interface NotificationView {
     readonly projectId: string | null;
     readonly dueDate: string | null;
     readonly dueTime: string | null;
+    readonly timeZone: string;
   } | null;
   readonly document: { readonly id: string; readonly title: string } | null;
   readonly actor: { readonly name: string } | null;

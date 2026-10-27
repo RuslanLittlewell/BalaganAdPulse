@@ -85,6 +85,44 @@ describe("a call in the calendar", () => {
   });
 });
 
+describe("a call kept to weekdays or held once", () => {
+  it("is not drawn on Saturday or Sunday when it skips weekends", async () => {
+    calendar([{ ...standUp, skipWeekends: true }]);
+
+    expect(await screen.findAllByText("Планёрка")).toHaveLength(5);
+    expect(within(await day(/суббота/)).queryByText("Планёрка")).not.toBeInTheDocument();
+    expect(within(await day(/воскресенье/)).queryByText("Планёрка")).not.toBeInTheDocument();
+  });
+
+  it("is drawn on its day alone when it does not repeat", async () => {
+    calendar([{ ...standUp, dueDate: "2026-10-20", repeatEvery: "NONE" }]);
+
+    expect(await within(await day(/вторник/)).findByText("Планёрка")).toBeInTheDocument();
+    expect(screen.getAllByText("Планёрка")).toHaveLength(1);
+  });
+});
+
+describe("a call set in another time zone", () => {
+  const fromWarsaw = { ...standUp, dueTime: "10:00", endTime: "10:15", timeZone: "Europe/Warsaw" };
+
+  it("is drawn at the hour of the member's clock on each day, following a change of clocks", async () => {
+    calendar([fromWarsaw]);
+
+    expect(await within(await day(/понедельник/)).findByText("17:00–17:15")).toBeInTheDocument();
+    expect(within(await day(/суббота/)).getByText("17:00–17:15")).toBeInTheDocument();
+    expect(within(await day(/воскресенье/)).getByText("18:00–18:15")).toBeInTheDocument();
+  });
+
+  it("opens as the call itself from a day it recurs on", async () => {
+    const opened: Task[] = [];
+    calendar([fromWarsaw], (task) => opened.push(task));
+
+    await userEvent.click(within(await day(/воскресенье/)).getByRole("button", { name: "Открыть задачу: Планёрка" }));
+
+    expect(opened).toEqual([expect.objectContaining({ id: "stand-up", dueDate: "2026-10-19", dueTime: "17:00" })]);
+  });
+});
+
 describe("a repeating task that is not a call", () => {
   it("is drawn on its due day alone", async () => {
     calendar([{ ...standUp, isCall: false }]);

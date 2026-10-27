@@ -54,7 +54,10 @@ see.
 Only an `ADMIN` SHALL list members, change a member's role, suspend or reactivate a
 member, or remove a member from the organization. A `MANAGER` SHALL additionally be able
 to list the organization's staff — its admins, managers and guests, never its customers —
-so that they can pick a colleague as responsible for a task.
+so that they can name a colleague on a task, and to list the people of a
+client — everyone holding an access grant on it or on one of its projects — so that they
+can name the client's people on a task. Listing a client's people MAY be narrowed to one of
+its projects, returning only those whose grants reach that project.
 
 #### Scenario: Manager attempts to change a role
 - **WHEN** a manager calls `PATCH /api/members/:id`
@@ -76,6 +79,19 @@ so that they can pick a colleague as responsible for a task.
 
 #### Scenario: Guest lists the staff
 - **WHEN** a guest calls `GET /api/members?kind=staff`
+- **THEN** the API responds 403
+
+#### Scenario: Manager lists a client's people
+- **WHEN** a manager calls `GET /api/members?clientId=` for a client of their organization
+- **THEN** the members holding a grant on that client or on one of its projects are returned
+
+#### Scenario: A client's people who reach one project
+- **WHEN** a manager calls `GET /api/members?clientId=&projectId=` for a project of that client
+- **THEN** only the members whose grants reach that project are returned: those granted the
+  whole client and those granted that project
+
+#### Scenario: Guest lists a client's people
+- **WHEN** a guest calls `GET /api/members?clientId=`
 - **THEN** the API responds 403
 
 ### Requirement: Removing a member preserves their history

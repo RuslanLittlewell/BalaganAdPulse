@@ -18,6 +18,7 @@ export interface Notification {
     projectId: string | null;
     dueDate: string | null;
     dueTime: string | null;
+    timeZone?: string;
   } | null;
   document: { id: string; title: string } | null;
   actor: { name: string } | null;

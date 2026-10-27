@@ -57,7 +57,7 @@ function partsOf(day: string): [number, number, number] {
   return day.split("-").map(Number) as [number, number, number];
 }
 
-function daysAfter(day: string, days: number): string {
+export function daysAfter(day: string, days: number): string {
   const [year, month, date] = partsOf(day);
   return dayOf(new Date(Date.UTC(year, month - 1, date + days)));
 }
@@ -76,12 +76,35 @@ export function nextOccurrence(day: string, repeat: Exclude<TaskRepeat, "NONE">)
   return repeat === "MONTHLY" ? monthsAfter(day, 1) : daysAfter(day, DAYS_APART[repeat]);
 }
 
-export function mayBeCall(schedule: Pick<Task, "dueTime" | "repeatEvery">): boolean {
-  return schedule.dueTime !== null && schedule.repeatEvery !== "NONE";
+const SUNDAY = 0;
+const SATURDAY = 6;
+const MOST_STEPS_TO_A_WEEKDAY = 12;
+
+export function isWeekend(day: string): boolean {
+  const weekday = new Date(`${day}T00:00:00Z`).getUTCDay();
+  return weekday === SATURDAY || weekday === SUNDAY;
+}
+
+function firstWeekday(day: string, repeat: Exclude<TaskRepeat, "NONE">): string {
+  let occurrence = day;
+  for (let step = 0; step <= MOST_STEPS_TO_A_WEEKDAY; step += 1) {
+    if (!isWeekend(occurrence)) return occurrence;
+    occurrence = nextOccurrence(occurrence, repeat);
+  }
+  return daysAfter(day, new Date(`${day}T00:00:00Z`).getUTCDay() === SATURDAY ? 2 : 1);
+}
+
+export function nextDueDate(day: string, repeat: Exclude<TaskRepeat, "NONE">, skipWeekends: boolean): string {
+  const next = nextOccurrence(day, repeat);
+  return skipWeekends ? firstWeekday(next, repeat) : next;
+}
+
+export function mayBeCall(schedule: Pick<Task, "dueTime">): boolean {
+  return schedule.dueTime !== null;
 }
 
 export function occurrencesBetween(
-  task: Pick<Task, "dueDate" | "repeatEvery">,
+  task: Pick<Task, "dueDate" | "repeatEvery"> & { skipWeekends?: boolean },
   from: string,
   to: string,
 ): string[] {
@@ -96,7 +119,7 @@ export function occurrencesBetween(
     : Math.max(0, Math.floor(daysBetween(dueDate, from) / DAYS_APART[repeatEvery]));
   const days: string[] = [];
   for (let count = skipped; nth(count) <= to; count += 1) {
-    if (nth(count) >= from) days.push(nth(count));
+    if (nth(count) >= from && !(task.skipWeekends && isWeekend(nth(count)))) days.push(nth(count));
   }
   return days;
 }

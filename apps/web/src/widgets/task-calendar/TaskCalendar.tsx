@@ -21,10 +21,11 @@ import {
 } from "lucide-react";
 import {
   isActiveColumn,
-  occurrencesBetween,
+  occurrencesIn,
   participantsOf,
   timeRange,
   useRescheduleTask,
+  viewerTimeZone,
   type Task,
 } from "@/entities/task/index.js";
 import {
@@ -100,8 +101,16 @@ const PRIORITY_BAR: Record<Task["priority"], string> = {
   URGENT: "bg-red-500",
 };
 
-function recursOn(task: Task, day: string): boolean {
-  return task.isCall && task.dueDate !== day && occurrencesBetween(task, day, day).length > 0;
+function recurrencesOf(tasks: readonly Task[], from: string, to: string): Map<string, Task[]> {
+  const timeZone = viewerTimeZone();
+  const byDay = new Map<string, Task[]>();
+  for (const task of tasks) {
+    if (!task.isCall) continue;
+    for (const { day, dueTime, endTime } of occurrencesIn(task, from, to, timeZone)) {
+      if (day !== task.dueDate) byDay.set(day, [...(byDay.get(day) ?? []), { ...task, dueTime, endTime }]);
+    }
+  }
+  return byDay;
 }
 
 function timeOfDay(moment: Date): string {
@@ -176,6 +185,11 @@ export function TaskCalendar({
 
   const days = useMemo(() => weekDays(weekStart), [weekStart]);
   const board = useMemo(() => (tasks ?? []).filter((task) => task.isCall || isActiveColumn(task.column)), [tasks]);
+  const recurring = useMemo(() => recurrencesOf(board, weekStart, days[days.length - 1] ?? weekStart), [board, days, weekStart]);
+  const openTask = useCallback(
+    (shown: Task) => onOpen?.(board.find((task) => task.id === shown.id) ?? shown),
+    [board, onOpen],
+  );
 
   const projectById = useMemo(
     () => new Map((projects ?? []).map((project) => [project.id, project])),
@@ -312,7 +326,7 @@ export function TaskCalendar({
             </div>
 
             {days.map((day) => {
-              const dayTasks = [...tasksOfDay(board, day), ...board.filter((task) => recursOn(task, day))];
+              const dayTasks = [...tasksOfDay(board, day), ...(recurring.get(day) ?? [])];
               const timed = layoutDay(dayTasks.filter((task) => task.dueTime !== null));
               const untimed = dayTasks.filter((task) => task.dueTime === null);
 
@@ -355,7 +369,7 @@ export function TaskCalendar({
                             : undefined
                         }
                         people={participantsOf(task, memberById)}
-                        onOpen={onOpen}
+                        onOpen={onOpen ? openTask : undefined}
                         onDrop={rescheduleTask}
                         onToggleDone={draggable && !task.isCall ? toggleTask : undefined}
                       />
@@ -378,7 +392,7 @@ export function TaskCalendar({
                             : undefined
                         }
                         people={participantsOf(task, memberById)}
-                        onOpen={onOpen}
+                        onOpen={onOpen ? openTask : undefined}
                         onDrop={rescheduleTask}
                         onToggleDone={draggable ? toggleTask : undefined}
                       />

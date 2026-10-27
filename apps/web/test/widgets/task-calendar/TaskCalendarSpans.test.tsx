@@ -111,7 +111,7 @@ describe("dragging a short call", () => {
 
     drag(card, "2026-09-18", "15:00");
 
-    await waitFor(() => expect(sent).toEqual({ dueDate: "2026-09-18", dueTime: "15:00" }));
+    await waitFor(() => expect(sent).toEqual({ dueDate: "2026-09-18", dueTime: "15:00", timeZone: "Asia/Tokyo" }));
   });
 });
 
@@ -129,7 +129,7 @@ describe("dragging a task that has an end", () => {
 
     drag(card, "2026-09-18", "15:00");
 
-    await waitFor(() => expect(sent).toEqual({ dueDate: "2026-09-18", dueTime: "15:00" }));
+    await waitFor(() => expect(sent).toEqual({ dueDate: "2026-09-18", dueTime: "15:00", timeZone: "Asia/Tokyo" }));
     const friday = screen.getByRole("group", { name: /пятница/ });
     expect(await within(friday).findByText("15:00–16:30")).toBeInTheDocument();
   });
@@ -147,6 +147,6 @@ describe("dragging a task that has an end", () => {
 
     drag(card, "2026-09-16", "23:00");
 
-    await waitFor(() => expect(sent).toEqual({ dueDate: "2026-09-16", dueTime: "22:00" }));
+    await waitFor(() => expect(sent).toEqual({ dueDate: "2026-09-16", dueTime: "22:00", timeZone: "Asia/Tokyo" }));
   });
 });

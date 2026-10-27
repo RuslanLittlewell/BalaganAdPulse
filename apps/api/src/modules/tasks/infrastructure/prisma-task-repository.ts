@@ -25,7 +25,7 @@ type RowWithImages = TaskRow & {
   participants?: { membershipId: string }[];
 };
 
-function toDomain(row: RowWithImages): TaskRecord {
+function toDomain(row: RowWithImages, defaultTimeZone: string): TaskRecord {
   return {
     id: row.id, projectId: row.projectId, orgId: row.orgId, title: row.title,
     description: row.description ?? null, column: row.column, priority: row.priority,
@@ -35,6 +35,7 @@ function toDomain(row: RowWithImages): TaskRecord {
     position: row.position,
     dueDate: row.dueDate === null ? null : dateToDay(row.dueDate),
     dueTime: row.dueTime, endTime: row.endTime, repeatEvery: row.repeatEvery, isCall: row.isCall,
+    skipWeekends: row.skipWeekends, timeZone: row.timeZone ?? defaultTimeZone,
     checklist: row.checklist ?? [],
     imageIds: (row.images ?? []).map((image) => image.id),
     archivedAt: row.archivedAt,
@@ -84,6 +85,7 @@ export class PrismaTaskRepository implements TaskRepository {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly unitOfWork: PrismaUnitOfWork<Prisma.TransactionClient>,
+    private readonly defaultTimeZone: string,
   ) {}
 
   private client(context: TransactionContext): Prisma.TransactionClient {
@@ -113,14 +115,14 @@ export class PrismaTaskRepository implements TaskRepository {
           : { create: participantIds.map((membershipId) => ({ membershipId })) },
       },
     });
-    return toDomain(row);
+    return toDomain(row, this.defaultTimeZone);
   }
 
   async findReachable(actor: ActorContext, id: string): Promise<TaskRecord | null> {
     const row = await this.prisma.task.findFirst({
       where: { id, ...visibleTo(actor) }, include: WITH_IMAGES,
     });
-    return row && toDomain(row);
+    return row && toDomain(row, this.defaultTimeZone);
   }
 
   async listReachable(actor: ActorContext, filter?: TaskFilter): Promise<TaskRecord[]> {
@@ -140,7 +142,7 @@ export class PrismaTaskRepository implements TaskRepository {
       orderBy: BOARD_ORDER,
       include: WITH_IMAGES,
     });
-    return rows.map(toDomain);
+    return rows.map((row) => toDomain(row, this.defaultTimeZone));
   }
 
   async update(
@@ -173,6 +175,8 @@ export class PrismaTaskRepository implements TaskRepository {
         ...(input.endTime === undefined ? {} : { endTime: input.endTime }),
         ...(input.repeatEvery === undefined ? {} : { repeatEvery: input.repeatEvery }),
         ...(input.isCall === undefined ? {} : { isCall: input.isCall }),
+        ...(input.skipWeekends === undefined ? {} : { skipWeekends: input.skipWeekends }),
+        ...(input.timeZone === undefined ? {} : { timeZone: input.timeZone }),
         ...(input.description === undefined
           ? {}
           : { description: input.description === null
@@ -180,7 +184,7 @@ export class PrismaTaskRepository implements TaskRepository {
               : (input.description as Prisma.InputJsonValue) }),
       },
     });
-    return toDomain(row);
+    return toDomain(row, this.defaultTimeZone);
   }
 
   async delete(context: TransactionContext, id: string): Promise<void> {
@@ -244,7 +248,7 @@ export class PrismaTaskRepository implements TaskRepository {
     const row = await this.client(context).task.findUniqueOrThrow({
       where: { id }, include: WITH_IMAGES,
     });
-    return toDomain(row);
+    return toDomain(row, this.defaultTimeZone);
   }
 }
 

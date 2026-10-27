@@ -486,9 +486,11 @@ instead of adding another), and a task's deadline less than a day away (**TASK_D
 its participants or, when it names nobody, its creator). A client's person hears about a task
 only when the task is shown to the client.
 
-A deadline is the due date at the due time, or at the end of the day without one, read in
-`TASK_TIME_ZONE` (`Europe/Minsk` when unset; the API refuses to start with a zone `Intl` does
-not know). A worker looks for deadlines on start and every 15 minutes, skips tasks in Готово
+A deadline is the due date at the due time, or at the end of the day without one, read in the
+task's own `timeZone`: the zone of whoever last set its day or time, as the web app names the
+browser's zone, or `TASK_TIME_ZONE` for a task set without one, such as a task from Telegram
+(`Europe/Minsk` when unset; the API refuses to start with a zone `Intl` does not know). The web
+app shows every task's day and time in the reader's own zone. A worker looks for deadlines on start and every 15 minutes, skips tasks in Готово
 and Архив and organizations without the tasks module, and records the deadline it told in
 `task.due_soon_for`, so a task is told once per deadline and again when the deadline moves. The KPI check runs on the server when a Meta import for the project finishes and when
 its KPI is set, with the project list's arithmetic over the UTC month to date; the month that

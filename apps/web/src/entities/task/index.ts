@@ -58,12 +58,16 @@ export {
   endKeepingLength,
   endShownAs,
   endsAfterStart,
+  isWeekend,
   mayBeCall,
   minutesOfTime,
+  nextDueDate,
   nextOccurrence,
   occurrencesBetween,
   timeRange,
 } from "./lib/schedule.js";
+export { inZone, localTask, occurrencesIn, viewerTimeZone } from "./lib/zone.js";
+export type { Occurrence } from "./lib/zone.js";
 export { MAX_TASK_IMAGE_BYTES, TASK_IMAGE_TYPES, imageRefusal } from "./lib/images.js";
 export type { ImageRefusal } from "./lib/images.js";
 export { taskCommentsApi } from "./api/api.js";

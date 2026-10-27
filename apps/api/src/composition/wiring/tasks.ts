@@ -1,3 +1,4 @@
+import { config } from "#shared/infrastructure/config.js";
 import { prisma } from "#shared/infrastructure/prisma.js";
 import { createTaskEventDelivery } from "#modules/realtime/index.js";
 import {
@@ -28,7 +29,7 @@ export function wireTasks(
   const projects = new PrismaTaskProjectReach(prisma);
   const delivery = createTaskEventDelivery({ registry: connections, members, projects });
   const dependencies = {
-    tasks: new PrismaTaskRepository(prisma, unitOfWork),
+    tasks: new PrismaTaskRepository(prisma, unitOfWork, config.taskTimeZone),
     images: new PrismaTaskImageRepository(prisma, unitOfWork),
     imageStorage: new S3TaskImageStorage(),
     projects,

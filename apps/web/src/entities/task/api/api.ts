@@ -1,4 +1,5 @@
 import { http } from "@/shared/lib/index.js";
+import { localTask, viewerTimeZone } from "../lib/zone.js";
 
 export const TASK_COLUMNS = [
   "IDEA",
@@ -51,6 +52,8 @@ export interface Task {
   endTime: string | null;
   repeatEvery: TaskRepeat;
   isCall: boolean;
+  skipWeekends: boolean;
+  timeZone?: string;
   checklist: ChecklistItem[];
   imageIds: string[];
   archivedAt: string | null;
@@ -71,6 +74,8 @@ export interface TaskInput {
   endTime?: string | null;
   repeatEvery?: TaskRepeat;
   isCall?: boolean;
+  skipWeekends?: boolean;
+  timeZone?: string;
   checklist?: { title: string; done: boolean }[];
 }
 
@@ -86,18 +91,23 @@ export interface TaskImage {
   bytes: number;
 }
 
+function zoned(body: TaskInput): TaskInput {
+  const scheduled = body.dueDate !== undefined || body.dueTime !== undefined || body.endTime !== undefined;
+  return scheduled ? { ...body, timeZone: viewerTimeZone() } : body;
+}
+
 export const tasksApi = {
-  list: (projectId?: string) => {
+  list: async (projectId?: string) => {
     const query = new URLSearchParams();
     if (projectId) query.set("projectId", projectId);
     const suffix = query.size === 0 ? "" : `?${query}`;
-    return http.get<Task[]>(`/tasks${suffix}`);
+    return (await http.get<Task[]>(`/tasks${suffix}`)).map(localTask);
   },
-  create: (body: TaskInput) => http.post<Task>("/tasks", body),
-  update: (id: string, body: TaskInput) => http.patch<Task>(`/tasks/${id}`, body),
+  create: async (body: TaskInput) => localTask(await http.post<Task>("/tasks", zoned(body))),
+  update: async (id: string, body: TaskInput) => localTask(await http.patch<Task>(`/tasks/${id}`, zoned(body))),
   remove: (id: string) => http.del(`/tasks/${id}`),
-  move: (id: string, body: TaskMove) => http.post<Task>(`/tasks/${id}/move`, body),
-  complete: (id: string) => http.post<Task>(`/tasks/${id}/complete`, {}),
+  move: async (id: string, body: TaskMove) => localTask(await http.post<Task>(`/tasks/${id}/move`, body)),
+  complete: async (id: string) => localTask(await http.post<Task>(`/tasks/${id}/complete`, {})),
 };
 
 export const taskImagesApi = {

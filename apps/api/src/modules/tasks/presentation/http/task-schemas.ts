@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TASK_COLUMNS, TASK_PRIORITIES } from "#modules/tasks/domain/board.js";
 import { MAX_COMMENT_LENGTH } from "#modules/tasks/domain/comment.js";
-import { TASK_REPEATS, isCalendarDay, isEndTime, isTimeOfDay } from "#modules/tasks/domain/schedule.js";
+import { TASK_REPEATS, isCalendarDay, isEndTime, isTimeOfDay, isTimeZone } from "#modules/tasks/domain/schedule.js";
 
 const description = z.unknown().nullable().optional();
 
@@ -18,6 +18,10 @@ const dueTime = z.string()
 const endTime = z.string()
   .refine(isEndTime, "endTime must be a HH:MM time of day, or 24:00")
   .nullable()
+  .optional();
+
+const timeZone = z.string()
+  .refine(isTimeZone, "timeZone must be an IANA time zone, such as Europe/Minsk")
   .optional();
 
 const participantIds = z.array(z.uuid("participantIds must hold membership ids")).optional();
@@ -39,6 +43,8 @@ export const createTaskSchema = z.object({
   endTime,
   repeatEvery: z.enum(TASK_REPEATS).optional(),
   isCall: z.boolean().optional(),
+  skipWeekends: z.boolean().optional(),
+  timeZone,
   checklist,
 });
 
@@ -54,6 +60,8 @@ export const updateTaskSchema = z.object({
   endTime,
   repeatEvery: z.enum(TASK_REPEATS).optional(),
   isCall: z.boolean().optional(),
+  skipWeekends: z.boolean().optional(),
+  timeZone,
   checklist,
 });
 

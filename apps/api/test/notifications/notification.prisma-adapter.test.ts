@@ -11,7 +11,7 @@ import { PrismaMetricRepository } from "../../src/modules/campaigns/infrastructu
 import { resetDb, seedCampaign, seedProject } from "../helpers/db.js";
 import { grantAccess, signInAs, signInAsOutsider } from "../helpers/auth.js";
 
-const repository = new PrismaNotificationRepository(prisma);
+const repository = new PrismaNotificationRepository(prisma, "Europe/Minsk");
 const recipients = new PrismaNotificationRecipients(prisma);
 const standings = new PrismaProjectKpiStandings(prisma, new PrismaMetricRepository(prisma));
 const claims = new PrismaKpiMonthClaims(prisma);
@@ -88,6 +88,24 @@ describe("stored notifications", () => {
     const latest = await repository.latest(boris, 50);
     expect(latest.map((notification) => notification.kind)).toEqual(["TASK_ASSIGNED", "PROJECT_CREATED"]);
     expect(latest[1]).toMatchObject({ project: { id: projectId, name: "Клиника 2" }, task: null, actor: { name: "Анна" }, readAt: null });
+  });
+
+  it("name the time zone of their task, or the agency's for a task without one", async () => {
+    const anna = await signInAs("Анна");
+    const boris = await membershipOf("Борис");
+    const task = (timeZone: string | null) => prisma.task.create({ data: {
+      orgId: anna.membership!.orgId, projectId, title: "Созвон", priority: "MEDIUM", position: 0,
+      dueDate: new Date("2026-10-20T00:00:00Z"), dueTime: "18:00", timeZone,
+    } });
+    const [warsaw, unzoned] = [await task("Europe/Warsaw"), await task(null)];
+
+    await repository.createMany([
+      { recipientId: boris, kind: "TASK_DUE_SOON", projectId, taskId: warsaw.id, actorId: null },
+      { recipientId: boris, kind: "TASK_DUE_SOON", projectId, taskId: unzoned.id, actorId: null },
+    ]);
+
+    const zones = Object.fromEntries((await repository.latest(boris, 50)).map(({ task }) => [task!.id, task!.timeZone]));
+    expect(zones).toEqual({ [warsaw.id]: "Europe/Warsaw", [unzoned.id]: "Europe/Minsk" });
   });
 
   it("are read one at a time only by their recipient, and all at once", async () => {
@@ -283,9 +301,15 @@ describe("tasks with a due date", () => {
     await seedTask({ dueDate: null, dueTime: null });
 
     expect(await dueTasks.dueBetween("2026-10-19", "2026-10-20")).toEqual([{
-      id: open.id, projectId, dueDate: "2026-10-20", dueTime: "18:00",
+      id: open.id, projectId, dueDate: "2026-10-20", dueTime: "18:00", timeZone: null,
       createdById: null, visibleToClient: false, participantIds: [boris],
     }]);
+  });
+
+  it("carry the time zone their day and time were set in", async () => {
+    await seedTask({ timeZone: "Europe/Warsaw" });
+
+    expect(await dueTasks.dueBetween("2026-10-19", "2026-10-20")).toMatchObject([{ timeZone: "Europe/Warsaw" }]);
   });
 
   it("leave out organizations without the tasks module", async () => {

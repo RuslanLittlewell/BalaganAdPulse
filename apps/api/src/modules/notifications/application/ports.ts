@@ -35,6 +35,7 @@ export interface DueTask {
   readonly projectId: string | null;
   readonly dueDate: string;
   readonly dueTime: string | null;
+  readonly timeZone: string | null;
   readonly participantIds: readonly string[];
   readonly createdById: string | null;
   readonly visibleToClient: boolean;

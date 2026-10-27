@@ -41,31 +41,47 @@ describe("a call", () => {
     expect(await read(res.body.id)).toMatchObject({ ...WEEKLY_AT_TEN, isCall: true });
   });
 
-  it("refuses a call that does not repeat -> 400", async () => {
+  it("is also a one-off task with a time", async () => {
     const res = await create({ dueDate: "2026-10-19", dueTime: "10:00", isCall: true });
 
-    expect(res.status).toBe(400);
-    expect(await prisma.task.count()).toBe(0);
+    expect(res.status).toBe(201);
+    expect(await read(res.body.id)).toMatchObject({ dueDate: "2026-10-19", dueTime: "10:00", repeatEvery: "NONE", isCall: true });
   });
 
   it("refuses a call with no time -> 400", async () => {
     expect((await create({ dueDate: "2026-10-19", repeatEvery: "WEEKLY", isCall: true })).status).toBe(400);
+    expect(await prisma.task.count()).toBe(0);
   });
 
-  it("refuses marking an existing one-off task as a call -> 400", async () => {
-    const created = await create({ dueDate: "2026-10-19", dueTime: "10:00" });
+  it("refuses marking an existing task with no time as a call -> 400", async () => {
+    const created = await create({ dueDate: "2026-10-19" });
 
     expect((await change(created.body.id, { isCall: true })).status).toBe(400);
     expect((await read(created.body.id)).isCall).toBe(false);
   });
 
-  it("ends when its repetition is stopped", async () => {
+  it("marks an existing one-off task with a time as a call", async () => {
+    const created = await create({ dueDate: "2026-10-19", dueTime: "10:00" });
+
+    expect((await change(created.body.id, { isCall: true })).body.isCall).toBe(true);
+  });
+
+  it("stays a call when its repetition is stopped", async () => {
     const created = await create({ ...WEEKLY_AT_TEN, isCall: true });
 
     const res = await change(created.body.id, { repeatEvery: "NONE" });
 
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ repeatEvery: "NONE", isCall: false });
+    expect(res.body).toMatchObject({ repeatEvery: "NONE", isCall: true });
+  });
+
+  it("ends when its time is cleared", async () => {
+    const created = await create({ ...WEEKLY_AT_TEN, isCall: true });
+
+    const res = await change(created.body.id, { dueTime: null });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ dueDate: "2026-10-19", dueTime: null, isCall: false });
   });
 
   it("is unmarked on request", async () => {

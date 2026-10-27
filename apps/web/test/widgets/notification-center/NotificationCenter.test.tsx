@@ -138,6 +138,16 @@ describe("NotificationCenter", () => {
     expect(within(items[2]!).getByText("Новый документ «Медиаплан» в проекте «Клиника»")).toBeInTheDocument();
   });
 
+  it("tells a deadline set in another time zone by the member's own clock", async () => {
+    serve([{ ...dueSoon, task: { ...dueSoon.task!, timeZone: "Europe/Minsk" } }]);
+    setup();
+
+    await userEvent.click(await bell());
+    const [item] = await screen.findAllByRole("listitem");
+
+    expect(within(item!).getByText(/^срок 21 окт\.?, 00:00 · /)).toBeInTheDocument();
+  });
+
   it("opens the document of a document notification", async () => {
     const asked = serve([document]);
     setup();

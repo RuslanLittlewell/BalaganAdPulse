@@ -17,6 +17,15 @@ export function isTimeOfDay(value: string): boolean {
   return TIME_OF_DAY.test(value);
 }
 
+export function isTimeZone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const END_OF_DAY = "24:00";
 
 export const MINUTES_PER_DAY = 24 * 60;
@@ -62,12 +71,43 @@ export function nextOccurrence(day: string, repeat: RepeatingTask): string {
   return dateToDay(new Date(Date.UTC(nextYear, nextMonth - 1, Math.min(date, lastOfMonth))));
 }
 
+const SUNDAY = 0;
+const SATURDAY = 6;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MOST_STEPS_TO_A_WEEKDAY = 12;
+
+export function isWeekend(day: string): boolean {
+  const weekday = dayToDate(day).getUTCDay();
+  return weekday === SATURDAY || weekday === SUNDAY;
+}
+
+function mondayAfter(day: string): string {
+  const date = dayToDate(day);
+  return dateToDay(new Date(date.getTime() + ((8 - date.getUTCDay()) % 7 || 7) * DAY_MS));
+}
+
+export function firstWeekday(day: string, repeat: RepeatingTask): string {
+  let occurrence = day;
+  for (let step = 0; step <= MOST_STEPS_TO_A_WEEKDAY; step += 1) {
+    if (!isWeekend(occurrence)) return occurrence;
+    occurrence = nextOccurrence(occurrence, repeat);
+  }
+  return mondayAfter(day);
+}
+
+export function nextDueDate(day: string, repeat: RepeatingTask, skipWeekends: boolean): string {
+  const next = nextOccurrence(day, repeat);
+  return skipWeekends ? firstWeekday(next, repeat) : next;
+}
+
 export interface TaskSchedule {
   readonly dueDate: string | null;
   readonly dueTime: string | null;
   readonly endTime: string | null;
   readonly repeatEvery: TaskRepeat;
   readonly isCall: boolean;
+  readonly skipWeekends: boolean;
+  readonly timeZone: string | null;
 }
 
 export interface ScheduleChange {
@@ -76,6 +116,8 @@ export interface ScheduleChange {
   readonly endTime?: string | null;
   readonly repeatEvery?: TaskRepeat;
   readonly isCall?: boolean;
+  readonly skipWeekends?: boolean;
+  readonly timeZone?: string | null;
 }
 
 export const UNSCHEDULED: TaskSchedule = {
@@ -84,10 +126,12 @@ export const UNSCHEDULED: TaskSchedule = {
   endTime: null,
   repeatEvery: DEFAULT_TASK_REPEAT,
   isCall: false,
+  skipWeekends: false,
+  timeZone: null,
 };
 
-export function mayBeCall(schedule: Pick<TaskSchedule, "dueTime" | "repeatEvery">): boolean {
-  return schedule.dueTime !== null && schedule.repeatEvery !== "NONE";
+export function mayBeCall(schedule: Pick<TaskSchedule, "dueTime">): boolean {
+  return schedule.dueTime !== null;
 }
 
 function endAfter(current: TaskSchedule, change: ScheduleChange, dueTime: string | null): string | null {
@@ -103,11 +147,14 @@ export function rescheduled(current: TaskSchedule, change: ScheduleChange): Task
     ? null
     : change.dueTime === undefined ? current.dueTime : change.dueTime;
   const repeatEvery = change.repeatEvery ?? current.repeatEvery;
+  const skipWeekends = change.skipWeekends ?? (current.skipWeekends && repeatEvery !== "NONE");
   return {
-    dueDate,
+    dueDate: skipWeekends && dueDate !== null && repeatEvery !== "NONE" ? firstWeekday(dueDate, repeatEvery) : dueDate,
     dueTime,
     endTime: endAfter(current, change, dueTime),
     repeatEvery,
-    isCall: change.isCall ?? (current.isCall && mayBeCall({ dueTime, repeatEvery })),
+    isCall: change.isCall ?? (current.isCall && mayBeCall({ dueTime })),
+    skipWeekends,
+    timeZone: change.timeZone ?? current.timeZone,
   };
 }

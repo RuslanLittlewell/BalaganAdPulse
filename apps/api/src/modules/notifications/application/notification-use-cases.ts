@@ -118,8 +118,8 @@ export function createNotificationUseCases(d: NotificationDependencies) {
       const now = d.clock.now();
       const today = dayIn(now, d.timeZone);
       let reminded = 0;
-      for (const task of await d.dueTasks.dueBetween(today, addDays(today, 1))) {
-        const deadline = deadlineOf(task.dueDate, task.dueTime, d.timeZone);
+      for (const task of await d.dueTasks.dueBetween(addDays(today, -1), addDays(today, 2))) {
+        const deadline = deadlineOf(task.dueDate, task.dueTime, task.timeZone ?? d.timeZone);
         if (!isDueSoon(deadline, now)) continue;
         if (!(await d.dueTasks.claim(task.id, deadline))) continue;
         const named = task.participantIds.length > 0

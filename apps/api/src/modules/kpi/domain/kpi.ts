@@ -1,4 +1,4 @@
-import type { ResultType } from '#modules/campaigns/index.js';
+import type { KpiAccount, ResultType } from '#modules/campaigns/index.js';
 
 export const KPI_METRICS = ['SPEND', 'IMPRESSIONS', 'REACH', 'CLICKS', 'CONVERSIONS', 'RESULTS', 'REVENUE', 'CTR', 'CPC', 'CPM', 'CPA', 'COST_PER_RESULT', 'ROAS', 'FREQUENCY'] as const;
 export type KpiMetric = typeof KPI_METRICS[number];
@@ -31,9 +31,20 @@ export type Kpi = KpiInput & { updatedAt: Date };
 
 export const MAX_PROJECT_KPIS = 5;
 
-export type ProjectKpiInput = KpiInput & { enabled: boolean };
+export const accountKey = (account: KpiAccount) => `${account.channel}:${account.accountId}`;
 
-export type NewProjectKpi = Kpi & { enabled: boolean };
+export function crowdsAnAccount(kpis: readonly { account: KpiAccount | null }[]): boolean {
+  const counts = new Map<string, number>();
+  for (const { account } of kpis) {
+    const key = account ? accountKey(account) : '';
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return [...counts.values()].some((count) => count > MAX_PROJECT_KPIS);
+}
+
+export type ProjectKpiInput = KpiInput & { enabled: boolean; account: KpiAccount | null };
+
+export type NewProjectKpi = Kpi & { enabled: boolean; account: KpiAccount | null };
 
 export type ProjectKpi = NewProjectKpi & { id: string };
 

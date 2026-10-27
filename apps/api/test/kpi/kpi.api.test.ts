@@ -100,8 +100,8 @@ describe("the KPIs of a project", () => {
 
     expect(saved.status).toBe(200);
     expect(saved.body).toEqual([
-      { id: expect.any(String), metric: "CONVERSIONS", target: "60.0000", enabled: true, updatedAt: expect.any(String) },
-      { id: expect.any(String), metric: "CPA", target: "20.5000", enabled: false, updatedAt: expect.any(String) },
+      { id: expect.any(String), metric: "CONVERSIONS", target: "60.0000", enabled: true, account: null, updatedAt: expect.any(String) },
+      { id: expect.any(String), metric: "CPA", target: "20.5000", enabled: false, account: null, updatedAt: expect.any(String) },
     ]);
     expect(await read()).toEqual(saved.body);
   });
@@ -155,7 +155,7 @@ describe("the KPIs of a project", () => {
     const res = await request(app).get("/api/summary/projects?from=2026-09-01&to=2026-09-30").set(admin);
     const project = res.body.find((entry: { projectId: string }) => entry.projectId === projectId);
 
-    expect(project.kpis).toEqual([{ metric: "RESULTS", target: "300.0000", resultType: "MESSAGES", enabled: true }]);
+    expect(project.kpis).toEqual([{ metric: "RESULTS", target: "300.0000", resultType: "MESSAGES", enabled: true, account: null }]);
   });
 
   it("hold at most five", async () => {
@@ -167,6 +167,45 @@ describe("the KPIs of a project", () => {
     expect(await read()).toEqual([expect.objectContaining({ metric: "SPEND" })]);
     expect((await request(app).put(projectKpis()).set(admin).send(five)).status).toBe(200);
     expect(await read()).toHaveLength(5);
+  });
+
+  it("name the account they are measured on, or none", async () => {
+    const saved = await request(app).put(projectKpis()).set(admin).send([
+      { metric: "CONVERSIONS", target: "60", account: { channel: "META", accountId: " act_1 " } },
+      { metric: "CPA", target: "20", account: null },
+      { metric: "SPEND", target: "500" },
+    ]);
+
+    expect(saved.status).toBe(200);
+    expect(saved.body.map((kpi: { account: unknown }) => kpi.account)).toEqual([
+      { channel: "META", accountId: "act_1" }, null, null,
+    ]);
+    expect(await read()).toEqual(saved.body);
+  });
+
+  it.each([
+    { channel: "FACEBOOK", accountId: "act_1" },
+    { channel: "META", accountId: "" },
+    { channel: "META" },
+    { channel: "META", accountId: "act_1", extra: true },
+  ])("refuse an account that is %j", async (account) => {
+    await request(app).put(projectKpis()).set(admin).send([kept]);
+
+    expect((await request(app).put(projectKpis()).set(admin).send([{ metric: "CONVERSIONS", target: "1", account }])).status).toBe(400);
+    expect(await read()).toEqual([expect.objectContaining({ metric: "SPEND" })]);
+  });
+
+  it("hold at most five naming one account, and five naming none", async () => {
+    await request(app).put(projectKpis()).set(admin).send([kept]);
+    const of = (accountId: string) => ({ metric: "CONVERSIONS", target: "1", account: { channel: "META", accountId } });
+    const common = { metric: "CPA", target: "1" };
+    const five = <T,>(kpi: T) => Array.from({ length: 5 }, () => kpi);
+
+    expect((await request(app).put(projectKpis()).set(admin).send([...five(of("act_1")), of("act_1")])).status).toBe(400);
+    expect(await read()).toEqual([expect.objectContaining({ metric: "SPEND" })]);
+    const spread = [...five(common), ...five(of("act_1")), ...five(of("act_2"))];
+    expect((await request(app).put(projectKpis()).set(admin).send(spread)).status).toBe(200);
+    expect(await read()).toHaveLength(15);
   });
 
   it.each([
@@ -194,7 +233,7 @@ describe("the KPIs of a project", () => {
     expect(saved.status).toBe(200);
     expect(saved.body[1]).toEqual({
       id: expect.any(String), metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000",
-      enabled: true, updatedAt: expect.any(String),
+      enabled: true, account: null, updatedAt: expect.any(String),
     });
     expect((await request(app).put(projectKpis()).set(admin).send([{ ...manual, value: "0" }])).body[0]).toMatchObject({ value: "0.0000" });
   });
@@ -362,6 +401,17 @@ describe("auditing KPI changes", () => {
       { before: second, after: [] },
     ]);
     expect(events[0]).toMatchObject({ entityType: "project", entityId: projectId, projectId, clientId });
+  });
+
+  it("records the account a KPI names", async () => {
+    await request(app).put(projectKpis()).set(admin).send([
+      { metric: "CONVERSIONS", target: "60", account: { channel: "META", accountId: "act_1" } },
+    ]);
+
+    const [event] = await prisma.auditEvent.findMany({ where: BUSINESS_EVENTS });
+    expect(event?.changes).toEqual({
+      before: [], after: [{ metric: "CONVERSIONS", target: "60.0000", enabled: true, account: "META:act_1" }],
+    });
   });
 
   it("records nothing for a refused change or an empty list over an empty list", async () => {

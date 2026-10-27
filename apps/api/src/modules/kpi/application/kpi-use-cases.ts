@@ -3,7 +3,7 @@ import { AppError } from '#shared/domain/index.js';
 import type { ActorContext, UnitOfWork } from '#shared/application/index.js';
 import type { AuditWriter } from '#modules/audit/index.js';
 import {
-  isTypedKpiMetric, MANUAL_KPI, MAX_PROJECT_KPIS, normalizeAmount,
+  accountKey, crowdsAnAccount, isTypedKpiMetric, MANUAL_KPI, MAX_PROJECT_KPIS, normalizeAmount,
   type Kpi, type KpiInput, type KpiLevel, type KpiOwner, type NewProjectKpi, type ProjectKpiInput,
 } from '../domain/kpi.js';
 import type { KpiReach, KpiRepository, ProjectKpiEvents, ProjectKpiRepository } from './ports.js';
@@ -15,7 +15,9 @@ const snapshot = (kpi: Kpi | null): Record<string, string> | null => {
     : { metric: kpi.metric, target: kpi.target, ...(kpi.resultType ? { resultType: kpi.resultType } : {}) };
 };
 
-const projectSnapshot = (kpi: NewProjectKpi): Record<string, string | boolean> => ({ ...snapshot(kpi)!, enabled: kpi.enabled });
+const projectSnapshot = (kpi: NewProjectKpi): Record<string, string | boolean> => ({
+  ...snapshot(kpi)!, enabled: kpi.enabled, ...(kpi.account ? { account: accountKey(kpi.account) } : {}),
+});
 
 function normalized(input: KpiInput, updatedAt: Date): Kpi {
   const target = normalizeAmount(input.target);
@@ -104,12 +106,12 @@ export function createKpiUseCases(d: {
     async replaceProject(actor: ActorContext, projectId: string, inputs: readonly ProjectKpiInput[]) {
       const project = await reachableProject(actor, projectId);
       if (!can(actor, 'update', 'kpi')) throw new AppError('forbidden', 'Your role may not change a project KPI');
-      if (inputs.length > MAX_PROJECT_KPIS) {
-        throw new AppError('validation', `A project holds at most ${MAX_PROJECT_KPIS} KPIs`);
+      if (crowdsAnAccount(inputs)) {
+        throw new AppError('validation', `At most ${MAX_PROJECT_KPIS} KPIs may name one account, and as many may name none`);
       }
       inputs.forEach(assertResultType);
       const now = d.clock.now();
-      const next = inputs.map(({ enabled, ...input }) => ({ ...normalized(input, now), enabled }));
+      const next = inputs.map(({ enabled, account, ...input }) => ({ ...normalized(input, now), enabled, account }));
       const before = await d.projectKpis.list(projectId);
       if (before.length === 0 && next.length === 0) return [];
       await d.unitOfWork.run(async (context) => {

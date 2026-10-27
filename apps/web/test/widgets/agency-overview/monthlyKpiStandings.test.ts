@@ -14,9 +14,10 @@ type Goal = { metric: string; target: string; name?: string; value?: string };
 
 const figures = (projectId: string, kpi: Goal | Goal[] | null, extra = {}) => ({
   projectId,
-  kpis: (kpi === null ? [] : Array.isArray(kpi) ? kpi : [kpi]).map((goal) => ({ enabled: true, ...goal })),
+  kpis: (kpi === null ? [] : Array.isArray(kpi) ? kpi : [kpi]).map((goal) => ({ enabled: true, account: null, ...goal })),
   performance: { ...performance, ...extra },
   days: [],
+  accounts: [],
 });
 
 const projects = (...ids: string[]) => ids.map((id) => aProject({ id, name: `Проект ${id}` }));
@@ -73,19 +74,19 @@ describe("this month's KPI standings", () => {
     expect(standings.withoutKpi.map((project) => project.id)).toEqual(["z", "x"]);
   });
 
-  it("judges a project with several KPIs by the least-met one", () => {
+  it("judges a project with several KPIs by their average", () => {
     const standings = monthlyKpiStandings(projects("a", "b"), [
-      figures("a", [leads("62.0000"), { metric: "CPA", target: "8.0000" }]),
-      figures("b", [leads("62.0000"), { metric: "CPA", target: "10.0000" }]),
+      figures("a", [leads("62.0000"), { metric: "CPA", target: "6.0000" }]),
+      figures("b", [leads("62.0000"), { metric: "CPA", target: "8.0000" }]),
     ], OCTOBER_SO_FAR);
 
     expect(standings).toMatchObject({ met: 1, behind: 1, danger: 0, unrated: 0 });
   });
 
   it("leaves a switched-off KPI out of the result and counts a project with none switched on as without a KPI", () => {
-    const off = (goal: Goal) => ({ ...goal, enabled: false });
+    const off = (goal: Goal) => ({ ...goal, enabled: false, account: null });
     const standings = monthlyKpiStandings(projects("a", "b"), [
-      { ...figures("a", leads("62.0000")), kpis: [{ ...leads("62.0000"), enabled: true }, off({ metric: "CPA", target: "1.0000" })] },
+      { ...figures("a", leads("62.0000")), kpis: [{ ...leads("62.0000"), enabled: true, account: null }, off({ metric: "CPA", target: "1.0000" })] },
       { ...figures("b", null), kpis: [off(leads("62.0000"))] },
     ], OCTOBER_SO_FAR);
 

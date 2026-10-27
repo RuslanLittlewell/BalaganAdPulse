@@ -57,6 +57,7 @@ describe("GET /api/summary/projects", () => {
       kpis: [],
       performance: expect.objectContaining({ spend: 0, cpc: null }),
       days: [],
+      accounts: [],
     });
   });
 
@@ -68,8 +69,40 @@ describe("GET /api/summary/projects", () => {
 
     const clinicFigures = res.body.find((entry: { projectId: string }) => entry.projectId === clinic.projectId);
     expect(clinicFigures.kpis).toEqual([
-      { metric: "CONVERSIONS", target: "60.0000", enabled: true },
-      { metric: "CPA", target: "20.0000", enabled: false },
+      { metric: "CONVERSIONS", target: "60.0000", enabled: true, account: null },
+      { metric: "CPA", target: "20.0000", enabled: false, account: null },
+    ]);
+  });
+
+  it("carries the figures of each account the project's KPIs name, and of no other", async () => {
+    const first = await prisma.campaign.create({ data: { projectId: clinic.projectId, name: "Первый", channel: "META", sourceAccountId: "act_1", position: 2 } });
+    const second = await prisma.campaign.create({ data: { projectId: clinic.projectId, name: "Второй", channel: "META", sourceAccountId: "act_2", position: 3 } });
+    await record(first.id, "2026-08-01", { spend: 50, conversions: 4 });
+    await record(second.id, "2026-08-02", { spend: 70, conversions: 3 });
+    await request(app).put(`/api/projects/${clinic.projectId}/kpis`).set(auth).send([
+      { metric: "CONVERSIONS", target: "60", account: { channel: "META", accountId: "act_2" } },
+      { metric: "SPEND", target: "500", account: { channel: "GOOGLE", accountId: "123" } },
+      { metric: "CPA", target: "20" },
+    ]);
+
+    const res = await read(auth);
+
+    const clinicFigures = res.body.find((entry: { projectId: string }) => entry.projectId === clinic.projectId);
+    expect(clinicFigures.kpis.map((kpi: { account: unknown }) => kpi.account)).toEqual([
+      { channel: "META", accountId: "act_2" }, { channel: "GOOGLE", accountId: "123" }, null,
+    ]);
+    expect(clinicFigures.performance).toMatchObject({ spend: 1220, conversions: 7 });
+    expect(clinicFigures.accounts).toEqual([
+      {
+        channel: "META", accountId: "act_2",
+        performance: expect.objectContaining({ spend: 70, conversions: 3, cpa: 70 / 3 }),
+        days: [expect.objectContaining({ date: "2026-08-02", spend: 70 })],
+      },
+      {
+        channel: "GOOGLE", accountId: "123",
+        performance: expect.objectContaining({ spend: 0, conversions: 0 }),
+        days: [],
+      },
     ]);
   });
 
@@ -93,7 +126,7 @@ describe("GET /api/summary/projects", () => {
     const res = await read(auth);
 
     const clinicFigures = res.body.find((entry: { projectId: string }) => entry.projectId === clinic.projectId);
-    expect(clinicFigures.kpis).toEqual([{ metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000", enabled: true }]);
+    expect(clinicFigures.kpis).toEqual([{ metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000", enabled: true, account: null }]);
   });
 
   it("never lets a campaign's KPI stand in for its project's", async () => {

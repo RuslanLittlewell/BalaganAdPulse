@@ -2,4 +2,5 @@ export * from "./api/api.js";
 export * from "./api/queries.js";
 export * from "./model/display.js";
 export * from "./model/total.js";
+export * from "./model/accountFigures.js";
 export * from "./model/resultTypes.js";

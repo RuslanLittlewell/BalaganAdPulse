@@ -12,10 +12,16 @@ export interface KpiTarget {
   readonly resultType?: string;
 }
 
+export interface KpiAccount {
+  readonly channel: Channel;
+  readonly accountId: string;
+}
+
 export interface ProjectKpi extends KpiTarget {
   readonly name?: string;
   readonly value?: string;
   readonly enabled: boolean;
+  readonly account: KpiAccount | null;
 }
 
 export interface Campaign {

@@ -7,8 +7,10 @@ import {
   type ProjectKpi,
   type SingleKpiScope,
 } from "@/entities/kpi/index.js";
+import { t } from "@/shared/config/index.js";
 import { type Currency } from "@/shared/lib/index.js";
 import { KpiCard } from "./KpiCard.js";
+import { isWholeProject, partHolds, type ProjectKpiPart } from "./kpiPart.js";
 import { KpiTargetDialog } from "./KpiTargetDialog.js";
 import { ProjectKpiDialog } from "./ProjectKpiDialog.js";
 
@@ -19,6 +21,8 @@ export interface KpiTileProps {
   range: { from: string; to: string };
   currency: Currency;
   currencyFigures?: { currency: Currency; performance: KpiFigures }[];
+  part?: ProjectKpiPart;
+  projectFigures?: KpiFigures;
   preview?: boolean;
 }
 
@@ -45,17 +49,23 @@ function ProjectKpiTiles({
   projectId,
   canEdit,
   preview = false,
+  part = { kind: "all", account: null },
+  projectFigures,
   ...rest
 }: Omit<KpiTileProps, "scope"> & { projectId: string }) {
   const kpis = useProjectKpis(projectId);
   const [editing, setEditing] = useState(false);
   const listed: readonly ProjectKpi[] = kpis.data ?? [];
-  const shownKpis = preview ? listed.slice(0, 1) : listed;
+  const held = listed.filter((kpi) => partHolds(part, kpi));
+  const shownKpis = preview ? held.slice(0, 1) : held;
   const controls = canEdit && !preview;
   const card = (kpi: ProjectKpi | null, key: string) => {
+    const wholeProject = isWholeProject(part, kpi);
     const content = (
       <KpiCard
         {...rest}
+        figures={wholeProject && projectFigures ? projectFigures : rest.figures}
+        note={wholeProject ? t("kpi.wholeProject") : undefined}
         kpi={kpi}
         enabled={kpi?.enabled ?? true}
         pending={kpis.isPending}
@@ -71,7 +81,9 @@ function ProjectKpiTiles({
   return (
     <>
       {shownKpis.length > 0 ? shownKpis.map((kpi, position) => card(kpi, String(position))) : [card(null, "0")]}
-      {editing ? <ProjectKpiDialog projectId={projectId} kpis={listed} {...rest} onClose={() => setEditing(false)} /> : null}
+      {editing ? (
+        <ProjectKpiDialog projectId={projectId} kpis={listed} part={part} {...rest} onClose={() => setEditing(false)} />
+      ) : null}
     </>
   );
 }

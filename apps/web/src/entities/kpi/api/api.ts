@@ -1,3 +1,4 @@
+import type { Channel } from "@/entities/campaign/index.js";
 import { http } from "@/shared/lib/index.js";
 
 export const KPI_METRIC_IDS = [
@@ -33,9 +34,21 @@ export type Kpi = KpiInput & { updatedAt: string };
 
 export const MAX_PROJECT_KPIS = 5;
 
-export type ProjectKpiInput = KpiInput & { enabled: boolean };
+export interface KpiAccount {
+  channel: Channel;
+  accountId: string;
+}
 
-export type ProjectKpi = Kpi & { id: string; enabled: boolean };
+export const accountKey = (account: KpiAccount) => `${account.channel}:${account.accountId}`;
+
+export function sameAccount(a: KpiAccount | null | undefined, b: KpiAccount | null | undefined): boolean {
+  if (!a || !b) return !a && !b;
+  return a.channel === b.channel && a.accountId === b.accountId;
+}
+
+export type ProjectKpiInput = KpiInput & { enabled: boolean; account: KpiAccount | null };
+
+export type ProjectKpi = Kpi & { id: string; enabled: boolean; account: KpiAccount | null };
 
 export interface CarriedKpi {
   metric: string;
@@ -44,6 +57,7 @@ export interface CarriedKpi {
   value?: string | null;
   resultType?: string | null;
   enabled?: boolean;
+  account?: KpiAccount | null;
 }
 
 export function kpiInputOf(carried: CarriedKpi | null | undefined): KpiInput | null {

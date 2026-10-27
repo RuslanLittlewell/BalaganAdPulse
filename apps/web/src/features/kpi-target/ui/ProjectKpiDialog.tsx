@@ -1,8 +1,8 @@
 import { useRef, useState, type FormEvent } from "react";
 import { PlusIcon, XIcon } from "lucide-react";
 import {
-  isMonthly, MANUAL_KPI, MAX_PROJECT_KPIS, useSaveProjectKpis,
-  type KpiFigures, type ProjectKpi, type ProjectKpiInput,
+  isMonthly, kpiInputOf, MANUAL_KPI, MAX_PROJECT_KPIS, useSaveProjectKpis,
+  type KpiAccount, type KpiFigures, type ProjectKpi, type ProjectKpiInput,
 } from "@/entities/kpi/index.js";
 import {
   isResultType, orderedResultTypes, PROJECTS_SUMMARY_KEY, useProjectCampaigns, type ResultType,
@@ -18,6 +18,7 @@ import { Switch } from "@/shared/ui/ui/switch.js";
 import { KpiCard } from "./KpiCard.js";
 import { AMOUNT, decimal, NAME_LIMIT, shown } from "./kpiForm.js";
 import { choiceOf, MeasuredChoices, measuredOf, type Choice } from "./kpiChoice.js";
+import { partHolds, type ProjectKpiPart } from "./kpiPart.js";
 
 export interface ProjectKpiDialogProps {
   projectId: string;
@@ -26,6 +27,7 @@ export interface ProjectKpiDialogProps {
   range: { from: string; to: string };
   currency: Currency;
   currencyFigures?: { currency: Currency; performance: KpiFigures }[];
+  part?: ProjectKpiPart;
   onClose: () => void;
 }
 
@@ -40,16 +42,24 @@ interface Draft {
   value: string;
   target: string;
   enabled: boolean;
+  account: KpiAccount | null;
 }
 
-const blank = (key: number): Draft => ({ key, choice: "CONVERSIONS", name: "", value: "", target: "", enabled: true });
+const blank = (key: number, account: KpiAccount | null): Draft =>
+  ({ key, choice: "CONVERSIONS", name: "", value: "", target: "", enabled: true, account });
 
 const isBlank = (draft: Draft) => draft.target.trim() === "" && draft.name.trim() === "" && draft.value.trim() === "";
 
 function draftOf(kpi: ProjectKpi, key: number): Draft {
+  const kept = { key, target: shown(kpi.target), enabled: kpi.enabled, account: kpi.account };
   return kpi.metric === MANUAL_KPI
-    ? { key, choice: MANUAL_KPI, name: kpi.name, value: shown(kpi.value), target: shown(kpi.target), enabled: kpi.enabled }
-    : { key, choice: choiceOf(kpi), name: "", value: "", target: shown(kpi.target), enabled: kpi.enabled };
+    ? { ...kept, choice: MANUAL_KPI, name: kpi.name, value: shown(kpi.value) }
+    : { ...kept, choice: choiceOf(kpi), name: "", value: "" };
+}
+
+function storedInput(kpi: ProjectKpi): ProjectKpiInput[] {
+  const input = kpiInputOf(kpi);
+  return input ? [{ ...input, enabled: kpi.enabled, account: kpi.account }] : [];
 }
 
 function validated(draft: Draft): { input: ProjectKpiInput } | { problems: Field[] } {
@@ -59,7 +69,7 @@ function validated(draft: Draft): { input: ProjectKpiInput } | { problems: Field
   if (draft.choice !== MANUAL_KPI) {
     return problems.length > 0
       ? { problems }
-      : { input: { ...measuredOf(draft.choice), target, enabled: draft.enabled } };
+      : { input: { ...measuredOf(draft.choice), target, enabled: draft.enabled, account: draft.account } };
   }
   const name = draft.name.trim();
   const value = decimal(draft.value);
@@ -67,7 +77,7 @@ function validated(draft: Draft): { input: ProjectKpiInput } | { problems: Field
   if (!AMOUNT.test(value)) problems.push("value");
   return problems.length > 0
     ? { problems }
-    : { input: { metric: MANUAL_KPI, name, value, target, enabled: draft.enabled } };
+    : { input: { metric: MANUAL_KPI, name, value, target, enabled: draft.enabled, account: draft.account } };
 }
 
 function KpiBlock({
@@ -193,14 +203,18 @@ function KpiBlock({
   );
 }
 
-export function ProjectKpiDialog({ projectId, kpis, onClose, ...preview }: ProjectKpiDialogProps) {
+export function ProjectKpiDialog({
+  projectId, kpis, part = { kind: "all", account: null }, onClose, ...preview
+}: ProjectKpiDialogProps) {
   const save = useSaveProjectKpis(projectId);
   const queryClient = useQueryClient();
   const { raise } = useAlerts();
+  const editable = kpis.filter((kpi) => partHolds(part, kpi));
   const keys = useRef(kpis.length + 1);
   const freshKey = () => keys.current++;
+  const newAccount = part.account;
   const [drafts, setDrafts] = useState<Draft[]>(() =>
-    kpis.length > 0 ? kpis.map((kpi, index) => draftOf(kpi, index)) : [blank(0)]);
+    editable.length > 0 ? editable.map((kpi, index) => draftOf(kpi, index)) : [blank(0, newAccount)]);
   const [problems, setProblems] = useState<ReadonlyMap<number, ReadonlySet<Field>>>(new Map());
   const pending = save.isPending;
   const campaigns = useProjectCampaigns(projectId, preview.range);
@@ -219,7 +233,7 @@ export function ProjectKpiDialog({ projectId, kpis, onClose, ...preview }: Proje
     setDrafts((current) => current.map((draft) => (draft.key === key ? { ...draft, ...changes } : draft)));
   };
 
-  const add = () => setDrafts((current) => [...current, blank(freshKey())]);
+  const add = () => setDrafts((current) => [...current, blank(freshKey(), newAccount)]);
 
   const remove = (key: number) => {
     setDrafts((current) => current.filter((draft) => draft.key !== key));
@@ -238,7 +252,7 @@ export function ProjectKpiDialog({ projectId, kpis, onClose, ...preview }: Proje
     setProblems(found);
     if (found.size > 0) return;
     try {
-      await save.mutateAsync(inputs);
+      await save.mutateAsync([...inputs, ...kpis.filter((kpi) => !partHolds(part, kpi)).flatMap(storedInput)]);
       void queryClient.invalidateQueries({ queryKey: PROJECTS_SUMMARY_KEY });
       onClose();
     } catch (error) {

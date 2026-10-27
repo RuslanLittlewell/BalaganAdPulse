@@ -1,7 +1,9 @@
 import { can } from "@adpulse/access-policy";
 import { AppError } from "#shared/domain/index.js";
 import type { ActorContext } from "#shared/application/index.js";
-import { isOrderedRange, type Ad, type AdSet, type Campaign, type Channel, type CreativeFile, type DateRange, type ProjectKpi } from "../domain/hierarchy.js";
+import {
+  isOrderedRange, type Ad, type AdSet, type Campaign, type Channel, type CreativeFile, type DateRange, type KpiAccount, type ProjectKpi,
+} from "../domain/hierarchy.js";
 import { performanceOf, sumByDay, type MeasuredDay, type Performance } from "../domain/metrics.js";
 import {
   resultTypeOfGoal, sumByType, typesOf, type CampaignResultKind, type ResultType, type ResultTypeFigure, type TypedDay,
@@ -39,11 +41,17 @@ export type TypedPerformance = Performance & { readonly resultTypes: ResultTypeF
 
 export type TypedMeasuredDay = MeasuredDay & { readonly resultTypes: ResultTypeFigure[] };
 
-export interface ProjectFigures {
-  readonly projectId: string;
-  readonly kpis: ProjectKpi[];
+export interface MeasuredFigures {
   readonly performance: TypedPerformance;
   readonly days: TypedMeasuredDay[];
+}
+
+export type AccountFigures = KpiAccount & MeasuredFigures;
+
+export interface ProjectFigures extends MeasuredFigures {
+  readonly projectId: string;
+  readonly kpis: ProjectKpi[];
+  readonly accounts: AccountFigures[];
 }
 
 export interface CampaignReference {
@@ -73,6 +81,15 @@ function kindsOf(campaign: Campaign, kinds: readonly CampaignResultKind[]): Resu
   if (campaign.channel === "GOOGLE") return ["CONVERSIONS"];
   return typesOf(kinds.filter((kind) => kind.campaignId === campaign.id));
 }
+
+function accountsNamedBy(kpis: readonly ProjectKpi[]): KpiAccount[] {
+  const named = new Map<string, KpiAccount>();
+  for (const { account } of kpis) if (account) named.set(`${account.channel}:${account.accountId}`, account);
+  return [...named.values()];
+}
+
+const inAccount = (campaign: Campaign, account: KpiAccount) =>
+  campaign.channel === account.channel && campaign.sourceAccountId === account.accountId;
 
 function groupedBy<T>(items: readonly T[], keyOf: (item: T) => string): Map<string, T[]> {
   const groups = new Map<string, T[]>();
@@ -256,13 +273,18 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
       const [allDays, allTypedDays] = await Promise.all([campaignDays(campaigns, range), typedDaysOf(campaigns, range)]);
       const daysByCampaign = groupedBy(allDays, (day) => day.campaignId);
       const typedByCampaign = groupedBy(allTypedDays, (day) => day.campaignId);
+      const figuresOf = (measured: readonly Campaign[]): MeasuredFigures => {
+        const days = measured.flatMap((campaign) => daysByCampaign.get(campaign.id) ?? []);
+        const typedDays = measured.flatMap((campaign) => typedByCampaign.get(campaign.id) ?? []);
+        return { performance: typed(performanceOf(days), typedDays), days: typedByDay(sumByDay(days), typedDays) };
+      };
       return projects.map(({ id, kpis }) => {
         const own = campaignsByProject.get(id) ?? [];
-        const days = own.flatMap((campaign) => daysByCampaign.get(campaign.id) ?? []);
-        const typedDays = own.flatMap((campaign) => typedByCampaign.get(campaign.id) ?? []);
         return {
-          projectId: id, kpis, performance: typed(performanceOf(days), typedDays),
-          days: typedByDay(sumByDay(days), typedDays),
+          projectId: id, kpis, ...figuresOf(own),
+          accounts: accountsNamedBy(kpis).map((account) => ({
+            ...account, ...figuresOf(own.filter((campaign) => inAccount(campaign, account))),
+          })),
         };
       });
     },

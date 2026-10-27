@@ -1,5 +1,7 @@
 import type { MessageKey } from "@/shared/config/index.js";
-import { kpiInputOf, MANUAL_KPI, type CarriedKpi, type KpiInput, type KpiMetric, type MeasuredKpiInput } from "../api/api.js";
+import {
+  accountKey, kpiInputOf, MANUAL_KPI, type CarriedKpi, type KpiAccount, type KpiInput, type KpiMetric, type MeasuredKpiInput,
+} from "../api/api.js";
 
 export type KpiFigure =
   | "spend" | "impressions" | "reach" | "clicks" | "conversions" | "results" | "revenue"
@@ -95,24 +97,32 @@ export function kpiProgress(figures: KpiFigures, kpi: KpiInput, range: { from: s
   return { actual, target, percent, state };
 }
 
-export function enabledKpis(kpis: readonly CarriedKpi[] | null | undefined, withManual = true): KpiInput[] {
-  return (kpis ?? []).flatMap((carried) => {
-    const kpi = carried.enabled === false ? null : kpiInputOf(carried);
-    return kpi && (withManual || kpi.metric !== MANUAL_KPI) ? [kpi] : [];
-  });
+export function enabledKpi(carried: CarriedKpi, withManual = true): KpiInput | null {
+  const kpi = carried.enabled === false ? null : kpiInputOf(carried);
+  return kpi && (withManual || kpi.metric !== MANUAL_KPI) ? kpi : null;
 }
 
-export function leastMetProgress(
+export function enabledKpis(kpis: readonly CarriedKpi[] | null | undefined, withManual = true): KpiInput[] {
+  return (kpis ?? []).flatMap((carried) => enabledKpi(carried, withManual) ?? []);
+}
+
+const average = (values: readonly number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
+
+export function kpiResult(
   kpis: readonly CarriedKpi[] | null | undefined,
-  figures: KpiFigures,
+  figuresOf: (account: KpiAccount | null) => KpiFigures,
   range: { from: string; to: string },
   withManual = true,
-): KpiProgress | null {
-  let least: KpiProgress | null = null;
-  for (const kpi of enabledKpis(kpis, withManual)) {
-    const progress = kpiProgress(figures, kpi, range);
-    if (progress.percent === null) continue;
-    if (least === null || progress.percent < least.percent!) least = progress;
+): number | null {
+  const shares = new Map<string, number[]>();
+  for (const carried of kpis ?? []) {
+    const kpi = enabledKpi(carried, withManual);
+    if (!kpi) continue;
+    const account = carried.account ?? null;
+    const percent = kpiProgress(figuresOf(account), kpi, range).percent;
+    if (percent === null || !Number.isFinite(percent)) continue;
+    const key = account ? accountKey(account) : "";
+    shares.set(key, [...(shares.get(key) ?? []), Math.min(percent, 100)]);
   }
-  return least;
+  return shares.size === 0 ? null : average([...shares.values()].map(average));
 }

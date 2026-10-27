@@ -17,8 +17,13 @@ export interface NotificationRecipients {
   activeMembers(ids: readonly string[]): Promise<Array<{ id: string; customer: boolean }>>;
 }
 
+export interface MeasuredKpi {
+  readonly kpi: KpiInput;
+  readonly figures: KpiFigures;
+}
+
 export interface ProjectKpiStandings {
-  read(projectId: string, range: IsoDateRange): Promise<{ kpis: KpiInput[]; figures: KpiFigures } | null>;
+  read(projectId: string, range: IsoDateRange): Promise<MeasuredKpi[]>;
 }
 
 export interface KpiMonthClaims {

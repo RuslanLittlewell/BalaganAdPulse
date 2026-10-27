@@ -106,7 +106,7 @@ export function createNotificationUseCases(d: NotificationDependencies) {
     async projectKpiChanged(projectId: string, actor: ActorContext | null): Promise<void> {
       const month = monthToDate(d.clock.now());
       const standing = await d.standings.read(projectId, month);
-      if (!standing || !standing.kpis.every((kpi) => isKpiGreen(kpi, standing.figures, month))) return;
+      if (standing.length === 0 || !standing.every(({ kpi, figures }) => isKpiGreen(kpi, figures, month))) return;
       if (!(await d.claims.claim(projectId, month.from))) return;
       const recipients = othersThan(await d.recipients.staffReaching(projectId), actor?.membershipId);
       await notify(recipients.map((recipientId) => ({

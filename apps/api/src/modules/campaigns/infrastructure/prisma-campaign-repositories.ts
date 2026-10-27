@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import type { ActorContext } from "#shared/application/index.js";
 import { getObject } from "#shared/infrastructure/storage.js";
-import type { Ad, AdSet, Campaign, KpiTarget, ProjectKpi } from "../domain/hierarchy.js";
+import type { Ad, AdSet, Campaign, Channel, KpiTarget, ProjectKpi } from "../domain/hierarchy.js";
 import type {
   AdRepository, AdSetRepository, CampaignRepository, CreativeRepository, CreativeStorage, ProjectReach, ReachableProject,
 } from "../application/ports.js";
@@ -22,10 +22,13 @@ type StoredProjectKpi = {
   value: { toFixed(digits: number): string } | null;
   enabled: boolean;
   resultType: string | null;
+  channel: Channel | null;
+  sourceAccountId: string | null;
 };
 
 const projectKpiOf = (row: StoredProjectKpi): ProjectKpi | null => {
-  const kpi = { metric: row.metric, target: row.target.toFixed(4), enabled: row.enabled };
+  const account = row.channel && row.sourceAccountId ? { channel: row.channel, accountId: row.sourceAccountId } : null;
+  const kpi = { metric: row.metric, target: row.target.toFixed(4), enabled: row.enabled, account };
   if (kpi.metric !== "MANUAL") return row.resultType ? { ...kpi, resultType: row.resultType } : kpi;
   return row.name != null && row.value ? { ...kpi, name: row.name, value: row.value.toFixed(4) } : null;
 };
@@ -144,7 +147,10 @@ export class PrismaProjectReach implements ProjectReach {
       select: {
         id: true,
         kpiTracked: true,
-        kpis: { select: { metric: true, target: true, name: true, value: true, enabled: true, resultType: true }, orderBy: { position: "asc" } },
+        kpis: {
+          select: { metric: true, target: true, name: true, value: true, enabled: true, resultType: true, channel: true, sourceAccountId: true },
+          orderBy: { position: "asc" },
+        },
       },
       orderBy: { position: "asc" },
     });

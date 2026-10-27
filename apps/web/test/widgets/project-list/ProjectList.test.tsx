@@ -166,8 +166,8 @@ describe("ProjectList", () => {
 
 describe("a project's KPI marker", () => {
   const september = "/?from=2026-09-01&to=2026-09-30";
-  const leads = (conversions: number, kpis: ProjectFigures["kpis"] = [{ metric: "CONVERSIONS", target: "30.0000", enabled: true }]) =>
-    ({ projectId: "p1", kpis, performance: { ...EMPTY_PERFORMANCE, conversions }, days: [] });
+  const leads = (conversions: number, kpis: ProjectFigures["kpis"] = [{ metric: "CONVERSIONS", target: "30.0000", enabled: true, account: null }]) =>
+    ({ projectId: "p1", kpis, performance: { ...EMPTY_PERFORMANCE, conversions }, days: [], accounts: [] });
 
   const withFigures = (figures: unknown[]) => {
     const asked: string[] = [];
@@ -231,7 +231,7 @@ describe("a project's KPI marker", () => {
       mock.get("/api/projects/p1/kpis", () =>
         HttpResponse.json(kpis.map((kpi, index) => ({ ...kpi, id: `k${index}`, updatedAt: "2026-09-14T10:00:00.000Z" })))),
       mock.put("/api/projects/p1/kpis", async ({ request }) => {
-        const body = await request.json() as Array<{ metric: string; target: string; enabled: boolean }>;
+        const body = await request.json() as ProjectFigures["kpis"];
         kpis = body.map((kpi) => ({ ...kpi, target: Number(kpi.target).toFixed(4) }));
         return HttpResponse.json(kpis.map((kpi, index) => ({ ...kpi, id: `k${index}`, updatedAt: "2026-09-14T11:00:00.000Z" })));
       }),

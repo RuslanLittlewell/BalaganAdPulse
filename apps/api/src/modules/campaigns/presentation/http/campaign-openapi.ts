@@ -34,9 +34,11 @@ const measuredDay = z.object({ date: z.iso.date(), ...measured, resultTypes: res
 
 const kpiTarget = z.object({ metric: z.string(), target: z.string(), resultType: resultType.optional() }).nullable();
 
+const kpiAccount = z.object({ channel: z.enum(CHANNELS), accountId: z.string() });
+
 const projectKpi = z.union([
-  z.object({ metric: z.string(), target: z.string(), resultType: resultType.optional(), enabled: z.boolean() }),
-  z.object({ metric: z.literal("MANUAL"), name: z.string(), value: z.string(), target: z.string(), enabled: z.boolean() }),
+  z.object({ metric: z.string(), target: z.string(), resultType: resultType.optional(), enabled: z.boolean(), account: kpiAccount.nullable() }),
+  z.object({ metric: z.literal("MANUAL"), name: z.string(), value: z.string(), target: z.string(), enabled: z.boolean(), account: kpiAccount.nullable() }),
 ]);
 
 const projectFigures = z.object({
@@ -44,6 +46,7 @@ const projectFigures = z.object({
   kpis: z.array(projectKpi),
   performance,
   days: z.array(measuredDay),
+  accounts: z.array(kpiAccount.extend({ performance, days: z.array(measuredDay) })),
 });
 
 const campaign = z.object({
@@ -251,7 +254,7 @@ export const summaryDoc: RouteDoc = {
       method: "get",
       path: "/projects",
       summary: "Sum every reachable project's performance and daily figures beside its KPI",
-      description: `${RANGE} One entry per project the actor reaches, a project with nothing measured carrying zeros and no days. Each entry carries the project's own KPI, with its name and value when it was set by hand, or null when it has none.`,
+      description: `${RANGE} One entry per project the actor reaches, a project with nothing measured carrying zeros and no days. Each entry carries the project's own KPI, with its name and value when it was set by hand, or null when it has none. Each KPI carries the advertising account it names, or null, and the entry carries the figures and daily figures of every account its KPIs name, summed over the project's campaigns imported from it.`,
       query: rangeSchema,
       success: { status: 200, description: "One entry per project, each with its daily figures oldest first", schema: arrayOf(ref("ProjectFigures")) },
       errors: [400, 401, 403],

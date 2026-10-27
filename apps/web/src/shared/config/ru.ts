@@ -199,6 +199,7 @@ export const ru = {
   "project.kpiTracked": "Отслеживать KPI", "project.kpiTrackedFailed": "Не удалось изменить отслеживание KPI",
   "kpi.counts": "Учитывать в результате", "kpi.new": "Новый KPI", "kpi.remove": "Удалить KPI", "kpi.on": "Учитывается в результате проекта", "kpi.off": "Не учитывается в результате проекта", "kpi.add": "Добавить KPI",
   "kpi.manual": "Вручную", "kpi.name": "Название", "kpi.value": "Значение",
+  "kpi.wholeProject": "Весь проект",
   "kpi.manualHint": "Значение и цель меняются только вручную и не зависят от выбранного периода",
   "kpi.nameRequired": "Введите название",
   "kpi.valueInvalid": "Введите число не меньше нуля, не больше 4 знаков после запятой",

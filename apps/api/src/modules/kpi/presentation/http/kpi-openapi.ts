@@ -10,7 +10,7 @@ const level = (path: string, name: string, errors: { read: number[]; write: numb
 
 export const kpiDoc: RouteDoc = {
   tag: 'KPI',
-  tagDescription: 'One goal per organization and campaign, and up to five per project: a metric and a positive target with four decimals. Summable metrics hold a monthly target; ratios hold the target value. A project may instead hold a goal set by hand, metric MANUAL with a name and a value of its own, compared with the target as it is. The KPIs of a project are read and replaced as one ordered list, each with an enabled flag: a switched-off KPI does not count toward the result of the project.',
+  tagDescription: 'One goal per organization and campaign, and several per project: a metric and a positive target with four decimals. Summable metrics hold a monthly target; ratios hold the target value. A project may instead hold a goal set by hand, metric MANUAL with a name and a value of its own, compared with the target as it is. The KPIs of a project are read and replaced as one ordered list, each with an enabled flag: a switched-off KPI does not count toward the result of the project. A project KPI may name an advertising account, a channel and an account id, and is then measured only on the campaigns imported from that account; one naming none is common to the project. At most five KPIs may name one account, and at most five may name none.',
   operations: [
     ...level('/organization/kpi', 'organization', { read: [403], write: [403] }),
     { method: 'get', path: '/projects/:id/kpis', summary: 'Read the project KPIs in order', success: { status: 200, description: 'The KPIs, possibly none', schema: z.array(projectKpiSchema) }, errors: [401, 404] },

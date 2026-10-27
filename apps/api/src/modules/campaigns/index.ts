@@ -6,7 +6,8 @@ export type {
   AdRepository, AdSetRepository, CampaignRepository, ProjectReach, ReachableProject,
 } from "./application/ports.js";
 export type { CampaignChannel, CampaignDay, MetricRepository } from "./application/metric-ports.js";
-export type { Ad, AdSet, Campaign, Channel, DateRange, DeliveryStatus, KpiTarget, ProjectKpi } from "./domain/hierarchy.js";
+export { CHANNELS } from "./domain/hierarchy.js";
+export type { Ad, AdSet, Campaign, Channel, DateRange, DeliveryStatus, KpiAccount, KpiTarget, ProjectKpi } from "./domain/hierarchy.js";
 export type { Derived, Measured, Performance } from "./domain/metrics.js";
 export { performanceOf } from "./domain/metrics.js";
 export { RESULT_TYPES, resultTypeOfGoal, sumByType } from "./domain/result-type.js";

@@ -29,6 +29,8 @@ model ProjectKpi {
   value     Decimal?  @db.Decimal(18, 4)
   enabled   Boolean   @default(true)
   resultType String?  @map("result_type")
+  channel   Channel?
+  sourceAccountId String? @map("source_account_id")
   updatedAt DateTime  @map("updated_at")
 
   @@index([projectId, position])

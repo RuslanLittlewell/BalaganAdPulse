@@ -707,6 +707,57 @@ describe("switching the campaigns by advertising account", () => {
     await screen.findByText("Лента / Россия");
     expect(screen.queryByRole("radiogroup", { name: "Источник кампаний" })).toBeNull();
   });
+
+  const summary = () => screen.getByRole("group", { name: "Показатели за период" });
+  const stamp = "2026-09-14T10:00:00.000Z";
+
+  it("switches the one summary above to the chosen account's figures and KPIs, the tabs staying above the table", async () => {
+    const user = userEvent.setup();
+    api({ campaigns: twoAccounts, summaryTiles: ["SPEND", "KPI"] });
+    server.use(mock.get("/api/projects/p1/kpis", () => HttpResponse.json([
+      { id: "k1", metric: "CPA", target: "30.0000", enabled: true, account: { channel: "META", accountId: "111" }, updatedAt: stamp },
+      { id: "k2", metric: "CPA", target: "24.0000", enabled: true, account: { channel: "META", accountId: "222" }, updatedAt: stamp },
+    ])));
+    renderWithProviders(<App />, route);
+
+    const tabs = await screen.findByRole("radiogroup", { name: "Источник кампаний" });
+    expect(screen.getAllByRole("group", { name: /^Показатели за период/ })).toHaveLength(1);
+    expect(summary().compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await waitFor(() => expect(within(summary()).getByText("3 000 Br")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(within(within(summary()).getByTestId("kpi-tile")).getByRole("progressbar")).toHaveAttribute("aria-valuenow", "50"));
+
+    await user.click(screen.getByRole("radio", { name: "Meta · 222" }));
+
+    expect(within(summary()).getByText("1 200 Br")).toBeInTheDocument();
+    expect(within(within(summary()).getByTestId("kpi-tile")).getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100");
+  });
+
+  it("keeps the project's figures and every KPI in the summary of a project with one account", async () => {
+    api({ campaigns: [campaign("c1", "Поиск / Москва", "META", 3000, "111")], summaryTiles: ["SPEND", "KPI"] });
+    server.use(mock.get("/api/projects/p1/kpis", () => HttpResponse.json([
+      { id: "k1", metric: "CPA", target: "30.0000", enabled: true, account: { channel: "META", accountId: "111" }, updatedAt: stamp },
+      { id: "k2", metric: "CPA", target: "20.0000", enabled: true, account: null, updatedAt: stamp },
+    ])));
+    renderWithProviders(<App />, route);
+
+    await screen.findByRole("radiogroup", { name: "Источник кампаний" });
+    await waitFor(() => expect(within(summary()).getAllByTestId("kpi-tile")).toHaveLength(2));
+    expect(within(summary()).getByText("4 200 Br")).toBeInTheDocument();
+    expect(within(summary()).queryByText("Весь проект")).toBeNull();
+  });
+
+  it("offers a tab for an account that only a KPI names", async () => {
+    api({ campaigns: [campaign("c1", "Поиск / Москва", "META", 3000, "111")] });
+    server.use(mock.get("/api/projects/p1/kpis", () => HttpResponse.json([
+      { id: "k1", metric: "SPEND", target: "1000.0000", enabled: true, account: { channel: "META", accountId: "555" }, updatedAt: "2026-09-14T10:00:00.000Z" },
+    ])));
+    renderWithProviders(<App />, route);
+
+    const tabs = await screen.findByRole("radiogroup", { name: "Источник кампаний" });
+    await waitFor(() =>
+      expect(within(tabs).getAllByRole("radio").map((tab) => tab.textContent)).toEqual(["Meta · 111", "Meta · 555"]));
+  });
 });
 
 describe("column layouts per advertising account", () => {
@@ -757,7 +808,7 @@ describe("each campaign's indicator", () => {
   const toneOf = (name: string) =>
     screen.getByRole("row", { name: new RegExp(name) }).querySelector("[data-tone]")?.getAttribute("data-tone");
 
-  it("follows the campaign's KPI, the project's in its absence, and greys out what is not running", async () => {
+  it("follows the campaign's own KPI, and greys out what has none or is not running", async () => {
     const user = userEvent.setup();
     api({
       campaigns: [
@@ -773,7 +824,8 @@ describe("each campaign's indicator", () => {
 
     await screen.findByRole("row", { name: /Выполняет/ });
     await user.click(screen.getByRole("switch", { name: "Только активные" }));
-    await waitFor(() => expect(toneOf("По проекту")).toBe("stable"));
+    await waitFor(() => expect(toneOf("Выполняет")).toBe("profitable"));
+    expect(toneOf("По проекту")).toBe("idle");
     expect(toneOf("Выполняет")).toBe("profitable");
     expect(toneOf("Отстаёт")).toBe("danger");
     expect(toneOf("На паузе")).toBe("idle");

@@ -2,7 +2,7 @@ import { http as mock, HttpResponse } from "msw";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders, server } from "@test/shared/index.js";
-import { KpiTile } from "@/features/kpi-target/index.js";
+import { KpiTile, type ProjectKpiPart } from "@/features/kpi-target/index.js";
 
 const figures = (values: Record<string, number | null> = {}) => ({
   spend: 1500, impressions: 100000, reach: 40000, clicks: 2000, conversions: 45, results: 75, revenue: 4000,
@@ -11,11 +11,14 @@ const figures = (values: Record<string, number | null> = {}) => ({
 const firstHalf = { from: "2026-09-01", to: "2026-09-15" };
 const path = "/api/projects/p1/kpis";
 
-type StoredKpi = { metric: string; target: string; name?: string; value?: string; resultType?: string; enabled?: boolean };
+type StoredKpi = {
+  metric: string; target: string; name?: string; value?: string; resultType?: string; enabled?: boolean;
+  account?: { channel: "META" | "GOOGLE"; accountId: string } | null;
+};
 
 function kpis(initial: StoredKpi[]) {
   const stamp = (list: StoredKpi[]) => list.map((entry, index) => ({
-    enabled: true, ...entry, id: `k${index}`, updatedAt: "2026-09-14T10:00:00.000Z",
+    enabled: true, account: null, ...entry, id: `k${index}`, updatedAt: "2026-09-14T10:00:00.000Z",
   }));
   let current = stamp(initial);
   const requests: Array<{ method: string; body?: unknown }> = [];
@@ -136,7 +139,7 @@ describe("a project with several KPIs", () => {
   it("draws a green circle on a KPI that counts and a grey one on a KPI that is switched off, without dimming it", async () => {
     kpis([
       { metric: "CONVERSIONS", target: "60.0000" },
-      { metric: "CONVERSIONS", target: "60.0000", enabled: false },
+      { metric: "CONVERSIONS", target: "60.0000", enabled: false, account: null },
     ]);
     setup({ canEdit: false });
 
@@ -213,7 +216,7 @@ describe("the KPI dialog of a project", () => {
     await save(dialog);
 
     await waitFor(() => expect(requests).toEqual([
-      { method: "PUT", body: [{ metric: "CONVERSIONS", target: "60", enabled: true }] },
+      { method: "PUT", body: [{ metric: "CONVERSIONS", target: "60", enabled: true, account: null }] },
     ]));
     expect(await screen.findByText("KPI · Лиды")).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -230,12 +233,12 @@ describe("the KPI dialog of a project", () => {
     await save(dialog);
 
     await waitFor(() => expect(requests).toEqual([
-      { method: "PUT", body: [{ metric: "CPA", target: "20.5", enabled: true }] },
+      { method: "PUT", body: [{ metric: "CPA", target: "20.5", enabled: true, account: null }] },
     ]));
   });
 
   it("lists the KPIs as blocks starting from their values, with a plus control after them", async () => {
-    kpis([{ metric: "CONVERSIONS", target: "60.0000" }, { metric: "CPA", target: "20.0000", enabled: false }]);
+    kpis([{ metric: "CONVERSIONS", target: "60.0000" }, { metric: "CPA", target: "20.0000", enabled: false, account: null }]);
     setup();
 
     await screen.findAllByTestId("kpi-tile");
@@ -267,8 +270,8 @@ describe("the KPI dialog of a project", () => {
     await save(dialog);
 
     await waitFor(() => expect(requests).toEqual([{ method: "PUT", body: [
-      { metric: "CONVERSIONS", target: "60", enabled: true },
-      { metric: "CPA", target: "20", enabled: true },
+      { metric: "CONVERSIONS", target: "60", enabled: true, account: null },
+      { metric: "CPA", target: "20", enabled: true, account: null },
     ] }]));
     await waitFor(() => expect(tiles()).toHaveLength(2));
   });
@@ -308,7 +311,7 @@ describe("the KPI dialog of a project", () => {
     await save(dialog);
 
     await waitFor(() => expect(requests).toEqual([
-      { method: "PUT", body: [{ metric: "CONVERSIONS", target: "60", enabled: false }] },
+      { method: "PUT", body: [{ metric: "CONVERSIONS", target: "60", enabled: false, account: null }] },
     ]));
     await waitFor(() => expect(tile()).toHaveAttribute("data-enabled", "false"));
   });
@@ -324,7 +327,7 @@ describe("the KPI dialog of a project", () => {
     await save(dialog);
 
     await waitFor(() => expect(requests).toEqual([
-      { method: "PUT", body: [{ metric: "CPA", target: "20", enabled: true }] },
+      { method: "PUT", body: [{ metric: "CPA", target: "20", enabled: true, account: null }] },
     ]));
     await waitFor(() => expect(tiles()).toHaveLength(1));
   });
@@ -352,7 +355,7 @@ describe("the KPI dialog of a project", () => {
     await save(dialog);
 
     await waitFor(() => expect(requests).toEqual([
-      { method: "PUT", body: [{ metric: "CONVERSIONS", target: "60", enabled: true }] },
+      { method: "PUT", body: [{ metric: "CONVERSIONS", target: "60", enabled: true, account: null }] },
     ]));
   });
 
@@ -366,6 +369,79 @@ describe("the KPI dialog of a project", () => {
 
     expect(await within(dialog).findByText("Введите положительное число, не больше 4 знаков после запятой")).toBeInTheDocument();
     expect(requests).toEqual([]);
+  });
+});
+
+describe("the KPIs of one part of a project", () => {
+  const first = { channel: "META" as const, accountId: "act_1" };
+  const second = { channel: "META" as const, accountId: "act_2" };
+  const stored = [
+    { metric: "CONVERSIONS", target: "60.0000", account: first },
+    { metric: "CONVERSIONS", target: "60.0000", account: second },
+    { metric: "CONVERSIONS", target: "180.0000", account: null },
+  ];
+  const render = (part: ProjectKpiPart) =>
+    renderWithProviders(
+      <KpiTile scope={{ kind: "project", id: "p1" }} canEdit figures={figures()} range={firstHalf} currency="BYN" part={part} />,
+    );
+  const block = (dialog: HTMLElement, position: number) => within(dialog).getByRole("group", { name: `KPI ${position}` });
+  const addTarget = async (dialog: HTMLElement, position: number, target: string) => {
+    await userEvent.click(within(dialog).getByRole("button", { name: "Добавить KPI" }));
+    await userEvent.type(within(block(dialog, position)).getByLabelText("Цель"), target);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Сохранить" }));
+  };
+
+  it("shows the KPIs of its account on its figures, and none of another account", async () => {
+    kpis(stored.slice(0, 2));
+    render({ kind: "account", account: second });
+
+    expect(await screen.findByText("Цель 30 · 150%")).toBeInTheDocument();
+    expect(tiles()).toHaveLength(1);
+  });
+
+  it("edits its account's KPIs, names that account for a new one and keeps every other", async () => {
+    const requests = kpis(stored);
+    render({ kind: "account", account: second });
+
+    await userEvent.click((await screen.findAllByRole("button", { name: "Изменить цель" }))[0]!);
+    const dialog = await screen.findByRole("dialog", { name: "Цель KPI" });
+    expect(within(dialog).getAllByRole("group")).toHaveLength(2);
+    expect(within(dialog).queryByLabelText("Кабинет")).not.toBeInTheDocument();
+    await addTarget(dialog, 3, "10");
+
+    await waitFor(() => expect(requests).toEqual([{ method: "PUT", body: [
+      { metric: "CONVERSIONS", target: "60", enabled: true, account: second },
+      { metric: "CONVERSIONS", target: "180", enabled: true, account: null },
+      { metric: "CONVERSIONS", target: "10", enabled: true, account: second },
+      { metric: "CONVERSIONS", target: "60.0000", enabled: true, account: first },
+    ] }]));
+  });
+
+  it("names the project's only account for a new KPI", async () => {
+    const requests = kpis([]);
+    render({ kind: "all", account: first });
+
+    await userEvent.click(await screen.findByRole("button", { name: "Задать цель" }));
+    const dialog = await screen.findByRole("dialog", { name: "Цель KPI" });
+    await userEvent.type(within(block(dialog, 1)).getByLabelText("Цель"), "40");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Сохранить" }));
+
+    await waitFor(() => expect(requests).toEqual([{ method: "PUT", body: [
+      { metric: "CONVERSIONS", target: "40", enabled: true, account: first },
+    ] }]));
+  });
+
+  it("shows a KPI naming no account on the project's figures, marked as the whole project's", async () => {
+    kpis(stored);
+    renderWithProviders(
+      <KpiTile scope={{ kind: "project", id: "p1" }} canEdit figures={figures()} range={firstHalf} currency="BYN"
+        part={{ kind: "account", account: second }} projectFigures={figures({ conversions: 90 })} />,
+    );
+
+    expect(await screen.findByText("Цель 90 · 100%")).toBeInTheDocument();
+    expect(tiles()).toHaveLength(2);
+    expect(within(tiles()[0]!).queryByText("Весь проект")).not.toBeInTheDocument();
+    expect(within(tiles()[1]!).getByText("Весь проект")).toBeInTheDocument();
   });
 });
 
@@ -419,7 +495,7 @@ describe("a KPI on one result type", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Сохранить" }));
 
     await waitFor(() => expect(requests).toEqual([
-      { method: "PUT", body: [{ metric: "RESULTS", resultType: "MESSAGES", target: "300", enabled: true }] },
+      { method: "PUT", body: [{ metric: "RESULTS", resultType: "MESSAGES", target: "300", enabled: true, account: null }] },
     ]));
   });
 
@@ -480,7 +556,7 @@ describe("a KPI set by hand", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Сохранить" }));
 
     await waitFor(() => expect(requests).toEqual([
-      { method: "PUT", body: [{ metric: "MANUAL", name: "Продажи", value: "30.5", target: "50", enabled: true }] },
+      { method: "PUT", body: [{ metric: "MANUAL", name: "Продажи", value: "30.5", target: "50", enabled: true, account: null }] },
     ]));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
@@ -535,7 +611,7 @@ describe("a KPI set by hand", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Сохранить" }));
 
     await waitFor(() => expect(requests).toEqual([
-      { method: "PUT", body: [{ metric: "MANUAL", name: "Продажи", value: "42", target: "50", enabled: true }] },
+      { method: "PUT", body: [{ metric: "MANUAL", name: "Продажи", value: "42", target: "50", enabled: true, account: null }] },
     ]));
   });
 });

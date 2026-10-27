@@ -26,6 +26,7 @@ export interface KpiCardProps {
   currencyFigures?: { currency: Currency; performance: KpiFigures }[];
   controls: boolean;
   onEdit: () => void;
+  note?: string;
   testId?: string;
 }
 
@@ -39,6 +40,7 @@ export function KpiCard({
   currencyFigures,
   controls,
   onEdit,
+  note,
   testId = "kpi-tile",
 }: KpiCardProps) {
   const definition = current && current.metric !== MANUAL_KPI ? kpiMetricDefinition(current.metric) ?? null : null;
@@ -89,6 +91,7 @@ export function KpiCard({
           </Button>
         ) : null}
       </div>
+      {note ? <div className="mt-0.5 text-xs text-muted-foreground">{note}</div> : null}
 
       {current && format && progress ? (
         <>

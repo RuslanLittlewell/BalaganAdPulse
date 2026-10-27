@@ -13,8 +13,8 @@ import {
   type Performance,
   type CurrencyPerformance,
 } from "@/entities/campaign/index.js";
-import type { KpiScope } from "@/entities/kpi/index.js";
-import { KpiTile } from "@/features/kpi-target/index.js";
+import type { KpiFigures, KpiScope } from "@/entities/kpi/index.js";
+import { KpiTile, type ProjectKpiPart } from "@/features/kpi-target/index.js";
 import { t } from "@/shared/config/index.js";
 import {
   AddTile,
@@ -41,7 +41,7 @@ export interface PerformanceSummaryProps {
   performance?: Performance;
   currency?: Currency;
   currencyPerformances?: CurrencyPerformance[];
-  kpi?: { scope: KpiScope; canEdit: boolean };
+  kpi?: { scope: KpiScope; canEdit: boolean; part?: ProjectKpiPart; projectFigures?: KpiFigures };
 }
 
 const LABELS: Record<SummaryTile, string> = {

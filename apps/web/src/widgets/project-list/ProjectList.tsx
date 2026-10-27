@@ -91,7 +91,7 @@ function useProjectTones(): (projectId: string) => ProjectTone {
     const tones = new Map(
       (summary.data ?? []).map((figures) => [
         figures.projectId,
-        projectTone(figures.kpis, figures.performance, range),
+        projectTone(figures, range),
       ]),
     );
     return (projectId) => tones.get(projectId) ?? "none";

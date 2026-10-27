@@ -64,7 +64,7 @@ function fixture(options: {
       read: async (projectId, range) => {
         readsAsked.push({ projectId, range });
         const kpis = options.kpis ?? [{ metric: "CONVERSIONS", target: "62.0000" } as const];
-        return kpis.length > 0 ? { kpis, figures: { ...figures, conversions: options.conversions ?? 30 } } : null;
+        return kpis.map((kpi) => ({ kpi, figures: { ...figures, conversions: options.conversions ?? 30 } }));
       },
     },
     claims: {

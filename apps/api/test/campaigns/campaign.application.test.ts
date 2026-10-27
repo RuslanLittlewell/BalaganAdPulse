@@ -210,20 +210,20 @@ describe("every project at once", () => {
   it("lists a project with nothing measured at zero, with no days", async () => {
     const [, , empty] = await twoProjects().projectsSummary(admin, range);
 
-    expect(empty).toEqual({ projectId: "p3", kpis: [], performance: expect.objectContaining({ spend: 0, cpc: null }), days: [] });
+    expect(empty).toEqual({ projectId: "p3", kpis: [], performance: expect.objectContaining({ spend: 0, cpc: null }), days: [], accounts: [] });
   });
 
   it("carries each project's own KPIs beside its figures", async () => {
     const useCases = fixture({
       campaigns: [campaign({ id: "c1", projectId: "p1" }), campaign({ id: "c2", projectId: "p2", kpi: { metric: "CPA", target: "10.0000" } })],
       reachableProjects: ["p1", "p2"],
-      projectKpis: { p1: [{ metric: "CONVERSIONS", target: "60.0000", enabled: true }, { metric: "CPA", target: "20.0000", enabled: false }] },
+      projectKpis: { p1: [{ metric: "CONVERSIONS", target: "60.0000", enabled: true, account: null }, { metric: "CPA", target: "20.0000", enabled: false, account: null }] },
     });
 
     const figures = await useCases.projectsSummary(admin, range);
 
     expect(figures.map((entry) => entry.kpis)).toEqual([
-      [{ metric: "CONVERSIONS", target: "60.0000", enabled: true }, { metric: "CPA", target: "20.0000", enabled: false }],
+      [{ metric: "CONVERSIONS", target: "60.0000", enabled: true, account: null }, { metric: "CPA", target: "20.0000", enabled: false, account: null }],
       [],
     ]);
   });

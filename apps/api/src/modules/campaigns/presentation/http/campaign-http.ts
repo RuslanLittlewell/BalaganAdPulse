@@ -76,7 +76,11 @@ export function createCampaignHttpRouters(useCases: CampaignUseCases): CampaignH
   }));
   summaryRouter.get("/projects", handle(async (req, res) => {
     const figures = await useCases.projectsSummary(actorOf(req), rangeOf(req));
-    res.json(figures.map(({ days, ...project }) => ({ ...project, days: asDays(days) })));
+    res.json(figures.map(({ days, accounts, ...project }) => ({
+      ...project,
+      days: asDays(days),
+      accounts: accounts.map((account) => ({ ...account, days: asDays(account.days) })),
+    })));
   }));
   summaryRouter.get("/", handle(async (req, res) => {
     res.json(await useCases.agencySummary(actorOf(req), rangeOf(req)));

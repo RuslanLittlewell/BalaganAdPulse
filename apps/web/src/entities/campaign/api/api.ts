@@ -120,11 +120,24 @@ export interface CurrencyPerformance {
   performance: Performance;
 }
 
-export interface ProjectFigures {
-  projectId: string;
-  kpis: Array<{ metric: string; target: string; name?: string; value?: string; resultType?: string; enabled: boolean }>;
+export interface AdAccount {
+  channel: Channel;
+  accountId: string;
+}
+
+export interface MeasuredFigures {
   performance: Performance;
   days: MeasuredDay[];
+}
+
+export type AccountFigures = AdAccount & MeasuredFigures;
+
+export interface ProjectFigures extends MeasuredFigures {
+  projectId: string;
+  kpis: Array<{
+    metric: string; target: string; name?: string; value?: string; resultType?: string; enabled: boolean; account: AdAccount | null;
+  }>;
+  accounts: AccountFigures[];
 }
 
 export interface ChannelShare {

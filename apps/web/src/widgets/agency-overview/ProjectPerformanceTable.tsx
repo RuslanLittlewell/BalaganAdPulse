@@ -35,8 +35,7 @@ function useProjectFigures(projects: Project[], range: DateRange) {
   return projects.map((project) => ({
     project,
     performance: byProject.get(project.id)?.performance ?? EMPTY_PERFORMANCE,
-    kpis: byProject.get(project.id)?.kpis ?? [],
-    days: byProject.get(project.id)?.days ?? [],
+    entry: byProject.get(project.id),
   }));
 }
 
@@ -49,9 +48,9 @@ export function ProjectPerformanceTable({ range }: { range: DateRange }) {
   const stageCounts = useProjectStageCounts(range, { enabled: crm });
   const countsByProject = new Map((stageCounts.data ?? []).map((counts) => [counts.projectId, counts]));
 
-  const rows: PerformanceRow[] = figures.map(({ project, performance, kpis, days }) => {
-    const percent = projectKpiPercent(kpis, performance, range);
-    const trend = kpiTrend(kpis, days, range);
+  const rows: PerformanceRow[] = figures.map(({ project, performance, entry }) => {
+    const percent = projectKpiPercent(entry, range);
+    const trend = kpiTrend(entry, range);
     const stageCounts = crm
       ? Object.fromEntries(
         LEAD_STAGES.map((stage) => [`crm-${stage}`, countsByProject.get(project.id)?.[stage] ?? 0]),

@@ -1,18 +1,14 @@
-import type { DateRange, Performance, ProjectFigures } from "@/entities/campaign/index.js";
-import { leastMetProgress } from "@/entities/kpi/index.js";
+import { figuresOfAccount, type DateRange, type ProjectFigures } from "@/entities/campaign/index.js";
+import { kpiResult } from "@/entities/kpi/index.js";
 
 export type ProjectTone = "none" | "danger" | "behind" | "met";
 
 const MET_FROM = 90;
 const BEHIND_FROM = 70;
 
-export function projectKpiPercent(
-  kpis: ProjectFigures["kpis"] | undefined,
-  performance: Performance,
-  range: DateRange,
-): number | null {
-  const percent = leastMetProgress(kpis, performance, range)?.percent;
-  return percent == null ? null : Math.round(percent);
+export function projectKpiPercent(figures: ProjectFigures | undefined, range: DateRange): number | null {
+  const result = kpiResult(figures?.kpis, (account) => figuresOfAccount(figures, account).performance, range);
+  return result === null ? null : Math.round(result);
 }
 
 export function toneOfPercent(percent: number | null): ProjectTone {
@@ -22,10 +18,6 @@ export function toneOfPercent(percent: number | null): ProjectTone {
   return "danger";
 }
 
-export function projectTone(
-  kpis: ProjectFigures["kpis"] | undefined,
-  performance: Performance,
-  range: DateRange,
-): ProjectTone {
-  return toneOfPercent(projectKpiPercent(kpis, performance, range));
+export function projectTone(figures: ProjectFigures | undefined, range: DateRange): ProjectTone {
+  return toneOfPercent(projectKpiPercent(figures, range));
 }

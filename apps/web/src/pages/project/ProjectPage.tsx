@@ -31,9 +31,10 @@ import {
   totalPerformance,
   useProjectCampaigns,
   useProjectSummary,
+  EMPTY_PERFORMANCE,
 } from "@/entities/campaign/index.js";
 import { ACTIVE_TASK_COLUMNS, useTasks } from "@/entities/task/index.js";
-import { kpiInputOf, MANUAL_KPI, useProjectKpis } from "@/entities/kpi/index.js";
+import { kpiInputOf, MANUAL_KPI, useProjectKpis, type KpiAccount } from "@/entities/kpi/index.js";
 import {
   useChooseSummaryTiles,
   useSummaryTiles,
@@ -139,25 +140,33 @@ export function ProjectPage() {
   const clientName =
     clients.data?.find((client) => client.id === project.clientId)?.name ?? "";
 
-  const sources = new Map<string, string>();
+  const sources = new Map<string, { label: string; account: KpiAccount }>();
+  const addSource = (account: KpiAccount, label: string) => {
+    const key = sourceKey(account.channel, account.accountId);
+    if (!sources.has(key)) sources.set(key, { label, account });
+  };
   for (const connection of integrations.data ?? []) {
-    sources.set(
-      sourceKey(connection.provider, connection.accountId),
+    addSource(
+      { channel: connection.provider, accountId: connection.accountId },
       `${t(`integrations.provider.${connection.provider}`)} · ${connection.accountId}`,
     );
   }
   const all = campaigns.data ?? [];
   for (const campaign of all) {
     if (campaign.sourceAccountId == null) continue;
-    const key = sourceKey(campaign.channel, campaign.sourceAccountId);
-    if (!sources.has(key)) {
-      sources.set(key, `${channelLabel(campaign.channel)} · ${campaign.sourceAccountId}`);
-    }
+    addSource(
+      { channel: campaign.channel, accountId: campaign.sourceAccountId },
+      `${channelLabel(campaign.channel)} · ${campaign.sourceAccountId}`,
+    );
+  }
+  for (const { account } of projectKpis.data ?? []) {
+    if (account) addSource(account, `${channelLabel(account.channel)} · ${account.accountId}`);
   }
   const sourceKeys = [...sources.keys()];
   const separated = sourceKeys.length > 1;
   const chosen =
     source != null && sources.has(source) ? source : sourceKeys[0];
+  const chosenAccount = separated && chosen ? sources.get(chosen)?.account : undefined;
   const inAccount = all.filter(
     (campaign) =>
       !separated ||
@@ -171,7 +180,7 @@ export function ProjectPage() {
 
   const offeredTypes = orderedResultTypes(all.flatMap((campaign) => campaign.resultTypes));
 
-  const toneOf = (campaign: (typeof listed)[number]) => campaignTone(campaign, projectKpis.data, range);
+  const toneOf = (campaign: (typeof listed)[number]) => campaignTone(campaign, range);
   const rows: PerformanceRow[] = listed.map((campaign) => ({
     id: campaign.id,
     name: campaign.name,
@@ -190,6 +199,10 @@ export function ProjectPage() {
   const openCampaign = (campaignId: string) =>
     navigate(`${projectPath(project.id, campaignId)}${location.search}`);
   const totals = totalPerformance(listed.map((campaign) => campaign.performance));
+  const accountTotals = (account: KpiAccount) => totalPerformance(all
+    .filter((campaign) => campaign.channel === account.channel && campaign.sourceAccountId === account.accountId)
+    .map((campaign) => campaign.performance));
+  const onlyAccount = sourceKeys.length === 1 ? sources.get(sourceKeys[0]!)?.account ?? null : null;
 
   return (
     <div className="flex min-h-0 flex-col gap-6">
@@ -260,11 +273,13 @@ export function ProjectPage() {
                 : undefined
             }
             range={range}
-            performance={summary.data}
+            performance={chosenAccount ? campaigns.data && accountTotals(chosenAccount) : summary.data}
             currency={project.budgetCurrency}
             kpi={{
               scope: { kind: "project", id: project.id },
               canEdit: editsProjectKpi && !previewing,
+              part: chosenAccount ? { kind: "account", account: chosenAccount } : { kind: "all", account: onlyAccount },
+              projectFigures: summary.data ?? EMPTY_PERFORMANCE,
             }}
           />
 
@@ -282,7 +297,7 @@ export function ProjectPage() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   {sources.size > 0 && (
                     <Tabs
-                      items={[...sources].map(([id, label]) => ({ id, label }))}
+                      items={[...sources].map(([id, { label }]) => ({ id, label }))}
                       activeId={chosen}
                       onSelect={(id) => rememberSource(project.id, id)}
                       ariaLabel={t("campaigns.sources")}
@@ -296,6 +311,7 @@ export function ProjectPage() {
                   )}
                 </div>
               )}
+
               <CampaignKpiStrip
                 campaigns={withKpi}
                 range={range}

@@ -1,11 +1,12 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { isCustomer } from "@adpulse/access-policy";
-import { performanceOf, sumByType, type MetricRepository, type ResultType } from "#modules/campaigns/index.js";
+import { performanceOf, sumByType, type KpiAccount, type MetricRepository, type ResultType } from "#modules/campaigns/index.js";
 import { isKpiMetric, MANUAL_KPI, type IsoDateRange, type KpiFigures, type KpiInput } from "#modules/kpi/index.js";
 import type {
   DueTask,
   DueTasks,
   KpiMonthClaims,
+  MeasuredKpi,
   NotificationRecipients,
   NotificationRepository,
   ProjectKpiStandings,
@@ -125,16 +126,30 @@ export class PrismaProjectKpiStandings implements ProjectKpiStandings {
     private readonly metrics: Pick<MetricRepository, "readTypedDays">,
   ) {}
 
-  async read(projectId: string, range: IsoDateRange): Promise<{ kpis: KpiInput[]; figures: KpiFigures } | null> {
+  async read(projectId: string, range: IsoDateRange): Promise<MeasuredKpi[]> {
     const rows = await this.prisma.projectKpi.findMany({
       where: { projectId, enabled: true, project: { kpiTracked: true } }, orderBy: { position: "asc" },
-      select: { metric: true, target: true, name: true, value: true, resultType: true },
+      select: { metric: true, target: true, name: true, value: true, resultType: true, channel: true, sourceAccountId: true },
     });
-    const kpis = rows.flatMap((row) => kpiOf(row) ?? []);
-    if (kpis.length === 0) return null;
+    const measured = new Map<string, Promise<KpiFigures>>();
+    const figuresFor = (account: KpiAccount | null) => {
+      const key = account ? `${account.channel}:${account.accountId}` : "";
+      if (!measured.has(key)) measured.set(key, this.figures(projectId, account, range));
+      return measured.get(key)!;
+    };
+    return Promise.all(rows.flatMap((row) => {
+      const kpi = kpiOf(row);
+      if (!kpi) return [];
+      const account = row.channel && row.sourceAccountId ? { channel: row.channel, accountId: row.sourceAccountId } : null;
+      return [figuresFor(account).then((figures) => ({ kpi, figures }))];
+    }));
+  }
+
+  private async figures(projectId: string, account: KpiAccount | null, range: IsoDateRange): Promise<KpiFigures> {
+    const campaign = account ? { projectId, channel: account.channel, sourceAccountId: account.accountId } : { projectId };
     const sums = await this.prisma.campaignDailyMetric.aggregate({
       where: {
-        campaign: { projectId },
+        campaign,
         date: { gte: new Date(`${range.from}T00:00:00Z`), lte: new Date(`${range.to}T00:00:00Z`) },
       },
       _sum: { spend: true, impressions: true, reach: true, clicks: true, conversions: true, results: true, revenue: true },
@@ -148,11 +163,11 @@ export class PrismaProjectKpiStandings implements ProjectKpiStandings {
       results: sums._sum.results ?? 0,
       revenue: decimal(sums._sum.revenue),
     }]);
-    const campaigns = await this.prisma.campaign.findMany({ where: { projectId }, select: { id: true, channel: true } });
+    const campaigns = await this.prisma.campaign.findMany({ where: campaign, select: { id: true, channel: true } });
     const typedDays = await this.metrics.readTypedDays(
       campaigns, new Date(`${range.from}T00:00:00Z`), new Date(`${range.to}T00:00:00Z`),
     );
-    return { kpis, figures: { ...figures, resultTypes: sumByType(typedDays) } };
+    return { ...figures, resultTypes: sumByType(typedDays) };
   }
 }
 

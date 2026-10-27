@@ -1,6 +1,5 @@
 import { useProjects, type Project } from "@/entities/project/index.js";
 import {
-  EMPTY_PERFORMANCE,
   useProjectsSummary,
   type DateRange,
   type ProjectFigures,
@@ -29,7 +28,7 @@ export function monthlyKpiStandings(
   for (const project of projects) {
     if (project.kpiTracked === false) continue;
     const entry = byProject.get(project.id);
-    const tone = projectTone(entry?.kpis, entry?.performance ?? EMPTY_PERFORMANCE, range);
+    const tone = projectTone(entry, range);
     if (tone === "met") standings.met += 1;
     else if (tone === "none") standings.unrated += 1;
     else if (tone === "behind") standings.behind += 1;

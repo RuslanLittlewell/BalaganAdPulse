@@ -9,6 +9,12 @@ export interface AddTaskCommentInput {
   readonly mentionIds?: readonly string[];
 }
 
+export interface TaskParticipant {
+  readonly id: string;
+  readonly name: string;
+  readonly image: string | null;
+}
+
 export function createTaskCommentUseCases(dependencies: TaskCommentDependencies) {
   const reach = async (actor: ActorContext, taskId: string): Promise<TaskRecord> => {
     if (!can(actor, "read", "task")) {
@@ -30,8 +36,8 @@ export function createTaskCommentUseCases(dependencies: TaskCommentDependencies)
 
   const assertMentionable = async (actor: ActorContext, task: TaskRecord, mentionIds: readonly string[]) => {
     if (mentionIds.length === 0) return;
-    if (isCustomer(actor.role)) {
-      throw new AppError("forbidden", "A customer comments without tagging anyone");
+    if (isCustomer(actor.role) && mentionIds.some((id) => !task.participantIds.includes(id))) {
+      throw new AppError("validation", "A client's person tags only the people named on the task");
     }
     const members = new Map(
       (await dependencies.members.describe(actor, mentionIds, task.projectId)).map((member) => [member.id, member]),
@@ -51,6 +57,17 @@ export function createTaskCommentUseCases(dependencies: TaskCommentDependencies)
     list: async (actor: ActorContext, taskId: string): Promise<TaskCommentRecord[]> => {
       await reach(actor, taskId);
       return dependencies.comments.list(taskId);
+    },
+
+    participants: async (actor: ActorContext, taskId: string): Promise<TaskParticipant[]> => {
+      const task = await reach(actor, taskId);
+      const named = new Map(
+        (await dependencies.members.describe(actor, task.participantIds, task.projectId)).map((member) => [member.id, member]),
+      );
+      return task.participantIds.flatMap((id) => {
+        const member = named.get(id);
+        return member?.active ? [{ id, name: member.name, image: member.image }] : [];
+      });
     },
 
     add: async (actor: ActorContext, taskId: string, input: AddTaskCommentInput): Promise<TaskCommentRecord> => {

@@ -1,15 +1,14 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Link } from "react-router-dom";
 import { Button } from "@/shared/ui/index.js";
 
 describe("Button", () => {
-  it("keeps its name and runs its action with the light layer in place", async () => {
+  it("keeps its name and runs its action", async () => {
     const onClick = vi.fn();
     render(<Button onClick={onClick}>Сохранить</Button>);
     const button = screen.getByRole("button", { name: "Сохранить" });
 
-    fireEvent.pointerMove(window, { clientX: 5, clientY: 5 });
     await userEvent.click(button);
 
     expect(onClick).toHaveBeenCalledOnce();

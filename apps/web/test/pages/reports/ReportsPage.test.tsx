@@ -65,6 +65,7 @@ describe("ReportsPage", () => {
     expect(rows()[0]).toHaveTextContent("Август 2026Перегородки");
     expect(rows()[0]).toHaveTextContent("Черновик");
     expect(within(rows()[1]!).getByRole("link", { name: "Август 2026" })).toHaveAttribute("href", "/reports/r1");
+    expect(screen.getByText("Черновики клиент не видит, пока вы их не опубликуете")).toBeInTheDocument();
 
     await user.click(screen.getByRole("combobox", { name: "Фильтр по проекту" }));
     await user.click(await screen.findByRole("option", { name: "Окна" }));
@@ -72,6 +73,7 @@ describe("ReportsPage", () => {
     await waitFor(() => expect(rows()).toHaveLength(1));
     expect(rows()[0]).toHaveTextContent("Окна");
     expect(listed).toContain("p1");
+    expect(screen.queryByText(/Черновики клиент не видит/)).not.toBeInTheDocument();
   });
 
   it("sorts the reports by any column in both directions", async () => {
@@ -116,14 +118,59 @@ describe("ReportsPage", () => {
     expect(rows()[2]).toHaveTextContent("Перегородки");
   });
 
-  it("shows a client the reports without status or a create control", async () => {
-    asClient();
-    api();
-    renderWithProviders(<App />, { route: "/reports" });
+  describe("for a client", () => {
+    const files = () => within(screen.getByRole("list", { name: "Список отчётов" })).getAllByRole("link");
 
-    await waitFor(() => expect(rows()).toHaveLength(2));
-    expect(screen.queryByText("Опубликован")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Новый отчёт" })).not.toBeInTheDocument();
+    beforeEach(() => {
+      asClient();
+      server.use(
+        mock.get("/api/projects", () => HttpResponse.json([project("p1", "Окна"), project("p2", "Перегородки")])),
+        mock.get("/api/clients", () => HttpResponse.json([{ id: "cl1", name: "AURORA", orgId: "o1" }])),
+        mock.get("/api/reports", ({ request }) => {
+          const projectId = new URL(request.url).searchParams.get("projectId");
+          const all = [summary("r3", "p1", "2026-09"), summary("r1", "p1", "2026-08"), summary("r4", "p2", "2026-08")];
+          return HttpResponse.json(projectId ? all.filter((entry) => entry.projectId === projectId) : all);
+        }),
+      );
+    });
+
+    it("shows each report as a file named by its month and project, newest first, with no table, status or create control", async () => {
+      renderWithProviders(<App />, { route: "/reports" });
+
+      await waitFor(() => expect(files()).toHaveLength(3));
+      expect(files().map((file) => file.textContent)).toEqual(["Сентябрь 2026Окна", "Август 2026Окна", "Август 2026Перегородки"]);
+      expect(screen.queryByRole("table")).not.toBeInTheDocument();
+      expect(screen.queryByText("Опубликован")).not.toBeInTheDocument();
+      expect(screen.queryByText(/Черновики клиент не видит/)).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Новый отчёт" })).not.toBeInTheDocument();
+    });
+
+    it("opens the report from its file", async () => {
+      server.use(
+        mock.get("/api/reports/r3", () => HttpResponse.json({ ...created9, id: "r3", month: "2026-09", status: "PUBLISHED" })),
+        mock.get("/api/ads/:adId/creatives", () => HttpResponse.json([])),
+      );
+      const user = userEvent.setup();
+      renderWithProviders(<App />, { route: "/reports" });
+
+      await waitFor(() => expect(files()).toHaveLength(3));
+      expect(files()[0]).toHaveAttribute("href", "/reports/r3");
+      await user.click(files()[0]!);
+
+      expect(await screen.findByRole("heading", { name: "Отчёт по рекламе · Сентябрь 2026" })).toBeInTheDocument();
+    });
+
+    it("narrows the files to one project", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<App />, { route: "/reports" });
+      await waitFor(() => expect(files()).toHaveLength(3));
+
+      await user.click(screen.getByRole("combobox", { name: "Фильтр по проекту" }));
+      await user.click(await screen.findByRole("option", { name: "Перегородки" }));
+
+      await waitFor(() => expect(files()).toHaveLength(1));
+      expect(files()[0]).toHaveTextContent("Август 2026Перегородки");
+    });
   });
 
   it("creates a report for a chosen project and an available month, then opens it", async () => {

@@ -284,10 +284,16 @@ export class PrismaTaskMemberReach implements MemberReach {
       : await this.prisma.project.findUnique({ where: { id: projectId }, select: { clientId: true } });
     const rows = await this.prisma.membership.findMany({
       where: { id: { in: [...membershipIds] }, orgId: actor.orgId },
-      select: { id: true, role: true, status: true, access: { select: { clientId: true, projectId: true } } },
+      select: {
+        id: true, role: true, status: true,
+        user: { select: { name: true, image: true } },
+        access: { select: { clientId: true, projectId: true } },
+      },
     });
     return rows.map((row) => ({
       id: row.id,
+      name: row.user.name,
+      image: row.user.image,
       customer: isCustomer(row.role),
       active: row.status === "ACTIVE",
       reachesProject: project !== null && row.access.some((grant) =>

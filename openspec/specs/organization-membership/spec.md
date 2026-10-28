@@ -57,7 +57,9 @@ to list the organization's staff — its admins, managers and guests, never its 
 so that they can name a colleague on a task, and to list the people of a
 client — everyone holding an access grant on it or on one of its projects — so that they
 can name the client's people on a task. Listing a client's people MAY be narrowed to one of
-its projects, returning only those whose grants reach that project.
+its projects, returning only those whose grants reach that project. A `CLIENT_ADMIN` SHALL
+list, in place of every member, only the people of the clients they reach, as listing those
+clients' people returns them, and never another client's people nor the rest of the agency.
 
 #### Scenario: Manager attempts to change a role
 - **WHEN** a manager calls `PATCH /api/members/:id`
@@ -93,6 +95,12 @@ its projects, returning only those whose grants reach that project.
 #### Scenario: Guest lists a client's people
 - **WHEN** a guest calls `GET /api/members?clientId=`
 - **THEN** the API responds 403
+
+#### Scenario: A principal lists members
+- **WHEN** the principal of client A calls `GET /api/members` in an organization that also has
+  client B with its own people
+- **THEN** only the people of client A are returned, and none of client B's people nor an
+  admin without a grant on client A
 
 ### Requirement: Removing a member preserves their history
 

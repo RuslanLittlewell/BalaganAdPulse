@@ -172,12 +172,12 @@ describe("Prisma project and member reach", () => {
     expect(await projects.contextFor(manager.actor!, projectId)).toBeNull();
   });
 
-  it("describes an active member of the same organization", async () => {
+  it("describes an active member of the same organization by name", async () => {
     const { members } = adapters();
     const { admin } = await scenario();
     const member = await signInAs("Member", { role: "MANAGER" });
     expect(await members.describe(admin.actor!, [member.membership!.id], null)).toEqual([
-      { id: member.membership!.id, customer: false, active: true, reachesProject: false },
+      { id: member.membership!.id, name: "Member", image: null, customer: false, active: true, reachesProject: false },
     ]);
   });
 
@@ -188,7 +188,7 @@ describe("Prisma project and member reach", () => {
     const outsider = await signInAsOutsider();
 
     expect(await members.describe(admin.actor!, [dormant.membership!.id, outsider.membership.id], null))
-      .toEqual([{ id: dormant.membership!.id, customer: false, active: false, reachesProject: false }]);
+      .toEqual([{ id: dormant.membership!.id, name: "Dormant", image: null, customer: false, active: false, reachesProject: false }]);
   });
 
   it("tells whether a client's person reaches a project", async () => {
@@ -205,8 +205,8 @@ describe("Prisma project and member reach", () => {
     );
 
     expect(described).toEqual(expect.arrayContaining([
-      { id: whole.membership!.id, customer: true, active: true, reachesProject: true },
-      { id: elsewhere.membership!.id, customer: true, active: true, reachesProject: false },
+      { id: whole.membership!.id, name: "Whole", image: null, customer: true, active: true, reachesProject: true },
+      { id: elsewhere.membership!.id, name: "Elsewhere", image: null, customer: true, active: true, reachesProject: false },
     ]));
   });
 });

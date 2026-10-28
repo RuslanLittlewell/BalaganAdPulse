@@ -99,7 +99,7 @@ function fixture(options: {
       isAssignable: async (_actor, membershipId) => assignable.includes(membershipId),
       describe: async (_actor, membershipIds) => membershipIds
         .filter((id) => assignable.includes(id))
-        .map((id) => ({ id, customer: false, active: true, reachesProject: true })),
+        .map((id) => ({ id, name: id, image: null, customer: false, active: true, reachesProject: true })),
     },
     audit: { append: async (_tx, event) => { audit.push(event as never); } },
     events: {

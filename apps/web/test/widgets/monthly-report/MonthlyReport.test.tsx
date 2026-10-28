@@ -217,10 +217,12 @@ describe("MonthlyReport", () => {
     renderWithProviders(<App />, route);
 
     expect(await screen.findByText("Черновик")).toBeInTheDocument();
+    expect(screen.getByText("Клиент не видит черновик. Опубликуйте отчёт, чтобы он появился у клиента")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Опубликовать" }));
 
     expect(await screen.findByText("Опубликован")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Вернуть в черновик" })).toBeInTheDocument();
+    expect(screen.queryByText(/Клиент не видит черновик/)).not.toBeInTheDocument();
   });
 
   it("deletes the report after confirmation and returns to the list", async () => {

@@ -76,6 +76,19 @@ describe("what a client is offered", () => {
     expect(await within(dialog).findByRole("textbox", { name: "Текст комментария" })).toBeEnabled();
   });
 
+  it("keeps the project's list of choices shut in a task the client may only read", async () => {
+    const user = userEvent.setup();
+    asClient();
+    renderWithProviders(<TasksPage />, { route: "/tasks" });
+    await user.click(await screen.findByText("Поменяйте баннер"));
+    const dialog = await screen.findByRole("dialog", { name: "Задача" });
+
+    await user.click(within(dialog).getByRole("combobox", { name: "Проект" }));
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Без проекта" })).not.toBeInTheDocument();
+  });
+
   it("offers no Готово on a task on a project", async () => {
     asClient();
     renderWithProviders(<TasksPage />, { route: "/tasks" });

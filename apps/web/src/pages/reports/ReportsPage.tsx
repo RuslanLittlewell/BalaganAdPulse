@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, Route, Routes, useParams } from "react-router-dom";
-import { ArrowLeftIcon, PlusIcon } from "lucide-react";
+import { ArrowLeftIcon, FileTextIcon, PlusIcon } from "lucide-react";
+import { isCustomer } from "@adpulse/access-policy";
 import { ariaSortOf, cn, reportPath, ROUTES, useTableSort, type SortValue } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import {
@@ -11,6 +12,7 @@ import {
 import { useClients } from "@/entities/client/index.js";
 import { useProjects, type Project } from "@/entities/project/index.js";
 import { formatMoney, monthTitle, useAllReports, type ReportSummary } from "@/entities/report/index.js";
+import { useAuth } from "@/features/auth/index.js";
 import { useCan } from "@/features/permissions/index.js";
 import { ReportDownload } from "@/features/report-pdf/index.js";
 import { MonthlyReport } from "@/widgets/monthly-report/index.js";
@@ -52,12 +54,35 @@ function ReportHeader({
   );
 }
 
+function ReportFiles({ reports, names }: { reports: ReportSummary[]; names: Map<string, Project> }) {
+  return (
+    <ul aria-label={t("report.list")} className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-4">
+      {reports.map((report) => (
+        <li key={report.id}>
+          <Link
+            to={reportPath(report.id)}
+            className="flex flex-col items-center gap-2 rounded-xl p-3 text-center transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <span className="grid aspect-[4/5] w-24 place-items-center rounded-xl bg-primary shadow-sm dark:bg-white/10">
+              <FileTextIcon aria-hidden strokeWidth={1.5} className="size-12 text-white" />
+            </span>
+            <span className="font-medium text-foreground">{monthTitle(report.month)}</span>
+            <span className="text-xs text-muted-foreground">{names.get(report.projectId)?.name ?? ""}</span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function ReportsList({ projects }: { projects: Project[] }) {
   const [filter, setFilter] = useState(ALL);
   const [creating, setCreating] = useState(false);
   const reports = useAllReports(filter === ALL ? undefined : filter);
+  const { role } = useAuth();
   const staff = useCan("update", "report");
   const creates = useCan("create", "report");
+  const holdsDraft = staff && (reports.data ?? []).some((report) => report.status === "DRAFT");
   const names = new Map(projects.map((project) => [project.id, project]));
   const sorting = useTableSort(reports.data ?? [], sortValues(names));
 
@@ -84,6 +109,8 @@ function ReportsList({ projects }: { projects: Project[] }) {
 
       {reports.data && reports.data.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("report.empty")}</p>
+      ) : role !== null && isCustomer(role) ? (
+        <ReportFiles reports={reports.data ?? []} names={names} />
       ) : (
         <table aria-label={t("report.list")} className="w-full text-sm">
           <thead className="text-left text-xs text-muted-foreground">
@@ -130,6 +157,7 @@ function ReportsList({ projects }: { projects: Project[] }) {
           </tbody>
         </table>
       )}
+      {holdsDraft ? <p className="text-xs text-muted-foreground">{t("report.draft.listHint")}</p> : null}
 
       {creating ? (
         <NewReportDialog

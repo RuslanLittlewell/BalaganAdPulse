@@ -344,6 +344,11 @@ describe("the comments of a task, read by a client", () => {
       })),
       mock.get("/api/members", () => HttpResponse.json({ error: { message: "Your role may not read a member" } }, { status: 403 })),
       mock.get("/api/tasks/task-1/comments", () => HttpResponse.json(comments)),
+      mock.get("/api/tasks/task-1/participants", () => HttpResponse.json([
+        { id: "m-anna", name: "Анна", image: null },
+        { id: "m-client", name: "Клиент", image: null },
+        { id: "m-boris", name: "Борис", image: null },
+      ])),
       mock.post("/api/tasks/task-1/comments", async ({ request }) => {
         const body = await request.json();
         posted.push(body);
@@ -378,6 +383,24 @@ describe("the comments of a task, read by a client", () => {
 
     await user.type(field(), "Когда запуск?{Enter}");
     await waitFor(() => expect(posted).toEqual([{ body: "Когда запуск?", mentionIds: [] }]));
+  });
+
+  it("offers the client the people named on the task to tag, and sends the tag", async () => {
+    const user = userEvent.setup();
+    const posted = asClient([]);
+    renderWithProviders(<TaskComments task={task} />);
+    await screen.findByText("Комментариев пока нет");
+
+    await user.type(field(), "@");
+    const offer = await screen.findByRole("listbox", { name: "Упомянуть участника" });
+    const options = within(offer).getAllByRole("option");
+    expect(options).toHaveLength(2);
+    expect(options[0]).toHaveTextContent("Анна");
+    expect(options[1]).toHaveTextContent("Борис");
+    await user.click(options[0]!);
+    await user.type(field(), "посмотрите{Enter}");
+
+    await waitFor(() => expect(posted).toEqual([{ body: "@Анна посмотрите", mentionIds: ["m-anna"] }]));
   });
 
   it("shows markup in a comment as the characters typed", async () => {

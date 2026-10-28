@@ -114,6 +114,8 @@ export interface ProjectReach {
 
 export interface NamedMember {
   readonly id: string;
+  readonly name: string;
+  readonly image: string | null;
   readonly customer: boolean;
   readonly active: boolean;
   readonly reachesProject: boolean;

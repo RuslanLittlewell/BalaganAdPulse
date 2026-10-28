@@ -13,6 +13,7 @@ import { memberComponents, memberDoc, sessionDoc } from "#modules/members/presen
 import { inviteComponents, inviteDoc, registrationResolverDoc } from "#modules/invites/presentation/http/invite-openapi.js";
 import { auditComponents, auditDoc } from "#modules/audit/presentation/http/audit-openapi.js";
 import { clientComponents, clientDoc } from "#modules/clients/presentation/http/client-openapi.js";
+import { clientAccountComponents, clientAccountDoc } from "#modules/client-accounts/index.js";
 import { projectComponents, projectDoc } from "#modules/projects/presentation/http/project-openapi.js";
 import { projectGroupDoc, projectLayoutDoc } from "#modules/project-layout/presentation/http/layout-openapi.js";
 import {
@@ -103,6 +104,7 @@ export function apiDocument(): OpenApiDocument {
       { mount: mountPath("projects"), ...projectDoc },
       { mount: mountPath("project-layout"), ...projectLayoutDoc },
       { mount: mountPath("project-groups"), ...projectGroupDoc },
+      { mount: mountPath("client-accounts"), ...clientAccountDoc },
       { mount: mountPath("clients"), ...clientDoc },
       { mount: mountPath("campaigns"), ...campaignDoc },
       { mount: mountPath("ad-sets"), ...adSetDoc },
@@ -124,6 +126,7 @@ export function apiDocument(): OpenApiDocument {
       inviteComponents,
       auditComponents,
       clientComponents,
+      clientAccountComponents,
       projectComponents,
       campaignComponents,
       taskComponents,

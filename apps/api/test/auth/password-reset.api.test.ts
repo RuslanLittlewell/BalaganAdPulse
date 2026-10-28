@@ -24,7 +24,7 @@ afterAll(async () => { await prisma.$disconnect(); });
 const register = () => request(app).post("/api/auth/register").send(account);
 const askForLink = (email = account.email) => request(app).post("/api/auth/password-reset").send({ email });
 const tokenOf = (message: MailMessage) => /\/password-reset\/([0-9a-f]+)/.exec(message.text)![1];
-const signIn = (password: string) => request(app).post("/api/auth/login").send({ email: account.email, password });
+const signIn = (password: string) => request(app).post("/api/auth/login").send({ login: account.email, password });
 
 describe("POST /api/auth/password-reset", () => {
   it("accepts a registered email and mails it a link to the app", async () => {

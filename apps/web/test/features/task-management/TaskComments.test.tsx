@@ -26,6 +26,15 @@ const written = (overrides: Record<string, unknown> = {}) => ({
 function serve(comments: unknown[] = []) {
   const posted: unknown[] = [];
   server.use(
+    mock.get("/api/auth/me", () => HttpResponse.json({
+      user: { id: "user-1", name: "Я", email: "m-me@acme.com", login: null, image: null },
+      platformAdmin: false,
+      organization: { id: "org-1", name: "AdPulse", slug: "adpulse", status: "ACTIVE" },
+      role: "ADMIN",
+      membershipId: "m-me",
+      clientIds: [],
+      modules: ["DASHBOARD", "PROJECTS", "TASKS"],
+    })),
     mock.get("/api/members", () => HttpResponse.json(members)),
     mock.get("/api/tasks/task-1/comments", () => HttpResponse.json(comments)),
     mock.post("/api/tasks/task-1/comments", async ({ request }) => {
@@ -317,5 +326,67 @@ describe("editing a comment", () => {
     renderWithProviders(<TaskComments task={task} />);
 
     expect(await screen.findByText("изменено")).toBeInTheDocument();
+  });
+});
+
+describe("the comments of a task, read by a client", () => {
+  function asClient(comments: unknown[]) {
+    const posted: unknown[] = [];
+    server.use(
+      mock.get("/api/auth/me", () => HttpResponse.json({
+        user: { id: "user-9", name: "Клиент", email: null, login: "klinika-4821@balagan.pro", image: null },
+        platformAdmin: false,
+        organization: { id: "org-1", name: "AdPulse", slug: "adpulse", status: "ACTIVE" },
+        role: "CLIENT",
+        membershipId: "m-client",
+        clientIds: ["client-1"],
+        modules: ["DASHBOARD", "PROJECTS", "TASKS"],
+      })),
+      mock.get("/api/members", () => HttpResponse.json({ error: { message: "Your role may not read a member" } }, { status: 403 })),
+      mock.get("/api/tasks/task-1/comments", () => HttpResponse.json(comments)),
+      mock.post("/api/tasks/task-1/comments", async ({ request }) => {
+        const body = await request.json();
+        posted.push(body);
+        return HttpResponse.json(written({ id: "new", authorId: "m-client", authorName: "Клиент", ...(body as object) }), { status: 201 });
+      }),
+    );
+    return posted;
+  }
+
+  it("names the authors although the client cannot list the members", async () => {
+    asClient([written({ authorName: "Анна", body: "Макет готов" })]);
+    renderWithProviders(<TaskComments task={task} />);
+
+    expect(await screen.findByText("Макет готов")).toBeInTheDocument();
+    expect(screen.getByText("Анна")).toBeInTheDocument();
+    expect(screen.queryByText("Неизвестный автор")).not.toBeInTheDocument();
+  });
+
+  it("lets the client send a comment and manage their own, not the agency's", async () => {
+    const user = userEvent.setup();
+    const posted = asClient([
+      written({ id: "c1", authorName: "Анна", body: "Макет готов" }),
+      written({ id: "c2", authorId: "m-client", authorName: "Клиент", body: "Спасибо" }),
+    ]);
+    renderWithProviders(<TaskComments task={task} />);
+
+    const own = (await screen.findByText("Спасибо")).closest("li")!;
+    const theirs = screen.getByText("Макет готов").closest("li")!;
+    await waitFor(() => expect(within(own).getByRole("button", { name: "Изменить комментарий" })).toBeInTheDocument());
+    expect(within(own).getByRole("button", { name: "Удалить комментарий" })).toBeInTheDocument();
+    expect(within(theirs).queryByRole("button", { name: "Удалить комментарий" })).not.toBeInTheDocument();
+
+    await user.type(field(), "Когда запуск?{Enter}");
+    await waitFor(() => expect(posted).toEqual([{ body: "Когда запуск?", mentionIds: [] }]));
+  });
+
+  it("shows markup in a comment as the characters typed", async () => {
+    const markup = "<img src=x onerror=alert(1)><b>жирный</b>";
+    asClient([written({ authorName: "Анна", body: markup })]);
+    renderWithProviders(<TaskComments task={task} />);
+
+    expect(await screen.findByText(markup)).toBeInTheDocument();
+    expect(document.querySelector("img[src='x']")).toBeNull();
+    expect(document.querySelector("b")).toBeNull();
   });
 });

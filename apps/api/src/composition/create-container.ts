@@ -11,6 +11,7 @@ import type { Connection, ConnectionRegistry } from "#modules/realtime/index.js"
 import type { DueSoonWorker } from "#modules/notifications/index.js";
 import { apiDocument, createDocumentationRouter } from "./openapi.js";
 import { wireCampaignsAndIntegrations } from "./wiring/campaigns-integrations.js";
+import { wireClientAccounts } from "./wiring/client-accounts.js";
 import { wireClientsAndProjects } from "./wiring/clients-projects.js";
 import { wireIdentity } from "./wiring/identity.js";
 import { wireInvites } from "./wiring/invites.js";
@@ -54,6 +55,7 @@ export interface ApiContainer {
   readonly adPreviewRouter: Router;
   readonly projectGroupRouter: Router;
   readonly clientRouter: Router;
+  readonly clientAccountRouter: Router;
   readonly campaignRouter: Router;
   readonly adSetRouter: Router;
   readonly adCreativeRouter: Router;
@@ -79,6 +81,7 @@ export function createContainer(): ApiContainer {
   const notices = wireNotifications(kernel, wireTelegramNotifications());
   const catalog = wireClientsAndProjects(kernel, notices);
   const invites = wireInvites(kernel, catalog);
+  const cabinets = wireClientAccounts(kernel, catalog);
   const people = wireMembersAndPresence(kernel, catalog);
   const identity = wireIdentity(kernel, { redeem: invites.redeem, signedOut: people.leave });
   const leads = wireLeads(kernel, people);
@@ -122,6 +125,7 @@ export function createContainer(): ApiContainer {
     registrationResolverRouter: invites.registrationResolverRouter,
 
     clientRouter: catalog.clientRouter,
+    clientAccountRouter: cabinets.clientAccountRouter,
     projectRouter: catalog.projectRouter,
     projectLayoutRouter: catalog.projectLayoutRouter,
     projectGroupRouter: catalog.projectGroupRouter,

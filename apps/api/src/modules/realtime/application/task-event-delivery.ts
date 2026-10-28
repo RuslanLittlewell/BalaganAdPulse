@@ -19,8 +19,9 @@ export interface TaskEventDeliveryDependencies {
 }
 
 function sees(actor: ActorContext, event: TaskEvent): boolean {
-  if (actor.role === "ADMIN") return true;
   const held = event.kind === "task.deleted" ? event : event.task;
+  if (held.personal) return held.createdById === actor.membershipId;
+  if (actor.role === "ADMIN") return true;
   if (isCustomer(actor.role)) return held.visibleToClient && event.projectId !== null;
   if (held.participantIds.includes(actor.membershipId)) return true;
   if (held.createdById !== actor.membershipId) return false;

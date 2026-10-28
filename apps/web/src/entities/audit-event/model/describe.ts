@@ -65,6 +65,10 @@ const subjectOf = (event: AuditEvent) => SUBJECTS[event.entityType] ?? event.ent
 const READINGS: readonly [RegExp, Reading][] = [
   [/^(?:Created|Updated|Deleted) (?:client|project|task) “(.*)”$/,
     ([, name], event) => ({ subject: subjectOf(event), name: name!, detail: null })],
+  [/^Created cabinet access for client “(.*)”$/,
+    ([, name]) => ({ subject: t("activity.subject.client"), name: name!, detail: t("activity.detail.cabinetCreated") })],
+  [/^Issued a new cabinet password for client “(.*)”$/,
+    ([, name]) => ({ subject: t("activity.subject.client"), name: name!, detail: t("activity.detail.cabinetPassword") })],
   [/^Updated picture for (?:client|project) “(.*)”$/,
     ([, name], event) => ({ subject: subjectOf(event), name: name!, detail: t("activity.detail.picture") })],
   [/^Moved task “(.*)” from (\w+) to (\w+)$/,

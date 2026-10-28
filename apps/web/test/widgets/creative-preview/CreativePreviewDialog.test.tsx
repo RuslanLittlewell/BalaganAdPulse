@@ -110,6 +110,24 @@ describe("CreativePreviewDialog", () => {
     );
   });
 
+  it("frames no provider address that is not a web address", async () => {
+    api({ a1: [creative({ kind: "VIDEO", hasFile: false, hasPoster: true })] });
+    server.use(mock.get("/api/ads/:id/preview", () => HttpResponse.json({ url: "javascript:alert(1)" })));
+    renderWithProviders(<CreativePreviewDialog ads={[ad()]} initialAdId="a1" onClose={() => {}} />);
+
+    expect(await screen.findByRole("link", { name: "Смотреть в Ads Manager" })).toBeInTheDocument();
+    expect(document.querySelector("iframe")).toBeNull();
+  });
+
+  it("links to no source that is not a web address", async () => {
+    api({ a1: [creative({ id: "v1", kind: "VIDEO", title: "Ролик", hasFile: false, hasPoster: true, sourceUrl: "javascript:alert(1)" })] });
+    server.use(mock.get("/api/ads/:id/preview", () => HttpResponse.json({ error: { message: "no" } }, { status: 404 })));
+    renderWithProviders(<CreativePreviewDialog ads={[ad()]} initialAdId="a1" onClose={() => {}} />);
+
+    expect(await screen.findByAltText("Ролик")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Смотреть на YouTube" })).not.toBeInTheDocument();
+  });
+
   it("keeps the poster and provider link when Meta renders nothing", async () => {
     const asked = api({ a1: [creative({ kind: "VIDEO", hasFile: false, hasPoster: true })] });
     server.use(mock.get("/api/ads/:id/preview", () =>

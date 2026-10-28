@@ -56,7 +56,7 @@ describe("requireAuth", () => {
   });
 
   it("leaves the auth routes open", async () => {
-    const res = await request(app).post("/api/auth/login").send({ email: "x", password: "y" });
-    expect(res.status).not.toBe(401);
+    const res = await request(app).post("/api/auth/login").send({ login: "", password: "y" });
+    expect(res.status).toBe(400);
   });
 });

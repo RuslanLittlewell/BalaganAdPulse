@@ -20,6 +20,21 @@ describe("UserMenu", () => {
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
+  it("shows the login of an account without an email", async () => {
+    server.use(http.get("/api/auth/me", () => HttpResponse.json({
+      user: { id: "user-9", name: "Клиника", email: null, login: "klinika-4821@balagan.pro", image: null },
+      platformAdmin: false,
+      organization: { id: "org-1", name: "AdPulse", slug: "adpulse", status: "ACTIVE" },
+      role: "CLIENT_ADMIN",
+      clientIds: ["c1"],
+      modules: ["DASHBOARD", "PROJECTS"],
+    })));
+    renderWithProviders(<UserMenu />);
+
+    expect(await screen.findByText("klinika-4821@balagan.pro")).toBeInTheDocument();
+    expect(screen.getByText("Клиника")).toBeInTheDocument();
+  });
+
   it("opens the account actions", async () => {
     renderWithProviders(<UserMenu />);
     await userEvent.click(await screen.findByRole("button", { name: /Buyer/ }));

@@ -39,6 +39,7 @@ model Task {
   assigneeId      String?      @map("assignee_id")
   createdById     String?      @map("created_by_id")
   visibleToClient Boolean      @default(false) @map("visible_to_client")
+  personal        Boolean      @default(false)
   position        Int
   dueDate         DateTime?    @map("due_date") @db.Date
   dueTime         String?      @map("due_time") @db.VarChar(5)
@@ -112,12 +113,12 @@ model TaskImage {
 }
 
 model TaskComment {
-  id         String   @id @default(uuid())
-  taskId     String   @map("task_id")
-  authorId   String?  @map("author_id")
+  id         String    @id @default(uuid())
+  taskId     String    @map("task_id")
+  authorId   String?   @map("author_id")
   body       String
-  mentionIds String[] @map("mention_ids")
-  createdAt  DateTime @default(now()) @map("created_at")
+  mentionIds String[]  @map("mention_ids")
+  createdAt  DateTime  @default(now()) @map("created_at")
   editedAt   DateTime? @map("edited_at")
 
   task   Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)

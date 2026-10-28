@@ -646,14 +646,17 @@ ports, fixed clocks and deterministic identifiers.
 | Method | Path | Description | Success |
 |--------|------|-------------|:---:|
 | POST | `/auth/register` | Register behind an invite code, returns both tokens | 201 |
-| POST | `/auth/login` | Sign in, returns both tokens | 200 |
+| POST | `/auth/login` | Sign in with `{ login, password }`, where `login` is an email or an issued login; returns both tokens | 200 |
 | POST | `/auth/refresh` | Exchange a refresh token for a new access token | 200 |
 | POST | `/auth/logout` | Delete the refresh token | 204 |
 | POST | `/clients` | Create a client | 201 |
 | GET | `/clients` | List clients | 200 |
 | GET | `/clients/:id` | Single client | 200 |
 | PATCH | `/clients/:id` | Partial update | 200 |
-| DELETE | `/clients/:id` | Delete | 204 |
+| DELETE | `/clients/:id` | Delete, with the cabinet account issued for it | 204 |
+| GET | `/clients/:id/account` | The cabinet login and password issued for the client, or `null`; admins only | 200 |
+| POST | `/clients/:id/account` | Issue cabinet access: a generated login and password for the client's principal | 201 |
+| POST | `/clients/:id/account/password` | Issue a new cabinet password and end the account's sessions | 200 |
 | GET | `/tasks` | The board, ordered by column then position; `?projectId=` narrows it | 200 |
 | POST | `/tasks` | Create a task | 201 |
 | GET | `/tasks/:id` | Single task | 200 |
@@ -835,6 +838,46 @@ project and the grant over it are written in one transaction: either all of it l
 none of it does and the link still works. Both steps stay mounted, so stepping back loses
 nothing.
 
+### Input safety
+
+Everything a person types is shown as text: React escapes it, the code has no
+`dangerouslySetInnerHTML`, and Telegram messages and mail escape every value. Rich text — task
+descriptions, project documents, report conclusions and plans — is checked by the API against
+the parts its editor makes (`#shared/domain/rich-text.ts`): unknown node or mark types,
+attributes that are not plain values, nesting deeper than 100 levels and links other than
+`http`, `https`, `mailto`, `tel` or a path answer 400. Titles, names and contact details have
+length limits (`#shared/presentation/input-schemas.ts`). Every response carries `nosniff`,
+`X-Frame-Options: DENY`, a referrer policy and `frame-ancestors 'none'; object-src 'none';
+base-uri 'self'`. A full `script-src` policy for the app is not set yet: it needs checking
+against the built app in a browser first.
+
+Comments carry their author's name, so a client — who may not list the organization's
+members — sees who wrote each one, and recognizes their own by the session's `membershipId`.
+
+### Cabinet access issued by the agency
+
+Instead of an invitation, an admin can hand a client ready-made credentials from the
+client's card in the contact book. The API generates the login from the client's name —
+Latin letters, Cyrillic transliterated, at most twenty characters, then a hyphen, four
+digits and the agency's domain, such as `klinika-zdorove-4821@balagan.pro` — and a
+twelve-character password without look-alike characters. The login only looks like an
+address: the account it creates has no email and receives no mail. It is the client's
+`CLIENT_ADMIN`, so every customer rule above applies to it unchanged. A login that is
+already another account's email counts as taken and is generated again.
+
+The sign-in form takes an email or such a login in one field. The value is looked up among
+logins first and among emails after, so nobody's email can shadow a client's login. An
+account without an email gets no recovery mail; the agency issues it a new password
+instead, which ends its sessions.
+
+The issued password is kept so an admin can read it again, sealed with AES-256-GCM under
+`INTEGRATION_ENCRYPTION_KEY` and bound to the account's id; sign-in still checks the
+scrypt hash alone. As soon as the account's holder sets a password of their own — in the
+profile or through recovery — the kept copy is dropped and the card says the client
+changed it. Only admins see the card's «Доступ в кабинет» section or reach its endpoints.
+Deleting the client deletes the account; removing its membership leaves the client
+without access, ready to be issued again.
+
 ### What each role sees on the board
 
 Reach decides which projects a member may look at. Whose work it is decides what they see
@@ -844,7 +887,16 @@ inside them, and can only narrow it further:
 - `MANAGER`, `GUEST` — only the tasks they take part in, and the tasks nobody takes part in
   that they created. Any other task nobody takes part in is on the admin's board alone, which
   is the point: a client's request waits there until an admin reads it and names somebody.
-- `CLIENT` — only the tasks marked as shown to them.
+- `CLIENT` — only the tasks marked as shown to them, and their own personal tasks.
+
+A task a customer raises with no project is their **personal** task (`task.personal`): it
+reaches its author alone — not admins, not managers, not the client's other people — and only
+its author receives its realtime events and reminders. The author changes, moves, completes
+and deletes it as a manager may; it stays without a project and names nobody. It writes no
+audit events, since the activity log is read by the agency.
+
+A customer opens every task in the same form the agency uses, without the Видно клиенту switch.
+A task on a project is shown read-only there: fields disabled, no Сохранить or Удалить.
 
 A task raised by a client is marked shown to them when it is created; anything the agency
 raises is its own. **Only an admin changes that mark** — a manager may create, edit and

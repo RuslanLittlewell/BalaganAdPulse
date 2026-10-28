@@ -53,6 +53,7 @@ export function wireMembersAndPresence(
           id: user.id,
           name: user.name,
           email: user.email,
+          login: user.login,
           image: user.image,
           platformAdmin: user.isPlatformAdmin,
         };

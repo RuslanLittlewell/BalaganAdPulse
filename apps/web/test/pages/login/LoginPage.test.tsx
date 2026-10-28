@@ -33,16 +33,38 @@ function renderPage(state?: { from: string }) {
 beforeEach(() => localStorage.clear());
 
 describe("LoginPage", () => {
-  it("rejects an invalid email without calling the API", async () => {
+  it("refuses an empty email or login without calling the API", async () => {
+    let asked = false;
+    server.use(http.post("/api/auth/login", () => {
+      asked = true;
+      return HttpResponse.json({ accessToken: makeAccessToken(), refreshToken: "r" });
+    }));
     renderPage();
-    await userEvent.type(screen.getByLabelText("Email"), "buyer@acme");
+    await userEvent.type(screen.getByLabelText("Email или логин"), "   ");
     await userEvent.type(screen.getByLabelText("Пароль"), "hunter2hunter2");
     await userEvent.click(screen.getByRole("button", { name: "Войти" }));
 
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Введите корректный email");
-    expect(screen.getByLabelText("Email")).toHaveAttribute("aria-invalid", "true");
-    expect(screen.getByLabelText("Email").closest("form")).not.toContainElement(alert);
+    expect(alert).toHaveTextContent("Введите email или логин");
+    expect(screen.getByLabelText("Email или логин")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Email или логин").closest("form")).not.toContainElement(alert);
+    expect(asked).toBe(false);
+  });
+
+  it("signs in with a login the agency issued", async () => {
+    let sent: unknown;
+    server.use(http.post("/api/auth/login", async ({ request }) => {
+      sent = await request.json();
+      return HttpResponse.json({ accessToken: makeAccessToken(), refreshToken: "r" });
+    }));
+    renderPage();
+
+    await userEvent.type(screen.getByLabelText("Email или логин"), "klinika-4821@balagan.pro ");
+    await userEvent.type(screen.getByLabelText("Пароль"), "Secret234567");
+    await userEvent.click(screen.getByRole("button", { name: "Войти" }));
+
+    expect(await screen.findByText("dashboard")).toBeInTheDocument();
+    expect(sent).toEqual({ login: "klinika-4821@balagan.pro", password: "Secret234567" });
   });
 
   it("keeps tokens out of browser storage and lands on the dashboard", async () => {
@@ -50,7 +72,7 @@ describe("LoginPage", () => {
       HttpResponse.json({ accessToken: makeAccessToken(), refreshToken: "r" })));
     renderPage();
 
-    await userEvent.type(screen.getByLabelText("Email"), "buyer@acme.com");
+    await userEvent.type(screen.getByLabelText("Email или логин"), "buyer@acme.com");
     await userEvent.type(screen.getByLabelText("Пароль"), "hunter2hunter2");
     await userEvent.click(screen.getByRole("button", { name: "Войти" }));
 
@@ -64,7 +86,7 @@ describe("LoginPage", () => {
       HttpResponse.json({ accessToken: makeAccessToken(), refreshToken: "r" })));
     renderPage({ from: "/clients/c1" });
 
-    await userEvent.type(screen.getByLabelText("Email"), "buyer@acme.com");
+    await userEvent.type(screen.getByLabelText("Email или логин"), "buyer@acme.com");
     await userEvent.type(screen.getByLabelText("Пароль"), "hunter2hunter2");
     await userEvent.click(screen.getByRole("button", { name: "Войти" }));
 
@@ -78,13 +100,13 @@ describe("LoginPage", () => {
       )));
     renderPage();
 
-    await userEvent.type(screen.getByLabelText("Email"), "buyer@acme.com");
+    await userEvent.type(screen.getByLabelText("Email или логин"), "buyer@acme.com");
     await userEvent.type(screen.getByLabelText("Пароль"), "wrongwrongwrong");
     await userEvent.click(screen.getByRole("button", { name: "Войти" }));
 
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Invalid email or password");
-    expect(screen.getByLabelText("Email").closest("form")).not.toContainElement(alert);
+    expect(screen.getByLabelText("Email или логин").closest("form")).not.toContainElement(alert);
     expect(screen.getByRole("button", { name: "Войти" })).toBeEnabled();
     expect(readTokens()).toEqual({});
   });
@@ -99,13 +121,13 @@ describe("LoginPage", () => {
   it("accepts an email padded with a non-breaking space and sends it trimmed", async () => {
     let sentEmail: string | undefined;
     server.use(http.post("/api/auth/login", async ({ request }) => {
-      const body = (await request.json()) as { email: string };
-      sentEmail = body.email;
+      const body = (await request.json()) as { login: string };
+      sentEmail = body.login;
       return HttpResponse.json({ accessToken: makeAccessToken(), refreshToken: "r" });
     }));
     renderPage();
 
-    await userEvent.type(screen.getByLabelText("Email"), " buyer@acme.com");
+    await userEvent.type(screen.getByLabelText("Email или логин"), " buyer@acme.com");
     await userEvent.type(screen.getByLabelText("Пароль"), "hunter2hunter2");
     await userEvent.click(screen.getByRole("button", { name: "Войти" }));
 
@@ -121,7 +143,7 @@ describe("LoginPage", () => {
     server.use(http.post("/api/auth/login", () => pending));
     renderPage();
 
-    await userEvent.type(screen.getByLabelText("Email"), "buyer@acme.com");
+    await userEvent.type(screen.getByLabelText("Email или логин"), "buyer@acme.com");
     await userEvent.type(screen.getByLabelText("Пароль"), "hunter2hunter2");
     await userEvent.click(screen.getByRole("button", { name: "Войти" }));
 
@@ -141,7 +163,7 @@ describe("LoginPage", () => {
       HttpResponse.json({ error: { message: "Invalid email or password" } }, { status: 401 })));
     renderPage();
 
-    await userEvent.type(screen.getByLabelText("Email"), "buyer@acme.com");
+    await userEvent.type(screen.getByLabelText("Email или логин"), "buyer@acme.com");
     await userEvent.type(screen.getByLabelText("Пароль"), "wrongwrongwrong");
     await userEvent.click(screen.getByRole("button", { name: "Войти" }));
 
@@ -152,7 +174,7 @@ describe("LoginPage", () => {
     server.use(http.post("/api/auth/login", () => HttpResponse.error()));
     renderPage();
 
-    await userEvent.type(screen.getByLabelText("Email"), "buyer@acme.com");
+    await userEvent.type(screen.getByLabelText("Email или логин"), "buyer@acme.com");
     await userEvent.type(screen.getByLabelText("Пароль"), "hunter2hunter2");
     await userEvent.click(screen.getByRole("button", { name: "Войти" }));
 

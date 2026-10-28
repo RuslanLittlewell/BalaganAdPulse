@@ -1,8 +1,10 @@
 import { z } from "zod";
+import { STARTER_MARKS, STARTER_NODES } from "#shared/domain/rich-text.js";
+import { richText } from "#shared/presentation/input-schemas.js";
 import { MAX_CHOSEN_ADS, REPORT_STATUSES } from "#modules/reports/domain/report.js";
 
 const count = z.number().int().min(0).max(1_000_000);
-const document = z.record(z.string(), z.unknown());
+const document = richText({ nodes: STARTER_NODES, marks: STARTER_MARKS });
 const amount = z.string();
 const fraction = z.string().nullable();
 

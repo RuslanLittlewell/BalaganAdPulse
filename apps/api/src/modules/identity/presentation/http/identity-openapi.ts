@@ -14,7 +14,8 @@ const accessToken = z.object({ accessToken: z.string() });
 
 const profile = z.object({
   name: z.string(),
-  email: z.email(),
+  email: z.email().nullable(),
+  login: z.string().nullable(),
   image: z.string().nullable(),
   avatarPath: z.string().nullable(),
   phone: z.string().nullable(),
@@ -45,6 +46,7 @@ export const authDoc: RouteDoc = {
       method: "post",
       path: "/login",
       summary: "Exchange credentials for a session",
+      description: "Takes an email, or the login of an account the agency issued. The value is matched against logins first, then against emails.",
       open: true,
       body: loginSchema,
       success: { status: 200, description: "The session, also set as cookies", schema: ref("TokenPair") },

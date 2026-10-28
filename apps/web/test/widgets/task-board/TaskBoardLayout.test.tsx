@@ -58,7 +58,7 @@ describe("the card left behind while dragging", () => {
       <TaskColumnPanel
         column="IDEA"
         tasks={[aTask({ id: "a", title: "Первая" }), aTask({ id: "b", title: "Вторая" })]}
-        draggable
+        movable={() => true}
         draggingId="b"
       />,
       { route: "/tasks" },

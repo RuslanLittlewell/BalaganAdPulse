@@ -54,7 +54,7 @@ export interface ActorSnapshots {
   forMembership(
     context: TransactionContext,
     membershipId: string,
-  ): Promise<{ name: string; email: string }>;
+  ): Promise<{ name: string; email: string | null }>;
 }
 
 export interface AuditDependencies<TEvent = unknown> {

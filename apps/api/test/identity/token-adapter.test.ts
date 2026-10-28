@@ -47,9 +47,14 @@ describe("access tokens", () => {
     await expect(adapter.verifyAccess(token)).rejects.toThrow();
   });
 
-  it("rejects a validly signed token with no email claim", async () => {
+  it("reads a token with no email claim as an account without an email", async () => {
     const token = await signWithClaims({ name: principal.name }, principal.id);
-    await expect(adapter.verifyAccess(token)).rejects.toThrow();
+    await expect(adapter.verifyAccess(token)).resolves.toEqual({ id: principal.id, name: principal.name, email: null });
+  });
+
+  it("issues no email claim for an account without an email", async () => {
+    const token = await adapter.issueAccess({ ...principal, email: null });
+    await expect(adapter.verifyAccess(token)).resolves.toEqual({ ...principal, email: null });
   });
 });
 

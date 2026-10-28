@@ -67,6 +67,7 @@ model Membership {
   org            Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
   invites        Invite[]         @relation("InviteCreator")
   access         ClientAccess[]
+  clientAccount  ClientAccount?
   auditEvents    AuditEvent[]
 
   projectGroups     ProjectGroup[]

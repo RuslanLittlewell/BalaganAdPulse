@@ -1,9 +1,15 @@
 import { z } from "zod";
+import { STARTER_MARKS, STARTER_NODES } from "#shared/domain/rich-text.js";
+import { TITLE_LIMIT, atMost, richText } from "#shared/presentation/input-schemas.js";
 import { TASK_COLUMNS, TASK_PRIORITIES } from "#modules/tasks/domain/board.js";
 import { MAX_COMMENT_LENGTH } from "#modules/tasks/domain/comment.js";
 import { TASK_REPEATS, isCalendarDay, isEndTime, isTimeOfDay, isTimeZone } from "#modules/tasks/domain/schedule.js";
 
-const description = z.unknown().nullable().optional();
+const description = richText({ nodes: [...STARTER_NODES, "taskImage"], marks: [...STARTER_MARKS, "link"] })
+  .nullable()
+  .optional();
+
+const title = z.string().trim().min(1, "title is required").max(TITLE_LIMIT, `title ${atMost(TITLE_LIMIT)}`);
 
 const dueDate = z.string()
   .refine(isCalendarDay, "dueDate must be a real YYYY-MM-DD calendar day")
@@ -27,13 +33,14 @@ const timeZone = z.string()
 const participantIds = z.array(z.uuid("participantIds must hold membership ids")).optional();
 
 const checklist = z.array(z.object({
-  title: z.string().trim().min(1, "A checklist item needs a title"),
+  title: z.string().trim().min(1, "A checklist item needs a title")
+    .max(TITLE_LIMIT, `A checklist item ${atMost(TITLE_LIMIT)}`),
   done: z.boolean().optional(),
 })).optional();
 
 export const createTaskSchema = z.object({
   projectId: z.uuid("projectId must be a uuid").nullable().optional(),
-  title: z.string().trim().min(1, "title is required"),
+  title,
   description,
   column: z.enum(TASK_COLUMNS).optional(),
   priority: z.enum(TASK_PRIORITIES),
@@ -50,7 +57,7 @@ export const createTaskSchema = z.object({
 
 export const updateTaskSchema = z.object({
   projectId: z.uuid().nullable().optional(),
-  title: z.string().trim().min(1, "title is required").optional(),
+  title: title.optional(),
   description,
   priority: z.enum(TASK_PRIORITIES).optional(),
   participantIds,

@@ -21,7 +21,7 @@ function Probe() {
       <span data-testid="role">{role ?? "none"}</span>
       <span data-testid="clients">{clientIds.join(",")}</span>
       <button onClick={() => void logout()}>out</button>
-      <button onClick={() => void login({ email: "buyer@acme.com", password: "hunter2hunter2" })}>
+      <button onClick={() => void login({ login: "buyer@acme.com", password: "hunter2hunter2" })}>
         in
       </button>
       <button

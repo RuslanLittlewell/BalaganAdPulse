@@ -35,7 +35,8 @@ export interface SessionUserDirectory {
   findById(userId: string): Promise<{
     id: string;
     name: string;
-    email: string;
+    email: string | null;
+    login: string | null;
     image: string | null;
     platformAdmin: boolean;
   } | null>;

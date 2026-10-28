@@ -12,7 +12,7 @@ export class TokenAdapter implements TokenPort {
   private readonly secret = new TextEncoder().encode(config.jwtSecret);
 
   async issueAccess(principal: SessionPrincipal): Promise<string> {
-    return new SignJWT({ name: principal.name, email: principal.email })
+    return new SignJWT({ name: principal.name, ...(principal.email ? { email: principal.email } : {}) })
       .setProtectedHeader({ alg: "HS256" })
       .setSubject(principal.id)
       .setIssuedAt()
@@ -23,8 +23,8 @@ export class TokenAdapter implements TokenPort {
   async verifyAccess(token: string): Promise<SessionPrincipal> {
     const { payload } = await jwtVerify(token, this.secret, { algorithms: ["HS256"] });
     const { sub, name, email } = payload as { sub?: string; name?: string; email?: string };
-    if (!sub || !name || !email) throw new Error("Access token is missing its claims");
-    return { id: sub, name, email };
+    if (!sub || !name) throw new Error("Access token is missing its claims");
+    return { id: sub, name, email: email ?? null };
   }
 
   generateRefresh(): string {

@@ -23,6 +23,7 @@ import {
 import type {
   TaskChange, TaskDependencies, TaskDescription, TaskFilter, TaskRecord,
 } from "./ports.js";
+import { mayChange } from "./task-authority.js";
 import { taskCreated, taskDeleted, taskMoved, taskUpdated } from "./task-events.js";
 
 export interface CreateTaskInput {
@@ -59,6 +60,21 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
       throw new AppError("forbidden", `Your role may not ${action} a task`);
     }
   };
+
+  const assertMayChange = (actor: ActorContext, task: TaskRecord, action: "update" | "delete") => {
+    if (!mayChange(actor, task, action)) {
+      throw new AppError("forbidden", `Your role may not ${action} a task`);
+    }
+  };
+
+  const assertStaysPersonal = (task: TaskRecord, projectId: string | null) => {
+    if (task.personal && projectId !== null) {
+      throw new AppError("validation", "A personal task stays without a project");
+    }
+  };
+
+  const record = (task: Pick<TaskRecord, "personal">, ...entry: Parameters<typeof dependencies.audit.append>) =>
+    task.personal ? Promise.resolve() : dependencies.audit.append(...entry);
 
   const reach = async (actor: ActorContext, id: string): Promise<TaskRecord> => {
     assertCanRead(actor);
@@ -178,7 +194,9 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
       assertColumn(input.column);
       const projectId = input.projectId ?? null;
       const context = await projectContext(actor, projectId);
-      assertMayShare(isCustomer(actor.role), projectId);
+      const personal = isCustomer(actor.role) && projectId === null;
+      const visibleToClient = isCustomer(actor.role) && !personal;
+      assertMayShare(visibleToClient, projectId);
       const participantIds = input.participantIds ?? [];
       assertCustomerNamesNobody(actor, participantIds);
       await assertParticipants(actor, { projectId, participantIds, previous: [] });
@@ -202,14 +220,15 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
           priority: input.priority,
           participantIds,
           createdById: actor.membershipId,
-          visibleToClient: isCustomer(actor.role),
+          visibleToClient,
+          personal,
           position: await dependencies.tasks.countInColumn(actor.orgId, column),
           checklist,
         });
         const imageIds = await dependencies.images.claim(
           transaction, task.id, actor.membershipId, collectImageIds(task.description),
         );
-        await dependencies.audit.append(transaction, {
+        await record(task, transaction, {
           action: "CREATE", entityType: "task", entityId: task.id,
           clientId: context.clientId, projectId: task.projectId,
           summary: `Created task “${task.title}”`,
@@ -223,10 +242,12 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
 
     update: async (actor: ActorContext, id: string, input: TaskChange): Promise<TaskRecord> => {
       const task = await reach(actor, id);
-      assertCan(actor, "update");
+      assertMayChange(actor, task, "update");
       assertMaySetVisibility(actor, input.visibleToClient);
+      assertCustomerNamesNobody(actor, input.participantIds ?? []);
       assertTitle(input.title);
       const projectId = input.projectId === undefined ? task.projectId : input.projectId;
+      assertStaysPersonal(task, projectId);
       const context = await projectContext(actor, projectId);
       assertMayShare(input.visibleToClient ?? task.visibleToClient, projectId);
       if (input.participantIds !== undefined || input.projectId !== undefined) {
@@ -259,7 +280,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
           : await dependencies.images.claim(
               transaction, id, actor.membershipId, collectImageIds(withChecklist.description),
             );
-        await dependencies.audit.append(transaction, {
+        await record(task, transaction, {
           action: "UPDATE", entityType: "task", entityId: id,
           clientId: context.clientId, projectId: withChecklist.projectId,
           summary: `Updated task “${withChecklist.title}”`,
@@ -275,7 +296,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
 
     delete: async (actor: ActorContext, id: string): Promise<void> => {
       const task = await reach(actor, id);
-      assertCan(actor, "delete");
+      assertMayChange(actor, task, "delete");
       const context = await projectContext(actor, task.projectId);
 
       const images = await dependencies.images.listForTask(id);
@@ -286,7 +307,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
           await dependencies.tasks.columnIds(actor.orgId, task.column), id,
         );
         await dependencies.tasks.applyOrder(transaction, task.column, remaining);
-        await dependencies.audit.append(transaction, {
+        await record(task, transaction, {
           action: "DELETE", entityType: "task", entityId: id,
           clientId: context.clientId, projectId: task.projectId,
           summary: `Deleted task “${task.title}”`,
@@ -299,7 +320,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
 
     complete: async (actor: ActorContext, id: string): Promise<TaskRecord> => {
       const task = await reach(actor, id);
-      assertCan(actor, "update");
+      assertMayChange(actor, task, "update");
       if (task.repeatEvery === "NONE" || task.dueDate === null) {
         throw new AppError("validation", "Only a repeating task is completed into its next occurrence");
       }
@@ -309,7 +330,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
       const completed = await dependencies.unitOfWork.run(async (transaction) => {
         await dependencies.tasks.untickChecklist(transaction, task.id);
         const moved = await dependencies.tasks.update(transaction, task.id, { dueDate });
-        await dependencies.audit.append(transaction, {
+        await record(task, transaction, {
           action: "UPDATE", entityType: "task", entityId: task.id,
           clientId: context.clientId, projectId: task.projectId,
           summary: `Completed task “${task.title}” of ${task.dueDate}, due next on ${dueDate}`,
@@ -323,7 +344,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
 
     move: async (actor: ActorContext, id: string, input: MoveTaskInput): Promise<TaskRecord> => {
       const task = await reach(actor, id);
-      assertCan(actor, "update");
+      assertMayChange(actor, task, "update");
       assertColumn(input.column);
       const context = await projectContext(actor, task.projectId);
 
@@ -339,7 +360,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
         );
         await dependencies.tasks.applyOrder(transaction, input.column, target);
 
-        await dependencies.audit.append(transaction, {
+        await record(task, transaction, {
           action: "UPDATE", entityType: "task", entityId: id,
           clientId: context.clientId, projectId: task.projectId,
           summary: `Moved task “${task.title}” from ${task.column} to ${input.column}`,

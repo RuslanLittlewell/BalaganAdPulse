@@ -5,7 +5,7 @@ import type { Actor } from "@adpulse/access-policy";
 
 export interface RequestActor extends Actor {
   name: string;
-  email: string;
+  email: string | null;
 }
 
 export interface RequestContext {

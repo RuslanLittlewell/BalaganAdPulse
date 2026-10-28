@@ -29,8 +29,16 @@ describe("registerSchema", () => {
 });
 
 describe("loginSchema", () => {
-  it("lowercases the email", () => {
-    expect(loginSchema.parse({ email: "Buyer@Acme.com", password: "x" }).email)
+  it("lowercases what it is given", () => {
+    expect(loginSchema.parse({ login: " Buyer@Acme.com ", password: "x" }).login)
       .toBe("buyer@acme.com");
+  });
+
+  it("takes a login that is not an email", () => {
+    expect(loginSchema.parse({ login: " Klinika-4821@Balagan.PRO ", password: "x" }).login).toBe("klinika-4821@balagan.pro");
+  });
+
+  it("refuses an empty login", () => {
+    expect(loginSchema.safeParse({ login: "  ", password: "x" }).success).toBe(false);
   });
 });

@@ -14,7 +14,7 @@ export interface RegisterIdentityInput {
 }
 
 export interface LoginIdentityInput {
-  readonly email: string;
+  readonly login: string;
   readonly password: string;
 }
 
@@ -87,13 +87,14 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
     },
 
     login: async (input: LoginIdentityInput) => {
-      const user = await dependencies.users.findByEmail(input.email);
+      const user = (await dependencies.users.findByLogin(input.login))
+        ?? (await dependencies.users.findByEmail(input.login));
       const matches = await dependencies.passwords.verify(
         input.password,
         user?.passwordHash ?? dependencies.passwords.dummyHash,
       );
       if (!user || !matches)
-        throw new AppError("unauthorized", "Invalid email or password");
+        throw new AppError("unauthorized", "Invalid login or password");
       return dependencies.unitOfWork.run((context) =>
         issueTokenPair(context, user),
       );
@@ -104,7 +105,7 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
         throw new AppError("unavailable", "Password recovery is not available");
       }
       const user = await dependencies.users.findByEmail(email);
-      if (!user) return;
+      if (!user?.email) return;
       const token = dependencies.tokens.generateReset();
       await dependencies.unitOfWork.run((context) =>
         dependencies.resets.replace(context, {
@@ -181,6 +182,7 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
       return {
         name: user.name,
         email: user.email,
+        login: user.login,
         image,
         avatarPath: user.avatarPath,
         phone: user.phone,

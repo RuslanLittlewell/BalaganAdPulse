@@ -10,6 +10,7 @@ import type {
 
 export interface UserRepository {
   findByEmail(email: string): Promise<IdentityUser | null>;
+  findByLogin(login: string): Promise<IdentityUser | null>;
   findById(id: string): Promise<IdentityUser | null>;
   create(
     context: TransactionContext,

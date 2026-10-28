@@ -84,7 +84,7 @@ export function aTask(overrides: Partial<Task> = {}): Task {
     priority: "MEDIUM",
     createdById: "member-1",
     participantIds: [],
-    visibleToClient: false,
+    visibleToClient: false, personal: false,
     position: 0,
     dueDate: null,
     dueTime: null,
@@ -103,10 +103,11 @@ export function aTask(overrides: Partial<Task> = {}): Task {
 
 export function aSession(overrides: Partial<AuthSession> = {}): AuthSession {
   return {
-    user: { id: "user-1", name: "Buyer", email: "buyer@acme.com", image: null },
+    user: { id: "user-1", name: "Buyer", email: "buyer@acme.com", login: null, image: null },
     platformAdmin: false,
     organization: { id: "org-1", name: "AdPulse", slug: "adpulse", status: "ACTIVE" },
     role: "ADMIN",
+    membershipId: "member-1",
     clientIds: [],
     modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"],
     ...overrides,
@@ -115,7 +116,7 @@ export function aSession(overrides: Partial<AuthSession> = {}): AuthSession {
 
 export function aPlatformAdminSession(): AuthSession {
   return aSession({
-    user: { id: "platform-1", name: "Платформа", email: "global-admin@balagan.pro", image: null },
+    user: { id: "platform-1", name: "Платформа", email: "global-admin@balagan.pro", login: null, image: null },
     platformAdmin: true,
     organization: null,
     role: null,

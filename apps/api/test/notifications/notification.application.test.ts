@@ -226,7 +226,7 @@ describe("a new document", () => {
 describe("a deadline drawing near", () => {
   const due = (partial: Partial<DueTask> = {}): DueTask => ({
     id: "t1", projectId: "p1", dueDate: "2026-10-20", dueTime: "18:00", timeZone: null,
-    participantIds: ["boris"], createdById: "anna", visibleToClient: false, ...partial,
+    participantIds: ["boris"], createdById: "anna", visibleToClient: false, personal: false, ...partial,
   });
   const minsk = (wallClock: string) => new Date(`${wallClock}+03:00`);
 
@@ -295,6 +295,18 @@ describe("a deadline drawing near", () => {
     await hidden.useCases.remindDueTasks();
 
     expect(recipientsOf(hidden.created)).toEqual(["boris"]);
+  });
+
+  it("reminds a client of the personal task they raised", async () => {
+    const members = [{ id: "client", customer: true }];
+    const personal = due({ projectId: null, participantIds: [], createdById: "client", personal: true });
+    const { useCases, created } = fixture({ members, due: [personal], now: minsk("2026-10-19T20:00:00") });
+
+    await useCases.remindDueTasks();
+
+    expect(created).toEqual([
+      { recipientId: "client", kind: "TASK_DUE_SOON", projectId: null, taskId: "t1", documentId: null, actorId: null },
+    ]);
   });
 });
 

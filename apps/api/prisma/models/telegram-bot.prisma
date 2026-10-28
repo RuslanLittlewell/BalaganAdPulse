@@ -1,6 +1,6 @@
 model TelegramLink {
-  membershipId String   @id @map("membership_id")
-  chatId       BigInt   @unique @map("chat_id")
+  membershipId  String   @id @map("membership_id")
+  chatId        BigInt   @unique @map("chat_id")
   username      String?
   linkedAt      DateTime @default(now()) @map("linked_at")
   notifications Boolean  @default(true)

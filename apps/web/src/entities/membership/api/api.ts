@@ -7,7 +7,7 @@ export interface Membership {
   id: string;
   userId: string;
   name: string;
-  email: string;
+  email: string | null;
   image: string | null;
   phone: string | null;
   telegram: string | null;

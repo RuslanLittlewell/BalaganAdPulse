@@ -13,7 +13,7 @@ model AuditEvent {
   orgId      String       @map("org_id")
   actorId    String?      @map("actor_id")
   actorName  String       @map("actor_name")
-  actorEmail String       @map("actor_email")
+  actorEmail String?      @map("actor_email")
   actorRole  Role         @map("actor_role")
   action     AuditAction
   entityType String       @map("entity_type")

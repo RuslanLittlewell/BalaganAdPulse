@@ -27,7 +27,7 @@ import {
 import { useMembers } from "@/entities/membership/index.js";
 import { useProjects } from "@/entities/project/index.js";
 import { useCan } from "@/features/permissions/index.js";
-import { useDoneToggle } from "@/features/task-management/index.js";
+import { useDoneToggle, useTaskChange } from "@/features/task-management/index.js";
 import { t } from "@/shared/config/index.js";
 import { droppedBelow, landingOf, useDragPreview } from "@/shared/lib/index.js";
 import { EmptyState, Loader } from "@/shared/ui/index.js";
@@ -46,7 +46,7 @@ export interface TaskBoardProps {
 
 export function TaskBoard({ tasks, allTasks, isLoading, isError, onOpen, onCreate }: TaskBoardProps) {
   const move = useMoveTask();
-  const draggable = useCan("update", "task");
+  const changes = useTaskChange();
   const creatable = useCan("create", "task");
   const { data: projects } = useProjects();
   const { data: members } = useMembers();
@@ -79,9 +79,7 @@ export function TaskBoard({ tasks, allTasks, isLoading, isError, onOpen, onCreat
 
 
   const dragging = board.find((task) => task.id === draggingId) ?? null;
-  const toggleTask = draggable
-    ? (task: Task) => { setMoveError(null); toggleDone(task); }
-    : undefined;
+  const toggleTask = (task: Task) => { setMoveError(null); toggleDone(task); };
 
   if (isLoading) return <Loader />;
   if (isError) return <EmptyState title={t("tasks.loadFailed")} />;
@@ -135,7 +133,7 @@ export function TaskBoard({ tasks, allTasks, isLoading, isError, onOpen, onCreat
             key={column}
             column={column}
             tasks={byColumn.get(column) ?? []}
-            draggable={draggable}
+            movable={changes}
             draggingId={draggingId}
             projects={projectById}
             members={memberById}
@@ -153,7 +151,7 @@ export function TaskBoard({ tasks, allTasks, isLoading, isError, onOpen, onCreat
               draggable={false}
               project={dragging.projectId ? projectById.get(dragging.projectId) : undefined}
               people={participantsOf(dragging, memberById)}
-              onToggleDone={toggleTask}
+              onToggleDone={changes(dragging) ? toggleTask : undefined}
             />
           ) : null}
         </DragOverlay>,

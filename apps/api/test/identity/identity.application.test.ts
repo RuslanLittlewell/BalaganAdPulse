@@ -18,10 +18,11 @@ function fixture(options: { mail?: boolean } = {}) {
   const dependencies: IdentityDependencies = {
     users: {
       findByEmail: async (email) => [...users.values()].find((user) => user.email === email) ?? null,
+      findByLogin: async (login) => [...users.values()].find((user) => user.login === login) ?? null,
       findById: async (id) => users.get(id) ?? null,
       create: async (_tx, input) => {
         if ([...users.values()].some((user) => user.email === input.email)) throw new AppError("conflict", "This email is already registered");
-        const user = { id: `u${users.size + 1}`, ...input, image: null, avatarPath: null };
+        const user = { id: `u${users.size + 1}`, ...input, login: null, image: null, avatarPath: null };
         users.set(user.id, user);
         return user;
       },
@@ -108,8 +109,20 @@ describe("identity application use cases", () => {
 
   it("logs in without revealing whether email or password was wrong", async () => {
     const { useCases } = fixture();
-    await expect(useCases.login({ email: "missing@acme.com", password: "wrong" }))
-      .rejects.toMatchObject({ category: "unauthorized", message: "Invalid email or password" });
+    await expect(useCases.login({ login: "missing@acme.com", password: "wrong" }))
+      .rejects.toMatchObject({ category: "unauthorized", message: "Invalid login or password" });
+  });
+
+  it("matches a login before an email equal to it", async () => {
+    const { users, useCases } = fixture();
+    const account = { name: "", image: null, avatarPath: null, phone: null, telegram: null, isPlatformAdmin: false };
+    users.set("u-member", { ...account, id: "u-member", name: "Member", email: "klinika-4821@balagan.pro", login: null, passwordHash: "hash:member123" });
+    users.set("u-client", { ...account, id: "u-client", name: "Клиника", email: null, login: "klinika-4821@balagan.pro", passwordHash: "hash:client123" });
+
+    await expect(useCases.login({ login: "klinika-4821@balagan.pro", password: "client123" }))
+      .resolves.toMatchObject({ accessToken: "access:u-client:Клиника" });
+    await expect(useCases.login({ login: "klinika-4821@balagan.pro", password: "member123" }))
+      .rejects.toMatchObject({ category: "unauthorized" });
   });
 
   it("refreshes a live session and rejects an expired one", async () => {
@@ -218,7 +231,7 @@ describe("password recovery", () => {
   it("sets the new password, ends every session and signs in, once", async () => {
     const { users, sessions, useCases } = fixture();
     await registered(useCases);
-    await useCases.login({ email: "buyer@acme.com", password: "secret123" });
+    await useCases.login({ login: "buyer@acme.com", password: "secret123" });
     expect(sessions.size).toBe(2);
     await useCases.requestPasswordReset("buyer@acme.com");
 

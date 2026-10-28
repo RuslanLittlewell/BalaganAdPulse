@@ -9,6 +9,7 @@ export type { TaskDoneCheckProps } from "./ui/TaskDoneCheck.js";
 export { useTaskAddress } from "./model/useTaskAddress.js";
 export type { TaskAddress } from "./model/useTaskAddress.js";
 export { useDoneToggle } from "./model/useDoneToggle.js";
+export { useTaskChange } from "./model/useTaskChange.js";
 export type { TaskCardDrag, TaskCardViewProps } from "./ui/TaskCardView.js";
 export type { OpenedTask, TaskDialogsProps } from "./ui/TaskDialogs.js";
 export type { TaskPreviewDialogProps } from "./ui/TaskPreviewDialog.js";

@@ -3,6 +3,7 @@ import { AppError } from "#shared/domain/index.js";
 import type { ActorContext } from "#shared/application/index.js";
 import { removeImage } from "../domain/description.js";
 import { assertUploadableImage } from "../domain/image.js";
+import { mayChange } from "./task-authority.js";
 import { taskUpdated } from "./task-events.js";
 import type { TaskDependencies, TaskImageRecord } from "./ports.js";
 
@@ -68,7 +69,7 @@ export function createTaskImageUseCases(dependencies: TaskDependencies) {
         ? null
         : await dependencies.tasks.findReachable(actor, image.taskId);
       if (image.taskId !== null && !task) throw new AppError("not-found", NOT_FOUND);
-      if (task && !can(actor, "update", "task")) throw new AppError("not-found", NOT_FOUND);
+      if (task && !mayChange(actor, task, "update")) throw new AppError("not-found", NOT_FOUND);
 
       const updated = await dependencies.unitOfWork.run(async (transaction) => {
         await dependencies.images.deleteMany(transaction, [id]);

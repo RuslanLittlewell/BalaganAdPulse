@@ -1,5 +1,6 @@
 import { Loader } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
+import { isWebAddress } from "@/shared/lib/index.js";
 import { useCreativeFile, type Creative } from "@/entities/campaign/index.js";
 
 export interface CreativeMediaProps {
@@ -60,7 +61,7 @@ export function CreativeMedia({
         {creative.body != null && (
           <span className="text-xs text-muted-foreground">{creative.body}</span>
         )}
-        {creative.sourceUrl != null && (
+        {creative.sourceUrl != null && isWebAddress(creative.sourceUrl) && (
           <a
             className="text-xs text-primary underline"
             href={creative.sourceUrl}

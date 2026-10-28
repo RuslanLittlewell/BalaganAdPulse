@@ -11,6 +11,7 @@ export class PrismaUserRepository implements UserRepository {
   ) {}
 
   findByEmail(email: string) { return this.prisma.user.findUnique({ where: { email } }); }
+  findByLogin(login: string) { return this.prisma.user.findUnique({ where: { login } }); }
   findById(id: string) { return this.prisma.user.findUnique({ where: { id } }); }
 
   async create(context: TransactionContext, input: { name: string; email: string; passwordHash: string }) {
@@ -25,11 +26,14 @@ export class PrismaUserRepository implements UserRepository {
   }
 
   update(context: TransactionContext, id: string, input: { name: string; passwordHash?: string }) {
-    return this.unitOfWork.clientFor<Prisma.TransactionClient>(context).user.update({ where: { id }, data: input });
+    const data = input.passwordHash ? { ...input, issuedPassword: null } : input;
+    return this.unitOfWork.clientFor<Prisma.TransactionClient>(context).user.update({ where: { id }, data });
   }
 
   setPassword(context: TransactionContext, id: string, passwordHash: string) {
-    return this.unitOfWork.clientFor<Prisma.TransactionClient>(context).user.update({ where: { id }, data: { passwordHash } });
+    return this.unitOfWork.clientFor<Prisma.TransactionClient>(context).user.update({
+      where: { id }, data: { passwordHash, issuedPassword: null },
+    });
   }
 
   setAvatar(context: TransactionContext, id: string, input: { image: string; avatarPath: string }): Promise<void> {

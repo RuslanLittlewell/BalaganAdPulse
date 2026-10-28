@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
 import { errorHandler } from "#shared/presentation/error-handler.js";
+import { protectiveHeaders } from "#shared/presentation/protective-headers.js";
 import { projectDocumentBody } from "#modules/project-documents/index.js";
 import { createContainer, type ApiContainer } from "./create-container.js";
 import { createRoutes, mountPath } from "./create-routes.js";
@@ -23,6 +24,7 @@ export function createApp(options: AppOptions = {}) {
   const app = express();
 
   app.set("trust proxy", 1);
+  app.use(protectiveHeaders);
   app.use(mountPath("project-documents"), projectDocumentBody);
   app.use(express.json());
 

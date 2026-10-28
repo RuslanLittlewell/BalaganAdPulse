@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { clientsApi, type Client, type ClientInput } from "./api.js";
+import { clientsApi, type Client, type ClientCredentials, type ClientInput } from "./api.js";
 
 const CLIENTS_KEY = ["clients"] as const;
+const accountKey = (clientId: string) => [...CLIENTS_KEY, clientId, "account"] as const;
 
 export function useClients() {
   return useQuery({ queryKey: CLIENTS_KEY, queryFn: clientsApi.list });
@@ -42,4 +43,24 @@ export function useSaveClientAvatar() {
       clientsApi.saveAvatar(id, png, avatarPath),
     onSuccess: () => qc.invalidateQueries({ queryKey: CLIENTS_KEY }),
   });
+}
+
+export function useClientAccount(clientId: string) {
+  return useQuery({ queryKey: accountKey(clientId), queryFn: () => clientsApi.account(clientId) });
+}
+
+function useCredentialsMutation(clientId: string, issue: (clientId: string) => Promise<ClientCredentials>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => issue(clientId),
+    onSuccess: (credentials) => qc.setQueryData(accountKey(clientId), credentials),
+  });
+}
+
+export function useCreateClientAccount(clientId: string) {
+  return useCredentialsMutation(clientId, clientsApi.createAccount);
+}
+
+export function useReissueClientPassword(clientId: string) {
+  return useCredentialsMutation(clientId, clientsApi.reissuePassword);
 }

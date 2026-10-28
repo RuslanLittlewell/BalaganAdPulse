@@ -15,7 +15,7 @@ const auditEvent = z.object({
   orgId: z.uuid(),
   actorId: z.uuid().nullable(),
   actorName: z.string(),
-  actorEmail: z.email(),
+  actorEmail: z.email().nullable(),
   actorRole: z.enum(ROLES),
   action: z.enum(AUDIT_ACTIONS),
   entityType: z.string(),

@@ -36,7 +36,7 @@ describe("scrypt gate", () => {
   it("spends a hash on an unknown email, exactly as on a wrong password", async () => {
     const before = scryptGate.stats().total;
     await request(app).post("/api/auth/login")
-      .send({ email: "nobody@example.com", password: "hunter2hunter2" });
+      .send({ login: "nobody@example.com", password: "hunter2hunter2" });
     expect(scryptGate.stats().total).toBe(before + 1);
   });
 

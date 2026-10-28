@@ -100,7 +100,7 @@ describe("User API", () => {
     expect(changed.status).toBe(200);
 
     const login = await request(app).post("/api/auth/login")
-      .send({ email: account.email, password: "new-password-123" });
+      .send({ login: account.email, password: "new-password-123" });
     expect(login.status).toBe(200);
   });
 

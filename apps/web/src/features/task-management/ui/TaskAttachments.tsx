@@ -162,6 +162,7 @@ export function TaskAttachments({ imageIds, onRemoved, onAttach }: TaskAttachmen
                   )}
                 </button>
 
+                {onRemoved ? (
                 <button
                   type="button"
                   aria-label={`${t("tasks.attachments.remove")}: ${label}`}
@@ -179,6 +180,7 @@ export function TaskAttachments({ imageIds, onRemoved, onAttach }: TaskAttachmen
                 >
                   <X aria-hidden className="size-3" />
                 </button>
+                ) : null}
               </li>
             );
           })}

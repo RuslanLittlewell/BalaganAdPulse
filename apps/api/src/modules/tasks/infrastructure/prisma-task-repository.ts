@@ -32,6 +32,7 @@ function toDomain(row: RowWithImages, defaultTimeZone: string): TaskRecord {
     createdById: row.createdById,
     participantIds: (row.participants ?? []).map((participant) => participant.membershipId),
     visibleToClient: row.visibleToClient,
+    personal: row.personal,
     position: row.position,
     dueDate: row.dueDate === null ? null : dateToDay(row.dueDate),
     dueTime: row.dueTime, endTime: row.endTime, repeatEvery: row.repeatEvery, isCall: row.isCall,
@@ -57,9 +58,15 @@ function namedIn(actor: ActorContext): Prisma.TaskWhereInput {
 }
 
 function visibleTo(actor: ActorContext): Prisma.TaskWhereInput {
-  if (actor.role === "ADMIN") return { orgId: actor.orgId };
+  if (actor.role === "ADMIN") return { orgId: actor.orgId, personal: false };
   if (isCustomer(actor.role)) {
-    return { orgId: actor.orgId, visibleToClient: true, project: grantedProjects(actor) };
+    return {
+      orgId: actor.orgId,
+      OR: [
+        { visibleToClient: true, project: grantedProjects(actor) },
+        { personal: true, createdById: actor.membershipId },
+      ],
+    };
   }
   return {
     orgId: actor.orgId,

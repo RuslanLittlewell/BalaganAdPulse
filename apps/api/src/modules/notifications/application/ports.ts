@@ -39,6 +39,7 @@ export interface DueTask {
   readonly participantIds: readonly string[];
   readonly createdById: string | null;
   readonly visibleToClient: boolean;
+  readonly personal: boolean;
 }
 
 export interface DueTasks {

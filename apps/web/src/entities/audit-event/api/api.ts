@@ -16,7 +16,7 @@ export interface AuditEvent {
   orgId: string;
   actorId: string | null;
   actorName: string;
-  actorEmail: string;
+  actorEmail: string | null;
   actorRole: Role;
   action: AuditAction;
   entityType: string;

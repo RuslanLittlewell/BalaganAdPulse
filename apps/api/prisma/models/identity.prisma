@@ -1,8 +1,10 @@
 model User {
   id              String         @id @default(uuid())
-  email           String         @unique
+  email           String?        @unique
+  login           String?        @unique
   name            String
   passwordHash    String         @map("password_hash")
+  issuedPassword  String?        @map("issued_password")
   image           String?
   avatarPath      String?        @map("avatar_path")
   phone           String?

@@ -1,4 +1,5 @@
 import { Loader } from "@/shared/ui/index.js";
+import { isWebAddress } from "@/shared/lib/index.js";
 import { useAdPreview, type Creative } from "@/entities/campaign/index.js";
 import { CreativeMedia } from "./CreativeMedia.js";
 
@@ -25,7 +26,7 @@ export function AdPreviewFrame({
     );
   }
 
-  if (rendered.data == null) {
+  if (rendered.data == null || !isWebAddress(rendered.data.url)) {
     return (
       <>
         {variants.map((creative) => (

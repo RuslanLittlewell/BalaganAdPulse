@@ -17,8 +17,19 @@ model Client {
   orgId        String         @map("org_id")
   org          Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
   access       ClientAccess[]
+  account      ClientAccount?
 
   @@unique([id, orgId])
   @@index([orgId, createdAt])
   @@map("client")
+}
+
+model ClientAccount {
+  clientId     String     @id @map("client_id")
+  membershipId String     @unique @map("membership_id")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  client       Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  membership   Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@map("client_account")
 }

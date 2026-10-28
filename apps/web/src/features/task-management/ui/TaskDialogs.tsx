@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { ConfirmDialog } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
-import { useCan } from "@/features/permissions/index.js";
+import { isCustomer } from "@adpulse/access-policy";
+import { useAuth } from "@/features/auth/index.js";
 import { useDeleteTask, type Task, type TaskColumn } from "@/entities/task/index.js";
+import { useTaskChange } from "../model/useTaskChange.js";
 import { TaskFormDialog } from "./TaskFormDialog.js";
 import { TaskPreviewDialog } from "./TaskPreviewDialog.js";
 
@@ -17,17 +19,19 @@ export interface TaskDialogsProps {
 }
 
 export function TaskDialogs({ opened, onClose }: TaskDialogsProps) {
-  const mayEdit = useCan("update", "task");
+  const changes = useTaskChange();
+  const { role } = useAuth();
+  const inForm = opened.mode === "open" && (changes(opened.task) || (role !== null && isCustomer(role)));
   const [pendingDelete, setPendingDelete] = useState<Task | null>(null);
   const remove = useDeleteTask();
 
   return (
     <>
-      {opened.mode === "open" && !mayEdit ? (
+      {opened.mode === "open" && !inForm ? (
         <TaskPreviewDialog task={opened.task} onClose={onClose} />
       ) : null}
 
-      {opened.mode === "create" || (opened.mode === "open" && mayEdit) ? (
+      {opened.mode === "create" || inForm ? (
         <TaskFormDialog
           task={opened.mode === "open" ? opened.task : undefined}
           column={opened.mode === "create" ? opened.column : undefined}

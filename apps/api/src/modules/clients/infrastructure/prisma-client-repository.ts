@@ -69,6 +69,9 @@ export class PrismaClientRepository implements ClientRepository {
   }
 
   async delete(context: TransactionContext, id: string): Promise<void> {
+    await this.client(context).user.deleteMany({
+      where: { memberships: { some: { clientAccount: { clientId: id } } } },
+    });
     await this.client(context).client.delete({ where: { id } });
   }
 

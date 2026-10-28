@@ -29,27 +29,27 @@ enum CreativeKind {
 }
 
 model Campaign {
-  id              String                @id @default(uuid())
-  projectId       String                @map("project_id")
-  project         Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  name            String
-  channel         Channel
-  status          DeliveryStatus        @default(ACTIVE)
-  objective       String?
-  externalId      String?               @map("external_id")
-  sourceAccountId String?               @map("source_account_id")
-  conversionCategories String[]         @default([]) @map("conversion_categories")
-  position        Int
-  createdAt       DateTime              @default(now()) @map("created_at")
-  updatedAt       DateTime              @updatedAt @map("updated_at")
-  adSets          AdSet[]
-  metrics         CampaignDailyMetric[]
-  results         CampaignDailyResult[]
-  leads           Lead[]
-  kpiMetric       KpiMetric?            @map("kpi_metric")
-  kpiTarget       Decimal?              @map("kpi_target") @db.Decimal(18, 4)
-  kpiUpdatedAt    DateTime?             @map("kpi_updated_at")
-  kpiResultType   String?               @map("kpi_result_type")
+  id                   String                @id @default(uuid())
+  projectId            String                @map("project_id")
+  project              Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name                 String
+  channel              Channel
+  status               DeliveryStatus        @default(ACTIVE)
+  objective            String?
+  externalId           String?               @map("external_id")
+  sourceAccountId      String?               @map("source_account_id")
+  conversionCategories String[]              @default([]) @map("conversion_categories")
+  position             Int
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @updatedAt @map("updated_at")
+  adSets               AdSet[]
+  metrics              CampaignDailyMetric[]
+  results              CampaignDailyResult[]
+  leads                Lead[]
+  kpiMetric            KpiMetric?            @map("kpi_metric")
+  kpiTarget            Decimal?              @map("kpi_target") @db.Decimal(18, 4)
+  kpiUpdatedAt         DateTime?             @map("kpi_updated_at")
+  kpiResultType        String?               @map("kpi_result_type")
 
   @@unique([channel, externalId])
   @@index([projectId, position])

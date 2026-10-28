@@ -136,6 +136,13 @@ describe("can", () => {
       }
     });
 
+    it("let only admins read, create and replace a client's cabinet credentials", () => {
+      for (const action of ["read", "create", "update"] as const) {
+        expectRow(action, "client-account", ["ADMIN"]);
+      }
+      expectRow("delete", "client-account", []);
+    });
+
     it("let everyone read monthly reports and only admins and managers write them", () => {
       expectRow("read", "report", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"]);
       for (const action of ["create", "update", "delete"] as const) {

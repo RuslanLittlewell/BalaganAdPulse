@@ -33,4 +33,34 @@ describe("identity Prisma adapters", () => {
     await unitOfWork.run((context) => sessions.revoke(context, "digest"));
     expect(await sessions.find("digest")).toBeNull();
   });
+
+  it("finds an account by its login", async () => {
+    const users = new PrismaUserRepository(prisma, new PrismaUnitOfWork<Prisma.TransactionClient>(prisma));
+    await prisma.user.create({ data: { name: "Клиника", login: "klinika-4821@balagan.pro", passwordHash: "hash" } });
+    expect((await users.findByLogin("klinika-4821@balagan.pro"))?.name).toBe("Клиника");
+    expect(await users.findByLogin("klinika-0000@balagan.pro")).toBeNull();
+    expect(await users.findByEmail("klinika-4821@balagan.pro")).toBeNull();
+  });
+
+  it("drops the issued copy whenever it sets a password itself", async () => {
+    const unitOfWork = new PrismaUnitOfWork<Prisma.TransactionClient>(prisma);
+    const users = new PrismaUserRepository(prisma, unitOfWork);
+    const issued = () => prisma.user.create({
+      data: { name: "Клиника", login: `klinika-${Math.random().toString().slice(2, 6)}@balagan.pro`, passwordHash: "hash", issuedPassword: "sealed" },
+    });
+    const [renamed, changed, reset] = [await issued(), await issued(), await issued()];
+
+    await unitOfWork.run((context) => users.update(context, renamed.id, { name: "Клиника+" }));
+    await unitOfWork.run((context) => users.update(context, changed.id, { name: "Клиника", passwordHash: "new" }));
+    await unitOfWork.run((context) => users.setPassword(context, reset.id, "new"));
+
+    const kept = async (id: string) => (await prisma.user.findUniqueOrThrow({ where: { id } })).issuedPassword;
+    expect(await kept(renamed.id)).toBe("sealed");
+    expect(await kept(changed.id)).toBeNull();
+    expect(await kept(reset.id)).toBeNull();
+  });
+
+  it("refuses an account with neither an email nor a login", async () => {
+    await expect(prisma.user.create({ data: { name: "Nobody", passwordHash: "hash" } })).rejects.toThrow();
+  });
 });

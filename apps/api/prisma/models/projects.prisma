@@ -11,32 +11,32 @@ enum SummaryTile {
 }
 
 model Project {
-  id             String               @id @default(uuid())
-  clientId       String               @map("client_id")
-  client         Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  name           String
-  budgetCurrency String?              @map("budget_currency") @db.VarChar(3)
-  image          String?
-  avatarPath     String?              @map("avatar_path")
-  position       Int
-  createdAt      DateTime             @default(now()) @map("created_at")
-  updatedAt      DateTime             @updatedAt @map("updated_at")
-  campaigns      Campaign[]
-  leads          Lead[]
-  leadColumns    LeadColumn[]
-  access         ClientAccess[]
-  tasks          Task[]
-  invitations    InviteProject[]
-  integrations   ProjectIntegration[]
+  id                   String                @id @default(uuid())
+  clientId             String                @map("client_id")
+  client               Client                @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name                 String
+  budgetCurrency       String?               @map("budget_currency") @db.VarChar(3)
+  image                String?
+  avatarPath           String?               @map("avatar_path")
+  position             Int
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @updatedAt @map("updated_at")
+  campaigns            Campaign[]
+  leads                Lead[]
+  leadColumns          LeadColumn[]
+  access               ClientAccess[]
+  tasks                Task[]
+  invitations          InviteProject[]
+  integrations         ProjectIntegration[]
   googleAuthorizations GoogleAuthorization[]
-  placements     ProjectPlacement[]
-  reports        MonthlyReport[]
-  documents      ProjectDocument[]
-  notifications  Notification[]
-  kpis           ProjectKpi[]
-  kpiMetMonth    DateTime?            @map("kpi_met_month") @db.Date
-  kpiTracked     Boolean              @default(true) @map("kpi_tracked")
-  summaryTiles   SummaryTile[]        @default([]) @map("summary_tiles")
+  placements           ProjectPlacement[]
+  reports              MonthlyReport[]
+  documents            ProjectDocument[]
+  notifications        Notification[]
+  kpis                 ProjectKpi[]
+  kpiMetMonth          DateTime?             @map("kpi_met_month") @db.Date
+  kpiTracked           Boolean               @default(true) @map("kpi_tracked")
+  summaryTiles         SummaryTile[]         @default([]) @map("summary_tiles")
 
   @@index([clientId, position])
   @@map("project")

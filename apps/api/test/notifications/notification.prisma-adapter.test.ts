@@ -302,7 +302,7 @@ describe("tasks with a due date", () => {
 
     expect(await dueTasks.dueBetween("2026-10-19", "2026-10-20")).toEqual([{
       id: open.id, projectId, dueDate: "2026-10-20", dueTime: "18:00", timeZone: null,
-      createdById: null, visibleToClient: false, participantIds: [boris],
+      createdById: null, visibleToClient: false, personal: false, participantIds: [boris],
     }]);
   });
 

@@ -57,17 +57,31 @@ describe("what a client is offered", () => {
     expect(await screen.findByText("Поменяйте баннер")).toBeInTheDocument();
   });
 
-  it("opens a task read-only rather than in the edit form", async () => {
+  it("opens a task on a project in the agency's form, to read and not to change", async () => {
     const user = userEvent.setup();
     asClient();
     renderWithProviders(<TasksPage />, { route: "/tasks" });
 
     await user.click(await screen.findByText("Поменяйте баннер"));
 
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await screen.findByRole("dialog", { name: "Задача" });
+    expect(within(dialog).getByLabelText("Название")).toHaveValue("Поменяйте баннер");
+    expect(within(dialog).getByLabelText("Название")).toHaveAttribute("readonly");
+    expect(within(dialog).getByLabelText("Этап")).toBeDisabled();
+    expect(within(dialog).getByLabelText("Приоритет")).toBeDisabled();
     expect(within(dialog).queryByRole("button", { name: "Сохранить" })).not.toBeInTheDocument();
-    expect(within(dialog).queryByLabelText("Название")).not.toBeInTheDocument();
-    expect(within(dialog).getByRole("heading", { name: "Поменяйте баннер" })).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Удалить" })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("switch", { name: "Видно клиенту" })).not.toBeInTheDocument();
+    expect(within(within(dialog).getByTestId("task-form-footer")).getByRole("button", { name: "Закрыть" })).toBeInTheDocument();
+    expect(await within(dialog).findByRole("textbox", { name: "Текст комментария" })).toBeEnabled();
+  });
+
+  it("offers no Готово on a task on a project", async () => {
+    asClient();
+    renderWithProviders(<TasksPage />, { route: "/tasks" });
+
+    expect(await screen.findByText("Поменяйте баннер")).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /Поменяйте баннер/ })).not.toBeInTheDocument();
   });
 
   it("still lets them raise one", async () => {
@@ -84,5 +98,73 @@ describe("what a client is offered", () => {
     await user.click(await screen.findByText("Поменяйте баннер"));
 
     expect(await screen.findByLabelText("Название")).toBeInTheDocument();
+  });
+});
+
+describe("a client's personal task", () => {
+  const personal = aTask({ id: "t2", projectId: null, title: "Позвонить бухгалтеру", personal: true });
+
+  beforeEach(() => {
+    server.use(mock.get("/api/tasks", () => HttpResponse.json([
+      aTask({ id: "t1", projectId: "project-1", title: "Поменяйте баннер", visibleToClient: true }),
+      personal,
+    ])));
+  });
+
+  it("tells a client raising a task without a project that only they see it", async () => {
+    const user = userEvent.setup();
+    let sent: Record<string, unknown> | null = null;
+    server.use(mock.post("/api/tasks", async ({ request }) => {
+      sent = await request.json() as Record<string, unknown>;
+      return HttpResponse.json(aTask({ ...sent, id: "t3", personal: true }), { status: 201 });
+    }));
+    asClient();
+    renderWithProviders(<TasksPage />, { route: "/tasks" });
+
+    await user.click(await screen.findByRole("button", { name: "Новая задача" }));
+    const dialog = await screen.findByRole("dialog", { name: "Новая задача" });
+    expect(within(dialog).getByText("Задачу без проекта видите только вы")).toBeInTheDocument();
+    await user.type(within(dialog).getByLabelText("Название"), "Купить бумагу");
+    await user.click(within(dialog).getByRole("button", { name: "Создать задачу" }));
+
+    await waitFor(() => expect(sent).toMatchObject({ projectId: null, title: "Купить бумагу" }));
+  });
+
+  it("opens it for editing, with a way to delete it", async () => {
+    const user = userEvent.setup();
+    let sent: Record<string, unknown> | null = null;
+    server.use(mock.patch("/api/tasks/t2", async ({ request }) => {
+      sent = await request.json() as Record<string, unknown>;
+      return HttpResponse.json({ ...personal, ...sent });
+    }));
+    asClient();
+    renderWithProviders(<TasksPage />, { route: "/tasks" });
+
+    await user.click(await screen.findByText("Позвонить бухгалтеру"));
+    const dialog = await screen.findByRole("dialog", { name: "Редактировать" });
+    expect(within(dialog).getByLabelText("Этап")).toBeEnabled();
+    expect(within(dialog).getByRole("button", { name: "Удалить" })).toBeInTheDocument();
+    await user.clear(within(dialog).getByLabelText("Название"));
+    await user.type(within(dialog).getByLabelText("Название"), "Позвонить в налоговую");
+    await user.click(within(dialog).getByRole("button", { name: "Сохранить" }));
+
+    await waitFor(() => expect(sent).toMatchObject({ title: "Позвонить в налоговую", projectId: null }));
+    expect(sent).not.toHaveProperty("visibleToClient");
+    expect(sent).not.toHaveProperty("participantIds");
+  });
+
+  it("closes it from its card", async () => {
+    const user = userEvent.setup();
+    let moved: unknown = null;
+    server.use(mock.post("/api/tasks/t2/move", async ({ request }) => {
+      moved = await request.json();
+      return HttpResponse.json({ ...personal, column: "DONE", position: 0 });
+    }));
+    asClient();
+    renderWithProviders(<TasksPage />, { route: "/tasks" });
+
+    await user.click(await screen.findByRole("checkbox", { name: /Позвонить бухгалтеру/ }));
+
+    await waitFor(() => expect(moved).toEqual({ column: "DONE", position: 0 }));
   });
 });

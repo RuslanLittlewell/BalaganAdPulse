@@ -37,11 +37,22 @@ describe("forgetting the password on the sign-in form", () => {
     const user = userEvent.setup();
     renderAt("/login");
 
-    await user.type(screen.getByLabelText("Email"), "buyer@acme.com");
+    await user.type(screen.getByLabelText("Email или логин"), "buyer@acme.com");
     await user.click(screen.getByRole("link", { name: "Забыли пароль?" }));
 
     expect(await screen.findByRole("heading", { name: "Восстановление пароля" })).toBeInTheDocument();
     expect(screen.getByLabelText("Email")).toHaveValue("buyer@acme.com");
+  });
+
+  it("carries over nothing that is not an email", async () => {
+    const user = userEvent.setup();
+    renderAt("/login");
+
+    await user.type(screen.getByLabelText("Email или логин"), "klinika-4821");
+    await user.click(screen.getByRole("link", { name: "Забыли пароль?" }));
+
+    expect(await screen.findByRole("heading", { name: "Восстановление пароля" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).toHaveValue("");
   });
 });
 

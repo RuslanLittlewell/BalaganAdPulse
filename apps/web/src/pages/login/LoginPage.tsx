@@ -18,20 +18,17 @@ export function LoginPage() {
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? "/";
 
-  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<{ email: string; password: string }>({ defaultValues: { email: "", password: "" } });
-  const submit = handleSubmit(async ({ email, password }) => {
-    const trimmedEmail = email.trim();
-    if (!isEmail(trimmedEmail)) {
-      return;
-    }
+  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<{ login: string; password: string }>({ defaultValues: { login: "", password: "" } });
+  const typed = watch("login").trim();
+  const submit = handleSubmit(async ({ login: signIn, password }) => {
     try {
-      await login({ email: trimmedEmail, password });
+      await login({ login: signIn.trim(), password });
       navigate(from, { replace: true });
     } catch (error) {
       raise(error instanceof ApiError ? error.message : t("state.error.title"));
     }
   }, (validationErrors) => {
-    const message = validationErrors.email?.message ?? validationErrors.password?.message;
+    const message = validationErrors.login?.message ?? validationErrors.password?.message;
     if (message) raise(message);
   });
 
@@ -39,11 +36,12 @@ export function LoginPage() {
     <CenteredPanel title={t("auth.login.title")} above={<BalaganSignature />}>
       <form className={"flex flex-col gap-4"} onSubmit={(event) => void submit(event)} noValidate>
         <TextField
-          label={t("auth.email.label")}
-          type="email"
+          label={t("auth.login.label")}
           autoComplete="username"
-          aria-invalid={errors.email ? true : undefined}
-          {...register("email", { validate: (value) => isEmail(value.trim()) || t("auth.email.invalid") })}
+          autoCapitalize="none"
+          spellCheck={false}
+          aria-invalid={errors.login ? true : undefined}
+          {...register("login", { validate: (value) => value.trim() !== "" || t("auth.login.required") })}
         />
         <div className="flex flex-col gap-1.5">
           <TextField
@@ -54,7 +52,7 @@ export function LoginPage() {
           />
           <Link
             to="/password-reset"
-            state={{ email: watch("email").trim() }}
+            state={{ email: isEmail(typed) ? typed : "" }}
             className="self-end text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
           >
             {t("auth.forgot")}

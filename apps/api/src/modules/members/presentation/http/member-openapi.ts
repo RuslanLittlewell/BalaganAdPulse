@@ -9,7 +9,7 @@ const member = z.object({
   userId: z.uuid(),
   orgId: z.uuid(),
   name: z.string(),
-  email: z.email(),
+  email: z.email().nullable(),
   image: z.string().nullable(),
   phone: z.string().nullable(),
   telegram: z.string().nullable(),
@@ -28,7 +28,8 @@ const session = z.object({
   user: z.object({
     id: z.uuid(),
     name: z.string(),
-    email: z.email(),
+    email: z.email().nullable(),
+    login: z.string().nullable(),
     image: z.string().nullable(),
   }),
   platformAdmin: z.boolean(),
@@ -39,6 +40,7 @@ const session = z.object({
     status: z.enum(["ACTIVE", "SUSPENDED"]),
   }).nullable(),
   role: z.enum(ROLES).nullable(),
+  membershipId: z.uuid().nullable(),
   clientIds: z.array(z.uuid()),
   modules: z.array(z.enum(MODULES)),
 });

@@ -9,3 +9,7 @@ const partialDecimalPattern = /^\d*\.?\d*$/;
 export function isPartialDecimal(value: string): boolean {
   return partialDecimalPattern.test(value);
 }
+
+export function isWebAddress(value: string): boolean {
+  return /^https?:\/\//i.test(value);
+}

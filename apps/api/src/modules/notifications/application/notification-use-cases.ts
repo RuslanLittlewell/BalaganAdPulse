@@ -15,6 +15,7 @@ export interface NamedTask {
   readonly id: string;
   readonly projectId: string | null;
   readonly visibleToClient: boolean;
+  readonly personal: boolean;
 }
 
 export interface WatchedTask extends NamedTask {
@@ -31,7 +32,7 @@ export function createNotificationUseCases(d: NotificationDependencies) {
 
   const shownTo = async (memberIds: readonly string[], task: NamedTask) =>
     (await d.recipients.activeMembers(memberIds))
-      .filter((member) => !member.customer || task.visibleToClient)
+      .filter((member) => !member.customer || task.visibleToClient || task.personal)
       .map(({ id }) => id);
 
   const aboutTask = (task: NamedTask, kind: NewNotification["kind"], actorId: string | null) =>

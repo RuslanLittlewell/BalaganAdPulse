@@ -32,9 +32,9 @@ of their grants.
 
 ### Requirement: Clients reach only their own client
 
-A CLIENT member SHALL reach the client named by their grant and nothing else: its projects, campaigns, figures, client-visible tasks and its own CRM leads. Every other client, project, campaign, task or CRM lead and the agency CRM SHALL be answered as not found.
+A CLIENT member SHALL reach the client named by their grant and nothing else: its projects, campaigns, figures, client-visible tasks, the personal tasks they raised and its own CRM leads. Every other client, project, campaign, task or CRM lead and the agency CRM SHALL be answered as not found.
 
-A client SHALL be able to read the task module and raise a task on a project they reach. They SHALL NOT change or delete a task once raised or change its visibility. They SHALL be able to create, edit, move and delete leads on their own CRM board. They SHALL be able to create projects for their own client and edit the name and picture of their client's projects. They SHALL NOT delete a project, manage its advertising connection or set its KPIs. Clients, campaigns and members SHALL remain read-only to them.
+A client SHALL be able to read the task module and raise a task on a project they reach, or with no project as a personal task only they see. They SHALL NOT change or delete a task once raised or change its visibility, except that they SHALL change, move and delete their own personal task. They SHALL be able to create, edit, move and delete leads on their own CRM board. They SHALL be able to create projects for their own client and edit the name and picture of their client's projects. They SHALL NOT delete a project, manage its advertising connection or set its KPIs. Clients, campaigns and members SHALL remain read-only to them.
 
 #### Scenario: A client's projects
 - **WHEN** a client opens the projects module
@@ -48,8 +48,12 @@ A client SHALL be able to read the task module and raise a task on a project the
 - **WHEN** a client raises a task on a project they reach
 - **THEN** it is stored, appears on their board, and the agency sees it too
 
+#### Scenario: A client raising a personal task
+- **WHEN** a client raises a task with no project
+- **THEN** it is stored, appears on their board, and the agency does not see it
+
 #### Scenario: A client editing a task
-- **WHEN** a client tries to change or delete a task
+- **WHEN** a client tries to change or delete a task on a project
 - **THEN** the API refuses with 403 and the task is unchanged
 
 #### Scenario: Client requests another client's project

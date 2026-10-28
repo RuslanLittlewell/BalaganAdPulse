@@ -29,6 +29,7 @@ export interface TaskRecord {
   readonly createdById: string | null;
   readonly participantIds: readonly string[];
   readonly visibleToClient: boolean;
+  readonly personal: boolean;
   readonly position: number;
   readonly dueDate: string | null;
   readonly dueTime: string | null;
@@ -55,6 +56,7 @@ export interface NewTask {
   readonly createdById: string | null;
   readonly participantIds: readonly string[];
   readonly visibleToClient: boolean;
+  readonly personal: boolean;
   readonly position: number;
   readonly dueDate: string | null;
   readonly dueTime: string | null;
@@ -180,6 +182,7 @@ export interface TaskCommentRecord {
   readonly id: string;
   readonly taskId: string;
   readonly authorId: string | null;
+  readonly authorName: string | null;
   readonly body: string;
   readonly mentionIds: readonly string[];
   readonly createdAt: Date;

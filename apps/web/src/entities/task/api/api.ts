@@ -46,6 +46,7 @@ export interface Task {
   createdById: string | null;
   participantIds: string[];
   visibleToClient: boolean;
+  personal: boolean;
   position: number;
   dueDate: string | null;
   dueTime: string | null;
@@ -127,6 +128,7 @@ export interface TaskComment {
   id: string;
   taskId: string;
   authorId: string | null;
+  authorName: string | null;
   body: string;
   mentionIds: string[];
   createdAt: string;

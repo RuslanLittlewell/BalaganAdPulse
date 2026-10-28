@@ -6,7 +6,7 @@ import { resetDb } from "../helpers/db.js";
 import { resetIdentityRateLimits } from "../../src/modules/identity/presentation/http/identity-http.js";
 
 const app = createApp();
-const credentials = { email: "buyer@acme.com", password: "hunter2hunter2" };
+const credentials = { login: "buyer@acme.com", password: "hunter2hunter2" };
 
 beforeEach(async () => {
   await resetDb();

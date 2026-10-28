@@ -11,7 +11,7 @@ import { TaskCard } from "./TaskCard.js";
 export interface TaskColumnProps {
   column: Column;
   tasks: Task[];
-  draggable: boolean;
+  movable: (task: Task) => boolean;
   draggingId?: string | null;
   projects?: Map<string, Project>;
   members?: Map<string, Membership>;
@@ -30,7 +30,7 @@ const ACCENT: Record<Column, string> = {
 };
 
 export function TaskColumnPanel({
-  column, tasks, draggable, draggingId, projects, members, onOpen, onToggleDone, onCreate,
+  column, tasks, movable, draggingId, projects, members, onOpen, onToggleDone, onCreate,
 }: TaskColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column });
 
@@ -77,12 +77,12 @@ export function TaskColumnPanel({
             <TaskCard
               key={task.id}
               task={task}
-              draggable={draggable}
+              draggable={movable(task)}
               placeholder={task.id === draggingId}
               project={task.projectId ? projects?.get(task.projectId) : undefined}
               people={participantsOf(task, members)}
               onOpen={onOpen}
-              onToggleDone={onToggleDone}
+              onToggleDone={movable(task) ? onToggleDone : undefined}
             />
           ))}
 

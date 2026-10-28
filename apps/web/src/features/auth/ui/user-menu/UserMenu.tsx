@@ -50,7 +50,7 @@ export function UserMenu({ onSettings, avatarVersion, canEditProfile = true }: U
         <UserAvatar userId={user.id} name={user.name} version={avatarVersion} />
         <span className={"grid min-w-0 text-left"}>
           <span className={"truncate font-semibold"}>{user.name}</span>
-          <span className={"text-xs text-muted-foreground"}>{user.email}</span>
+          <span className={"text-xs text-muted-foreground"}>{user.email ?? user.login}</span>
         </span>
         <ChevronDown className={"size-4 text-muted-foreground"} aria-hidden="true" />
       </button>

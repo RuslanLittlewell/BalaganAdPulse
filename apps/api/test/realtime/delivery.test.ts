@@ -13,7 +13,7 @@ const actor = (partial: Partial<ActorContext> = {}): ActorContext =>
 const task: TaskRecord = {
   id: "t1", projectId: "p1", orgId: "org1", title: "Write the brief", description: null,
   column: "IDEA", priority: "MEDIUM", createdById: "m1",
-  participantIds: [], visibleToClient: false, position: 0,
+  participantIds: [], visibleToClient: false, personal: false, position: 0,
   imageIds: [], createdAt: new Date("2026-09-01T00:00:00.000Z"),
   updatedAt: new Date("2026-09-01T00:00:00.000Z"),
 };
@@ -69,6 +69,25 @@ describe("who receives a task event", () => {
     await delivery.deliver(taskMoved(task));
 
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it("delivers a client's personal task to its author alone", async () => {
+    const personal = { ...task, projectId: null, createdById: "m-client", personal: true };
+    const { delivery, connect } = harness({
+      actors: {
+        u1: actor(),
+        u2: actor({ userId: "u2", membershipId: "m-client", role: "CLIENT" }),
+        u3: actor({ userId: "u3", membershipId: "m-colleague", role: "CLIENT_ADMIN" }),
+      },
+    });
+    const [admin, author, colleague] = [connect("u1"), connect("u2"), connect("u3")];
+
+    await delivery.deliver(taskMoved(personal));
+    await delivery.deliver(taskDeleted(personal));
+
+    expect(author).toHaveBeenCalledTimes(2);
+    expect(admin).not.toHaveBeenCalled();
+    expect(colleague).not.toHaveBeenCalled();
   });
 
   it("withholds the agency's own work from a customer", async () => {

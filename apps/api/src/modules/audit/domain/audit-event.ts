@@ -16,7 +16,7 @@ export interface StoredAuditEvent {
   readonly orgId: string;
   readonly actorId: string | null;
   readonly actorName: string;
-  readonly actorEmail: string;
+  readonly actorEmail: string | null;
   readonly actorRole: Role;
   readonly action: AuditAction;
   readonly entityType: string;

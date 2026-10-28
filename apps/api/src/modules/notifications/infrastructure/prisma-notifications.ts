@@ -213,7 +213,7 @@ export class PrismaDueTasks implements DueTasks {
         org: { status: "ACTIVE", modules: { has: "TASKS" } },
       },
       select: {
-        id: true, projectId: true, dueDate: true, dueTime: true, timeZone: true, createdById: true, visibleToClient: true,
+        id: true, projectId: true, dueDate: true, dueTime: true, timeZone: true, createdById: true, visibleToClient: true, personal: true,
         participants: { select: { membershipId: true } },
       },
       orderBy: { dueDate: "asc" },

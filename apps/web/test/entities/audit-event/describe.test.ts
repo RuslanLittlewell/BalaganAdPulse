@@ -27,6 +27,8 @@ describe("reading an audit event in Russian", () => {
     ["Cleared organization KPI", "organization", { subject: "KPI организации", name: null, detail: "сброшен" }],
     ["Connected Meta advertising account", "project", { subject: "Рекламный аккаунт Meta", name: null, detail: "подключён" }],
     ["UPDATE lead column", "lead-column", { subject: "Колонка CRM", name: null, detail: null }],
+    ["Created cabinet access for client “Клиника”", "client", { subject: "Клиент", name: "Клиника", detail: "создан доступ в кабинет" }],
+    ["Issued a new cabinet password for client “Клиника”", "client", { subject: "Клиент", name: "Клиника", detail: "выдан новый пароль кабинета" }],
   ])("reads «%s»", (summary, entityType, expected) => {
     expect(read(summary, { entityType })).toEqual(expected);
   });

@@ -96,12 +96,13 @@ describe("what a task with no project may not carry", () => {
       .toBe(false);
   });
 
-  it("refuses being created as shared with the client -> 400", async () => {
+  it("is never shared with the client, even when a client raises it", async () => {
     const customer = await signInAs("Customer", { role: "CLIENT" });
     await grantAccess(customer.membership!.id, clientId);
 
     const res = await create({}, customer.auth);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ projectId: null, visibleToClient: false, personal: true });
   });
 });
 

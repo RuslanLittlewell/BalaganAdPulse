@@ -38,8 +38,7 @@ import {
   type Project,
 } from "@/entities/project/index.js";
 import { useAuth } from "@/features/auth/index.js";
-import { useCan } from "@/features/permissions/index.js";
-import { TaskDoneCheck, TaskParticipants, useDoneToggle } from "@/features/task-management/index.js";
+import { TaskDoneCheck, TaskParticipants, useDoneToggle, useTaskChange } from "@/features/task-management/index.js";
 import { t } from "@/shared/config/index.js";
 import { cn, useModuleMemory, useNow } from "@/shared/lib/index.js";
 import WarmTooltip, { WarmTooltipGroup } from "@/shared/ui/WarmTooltip/WarmTooltip.js";
@@ -141,7 +140,7 @@ export function TaskCalendar({
   const clock = useNow();
   const now = today ?? toIso(clock);
   const reschedule = useRescheduleTask();
-  const draggable = useCan("update", "task");
+  const changes = useTaskChange();
   const { data: projects } = useProjects();
   const { data: members } = useMembers();
 
@@ -358,7 +357,7 @@ export function TaskCalendar({
                       <CalendarTaskEvent
                         key={task.id}
                         task={task}
-                        draggable={draggable && task.dueDate === day}
+                        draggable={changes(task) && task.dueDate === day}
                         floating
                         span={{ start, end, lane, lanes }}
                         hourHeight={hourHeight}
@@ -371,7 +370,7 @@ export function TaskCalendar({
                         people={participantsOf(task, memberById)}
                         onOpen={onOpen ? openTask : undefined}
                         onDrop={rescheduleTask}
-                        onToggleDone={draggable && !task.isCall ? toggleTask : undefined}
+                        onToggleDone={changes(task) && !task.isCall ? toggleTask : undefined}
                       />
                     ))}
                     {day === now ? <NowLine time={timeOfDay(clock)} hourHeight={hourHeight} /> : null}
@@ -382,7 +381,7 @@ export function TaskCalendar({
                       <CalendarTaskEvent
                         key={task.id}
                         task={task}
-                        draggable={draggable}
+                        draggable={changes(task)}
                         floating={false}
                         hourHeight={hourHeight}
                         compact={compact}
@@ -394,7 +393,7 @@ export function TaskCalendar({
                         people={participantsOf(task, memberById)}
                         onOpen={onOpen ? openTask : undefined}
                         onDrop={rescheduleTask}
-                        onToggleDone={draggable ? toggleTask : undefined}
+                        onToggleDone={changes(task) ? toggleTask : undefined}
                       />
                     ))}
                   </div>

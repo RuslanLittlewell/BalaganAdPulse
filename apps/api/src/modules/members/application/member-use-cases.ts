@@ -168,7 +168,9 @@ export function createMemberUseCases(
       const { platformAdmin, ...user } = person;
       if (platformAdmin) {
         return {
-          session: { user, platformAdmin, organization: null, role: null, clientIds: [], modules: [] },
+          session: {
+            user, platformAdmin, organization: null, role: null, membershipId: null, clientIds: [], modules: [],
+          },
           actor: null,
         };
       }
@@ -178,14 +180,17 @@ export function createMemberUseCases(
       const { modules, ...organization } = held;
       if (organization.status === "SUSPENDED") {
         return {
-          session: { user, platformAdmin, organization, role: actor.role, clientIds: [], modules: [] },
+          session: {
+            user, platformAdmin, organization, role: actor.role, membershipId: actor.membershipId, clientIds: [], modules: [],
+          },
           actor: null,
         };
       }
       const clientIds = await dependencies.clients.reachableClientIds(actor);
       return {
         session: {
-          user, platformAdmin, organization, role: actor.role, clientIds, modules: enabledModules(modules),
+          user, platformAdmin, organization, role: actor.role, membershipId: actor.membershipId, clientIds,
+          modules: enabledModules(modules),
         },
         actor,
       };

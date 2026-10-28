@@ -58,7 +58,7 @@ describe("loadActor", () => {
   });
 
   it("leaves the auth endpoints reachable without a membership", async () => {
-    const res = await request(app).post("/api/auth/login").send({ email: "nobody@example.com", password: "x" });
+    const res = await request(app).post("/api/auth/login").send({ login: "nobody@example.com", password: "x" });
     expect(res.status).not.toBe(403);
   });
 });

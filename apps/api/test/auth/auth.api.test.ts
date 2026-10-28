@@ -70,7 +70,7 @@ describe("Auth API", () => {
   it("POST /api/auth/login returns a pair (200)", async () => {
     await request(app).post("/api/auth/register").send(body);
     const res = await request(app).post("/api/auth/login")
-      .send({ email: body.email, password: body.password });
+      .send({ login: body.email, password: body.password });
     expect(res.status).toBe(200);
     expect(res.body.refreshToken).toBeTruthy();
   });
@@ -78,16 +78,16 @@ describe("Auth API", () => {
   it("POST /api/auth/login with a wrong password -> 401", async () => {
     await request(app).post("/api/auth/register").send(body);
     const res = await request(app).post("/api/auth/login")
-      .send({ email: body.email, password: "wrongwrongwrong" });
+      .send({ login: body.email, password: "wrongwrongwrong" });
     expect(res.status).toBe(401);
-    expect(res.body.error.message).toBe("Invalid email or password");
+    expect(res.body.error.message).toBe("Invalid login or password");
   });
 
   it("POST /api/auth/login does not reveal an unknown email", async () => {
     const res = await request(app).post("/api/auth/login")
-      .send({ email: "missing@acme.com", password: "wrongwrongwrong" });
+      .send({ login: "missing@acme.com", password: "wrongwrongwrong" });
     expect(res.status).toBe(401);
-    expect(res.body).toEqual({ error: { message: "Invalid email or password" } });
+    expect(res.body).toEqual({ error: { message: "Invalid login or password" } });
   });
 
   it("POST /api/auth/refresh returns only an access token (200)", async () => {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Trash2 } from "lucide-react";
+import { isCustomer } from "@adpulse/access-policy";
 import { ApiError, fieldProblems } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import {
@@ -24,7 +25,7 @@ import {
   toIso,
   useAlerts,
 } from "@/shared/ui/index.js";
-import { Can, useCan } from "@/features/permissions/index.js";
+import { useCan } from "@/features/permissions/index.js";
 import { useAuth } from "@/features/auth/index.js";
 import { ProjectAvatar, useProjects } from "@/entities/project/index.js";
 import {
@@ -54,6 +55,7 @@ import {
   type TaskBlock,
 } from "../model/blocks.js";
 import { useChecklistDraft } from "../model/useChecklistDraft.js";
+import { useTaskChange } from "../model/useTaskChange.js";
 import { TaskAttachments } from "./TaskAttachments.js";
 import {
   TaskDescriptionEditor,
@@ -121,10 +123,12 @@ function FieldError({ message }: { message?: string }) {
 
 function Block({
   block,
+  readOnly,
   onRemove,
   children,
 }: {
   block: TaskBlock;
+  readOnly: boolean;
   onRemove: () => void;
   children: ReactNode;
 }) {
@@ -133,22 +137,26 @@ function Block({
       className="flex min-w-0 flex-col gap-1 pb-4 border-b border-border"
       data-testid={`task-block-${block}`}
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex min-h-7 items-center justify-between gap-2">
         <Label>
           {t(`tasks.block.${block}`)}
         </Label>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-7 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
-          aria-label={t(`tasks.block.remove.${block}`)}
-          onClick={onRemove}
-        >
-          <Trash2 />
-        </Button>
+        {readOnly ? null : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-7 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+            aria-label={t(`tasks.block.remove.${block}`)}
+            onClick={onRemove}
+          >
+            <Trash2 />
+          </Button>
+        )}
       </div>
-      {children}
+      <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
+        {children}
+      </fieldset>
     </div>
   );
 }
@@ -169,7 +177,8 @@ export function TaskFormDialog({
 }: TaskFormDialogProps) {
   const { data: projects } = useProjects();
   const { data: members } = useMembers();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const customer = role !== null && isCustomer(role);
   const ownMembershipId = (members ?? []).find(
     (member) => member.userId === user?.id && member.status === "ACTIVE",
   )?.id;
@@ -235,6 +244,10 @@ export function TaskFormDialog({
 
   const mayShareWithClient = useCan("update", "member");
   const movesTasks = useCan("update", "task");
+  const deletesTasks = useCan("delete", "task");
+  const changes = useTaskChange();
+  const readOnly = task !== undefined && role !== null && !changes(task);
+  const showsStage = movesTasks || task !== undefined;
 
   const projectId = watch("projectId");
   const participantIds = watch("participantIds");
@@ -350,7 +363,7 @@ export function TaskFormDialog({
       ...(task ? {} : creationColumn(values.column)),
       ...(movesTasks ? { participantIds: values.participantIds } : {}),
     };
-    if (task && movesTasks && values.column !== task.column) {
+    if (task && changes(task) && values.column !== task.column) {
       try {
         await move.mutateAsync({ id: task.id, body: { column: values.column, position: 0 } });
       } catch {
@@ -397,11 +410,11 @@ export function TaskFormDialog({
       >
         <DialogHeader className="shrink-0 flex-row items-center justify-between gap-3 border-border border-b pb-2">
           <DialogTitle>
-            {task ? t("tasks.edit") : t("tasks.create")}
+            {task ? (readOnly ? t("tasks.view") : t("tasks.edit")) : t("tasks.create")}
           </DialogTitle>
           <div className="flex shrink-0 flex-col gap-1">
             <div className="flex items-center gap-2">
-              {movesTasks ? (
+              {showsStage ? (
                 <>
                   <Label
                     htmlFor="task-column"
@@ -413,7 +426,7 @@ export function TaskFormDialog({
                     control={control}
                     name="column"
                     render={({ field }) => (
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
                         <SelectTrigger id="task-column" className="w-40">
                           <SelectValue />
                         </SelectTrigger>
@@ -439,7 +452,7 @@ export function TaskFormDialog({
                 control={control}
                 name="priority"
                 render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
                     <SelectTrigger id="task-priority" className="w-36">
                       <SelectValue />
                     </SelectTrigger>
@@ -469,6 +482,7 @@ export function TaskFormDialog({
             <TextField
               label={t("tasks.form.title")}
               error={errors.title?.message}
+              readOnly={readOnly}
               {...register("title", {
                 required: t("tasks.form.titleRequired"),
               })}
@@ -482,7 +496,7 @@ export function TaskFormDialog({
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between gap-2">
                     <Label>{t("tasks.form.description")}</Label>
-                    {task ? (
+                    {task && !readOnly ? (
                       <Button
                         type="button"
                         variant="ghost"
@@ -498,12 +512,12 @@ export function TaskFormDialog({
                     className="flex min-h-62 flex-col"
                     value={description}
                     onChange={setDescription}
-                    editable={editingDescription}
-                    onEdit={() => setEditingDescription(true)}
+                    editable={editingDescription && !readOnly}
+                    onEdit={() => { if (!readOnly) setEditingDescription(true); }}
                   />
                 </div>
 
-                {offered.includes("checklist") ? (
+                {offered.includes("checklist") && !readOnly ? (
                   <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
@@ -517,7 +531,7 @@ export function TaskFormDialog({
                 ) : null}
 
                 {shown.includes("checklist") ? (
-                  <Block block="checklist" onRemove={() => hide("checklist")}>
+                  <Block block="checklist" readOnly={readOnly} onRemove={() => hide("checklist")}>
                     <TaskChecklist
                       items={checklist.items}
                       onAdd={checklist.add}
@@ -527,11 +541,15 @@ export function TaskFormDialog({
                   </Block>
                 ) : null}
 
-                <TaskAttachments
-                  imageIds={attachmentIds}
-                  onRemoved={(imageId) => editor.current?.removeImage(imageId)}
-                  onAttach={(imageId) => editor.current?.appendImage(imageId)}
-                />
+                {readOnly ? (
+                  <TaskAttachments imageIds={attachmentIds} />
+                ) : (
+                  <TaskAttachments
+                    imageIds={attachmentIds}
+                    onRemoved={(imageId) => editor.current?.removeImage(imageId)}
+                    onAttach={(imageId) => editor.current?.appendImage(imageId)}
+                  />
+                )}
 
                 {task ? <TaskComments task={task} /> : null}
               </div>
@@ -540,7 +558,7 @@ export function TaskFormDialog({
                 className="flex min-w-0 flex-col gap-4 pl-4 border-l border-border"
                 data-testid="task-form-params"
               >
-                {offeredParams.length > 0 ? (
+                {offeredParams.length > 0 && !readOnly ? (
                   <div
                     className="flex flex-wrap gap-2"
                     data-testid="task-form-blocks"
@@ -565,6 +583,7 @@ export function TaskFormDialog({
                     <Block
                       key={block}
                       block={block}
+                      readOnly={readOnly}
                       onRemove={() => hide(block)}
                     >
                       {block === "dates" ? (
@@ -692,29 +711,31 @@ export function TaskFormDialog({
                   {t("tasks.form.visibleToClient")}
                 </Label>
               </div>
+            ) : customer && projectId === NO_PROJECT ? (
+              <p className="text-sm text-muted-foreground">{t("tasks.form.personal")}</p>
             ) : (
               <span />
             )}
 
             <div className="flex items-center gap-2">
-              {task && onDelete ? (
-                <Can action="delete" resource="task">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
-                    onClick={() => onDelete(task)}
-                  >
-                    {t("tasks.delete")}
-                  </Button>
-                </Can>
+              {task && onDelete && (deletesTasks || task.personal) ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+                  onClick={() => onDelete(task)}
+                >
+                  {t("tasks.delete")}
+                </Button>
               ) : null}
               <Button type="button" variant="outline" onClick={requestClose}>
-                {t("action.cancel")}
+                {readOnly ? t("action.close") : t("action.cancel")}
               </Button>
-              <Button type="submit">
-                {task ? t("tasks.form.save") : t("tasks.form.create")}
-              </Button>
+              {readOnly ? null : (
+                <Button type="submit">
+                  {task ? t("tasks.form.save") : t("tasks.form.create")}
+                </Button>
+              )}
             </div>
           </DialogFooter>
         </form>

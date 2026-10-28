@@ -264,3 +264,56 @@ describe("tagging in a comment", () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe("a client's comments", () => {
+  const shared = async () => {
+    const taskId = await create();
+    await request(app).patch(`/api/tasks/${taskId}`).set(admin.auth).send({ visibleToClient: true });
+    return taskId;
+  };
+
+  it("are written on a shared task the client may not change, and carry the client's name", async () => {
+    const taskId = await shared();
+
+    const res = await comment(customer, taskId, { body: "Когда будет готово?" });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ authorId: idOf(customer), authorName: "Customer" });
+    expect((await request(app).patch(`/api/tasks/${taskId}`).set(customer.auth).send({ title: "Иначе" })).status).toBe(403);
+  });
+
+  it("show the client who wrote the agency's comments", async () => {
+    const taskId = await shared();
+    await comment(manager, taskId, { body: "Сегодня" });
+
+    const res = await list(customer, taskId);
+
+    expect(res.body.map((written: { authorName: string; body: string }) => [written.authorName, written.body]))
+      .toEqual([["Manager", "Сегодня"]]);
+  });
+
+  it("are edited and deleted by the client who wrote them", async () => {
+    const taskId = await shared();
+    const written = (await comment(customer, taskId, { body: "Черновик" })).body;
+
+    const edited = await request(app).patch(`/api/tasks/${taskId}/comments/${written.id}`).set(customer.auth).send({ body: "Итог" });
+    expect(edited.status).toBe(200);
+    expect(edited.body).toMatchObject({ body: "Итог", authorName: "Customer" });
+    expect((await request(app).delete(`/api/tasks/${taskId}/comments/${written.id}`).set(customer.auth)).status).toBe(204);
+  });
+
+  it("keep markup as the characters typed", async () => {
+    const taskId = await shared();
+    const markup = "<img src=x onerror=alert(1)><script>alert(2)</script>";
+
+    await comment(customer, taskId, { body: markup });
+
+    expect((await list(admin, taskId)).body[0].body).toBe(markup);
+  });
+
+  it("are refused on the agency's own task", async () => {
+    const taskId = await create();
+
+    expect((await comment(customer, taskId, { body: "?" })).status).toBe(404);
+  });
+});

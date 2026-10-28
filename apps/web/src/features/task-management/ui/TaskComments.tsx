@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { Check, Pencil, SendHorizontal, Trash2, X } from "lucide-react";
-import { Button, Label, Loader, useAlerts } from "@/shared/ui/index.js";
+import { Avatar, Button, Label, Loader, useAlerts } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
 import { cn, formatDateTime } from "@/shared/lib/index.js";
 import {
@@ -33,7 +33,7 @@ const sameIds = (left: readonly string[], right: readonly string[]) =>
 export function TaskComments({ task }: TaskCommentsProps) {
   const { data: comments, isLoading, isError } = useTaskComments(task.id);
   const { data: members } = useMembers();
-  const { user } = useAuth();
+  const { membershipId, role } = useAuth();
   const add = useAddTaskComment(task.id);
   const change = useEditTaskComment(task.id);
   const remove = useDeleteTaskComment(task.id);
@@ -62,11 +62,10 @@ export function TaskComments({ task }: TaskCommentsProps) {
     element.style.height = `${Math.min(element.scrollHeight, FIELD_MAX_HEIGHT)}px`;
   }, [text]);
 
-  const own = (members ?? []).find((member) => member.userId === user?.id && member.status === "ACTIVE");
   const byId = useMemo(() => new Map((members ?? []).map((member) => [member.id, member])), [members]);
   const taggable = useMemo(
-    () => taggableMembers(task, members ?? [], own?.id),
-    [task, members, own?.id],
+    () => taggableMembers(task, members ?? [], membershipId ?? undefined),
+    [task, members, membershipId],
   );
 
   const query = dismissed ? null : mentionQueryAt(text, caret);
@@ -136,10 +135,9 @@ export function TaskComments({ task }: TaskCommentsProps) {
     );
   };
 
-  const mayEdit = (comment: TaskComment) => own !== undefined && comment.authorId === own.id;
+  const mayEdit = (comment: TaskComment) => membershipId !== null && comment.authorId === membershipId;
 
-  const mayDelete = (comment: TaskComment) =>
-    own !== undefined && (comment.authorId === own.id || own.role === "ADMIN");
+  const mayDelete = (comment: TaskComment) => mayEdit(comment) || role === "ADMIN";
 
   const lastOwn = () => [...(comments ?? [])].reverse().find(mayEdit);
 
@@ -204,6 +202,7 @@ export function TaskComments({ task }: TaskCommentsProps) {
         <ul className="flex flex-col gap-1">
           {comments.map((comment) => {
             const author = comment.authorId ? byId.get(comment.authorId) : undefined;
+            const authorName = author?.name ?? comment.authorName;
             const tagged = comment.mentionIds.flatMap((id) => {
               const member = byId.get(id);
               return member ? [member.name] : [];
@@ -214,10 +213,16 @@ export function TaskComments({ task }: TaskCommentsProps) {
                 data-editing={editing?.id === comment.id ? "true" : undefined}
                 className={cn("group flex gap-3 rounded-lg px-2 py-1.5", editing?.id === comment.id && "bg-primary/10")}
               >
-                {author ? <MemberAvatar member={author} size="sm" /> : <span className="size-8 shrink-0 rounded-md bg-muted" />}
+                {author ? (
+                  <MemberAvatar member={author} size="sm" />
+                ) : authorName ? (
+                  <Avatar name={authorName} size="sm" />
+                ) : (
+                  <span className="size-8 shrink-0 rounded-md bg-muted" />
+                )}
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground">{author?.name ?? t("comments.unknownAuthor")}</span>
+                    <span className="font-medium text-foreground">{authorName ?? t("comments.unknownAuthor")}</span>
                     <time dateTime={comment.createdAt}>{formatDateTime(comment.createdAt)}</time>
                     {comment.editedAt ? (
                       <span title={formatDateTime(comment.editedAt)}>{t("comments.edited")}</span>

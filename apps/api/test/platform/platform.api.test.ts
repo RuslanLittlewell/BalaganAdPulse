@@ -61,10 +61,11 @@ describe("the platform administrator's session", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
-      user: { id: user.id, name: "Owner", email: user.email, image: null },
+      user: { id: user.id, name: "Owner", email: user.email, login: null, image: null },
       platformAdmin: true,
       organization: null,
       role: null,
+      membershipId: null,
       clientIds: [],
       modules: [],
     });

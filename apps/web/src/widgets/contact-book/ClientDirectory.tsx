@@ -14,6 +14,7 @@ import {
 } from "@/shared/ui/index.js";
 import { Can, useCan } from "@/features/permissions/index.js";
 import { HINTS, useHint } from "@/features/hints/index.js";
+import { CabinetAccess } from "./CabinetAccess.js";
 import { ContactAvatar } from "./ContactAvatar.js";
 import { ContactDetails } from "./ContactDetails.js";
 import { ContactForm } from "./ContactForm.js";
@@ -145,7 +146,14 @@ export function ClientDirectory() {
           </div>
         )}
 
-        {mode.kind === "view" && selected != null && <ContactDetails client={selected} />}
+        {mode.kind === "view" && selected != null && (
+          <>
+            <ContactDetails client={selected} />
+            <Can action="read" resource="client-account">
+              <CabinetAccess key={selected.id} clientId={selected.id} />
+            </Can>
+          </>
+        )}
         {mode.kind === "view" && selected == null && (
           <div className="grid flex-1 place-items-center">
             <EmptyState title={t("contacts.empty")} />

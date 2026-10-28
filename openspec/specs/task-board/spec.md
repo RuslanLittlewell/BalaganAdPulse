@@ -85,7 +85,9 @@ that it exists.
 ### Requirement: Only admins and managers change tasks
 
 Creating, updating, moving, completing and deleting a task, and every change to its
-checklist, SHALL be permitted to `ADMIN` and `MANAGER` only. A `GUEST` SHALL read the board
+checklist, SHALL be permitted to `ADMIN` and `MANAGER` only, with one exception: a customer
+SHALL change, move, complete and delete their own personal task, as a manager may, keep it
+without a project, and name nobody on it. A `GUEST` SHALL read the board
 and be refused every write. A `CLIENT` SHALL NOT reach tasks at all — the board is the
 agency's internal work.
 
@@ -107,6 +109,17 @@ agency's internal work.
 - **THEN** the API responds 403, the task keeps its due date, and a guest is offered no
   completion control
 
+#### Scenario: A client changes their personal task
+
+- **WHEN** a client renames, reschedules, moves to `DONE` or deletes a personal task they raised
+- **THEN** the change is stored, and the board's editing controls are offered to them on that
+  task alone
+
+#### Scenario: A client gives their personal task a project
+
+- **WHEN** a client sets a project on a personal task
+- **THEN** the API responds 400 and the task is unchanged
+
 #### Scenario: Client-role member opens the board
 - **WHEN** a member with the `CLIENT` role requests the board or any task
 - **THEN** the API responds 403 and no task is returned
@@ -115,7 +128,8 @@ agency's internal work.
 
 Creating, updating, moving, completing and deleting a task, and every change to its
 checklist, SHALL each write an audit event in the same transaction as the mutation, naming
-the member who made the change.
+the member who made the change. A customer's personal task SHALL write none: the activity
+log is read by the agency, and the task is its author's alone.
 
 #### Scenario: A move is recorded
 - **WHEN** a manager drags a task from `IN_PROGRESS` to `DONE`
@@ -124,6 +138,11 @@ the member who made the change.
 #### Scenario: A completion is recorded
 - **WHEN** a manager completes a repeating task
 - **THEN** an audit event records that member, that task, and the due date it moved between
+
+#### Scenario: A personal task leaves no trace in the log
+
+- **WHEN** a client creates, changes and deletes a personal task
+- **THEN** no audit event is written, and the agency's activity log shows nothing of it
 
 #### Scenario: A failed mutation writes no audit event
 - **WHEN** a task update is refused
@@ -147,8 +166,10 @@ column's order.
 Every task SHALL record whether it is visible to the client. A task is the agency's own
 by default: work the agency does about a customer is not addressed to them.
 
-- A task raised by a `CLIENT` SHALL be marked visible to the client when it is created.
-  They raised it; it is theirs to see.
+- A task raised by a `CLIENT` or `CLIENT_ADMIN` on a project SHALL be marked visible to the
+  client when it is created. They raised it; it is theirs to see.
+- A task raised by a `CLIENT` or `CLIENT_ADMIN` with no project SHALL be stored as their
+  personal task: not marked visible to the client, and seen by its author alone.
 - A task raised by anybody else SHALL be marked as the agency's own.
 - Only an `ADMIN` SHALL change that mark. A `MANAGER` may create, edit and complete a
   task, but deciding what a customer is shown is the agency's to make in one place.
@@ -163,6 +184,12 @@ Marking a task visible SHALL NOT change who takes part in it or which stage it i
 
 - **WHEN** a client creates a task on a project they reach
 - **THEN** it is stored as visible to the client and appears on their board
+
+#### Scenario: A client raises a task without a project
+
+- **WHEN** a client creates a task naming no project
+- **THEN** it is stored as their personal task, not marked visible to the client, and
+  appears on their board as Без проекта
 
 #### Scenario: The agency's own work
 
@@ -553,8 +580,11 @@ A task with no project SHALL be reached by the member who created it, by every m
 part in it, and by every `ADMIN` of its organization. No other member SHALL reach
 it, and to them it SHALL answer 404 rather than 403.
 
-A `CLIENT` SHALL NOT reach a task with no project at all, whatever it is marked, because
-such a task concerns no client.
+A customer's personal task — one a `CLIENT` or `CLIENT_ADMIN` raised with no project — SHALL
+be reached by its author alone: not by an `ADMIN`, not by a manager, and not by the other
+people of the same client. To everybody else it SHALL answer 404. A customer SHALL NOT reach
+any other task with no project, whatever it is marked, because such a task concerns no
+client.
 
 #### Scenario: The member who wrote it
 
@@ -575,12 +605,25 @@ such a task concerns no client.
 #### Scenario: An admin sees it
 
 - **WHEN** an admin opens the board
-- **THEN** every task of the organization is shown, including those with no project
+- **THEN** every task of the organization is shown, including those with no project, except
+  the personal tasks of customers
 
 #### Scenario: A client never sees it
 
 - **WHEN** a member with the `CLIENT` role opens their board
-- **THEN** no task without a project is shown
+- **THEN** no task without a project is shown except the personal tasks they raised
+
+#### Scenario: A client's personal task
+
+- **WHEN** a client raises a task with no project
+- **THEN** it is on their board and calendar, and opening its address answers 404 to an admin,
+  to a manager and to the client's other people
+
+#### Scenario: Nobody else hears of it
+
+- **WHEN** a client's personal task is created, changed or deleted, or its deadline draws near
+- **THEN** only its author's open sessions receive the event, and only its author is
+  notified
 
 ### Requirement: Work in flight is visible beside a project's figures
 
@@ -795,7 +838,8 @@ refused change SHALL restore it and tell the member it did not happen.
 ### Requirement: The task form shows and changes the task's stage
 
 The task form's header SHALL offer, next to the priority, an Этап select to a member permitted to
-change tasks, and to nobody else. It SHALL list the six stages in the board's order and SHALL show
+change the task. A client opening a task they may not change SHALL see the select showing its
+stage, disabled. A client raising a task SHALL be offered none. It SHALL list the six stages in the board's order and SHALL show
 the task's current stage; for a new task it SHALL show the stage the task will be created in — the
 column the form was opened from, or `IDEA`.
 
@@ -847,6 +891,11 @@ member the move did not happen.
 
 - **WHEN** a client opens the form to raise a task
 - **THEN** no Этап select is shown, and the task is created in `IDEA`
+
+#### Scenario: A client reads the stage of a task on a project
+
+- **WHEN** a client opens a task on a project
+- **THEN** Этап shows its stage and cannot be changed
 
 #### Scenario: The move is refused
 
@@ -1069,13 +1118,13 @@ naming its member. A task with no participants SHALL say so.
 What a member sees on the board SHALL be narrowed by whose work it is, not only by which
 projects they reach:
 
-- An `ADMIN` SHALL see every task in the organization.
+- An `ADMIN` SHALL see every task in the organization except a customer's personal task.
 - A `MANAGER` or `GUEST` SHALL see the tasks they take part in, and the tasks nobody takes part
   in that they created. A task nobody takes part in is otherwise seen by admins alone.
 - A `CLIENT` or `CLIENT_ADMIN` SHALL see only the tasks marked visible to the client, on
-  the projects they reach. The two customer roles see the same work: the second
-  administers people, not tasks. Being named as a participant SHALL NOT widen what a
-  customer sees.
+  the projects they reach, and the personal tasks they raised themselves. The two customer
+  roles see the same work on projects: the second administers people, not tasks. Being
+  named as a participant SHALL NOT widen what a customer sees.
 
 Reach still applies first and independently: a task in a project a member cannot reach is
 never shown, whoever takes part in it. This rule narrows what remains; it can never widen it.
@@ -1123,13 +1172,20 @@ board cannot be used to learn that somebody else's work exists.
 #### Scenario: An admin's board
 
 - **WHEN** an admin opens the board
-- **THEN** every task in the organization is shown, whoever takes part
+- **THEN** every task in the organization is shown, whoever takes part, except the personal
+  tasks of customers
 
 #### Scenario: A client's employee sees what the client sees
 
 - **WHEN** a `CLIENT` and the `CLIENT_ADMIN` of the same client each open the task module
 - **THEN** both see every task marked visible to the client on their projects, including
   the ones the other raised
+
+#### Scenario: A colleague's personal task stays theirs
+
+- **WHEN** the `CLIENT_ADMIN` of a client opens the task module after a `CLIENT` of the same
+  client raised a personal task
+- **THEN** that task is not shown, and its address answers 404
 
 #### Scenario: Neither sees the agency's own work
 
@@ -1472,3 +1528,35 @@ offer it otherwise.
 - **WHEN** a member gives a task a daily repetition in the task form
 - **THEN** the checkbox `Пропускать выходные` appears, and disappears again when the repetition is
   set back to `Не повторяется`
+
+### Requirement: A client opens a task in the agency's form
+
+A `CLIENT` or `CLIENT_ADMIN` opening a task SHALL see the same task form an admin sees — its
+title, stage, priority, description, checklist, dates, project, attachments and comments —
+without the Видно клиенту switch and without the participants, which a customer never names.
+
+On a task on a project, which a customer may not change, every field SHALL be shown and none
+SHALL be changeable: no control adds or removes a block, edits the description or removes an
+attachment, and the form offers no save or delete, only a way to close it. Commenting SHALL stay
+as it is.
+
+On their own personal task the form SHALL be editable as it is for a manager, with a way to
+delete the task. While a client chooses no project, the form SHALL say that a task without a
+project is seen by them alone.
+
+#### Scenario: A client opens a task on a project
+- **WHEN** a client opens a task the agency shared with them
+- **THEN** the form shows its title, stage and priority, none can be changed, there is no
+  Видно клиенту switch, no Сохранить and no Удалить, and Закрыть closes it
+
+#### Scenario: A client opens their personal task
+- **WHEN** a client opens a personal task they raised, renames it and saves
+- **THEN** the change is stored, and the form offered Удалить
+
+#### Scenario: A client raises a task with no project
+- **WHEN** a client opens the form to raise a task and chooses no project
+- **THEN** the form says Задачу без проекта видите только вы
+
+#### Scenario: Closing a personal task from its card
+- **WHEN** a client ticks Готово on the card of their personal task
+- **THEN** the task moves to `DONE`, while the cards of tasks on projects carry no Готово for them

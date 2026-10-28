@@ -7,7 +7,7 @@ export interface MemberRecord {
   readonly userId: string;
   readonly orgId: string;
   readonly name: string;
-  readonly email: string;
+  readonly email: string | null;
   readonly image: string | null;
   readonly phone: string | null;
   readonly telegram: string | null;

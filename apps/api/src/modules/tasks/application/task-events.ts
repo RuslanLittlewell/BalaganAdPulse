@@ -12,6 +12,7 @@ export type TaskEvent =
       readonly createdById: string | null;
       readonly participantIds: readonly string[];
       readonly visibleToClient: boolean;
+      readonly personal: boolean;
     };
 
 export type TaskEventKind = TaskEvent["kind"];
@@ -34,6 +35,7 @@ export const taskDeleted = (task: TaskRecord): TaskEvent => ({
   createdById: task.createdById,
   participantIds: task.participantIds,
   visibleToClient: task.visibleToClient,
+  personal: task.personal,
 });
 
 export interface TaskEventPublisher {

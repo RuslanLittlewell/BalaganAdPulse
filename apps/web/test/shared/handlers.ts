@@ -5,17 +5,19 @@ export const realtime = ws.link("ws://*/api/realtime");
 
 export const defaultHandlers = [
   http.get("/api/auth/me", () => HttpResponse.json({
-    user: { id: "user-1", name: "Buyer", email: "buyer@acme.com", image: null },
+    user: { id: "user-1", name: "Buyer", email: "buyer@acme.com", login: null, image: null },
     platformAdmin: false,
     organization: { id: "org-1", name: "AdPulse", slug: "adpulse", status: "ACTIVE" },
     role: "ADMIN",
+    membershipId: "member-1",
     clientIds: [],
     modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"],
   })),
   http.get("/api/user/profile", () => HttpResponse.json({
-    name: "Buyer", email: "buyer@acme.com", image: null, avatarPath: null,
+    name: "Buyer", email: "buyer@acme.com", login: null, image: null, avatarPath: null,
   })),
   http.get("/api/clients", () => HttpResponse.json([])),
+  http.get("/api/clients/:clientId/account", () => HttpResponse.json(null)),
   http.get("/api/projects/:projectId/integrations", () => HttpResponse.json([])),
   http.get("/api/projects", () => HttpResponse.json([])),
   http.get("/api/project-layout", () => HttpResponse.json({ pinned: [], items: [] })),

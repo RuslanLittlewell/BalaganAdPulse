@@ -19,7 +19,7 @@ type Row = {
   id: string; userId: string; orgId: string; role: MemberRecord["role"];
   status: MemberRecord["status"]; createdAt: Date;
   user: {
-    name: string; email: string; image: string | null;
+    name: string; email: string | null; image: string | null;
     phone: string | null; telegram: string | null;
   };
 };

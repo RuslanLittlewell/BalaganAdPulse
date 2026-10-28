@@ -12,13 +12,15 @@ import type { ModuleKey, Role } from "@adpulse/access-policy";
 export interface AuthUser {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
+  login: string | null;
 }
 
 interface AuthValue {
   user: AuthUser | null;
   organization: OrganizationSummary | null;
   role: Role | null;
+  membershipId: string | null;
   clientIds: string[];
   platformAdmin: boolean;
   modules: ModuleKey[];
@@ -43,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(currentUser);
   const [organization, setOrganization] = useState<OrganizationSummary | null>(null);
   const [role, setRole] = useState<Role | null>(null);
+  const [membershipId, setMembershipId] = useState<string | null>(null);
   const [clientIds, setClientIds] = useState<string[]>([]);
   const [platformAdmin, setPlatformAdmin] = useState(false);
   const [modules, setModules] = useState<ModuleKey[]>([]);
@@ -52,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(session.user);
     setOrganization(session.organization);
     setRole(session.role);
+    setMembershipId(session.membershipId ?? null);
     setClientIds(session.clientIds);
     setPlatformAdmin(session.platformAdmin);
     setModules(session.modules);
@@ -61,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setOrganization(null);
     setRole(null);
+    setMembershipId(null);
     setClientIds([]);
     setPlatformAdmin(false);
     setModules([]);
@@ -82,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     organization,
     role,
+    membershipId,
     clientIds,
     platformAdmin,
     modules,
@@ -115,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     loadProfile: authApi.profile,
     saveAvatar: async (png, avatarPath) => { await authApi.saveAvatar(png, avatarPath); },
-  }), [user, organization, role, clientIds, platformAdmin, modules, loadSession, queryClient]);
+  }), [user, organization, role, membershipId, clientIds, platformAdmin, modules, loadSession, queryClient]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

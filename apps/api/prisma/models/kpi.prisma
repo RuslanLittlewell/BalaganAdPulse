@@ -19,19 +19,19 @@ enum KpiMetric {
 }
 
 model ProjectKpi {
-  id        String    @id @default(uuid())
-  projectId String    @map("project_id")
-  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  position  Int
-  metric    KpiMetric
-  target    Decimal   @db.Decimal(18, 4)
-  name      String?
-  value     Decimal?  @db.Decimal(18, 4)
-  enabled   Boolean   @default(true)
-  resultType String?  @map("result_type")
-  channel   Channel?
-  sourceAccountId String? @map("source_account_id")
-  updatedAt DateTime  @map("updated_at")
+  id              String    @id @default(uuid())
+  projectId       String    @map("project_id")
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  position        Int
+  metric          KpiMetric
+  target          Decimal   @db.Decimal(18, 4)
+  name            String?
+  value           Decimal?  @db.Decimal(18, 4)
+  enabled         Boolean   @default(true)
+  resultType      String?   @map("result_type")
+  channel         Channel?
+  sourceAccountId String?   @map("source_account_id")
+  updatedAt       DateTime  @map("updated_at")
 
   @@index([projectId, position])
   @@map("project_kpi")

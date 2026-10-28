@@ -1,10 +1,14 @@
 import type { PrismaClient, TaskComment as CommentRow } from "@prisma/client";
 import type { NewTaskComment, TaskCommentRecord, TaskCommentRepository } from "../application/ports.js";
 
-function toDomain(row: CommentRow): TaskCommentRecord {
+const WITH_AUTHOR = { author: { select: { user: { select: { name: true } } } } } as const;
+
+type Row = CommentRow & { author: { user: { name: string } } | null };
+
+function toDomain(row: Row): TaskCommentRecord {
   return {
-    id: row.id, taskId: row.taskId, authorId: row.authorId, body: row.body,
-    mentionIds: row.mentionIds, createdAt: row.createdAt, editedAt: row.editedAt,
+    id: row.id, taskId: row.taskId, authorId: row.authorId, authorName: row.author?.user.name ?? null,
+    body: row.body, mentionIds: row.mentionIds, createdAt: row.createdAt, editedAt: row.editedAt,
   };
 }
 
@@ -13,13 +17,13 @@ export class PrismaTaskCommentRepository implements TaskCommentRepository {
 
   async list(taskId: string): Promise<TaskCommentRecord[]> {
     const rows = await this.prisma.taskComment.findMany({
-      where: { taskId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      where: { taskId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], include: WITH_AUTHOR,
     });
     return rows.map(toDomain);
   }
 
   async find(taskId: string, id: string): Promise<TaskCommentRecord | null> {
-    const row = await this.prisma.taskComment.findFirst({ where: { id, taskId } });
+    const row = await this.prisma.taskComment.findFirst({ where: { id, taskId }, include: WITH_AUTHOR });
     return row && toDomain(row);
   }
 
@@ -29,6 +33,7 @@ export class PrismaTaskCommentRepository implements TaskCommentRepository {
         id: input.id, taskId: input.taskId, authorId: input.authorId, body: input.body,
         mentionIds: [...input.mentionIds],
       },
+      include: WITH_AUTHOR,
     });
     return toDomain(row);
   }
@@ -37,6 +42,7 @@ export class PrismaTaskCommentRepository implements TaskCommentRepository {
     const row = await this.prisma.taskComment.update({
       where: { id },
       data: { body: changes.body, mentionIds: [...changes.mentionIds], editedAt: changes.editedAt },
+      include: WITH_AUTHOR,
     });
     return toDomain(row);
   }

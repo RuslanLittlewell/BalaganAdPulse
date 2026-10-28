@@ -28,7 +28,7 @@ export interface RegisterBody extends Partial<ClientRegistrationBody> {
 }
 
 export interface LoginBody {
-  email: string;
+  login: string;
   password: string;
 }
 
@@ -42,7 +42,8 @@ export interface UpdateProfileBody {
 
 export interface UserProfile {
   name: string;
-  email: string;
+  email: string | null;
+  login: string | null;
   image: string | null;
   avatarPath: string | null;
   phone: string | null;
@@ -59,10 +60,11 @@ export interface OrganizationSummary {
 }
 
 export interface AuthSession {
-  user: { id: string; name: string; email: string; image: string | null };
+  user: { id: string; name: string; email: string | null; login: string | null; image: string | null };
   platformAdmin: boolean;
   organization: OrganizationSummary | null;
   role: Role | null;
+  membershipId: string | null;
   clientIds: string[];
   modules: ModuleKey[];
 }

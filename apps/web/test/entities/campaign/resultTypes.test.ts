@@ -54,8 +54,9 @@ describe("the figures of one type", () => {
     });
   });
 
-  it("name their column after the results", () => {
-    expect(resultTypeColumnLabel("MESSAGES")).toBe("Результаты - Сообщения");
+  it("name their column after the type alone", () => {
+    expect(resultTypeColumnLabel("MESSAGES")).toBe("Сообщения");
+    expect(resultTypeColumnLabel("CALLS")).toBe("Звонки");
   });
 });
 
@@ -82,5 +83,12 @@ describe("mixed results", () => {
       { type: "MESSAGES", results: 120, spend: 0 },
       { type: "PROFILE_VISITS", results: 0, spend: 10 },
     ])).toBe(false);
+  });
+});
+
+describe("the column of a type named like a metric", () => {
+  it("keeps the results prefix, so no name repeats among the columns", () => {
+    expect(resultTypeColumnLabel("LEADS")).toBe("Результаты - Лиды");
+    expect(resultTypeColumnLabel("REACH")).toBe("Результаты - Охват");
   });
 });

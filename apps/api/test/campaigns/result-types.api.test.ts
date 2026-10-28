@@ -72,7 +72,7 @@ describe("the result types of a campaign", () => {
     expect((await campaignOf(campaign.id)).performance.resultTypes).toEqual([{ type: "MESSAGES", results: 10, spend: 100 }]);
   });
 
-  it("calls the results of a Google campaign conversions", async () => {
+  it("calls the results of a Google campaign imported before its categories conversions", async () => {
     const campaign = await seedCampaign(projectId, "Поиск", "GOOGLE");
     await prisma.campaignDailyMetric.create({ data: { campaignId: campaign.id, date: DAY, conversions: 9, results: 9, spend: 450 } });
 
@@ -80,6 +80,46 @@ describe("the result types of a campaign", () => {
 
     expect(body.resultTypes).toEqual(["CONVERSIONS"]);
     expect(body.performance.resultTypes).toEqual([{ type: "CONVERSIONS", results: 9, spend: 450 }]);
+  });
+
+  it("names the types of a Google campaign's categories, each costing the campaign's whole spend", async () => {
+    const campaign = await seedCampaign(projectId, "Поиск", "GOOGLE");
+    await prisma.campaign.update({ where: { id: campaign.id }, data: { conversionCategories: ["SUBMIT_LEAD_FORM", "CONTACT", "PHONE_CALL_LEAD"] } });
+    await prisma.campaignDailyMetric.createMany({ data: [
+      { campaignId: campaign.id, date: DAY, results: 10, spend: 300 },
+      { campaignId: campaign.id, date: NEXT_DAY, results: 0, spend: 100 },
+    ] });
+    await prisma.campaignDailyResult.createMany({ data: [
+      { campaignId: campaign.id, date: DAY, category: "SUBMIT_LEAD_FORM", results: 1 },
+      { campaignId: campaign.id, date: DAY, category: "IMPORTED_LEAD", results: 3 },
+      { campaignId: campaign.id, date: DAY, category: "CONTACT", results: 6 },
+    ] });
+
+    const body = await campaignOf(campaign.id);
+
+    expect(body.resultTypes).toEqual(["LEADS", "CALLS", "CONTACTS"]);
+    expect(body.performance.resultTypes).toEqual([
+      { type: "CONTACTS", results: 6, spend: 400 },
+      { type: "LEADS", results: 4, spend: 400 },
+      { type: "CALLS", results: 0, spend: 400 },
+    ]);
+  });
+
+  it("reports a Google ad group's and ad's results by category", async () => {
+    const campaign = await seedCampaign(projectId, "Поиск", "GOOGLE");
+    await prisma.campaign.update({ where: { id: campaign.id }, data: { conversionCategories: ["CONTACT"] } });
+    const adSet = await prisma.adSet.create({ data: { campaignId: campaign.id, name: "Группа", position: 0 } });
+    const ad = await prisma.ad.create({ data: { adSetId: adSet.id, name: "Объявление", position: 0 } });
+    await prisma.adSetDailyMetric.create({ data: { adSetId: adSet.id, date: DAY, spend: 50 } });
+    await prisma.adSetDailyResult.create({ data: { adSetId: adSet.id, date: DAY, category: "CONTACT", results: 2.5 } });
+    await prisma.adDailyMetric.create({ data: { adId: ad.id, date: DAY, spend: 20 } });
+    await prisma.adDailyResult.create({ data: { adId: ad.id, date: DAY, category: "CONTACT", results: 1 } });
+
+    const [group] = (await request(app).get(`/api/campaigns/${campaign.id}/ad-sets${RANGE}`).set(auth)).body;
+    const [shown] = (await request(app).get(`/api/ad-sets/${adSet.id}/ads${RANGE}`).set(auth)).body;
+
+    expect(group.performance.resultTypes).toEqual([{ type: "CONTACTS", results: 2.5, spend: 50 }]);
+    expect(shown.performance.resultTypes).toEqual([{ type: "CONTACTS", results: 1, spend: 20 }]);
   });
 
   it("files results under unknown while no goal was imported", async () => {

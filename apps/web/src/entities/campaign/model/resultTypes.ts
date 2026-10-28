@@ -1,5 +1,6 @@
 import { t } from "@/shared/config/index.js";
 import { RESULT_TYPES, type Measured, type ResultType, type ResultTypeFigure } from "../api/api.js";
+import { METRIC_COLUMNS } from "./display.js";
 
 const ORDER = new Map<ResultType, number>(RESULT_TYPES.map((type, index) => [type, index]));
 
@@ -41,7 +42,8 @@ export function hasMixedResults(figures: readonly ResultTypeFigure[] | undefined
 }
 
 export function resultTypeColumnLabel(type: ResultType): string {
-  return `${t("metric.results")} - ${resultTypeLabel(type)}`;
+  const label = resultTypeLabel(type);
+  return METRIC_COLUMNS.some((column) => column.label === label) ? `${t("metric.results")} - ${label}` : label;
 }
 
 export const resultsColumnId = (type: ResultType) => `results.${type}`;

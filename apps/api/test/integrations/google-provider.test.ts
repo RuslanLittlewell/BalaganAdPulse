@@ -130,8 +130,22 @@ describe("the daily snapshot", () => {
     { match: /FROM ad_group_ad WHERE ad_group_ad.status/, reply: over.ads ?? { results: [
       { adGroupAd: { ad: { id: "100", name: "" }, status: "ENABLED" }, adGroup: { id: "10" } },
     ] } },
+    { match: /FROM conversion_action WHERE/, reply: over.actions ?? { results: [
+      { conversionAction: { category: "SUBMIT_LEAD_FORM" } },
+      { conversionAction: { category: "PHONE_CALL_LEAD" } },
+      { conversionAction: { category: "SUBMIT_LEAD_FORM" } },
+    ] } },
+    { match: /conversion_action_category, metrics.all_conversions FROM campaign WHERE/, reply: over.campaignResults ?? { results: [
+      { campaign: { id: "1" }, segments: { date: "2026-09-06", conversionActionCategory: "CONTACT" }, metrics: { allConversions: 3.996603 } },
+      { campaign: { id: "1" }, segments: { date: "2026-09-06", conversionActionCategory: "SUBMIT_LEAD_FORM" }, metrics: { allConversions: 2 } },
+      { campaign: { id: "1" }, segments: { date: "2026-09-05", conversionActionCategory: "PURCHASE" }, metrics: { allConversions: 0 } },
+    ] } },
+    { match: /conversion_action_category, metrics.all_conversions FROM ad_group WHERE/, reply: over.adGroupResults ?? { results: [
+      { adGroup: { id: "10" }, segments: { date: "2026-09-06", conversionActionCategory: "CONTACT" }, metrics: { allConversions: 1 } },
+    ] } },
+    { match: /conversion_action_category, metrics.all_conversions FROM ad_group_ad WHERE/, reply: over.adResults ?? { results: [] } },
     { match: /FROM campaign WHERE segments/, reply: over.campaignMetrics ?? { results: [
-      { campaign: { id: "1" }, segments: { date: "2026-09-06" }, metrics: { costMicros: "12345678", impressions: "1000", clicks: "40", conversions: 2.4, conversionsValue: 99.5 } },
+      { campaign: { id: "1" }, segments: { date: "2026-09-06" }, metrics: { costMicros: "12345678", impressions: "1000", clicks: "40", conversions: 2.4, allConversions: 5.996603, conversionsValue: 99.5 } },
     ] } },
     { match: /FROM ad_group WHERE segments/, reply: over.adGroupMetrics ?? { results: [
       { adGroup: { id: "10" }, segments: { date: "2026-09-06" }, metrics: { costMicros: "5000000" } },
@@ -147,18 +161,25 @@ describe("the daily snapshot", () => {
     expect(snapshot.from).toBe("2026-08-08");
     expect(snapshot.to).toBe("2026-09-06");
     expect(snapshot.campaigns).toEqual([
-      { id: "1", name: "Search", status: "ACTIVE", objective: "SEARCH" },
-      { id: "2", name: "Old", status: "PAUSED", objective: undefined },
+      { id: "1", name: "Search", status: "ACTIVE", objective: "SEARCH", conversionCategories: ["CONTACT", "PHONE_CALL_LEAD", "SUBMIT_LEAD_FORM"] },
+      { id: "2", name: "Old", status: "PAUSED", objective: undefined, conversionCategories: ["PHONE_CALL_LEAD", "SUBMIT_LEAD_FORM"] },
     ]);
     expect(snapshot.adSets).toEqual([{ id: "10", name: "Group", status: "ACTIVE", parentId: "1" }]);
     expect(snapshot.ads).toEqual([{ id: "100", name: "Ad 100", status: "ACTIVE", parentId: "10" }]);
     expect(snapshot.campaignMetrics).toEqual([{
       externalId: "1", date: "2026-09-06", spend: "12.3457", impressions: 1000, reach: 0, clicks: 40,
-      conversions: 2, results: 2, revenue: "99.5000",
+      conversions: 2, results: 6, revenue: "99.5000",
     }]);
+    expect(snapshot.campaignResults).toEqual([
+      { externalId: "1", date: "2026-09-06", category: "CONTACT", results: "3.9966" },
+      { externalId: "1", date: "2026-09-06", category: "SUBMIT_LEAD_FORM", results: "2.0000" },
+    ]);
+    expect(snapshot.adSetResults).toEqual([{ externalId: "10", date: "2026-09-06", category: "CONTACT", results: "1.0000" }]);
+    expect(snapshot.adResults).toEqual([]);
     expect(snapshot.adSetMetrics[0]).toMatchObject({ externalId: "10", spend: "5.0000", impressions: 0, clicks: 0, conversions: 0, revenue: "0.0000" });
     const queries = fetcher.mock.calls.map(([, init]) => JSON.parse(String((init as RequestInit).body)).query as string);
-    expect(queries.filter((query) => query.includes("segments.date BETWEEN '2026-08-08' AND '2026-09-06'"))).toHaveLength(3);
+    expect(queries.filter((query) => query.includes("segments.date BETWEEN '2026-08-08' AND '2026-09-06'"))).toHaveLength(6);
+    expect(queries).toContain("SELECT conversion_action.category FROM conversion_action WHERE conversion_action.status = 'ENABLED'");
     expect(queries.every((query) => !query.includes("REMOVED") || query.includes("!= 'REMOVED'"))).toBe(true);
   });
 

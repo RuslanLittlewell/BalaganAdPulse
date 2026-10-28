@@ -38,11 +38,13 @@ model Campaign {
   objective       String?
   externalId      String?               @map("external_id")
   sourceAccountId String?               @map("source_account_id")
+  conversionCategories String[]         @default([]) @map("conversion_categories")
   position        Int
   createdAt       DateTime              @default(now()) @map("created_at")
   updatedAt       DateTime              @updatedAt @map("updated_at")
   adSets          AdSet[]
   metrics         CampaignDailyMetric[]
+  results         CampaignDailyResult[]
   leads           Lead[]
   kpiMetric       KpiMetric?            @map("kpi_metric")
   kpiTarget       Decimal?              @map("kpi_target") @db.Decimal(18, 4)
@@ -68,6 +70,7 @@ model AdSet {
   updatedAt        DateTime           @updatedAt @map("updated_at")
   ads              Ad[]
   metrics          AdSetDailyMetric[]
+  results          AdSetDailyResult[]
 
   @@index([campaignId, position])
   @@map("ad_set")
@@ -86,6 +89,7 @@ model Ad {
   createdAt   DateTime          @default(now()) @map("created_at")
   updatedAt   DateTime          @updatedAt @map("updated_at")
   metrics     AdDailyMetric[]
+  results     AdDailyResult[]
   creatives   AdCreative[]
   leads       Lead[]
   reportPicks MonthlyReportAd[]
@@ -169,4 +173,43 @@ model AdDailyMetric {
   @@id([adId, date])
   @@index([date])
   @@map("ad_daily_metric")
+}
+
+model CampaignDailyResult {
+  campaignId String   @map("campaign_id")
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  date       DateTime @db.Date
+  category   String
+  results    Decimal  @db.Decimal(14, 4)
+  syncedAt   DateTime @default(now()) @map("synced_at")
+
+  @@id([campaignId, date, category])
+  @@index([date])
+  @@map("campaign_daily_result")
+}
+
+model AdSetDailyResult {
+  adSetId  String   @map("ad_set_id")
+  adSet    AdSet    @relation(fields: [adSetId], references: [id], onDelete: Cascade)
+  date     DateTime @db.Date
+  category String
+  results  Decimal  @db.Decimal(14, 4)
+  syncedAt DateTime @default(now()) @map("synced_at")
+
+  @@id([adSetId, date, category])
+  @@index([date])
+  @@map("ad_set_daily_result")
+}
+
+model AdDailyResult {
+  adId     String   @map("ad_id")
+  ad       Ad       @relation(fields: [adId], references: [id], onDelete: Cascade)
+  date     DateTime @db.Date
+  category String
+  results  Decimal  @db.Decimal(14, 4)
+  syncedAt DateTime @default(now()) @map("synced_at")
+
+  @@id([adId, date, category])
+  @@index([date])
+  @@map("ad_daily_result")
 }

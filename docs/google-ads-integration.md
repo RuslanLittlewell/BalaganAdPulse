@@ -14,9 +14,20 @@ refresh token Google issues is encrypted on the server against the project, with
 Imports follow the Meta ones: a manual refresh, a daily run at 08:00 Europe/Warsaw, the last
 30 completed days in the account's time zone, no partial publication, and disconnecting
 keeps what was imported. Each run reads campaigns, ad groups, ads and their daily cost,
-impressions, clicks, conversions and conversion value. Cost arrives in millionths of the
-currency and is stored with four decimals. Conversions are rounded to whole numbers and also
-fill the results column. Google does not report reach at every level, so reach stays zero.
+impressions, clicks, conversions, all conversions and conversion value. Cost arrives in
+millionths of the currency and is stored with four decimals. Conversions, the ones counted
+towards the campaigns' goals, are rounded to whole numbers; results are all conversions
+(Google's «Все конверсии»), rounded the same way. Google does not report reach at every level,
+so reach stays zero.
+
+Each run also reads the categories of the account's enabled conversion actions
+(`conversion_action.category`), stored on every campaign of the account, and all conversions
+of each campaign, ad group and ad per day and category (`segments.conversion_action_category`),
+kept with four decimals in `campaign_daily_result`, `ad_set_daily_result` and
+`ad_daily_result`. Each category is shown as a result type, so the tables offer one
+«Результаты - <тип>» column per category: lead forms as Лиды, calls as Звонки, contacts as
+Контакты, directions as Маршруты and so on. Google does not split spend between conversion
+actions, so the cost of each type is the whole spend over that type's conversions.
 Leads from lead form extensions are not imported.
 
 ## Creatives

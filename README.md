@@ -801,7 +801,8 @@ by the API and the web app so the interface cannot offer what the API refuses.
 - `CLIENT_ADMIN` is the principal on a customer's own company: it reaches exactly what a
   `CLIENT` reaches, and additionally administers that company's people — invites them,
   sees the invitations outstanding, revokes one, removes somebody who joined. It writes
-  nothing the agency owns.
+  nothing the agency owns, and its `GET /api/members` holds only the people of its own
+  client, never the rest of the agency or another client's people.
 
 Which side a role is on is asked through `isCustomer` rather than compared by name, so a
 customer role added later is treated as one everywhere at once — in what it sees on the
@@ -853,6 +854,8 @@ against the built app in a browser first.
 
 Comments carry their author's name, so a client — who may not list the organization's
 members — sees who wrote each one, and recognizes their own by the session's `membershipId`.
+A client tags only the people named on the task; the comment field reads them, with their
+names, from `GET /api/tasks/:id/participants`, which answers everyone who reaches the task.
 
 ### Cabinet access issued by the agency
 

@@ -250,7 +250,7 @@ export function LeadCard({ boardKey, capabilities, lead: opened, onClose, onPrev
                 <Label htmlFor="lead-notes">{t("crm.card.description")}</Label>
                 <textarea
                   id="lead-notes"
-                  className="min-h-28 rounded-md border border-input bg-transparent p-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-h-28 rounded-md border border-input bg-transparent p-3 text-sm outline-none transition-colors focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={!editable}
                   {...register("notes")}
                 />

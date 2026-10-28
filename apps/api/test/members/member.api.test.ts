@@ -48,6 +48,24 @@ describe("GET /api/members", () => {
     expect(res.body.map((m: { role: string }) => m.role).sort()).toEqual(["ADMIN", "MANAGER", "MANAGER"]);
   });
 
+  it("gives a client's principal only the people of their own client", async () => {
+    const own = (await request(app).post("/api/clients").set(admin).send({ name: "Окна" })).body.id;
+    const other = (await request(app).post("/api/clients").set(admin).send({ name: "Двери" })).body.id;
+    const principal = await signInAs("Principal", { role: "CLIENT_ADMIN" });
+    const colleague = await signInAs("Colleague", { role: "CLIENT" });
+    const manager = await signInAs("Manager", { role: "MANAGER" });
+    const stranger = await signInAs("Stranger", { role: "CLIENT" });
+    for (const member of [principal, colleague, manager]) await grantAccess(member.membership!.id, own);
+    await grantAccess(stranger.membership!.id, other);
+
+    const res = await request(app).get("/api/members").set(principal.auth);
+
+    expect(res.status).toBe(200);
+    expect(res.body.map((member: { name: string }) => member.name)).toEqual(["Principal", "Colleague", "Manager"]);
+    const staff = await request(app).get("/api/members?kind=staff").set(principal.auth);
+    expect(staff.body.map((member: { name: string }) => member.name)).toEqual(["Manager"]);
+  });
+
   it("refuses a guest -> 403", async () => {
     const { auth } = await signInAs("Guest", { role: "GUEST" });
     expect((await request(app).get("/api/members").set(auth)).status).toBe(403);

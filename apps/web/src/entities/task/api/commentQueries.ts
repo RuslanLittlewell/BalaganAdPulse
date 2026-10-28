@@ -10,6 +10,14 @@ export function useTaskComments(taskId: string) {
   });
 }
 
+export function useTaskParticipants(taskId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["task-participants", taskId] as const,
+    queryFn: () => taskCommentsApi.participants(taskId),
+    enabled,
+  });
+}
+
 export function useAddTaskComment(taskId: string) {
   const qc = useQueryClient();
   return useMutation({

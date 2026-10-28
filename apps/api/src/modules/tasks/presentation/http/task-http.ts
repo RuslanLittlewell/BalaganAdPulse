@@ -49,6 +49,9 @@ export function createTaskRouter(useCases: TaskUseCases, comments: TaskCommentUs
     res.json(await useCases.complete(actorOf(req), req.params.id));
   }));
 
+  router.get("/:id/participants", handle(async (req: Request<{ id: string }>, res) => {
+    res.json(await comments.participants(actorOf(req), req.params.id));
+  }));
   router.get("/:id/comments", handle(async (req: Request<{ id: string }>, res) => {
     res.json(await comments.list(actorOf(req), req.params.id));
   }));

@@ -131,6 +131,9 @@ function StaffBar({ report }: { report: Report }) {
       >
         {t(`report.status.${report.status}`)}
       </span>
+      {report.status === "DRAFT" ? (
+        <span className="text-xs text-muted-foreground">{t("report.draft.hint")}</span>
+      ) : null}
       {report.computedAt ? (
         <span className="text-xs text-muted-foreground">
           {t("report.computedAt")}{" "}

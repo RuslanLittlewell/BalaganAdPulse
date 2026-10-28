@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { Check, Pencil, SendHorizontal, Trash2, X } from "lucide-react";
+import { isCustomer } from "@adpulse/access-policy";
 import { Avatar, Button, Label, Loader, useAlerts } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
 import { cn, formatDateTime } from "@/shared/lib/index.js";
@@ -14,6 +15,7 @@ import {
   useDeleteTaskComment,
   useEditTaskComment,
   useTaskComments,
+  useTaskParticipants,
   type MentionedMember,
   type Task,
   type TaskComment,
@@ -34,6 +36,8 @@ export function TaskComments({ task }: TaskCommentsProps) {
   const { data: comments, isLoading, isError } = useTaskComments(task.id);
   const { data: members } = useMembers();
   const { membershipId, role } = useAuth();
+  const customer = role !== null && isCustomer(role);
+  const { data: participants } = useTaskParticipants(task.id, customer);
   const add = useAddTaskComment(task.id);
   const change = useEditTaskComment(task.id);
   const remove = useDeleteTaskComment(task.id);
@@ -62,10 +66,15 @@ export function TaskComments({ task }: TaskCommentsProps) {
     element.style.height = `${Math.min(element.scrollHeight, FIELD_MAX_HEIGHT)}px`;
   }, [text]);
 
-  const byId = useMemo(() => new Map((members ?? []).map((member) => [member.id, member])), [members]);
+  const byId = useMemo(
+    () => new Map([...(participants ?? []), ...(members ?? [])].map((person) => [person.id, person])),
+    [participants, members],
+  );
   const taggable = useMemo(
-    () => taggableMembers(task, members ?? [], membershipId ?? undefined),
-    [task, members, membershipId],
+    () => customer
+      ? (participants ?? []).filter((person) => person.id !== membershipId)
+      : taggableMembers(task, members ?? [], membershipId ?? undefined),
+    [customer, participants, task, members, membershipId],
   );
 
   const query = dismissed ? null : mentionQueryAt(text, caret);
@@ -293,7 +302,7 @@ export function TaskComments({ task }: TaskCommentsProps) {
             </Button>
           </div>
         ) : null}
-        <div className="flex items-end gap-2 rounded-2xl border border-input py-1.5 pl-3.5 pr-1.5 transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
+        <div className="flex items-end gap-2 rounded-2xl border border-input py-1.5 pl-3.5 pr-1.5 transition-colors focus-within:border-ring">
           <textarea
             ref={field}
             aria-label={t("comments.field")}

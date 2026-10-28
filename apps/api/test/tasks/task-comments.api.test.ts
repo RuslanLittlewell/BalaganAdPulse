@@ -255,13 +255,25 @@ describe("tagging in a comment", () => {
     await vi.waitFor(async () => expect(await mentionsOf(customer)).toHaveLength(1));
   });
 
-  it("is not allowed to a client's person -> 403", async () => {
-    const taskId = await create({ participantIds: [idOf(manager)] });
+  it("lets a client's person tag the people named on the task", async () => {
+    const taskId = await create();
     await request(app).patch(`/api/tasks/${taskId}`).set(admin.auth).send({ visibleToClient: true });
 
-    const res = await comment(customer, taskId, { body: "@Manager", mentionIds: [idOf(manager)] });
+    const res = await comment(customer, taskId, { body: "@Manager посмотрите", mentionIds: [idOf(manager)] });
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(201);
+    expect(res.body.mentionIds).toEqual([idOf(manager)]);
+    await vi.waitFor(async () => expect(await mentionsOf(manager)).toHaveLength(1));
+  });
+
+  it("refuses a client's person tagging somebody not named on the task -> 400", async () => {
+    const taskId = await create();
+    await request(app).patch(`/api/tasks/${taskId}`).set(admin.auth).send({ visibleToClient: true });
+
+    const res = await comment(customer, taskId, { body: "@Admin", mentionIds: [idOf(admin)] });
+
+    expect(res.status).toBe(400);
+    expect((await list(admin, taskId)).body).toEqual([]);
   });
 });
 
@@ -315,5 +327,27 @@ describe("a client's comments", () => {
     const taskId = await create();
 
     expect((await comment(customer, taskId, { body: "?" })).status).toBe(404);
+  });
+});
+
+describe("the people named on a task", () => {
+  const participants = (by: SignedIn, taskId: string) =>
+    request(app).get(`/api/tasks/${taskId}/participants`).set(by.auth);
+
+  it("are named to a client who reaches the shared task, the suspended left out", async () => {
+    const taskId = await create();
+    await request(app).patch(`/api/tasks/${taskId}`).set(admin.auth).send({ visibleToClient: true });
+    await request(app).patch(`/api/members/${idOf(colleague)}`).set(admin.auth).send({ status: "SUSPENDED" });
+
+    const res = await participants(customer, taskId);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([{ id: idOf(manager), name: "Manager", image: null }]);
+  });
+
+  it("are not named to somebody who does not reach the task -> 404", async () => {
+    const taskId = await create();
+
+    expect((await participants(customer, taskId)).status).toBe(404);
   });
 });

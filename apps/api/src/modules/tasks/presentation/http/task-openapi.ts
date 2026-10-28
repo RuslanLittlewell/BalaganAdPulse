@@ -47,6 +47,12 @@ const taskImage = z.object({
   createdAt: z.iso.datetime(),
 });
 
+const taskParticipant = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  image: z.string().nullable(),
+});
+
 const taskComment = z.object({
   id: z.uuid(),
   taskId: z.uuid(),
@@ -61,6 +67,7 @@ const taskComment = z.object({
 export const taskComponents: ComponentDocs = {
   Task: task,
   TaskComment: taskComment,
+  TaskParticipant: taskParticipant,
   TaskImage: taskImage,
 };
 
@@ -131,6 +138,14 @@ export const taskDoc: RouteDoc = {
     },
     {
       method: "get",
+      path: "/:id/participants",
+      summary: "List the people named on a task",
+      description: "The active participants, with their names and pictures, for everyone who reaches the task — the people a client's person may tag.",
+      success: { status: 200, description: "The participants, in the task's order", schema: arrayOf(ref("TaskParticipant")) },
+      errors: [401, 403, 404],
+    },
+    {
+      method: "get",
       path: "/:id/comments",
       summary: "List the comments on a task",
       success: { status: 200, description: "The comments, oldest first", schema: arrayOf(ref("TaskComment")) },
@@ -140,7 +155,7 @@ export const taskDoc: RouteDoc = {
       method: "post",
       path: "/:id/comments",
       summary: "Comment on a task",
-      description: "The members named in mentionIds are tagged and notified. A client's person tags nobody, and a client's person is tagged only on a task shared with the client.",
+      description: "The members named in mentionIds are tagged and notified. A client's person tags only the people named on the task, and a client's person is tagged only on a task shared with the client.",
       body: addTaskCommentSchema,
       success: { status: 201, description: "The comment", schema: ref("TaskComment") },
       errors: [400, 401, 403, 404],

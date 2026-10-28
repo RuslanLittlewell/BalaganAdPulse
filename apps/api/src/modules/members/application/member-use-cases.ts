@@ -39,6 +39,15 @@ export function createMemberUseCases(
     return membership;
   };
 
+  const peopleOfReachedClients = async (actor: ActorContext, kind?: MemberKind): Promise<MemberRecord[]> => {
+    const clientIds = await dependencies.clients.reachableClientIds(actor);
+    const lists = await Promise.all(clientIds.map((clientId) => dependencies.directory.listByClient(actor.orgId, clientId)));
+    const people = new Map(lists.flat().map((member) => [member.id, member]));
+    return [...people.values()]
+      .filter((member) => kind !== "staff" || !isCustomer(member.role))
+      .sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime());
+  };
+
   const reachable = async (actor: ActorContext, id: string) => {
     const member = await dependencies.directory.findInOrg(actor.orgId, id);
     if (!member) throw new AppError("not-found", "Member not found");
@@ -84,6 +93,7 @@ export function createMemberUseCases(
     list: async (actor: ActorContext, kind?: MemberKind) => {
       const listsColleagues = kind === "staff" && actor.role === "MANAGER";
       if (!listsColleagues) assertCan(actor, "read");
+      if (isCustomer(actor.role)) return peopleOfReachedClients(actor, kind);
       return dependencies.directory.listByOrg(actor.orgId, kind);
     },
 

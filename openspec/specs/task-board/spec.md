@@ -1560,3 +1560,7 @@ project is seen by them alone.
 #### Scenario: Closing a personal task from its card
 - **WHEN** a client ticks Готово on the card of their personal task
 - **THEN** the task moves to `DONE`, while the cards of tasks on projects carry no Готово for them
+
+#### Scenario: A choice in a task the client may not change
+- **WHEN** a client presses the project or the repeat field of a task on a project
+- **THEN** no list of choices opens and the task is unchanged

@@ -140,6 +140,12 @@ export interface TaskCommentInput {
   mentionIds: string[];
 }
 
+export interface TaskParticipant {
+  id: string;
+  name: string;
+  image: string | null;
+}
+
 export const taskCommentsApi = {
   list: (taskId: string) => http.get<TaskComment[]>(`/tasks/${taskId}/comments`),
   add: (taskId: string, body: TaskCommentInput) =>
@@ -147,4 +153,5 @@ export const taskCommentsApi = {
   edit: (taskId: string, id: string, body: TaskCommentInput) =>
     http.patch<TaskComment>(`/tasks/${taskId}/comments/${id}`, body),
   remove: (taskId: string, id: string) => http.del(`/tasks/${taskId}/comments/${id}`),
+  participants: (taskId: string) => http.get<TaskParticipant[]>(`/tasks/${taskId}/participants`),
 };

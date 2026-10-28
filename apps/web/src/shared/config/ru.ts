@@ -174,6 +174,8 @@ export const ru = {
   "report.download": "Скачать PDF", "report.downloading": "Готовим PDF…", "report.downloadFailed": "Не удалось собрать PDF",
   "report.generateFailed": "Не удалось сформировать отчёт", "report.saveFailed": "Не удалось сохранить отчёт",
   "report.status.DRAFT": "Черновик", "report.status.PUBLISHED": "Опубликован",
+  "report.draft.hint": "Клиент не видит черновик. Опубликуйте отчёт, чтобы он появился у клиента",
+  "report.draft.listHint": "Черновики клиент не видит, пока вы их не опубликуете",
   "report.back": "К отчётам", "report.notFound": "Отчёт не найден", "report.title": "Отчёт по рекламе",
   "report.spend": "Реализованный бюджет", "report.leads": "Заявки", "report.costPerLead": "Стоимость заявки",
   "report.messengerContacts": "Обращения в соцсети и мессенджеры", "report.vsPrevious": "к прошлому месяцу",

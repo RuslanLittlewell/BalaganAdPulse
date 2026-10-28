@@ -2,6 +2,14 @@ export const RESULT_TYPES = [
   "MESSAGES",
   "PROFILE_VISITS",
   "LEADS",
+  "QUALIFIED_LEADS",
+  "CALLS",
+  "CONTACTS",
+  "APPOINTMENTS",
+  "DIRECTIONS",
+  "PURCHASES",
+  "CHECKOUTS",
+  "SIGNUPS",
   "LINK_CLICKS",
   "LANDING_PAGE_VIEWS",
   "CONVERSIONS",
@@ -43,6 +51,32 @@ export function resultTypeOfGoal(goal: string | null | undefined): ResultType {
   return BY_GOAL[goal.toUpperCase()] ?? "OTHER";
 }
 
+const BY_CATEGORY: Record<string, ResultType> = {
+  SUBMIT_LEAD_FORM: "LEADS",
+  IMPORTED_LEAD: "LEADS",
+  REQUEST_QUOTE: "LEADS",
+  QUALIFIED_LEAD: "QUALIFIED_LEADS",
+  CONVERTED_LEAD: "QUALIFIED_LEADS",
+  PHONE_CALL_LEAD: "CALLS",
+  CONTACT: "CONTACTS",
+  BOOK_APPOINTMENT: "APPOINTMENTS",
+  GET_DIRECTIONS: "DIRECTIONS",
+  PURCHASE: "PURCHASES",
+  STORE_SALE: "PURCHASES",
+  SUBSCRIBE_PAID: "PURCHASES",
+  ADD_TO_CART: "CHECKOUTS",
+  BEGIN_CHECKOUT: "CHECKOUTS",
+  SIGNUP: "SIGNUPS",
+  PAGE_VIEW: "LANDING_PAGE_VIEWS",
+  OUTBOUND_CLICK: "LINK_CLICKS",
+  ENGAGEMENT: "ENGAGEMENT",
+  DOWNLOAD: "APP_INSTALLS",
+};
+
+export function resultTypeOfCategory(category: string): ResultType {
+  return BY_CATEGORY[category.toUpperCase()] ?? "OTHER";
+}
+
 export interface ResultTypeFigure {
   readonly type: ResultType;
   readonly results: number;
@@ -58,6 +92,24 @@ export interface CampaignResultKind {
   readonly campaignId: string;
   readonly optimizationGoal: string | null;
 }
+
+export interface CampaignCategories {
+  readonly campaignId: string;
+  readonly categories: readonly string[];
+}
+
+export interface CategoryResult {
+  readonly date: Date;
+  readonly category: string;
+  readonly results: number;
+}
+
+export interface SpentDay {
+  readonly date: Date;
+  readonly spend: number;
+}
+
+export type DatedFigure = ResultTypeFigure & { readonly date: Date };
 
 const ORDER = new Map<ResultType, number>(RESULT_TYPES.map((type, index) => [type, index]));
 
@@ -77,4 +129,26 @@ export function sumByType(figures: readonly ResultTypeFigure[]): ResultTypeFigur
 
 export function typesOf(kinds: readonly CampaignResultKind[]): ResultType[] {
   return [...new Set(kinds.map((kind) => resultTypeOfGoal(kind.optimizationGoal)))].sort(byOrder);
+}
+
+export function typesOfCategories(categories: readonly string[]): ResultType[] {
+  return [...new Set(categories.map(resultTypeOfCategory))].sort(byOrder);
+}
+
+export function typedByCategory(
+  days: readonly SpentDay[],
+  results: readonly CategoryResult[],
+  types: readonly ResultType[],
+): DatedFigure[] {
+  const spends = new Map(days.map((day) => [day.date.getTime(), day.spend]));
+  const counted = new Map<string, number>();
+  for (const result of results) {
+    const key = `${result.date.getTime()}|${resultTypeOfCategory(result.category)}`;
+    counted.set(key, (counted.get(key) ?? 0) + result.results);
+  }
+  const every = [...new Set([...types, ...results.map((result) => resultTypeOfCategory(result.category))])];
+  const times = [...new Set([...spends.keys(), ...results.map((result) => result.date.getTime())])];
+  return times.flatMap((time) => every.map((type) => ({
+    date: new Date(time), type, results: counted.get(`${time}|${type}`) ?? 0, spend: spends.get(time) ?? 0,
+  })));
 }

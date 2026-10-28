@@ -70,7 +70,10 @@ function fixture(options: {
       readAdSetRange: async (id) => options.adSetDays?.[id] ?? [],
       readTypedDays: async () => options.typedDays ?? [],
       readResultKinds: async () => [],
+      readConversionCategories: async () => [],
       readAdRange: async (id) => options.adDays?.[id] ?? [],
+      readAdSetResults: async () => [],
+      readAdResults: async () => [],
     },
   });
 }

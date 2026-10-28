@@ -105,6 +105,41 @@ describe("importing a Google account", () => {
     expect(await prisma.campaignDailyMetric.count()).toBe(1);
   });
 
+  it("keeps the account's categories and each day's conversions by category, replacing the window", async () => {
+    const jobs = new PrismaImportJobs(prisma);
+    const categorised = (contacts: string): Snapshot => ({
+      ...snapshot(),
+      campaigns: [{ ...snapshot().campaigns[0]!, conversionCategories: ["CONTACT", "SUBMIT_LEAD_FORM"] }],
+      campaignResults: [{ externalId: "9001", date: "2026-09-07", category: "CONTACT", results: contacts }],
+      adSetResults: [{ externalId: "9002", date: "2026-09-07", category: "CONTACT", results: "1.0000" }],
+      adResults: [{ externalId: "9003", date: "2026-09-07", category: "SUBMIT_LEAD_FORM", results: "2.0000" }],
+    });
+
+    await jobs.complete((await jobs.claim(now))!, categorised("3.9966"), now);
+    await prisma.projectIntegration.updateMany({ data: { queuedAt: now, status: "QUEUED", leaseUntil: null, leaseOwner: null } });
+    await jobs.complete((await jobs.claim(now))!, categorised("5.0000"), now);
+
+    expect((await prisma.campaign.findFirstOrThrow({ where: { externalId: "9001" } })).conversionCategories)
+      .toEqual(["CONTACT", "SUBMIT_LEAD_FORM"]);
+    const [campaignResult] = await prisma.campaignDailyResult.findMany();
+    expect(await prisma.campaignDailyResult.count()).toBe(1);
+    expect(campaignResult).toMatchObject({ category: "CONTACT", date: new Date("2026-09-07T00:00:00Z") });
+    expect(campaignResult!.results.toNumber()).toBe(5);
+    expect(await prisma.adSetDailyResult.count()).toBe(1);
+    expect((await prisma.adDailyResult.findFirstOrThrow()).category).toBe("SUBMIT_LEAD_FORM");
+  });
+
+  it("leaves a campaign's categories alone when the snapshot names none", async () => {
+    const jobs = new PrismaImportJobs(prisma);
+    await jobs.complete((await jobs.claim(now))!, {
+      ...snapshot(), campaigns: [{ ...snapshot().campaigns[0]!, conversionCategories: ["CONTACT"] }],
+    }, now);
+    await prisma.projectIntegration.updateMany({ data: { queuedAt: now, status: "QUEUED", leaseUntil: null, leaseOwner: null } });
+    await jobs.complete((await jobs.claim(now))!, snapshot(), now);
+
+    expect((await prisma.campaign.findFirstOrThrow({ where: { externalId: "9001" } })).conversionCategories).toEqual(["CONTACT"]);
+  });
+
   it("waits for a new sign-in when Google revoked the old one", async () => {
     const jobs = new PrismaImportJobs(prisma);
     const job = (await jobs.claim(now))!;

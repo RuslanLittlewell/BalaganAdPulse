@@ -57,11 +57,14 @@ token: the access level is that of the Google Cloud project owning the OAuth cli
 ### Requirement: Google Ads campaigns and daily figures are imported
 
 The server SHALL import the connected account's campaigns, ad groups, ads and their daily spend,
-impressions, clicks, conversions and conversion value into the project, with the same hierarchy,
+impressions, clicks, conversions, all conversions by category and conversion value into the
+project, with the same hierarchy,
 schedule, retries, one-active-import rule, last-30-days window, idempotence and
 no-partial-publication rule as for Meta. Spend SHALL be converted from Google's millionths of
 the currency to a four-decimal amount without rounding error. Conversions and revenue SHALL be
-the account's own conversion figures. Reach, which Google does not report at every level, SHALL
+the account's own conversion figures, and results SHALL be all conversions, Google's
+«Все конверсии», rounded to a whole number. The import SHALL also read the categories of the
+account's enabled conversion actions. Reach, which Google does not report at every level, SHALL
 be stored as zero where it is missing. Imported data MUST retain external identifiers. The
 import SHALL NOT read or copy creative files.
 
@@ -80,6 +83,10 @@ import SHALL NOT read or copy creative files.
 #### Scenario: Currency mismatch
 - **WHEN** the account's currency differs from the project's after figures exist
 - **THEN** the import is refused and explained without converting amounts
+
+#### Scenario: All conversions as results
+- **WHEN** a campaign had 1 conversion towards its goals and 3.9966 conversions in all on a day
+- **THEN** that day shows 1 conversion and 4 results, and its conversions by category keep 3.9966
 
 ### Requirement: A revoked Google sign-in asks for a new one
 

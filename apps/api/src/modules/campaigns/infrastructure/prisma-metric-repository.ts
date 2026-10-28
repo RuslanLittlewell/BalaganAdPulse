@@ -1,6 +1,14 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import type { MeasuredDay } from "../domain/metrics.js";
-import { resultTypeOfGoal, type CampaignResultKind, type TypedDay } from "../domain/result-type.js";
+import {
+  resultTypeOfGoal,
+  typedByCategory,
+  typesOfCategories,
+  type CampaignCategories,
+  type CampaignResultKind,
+  type CategoryResult,
+  type TypedDay,
+} from "../domain/result-type.js";
 import type { CampaignChannel, CampaignDay, MetricRepository } from "../application/metric-ports.js";
 
 interface StoredRow {
@@ -26,6 +34,9 @@ const toMeasured = (row: StoredRow): MeasuredDay => ({
 });
 
 const within = (from: Date, to: Date) => ({ gte: from, lte: to });
+
+const resultOf = (row: { date: Date; category: string; results: Prisma.Decimal }): CategoryResult =>
+  ({ date: row.date, category: row.category, results: row.results.toNumber() });
 
 export class PrismaMetricRepository implements MetricRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -57,7 +68,12 @@ export class PrismaMetricRepository implements MetricRepository {
 
   async readTypedDays(campaigns: readonly CampaignChannel[], from: Date, to: Date): Promise<TypedDay[]> {
     if (campaigns.length === 0) return [];
-    const google = campaigns.filter((campaign) => campaign.channel === "GOOGLE").map((campaign) => campaign.id);
+    const categorised = new Map((await this.readConversionCategories(
+      campaigns.filter((campaign) => campaign.channel === "GOOGLE").map((campaign) => campaign.id),
+    )).filter(({ categories }) => categories.length > 0).map(({ campaignId, categories }) => [campaignId, categories]));
+    const google = campaigns
+      .filter((campaign) => campaign.channel === "GOOGLE" && !categorised.has(campaign.id))
+      .map((campaign) => campaign.id);
     const others = campaigns.filter((campaign) => campaign.channel !== "GOOGLE").map((campaign) => campaign.id);
     const withAdSets = new Set((await this.prisma.adSet.findMany({
       where: { campaignId: { in: others } }, select: { campaignId: true }, distinct: ["campaignId"],
@@ -75,6 +91,7 @@ export class PrismaMetricRepository implements MetricRepository {
     ]);
     const googleIds = new Set(google);
     return [
+      ...await this.readCategorisedDays(categorised, from, to),
       ...adSetDays.map((row) => ({
         campaignId: row.adSet.campaignId, date: row.date, type: resultTypeOfGoal(row.adSet.optimizationGoal),
         results: row.results, spend: row.spend.toNumber(),
@@ -84,6 +101,44 @@ export class PrismaMetricRepository implements MetricRepository {
         results: row.results, spend: row.spend.toNumber(),
       })),
     ];
+  }
+
+  private async readCategorisedDays(categorised: ReadonlyMap<string, readonly string[]>, from: Date, to: Date): Promise<TypedDay[]> {
+    if (categorised.size === 0) return [];
+    const campaignIds = [...categorised.keys()];
+    const [days, results] = await Promise.all([
+      this.prisma.campaignDailyMetric.findMany({
+        where: { campaignId: { in: campaignIds }, date: within(from, to) },
+        select: { campaignId: true, date: true, spend: true },
+      }),
+      this.prisma.campaignDailyResult.findMany({
+        where: { campaignId: { in: campaignIds }, date: within(from, to) },
+        select: { campaignId: true, date: true, category: true, results: true },
+      }),
+    ]);
+    return campaignIds.flatMap((campaignId) => typedByCategory(
+      days.filter((day) => day.campaignId === campaignId).map((day) => ({ date: day.date, spend: day.spend.toNumber() })),
+      results.filter((result) => result.campaignId === campaignId).map(resultOf),
+      typesOfCategories(categorised.get(campaignId) ?? []),
+    ).map((figure) => ({ ...figure, campaignId })));
+  }
+
+  async readConversionCategories(campaignIds: readonly string[]): Promise<CampaignCategories[]> {
+    if (campaignIds.length === 0) return [];
+    const rows = await this.prisma.campaign.findMany({
+      where: { id: { in: [...campaignIds] } }, select: { id: true, conversionCategories: true },
+    });
+    return rows.map((row) => ({ campaignId: row.id, categories: row.conversionCategories }));
+  }
+
+  async readAdSetResults(adSetId: string, from: Date, to: Date): Promise<CategoryResult[]> {
+    const rows = await this.prisma.adSetDailyResult.findMany({ where: { adSetId, date: within(from, to) } });
+    return rows.map(resultOf);
+  }
+
+  async readAdResults(adId: string, from: Date, to: Date): Promise<CategoryResult[]> {
+    const rows = await this.prisma.adDailyResult.findMany({ where: { adId, date: within(from, to) } });
+    return rows.map(resultOf);
   }
 
   async readResultKinds(campaignIds: readonly string[]): Promise<CampaignResultKind[]> {

@@ -91,7 +91,7 @@ describe("CampaignPage", () => {
     ] });
     renderWithProviders(<App />, route);
 
-    expect(await screen.findByRole("columnheader", { name: /^Результаты - Переходы в профиль/ })).toBeInTheDocument();
+    expect(await screen.findByRole("columnheader", { name: /^Переходы в профиль/ })).toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: /Тип результата/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: /^Цена · / })).not.toBeInTheDocument();
     const row = await screen.findByRole("row", { name: /Москва/ });

@@ -6,6 +6,7 @@ export interface ImportedEntity {
   parentId?: string;
   objective?: string;
   optimizationGoal?: string;
+  conversionCategories?: string[];
 }
 export interface ImportedMetric {
   externalId: string;
@@ -17,6 +18,12 @@ export interface ImportedMetric {
   conversions: number;
   results: number;
   revenue: string;
+}
+export interface ImportedResult {
+  externalId: string;
+  date: string;
+  category: string;
+  results: string;
 }
 export type CreativeKind = "IMAGE" | "VIDEO" | "TEXT";
 export interface ImportedCreative {
@@ -65,6 +72,9 @@ export interface Snapshot {
   campaignMetrics: ImportedMetric[];
   adSetMetrics: ImportedMetric[];
   adMetrics: ImportedMetric[];
+  campaignResults?: ImportedResult[];
+  adSetResults?: ImportedResult[];
+  adResults?: ImportedResult[];
 }
 export interface PolledAd {
   adId: string;

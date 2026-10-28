@@ -259,7 +259,7 @@ describe("ProjectPage", () => {
     api({ campaigns: [messages, visits] });
     renderWithProviders(<App />, route);
 
-    for (const name of ["Результаты - Сообщения", "Результаты - Переходы в профиль"]) {
+    for (const name of ["Сообщения", "Переходы в профиль"]) {
       expect(await screen.findByRole("columnheader", { name: new RegExp(`^${name}`) })).toBeInTheDocument();
     }
     expect(screen.queryByRole("columnheader", { name: /Тип результата/ })).not.toBeInTheDocument();
@@ -280,6 +280,25 @@ describe("ProjectPage", () => {
     expect(within(footer).getByText("120")).toBeInTheDocument();
     expect(within(footer).getByText("40")).toBeInTheDocument();
     expect(within(footer).queryByText(/Сообщения: /)).not.toBeInTheDocument();
+  });
+
+  it("gives a Google campaign a results column for each category of conversions its account has", async () => {
+    const search = { ...campaign("c3", "Поиск", "GOOGLE", 400), resultTypes: ["LEADS", "CALLS", "CONTACTS"],
+      performance: performance(400, { resultTypes: [
+        { type: "CONTACTS", results: 6, spend: 400 },
+        { type: "LEADS", results: 3.9966, spend: 400 },
+        { type: "CALLS", results: 0, spend: 400 },
+      ] }) };
+    api({ campaigns: [search] });
+    renderWithProviders(<App />, route);
+
+    for (const name of [/^Результаты - Лиды/, /^Звонки/, /^Контакты/]) {
+      expect(await screen.findByRole("columnheader", { name })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole("columnheader", { name: /^Результаты - (Звонки|Контакты)/ })).not.toBeInTheDocument();
+    const row = await screen.findByRole("row", { name: /Поиск/ });
+    expect(within(row).getByText("6")).toBeInTheDocument();
+    expect(within(row).getByText("4")).toBeInTheDocument();
   });
 
   it("offers no type columns for a project whose campaigns have no result type", async () => {

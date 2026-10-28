@@ -145,7 +145,7 @@ describe("the KPIs of a project", () => {
   });
 
   it("refuse a result type that does not exist -> 400", async () => {
-    const res = await request(app).put(projectKpis()).set(admin).send([{ metric: "RESULTS", target: "10", resultType: "CALLS" }]);
+    const res = await request(app).put(projectKpis()).set(admin).send([{ metric: "RESULTS", target: "10", resultType: "FAXES" }]);
     expect(res.status).toBe(400);
   });
 
@@ -297,7 +297,7 @@ describe("a campaign KPI", () => {
   it.each([
     ["on any other metric", { metric: "SPEND", target: "1000", resultType: "MESSAGES" }],
     ["of the unknown type", { metric: "RESULTS", target: "10", resultType: "UNKNOWN" }],
-    ["that does not exist", { metric: "RESULTS", target: "10", resultType: "CALLS" }],
+    ["that does not exist", { metric: "RESULTS", target: "10", resultType: "FAXES" }],
   ])("refuses a result type %s -> 400", async (_case, body) => {
     const res = await request(app).put(campaignKpi()).set(admin).send(body);
 

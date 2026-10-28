@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ProviderError, type Account, type GoogleAccountChoice } from "../domain/integration.js";
-import type { ImportedCreative, ImportedEntity, ImportedMetric, ImportedStatus, Snapshot } from "../domain/snapshot.js";
+import type { ImportedCreative, ImportedEntity, ImportedMetric, ImportedResult, ImportedStatus, Snapshot } from "../domain/snapshot.js";
 import type { SnapshotSource } from "../application/import-worker.js";
 import type { GoogleCreativeSource } from "../application/ports.js";
 import { localDate, shiftDate } from "../application/schedule.js";
@@ -21,9 +21,13 @@ const figures = z.object({
   impressions: count.prefault("0"),
   clicks: count.prefault("0"),
   conversions: quantity.default(0),
+  allConversions: quantity.default(0),
   conversionsValue: quantity.default(0),
 });
 const date = z.object({ date: z.iso.date() });
+const category = z.string().regex(/^[A-Z_]{1,64}$/);
+const byCategory = z.object({ date: z.iso.date(), conversionActionCategory: category });
+const allConversions = z.object({ allConversions: quantity.default(0) });
 const status = z.enum(["ENABLED", "PAUSED", "REMOVED"]);
 const name = z.string().default("");
 const page = z.object({ results: z.array(z.unknown()).default([]), nextPageToken: z.string().optional() });
@@ -43,6 +47,10 @@ const adRow = z.object({ adGroupAd: z.object({ ad: z.object({ id: customerId, na
 const campaignMetricRow = z.object({ campaign: z.object({ id: customerId }), segments: date, metrics: figures });
 const adGroupMetricRow = z.object({ adGroup: z.object({ id: customerId }), segments: date, metrics: figures });
 const adMetricRow = z.object({ adGroupAd: z.object({ ad: z.object({ id: customerId }) }), segments: date, metrics: figures });
+const campaignResultRow = z.object({ campaign: z.object({ id: customerId }), segments: byCategory, metrics: allConversions });
+const adGroupResultRow = z.object({ adGroup: z.object({ id: customerId }), segments: byCategory, metrics: allConversions });
+const adResultRow = z.object({ adGroupAd: z.object({ ad: z.object({ id: customerId }) }), segments: byCategory, metrics: allConversions });
+const conversionActionRow = z.object({ conversionAction: z.object({ category }) });
 const customerRow = z.object({ customer: z.object({ id: customerId, currencyCode: z.string().min(1), timeZone: z.string().min(1) }) });
 const clientRow = z.object({
   customerClient: z.object({
@@ -141,8 +149,9 @@ export function spendOf(costMicros: bigint): string {
 
 const amount = (value: number) => value.toFixed(4);
 
+const wholeCount = (value: number) => Math.min(Math.round(value), 2147483647);
+
 function metricOf(externalId: string, day: string, row: z.infer<typeof figures>): ImportedMetric {
-  const conversions = Math.min(Math.round(row.conversions), 2147483647);
   return {
     externalId,
     date: day,
@@ -150,10 +159,18 @@ function metricOf(externalId: string, day: string, row: z.infer<typeof figures>)
     impressions: row.impressions,
     reach: 0,
     clicks: row.clicks,
-    conversions,
-    results: conversions,
+    conversions: wholeCount(row.conversions),
+    results: wholeCount(row.allConversions),
     revenue: amount(row.conversionsValue),
   };
+}
+
+function resultsOf(rows: readonly { id: string; segments: z.infer<typeof byCategory>; metrics: z.infer<typeof allConversions> }[]): ImportedResult[] {
+  return rows
+    .filter(({ metrics }) => metrics.allConversions > 0)
+    .map(({ id, segments, metrics }) => ({
+      externalId: id, date: segments.date, category: segments.conversionActionCategory, results: amount(metrics.allConversions),
+    }));
 }
 
 export class GoogleAdsProvider implements SnapshotSource, GoogleCreativeSource {
@@ -383,9 +400,10 @@ export class GoogleAdsProvider implements SnapshotSource, GoogleCreativeSource {
     const days = `segments.date BETWEEN '${from}' AND '${to}'`;
     const adGroupScope = `ad_group.status != 'REMOVED' AND ${READABLE}`;
     const adScope = `ad_group_ad.status != 'REMOVED' AND ${adGroupScope}`;
-    const metricFields = "metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value";
+    const metricFields = "metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.all_conversions, metrics.conversions_value";
+    const resultFields = "segments.conversion_action_category, metrics.all_conversions";
 
-    const campaigns: ImportedEntity[] = this.parsed(campaignRow, await run(
+    const listed: ImportedEntity[] = this.parsed(campaignRow, await run(
       `SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type FROM campaign WHERE ${READABLE}`,
     )).map(({ campaign }) => ({ id: campaign.id, name: campaign.name || `Campaign ${campaign.id}`, status: statuses[campaign.status], objective: campaign.advertisingChannelType }));
     const adSets: ImportedEntity[] = this.parsed(adGroupRow, await run(
@@ -405,6 +423,26 @@ export class GoogleAdsProvider implements SnapshotSource, GoogleCreativeSource {
       `SELECT ad_group_ad.ad.id, segments.date, ${metricFields} FROM ad_group_ad WHERE ${days} AND ${adScope}`,
     )).map((row) => metricOf(row.adGroupAd.ad.id, row.segments.date, row.metrics));
 
-    return { from, to, campaigns, adSets, ads, campaignMetrics, adSetMetrics, adMetrics };
+    const enabled = this.parsed(conversionActionRow, await run(
+      "SELECT conversion_action.category FROM conversion_action WHERE conversion_action.status = 'ENABLED'",
+    )).map(({ conversionAction }) => conversionAction.category);
+    const campaignResults = resultsOf(this.parsed(campaignResultRow, await run(
+      `SELECT campaign.id, segments.date, ${resultFields} FROM campaign WHERE ${days} AND ${READABLE}`,
+    )).map((row) => ({ ...row, id: row.campaign.id })));
+    const adSetResults = resultsOf(this.parsed(adGroupResultRow, await run(
+      `SELECT ad_group.id, segments.date, ${resultFields} FROM ad_group WHERE ${days} AND ${adGroupScope}`,
+    )).map((row) => ({ ...row, id: row.adGroup.id })));
+    const adResults = resultsOf(this.parsed(adResultRow, await run(
+      `SELECT ad_group_ad.ad.id, segments.date, ${resultFields} FROM ad_group_ad WHERE ${days} AND ${adScope}`,
+    )).map((row) => ({ ...row, id: row.adGroupAd.ad.id })));
+    const campaigns = listed.map((campaign) => ({
+      ...campaign,
+      conversionCategories: unique([
+        ...enabled,
+        ...campaignResults.filter((result) => result.externalId === campaign.id).map((result) => result.category),
+      ]).sort(),
+    }));
+
+    return { from, to, campaigns, adSets, ads, campaignMetrics, adSetMetrics, adMetrics, campaignResults, adSetResults, adResults };
   }
 }

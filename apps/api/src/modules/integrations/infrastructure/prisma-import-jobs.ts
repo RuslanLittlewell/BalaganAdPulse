@@ -2,12 +2,13 @@ import { randomUUID } from "node:crypto";
 import { Prisma, type Channel, type PrismaClient } from "@prisma/client";
 import type { ImportJobs } from "../application/import-jobs.js";
 import { ProviderError, type Integration } from "../domain/integration.js";
-import type { ImportedMetric, Snapshot } from "../domain/snapshot.js";
+import type { ImportedMetric, ImportedResult, Snapshot } from "../domain/snapshot.js";
 import { nextMorning } from "../application/schedule.js";
 
 const leaseUntil = (now: Date) => new Date(now.getTime() + 180_000);
 const owned = (job: Integration, now: Date) => ({ id: job.id, revision: job.revision, leaseOwner: job.leaseOwner, leaseUntil: { gt: now } });
 const metricData = ({ date, externalId: _externalId, ...data }: ImportedMetric, now: Date) => ({ ...data, date: new Date(`${date}T00:00:00Z`), syncedAt: now });
+const resultData = ({ date, category, results }: ImportedResult, now: Date) => ({ date: new Date(`${date}T00:00:00Z`), category, results, syncedAt: now });
 
 export class PrismaImportJobs implements ImportJobs {
   constructor(private readonly prisma: PrismaClient) {}
@@ -51,7 +52,10 @@ export class PrismaImportJobs implements ImportJobs {
           if (campaignIds.has(row.id)) throw new ProviderError("INVALID_DATA");
           const existing = await tx.campaign.findUnique({ where: { channel_externalId: { channel, externalId: row.id } } });
           if (existing && existing.projectId !== job.projectId) throw new ProviderError("CONFLICT");
-          const data = { name: row.name, status: row.status, objective: row.objective ?? null, sourceAccountId: job.accountId };
+          const data = {
+            name: row.name, status: row.status, objective: row.objective ?? null, sourceAccountId: job.accountId,
+            ...(row.conversionCategories ? { conversionCategories: row.conversionCategories } : {}),
+          };
           const saved = existing ? await tx.campaign.update({ where: { id: existing.id }, data }) : await tx.campaign.create({ data: { ...data, projectId: job.projectId, channel, externalId: row.id, position: ++campaignPosition } });
           campaignIds.set(row.id, saved.id);
         }
@@ -73,7 +77,7 @@ export class PrismaImportJobs implements ImportJobs {
           const saved = existing ? await tx.ad.update({ where: { id: existing.id }, data }) : await tx.ad.create({ data: { ...data, adSetId, externalId: row.id, position } });
           adIds.set(row.id, saved.id);
         }
-        const resolve = (ids: Map<string, string>, row: ImportedMetric) => {
+        const resolve = (ids: Map<string, string>, row: { externalId: string }) => {
           const id = ids.get(row.externalId);
           if (!id) throw new ProviderError("INVALID_DATA");
           return id;
@@ -81,13 +85,22 @@ export class PrismaImportJobs implements ImportJobs {
         const campaignMetrics = snapshot.campaignMetrics.map((row) => ({ ...metricData(row, now), campaignId: resolve(campaignIds, row) }));
         const adSetMetrics = snapshot.adSetMetrics.map((row) => ({ ...metricData(row, now), adSetId: resolve(adSetIds, row) }));
         const adMetrics = snapshot.adMetrics.map((row) => ({ ...metricData(row, now), adId: resolve(adIds, row) }));
+        const campaignResults = (snapshot.campaignResults ?? []).map((row) => ({ ...resultData(row, now), campaignId: resolve(campaignIds, row) }));
+        const adSetResults = (snapshot.adSetResults ?? []).map((row) => ({ ...resultData(row, now), adSetId: resolve(adSetIds, row) }));
+        const adResults = (snapshot.adResults ?? []).map((row) => ({ ...resultData(row, now), adId: resolve(adIds, row) }));
         const date = { gte: new Date(`${snapshot.from}T00:00:00Z`), lte: new Date(`${snapshot.to}T00:00:00Z`) };
         await tx.campaignDailyMetric.deleteMany({ where: { campaignId: { in: [...campaignIds.values()] }, date } });
         await tx.adSetDailyMetric.deleteMany({ where: { adSetId: { in: [...adSetIds.values()] }, date } });
         await tx.adDailyMetric.deleteMany({ where: { adId: { in: [...adIds.values()] }, date } });
+        await tx.campaignDailyResult.deleteMany({ where: { campaignId: { in: [...campaignIds.values()] }, date } });
+        await tx.adSetDailyResult.deleteMany({ where: { adSetId: { in: [...adSetIds.values()] }, date } });
+        await tx.adDailyResult.deleteMany({ where: { adId: { in: [...adIds.values()] }, date } });
         for (let i = 0; i < campaignMetrics.length; i += 1000) await tx.campaignDailyMetric.createMany({ data: campaignMetrics.slice(i, i + 1000) });
         for (let i = 0; i < adSetMetrics.length; i += 1000) await tx.adSetDailyMetric.createMany({ data: adSetMetrics.slice(i, i + 1000) });
         for (let i = 0; i < adMetrics.length; i += 1000) await tx.adDailyMetric.createMany({ data: adMetrics.slice(i, i + 1000) });
+        for (let i = 0; i < campaignResults.length; i += 1000) await tx.campaignDailyResult.createMany({ data: campaignResults.slice(i, i + 1000) });
+        for (let i = 0; i < adSetResults.length; i += 1000) await tx.adSetDailyResult.createMany({ data: adSetResults.slice(i, i + 1000) });
+        for (let i = 0; i < adResults.length; i += 1000) await tx.adDailyResult.createMany({ data: adResults.slice(i, i + 1000) });
         await tx.projectIntegration.update({ where: { id: job.id }, data: { status: "SUCCESS", lastSuccessAt: now, lastError: null, retryCount: 0, leaseOwner: null, leaseUntil: null, nextSweepAt: now } });
         return true;
       }, { timeout: 60_000 });

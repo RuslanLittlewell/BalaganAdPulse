@@ -6,7 +6,8 @@ import {
 } from "../domain/hierarchy.js";
 import { performanceOf, sumByDay, type MeasuredDay, type Performance } from "../domain/metrics.js";
 import {
-  resultTypeOfGoal, sumByType, typesOf, type CampaignResultKind, type ResultType, type ResultTypeFigure, type TypedDay,
+  resultTypeOfGoal, sumByType, typedByCategory, typesOf, typesOfCategories,
+  type CampaignCategories, type CampaignResultKind, type ResultType, type ResultTypeFigure, type TypedDay,
 } from "../domain/result-type.js";
 import type { AdRepository, AdSetRepository, CampaignRepository, CreativeRepository, CreativeStorage, ProjectReach } from "./ports.js";
 import type { CampaignDay, MetricRepository } from "./metric-ports.js";
@@ -77,9 +78,12 @@ function typedByDay(days: readonly MeasuredDay[], typedDays: readonly TypedDay[]
   return days.map((day) => ({ ...day, resultTypes: sumByType(byDate.get(String(day.date.getTime())) ?? []) }));
 }
 
-function kindsOf(campaign: Campaign, kinds: readonly CampaignResultKind[]): ResultType[] {
-  if (campaign.channel === "GOOGLE") return ["CONVERSIONS"];
-  return typesOf(kinds.filter((kind) => kind.campaignId === campaign.id));
+function kindsOf(
+  campaign: Campaign, kinds: readonly CampaignResultKind[], categorised: readonly CampaignCategories[],
+): ResultType[] {
+  if (campaign.channel !== "GOOGLE") return typesOf(kinds.filter((kind) => kind.campaignId === campaign.id));
+  const categories = categorised.find((entry) => entry.campaignId === campaign.id)?.categories ?? [];
+  return categories.length > 0 ? typesOfCategories(categories) : ["CONVERSIONS"];
 }
 
 function accountsNamedBy(kpis: readonly ProjectKpi[]): KpiAccount[] {
@@ -90,6 +94,9 @@ function accountsNamedBy(kpis: readonly ProjectKpi[]): KpiAccount[] {
 
 const inAccount = (campaign: Campaign, account: KpiAccount) =>
   campaign.channel === account.channel && campaign.sourceAccountId === account.accountId;
+
+const googleIdsOf = (campaigns: readonly Campaign[]) =>
+  campaigns.filter((campaign) => campaign.channel === "GOOGLE").map((campaign) => campaign.id);
 
 function groupedBy<T>(items: readonly T[], keyOf: (item: T) => string): Map<string, T[]> {
   const groups = new Map<string, T[]>();
@@ -135,16 +142,23 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
     );
 
   const viewOfCampaigns = async (campaigns: readonly Campaign[], range: DateRange): Promise<CampaignView[]> => {
-    const [typedDays, kinds] = await Promise.all([
+    const [typedDays, kinds, categorised] = await Promise.all([
       typedDaysOf(campaigns, range),
       dependencies.metrics.readResultKinds(campaigns.map((campaign) => campaign.id)),
+      dependencies.metrics.readConversionCategories(googleIdsOf(campaigns)),
     ]);
     const typedByCampaign = groupedBy(typedDays, (day) => day.campaignId);
     return Promise.all(campaigns.map(async (campaign) => ({
       ...campaign,
-      resultTypes: kindsOf(campaign, kinds),
+      resultTypes: kindsOf(campaign, kinds, categorised),
       performance: typed(await campaignPerformance(campaign.id, range), typedByCampaign.get(campaign.id) ?? []),
     })));
+  };
+
+  const categoryTypesOf = async (campaign: Campaign): Promise<ResultType[] | null> => {
+    if (campaign.channel !== "GOOGLE") return null;
+    const [entry] = await dependencies.metrics.readConversionCategories([campaign.id]);
+    return entry && entry.categories.length > 0 ? typesOfCategories(entry.categories) : null;
   };
 
   const campaignDays = (campaigns: readonly Campaign[], range: DateRange): Promise<CampaignDay[]> =>
@@ -193,17 +207,17 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
     ): Promise<AdSetView[]> => {
       assertCanRead(actor);
       assertRange(range);
-      await reachCampaign(actor, campaignId);
+      const types = await categoryTypesOf(await reachCampaign(actor, campaignId));
       const adSets = await dependencies.adSets.listByCampaign(campaignId);
       return Promise.all(adSets.map(async ({ optimizationGoal, ...adSet }) => {
         const resultType = resultTypeOfGoal(optimizationGoal);
+        const days = await dependencies.metrics.readAdSetRange(adSet.id, range.from, range.to);
         return {
           ...adSet,
           resultType,
-          performance: ownTyped(
-            performanceOf(await dependencies.metrics.readAdSetRange(adSet.id, range.from, range.to)),
-            resultType,
-          ),
+          performance: types
+            ? typed(performanceOf(days), typedByCategory(days, await dependencies.metrics.readAdSetResults(adSet.id, range.from, range.to), types))
+            : ownTyped(performanceOf(days), resultType),
         };
       }));
     },
@@ -212,13 +226,19 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
       assertCanRead(actor);
       assertRange(range);
       const adSet = await reachAdSet(actor, adSetId);
+      const types = await categoryTypesOf(await reachCampaign(actor, adSet.campaignId));
       const resultType = resultTypeOfGoal(adSet.optimizationGoal);
       const ads = await dependencies.ads.listByAdSet(adSetId);
-      return Promise.all(ads.map(async (ad) => ({
-        ...ad,
-        resultType,
-        performance: ownTyped(performanceOf(await dependencies.metrics.readAdRange(ad.id, range.from, range.to)), resultType),
-      })));
+      return Promise.all(ads.map(async (ad) => {
+        const days = await dependencies.metrics.readAdRange(ad.id, range.from, range.to);
+        return {
+          ...ad,
+          resultType,
+          performance: types
+            ? typed(performanceOf(days), typedByCategory(days, await dependencies.metrics.readAdResults(ad.id, range.from, range.to), types))
+            : ownTyped(performanceOf(days), resultType),
+        };
+      }));
     },
 
     readCreativeFile: async (

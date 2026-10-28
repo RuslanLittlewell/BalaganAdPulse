@@ -183,7 +183,7 @@ jobs:
         run: |
           test "$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:3000/api/auth/login \
             -H 'Content-Type: application/json' \
-            -d '{"email":"nobody@example.com","password":"hunter2hunter2"}')" = "401"
+            -d '{"login":"nobody@example.com","password":"hunter2hunter2"}')" = "401"
 
       - name: Container logs on failure
         if: failure()

@@ -559,6 +559,15 @@ of the task's participants. The bot shows the draft with
 cases, with its audit entry, live board update and notifications, and links to it under
 `APP_URL`. Drafts are kept for a day in `telegram_task_draft` and used once.
 
+The bot also keeps a **📊 Сводка** button under the message field, and lists `/summary` in
+Telegram's command menu, set by `setMyCommands` when the poller starts. **Сводка** offers
+**Дашборд**, the agency's figures per currency and the month's KPI standing, or **Проект**, a
+list of the member's projects as buttons, eight to a page, then the chosen project's figures and
+its KPIs against their targets. A summary covers this month in `TASK_TIME_ZONE` and can be
+switched to yesterday, 7 days or the previous month. It is read through the same campaign use
+cases as the app, so it shows only what the member reaches. Every press edits the one message,
+and the buttons carry their whole state, so nothing is stored. Summaries send nothing to Groq.
+
 The bot receives updates by long polling from the API process, so it needs no public address
 or webhook. Telegram allows one poller per bot token: give local development its own bot, or
 the production one and the laptop will take each other's messages. Voice recordings, message

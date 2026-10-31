@@ -54,7 +54,7 @@ describe("the Telegram Bot API client", () => {
     const fetcher = vi.fn(async () => ok({}));
     const client = new TelegramClient(TOKEN, fetcher);
 
-    await client.sendMessage(55, { html: "<b>Черновик</b>", buttons: [{ text: "Создать", data: "create:d1" }, { text: "Отмена", data: "cancel:d1" }] });
+    await client.sendMessage(55, { html: "<b>Черновик</b>", buttons: [[{ text: "Создать", data: "create:d1" }, { text: "Отмена", data: "cancel:d1" }]] });
     await client.editMessage(55, 9, { html: "Готово" });
 
     expect(callOf(fetcher, 0).body).toEqual({
@@ -65,6 +65,48 @@ describe("the Telegram Bot API client", () => {
     expect(callOf(fetcher, 1).body).toEqual({
       chat_id: 55, message_id: 9, text: "Готово", parse_mode: "HTML", link_preview_options: { is_disabled: true },
     });
+  });
+
+  it("sends several rows of inline buttons", async () => {
+    const fetcher = vi.fn(async () => ok({}));
+
+    await new TelegramClient(TOKEN, fetcher).editMessage(55, 9, {
+      html: "Проекты",
+      buttons: [[{ text: "Евроопт", data: "s:p:p1:m:0" }], [{ text: "← Назад", data: "s:ask" }]],
+    });
+
+    expect(callOf(fetcher).body.reply_markup).toEqual({
+      inline_keyboard: [[{ text: "Евроопт", callback_data: "s:p:p1:m:0" }], [{ text: "← Назад", callback_data: "s:ask" }]],
+    });
+  });
+
+  it("keeps the menu's buttons under the message field", async () => {
+    const fetcher = vi.fn(async () => ok({}));
+
+    await new TelegramClient(TOKEN, fetcher).sendMessage(55, { html: "Готово", menu: ["📊 Сводка"] });
+
+    expect(callOf(fetcher).body.reply_markup).toEqual({
+      keyboard: [[{ text: "📊 Сводка" }]], resize_keyboard: true, is_persistent: true,
+    });
+  });
+
+  it("lists the bot's commands", async () => {
+    const fetcher = vi.fn(async () => ok(true));
+
+    await new TelegramClient(TOKEN, fetcher).setCommands([{ command: "summary", description: "Сводка" }]);
+
+    expect(callOf(fetcher).url).toMatch(/\/setMyCommands$/);
+    expect(callOf(fetcher).body).toEqual({ commands: [{ command: "summary", description: "Сводка" }] });
+  });
+
+  it("takes an edit that changes nothing as done, and still fails on other refusals", async () => {
+    const unchanged = vi.fn(async () => json({
+      ok: false, description: "Bad Request: message is not modified: specified new message content and reply markup are exactly the same",
+    }, 400));
+    const refused = vi.fn(async () => json({ ok: false, description: "Bad Request: message to edit not found" }, 400));
+
+    await expect(new TelegramClient(TOKEN, unchanged).editMessage(55, 9, { html: "Тот же" })).resolves.toBeUndefined();
+    await expect(new TelegramClient(TOKEN, refused).editMessage(55, 9, { html: "Тот же" })).rejects.toThrow(/not found/);
   });
 
   it("downloads a voice file by its path", async () => {

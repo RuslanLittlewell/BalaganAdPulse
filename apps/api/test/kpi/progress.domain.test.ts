@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { isKpiGreen, kpiPercent, monthToDate, targetForRange } from "../../src/modules/kpi/index.js";
+import {
+  isKpiGreen, kpiPercent, kpiReading, kpiStanding, monthToDate, projectKpiPercent, targetForRange, type CarriedKpi, type KpiFigures,
+} from "../../src/modules/kpi/index.js";
+import type { KpiAccount } from "../../src/modules/campaigns/index.js";
 
 const SEPTEMBER = { from: "2026-09-01", to: "2026-09-30" };
 
@@ -116,5 +119,93 @@ describe("the month to date", () => {
   it("runs from the first of the UTC month to today in UTC", () => {
     expect(monthToDate(new Date("2026-10-15T23:30:00Z"))).toEqual({ from: "2026-10-01", to: "2026-10-15" });
     expect(monthToDate(new Date("2026-11-01T00:10:00Z"))).toEqual({ from: "2026-11-01", to: "2026-11-01" });
+  });
+});
+
+describe("a KPI's reading", () => {
+  it("gives the figure and the prorated target beside the percent", () => {
+    expect(kpiReading({ metric: "CONVERSIONS", target: "60.0000" }, { ...figures, conversions: 45 }, {
+      from: "2026-09-01", to: "2026-09-15",
+    })).toEqual({ actual: 45, target: 30, percent: 150 });
+  });
+
+  it("gives a KPI set by hand its own value", () => {
+    expect(kpiReading({ metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000" }, figures, SEPTEMBER))
+      .toEqual({ actual: 30, target: 50, percent: 60 });
+  });
+});
+
+describe("a project's KPI standing", () => {
+  const OCTOBER = { from: "2026-10-01", to: "2026-10-31" };
+  const first: KpiAccount = { channel: "META", accountId: "act_1" };
+  const second: KpiAccount = { channel: "META", accountId: "act_2" };
+  const on = (kpi: Omit<CarriedKpi, "enabled" | "account">, account: KpiAccount | null = null): CarriedKpi =>
+    ({ ...kpi, enabled: true, account });
+  const leads = on({ metric: "CONVERSIONS", target: "30.0000" });
+  const cpa = (target: string, account: KpiAccount | null = null) => on({ metric: "CPA", target }, account);
+  const whole = (measured: KpiFigures) => () => measured;
+  const percentOf = (kpis: CarriedKpi[], measured: KpiFigures = figures, range = SEPTEMBER) =>
+    projectKpiPercent(kpis, whole(measured), range);
+
+  it.each([
+    [30, "met"],
+    [27, "met"],
+    [26, "behind"],
+    [21, "behind"],
+    [20, "danger"],
+    [0, "danger"],
+  ] as const)("reads %s leads against a target of 30 as %s", (conversions, standing) => {
+    expect(kpiStanding(percentOf([leads], { ...figures, conversions }))).toBe(standing);
+  });
+
+  it("judges the whole percent", () => {
+    const of = (conversions: number) =>
+      kpiStanding(percentOf([on({ metric: "CONVERSIONS", target: "1000.0000" })], { ...figures, conversions }));
+
+    expect(of(896)).toBe("met");
+    expect(of(894)).toBe("behind");
+    expect(of(696)).toBe("behind");
+    expect(of(694)).toBe("danger");
+  });
+
+  it("paints a monthly target met exactly over a 31-day month as met", () => {
+    expect(kpiStanding(percentOf([on({ metric: "CONVERSIONS", target: "60.0000" })], { ...figures, conversions: 60 }, OCTOBER)))
+      .toBe("met");
+  });
+
+  it("follows a KPI set by hand whatever the figures", () => {
+    const manual = (value: string) => on({ metric: "MANUAL", name: "Продажи", value, target: "50.0000" });
+
+    expect(kpiStanding(percentOf([manual("30.0000")]))).toBe("danger");
+    expect(kpiStanding(percentOf([manual("40.0000")]))).toBe("behind");
+    expect(kpiStanding(percentOf([manual("50.0000")]))).toBe("met");
+  });
+
+  it("averages its KPIs, each counted up to 100%", () => {
+    expect(percentOf([leads, cpa("8.0000")])).toBe(90);
+    expect(percentOf([leads, cpa("8.0000")], { ...figures, conversions: 45 })).toBe(90);
+    expect(kpiStanding(percentOf([leads, cpa("6.0000")]))).toBe("behind");
+  });
+
+  it("ignores a KPI that is switched off, and has nothing to judge when all are", () => {
+    expect(percentOf([leads, { ...cpa("8.0000"), enabled: false }])).toBe(100);
+    expect(percentOf([{ ...leads, enabled: false }])).toBeNull();
+    expect(kpiStanding(null)).toBe("none");
+  });
+
+  it("skips a KPI whose figure is not measured, or whose metric it does not know", () => {
+    expect(percentOf([cpa("10.0000"), leads], { ...figures, cpa: null })).toBe(100);
+    expect(percentOf([on({ metric: "MAGENTA", target: "10.0000" })])).toBeNull();
+  });
+
+  it("gives each account an equal share, measured on its figures", () => {
+    const byAccount = (account: KpiAccount | null): KpiFigures =>
+      account === null ? { ...figures, conversions: 24 }
+        : account.accountId === "act_1" ? { ...figures, conversions: 30 } : { ...figures, conversions: 15 };
+
+    expect(projectKpiPercent([{ ...leads, account: first }, { ...leads, account: second }], byAccount, SEPTEMBER)).toBe(75);
+    expect(projectKpiPercent([{ ...leads, account: first }, cpa("5.0000", first), { ...leads, account: second }], byAccount, SEPTEMBER))
+      .toBe(63);
+    expect(projectKpiPercent([leads, { ...leads, account: second }], byAccount, SEPTEMBER)).toBe(65);
   });
 });

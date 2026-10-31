@@ -90,7 +90,14 @@ export function createContainer(): ApiContainer {
     leadIntake: leads.leadIntake,
   }, notices);
   const tasks = wireTasks(kernel, people, notices);
-  const telegram = wireTelegramBot(kernel, { tasks: tasks.taskUseCases });
+  const telegram = wireTelegramBot(kernel, {
+    tasks: tasks.taskUseCases,
+    summaries: {
+      projects: catalog.projectRepository,
+      clients: catalog.clientRepository,
+      campaigns: advertising.campaignUseCases,
+    },
+  });
   const reporting = wireReportsAndKpi(kernel, {
     projectRepository: catalog.projectRepository,
     campaignRepository: advertising.campaignRepository,

@@ -1,13 +1,14 @@
 import { z } from "zod";
-import type { BotApi, BotChat, BotReply, BotUpdate } from "../application/bot-api.js";
+import type { BotApi, BotChat, BotCommand, BotReply, BotUpdate } from "../application/bot-api.js";
 import type { BotIdentity, VoiceFiles } from "../application/ports.js";
 
 const TELEGRAM_ORIGIN = "https://api.telegram.org";
 const REQUEST_TIMEOUT_MS = 30_000;
 const POLL_GRACE_MS = 10_000;
+const UNCHANGED = /message is not modified/i;
 
 export class TelegramApiError extends Error {
-  constructor(readonly method: string, readonly status: number, description: string) {
+  constructor(readonly method: string, readonly status: number, readonly description: string) {
     super(`Telegram ${method} failed with ${status}: ${description}`);
     this.name = "TelegramApiError";
   }
@@ -67,9 +68,18 @@ function toUpdate(raw: unknown): BotUpdate | null {
   };
 }
 
-const keyboardOf = (reply: BotReply) => reply.buttons && reply.buttons.length > 0
-  ? { inline_keyboard: [reply.buttons.map((button) => ({ text: button.text, callback_data: button.data }))] }
-  : undefined;
+function keyboardOf(reply: BotReply) {
+  const rows = (reply.buttons ?? []).filter((row) => row.length > 0);
+  if (rows.length > 0) {
+    return { inline_keyboard: rows.map((row) => row.map((button) => ({ text: button.text, callback_data: button.data }))) };
+  }
+  if (reply.menu && reply.menu.length > 0) {
+    return { keyboard: [reply.menu.map((text) => ({ text }))], resize_keyboard: true, is_persistent: true };
+  }
+  return undefined;
+}
+
+const inlineOnly = (reply: BotReply) => (reply.buttons?.some((row) => row.length > 0) ? keyboardOf(reply) : undefined);
 
 export class TelegramClient implements BotApi, BotIdentity, VoiceFiles {
   private botUsername: Promise<string> | null = null;
@@ -122,10 +132,19 @@ export class TelegramClient implements BotApi, BotIdentity, VoiceFiles {
   }
 
   async editMessage(chatId: number, messageId: number, reply: BotReply): Promise<void> {
-    await this.call("editMessageText", {
-      chat_id: chatId, message_id: messageId, text: reply.html, parse_mode: "HTML",
-      link_preview_options: { is_disabled: true }, reply_markup: keyboardOf(reply),
-    });
+    try {
+      await this.call("editMessageText", {
+        chat_id: chatId, message_id: messageId, text: reply.html, parse_mode: "HTML",
+        link_preview_options: { is_disabled: true }, reply_markup: inlineOnly(reply),
+      });
+    } catch (error) {
+      if (error instanceof TelegramApiError && UNCHANGED.test(error.description)) return;
+      throw error;
+    }
+  }
+
+  async setCommands(commands: readonly BotCommand[]): Promise<void> {
+    await this.call("setMyCommands", { commands });
   }
 
   async answerCallback(callbackId: string, text?: string): Promise<void> {

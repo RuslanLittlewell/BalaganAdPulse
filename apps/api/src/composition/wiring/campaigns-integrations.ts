@@ -84,6 +84,7 @@ export function wireCampaignsAndIntegrations(
   });
   return {
     campaignRepository,
+    campaignUseCases: campaigns,
     ...createCampaignHttpRouters(campaigns),
     integrationRouter: createIntegrationRouter(integrations, (router) => addGoogleIntegrationRoutes(router, googleIntegrations)),
     googleCallbackRouter: createGoogleCallbackRouter(googleIntegrations, config.appUrl),

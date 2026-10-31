@@ -355,7 +355,7 @@ export const RubberSegment: React.FC<RubberSegmentProps> = ({
           '--rs-inset': `${inset}px`,
           '--rs-thumb-radius': `${thumbRadius}px`,
           '--rs-h': `${preset.height}px`,
-          '--rs-font': `${preset.font}px`,
+          '--rs-font': `calc(${preset.font}px * var(--type-scale, 1))`,
           '--rs-pad': `${preset.pad}px`,
           '--rs-min': `${preset.min}px`,
           fontSize: 'var(--rs-font)',

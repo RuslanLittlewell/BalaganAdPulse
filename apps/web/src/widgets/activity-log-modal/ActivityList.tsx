@@ -41,7 +41,7 @@ function ActionBadge({ action }: { action: AuditAction }) {
   return (
     <span
       style={toneOf(action)}
-      className="rounded-full bg-[color-mix(in_oklab,var(--tone)_16%,transparent)] px-2 py-0.5 text-[11px] font-medium text-[var(--tone)]"
+      className="rounded-full bg-[color-mix(in_oklab,var(--tone)_16%,transparent)] px-2 py-0.5 text-2xs font-medium text-[var(--tone)]"
     >
       {actionLabels[action]}
     </span>

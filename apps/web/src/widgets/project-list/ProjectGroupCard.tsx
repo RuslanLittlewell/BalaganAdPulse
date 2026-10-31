@@ -60,7 +60,7 @@ export function ProjectGroupCard({
                 <span tabIndex={0} aria-label={name} className="mx-auto block h-1 w-6 rounded-full bg-muted-foreground/40" />
               </WarmTooltip>
             ) : (
-              <span className="block truncate font-mono text-[11px] uppercase tracking-[.12em] text-muted-foreground">
+              <span className="block truncate font-mono text-2xs uppercase tracking-[.12em] text-muted-foreground">
                 {name}
               </span>
             )}

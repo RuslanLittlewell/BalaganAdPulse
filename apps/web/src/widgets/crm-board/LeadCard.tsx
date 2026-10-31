@@ -105,12 +105,12 @@ export function LeadCard({ lead, draggable = false, placeholder = false, onOpen 
         {lead.tags.length > 0 ? (
           <span className="flex min-w-0 items-center gap-1" data-testid={`lead-tags-${lead.id}`}>
             {lead.tags.slice(0, SHOWN_TAGS).map((tag) => (
-              <span key={tag} className="truncate rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+              <span key={tag} className="truncate rounded-md bg-primary/10 px-1.5 py-0.5 text-2xs font-medium text-primary">
                 {tag}
               </span>
             ))}
             {lead.tags.length > SHOWN_TAGS ? (
-              <span className="shrink-0 text-[11px] text-muted-foreground">+{lead.tags.length - SHOWN_TAGS}</span>
+              <span className="shrink-0 text-2xs text-muted-foreground">+{lead.tags.length - SHOWN_TAGS}</span>
             ) : null}
           </span>
         ) : <span />}

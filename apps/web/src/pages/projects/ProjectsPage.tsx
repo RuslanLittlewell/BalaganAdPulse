@@ -87,6 +87,7 @@ export function ProjectsPage() {
           : collapsed
             ? "lg:grid-cols-[32px_minmax(0,1fr)]"
             : "lg:grid-cols-[200px_minmax(0,1fr)]",
+        !previewing && "max-lg:grid-rows-[auto_minmax(0,1fr)]",
         !previewing && "lg:[&>*:last-child]:border-l lg:[&>*:last-child]:border-border lg:[&>*:last-child]:pl-6",
       )}
     >

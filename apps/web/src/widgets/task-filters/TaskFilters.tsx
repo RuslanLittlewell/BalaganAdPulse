@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { MultiSelect } from "@/shared/ui/index.js";
+import { ListFilterIcon } from "lucide-react";
+import { Button, MultiSelect, Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
 import {
   NO_PARTICIPANTS,
@@ -38,8 +39,9 @@ export function TaskFilters({
     [tasks, projects, chosenProjects],
   );
 
-  return (
-    <div className="flex min-w-0 items-center gap-3">
+  const chosenCount = chosenPeople.length + chosenProjects.length;
+  const filters = (className: string) => (
+    <>
       <MultiSelect
         items={people.map((choice) => ({
           value: choice.id,
@@ -51,7 +53,7 @@ export function TaskFilters({
         allLabel={t("tasks.filter.all")}
         placeholder={t("tasks.participants.filter")}
         ariaLabel={t("tasks.participants.filterLabel")}
-        className="max-w-52"
+        className={className}
       />
       <MultiSelect
         items={projectOptions.map((choice) => ({
@@ -65,8 +67,41 @@ export function TaskFilters({
         searchable
         placeholder={t("tasks.projects.filter")}
         ariaLabel={t("tasks.projects.filterLabel")}
-        className="max-w-52"
+        className={className}
       />
+    </>
+  );
+
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <div className="hidden min-w-0 items-center gap-3 md:flex">{filters("max-w-52")}</div>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            size="icon-lg"
+            aria-label={
+              chosenCount > 0
+                ? `${t("tasks.filters")}, ${t("tasks.filters.chosen")}: ${chosenCount}`
+                : t("tasks.filters")
+            }
+            className="relative md:hidden"
+          >
+            <ListFilterIcon aria-hidden />
+            {chosenCount > 0 ? (
+              <span
+                aria-hidden
+                className="absolute -right-1.5 -top-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-2xs font-semibold text-primary-foreground"
+              >
+                {chosenCount}
+              </span>
+            ) : null}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="start" aria-label={t("tasks.filters")} className="grid w-64 gap-2 p-2">
+          {filters("w-full")}
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

@@ -3,7 +3,14 @@ import { Building2Icon } from "lucide-react";
 import { useNavCollapse } from "@/features/nav-collapse/index.js";
 import { t } from "@/shared/config/index.js";
 import { ROUTES } from "@/shared/lib/index.js";
-import { SectionLabel, Sidebar } from "@/shared/ui/index.js";
+import {
+  SectionLabel,
+  Sidebar,
+  SIDEBAR_ICON_CLASS_NAME,
+  sidebarLabelClassName,
+  sidebarLinkClassName,
+  sidebarNavClassName,
+} from "@/shared/ui/index.js";
 import WarmTooltip, { WarmTooltipGroup } from "@/shared/ui/WarmTooltip/WarmTooltip.js";
 
 export function PlatformNav() {
@@ -12,16 +19,10 @@ export function PlatformNav() {
   const link = (
     <NavLink
       to={ROUTES.organizations}
-      className={({ isActive }) => [
-        "flex items-center gap-3 rounded-md text-sm font-medium transition-colors",
-        collapsed ? "size-10 justify-center p-0" : "px-3 py-2",
-        isActive
-          ? "bg-sidebar-accent text-sidebar-accent-foreground"
-          : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
-      ].join(" ")}
+      className={({ isActive }) => sidebarLinkClassName(collapsed, isActive)}
     >
-      <Building2Icon className="size-6 shrink-0" aria-hidden="true" />
-      <span className={collapsed ? "sr-only" : undefined}>{label}</span>
+      <Building2Icon className={SIDEBAR_ICON_CLASS_NAME} aria-hidden="true" />
+      <span className={sidebarLabelClassName(collapsed)}>{label}</span>
     </NavLink>
   );
 
@@ -37,12 +38,13 @@ export function PlatformNav() {
         </div>
       }
     >
-      {!collapsed && <SectionLabel>{t("nav.sections")}</SectionLabel>}
+      {!collapsed && (
+        <div className="hidden md:block">
+          <SectionLabel>{t("nav.sections")}</SectionLabel>
+        </div>
+      )}
       <WarmTooltipGroup>
-        <nav
-          className={collapsed ? "flex flex-col items-center gap-1 px-0 pt-2" : "flex flex-col gap-1 px-2"}
-          aria-label={t("nav.sections")}
-        >
+        <nav className={sidebarNavClassName(collapsed)} aria-label={t("nav.sections")}>
           {collapsed ? <WarmTooltip content={label} side="right">{link}</WarmTooltip> : link}
         </nav>
       </WarmTooltipGroup>

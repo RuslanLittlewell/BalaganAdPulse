@@ -48,7 +48,7 @@ export function LeadSourceSection({ source, onPreview }: LeadSourceSectionProps)
       <dl className="mt-3 grid gap-x-6 gap-y-3 text-xs sm:grid-cols-2">
         {facts.map((fact) => (
           <div key={fact.key} className="min-w-0">
-            <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{fact.label}</dt>
+            <dt className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">{fact.label}</dt>
             <dd className="mt-0.5 truncate text-sm" title={fact.value}>{fact.value}</dd>
           </div>
         ))}

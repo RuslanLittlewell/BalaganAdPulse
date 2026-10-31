@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { Trash2 } from "lucide-react";
+import { Trash2, XIcon } from "lucide-react";
 import { isCustomer } from "@adpulse/access-policy";
-import { ApiError, fieldProblems } from "@/shared/lib/index.js";
+import { ApiError, cn, fieldProblems, useNarrowScreen } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import {
   Button,
@@ -13,6 +13,7 @@ import {
   DialogTitle,
   Label,
   MultiSelect,
+  PHONE_SHEET_CLASS_NAME,
   SearchableSelect,
   Select,
   SelectContent,
@@ -248,6 +249,8 @@ export function TaskFormDialog({
   const changes = useTaskChange();
   const readOnly = task !== undefined && role !== null && !changes(task);
   const showsStage = movesTasks || task !== undefined;
+  const narrow = useNarrowScreen();
+  const formId = useId();
 
   const projectId = watch("projectId");
   const participantIds = watch("participantIds");
@@ -323,6 +326,11 @@ export function TaskFormDialog({
     }
   };
 
+  const sharesWithClient = mayShareWithClient && projectId !== NO_PROJECT;
+  const personalNote = customer && projectId === NO_PROJECT;
+  const deleteTask = task && onDelete && (deletesTasks || task.personal) ? () => onDelete(task) : null;
+  const saveLabel = task ? t("tasks.form.save") : t("tasks.form.create");
+
   const creationColumn = (chosen: TaskColumn) => {
     const created = movesTasks ? chosen : column;
     return created ? { column: created } : {};
@@ -386,6 +394,66 @@ export function TaskFormDialog({
     }
   });
 
+  const properties = (
+    <div className="flex shrink-0 flex-col gap-1">
+      <div className="flex items-center gap-2 max-md:grid max-md:grid-cols-[auto_minmax(0,1fr)] max-md:gap-x-3">
+        {showsStage ? (
+          <>
+            <Label
+              htmlFor="task-column"
+              className="whitespace-nowrap text-sm font-normal text-muted-foreground"
+            >
+              {t("tasks.form.column")}
+            </Label>
+            <Controller
+              control={control}
+              name="column"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
+                  <SelectTrigger id="task-column" className="w-40 max-md:w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TASK_COLUMNS.map((stage) => (
+                      <SelectItem key={stage} value={stage}>
+                        {t(`tasks.column.${stage}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </>
+        ) : null}
+        <Label
+          htmlFor="task-priority"
+          className="whitespace-nowrap text-sm font-normal text-muted-foreground"
+        >
+          {t("tasks.form.priority")}
+        </Label>
+        <Controller
+          control={control}
+          name="priority"
+          render={({ field }) => (
+            <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
+              <SelectTrigger id="task-priority" className="w-36 max-md:w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TASK_PRIORITIES.map((priority) => (
+                  <SelectItem key={priority} value={priority}>
+                    {t(`tasks.priority.${priority}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
+      </div>
+      <FieldError message={errors.priority?.message} />
+    </div>
+  );
+
   return (
     <Dialog
       open={open}
@@ -403,81 +471,44 @@ export function TaskFormDialog({
         onAnimationEnd={(event) => {
           if (event.target === event.currentTarget && !open) finalizeClose();
         }}
-        className={
-          "flex h-[min(850px,calc(100vh-2rem))] w-[min(880px,calc(100vw-2rem))] " +
-          "min-w-[min(880px,calc(100vw-2rem))] flex-col sm:max-w-[880px] h-full"
-        }
+        showCloseButton={!narrow}
+        className={cn(
+          "flex h-[min(850px,calc(100vh-2rem))] w-[min(880px,calc(100vw-2rem))]",
+          "min-w-[min(880px,calc(100vw-2rem))] flex-col sm:max-w-[880px] h-full",
+          PHONE_SHEET_CLASS_NAME,
+          "max-md:gap-0 max-md:overflow-hidden max-md:p-0",
+        )}
       >
-        <DialogHeader className="shrink-0 flex-row items-center justify-between gap-3 border-border border-b pb-2">
-          <DialogTitle>
+        <DialogHeader className="shrink-0 flex-row items-center justify-between gap-3 border-border border-b pb-2 max-md:gap-2 max-md:p-2 max-md:pr-3">
+          {narrow ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={readOnly ? t("action.close") : t("action.cancel")}
+              onClick={requestClose}
+            >
+              <XIcon aria-hidden className="size-5" />
+            </Button>
+          ) : null}
+          <DialogTitle className="max-md:min-w-0 max-md:flex-1 max-md:truncate max-md:leading-normal">
             {task ? (readOnly ? t("tasks.view") : t("tasks.edit")) : t("tasks.create")}
           </DialogTitle>
-          <div className="flex shrink-0 flex-col gap-1">
-            <div className="flex items-center gap-2">
-              {showsStage ? (
-                <>
-                  <Label
-                    htmlFor="task-column"
-                    className="whitespace-nowrap text-sm font-normal text-muted-foreground"
-                  >
-                    {t("tasks.form.column")}
-                  </Label>
-                  <Controller
-                    control={control}
-                    name="column"
-                    render={({ field }) => (
-                      <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
-                        <SelectTrigger id="task-column" className="w-40">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {TASK_COLUMNS.map((stage) => (
-                            <SelectItem key={stage} value={stage}>
-                              {t(`tasks.column.${stage}`)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </>
-              ) : null}
-              <Label
-                htmlFor="task-priority"
-                className="whitespace-nowrap text-sm font-normal text-muted-foreground"
-              >
-                {t("tasks.form.priority")}
-              </Label>
-              <Controller
-                control={control}
-                name="priority"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
-                    <SelectTrigger id="task-priority" className="w-36">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TASK_PRIORITIES.map((priority) => (
-                        <SelectItem key={priority} value={priority}>
-                          {t(`tasks.priority.${priority}`)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-            <FieldError message={errors.priority?.message} />
-          </div>
+          {!narrow ? properties : readOnly ? null : (
+            <Button type="submit" form={formId} size="sm">
+              {saveLabel}
+            </Button>
+          )}
         </DialogHeader>
 
         <form
+          id={formId}
           onSubmit={onSubmit}
-          className="flex min-h-0 flex-1 flex-col gap-4"
+          className="flex min-h-0 flex-1 flex-col gap-4 max-md:overflow-y-auto max-md:px-4 max-md:pb-6 max-md:pt-4"
         >
           <div
             data-testid="task-form-body"
-            className="flex min-h-0 flex-1 flex-col gap-4"
+            className="flex flex-col gap-4 md:min-h-0 md:flex-1"
           >
             <TextField
               label={t("tasks.form.title")}
@@ -488,9 +519,11 @@ export function TaskFormDialog({
               })}
             />
 
-            <div className="grid min-h-0 flex-1 grid-cols-1 sm:grid-cols-[7fr_3fr]">
+            {narrow ? properties : null}
+
+            <div className="grid grid-cols-1 gap-4 md:min-h-0 md:flex-1 md:grid-cols-[7fr_3fr] md:gap-0">
               <div
-                className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto pr-4"
+                className="flex min-w-0 flex-col gap-4 md:min-h-0 md:overflow-y-auto md:pr-4"
                 data-testid="task-form-main"
               >
                 <div className="flex flex-col gap-2">
@@ -555,7 +588,7 @@ export function TaskFormDialog({
               </div>
 
               <div
-                className="flex min-w-0 flex-col gap-4 pl-4 border-l border-border"
+                className="flex min-w-0 flex-col gap-4 max-md:order-first md:border-l md:border-border md:pl-4"
                 data-testid="task-form-params"
               >
                 {offeredParams.length > 0 && !readOnly ? (
@@ -687,57 +720,57 @@ export function TaskFormDialog({
             </div>
           </div>
 
-          <DialogFooter
-            data-testid="task-form-footer"
-            className="shrink-0 items-center border-t border-border pt-4 sm:justify-between"
-          >
-            {mayShareWithClient && projectId !== NO_PROJECT ? (
-              <div className="flex items-center gap-2">
-                <Controller
-                  control={control}
-                  name="visibleToClient"
-                  render={({ field }) => (
-                    <Switch
-                      id="task-visible-to-client"
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  )}
-                />
-                <Label
-                  htmlFor="task-visible-to-client"
-                  className="text-sm font-normal"
-                >
-                  {t("tasks.form.visibleToClient")}
-                </Label>
-              </div>
-            ) : customer && projectId === NO_PROJECT ? (
-              <p className="text-sm text-muted-foreground">{t("tasks.form.personal")}</p>
-            ) : (
-              <span />
-            )}
-
-            <div className="flex items-center gap-2">
-              {task && onDelete && (deletesTasks || task.personal) ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
-                  onClick={() => onDelete(task)}
-                >
-                  {t("tasks.delete")}
-                </Button>
-              ) : null}
-              <Button type="button" variant="outline" onClick={requestClose}>
-                {readOnly ? t("action.close") : t("action.cancel")}
-              </Button>
-              {readOnly ? null : (
-                <Button type="submit">
-                  {task ? t("tasks.form.save") : t("tasks.form.create")}
-                </Button>
+          {narrow && !sharesWithClient && !personalNote && !deleteTask ? null : (
+            <DialogFooter
+              data-testid="task-form-footer"
+              className="shrink-0 items-center border-t border-border pt-4 sm:justify-between max-md:flex-row max-md:flex-wrap max-md:justify-between"
+            >
+              {sharesWithClient ? (
+                <div className="flex items-center gap-2">
+                  <Controller
+                    control={control}
+                    name="visibleToClient"
+                    render={({ field }) => (
+                      <Switch
+                        id="task-visible-to-client"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    )}
+                  />
+                  <Label
+                    htmlFor="task-visible-to-client"
+                    className="text-sm font-normal"
+                  >
+                    {t("tasks.form.visibleToClient")}
+                  </Label>
+                </div>
+              ) : personalNote ? (
+                <p className="text-sm text-muted-foreground">{t("tasks.form.personal")}</p>
+              ) : (
+                <span />
               )}
-            </div>
-          </DialogFooter>
+
+              <div className="flex items-center gap-2">
+                {deleteTask ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+                    onClick={deleteTask}
+                  >
+                    {t("tasks.delete")}
+                  </Button>
+                ) : null}
+                {narrow ? null : (
+                  <Button type="button" variant="outline" onClick={requestClose}>
+                    {readOnly ? t("action.close") : t("action.cancel")}
+                  </Button>
+                )}
+                {narrow || readOnly ? null : <Button type="submit">{saveLabel}</Button>}
+              </div>
+            </DialogFooter>
+          )}
         </form>
       </DialogContent>
     </Dialog>

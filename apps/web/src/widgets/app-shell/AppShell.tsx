@@ -25,17 +25,17 @@ export function AppShell({
   const { collapsed, toggle } = useNavCollapse();
   const reduce = useReducedMotion();
   return (
-    <div className="relative flex h-screen gap-6 overflow-hidden bg-background p-8 text-foreground">
+    <div className="relative flex h-dvh flex-col gap-2 overflow-hidden bg-background p-2 text-foreground md:flex-row md:gap-6 md:p-8">
       <div
         aria-hidden="true"
         data-testid="app-backdrop"
         className="pointer-events-none absolute inset-0"
       />
       {preview ? null : (
-      <div className="relative z-20 flex min-h-0 shrink-0">
+      <div className="relative z-20 order-last flex shrink-0 md:order-none md:min-h-0">
         <div
-          className={`${GLASS} grid min-h-0 grid-rows-[1fr] bg-sidebar/65 transition-[width] duration-200 ${
-            collapsed ? "w-16" : "w-[200px]"
+          className={`${GLASS} grid w-full bg-sidebar/65 md:min-h-0 md:grid-rows-[1fr] md:transition-[width] md:duration-200 ${
+            collapsed ? "md:w-16" : "md:w-[200px]"
           }`}
         >
           {sidebar}
@@ -45,7 +45,7 @@ export function AppShell({
           onClick={toggle}
           aria-expanded={!collapsed}
           aria-label={t(collapsed ? "nav.expand" : "nav.collapse")}
-          className="absolute top-[52.455%] right-0 grid h-12 w-4 translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="absolute top-[52.455%] right-0 hidden h-12 w-4 translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:grid"
         >
           {collapsed
             ? <ChevronRightIcon aria-hidden className="size-3" />
@@ -54,7 +54,7 @@ export function AppShell({
       </div>
       )}
       <div
-        className={`${GLASS} relative z-10 flex min-w-0 flex-1 flex-col bg-card/65`}
+        className={`${GLASS} relative z-10 flex min-h-0 min-w-0 flex-1 flex-col bg-card/65`}
       >
         {preview ? null : <div className="min-w-0">{header}</div>}
         <main className="min-h-0 min-w-0 flex-1 overflow-auto p-4">

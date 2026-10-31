@@ -33,6 +33,7 @@ export * from "./ListItem/ListItem.js";
 export * from "./Loader/Loader.js";
 export * from "./MultiSelect/MultiSelect.js";
 export * from "./SearchableSelect/SearchableSelect.js";
+export * from "./PhoneSheet/PhoneSheet.js";
 export * from "./SectionLabel/SectionLabel.js";
 export * from "./Sidebar/Sidebar.js";
 export * from "./Tabs/Tabs.js";

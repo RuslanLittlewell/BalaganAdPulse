@@ -138,7 +138,7 @@ describe("DashboardPage", () => {
     const dialog = await screen.findByRole("dialog", { name: "Показатели за период" });
     await userEvent.click(within(dialog).getByRole("button", { name: "Расход" }));
 
-    await waitFor(() => expect(saved).toEqual({ tiles: ["SPEND", "CONVERSIONS"] }));
+    await waitFor(() => expect(saved).toEqual({ tiles: ["CONVERSIONS", "SPEND"] }));
     expect(localStorage.getItem("adpulse-summary-tiles")).toBeNull();
   });
 

@@ -11,6 +11,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  ProviderLogo,
   Select,
   SelectContent,
   SelectItem,
@@ -108,7 +109,10 @@ export function GoogleConnectionCard({
       aria-label={t("google.title")}
     >
       <div className="grid gap-1">
-        <h2 className="text-sm font-semibold">{t("google.title")}</h2>
+        <h2 className="flex items-center gap-2 text-sm font-semibold">
+          <ProviderLogo provider="GOOGLE" className="size-4 shrink-0" />
+          {t("google.title")}
+        </h2>
         {connection.lastSuccessAt && (
           <p className="text-xs text-muted-foreground">
             {t("meta.lastSuccess")} {formatDateTime(connection.lastSuccessAt)}

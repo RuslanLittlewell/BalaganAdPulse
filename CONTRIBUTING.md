@@ -119,3 +119,20 @@ Write and approve the artifacts before touching code, and archive the change onc
 tasks are done. `openspec/specs/` then holds the current behaviour contract per
 capability. The specs and plans of phases 1-12 predate this workflow and are kept as
 history in [docs/archive/phases-1-12/](docs/archive/phases-1-12/).
+
+## Pull request descriptions
+
+The [PR description](.github/workflows/pr-description.yml) workflow writes the description
+of every pull request when it is opened, reopened or pushed to. It takes the Why and What
+Changes of each OpenSpec change the pull request adds, edits or archives, names the parts
+of the project it touches, and lists its commits. The generated part sits between
+`<!-- pr-description:start -->` and `<!-- pr-description:end -->` and is replaced on every
+run; write anything of your own outside it and it stays. A pull request with no OpenSpec
+change says so.
+
+To see what a branch would get before opening the pull request:
+
+```bash
+node scripts/pr-description.mjs origin/production HEAD
+npm run test:scripts
+```

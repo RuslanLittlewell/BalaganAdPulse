@@ -3,11 +3,12 @@ import type { PrismaClient } from "@prisma/client";
 import type { TransactionContext } from "#shared/application/index.js";
 import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
 import type { ProjectDocumentRepository } from "../application/ports.js";
-import type {
-  DocumentAuthor,
-  DocumentChange,
-  DocumentSummary,
-  ProjectDocument,
+import {
+  excerptOf,
+  type DocumentAuthor,
+  type DocumentChange,
+  type DocumentSummary,
+  type ProjectDocument,
 } from "../domain/project-document.js";
 
 const AUTHOR = { select: { id: true, user: { select: { name: true } } } } as const;
@@ -17,10 +18,10 @@ type AuthorRow = { id: string; user: { name: string } } | null;
 const authorOf = (row: AuthorRow): DocumentAuthor | null => row && { id: row.id, name: row.user.name };
 
 const SUMMARY = {
-  id: true, projectId: true, title: true, createdAt: true, updatedAt: true, updatedBy: AUTHOR,
+  id: true, projectId: true, title: true, createdAt: true, updatedAt: true, updatedBy: AUTHOR, content: true,
 } as const;
 
-const FULL = { ...SUMMARY, content: true, createdBy: AUTHOR } as const;
+const FULL = { ...SUMMARY, createdBy: AUTHOR } as const;
 
 type SummaryRow = Prisma.ProjectDocumentGetPayload<{ select: typeof SUMMARY }>;
 type FullRow = Prisma.ProjectDocumentGetPayload<{ select: typeof FULL }>;
@@ -28,6 +29,7 @@ type FullRow = Prisma.ProjectDocumentGetPayload<{ select: typeof FULL }>;
 const toSummary = (row: SummaryRow): DocumentSummary => ({
   id: row.id, projectId: row.projectId, title: row.title,
   createdAt: row.createdAt, updatedAt: row.updatedAt, updatedBy: authorOf(row.updatedBy),
+  excerpt: excerptOf(row.content),
 });
 
 const toDocument = (row: FullRow): ProjectDocument => ({

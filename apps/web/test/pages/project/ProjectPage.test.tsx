@@ -730,6 +730,43 @@ describe("switching the campaigns by advertising account", () => {
   const summary = () => screen.getByRole("group", { name: "Показатели за период" });
   const stamp = "2026-09-14T10:00:00.000Z";
 
+  it("shows each account's own tiles, and the project's in a tab nobody configured", async () => {
+    const user = userEvent.setup();
+    api({ campaigns: twoAccounts });
+    server.use(mock.get("/api/projects/:projectId/summary-tiles", () => HttpResponse.json({
+      tiles: ["CONVERSIONS"],
+      accounts: [{ account: { channel: "META", accountId: "222" }, tiles: ["CLICKS", "SPEND"] }],
+    })));
+    renderWithProviders(<App />, route);
+
+    await waitFor(() => expect(shownTiles()).toEqual(["CONVERSIONS"]));
+    await user.click(screen.getByRole("radio", { name: "Meta · 222" }));
+
+    expect(shownTiles()).toEqual(["CLICKS", "SPEND"]);
+  });
+
+  it("saves a change made in a tab for that account alone", async () => {
+    const user = userEvent.setup();
+    api({ campaigns: twoAccounts });
+    let saved: unknown = null;
+    server.use(mock.put("/api/projects/p1/summary-tiles", async ({ request }) => {
+      saved = await request.json();
+      return HttpResponse.json({ tiles: ["CONVERSIONS"], accounts: [] });
+    }));
+    renderWithProviders(<App />, route);
+    await screen.findByRole("radiogroup", { name: "Источник кампаний" });
+
+    await user.click(screen.getByRole("radio", { name: "Meta · 222" }));
+    await user.click(await screen.findByRole("button", { name: "Настроить показатели" }));
+    await user.click(within(await screen.findByRole("dialog", { name: "Показатели за период" })).getByRole("button", { name: "Клики" }));
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => expect(saved).toEqual({ tiles: ["CONVERSIONS", "CLICKS"], account: { channel: "META", accountId: "222" } }));
+    expect(shownTiles()).toEqual(["CONVERSIONS", "CLICKS"]);
+    await user.click(screen.getByRole("radio", { name: "Meta · 111" }));
+    expect(shownTiles()).toEqual(["CONVERSIONS"]);
+  });
+
   it("switches the one summary above to the chosen account's figures and KPIs, the tabs staying above the table", async () => {
     const user = userEvent.setup();
     api({ campaigns: twoAccounts, summaryTiles: ["SPEND", "KPI"] });

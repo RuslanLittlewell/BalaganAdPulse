@@ -36,6 +36,7 @@ import {
 import { ACTIVE_TASK_COLUMNS, useTasks } from "@/entities/task/index.js";
 import { kpiInputOf, MANUAL_KPI, useProjectKpis, type KpiAccount } from "@/entities/kpi/index.js";
 import {
+  tilesOf,
   useChooseSummaryTiles,
   useSummaryTiles,
 } from "@/entities/summary-tiles/index.js";
@@ -205,7 +206,7 @@ export function ProjectPage() {
   const onlyAccount = sourceKeys.length === 1 ? sources.get(sourceKeys[0]!)?.account ?? null : null;
 
   return (
-    <div className="flex min-h-0 flex-col gap-6">
+    <div className="flex min-h-full flex-col gap-6">
       {previewing ? null : (
       <ProjectHeader
         project={project}
@@ -263,11 +264,11 @@ export function ProjectPage() {
           </div>
 
           <PerformanceSummary
-            tiles={tiles.data?.tiles ?? []}
+            tiles={tiles.data ? tilesOf(tiles.data, chosenAccount) : []}
             onTilesChange={
               arrangesSummary && tiles.data && !previewing
                 ? (next) =>
-                    chooseTiles.mutate(next, {
+                    chooseTiles.mutate({ tiles: next, account: chosenAccount ?? null }, {
                       onError: () => raise(t("summary.notSaved")),
                     })
                 : undefined

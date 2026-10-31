@@ -576,7 +576,7 @@ describe("a KPI set by hand", () => {
     const dialog = await openDialog();
     expect(within(dialog).queryByLabelText("Название")).not.toBeInTheDocument();
     await chooseManual(dialog);
-    expect(within(dialog).getByText("Значение и цель меняются только вручную и не зависят от выбранного периода"))
+    expect(within(dialog).getByText("Цель на месяц, пересчитывается на выбранный период. Значение меняется только вручную"))
       .toBeInTheDocument();
     await userEvent.type(within(dialog).getByLabelText("Название"), " Продажи ");
     await userEvent.type(within(dialog).getByLabelText("Значение"), "30,5");
@@ -605,19 +605,29 @@ describe("a KPI set by hand", () => {
     expect(requests).toEqual([]);
   });
 
-  it("shows its name, value, target and progress on the tile, whatever the figures", async () => {
-    kpis([{ metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000" }]);
+  it("shows its name, value, the target for the period and progress on the tile, whatever the figures", async () => {
+    kpis([{ metric: "MANUAL", name: "Продажи", value: "10.0000", target: "50.0000" }]);
     setup({ canEdit: false, values: { conversions: 999 } });
 
     expect(await screen.findByText("KPI · Продажи")).toBeInTheDocument();
     expect(tile()).toHaveAttribute("data-state", "behind");
-    expect(within(tile()).getByText("30")).toBeInTheDocument();
-    expect(within(tile()).getByText("Цель 50 · 60%")).toBeInTheDocument();
-    expect(within(tile()).getByRole("progressbar", { name: "Выполнение KPI" })).toHaveAttribute("aria-valuenow", "60");
+    expect(within(tile()).getByText("10")).toBeInTheDocument();
+    expect(within(tile()).getByText("Цель 25 · 40%")).toBeInTheDocument();
+    expect(within(tile()).getByRole("progressbar", { name: "Выполнение KPI" })).toHaveAttribute("aria-valuenow", "40");
   });
 
-  it("writes Выполнено once the value reaches the target", async () => {
-    kpis([{ metric: "MANUAL", name: "Продажи", value: "50.0000", target: "50.0000" }]);
+  it("rounds a target recalculated for a part of a month to hundredths", async () => {
+    kpis([{ metric: "MANUAL", name: "Продажи", value: "10.0000", target: "40.0000" }]);
+    renderWithProviders(
+      <KpiTile scope={{ kind: "project", id: "p1" }} canEdit={false} figures={figures()}
+        range={{ from: "2026-09-01", to: "2026-09-10" }} currency="BYN" />,
+    );
+
+    expect(await within(await screen.findByTestId("kpi-tile")).findByText("Цель 13,33 · 75%")).toBeInTheDocument();
+  });
+
+  it("writes Выполнено once the value reaches the target for the period", async () => {
+    kpis([{ metric: "MANUAL", name: "Продажи", value: "25.0000", target: "50.0000" }]);
     setup({ canEdit: false });
 
     expect(await screen.findByText("Выполнено")).toBeInTheDocument();

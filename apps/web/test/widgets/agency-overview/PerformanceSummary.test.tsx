@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { http as mock, HttpResponse } from "msw";
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders, server } from "@test/shared/index.js";
 import { PerformanceSummary } from "@/widgets/agency-overview/index.js";
@@ -56,17 +56,17 @@ describe("the period summary", () => {
     expect(within(within(dialog).getByRole("button", { name: "Расход" })).getByText("1 500 ₽")).toBeInTheDocument();
   });
 
-  it("shows results with their cost, between leads and CPC", async () => {
+  it("shows results with their cost, in the place they were given", async () => {
     renderWithProviders(<Held initial={["CPC", "RESULTS", "CONVERSIONS"]} />);
 
-    await waitFor(() => expect(shownTiles()).toEqual(["CONVERSIONS", "RESULTS", "CPC"]));
+    await waitFor(() => expect(shownTiles()).toEqual(["CPC", "RESULTS", "CONVERSIONS"]));
     const tile = within(summary()).getAllByTestId("summary-tile")[1]!;
     expect(within(tile).getByText("Результаты")).toBeInTheDocument();
     expect(within(tile).getByText("75")).toBeInTheDocument();
     expect(within(tile).getByText(/^Цена результата 20,00\s₽$/)).toBeInTheDocument();
   });
 
-  it("adds a tile at once and shows chosen tiles in catalogue order", async () => {
+  it("adds a tile at once, after the tiles already chosen", async () => {
     setup();
     const dialog = await openDialog();
 
@@ -75,7 +75,7 @@ describe("the period summary", () => {
     expect(within(dialog).getByText("2/5")).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Расход" })).toHaveAttribute("aria-pressed", "true");
     await userEvent.keyboard("{Escape}");
-    await waitFor(() => expect(shownTiles()).toEqual(["SPEND", "CONVERSIONS"]));
+    await waitFor(() => expect(shownTiles()).toEqual(["CONVERSIONS", "SPEND"]));
   });
 
   it("hands every change to whoever holds the tiles", async () => {
@@ -137,6 +137,127 @@ describe("the period summary", () => {
 
     const dialog = await openDialog();
     expect(within(dialog).getByRole("button", { name: "KPI" })).toHaveAttribute("aria-pressed", "false");
+  });
+});
+
+describe("rearranging the summary", () => {
+  const handleOf = (name: string) => screen.getByRole("button", { name: `Переместить показатель: ${name}` });
+  const handles = () => screen.queryAllByRole("button", { name: /^Переместить показатель/ });
+
+  it("moves a tile one place with the arrows on its handle, keeping the focus and saying where it is", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Held initial={["SPEND", "CONVERSIONS", "CLICKS"]} />);
+
+    handleOf("Лиды").focus();
+    await user.keyboard("{ArrowLeft}");
+
+    expect(shownTiles()).toEqual(["CONVERSIONS", "SPEND", "CLICKS"]);
+    expect(handleOf("Лиды")).toHaveFocus();
+    expect(screen.getByText("Лиды: место 1 из 3")).toBeInTheDocument();
+
+    await user.keyboard("{ArrowDown}{ArrowRight}");
+
+    expect(shownTiles()).toEqual(["SPEND", "CLICKS", "CONVERSIONS"]);
+    expect(handleOf("Лиды")).toHaveFocus();
+    expect(screen.getByText("Лиды: место 3 из 3")).toBeInTheDocument();
+  });
+
+  it("keeps a move in place while it is saved, then shows whatever the holder settles on", async () => {
+    const user = userEvent.setup();
+    let settle: (tiles: SummaryTile[]) => void = () => undefined;
+    function Saving() {
+      const [tiles, setTiles] = useState<SummaryTile[]>(["SPEND", "CLICKS"]);
+      settle = setTiles;
+      return <PerformanceSummary tiles={tiles} onTilesChange={() => undefined} performance={performance} range={range} />;
+    }
+    renderWithProviders(<Saving />);
+
+    handleOf("Расход").focus();
+    await user.keyboard("{ArrowRight}");
+    expect(shownTiles()).toEqual(["CLICKS", "SPEND"]);
+
+    act(() => settle(["CLICKS", "SPEND"]));
+    expect(shownTiles()).toEqual(["CLICKS", "SPEND"]);
+
+    act(() => settle(["SPEND", "CLICKS"]));
+    expect(shownTiles()).toEqual(["SPEND", "CLICKS"]);
+  });
+
+  it("lets a tile be carried with the pointer and dropped without an error", async () => {
+    class TestPointerEvent extends MouseEvent {
+      readonly isPrimary: boolean;
+      constructor(type: string, init: PointerEventInit = {}) {
+        super(type, init);
+        this.isPrimary = init.isPrimary ?? true;
+      }
+    }
+    vi.stubGlobal("PointerEvent", TestPointerEvent);
+    renderWithProviders(<Held initial={["SPEND", "CLICKS"]} />);
+    const tile = within(summary()).getAllByTestId("summary-tile")[0]!;
+    const errors: unknown[] = [];
+    const onError = (event: ErrorEvent) => errors.push(event.error);
+    window.addEventListener("error", onError);
+
+    fireEvent.pointerDown(tile, { isPrimary: true, button: 0, clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(document, { clientX: 40, clientY: 10 });
+    await waitFor(() => expect(tile).toHaveAttribute("data-dragging", "true"));
+    fireEvent.pointerUp(document, { clientX: 40, clientY: 10 });
+
+    await waitFor(() => expect(tile).not.toHaveAttribute("data-dragging"));
+    window.removeEventListener("error", onError);
+    vi.unstubAllGlobals();
+    expect(errors).toEqual([]);
+    expect(shownTiles()).toHaveLength(2);
+  });
+
+  it("hands over nothing at either end, and the new order otherwise", async () => {
+    const user = userEvent.setup();
+    const changes: SummaryTile[][] = [];
+    renderWithProviders(
+      <PerformanceSummary tiles={["SPEND", "CLICKS"]} onTilesChange={(tiles) => changes.push(tiles)} performance={performance} range={range} />,
+    );
+
+    handleOf("Расход").focus();
+    await user.keyboard("{ArrowLeft}{ArrowUp}");
+    handleOf("Клики").focus();
+    await user.keyboard("{ArrowRight}{ArrowLeft}");
+
+    expect(changes).toEqual([["CLICKS", "SPEND"]]);
+  });
+
+  it("moves a project's KPI as one, with every card it holds", async () => {
+    const user = userEvent.setup();
+    server.use(mock.get("/api/projects/:id/kpis", () => HttpResponse.json(["CONVERSIONS", "CPA"].map((metric, index) => ({
+      id: `k${index}`, metric, target: "60.0000", enabled: true, account: null, updatedAt: "2026-09-14T10:00:00.000Z",
+    })))));
+    renderWithProviders(<Held initial={["KPI", "SPEND"]} kpi={projectKpi} />);
+
+    await waitFor(() => expect(shownTiles()).toEqual(["KPI", "KPI", "SPEND"]));
+    const kpiHandles = screen.getAllByRole("button", { name: "Переместить показатель: KPI" });
+    expect(kpiHandles).toHaveLength(2);
+
+    kpiHandles[1]!.focus();
+    await user.keyboard("{ArrowRight}");
+
+    expect(shownTiles()).toEqual(["SPEND", "KPI", "KPI"]);
+    expect(screen.getByText("KPI: место 2 из 2")).toBeInTheDocument();
+  });
+
+  it("offers no handle where the summary cannot change, with a single tile or in the dialog", async () => {
+    const { unmount } = renderWithProviders(<PerformanceSummary tiles={["SPEND", "CLICKS"]} performance={performance} range={range} />);
+    await waitFor(() => expect(shownTiles()).toEqual(["SPEND", "CLICKS"]));
+    expect(handles()).toEqual([]);
+    unmount();
+
+    renderWithProviders(<Held initial={["CONVERSIONS"]} />);
+    await screen.findByRole("button", { name: "Настроить показатели" });
+    expect(handles()).toEqual([]);
+    const dialog = await openDialog();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Расход" }));
+
+    expect(within(dialog).queryAllByRole("button", { name: /^Переместить показатель/ })).toEqual([]);
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(handles()).toHaveLength(2));
   });
 });
 

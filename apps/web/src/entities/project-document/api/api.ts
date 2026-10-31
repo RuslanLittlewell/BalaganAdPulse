@@ -12,6 +12,7 @@ export interface DocumentSummary {
   createdAt: string;
   updatedAt: string;
   updatedBy: DocumentAuthor | null;
+  excerpt: string;
 }
 
 export interface ProjectDocument extends DocumentSummary {

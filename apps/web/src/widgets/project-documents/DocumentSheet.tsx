@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { ArrowLeftIcon, Trash2 } from "lucide-react";
 import { t } from "@/shared/config/index.js";
 import { Button, ConfirmDialog } from "@/shared/ui/index.js";
 import {
@@ -15,6 +15,7 @@ export interface DocumentSheetProps {
   projectId: string;
   document: ProjectDocument;
   canWrite: boolean;
+  onBack: () => void;
   onDeleted: () => void;
 }
 
@@ -24,7 +25,7 @@ const STATUS_KEY: Record<Exclude<SaveStatus, "idle">, "documents.saving" | "docu
   failed: "documents.failed",
 };
 
-export function DocumentSheet({ projectId, document, canWrite, onDeleted }: DocumentSheetProps) {
+export function DocumentSheet({ projectId, document, canWrite, onBack, onDeleted }: DocumentSheetProps) {
   const [title, setTitle] = useState(document.title);
   const [confirming, setConfirming] = useState(false);
   const save = useSaveProjectDocument(projectId, document.id);
@@ -39,6 +40,9 @@ export function DocumentSheet({ projectId, document, canWrite, onDeleted }: Docu
   return (
     <article className="flex min-w-0 flex-col gap-3" aria-label={title || document.title}>
       <div className="flex items-start justify-between gap-3">
+        <Button type="button" variant="ghost" size="icon" aria-label={t("documents.back")} onClick={onBack}>
+          <ArrowLeftIcon />
+        </Button>
         {canWrite ? (
           <input
             aria-label={t("documents.name")}

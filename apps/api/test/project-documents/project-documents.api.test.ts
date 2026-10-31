@@ -49,6 +49,22 @@ describe("a project's documents", () => {
     expect(listed.body[0]).not.toHaveProperty("content");
   });
 
+  it("are listed with the beginning of their text, and without the text itself", async () => {
+    const created = await create("Аналитика");
+    const saved = await change(created.body.id, { content: {
+      type: "doc", content: [
+        { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Коротко" }] },
+        { type: "paragraph", content: [{ type: "text", text: "Почти все агентства строят анализ" }] },
+      ],
+    } });
+
+    expect(saved.body.excerpt).toBe("Коротко\nПочти все агентства строят анализ");
+    const listed = await request(app).get(documents()).set(admin);
+    expect(listed.body[0]).toMatchObject({ title: "Аналитика", excerpt: "Коротко\nПочти все агентства строят анализ" });
+    expect(listed.body[0]).not.toHaveProperty("content");
+    expect((await create("Пустой")).body.excerpt).toBe("");
+  });
+
   it("keep the text they are given and say who changed them last", async () => {
     const created = await create("О проекте");
     const manager = await member("MANAGER", "Роман");

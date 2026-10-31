@@ -7,15 +7,14 @@ import { ProjectPage } from "@/pages/project/index.js";
 
 const author = { id: "member-1", name: "Роман Р." };
 
-type Stored = { id: string; title: string; content: unknown | null; createdAt: string; updatedAt: string };
+type Stored = { id: string; title: string; content: unknown | null; createdAt: string; updatedAt: string; excerpt?: string };
 
-function documentOf(entry: Stored) {
-  return { ...entry, projectId: "p1", createdBy: author, updatedBy: author };
+function documentOf({ excerpt = "", ...entry }: Stored) {
+  return { ...entry, excerpt, projectId: "p1", createdBy: author, updatedBy: author };
 }
 
-function summaryOf(entry: Stored) {
-  const { content: _content, ...rest } = entry;
-  return { ...rest, projectId: "p1", updatedBy: author };
+function summaryOf({ content: _content, excerpt = "", ...rest }: Stored) {
+  return { ...rest, excerpt, projectId: "p1", updatedBy: author };
 }
 
 function notebook(initial: Stored[] = [], options: { failSaves?: boolean } = {}) {
@@ -141,7 +140,9 @@ describe("the notebook", () => {
     const list = await screen.findByRole("navigation", { name: "Документы проекта" });
     await waitFor(() => expect(within(list).getAllByRole("button").map((button) => button.querySelector("span")?.textContent))
       .toEqual(["О проекте", "Стратегия", "Конкуренты"]));
-    expect(screen.getByText("Выберите документ в списке")).toBeInTheDocument();
+    const previews = screen.getByRole("list", { name: "Превью документов" });
+    expect(within(previews).getAllByRole("button").map((card) => card.querySelector("span > span")?.textContent))
+      .toEqual(["О проекте", "Стратегия", "Конкуренты"]);
 
     await user.click(within(list).getByRole("button", { name: /Стратегия/ }));
 
@@ -150,6 +151,29 @@ describe("the notebook", () => {
     expect(screen.getByRole("textbox", { name: "Название документа" })).toHaveValue("Стратегия");
     expect(within(list).getByRole("button", { name: /Стратегия/ })).toHaveAttribute("aria-current", "page");
     expect(screen.getByText(/^Изменено .* · Роман Р\.$/)).toBeInTheDocument();
+  });
+
+  it("previews every document while none is open, and opens the one chosen", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-12T14:40:00.000Z"));
+    const user = userEvent.setup();
+    notebook([
+      { ...entry("doc-1", "Аналитика Meta Ads"), excerpt: "Коротко\nПочти все агентства строят анализ" },
+      { ...entry("doc-2", "Пустой"), updatedAt: "2026-10-11T09:00:00.000Z" },
+    ]);
+    open("/projects/p1/documents");
+
+    const previews = await screen.findByRole("list", { name: "Превью документов" });
+    const analytics = within(previews).getByRole("button", { name: "Аналитика Meta Ads 15 минут назад" });
+    expect(analytics).toHaveTextContent("Почти все агентства строят анализ");
+    expect(analytics).toHaveTextContent("Роман Р.");
+    expect(within(previews).getByRole("button", { name: "Пустой вчера" })).toBeInTheDocument();
+
+    await user.click(analytics);
+
+    expect(screen.getByTestId("where")).toHaveTextContent("/projects/p1/documents/doc-1");
+    expect(screen.queryByRole("list", { name: "Превью документов" })).toBeNull();
+    vi.useRealTimers();
   });
 
   it("invites a manager to create the first document", async () => {
@@ -266,11 +290,51 @@ describe("the notebook", () => {
     expect(screen.getByRole("textbox", { name: "Название документа" })).toHaveValue("Конкуренты");
   });
 
-  it("says a document that does not exist is not found", async () => {
+  it("says a document that does not exist is not found, and leads back to the documents", async () => {
+    const user = userEvent.setup();
     notebook([entry("doc-1", "О проекте")]);
     open("/projects/p1/documents/missing");
 
     expect(await screen.findByText("Документ не найден")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "К документам" }));
+
+    expect(screen.getByTestId("where")).toHaveTextContent(/^\/projects\/p1\/documents$/);
+    expect(await screen.findByRole("list", { name: "Превью документов" })).toBeInTheDocument();
+  });
+
+  it("goes back from an open document to the previews, keeping the period", async () => {
+    const user = userEvent.setup();
+    notebook([entry("doc-1", "Стратегия"), entry("doc-2", "Конкуренты")]);
+    open("/projects/p1/documents/doc-1?from=2026-09-01&to=2026-09-30");
+
+    await screen.findByRole("textbox", { name: "Название документа" });
+    await user.click(screen.getByRole("button", { name: "К документам" }));
+
+    expect(screen.getByTestId("where")).toHaveTextContent(/^\/projects\/p1\/documents\?from=2026-09-01&to=2026-09-30$/);
+    expect(await screen.findByRole("list", { name: "Превью документов" })).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Название документа" })).toBeNull();
+  });
+
+  it("saves a change not yet saved when going back, and previews it", async () => {
+    const user = userEvent.setup();
+    const { saves } = notebook([entry("doc-1", "Стратегия")]);
+    open("/projects/p1/documents/doc-1");
+
+    await user.type(await screen.findByRole("textbox", { name: "Название документа" }), "!");
+    await user.click(screen.getByRole("button", { name: "К документам" }));
+
+    await waitFor(() => expect(saves).toEqual([{ title: "Стратегия!" }]), { timeout: 500 });
+    const previews = await screen.findByRole("list", { name: "Превью документов" });
+    expect(await within(previews).findByRole("button", { name: /^Стратегия! / })).toBeInTheDocument();
+  });
+
+  it("offers a guest the way back too", async () => {
+    signedInAs("GUEST");
+    notebook([entry("doc-1", "О проекте")]);
+    open("/projects/p1/documents/doc-1");
+
+    expect(await screen.findByRole("heading", { name: "О проекте" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "К документам" })).toBeInTheDocument();
   });
 
   it("shows a guest documents read-only", async () => {

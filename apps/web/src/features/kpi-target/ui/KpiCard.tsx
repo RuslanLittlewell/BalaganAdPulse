@@ -11,7 +11,7 @@ import {
 import { cn, type Currency } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import { Button, RollingNumber } from "@/shared/ui/index.js";
-import { formatKpiValue } from "./format.js";
+import { formatKpiTarget, formatKpiValue } from "./format.js";
 import { kpiTitle } from "./kpiTitle.js";
 
 const STATUS = { exceeded: "kpi.exceeded", met: "kpi.met" } as const;
@@ -123,7 +123,7 @@ export function KpiCard({
                     />
                   </div>
                   <div className="mt-0.5 text-xs text-muted-foreground">
-                    {`${t("kpi.targetShort")} ${formatKpiValue(format, progress.target, rowCurrency)}${percent === null ? "" : ` · ${percent}%`}`}
+                    {`${t("kpi.targetShort")} ${formatKpiTarget(format, progress.target, rowCurrency)}${percent === null ? "" : ` · ${percent}%`}`}
                   </div>
                   {progress.state === "unmeasured" ? null : (
                     <div

@@ -11,6 +11,7 @@ const summary = z.object({
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   updatedBy: author,
+  excerpt: z.string().describe("The beginning of the text as plain lines, one per paragraph, heading or list item, at most 280 characters"),
 });
 
 const document = summary.extend({

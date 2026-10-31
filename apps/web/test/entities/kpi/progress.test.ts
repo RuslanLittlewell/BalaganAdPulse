@@ -117,8 +117,11 @@ describe("a KPI set by hand", () => {
     expect(kpiProgress(figures({ conversions: 999 }), manual(value), september)).toEqual(progress);
   });
 
-  it("does not depend on the period", () => {
-    expect(kpiProgress(figures(), manual("30.0000"), october)).toEqual(kpiProgress(figures(), manual("30.0000"), september));
+  it("recalculates its target for the period as a monthly target, keeping the value", () => {
+    expect(kpiProgress(figures(), manual("30.0000"), { from: "2026-09-01", to: "2026-09-15" }))
+      .toEqual({ actual: 30, target: 25, percent: 120, state: "exceeded" });
+    expect(kpiProgress(figures(), manual("30.0000"), { from: "2026-09-16", to: "2026-10-31" }).target).toBe(75);
+    expect(kpiProgress(figures(), manual("50.0000"), october)).toEqual({ actual: 50, target: 50, percent: 100, state: "met" });
   });
 });
 

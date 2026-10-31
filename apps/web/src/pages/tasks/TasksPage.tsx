@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { PlusIcon } from "lucide-react";
 import { TaskBoard } from "@/widgets/task-board/index.js";
 import { TaskFilters } from "@/widgets/task-filters/index.js";
 import { TaskCalendar } from "@/widgets/task-calendar/index.js";
@@ -90,8 +91,9 @@ export function TasksPage() {
         <div className="flex items-center gap-2 justify-self-end">
           <TelegramBotButton />
           <Can action="create" resource="task">
-            <Button onClick={() => create()}>
-              {t("tasks.create")}
+            <Button onClick={() => create()} className="max-md:size-10 md:has-[>svg]:px-4">
+              <PlusIcon aria-hidden className="md:hidden" />
+              <span className="sr-only md:not-sr-only">{t("tasks.create")}</span>
             </Button>
           </Can>
         </div>

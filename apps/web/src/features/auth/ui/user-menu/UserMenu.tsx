@@ -48,11 +48,11 @@ export function UserMenu({ onSettings, avatarVersion, canEditProfile = true }: U
         onClick={() => setOpen((value) => !value)}
       >
         <UserAvatar userId={user.id} name={user.name} version={avatarVersion} />
-        <span className={"grid min-w-0 text-left"}>
+        <span className={"hidden min-w-0 text-left md:grid"}>
           <span className={"truncate font-semibold"}>{user.name}</span>
           <span className={"text-xs text-muted-foreground"}>{user.email ?? user.login}</span>
         </span>
-        <ChevronDown className={"size-4 text-muted-foreground"} aria-hidden="true" />
+        <ChevronDown className={"hidden size-4 text-muted-foreground md:block"} aria-hidden="true" />
       </button>
 
       {open && (

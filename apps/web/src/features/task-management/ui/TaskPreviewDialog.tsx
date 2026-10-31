@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
-import { dayLabel } from "@/shared/ui/index.js";
+import { dayLabel, PHONE_SHEET_CLASS_NAME } from "@/shared/ui/index.js";
 import { cn } from "@/shared/lib/index.js";
 import { ProjectAvatar, useProjects } from "@/entities/project/index.js";
 import { MemberAvatar, useMembers } from "@/entities/membership/index.js";
@@ -58,7 +58,13 @@ export function TaskPreviewDialog({ task, onClose }: TaskPreviewDialogProps) {
         if (!next) onClose();
       }}
     >
-      <DialogContent className="flex max-h-[80vh] w-[min(720px,calc(100vw-2rem))] flex-col">
+      <DialogContent
+        className={cn(
+          "flex max-h-[80vh] w-[min(720px,calc(100vw-2rem))] flex-col",
+          PHONE_SHEET_CLASS_NAME,
+          "max-md:p-4",
+        )}
+      >
         <DialogHeader className="shrink-0">
           <DialogTitle>{task.title}</DialogTitle>
         </DialogHeader>
@@ -166,7 +172,7 @@ export function TaskPreviewDialog({ task, onClose }: TaskPreviewDialogProps) {
           <TaskComments task={task} />
         </div>
 
-        <DialogFooter className="shrink-0">
+        <DialogFooter className="shrink-0 max-md:hidden">
           <Button variant="outline" onClick={onClose}>
             {t("action.close")}
           </Button>

@@ -37,7 +37,7 @@ export function TaskParticipants({ task, people }: TaskParticipantsProps) {
         {rest > 0 ? (
           <span
             aria-label={`${t("tasks.participants.more")}: ${rest}`}
-            className="grid size-8 place-items-center rounded-md bg-muted text-[11px] font-medium text-muted-foreground"
+            className="grid size-8 place-items-center rounded-md bg-muted text-2xs font-medium text-muted-foreground"
           >
             {`+${rest}`}
           </span>

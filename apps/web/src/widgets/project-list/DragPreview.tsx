@@ -21,7 +21,7 @@ export function DragPreview({ project, clientName, tone, groupName }: DragPrevie
   if (groupName != null) {
     return (
       <div className="cursor-grabbing rounded-md border border-dashed border-muted-foreground/40 bg-background px-2 py-1 shadow-lg">
-        <span className="block truncate font-mono text-[11px] uppercase tracking-[.12em] text-muted-foreground">
+        <span className="block truncate font-mono text-2xs uppercase tracking-[.12em] text-muted-foreground">
           {groupName}
         </span>
       </div>

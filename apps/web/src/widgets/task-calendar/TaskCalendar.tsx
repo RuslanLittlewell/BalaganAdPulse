@@ -312,7 +312,7 @@ export function TaskCalendar({
               {HOURS.map((hour) => (
                 <div
                   key={hour}
-                  className="absolute left-0 right-0 border-t border-border/70 px-2 pt-1 text-[11px] text-muted-foreground"
+                  className="absolute left-0 right-0 border-t border-border/70 px-2 pt-1 text-2xs text-muted-foreground"
                   style={{
                     top: hour * hourHeight,
                     height: hourHeight,
@@ -703,7 +703,7 @@ function CalendarTaskEvent({
         )}
       />
       {compact ? (
-        <div className="flex min-w-0 items-center gap-1.5 text-[11px] leading-tight">
+        <div className="flex min-w-0 items-center gap-1.5 text-2xs leading-tight">
           {onToggleDone ? <TaskDoneCheck task={task} size={11} onToggle={onToggleDone} /> : null}
           <h3 className="min-w-0 truncate font-medium">{task.title}</h3>
           <span className="shrink-0 text-muted-foreground">{timeRange(task) ?? t("tasks.form.noTime")}</span>
@@ -717,7 +717,7 @@ function CalendarTaskEvent({
           </h3>
         </div>
 
-        <div className="mb-1 mt-1 flex min-h-0 min-w-0 shrink flex-wrap items-center gap-1 overflow-hidden text-[11px] text-muted-foreground">
+        <div className="mb-1 mt-1 flex min-h-0 min-w-0 shrink flex-wrap items-center gap-1 overflow-hidden text-2xs text-muted-foreground">
           <span className="inline-flex items-center gap-1">
             <CalendarClock aria-hidden className="size-3" />
             {timeRange(task) ?? t("tasks.form.noTime")}
@@ -750,7 +750,7 @@ function CalendarTaskEvent({
         <footer className="mt-auto flex min-w-0 shrink-0 items-center justify-between gap-2 border-t border-border/50 pt-1.5">
           <span className="flex min-w-0 items-center gap-1.5">
             {project ? <ProjectAvatar project={project} size="sm" /> : null}
-            <span className="truncate text-[11px] text-muted-foreground">
+            <span className="truncate text-2xs text-muted-foreground">
               {project?.name ?? t("tasks.noProject")}
             </span>
           </span>

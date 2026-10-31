@@ -125,7 +125,7 @@ export function TaskCardView({
           data-testid={`task-priority-${task.id}`}
           data-priority={task.priority}
           className={cn(
-            "shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium leading-tight",
+            "shrink-0 rounded-md px-1.5 py-0.5 text-2xs font-medium leading-tight",
             PRIORITY_TONE[task.priority],
           )}
         >
@@ -136,13 +136,13 @@ export function TaskCardView({
       {showColumn || task.dueDate || task.checklist.length > 0 || attachments > 0 ? (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {showColumn ? (
-            <span className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+            <span className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
               {t(`tasks.column.${task.column}`)}
             </span>
           ) : null}
           {task.dueDate ? (
             <span
-              className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground"
+              className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground"
               data-testid={`task-due-${task.id}`}
             >
               <CalendarClock aria-hidden className="size-3" />
@@ -157,7 +157,7 @@ export function TaskCardView({
 
           {task.checklist.length > 0 ? (
             <span
-              className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground"
+              className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground"
               data-testid={`task-checklist-${task.id}`}
             >
               <ListChecks aria-hidden className="size-3" />
@@ -170,7 +170,7 @@ export function TaskCardView({
       {attachments > 0 ? (
         <div className="mt-2">
           <span
-            className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground"
+            className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground"
             data-testid={`task-attachments-${task.id}`}
             aria-label={`${t("tasks.attachments.count")}: ${attachments}`}
           >

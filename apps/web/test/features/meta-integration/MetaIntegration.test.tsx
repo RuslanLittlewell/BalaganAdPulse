@@ -21,7 +21,7 @@ it("accepts Account ID and token on the frontend, sends them to the server and c
   await userEvent.type(token, "synthetic-secret");
   await userEvent.click(screen.getByRole("button", { name: "Подключить" }));
   await waitFor(() => expect(sent).toEqual({ accountId: "act_123", token: "synthetic-secret", leadsEnabled: false }));
-  expect(await screen.findByRole("region", { name: "Meta · Facebook Ads" })).toBeInTheDocument();
+  expect(await screen.findByRole("region", { name: "Facebook Ads" })).toBeInTheDocument();
   await waitFor(() => expect(screen.queryByLabelText("Токен доступа")).not.toBeInTheDocument());
   expect(JSON.stringify(localStorage)).not.toContain("synthetic-secret");
 });
@@ -90,10 +90,10 @@ describe("the Meta panel at rest", () => {
     withLeads({ status: "OK", lastSuccessAt: "2026-09-13T09:50:00Z", lastError: null });
     renderWithProviders(<MetaIntegration projectId="p1" />);
 
-    const panel = await screen.findByRole("region", { name: "Meta · Facebook Ads" });
+    const panel = await screen.findByRole("region", { name: "Facebook Ads" });
     expect(await within(panel).findByText(/^Лиды:/)).toBeInTheDocument();
     expect(within(panel).getByText(/^Обновление:/)).toBeInTheDocument();
-    expect(within(panel).getByRole("heading", { name: "Meta · Facebook Ads" })).toBeInTheDocument();
+    expect(within(panel).getByRole("heading", { name: "Facebook Ads" }).querySelector("svg")).toHaveAttribute("aria-hidden", "true");
     expect(within(panel).queryByText("Автообновление каждый день в 08:00")).not.toBeInTheDocument();
     expect(within(panel).queryByRole("status")).not.toBeInTheDocument();
     expect(within(panel).queryByText(/Данные обновлены|BYN|Лиды из форм|загружаются/)).not.toBeInTheDocument();
@@ -104,7 +104,7 @@ describe("the Meta panel at rest", () => {
     withLeads({ status: "WAITING", lastSuccessAt: null, lastError: null });
     renderWithProviders(<MetaIntegration projectId="p1" />);
 
-    const panel = await screen.findByRole("region", { name: "Meta · Facebook Ads" });
+    const panel = await screen.findByRole("region", { name: "Facebook Ads" });
     expect(await within(panel).findByText(/^Обновление:/)).toBeInTheDocument();
     expect(within(panel).queryByText(/лид/i)).not.toBeInTheDocument();
   });
@@ -133,7 +133,7 @@ describe("the Meta panel at rest", () => {
     withLeads({ status: "ERROR", lastSuccessAt: "2026-09-13T09:00:00Z", lastError: "PROVIDER" }, { leadsEnabled: false });
     renderWithProviders(<MetaIntegration projectId="p1" />);
 
-    const panel = await screen.findByRole("region", { name: "Meta · Facebook Ads" });
+    const panel = await screen.findByRole("region", { name: "Facebook Ads" });
     expect(await within(panel).findByText(/^Обновление:/)).toBeInTheDocument();
     expect(within(panel).queryByText(/лид/i)).not.toBeInTheDocument();
     expect(within(panel).queryByRole("alert")).not.toBeInTheDocument();
@@ -168,7 +168,7 @@ describe("several connections", () => {
     server.use(http.get(list, () => HttpResponse.json([connected, second])));
     renderWithProviders(<MetaIntegration projectId="p1" />);
 
-    await waitFor(() => expect(screen.getAllByRole("region", { name: "Meta · Facebook Ads" })).toHaveLength(2));
+    await waitFor(() => expect(screen.getAllByRole("region", { name: "Facebook Ads" })).toHaveLength(2));
     expect(screen.getByRole("button", { name: "Добавить интеграцию" })).toBeInTheDocument();
   });
 
@@ -185,6 +185,20 @@ describe("several connections", () => {
     }
   });
 
+  it("draws every provider as a tile with its logo, named by the provider alone", async () => {
+    server.use(http.get(list, () => HttpResponse.json([connected])));
+    renderWithProviders(<MetaIntegration projectId="p1" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Добавить интеграцию" }));
+
+    const window = await screen.findByRole("dialog", { name: "Выберите интеграцию" });
+    for (const name of ["Meta", "Google", "Яндекс Скоро", "TikTok Скоро", "GPT Скоро"]) {
+      const tile = within(window).getByRole("button", { name });
+      expect(tile.closest("li")).not.toBeNull();
+      expect(tile.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    }
+    expect(within(window).getByRole("button", { name: "TikTok Скоро" })).toBeDisabled();
+  });
+
   it("adds a second connection beside the first", async () => {
     server.use(
       http.get(list, () => HttpResponse.json([connected])),
@@ -196,7 +210,7 @@ describe("several connections", () => {
     await userEvent.type(screen.getByLabelText("Токен доступа"), "secret");
     await userEvent.click(screen.getByRole("button", { name: "Подключить" }));
 
-    await waitFor(() => expect(screen.getAllByRole("region", { name: "Meta · Facebook Ads" })).toHaveLength(2));
+    await waitFor(() => expect(screen.getAllByRole("region", { name: "Facebook Ads" })).toHaveLength(2));
   });
 
   it("says so when the account is already connected", async () => {
@@ -232,7 +246,7 @@ describe("the lead import switch", () => {
     await userEvent.click(screen.getByRole("button", { name: "Подключить" }));
 
     await waitFor(() => expect(sent).toMatchObject({ leadsEnabled: true }));
-    const panel = await screen.findByRole("region", { name: "Meta · Facebook Ads" });
+    const panel = await screen.findByRole("region", { name: "Facebook Ads" });
     expect(within(panel).queryByRole("switch")).toBeNull();
   });
 

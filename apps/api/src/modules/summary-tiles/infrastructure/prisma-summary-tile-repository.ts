@@ -2,7 +2,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import type { TransactionContext } from "#shared/application/index.js";
 import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
 import type { SummaryTileRepository } from "../application/ports.js";
-import type { SummaryTile } from "../domain/summary-tiles.js";
+import type { AccountTiles, SummaryAccount, SummaryTile } from "../domain/summary-tiles.js";
 
 export class PrismaSummaryTileRepository implements SummaryTileRepository {
   constructor(
@@ -37,6 +37,28 @@ export class PrismaSummaryTileRepository implements SummaryTileRepository {
   async writeProject(context: TransactionContext, projectId: string, tiles: readonly SummaryTile[]): Promise<void> {
     await this.client(context).project.update({
       where: { id: projectId }, data: { summaryTiles: [...tiles] },
+    });
+  }
+
+  async readAccounts(projectId: string): Promise<AccountTiles[]> {
+    const rows = await this.prisma.projectAccountSummary.findMany({
+      where: { projectId },
+      orderBy: [{ channel: "asc" }, { accountId: "asc" }],
+      select: { channel: true, accountId: true, tiles: true },
+    });
+    return rows.map(({ channel, accountId, tiles }) => ({ account: { channel, accountId }, tiles }));
+  }
+
+  async writeAccount(
+    context: TransactionContext,
+    projectId: string,
+    { channel, accountId }: SummaryAccount,
+    tiles: readonly SummaryTile[],
+  ): Promise<void> {
+    await this.client(context).projectAccountSummary.upsert({
+      where: { projectId_channel_accountId: { projectId, channel, accountId } },
+      create: { projectId, channel, accountId, tiles: [...tiles] },
+      update: { tiles: [...tiles] },
     });
   }
 }

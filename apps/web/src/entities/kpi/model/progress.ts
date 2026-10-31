@@ -53,14 +53,22 @@ function daysInMonth(day: Date): number {
   return new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth() + 1, 0)).getUTCDate();
 }
 
-export function targetForRange(metric: KpiMetric, target: number, range: { from: string; to: string }): number {
-  if (!isMonthly(metric)) return target;
+export function monthlyTarget(target: number, range: { from: string; to: string }): number {
   const end = Date.parse(`${range.to}T00:00:00Z`);
-  let total = 0;
+  const daysByMonth = new Map<number, { days: number; length: number }>();
   for (let day = Date.parse(`${range.from}T00:00:00Z`); day <= end; day += DAY_MS) {
-    total += target / daysInMonth(new Date(day));
+    const date = new Date(day);
+    const month = date.getUTCFullYear() * 12 + date.getUTCMonth();
+    const counted = daysByMonth.get(month) ?? { days: 0, length: daysInMonth(date) };
+    daysByMonth.set(month, { ...counted, days: counted.days + 1 });
   }
+  let total = 0;
+  for (const { days, length } of daysByMonth.values()) total += (target * days) / length;
   return total;
+}
+
+export function targetForRange(metric: KpiMetric, target: number, range: { from: string; to: string }): number {
+  return isMonthly(metric) ? monthlyTarget(target, range) : target;
 }
 
 export type KpiState = "exceeded" | "met" | "behind" | "unmeasured";
@@ -85,7 +93,7 @@ function actualOf(kpi: MeasuredKpiInput, figures: KpiFigures): number | null {
 }
 
 export function kpiProgress(figures: KpiFigures, kpi: KpiInput, range: { from: string; to: string }): KpiProgress {
-  if (kpi.metric === MANUAL_KPI) return manualProgress(Number(kpi.value), Number(kpi.target));
+  if (kpi.metric === MANUAL_KPI) return manualProgress(Number(kpi.value), monthlyTarget(Number(kpi.target), range));
   const target = targetForRange(kpi.metric, Number(kpi.target), range);
   const actual = actualOf(kpi, figures);
   if (actual === null) return { actual, target, percent: null, state: "unmeasured" };

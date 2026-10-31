@@ -23,11 +23,11 @@ export function createSummaryTileRouter(useCases: SummaryTileUseCases): Router {
   ];
   for (const [path, ownerOf] of owners) {
     router.get(path, handle(async (req: Request<{ id?: string }>, res) => {
-      res.json({ tiles: await useCases.read(actorOf(req), ownerOf(req)) });
+      res.json(await useCases.read(actorOf(req), ownerOf(req)));
     }));
     router.put(path, handle(async (req: Request<{ id?: string }>, res) => {
-      const { tiles } = summaryTilesSchema.parse(req.body);
-      res.json({ tiles: await useCases.choose(actorOf(req), ownerOf(req), tiles) });
+      const { tiles, account } = summaryTilesSchema.parse(req.body);
+      res.json(await useCases.choose(actorOf(req), ownerOf(req), tiles, account));
     }));
   }
   return router;

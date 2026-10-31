@@ -1,4 +1,24 @@
-import { Fragment, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import {
+  closestCenter,
+  defaultDropAnimation,
+  defaultDropAnimationSideEffects,
+  DndContext,
+  DragOverlay,
+  getClientRect,
+  MeasuringStrategy,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type Announcements,
+  type ClientRect,
+  type DropAnimation,
+  type MeasuringConfiguration,
+  type UniqueIdentifier,
+} from "@dnd-kit/core";
 import {
   cn,
   formatCount,
@@ -24,14 +44,22 @@ import {
   DialogHeader,
   DialogTitle,
   MetricCard,
+  MoveHandle,
   RollingNumber,
+  type MoveStep,
+  type TileMove,
 } from "@/shared/ui/index.js";
 import {
   chosenTiles,
+  dragStarted,
+  draggedOver,
   MAX_SUMMARY_TILES,
+  movedTo,
+  sameOrder,
   SUMMARY_TILES,
   toggledTiles,
   type SummaryTile,
+  type TileDrag,
 } from "./summaryTiles.js";
 
 export interface PerformanceSummaryProps {
@@ -53,6 +81,74 @@ const LABELS: Record<SummaryTile, string> = {
   CPC: t("metric.cpc"),
   KPI: t("summary.kpi"),
 };
+
+const SILENT: Announcements = {
+  onDragStart: () => undefined,
+  onDragOver: () => undefined,
+  onDragEnd: () => undefined,
+  onDragCancel: () => undefined,
+};
+
+function measureCell(node: HTMLElement): ClientRect {
+  if (getComputedStyle(node).display !== "contents" || node.children.length === 0) return getClientRect(node);
+  const rects = Array.from(node.children, (child) => child.getBoundingClientRect());
+  const top = Math.min(...rects.map((rect) => rect.top));
+  const left = Math.min(...rects.map((rect) => rect.left));
+  const right = Math.max(...rects.map((rect) => rect.right));
+  const bottom = Math.max(...rects.map((rect) => rect.bottom));
+  return { top, left, right, bottom, width: right - left, height: bottom - top };
+}
+
+const MEASURING: MeasuringConfiguration = {
+  draggable: { measure: measureCell },
+  droppable: { measure: measureCell, strategy: MeasuringStrategy.Always },
+};
+
+const DROP_ANIMATION: DropAnimation = {
+  ...defaultDropAnimation,
+  sideEffects: defaultDropAnimationSideEffects({ className: { active: "*:opacity-0" } }),
+};
+
+const placeOf = (tile: SummaryTile, order: readonly SummaryTile[]) =>
+  `${LABELS[tile]}: ${t("summary.place")} ${order.indexOf(tile) + 1} ${t("summary.placeOf")} ${order.length}`;
+
+function SummaryCell({
+  tile,
+  movable,
+  group,
+  children,
+}: {
+  tile: SummaryTile;
+  movable: boolean;
+  group: boolean;
+  children: ReactNode;
+}) {
+  const drag = useDraggable({ id: tile, disabled: !movable });
+  const drop = useDroppable({ id: tile, disabled: !movable });
+  const startDrag = drag.listeners?.onPointerDown;
+
+  return (
+    <div
+      ref={(node) => {
+        drag.setNodeRef(node);
+        drop.setNodeRef(node);
+      }}
+      onPointerDown={movable
+        ? (event) => {
+            if (event.currentTarget.contains(event.target as Node)) startDrag?.(event);
+          }
+        : undefined}
+      data-testid={group ? undefined : "summary-tile"}
+      data-tile={group ? undefined : tile}
+      data-dragging={drag.isDragging ? "true" : undefined}
+      className={group
+        ? cn("contents data-[dragging=true]:*:opacity-40", movable && "*:cursor-grab")
+        : cn("group/tile relative data-[dragging=true]:opacity-40", movable && "cursor-grab")}
+    >
+      {children}
+    </div>
+  );
+}
 
 export function PerformanceSummary({
   tiles,
@@ -99,6 +195,13 @@ export function PerformanceSummary({
     </>
   );
   const [configuring, setConfiguring] = useState(false);
+  const [drag, setDragState] = useState<TileDrag | null>(null);
+  const [dropped, setDropped] = useState<{ order: SummaryTile[]; from: string } | null>(null);
+  const dragRef = useRef<TileDrag | null>(null);
+  const [announcement, setAnnouncement] = useState("");
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+  );
   const configurable = onTilesChange !== undefined;
 
   const offered = SUMMARY_TILES.filter(
@@ -106,8 +209,40 @@ export function PerformanceSummary({
   );
   const chosen = chosenTiles(tiles, offered);
   const atLimit = chosen.length >= MAX_SUMMARY_TILES;
+  const orderKey = chosen.join(" ");
+  const settled = dropped?.from === orderKey ? dropped.order : chosen;
+  const shown = drag?.order ?? settled;
+  const movable = configurable && chosen.length > 1;
+  const kpiGroup = kpi?.scope.kind === "project";
 
-  const render = (tile: SummaryTile, preview = false): ReactNode => {
+  useLayoutEffect(() => setDropped(null), [orderKey]);
+
+  const setDrag = (next: TileDrag | null) => {
+    dragRef.current = next;
+    setDragState(next);
+  };
+  const tileOf = (id: UniqueIdentifier | undefined) =>
+    chosen.find((tile) => tile === id) ?? null;
+  const arrange = (next: SummaryTile[], tile: SummaryTile) => {
+    setDropped({ order: next, from: orderKey });
+    onTilesChange?.(next);
+    setAnnouncement(placeOf(tile, next));
+  };
+  const step = (tile: SummaryTile, by: MoveStep) => {
+    const next = movedTo(settled, tile, settled.indexOf(tile) + by);
+    if (sameOrder(next, settled)) return;
+    arrange(next, tile);
+  };
+  const moveOf = (tile: SummaryTile): TileMove => ({
+    label: `${t("summary.move")}: ${LABELS[tile]}`,
+    hint: t("summary.move.hint"),
+    onStep: (by) => step(tile, by),
+  });
+
+  const render = (
+    tile: SummaryTile,
+    { preview = false, move }: { preview?: boolean; move?: TileMove } = {},
+  ): ReactNode => {
     switch (tile) {
       case "SPEND":
         return (
@@ -182,34 +317,84 @@ export function PerformanceSummary({
             currency={currency}
             currencyFigures={currencyPerformances}
             preview={preview}
+            move={move}
           />
         ) : null;
     }
   };
 
+  const cell = (tile: SummaryTile) => {
+    const group = tile === "KPI" && kpiGroup;
+    const move = movable ? moveOf(tile) : undefined;
+    return (
+      <SummaryCell key={tile} tile={tile} movable={movable} group={group}>
+        {group ? render(tile, { move }) : (
+          <>
+            {render(tile)}
+            {move ? <MoveHandle {...move} /> : null}
+          </>
+        )}
+      </SummaryCell>
+    );
+  };
+
   return (
     <>
-      <div
-        role="group"
-        aria-label={t("summary.title")}
-        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        measuring={MEASURING}
+        accessibility={{
+          announcements: SILENT,
+          screenReaderInstructions: { draggable: t("summary.move.hint") },
+        }}
+        onDragStart={({ active }) => {
+          const tile = tileOf(active.id);
+          if (tile) setDrag(dragStarted(settled, tile));
+        }}
+        onDragOver={({ over }) => {
+          const current = dragRef.current;
+          if (!current) return;
+          const next = draggedOver(current, tileOf(over?.id));
+          if (next !== current) setDrag(next);
+        }}
+        onDragEnd={() => {
+          const done = dragRef.current;
+          setDrag(null);
+          if (done && !sameOrder(done.order, settled)) arrange(done.order, done.tile);
+        }}
+        onDragCancel={() => setDrag(null)}
       >
-        {chosen.map((tile) =>
-          tile === "KPI" && kpi?.scope.kind === "project" ? (
-            <Fragment key={tile}>{render(tile)}</Fragment>
-          ) : (
-            <div key={tile} data-testid="summary-tile" data-tile={tile}>
-              {render(tile)}
-            </div>
-          ),
+        <div
+          role="group"
+          aria-label={t("summary.title")}
+          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
+        >
+          {shown.map(cell)}
+          {configurable ? (
+            <AddTile
+              label={t("summary.configure")}
+              onClick={() => setConfiguring(true)}
+            />
+          ) : null}
+        </div>
+        {createPortal(
+          <DragOverlay dropAnimation={DROP_ANIMATION}>
+            {drag ? (
+              <div
+                className={cn(
+                  "h-full cursor-grabbing",
+                  drag.tile === "KPI" && kpiGroup && "grid grid-flow-col auto-cols-fr gap-3",
+                )}
+              >
+                {render(drag.tile)}
+              </div>
+            ) : null}
+          </DragOverlay>,
+          document.body,
         )}
-        {configurable ? (
-          <AddTile
-            label={t("summary.configure")}
-            onClick={() => setConfiguring(true)}
-          />
-        ) : null}
-      </div>
+      </DndContext>
+      <p aria-live="polite" className="sr-only">{announcement}</p>
 
       <Dialog open={configurable && configuring} onOpenChange={setConfiguring}>
         <DialogContent className="w-[min(760px,calc(100vw-2rem))] max-w-none">
@@ -248,7 +433,7 @@ export function PerformanceSummary({
                   )}
                 >
                   <div className="pointer-events-none h-full">
-                    {render(tile, true)}
+                    {render(tile, { preview: true })}
                   </div>
                 </button>
               );

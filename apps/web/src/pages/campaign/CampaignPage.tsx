@@ -15,6 +15,7 @@ import {
   useCampaign,
   useCampaignDaily,
   type Ad,
+  type Campaign,
   type DateRange,
   type DeliveryStatus,
 } from "@/entities/campaign/index.js";
@@ -23,7 +24,7 @@ import {
   useActiveProjectId,
   useProjects,
 } from "@/entities/project/index.js";
-import { useSummaryTiles, type SummaryTile } from "@/entities/summary-tiles/index.js";
+import { tilesOf, useSummaryTiles, type SummaryAccount, type SummaryTile } from "@/entities/summary-tiles/index.js";
 import { PeriodControl, usePeriod } from "@/features/period/index.js";
 import { useCan } from "@/features/permissions/index.js";
 import { usePreviewMode } from "@/features/preview-mode/index.js";
@@ -40,6 +41,9 @@ function runningFirst<T extends { status: DeliveryStatus }>(items: readonly T[],
   const running = items.filter((item) => isRunning(item.status));
   return runningOnly ? running : [...running, ...items.filter((item) => !isRunning(item.status))];
 }
+
+const accountOf = (campaign: Campaign | undefined): SummaryAccount | null =>
+  campaign?.sourceAccountId ? { channel: campaign.channel, accountId: campaign.sourceAccountId } : null;
 
 const withKpi = (tiles: readonly SummaryTile[]): SummaryTile[] =>
   tiles.includes("KPI") ? [...tiles] : [...tiles, "KPI"];
@@ -150,7 +154,7 @@ export function CampaignPage() {
       </header>
 
       <PerformanceSummary
-        tiles={projectTiles.data ? withKpi(projectTiles.data.tiles) : []}
+        tiles={projectTiles.data ? withKpi(tilesOf(projectTiles.data, accountOf(campaign.data))) : []}
         range={range}
         performance={campaign.data?.performance}
         currency={currency}

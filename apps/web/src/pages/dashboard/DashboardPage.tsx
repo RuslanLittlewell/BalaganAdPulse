@@ -28,7 +28,7 @@ export function DashboardPage() {
       <PerformanceSummary
         tiles={tiles.data?.tiles ?? []}
         onTilesChange={tiles.data
-          ? (next) => chooseTiles.mutate(next, { onError: () => raise(t("summary.notSaved")) })
+          ? (next) => chooseTiles.mutate({ tiles: next }, { onError: () => raise(t("summary.notSaved")) })
           : undefined}
         range={range}
         currencyPerformances={agency.data}

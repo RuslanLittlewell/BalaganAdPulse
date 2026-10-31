@@ -13,3 +13,7 @@ export function formatKpiValue(format: KpiFormat, value: number | null, currency
     case "number": return formatNumber(value);
   }
 }
+
+export function formatKpiTarget(format: KpiFormat, value: number, currency: Currency): string {
+  return formatKpiValue(format, format === "number" ? Math.round(value * 100) / 100 : value, currency);
+}

@@ -26,6 +26,7 @@
     "dev:landing": "npm run dev -w @adpulse/landing",
     "build:landing": "npm run build -w @adpulse/landing",
     "test:landing": "npm run test -w @adpulse/landing",
+    "test:scripts": "node --test scripts/*.test.mjs",
     "db:up": "docker compose up -d db",
     "predev:all": "npm run db:up && npm run build:policy",
     "dev:all": "concurrently -k -n api,web -c blue,green \"npm run dev -w apps/api\" \"npm run dev:web\"",

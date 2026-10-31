@@ -89,6 +89,7 @@ jobs:
       - run: npm ci
       - run: npm run test:web
       - run: npm run test:landing
+      - run: npm run test:scripts
 
   build:
     name: Type-check and build

@@ -164,6 +164,7 @@ describe("a Google connection's panel", () => {
     renderWithProviders(<MetaIntegration projectId="p1" />, { route: "/projects/p1" });
 
     const panel = await screen.findByRole("region", { name: "Google Ads" });
+    expect(within(panel).getByRole("heading", { name: "Google Ads" }).querySelector("svg")).toHaveAttribute("aria-hidden", "true");
     expect(within(panel).getByText(/Обновление:/)).toBeInTheDocument();
     await userEvent.click(within(panel).getByRole("button", { name: "Обновить" }));
 
@@ -214,6 +215,6 @@ describe("a Google connection's panel", () => {
     renderWithProviders(<MetaIntegration projectId="p1" />, { route: "/projects/p1" });
 
     expect(await screen.findByRole("region", { name: "Google Ads" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Meta · Facebook Ads" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Facebook Ads" })).toBeInTheDocument();
   });
 });

@@ -6,6 +6,7 @@ import { Button, EmptyState, Skeleton } from "@/shared/ui/index.js";
 import { useCan } from "@/features/permissions/index.js";
 import { useProjectDocument, useProjectDocuments } from "@/entities/project-document/index.js";
 import { CreateDocumentDialog } from "./CreateDocumentDialog.js";
+import { DocumentPreviews } from "./DocumentPreviews.js";
 import { DocumentSheet } from "./DocumentSheet.js";
 import { formatMoment } from "./formatMoment.js";
 
@@ -20,15 +21,19 @@ function OpenDocument({
   projectId,
   documentId,
   canWrite,
+  onBack,
   onDeleted,
 }: {
   projectId: string;
   documentId: string;
   canWrite: boolean;
+  onBack: () => void;
   onDeleted: () => void;
 }) {
   const document = useProjectDocument(projectId, documentId);
-  if (document.isError) return <EmptyState title={t("documents.notFound")} />;
+  if (document.isError) {
+    return <EmptyState title={t("documents.notFound")} actionLabel={t("documents.back")} onAction={onBack} />;
+  }
   if (!document.data) return <Skeleton className="h-80 w-full" />;
   return (
     <DocumentSheet
@@ -36,6 +41,7 @@ function OpenDocument({
       projectId={projectId}
       document={document.data}
       canWrite={canWrite}
+      onBack={onBack}
       onDeleted={onDeleted}
     />
   );
@@ -48,7 +54,7 @@ export function ProjectDocuments({ projectId, documentId, onOpen, onClose }: Pro
   const listed = documents.data ?? [];
 
   return (
-    <div className="grid min-h-[28rem] gap-6 md:grid-cols-[16rem_minmax(0,1fr)]">
+    <div className="grid min-h-[28rem] flex-1 grid-rows-[auto_1fr] gap-6 md:grid-cols-[16rem_minmax(0,1fr)] md:grid-rows-1">
       <aside className="flex min-w-0 flex-col gap-3 md:border-r md:border-border md:pr-4">
         {canWrite ? (
           <Button type="button" variant="outline" onClick={() => setCreating(true)}>
@@ -94,11 +100,14 @@ export function ProjectDocuments({ projectId, documentId, onOpen, onClose }: Pro
             projectId={projectId}
             documentId={documentId}
             canWrite={canWrite}
+            onBack={onClose}
             onDeleted={onClose}
           />
+        ) : listed.length > 0 ? (
+          <DocumentPreviews documents={listed} onOpen={onOpen} />
         ) : (
           <p className="py-12 text-center text-sm text-muted-foreground">
-            {listed.length > 0 ? t("documents.choose") : canWrite ? t("documents.invite") : t("documents.empty")}
+            {canWrite ? t("documents.invite") : t("documents.empty")}
           </p>
         )}
       </section>

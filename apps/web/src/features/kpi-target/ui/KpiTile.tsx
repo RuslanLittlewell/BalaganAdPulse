@@ -9,6 +9,7 @@ import {
 } from "@/entities/kpi/index.js";
 import { t } from "@/shared/config/index.js";
 import { type Currency } from "@/shared/lib/index.js";
+import { MoveHandle, type TileMove } from "@/shared/ui/index.js";
 import { KpiCard } from "./KpiCard.js";
 import { isWholeProject, partHolds, type ProjectKpiPart } from "./kpiPart.js";
 import { KpiTargetDialog } from "./KpiTargetDialog.js";
@@ -24,6 +25,7 @@ export interface KpiTileProps {
   part?: ProjectKpiPart;
   projectFigures?: KpiFigures;
   preview?: boolean;
+  move?: TileMove;
 }
 
 function SingleKpiTile({ scope, canEdit, preview = false, ...rest }: KpiTileProps & { scope: SingleKpiScope }) {
@@ -51,6 +53,7 @@ function ProjectKpiTiles({
   preview = false,
   part = { kind: "all", account: null },
   projectFigures,
+  move,
   ...rest
 }: Omit<KpiTileProps, "scope"> & { projectId: string }) {
   const kpis = useProjectKpis(projectId);
@@ -74,7 +77,10 @@ function ProjectKpiTiles({
       />
     );
     return preview ? <Fragment key={key}>{content}</Fragment> : (
-      <div key={key} data-testid="summary-tile" data-tile="KPI">{content}</div>
+      <div key={key} className="group/tile relative" data-testid="summary-tile" data-tile="KPI">
+        {content}
+        {move ? <MoveHandle {...move} /> : null}
+      </div>
     );
   };
 
@@ -88,8 +94,8 @@ function ProjectKpiTiles({
   );
 }
 
-export function KpiTile({ scope, ...props }: KpiTileProps) {
+export function KpiTile({ scope, move, ...props }: KpiTileProps) {
   return scope.kind === "project"
-    ? <ProjectKpiTiles projectId={scope.id} {...props} />
+    ? <ProjectKpiTiles projectId={scope.id} move={move} {...props} />
     : <SingleKpiTile scope={scope} {...props} />;
 }

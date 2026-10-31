@@ -41,9 +41,18 @@ describe("a KPI's progress", () => {
     expect(kpiPercent({ metric: "CPA", target: "10.0000" }, { ...figures, cpa: null }, SEPTEMBER)).toBeNull();
   });
 
-  it("compares a KPI set by hand as it is, whatever the figures", () => {
-    const manual = { metric: "MANUAL", name: "Продажи", value: "30.0000", target: "50.0000" } as const;
-    expect(kpiPercent(manual, { ...figures, conversions: 0 }, SEPTEMBER)).toBeCloseTo(60);
+  it("compares a KPI set by hand with its target recalculated for the period, whatever the figures", () => {
+    const manual = (value: string) => ({ metric: "MANUAL", name: "Продажи", value, target: "50.0000" }) as const;
+
+    expect(kpiPercent(manual("30.0000"), { ...figures, conversions: 0 }, SEPTEMBER)).toBe(60);
+    expect(kpiPercent(manual("30.0000"), figures, { from: "2026-09-01", to: "2026-09-15" })).toBe(120);
+    expect(isKpiGreen(manual("20.0000"), figures, { from: "2026-09-01", to: "2026-09-10" })).toBe(true);
+    expect(isKpiGreen(manual("49.0000"), figures, SEPTEMBER)).toBe(false);
+  });
+
+  it("gives a monthly target exactly for whole months and their parts", () => {
+    expect(targetForRange("CONVERSIONS", 50, SEPTEMBER)).toBe(50);
+    expect(targetForRange("CONVERSIONS", 50, { from: "2026-09-16", to: "2026-10-31" })).toBe(75);
   });
 });
 

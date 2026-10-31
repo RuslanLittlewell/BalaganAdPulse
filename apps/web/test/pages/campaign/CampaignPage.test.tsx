@@ -170,6 +170,48 @@ describe("CampaignPage", () => {
     expect(await within(summary).findByRole("button", { name: "Задать цель" })).toBeInTheDocument();
   });
 
+  describe("of a campaign imported from an account", () => {
+    const fromAccount = () => server.use(
+      mock.get("/api/campaigns/:campaignId/kpi", () => HttpResponse.json(null)),
+      mock.get("/api/campaigns/:campaignId", () => HttpResponse.json({
+        id: "c1", projectId: "p1", name: "Поиск / Москва", channel: "YANDEX", status: "ACTIVE",
+        objective: "Заявки", externalId: null, sourceAccountId: "777", position: 0, performance: performance(1500),
+        resultTypes: ["PROFILE_VISITS"],
+      })),
+    );
+    const tilesShown = async () => {
+      const summary = await screen.findByRole("group", { name: "Показатели за период" });
+      return within(summary).getAllByTestId("summary-tile").map((tile) => tile.getAttribute("data-tile"));
+    };
+
+    it("shows the tiles chosen for its account", async () => {
+      api({ summaryTiles: ["CONVERSIONS"] });
+      fromAccount();
+      server.use(mock.get("/api/projects/p1/summary-tiles", () => HttpResponse.json({
+        tiles: ["CONVERSIONS"],
+        accounts: [
+          { account: { channel: "META", accountId: "777" }, tiles: ["SPEND"] },
+          { account: { channel: "YANDEX", accountId: "777" }, tiles: ["CPC", "CLICKS"] },
+        ],
+      })));
+      renderWithProviders(<App />, route);
+
+      await waitFor(async () => expect(await tilesShown()).toEqual(["CPC", "CLICKS", "KPI"]));
+    });
+
+    it("shows the project's tiles when its account has none of its own", async () => {
+      api({ summaryTiles: ["CONVERSIONS"] });
+      fromAccount();
+      server.use(mock.get("/api/projects/p1/summary-tiles", () => HttpResponse.json({
+        tiles: ["CONVERSIONS"],
+        accounts: [{ account: { channel: "META", accountId: "777" }, tiles: ["SPEND"] }],
+      })));
+      renderWithProviders(<App />, route);
+
+      await waitFor(async () => expect(await tilesShown()).toEqual(["CONVERSIONS", "KPI"]));
+    });
+  });
+
   it("sets the campaign's KPI and fetches the campaign again for its colour", async () => {
     const user = userEvent.setup();
     api({ summaryTiles: ["KPI"] });

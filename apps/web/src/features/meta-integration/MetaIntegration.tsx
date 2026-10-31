@@ -11,8 +11,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  ProviderLogo,
   Switch,
   TextField,
+  type IntegrationProvider,
 } from "@/shared/ui/index.js";
 import { useCan } from "@/features/permissions/index.js";
 import { useModuleEnabled } from "@/features/auth/index.js";
@@ -38,8 +40,8 @@ interface LeadImport {
   lastError: string | null;
 }
 
-const PROVIDERS = ["META", "GOOGLE", "YANDEX", "TIKTOK", "GPT"] as const;
-const AVAILABLE: readonly (typeof PROVIDERS)[number][] = ["META", "GOOGLE"];
+const PROVIDERS: readonly IntegrationProvider[] = ["META", "GOOGLE", "YANDEX", "TIKTOK", "GPT"];
+const AVAILABLE: readonly IntegrationProvider[] = ["META", "GOOGLE"];
 
 const integrationsPath = (projectId: string) => `/projects/${projectId}/integrations`;
 const integrationsKey = (projectId: string) => ["integrations", projectId];
@@ -197,7 +199,7 @@ function ProviderDialog({
 }: {
   open: boolean;
   onClose: () => void;
-  onChoose: (provider: (typeof PROVIDERS)[number]) => void;
+  onChoose: (provider: IntegrationProvider) => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={(value) => { if (!value) onClose(); }}>
@@ -205,7 +207,7 @@ function ProviderDialog({
         <DialogHeader>
           <DialogTitle>{t("integrations.choose")}</DialogTitle>
         </DialogHeader>
-        <ul className="grid gap-2">
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {PROVIDERS.map((provider) => {
             const available = AVAILABLE.includes(provider);
             return (
@@ -213,12 +215,15 @@ function ProviderDialog({
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full justify-between"
+                  className="aspect-square h-auto w-full flex-col gap-3 whitespace-normal p-3"
                   disabled={!available}
                   onClick={() => onChoose(provider)}
                 >
-                  <span>{t(`integrations.provider.${provider}`)}</span>
-                  {!available && <span className="text-xs text-muted-foreground">{t("integrations.soon")}</span>}
+                  <ProviderLogo provider={provider} className="size-10" />
+                  <span className="flex flex-col items-center gap-0.5">
+                    <span>{t(`integrations.provider.${provider}`)}</span>
+                    {!available && <span className="text-xs text-muted-foreground">{t("integrations.soon")}</span>}
+                  </span>
                 </Button>
               </li>
             );
@@ -259,7 +264,10 @@ function MetaConnectionCard({ projectId, connection }: { projectId: string; conn
       aria-label={t("meta.title")}
     >
       <div className="grid gap-1">
-        <h2 className="text-sm font-semibold">{t("meta.title")}</h2>
+        <h2 className="flex items-center gap-2 text-sm font-semibold">
+          <ProviderLogo provider="META" className="size-4 shrink-0" />
+          {t("meta.title")}
+        </h2>
         {connection.lastSuccessAt && (
           <p className="text-xs text-muted-foreground">
             {t("meta.lastSuccess")} {formatDateTime(connection.lastSuccessAt)}

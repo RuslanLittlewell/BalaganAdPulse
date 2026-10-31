@@ -1,15 +1,22 @@
+import type { Channel, ResultType } from "#modules/campaigns/index.js";
+import type { KpiMetric, KpiStanding } from "#modules/kpi/index.js";
 import type { TaskPriority } from "#modules/tasks/index.js";
+import type { SummaryPeriod } from "#modules/telegram-bot/domain/summary.js";
 
 export const BOT_COPY = {
   linked: [
     "Готово, Telegram подключён к Balagan BI.",
     "",
     "Отправьте голосовое сообщение или текст, например: «Подготовить отчёт по Евроопту к пятнице, добавь Бориса, срочно». Я покажу черновик задачи, а вы подтвердите его.",
+    "",
+    "Кнопка «📊 Сводка» покажет цифры дашборда или проекта.",
   ].join("\n"),
   help: [
     "Отправьте голосовое сообщение до двух минут или текст — я сделаю из него задачу.",
     "",
     "Назовите, что сделать, и, если нужно, проект, участников, срок и приоритет. Перед созданием я покажу черновик.",
+    "",
+    "Кнопка «📊 Сводка» или команда /summary покажет цифры дашборда или проекта.",
   ].join("\n"),
   notLinked: "Этот чат не подключён к Balagan BI. Откройте профиль в Balagan BI и нажмите «Подключить» в разделе Telegram-бота.",
   linkExpired: "Ссылка устарела или уже использована. Получите новую в профиле Balagan BI.",
@@ -35,6 +42,64 @@ export const BOT_COPY = {
   gone: "Этого черновика уже нет.",
   notCreated: "Не удалось создать задачу. Отправьте сообщение ещё раз.",
   priorities: { LOW: "низкий", MEDIUM: "средний", HIGH: "высокий", URGENT: "срочный" } satisfies Record<TaskPriority, string>,
+  commands: [
+    { command: "summary", description: "Сводка" },
+    { command: "help", description: "Как пользоваться ботом" },
+  ],
+  summary: {
+    button: "📊 Сводка",
+    word: "Сводка",
+    question: "Сводка по чему?",
+    dashboard: "Дашборд",
+    project: "Проект",
+    back: "← Назад",
+    toProjects: "← К проектам",
+    previous: "‹ Предыдущие",
+    next: "Следующие ›",
+    chooseProject: "Выберите проект",
+    page: "страница",
+    of: "из",
+    noProjects: "Вам пока не доступен ни один проект.",
+    projectGone: "Этот проект вам недоступен.",
+    forbidden: "Сводки через бота вам недоступны. Бот открыт администраторам и менеджерам, когда в организации включены задачи.",
+    dashboardTitle: "📊 Дашборд",
+    noFigures: "Нет данных за этот период.",
+    kpiMonth: "KPI за месяц",
+    kpi: "KPI",
+    noKpi: "KPI не заданы",
+    goal: "цель",
+    more: "и ещё",
+    openDashboard: "Открыть дашборд в Balagan BI",
+    openProject: "Открыть проект в Balagan BI",
+    chosen: "✓",
+    periods: { y: "Вчера", "7d": "7 дней", m: "Этот месяц", pm: "Прошлый месяц" } satisfies Record<SummaryPeriod, string>,
+    standings: {
+      met: "Выполняют", behind: "Небольшое отставание", danger: "Сильное отставание", none: "Без оценки",
+    } satisfies Record<KpiStanding, string>,
+    marks: { met: "✅", behind: "🟡", danger: "🔴", none: "⚪" } satisfies Record<KpiStanding, string>,
+    figures: {
+      spend: "Расход", impressions: "Показы", clicks: "Клики", ctr: "CTR", cpc: "CPC",
+      conversions: "Лиды", results: "Результаты", costPerResult: "Цена результата", revenue: "Выручка", roas: "ROAS",
+      cost: "Цена",
+    },
+    metrics: {
+      SPEND: "Расход", IMPRESSIONS: "Показы", REACH: "Охват", CLICKS: "Клики", CONVERSIONS: "Лиды",
+      RESULTS: "Результаты", REVENUE: "Выручка", CTR: "CTR", CPC: "CPC", CPM: "CPM", CPA: "CPL",
+      COST_PER_RESULT: "Цена результата", ROAS: "ROAS", FREQUENCY: "Частота",
+    } satisfies Record<KpiMetric, string>,
+    resultTypes: {
+      MESSAGES: "Сообщения", PROFILE_VISITS: "Переходы в профиль", LEADS: "Лиды", QUALIFIED_LEADS: "Квалифицированные лиды",
+      CALLS: "Звонки", CONTACTS: "Контакты", APPOINTMENTS: "Записи", DIRECTIONS: "Маршруты", PURCHASES: "Покупки",
+      CHECKOUTS: "Оформления заказа", SIGNUPS: "Регистрации", LINK_CLICKS: "Клики по ссылке",
+      LANDING_PAGE_VIEWS: "Просмотры страницы", CONVERSIONS: "Конверсии", ENGAGEMENT: "Вовлечённость", REACH: "Охват",
+      VIDEO_VIEWS: "Просмотры видео", APP_INSTALLS: "Установки приложения", OTHER: "Другое", UNKNOWN: "Не определён",
+    } satisfies Record<ResultType, string>,
+    resultsOf: "Результаты -",
+    channels: {
+      META: "Meta", GOOGLE: "Google Ads", YANDEX: "Яндекс Директ", VK: "VK Реклама", TIKTOK: "TikTok",
+      LINKEDIN: "LinkedIn", TELEGRAM: "Telegram Ads",
+    } satisfies Record<Channel, string>,
+  },
   notice: {
     kpiMet: ["Проект", "выполнил KPI"],
     projectCreated: "Новый проект",

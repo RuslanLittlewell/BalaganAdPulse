@@ -120,4 +120,23 @@ describe("polling Telegram for updates", () => {
 
     expect(getUpdates).toHaveBeenCalledTimes(1);
   });
+
+  it("prepares the bot once when it starts, and polls even when preparing fails", async () => {
+    let calls = 0;
+    const getUpdates = vi.fn(async (_offset: number | null, _timeout: number, signal: AbortSignal) => {
+      calls += 1;
+      return hangingUntilAborted(signal);
+    });
+    const prepare = vi.fn(async () => { throw new Error("no commands"); });
+    const log = vi.fn();
+    const poller = createUpdatePoller({ api: { getUpdates }, handle: async () => undefined, prepare, log });
+
+    poller.start();
+    poller.start();
+    await vi.waitFor(() => expect(calls).toBe(1));
+    await vi.waitFor(() => expect(log).toHaveBeenCalledWith("Telegram setup failed: no commands"));
+    await poller.stop();
+
+    expect(prepare).toHaveBeenCalledTimes(1);
+  });
 });

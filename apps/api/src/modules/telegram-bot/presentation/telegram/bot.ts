@@ -1,11 +1,23 @@
 import type { BotApi, BotCallback, BotMessage, BotReply, BotUpdate } from "#modules/telegram-bot/application/bot-api.js";
 import type { DraftOutcome, TaskDraftUseCases } from "#modules/telegram-bot/application/draft-use-cases.js";
 import type { TelegramLinkUseCases } from "#modules/telegram-bot/application/link-use-cases.js";
+import type { SummaryOutcome, SummaryUseCases } from "#modules/telegram-bot/application/summary-use-cases.js";
 import type { TaskDraft } from "#modules/telegram-bot/domain/draft.js";
 import { BOT_COPY } from "./bot-copy.js";
+import { escapeHtml } from "./html.js";
+import {
+  dashboardReply,
+  projectGoneReply,
+  projectListReply,
+  projectReply,
+  summaryQuestion,
+  summaryRequest,
+  type SummaryRequest,
+} from "./summary-message.js";
 
 const START = /^\/start(?:@\w+)?(?:\s+(\S+))?\s*$/;
 const COMMAND = /^\/\w+/;
+const SUMMARY_COMMAND = /^\/summary(?:@\w+)?\s*$/;
 const CREATE = "create:";
 const CANCEL = "cancel:";
 
@@ -13,12 +25,16 @@ export interface TelegramBotDependencies {
   readonly api: BotApi;
   readonly links: Pick<TelegramLinkUseCases, "redeem" | "isLinked">;
   readonly drafts: TaskDraftUseCases;
+  readonly summaries: SummaryUseCases;
   readonly appUrl: string | null;
 }
 
-export function escapeHtml(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
+const MENU = [BOT_COPY.summary.button];
+
+const asksForSummary = (text: string) =>
+  SUMMARY_COMMAND.test(text) || text === BOT_COPY.summary.button || text === BOT_COPY.summary.word;
+
+export { escapeHtml };
 
 const DUE_DAY = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", weekday: "short", timeZone: "UTC" });
 
@@ -62,16 +78,45 @@ function outcomeReply(outcome: DraftOutcome): BotReply {
     case "busy": return { html: BOT_COPY.busy };
     case "drafted": return {
       html: draftCard(outcome.draft, outcome.heard),
-      buttons: [
+      buttons: [[
         { text: BOT_COPY.create, data: `${CREATE}${outcome.id}` },
         { text: BOT_COPY.cancel, data: `${CANCEL}${outcome.id}` },
-      ],
+      ]],
     };
+  }
+}
+
+function summaryAnswer<T>(outcome: SummaryOutcome<T>, render: (value: T) => BotReply, page = 0): BotReply {
+  switch (outcome.kind) {
+    case "unlinked": return { html: BOT_COPY.notLinked };
+    case "forbidden": return { html: BOT_COPY.summary.forbidden };
+    case "gone": return projectGoneReply(page);
+    case "ready": return render(outcome.value);
   }
 }
 
 export function createTelegramBot(d: TelegramBotDependencies) {
   const reply = (chatId: number, html: string) => d.api.sendMessage(chatId, { html });
+
+  const guide = async (chatId: number) =>
+    d.api.sendMessage(chatId, (await d.links.isLinked(chatId)) ? { html: BOT_COPY.help, menu: MENU } : { html: BOT_COPY.notLinked });
+
+  const summary = async (chatId: number, request: SummaryRequest): Promise<BotReply> => {
+    switch (request.kind) {
+      case "ask":
+        return summaryAnswer(await d.summaries.menu(chatId), summaryQuestion);
+      case "dashboard":
+        return summaryAnswer(await d.summaries.dashboard(chatId, request.period), (value) => dashboardReply(value, d.appUrl));
+      case "list":
+        return summaryAnswer(await d.summaries.projects(chatId, request.page), projectListReply);
+      case "project":
+        return summaryAnswer(
+          await d.summaries.project(chatId, request.projectId, request.period, request.page),
+          (value) => projectReply(value, d.appUrl),
+          request.page,
+        );
+    }
+  };
 
   const taskLink = (id: string) => d.appUrl ? `${d.appUrl}/tasks?task=${encodeURIComponent(id)}` : null;
 
@@ -83,10 +128,14 @@ export function createTelegramBot(d: TelegramBotDependencies) {
       const token = start[1];
       if (token) {
         const linked = await d.links.redeem(token, { id: chatId, username: message.username });
-        await reply(chatId, linked ? BOT_COPY.linked : BOT_COPY.linkExpired);
+        await d.api.sendMessage(chatId, linked ? { html: BOT_COPY.linked, menu: MENU } : { html: BOT_COPY.linkExpired });
         return;
       }
-      await reply(chatId, (await d.links.isLinked(chatId)) ? BOT_COPY.help : BOT_COPY.notLinked);
+      await guide(chatId);
+      return;
+    }
+    if (asksForSummary(text)) {
+      await d.api.sendMessage(chatId, await summary(chatId, { kind: "ask" }));
       return;
     }
     if (message.voice) {
@@ -99,7 +148,7 @@ export function createTelegramBot(d: TelegramBotDependencies) {
       await d.api.sendMessage(chatId, outcomeReply(await d.drafts.fromText(chatId, text)));
       return;
     }
-    await reply(chatId, (await d.links.isLinked(chatId)) ? BOT_COPY.help : BOT_COPY.notLinked);
+    await guide(chatId);
   };
 
   const onCallback = async (callback: BotCallback) => {
@@ -111,6 +160,12 @@ export function createTelegramBot(d: TelegramBotDependencies) {
     }
     const chatId = message.chat.id;
     const edit = (html: string) => d.api.editMessage(chatId, message.id, { html });
+    const request = summaryRequest(data);
+    if (request) {
+      await d.api.editMessage(chatId, message.id, await summary(chatId, request));
+      await d.api.answerCallback(callback.id);
+      return;
+    }
     if (data.startsWith(CREATE)) {
       const outcome = await d.drafts.create(chatId, data.slice(CREATE.length));
       if (outcome.kind === "gone") {

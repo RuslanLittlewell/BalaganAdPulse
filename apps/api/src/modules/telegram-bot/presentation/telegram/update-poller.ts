@@ -7,6 +7,7 @@ export const RETRY_MAX_MS = 60_000;
 export interface UpdatePollerDependencies {
   readonly api: Pick<BotApi, "getUpdates">;
   readonly handle: (update: BotUpdate) => Promise<void>;
+  readonly prepare?: () => Promise<void>;
   readonly pause?: (ms: number, signal: AbortSignal) => Promise<void>;
   readonly log?: (message: string) => void;
 }
@@ -58,6 +59,7 @@ export function createUpdatePoller(d: UpdatePollerDependencies) {
     start() {
       if (loop) return;
       controller = new AbortController();
+      d.prepare?.().catch((error: unknown) => log(`Telegram setup failed: ${reason(error)}`));
       loop = run(controller.signal);
     },
     async stop() {

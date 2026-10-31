@@ -57,6 +57,7 @@ describe("the Telegram bot in the profile", () => {
 
     await waitFor(() => expect(screen.getByRole("region", { name: "Telegram-бот" })).toHaveAttribute("data-linked", "true"), { timeout: 5000 });
     expect(await section()).toHaveTextContent("Подключён @anna_t");
+    expect(await section()).toHaveTextContent("Кнопка «📊 Сводка» в боте покажет цифры дашборда или проекта");
     expect(screen.queryByRole("link", { name: "Открыть Telegram" })).not.toBeInTheDocument();
   });
 

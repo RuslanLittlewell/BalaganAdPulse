@@ -1,8 +1,10 @@
 import type { ActorContext, Clock, IdGenerator } from "#shared/application/index.js";
 import type { CreateTaskInput } from "#modules/tasks/index.js";
+import type { CurrencyPerformance, ProjectFigures } from "#modules/campaigns/index.js";
 import type { BotMembership } from "../domain/link.js";
 import type { KeyedCatalog, ReadTask, TaskCatalog, TaskDraft } from "../domain/draft.js";
 import type { CalendarDay, LocalMoment } from "../domain/moment.js";
+import type { DayRange } from "../domain/summary.js";
 
 export class ServiceBusyError extends Error {
   constructor(service: string) {
@@ -101,6 +103,28 @@ export interface TaskDraftDependencies {
   readonly drafts: TaskDrafts;
   readonly tasks: TaskCreation;
   readonly ids: IdGenerator;
+  readonly clock: Clock;
+  readonly timeZone: string;
+}
+
+export interface SummaryProject {
+  readonly id: string;
+  readonly name: string;
+  readonly clientName: string | null;
+  readonly currency: string | null;
+  readonly kpiTracked: boolean;
+}
+
+export interface SummaryReads {
+  projects(actor: ActorContext): Promise<SummaryProject[]>;
+  projectFigures(actor: ActorContext, range: DayRange): Promise<ProjectFigures[]>;
+  agencyFigures(actor: ActorContext, range: DayRange): Promise<CurrencyPerformance[]>;
+}
+
+export interface SummaryDependencies {
+  readonly links: Pick<TelegramLinks, "memberOf">;
+  readonly members: TelegramMembers;
+  readonly reads: SummaryReads;
   readonly clock: Clock;
   readonly timeZone: string;
 }

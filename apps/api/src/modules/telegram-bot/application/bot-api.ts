@@ -30,7 +30,13 @@ export interface BotButton {
 
 export interface BotReply {
   readonly html: string;
-  readonly buttons?: readonly BotButton[];
+  readonly buttons?: readonly (readonly BotButton[])[];
+  readonly menu?: readonly string[];
+}
+
+export interface BotCommand {
+  readonly command: string;
+  readonly description: string;
 }
 
 export interface BotApi {
@@ -39,4 +45,5 @@ export interface BotApi {
   editMessage(chatId: number, messageId: number, reply: BotReply): Promise<void>;
   answerCallback(callbackId: string, text?: string): Promise<void>;
   showTyping(chatId: number): Promise<void>;
+  setCommands(commands: readonly BotCommand[]): Promise<void>;
 }

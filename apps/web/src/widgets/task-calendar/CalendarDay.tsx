@@ -33,14 +33,14 @@ export function CalendarDay({
       data-testid={`calendar-day-${day}`}
       data-today={today ? "true" : undefined}
       className={cn(
-        "flex h-full min-h-0 min-w-56 flex-1 flex-col rounded-xl border border-border",
+        "flex h-full min-h-0 min-w-45 flex-1 flex-col rounded-xl border border-border",
         "bg-muted/30 shadow-sm transition-colors",
         today && "border-primary/50 bg-primary/5",
         isOver && "border-primary/40 bg-primary/10 shadow-md",
       )}
     >
-      <header className="flex shrink-0 items-baseline gap-2 border-b border-border/70 px-3 py-2.5">
-        <h2 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight">
+      <header className="flex shrink-0 items-baseline gap-2 border-b border-border/70 px-2 py-2">
+        <h2 className="min-w-0 flex-1 truncate text-sm font-semibold">
           {weekdayName(day)}
         </h2>
         <span className={cn("shrink-0 text-xs", today ? "font-semibold text-primary" : "text-muted-foreground")}>
@@ -64,7 +64,7 @@ export function CalendarDay({
           ))}
 
           {tasks.length === 0 ? (
-            <p className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border/70 p-4 text-center text-xs text-muted-foreground">
+            <p className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border/70 p-3 text-center text-xs text-muted-foreground">
               {t("tasks.empty")}
             </p>
           ) : null}

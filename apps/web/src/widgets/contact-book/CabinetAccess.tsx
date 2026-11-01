@@ -12,8 +12,8 @@ const HIDDEN_PASSWORD = "••••••••••••";
 
 function Credential({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid gap-1 py-3 sm:grid-cols-[200px_minmax(0,1fr)] sm:items-center sm:gap-4">
-      <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</dt>
+    <div className="grid gap-1 py-2 sm:grid-cols-[200px_minmax(0,1fr)] sm:items-center sm:gap-3">
+      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
       <dd className="flex min-w-0 items-center gap-1 text-sm">{children}</dd>
     </div>
   );
@@ -41,21 +41,21 @@ export function CabinetAccess({ clientId }: { clientId: string }) {
   }
 
   return (
-    <section aria-labelledby={titleId} className="mt-2 border-t border-border pt-4">
+    <section aria-labelledby={titleId} className="mt-2 border-t border-border pt-3">
       <h4 id={titleId} className="text-sm font-semibold text-foreground">{t("contacts.cabinet.title")}</h4>
 
       {account.isPending && (
-        <div className="grid place-items-center py-6">
+        <div className="grid place-items-center py-5">
           <Loader />
         </div>
       )}
 
       {account.isError && (
-        <p className="py-3 text-sm text-muted-foreground">{t("contacts.cabinet.failed")}</p>
+        <p className="py-2 text-sm text-muted-foreground">{t("contacts.cabinet.failed")}</p>
       )}
 
       {credentials === null && (
-        <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 py-2">
           <p className="text-sm text-muted-foreground">{t("contacts.cabinet.none")}</p>
           <Button size="sm" disabled={create.isPending} onClick={createAccess}>
             {t("contacts.cabinet.create")}

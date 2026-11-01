@@ -43,7 +43,7 @@ export function CreateDocumentDialog({ projectId, onCreated, onClose }: CreateDo
         <DialogHeader>
           <DialogTitle>{t("documents.new.title")}</DialogTitle>
         </DialogHeader>
-        <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
+        <form className="flex flex-col gap-3" onSubmit={submit} noValidate>
           <TextField
             label={t("documents.name")}
             value={title}

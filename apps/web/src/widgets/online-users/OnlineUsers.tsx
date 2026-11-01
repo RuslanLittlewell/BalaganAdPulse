@@ -38,7 +38,7 @@ export function OnlineUsers({ createSocket }: OnlineUsersProps) {
         {rest.length > 0 ? (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="-ml-2 grid size-8 shrink-0 place-items-center rounded-md border border-background bg-muted text-xs font-medium text-muted-foreground">
+              <span className="-ml-2 grid size-6 shrink-0 place-items-center rounded-md border border-background bg-muted text-xs font-medium text-muted-foreground">
                 +{rest.length}
               </span>
             </TooltipTrigger>

@@ -9,8 +9,8 @@ export function ModulePage({ title }: ModulePageProps) {
   return (
     <section className="grid h-full place-items-center">
       <div className="text-center">
-        <h1 className="text-2xl font-bold">{title}</h1>
-        <div className="mt-4">
+        <h1 className="text-2xl font-semibold">{title}</h1>
+        <div className="mt-3">
           <EmptyState
             title={t("module.soon.title")}
             description={t("module.soon.description")}

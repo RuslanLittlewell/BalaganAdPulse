@@ -50,9 +50,9 @@ export function ArchivePage() {
   );
 
   return (
-    <section className="flex h-full flex-col gap-4">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold">{t("nav.archive")}</h1>
+    <section className="flex h-full flex-col gap-3">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl font-semibold">{t("nav.archive")}</h1>
         <TaskFilters
           tasks={shelved}
           chosenPeople={chosenPeople}
@@ -81,10 +81,10 @@ export function ArchivePage() {
                 <button
                   type="button"
                   onClick={() => open(task)}
-                  className="flex w-full min-w-0 items-center gap-4 rounded-lg border border-border px-4 py-3 text-left transition-colors hover:bg-accent/60"
+                  className="flex w-full min-w-0 items-center gap-3 rounded-lg border border-border px-3 py-2 text-left transition-colors hover:bg-accent/60"
                 >
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">{task.title}</span>
-                  <span className="flex w-48 min-w-0 items-center gap-2 text-sm text-muted-foreground">
+                  <span className="flex w-38 min-w-0 items-center gap-2 text-sm text-muted-foreground">
                     {project ? (
                       <>
                         <ProjectAvatar project={project} size="sm" />
@@ -94,7 +94,7 @@ export function ArchivePage() {
                       <span>{t("tasks.noProject")}</span>
                     )}
                   </span>
-                  <span className="flex w-40 min-w-0 items-center gap-1">
+                  <span className="flex w-32 min-w-0 items-center gap-1">
                     {people.length === 0 ? (
                       <span className="text-sm text-muted-foreground">{t("tasks.participants.nobody")}</span>
                     ) : (
@@ -103,7 +103,7 @@ export function ArchivePage() {
                       ))
                     )}
                   </span>
-                  <span className="w-44 shrink-0 text-right text-xs text-muted-foreground">
+                  <span className="w-35 shrink-0 text-right text-xs text-muted-foreground">
                     {t("archive.since")} {task.archivedAt ? formatCalendarDate(task.archivedAt) : ""}
                   </span>
                 </button>

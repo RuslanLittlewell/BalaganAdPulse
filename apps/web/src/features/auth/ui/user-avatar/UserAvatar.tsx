@@ -9,7 +9,7 @@ export interface UserAvatarProps {
 }
 
 const FRAME =
-  "grid size-10 shrink-0 place-items-center overflow-hidden rounded-full object-cover text-muted-foreground";
+  "grid size-8 shrink-0 place-items-center overflow-hidden rounded-full object-cover text-muted-foreground";
 
 export function UserAvatar({ userId, name, version }: UserAvatarProps) {
   const profile = useQuery({

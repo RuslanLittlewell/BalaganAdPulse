@@ -41,7 +41,7 @@ export function CrmCalendar({
     return <EmptyState title={t("crm.loadFailed")} />;
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-2">
       <header className="flex shrink-0 items-center gap-2">
         <Button
           type="button"
@@ -80,13 +80,13 @@ export function CrmCalendar({
             data-testid="crm-calendar-loading"
             className="pointer-events-none fixed inset-0 z-50 grid place-items-center bg-background/40"
           >
-            <span className="rounded-lg border border-border bg-background px-4 py-3 shadow-lg">
+            <span className="rounded-lg border border-border bg-background px-3 py-2 shadow-lg">
               <Loader />
             </span>
           </div>
         ) : null}
 
-        <div className="grid h-full min-h-0 grid-cols-7 gap-3 overflow-x-auto">
+        <div className="grid h-full min-h-0 grid-cols-7 gap-2 overflow-x-auto">
           {days.map((day) => {
             const dayLeads = leadsOfDay(board, day);
             return (
@@ -97,7 +97,7 @@ export function CrmCalendar({
                 data-testid={`crm-calendar-day-${day}`}
                 data-today={day === now ? "true" : undefined}
                 className={cn(
-                  "flex min-h-0 min-w-40 flex-col rounded-xl border border-border bg-muted/30 shadow-sm",
+                  "flex min-h-0 min-w-32 flex-col rounded-xl border border-border bg-muted/30 shadow-sm",
                   day === now && "border-primary/40 bg-primary/5",
                 )}
               >

@@ -56,15 +56,15 @@ function ReportHeader({
 
 function ReportFiles({ reports, names }: { reports: ReportSummary[]; names: Map<string, Project> }) {
   return (
-    <ul aria-label={t("report.list")} className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-4">
+    <ul aria-label={t("report.list")} className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-3">
       {reports.map((report) => (
         <li key={report.id}>
           <Link
             to={reportPath(report.id)}
-            className="flex flex-col items-center gap-2 rounded-xl p-3 text-center transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex flex-col items-center gap-2 rounded-xl p-2 text-center transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <span className="grid aspect-[4/5] w-24 place-items-center rounded-xl bg-primary shadow-sm dark:bg-white/10">
-              <FileTextIcon aria-hidden strokeWidth={1.5} className="size-12 text-white" />
+            <span className="grid aspect-[4/5] w-19 place-items-center rounded-xl bg-primary shadow-sm dark:bg-white/10">
+              <FileTextIcon aria-hidden strokeWidth={1.5} className="size-10 text-white" />
             </span>
             <span className="font-medium text-foreground">{monthTitle(report.month)}</span>
             <span className="text-xs text-muted-foreground">{names.get(report.projectId)?.name ?? ""}</span>
@@ -87,8 +87,8 @@ function ReportsList({ projects }: { projects: Project[] }) {
   const sorting = useTableSort(reports.data ?? [], sortValues(names));
 
   return (
-    <section className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <section className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold text-foreground">{t("nav.reports")}</h1>
         <div className="flex flex-wrap items-center gap-2">
           <SearchableSelect
@@ -99,7 +99,7 @@ function ReportsList({ projects }: { projects: Project[] }) {
             searchLabel={t("select.search")}
             emptyLabel={t("select.search.empty")}
             ariaLabel={t("report.filter")}
-            className="w-56"
+            className="w-45"
           />
           {creates ? (
             <Button onClick={() => setCreating(true)}><PlusIcon /> {t("report.new")}</Button>
@@ -120,7 +120,7 @@ function ReportsList({ projects }: { projects: Project[] }) {
               <ReportHeader column="spend" label={t("report.spend")} sorting={sorting} align="end" />
               <ReportHeader column="leads" label={t("report.leads")} sorting={sorting} align="end" />
               <ReportHeader column="costPerLead" label={t("report.costPerLead")} sorting={sorting} align="end" />
-              {staff ? <ReportHeader column="status" label={t("report.status")} sorting={sorting} className="pl-4" /> : null}
+              {staff ? <ReportHeader column="status" label={t("report.status")} sorting={sorting} className="pl-3" /> : null}
             </tr>
           </thead>
           <tbody>
@@ -139,7 +139,7 @@ function ReportsList({ projects }: { projects: Project[] }) {
                   <td className="py-2 text-right tabular-nums">{report.leads}</td>
                   <td className="py-2 text-right tabular-nums">{formatMoney(report.costPerLead, currency)}</td>
                   {staff ? (
-                    <td className="py-2 pl-4">
+                    <td className="py-2 pl-3">
                       <span
                         data-status={report.status}
                         className={cn(
@@ -179,12 +179,12 @@ function ReportView({ projects }: { projects: Project[] }) {
   if (!reportId) return null;
 
   return (
-    <div className="flex min-h-0 flex-col gap-4">
+    <div className="flex min-h-0 flex-col gap-3">
       <Link
         to={ROUTES.reports}
         className="inline-flex items-center gap-1 self-start text-sm text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeftIcon aria-hidden className="size-4" /> {t("report.back")}
+        <ArrowLeftIcon aria-hidden className="size-3" /> {t("report.back")}
       </Link>
       <MonthlyReport
         reportId={reportId}

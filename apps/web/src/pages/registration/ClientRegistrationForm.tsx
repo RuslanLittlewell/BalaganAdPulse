@@ -92,11 +92,11 @@ export function ClientRegistrationForm({
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       {failure != null && (
         <p
           role="alert"
-          className="rounded-md bg-destructive/10 p-3 text-sm text-destructive"
+          className="rounded-md bg-destructive/10 p-2 text-sm text-destructive"
         >
           {failure}
         </p>
@@ -112,10 +112,10 @@ export function ClientRegistrationForm({
         <Step>
           <div
             data-testid="registration-account-columns"
-            className="grid gap-6 sm:grid-cols-2"
+            className="grid gap-5 sm:grid-cols-2"
           >
             <div
-              className="flex flex-col gap-4"
+              className="flex flex-col gap-3"
               data-testid="registration-account-column"
             >
               <TextField
@@ -172,7 +172,7 @@ export function ClientRegistrationForm({
 
             <div
               data-testid="registration-contact-column"
-              className="flex flex-col gap-4 sm:border-l sm:border-border sm:pl-6"
+              className="flex flex-col gap-3 sm:border-l sm:border-border sm:pl-5"
             >
               <TextField
                 label={t("contacts.organization")}
@@ -200,7 +200,7 @@ export function ClientRegistrationForm({
         </Step>
 
         <Step>
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
             <TextField
               label={t("registration.project.name")}
               error={project.formState.errors.projectName?.message}

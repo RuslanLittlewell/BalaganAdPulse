@@ -23,15 +23,15 @@ export function TaskList({ title, tasks, onOpen, onCreate, empty }: TaskListProp
   const toggleDone = useDoneToggle(setFailure);
 
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex flex-col gap-2">
       <h2 className="text-sm font-semibold text-foreground">{title}</h2>
       {failure ? <p role="alert" className="text-sm text-destructive">{failure}</p> : null}
       {tasks.length === 0 && onCreate == null ? (
-        <p className="rounded-lg border border-border p-6 text-center text-sm text-muted-foreground">
+        <p className="rounded-lg border border-border p-5 text-center text-sm text-muted-foreground">
           {empty ?? t("tasks.empty")}
         </p>
       ) : (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
           {tasks.map((task) => (
             <li key={task.id} className="min-w-0">
               <TaskCardView

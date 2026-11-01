@@ -52,7 +52,7 @@ function DocumentToolbar({ editor }: { editor: Editor }) {
           <Redo2 />
         </EditorToolbarButton>
 
-        <Separator orientation="vertical" className="mx-1 h-5" />
+        <Separator orientation="vertical" className="mx-1 h-4" />
 
         {HEADINGS.map(({ level, label, icon: Icon }) => (
           <EditorToolbarButton
@@ -72,7 +72,7 @@ function DocumentToolbar({ editor }: { editor: Editor }) {
           <Pilcrow />
         </EditorToolbarButton>
 
-        <Separator orientation="vertical" className="mx-1 h-5" />
+        <Separator orientation="vertical" className="mx-1 h-4" />
 
         <EditorToolbarButton
           label={t("tasks.editor.bold")}
@@ -96,7 +96,7 @@ function DocumentToolbar({ editor }: { editor: Editor }) {
           <Strikethrough />
         </EditorToolbarButton>
 
-        <Separator orientation="vertical" className="mx-1 h-5" />
+        <Separator orientation="vertical" className="mx-1 h-4" />
 
         <EditorToolbarButton
           label={t("tasks.editor.bulletList")}
@@ -149,7 +149,7 @@ export function DocumentEditor({ value, editable, onChange }: DocumentEditorProp
     editorProps: {
       attributes: {
         "aria-label": t("documents.text"),
-        class: cn(RICH_TEXT_CLASS, "min-h-80"),
+        class: cn(RICH_TEXT_CLASS, "min-h-64"),
       },
     },
   });

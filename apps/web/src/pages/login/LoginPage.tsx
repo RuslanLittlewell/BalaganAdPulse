@@ -34,7 +34,7 @@ export function LoginPage() {
 
   return (
     <CenteredPanel title={t("auth.login.title")} above={<BalaganSignature />}>
-      <form className={"flex flex-col gap-4"} onSubmit={(event) => void submit(event)} noValidate>
+      <form className={"flex flex-col gap-3"} onSubmit={(event) => void submit(event)} noValidate>
         <TextField
           label={t("auth.login.label")}
           autoComplete="username"
@@ -43,7 +43,7 @@ export function LoginPage() {
           aria-invalid={errors.login ? true : undefined}
           {...register("login", { validate: (value) => value.trim() !== "" || t("auth.login.required") })}
         />
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1">
           <TextField
             label={t("auth.password.label")}
             type="password"
@@ -58,10 +58,10 @@ export function LoginPage() {
             {t("auth.forgot")}
           </Link>
         </div>
-        <Button type="submit" className="h-11" disabled={isSubmitting} aria-busy={isSubmitting} aria-label={t("auth.login.submit")}>
+        <Button type="submit" className="h-9" disabled={isSubmitting} aria-busy={isSubmitting} aria-label={t("auth.login.submit")}>
           {isSubmitting ? (
             <span role="status">
-              <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+              <LoaderCircle className="size-3 animate-spin" aria-hidden="true" />
               <span className="sr-only">{t("state.loading")}</span>
             </span>
           ) : t("auth.login.submit")}

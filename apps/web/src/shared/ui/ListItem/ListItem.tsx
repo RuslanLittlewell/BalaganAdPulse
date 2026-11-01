@@ -30,11 +30,11 @@ export function ListItem({
       className="group flex min-w-0 mb-1 items-center rounded-md border pr-2 transition-colors hover:bg-accent/60 data-[selected=true]:bg-accent relative"
       data-selected={selected}
     >
-      <span className="absolute w-[4px] h-[75%] rounded-2xl right-1 top-1/2 -translate-y-1/2 block" style={{background: marker}}></span>
+      <span className="absolute w-1 h-[75%] rounded-2xl right-1 top-1/2 -translate-y-1/2 block" style={{background: marker}}></span>
       {markerLabel && <span className="sr-only">{markerLabel}</span>}
       <Button
         variant="ghost"
-        className={`h-auto min-w-0 flex-1 justify-start gap-3 px-3 py-2 font-normal ${NO_OWN_HOVER}`}
+        className={`h-auto min-w-0 flex-1 justify-start gap-2 px-2 py-2 font-normal ${NO_OWN_HOVER}`}
         data-selected={selected}
         onClick={onClick}
       >
@@ -53,7 +53,7 @@ export function ListItem({
           aria-label={editLabel}
           onClick={onEdit}
         >
-          <PencilIcon className="size-3.5" aria-hidden="true" />
+          <PencilIcon className="size-3" aria-hidden="true" />
         </Button>
       )}
     </div>

@@ -60,7 +60,7 @@ export function NotificationCenter() {
               {unread ? (
                 <span
                   aria-hidden="true"
-                  className="absolute right-1.5 top-1.5 size-2 rounded-full bg-destructive ring-2 ring-background"
+                  className="absolute right-1 top-1 size-2 rounded-full bg-destructive ring-2 ring-background"
                 />
               ) : null}
             </Button>
@@ -71,7 +71,7 @@ export function NotificationCenter() {
       {unread ? <span id={statusId} className="sr-only">{t("notifications.unread")}</span> : null}
 
       <PopoverContent align="end" className="w-[min(24rem,calc(100vw-2rem))] p-0" aria-labelledby={titleId}>
-        <div className="flex min-h-12 items-center justify-between gap-2 border-b border-border px-4 py-2">
+        <div className="flex min-h-10 items-center justify-between gap-2 border-b border-border px-3 py-2">
           <h2 id={titleId} className="text-sm font-semibold text-foreground">{t("notifications.title")}</h2>
           {unread ? (
             <Button type="button" variant="ghost" size="sm" onClick={() => readAll.mutate()}>
@@ -81,7 +81,7 @@ export function NotificationCenter() {
         </div>
 
         {notifications.isSuccess && items.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-muted-foreground">{t("notifications.empty")}</p>
+          <p className="px-3 py-6 text-center text-sm text-muted-foreground">{t("notifications.empty")}</p>
         ) : null}
 
         {items.length > 0 ? (
@@ -95,13 +95,13 @@ export function NotificationCenter() {
                     data-unread={isUnread}
                     onClick={() => choose(notification)}
                     className={cn(
-                      "flex w-full items-start gap-3 px-4 py-2.5 text-left transition-colors",
+                      "flex w-full items-start gap-2 px-3 py-2 text-left transition-colors",
                       "hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:outline-none",
                     )}
                   >
                     <span
                       aria-hidden="true"
-                      className={cn("mt-1.5 size-2 shrink-0 rounded-full", isUnread ? "bg-primary" : "bg-transparent")}
+                      className={cn("mt-1 size-2 shrink-0 rounded-full", isUnread ? "bg-primary" : "bg-transparent")}
                     />
                     <span className="min-w-0 flex-1">
                       <span className={cn("block text-sm text-foreground", isUnread && "font-medium")}>

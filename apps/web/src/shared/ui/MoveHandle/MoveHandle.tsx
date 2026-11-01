@@ -24,12 +24,12 @@ export function MoveHandle({ label, hint, onStep, className }: TileMove & { clas
         onStep(step);
       }}
       className={cn(
-        "absolute left-1/2 top-0.5 grid h-3.5 w-8 -translate-x-1/2 cursor-grab place-items-center rounded-sm text-muted-foreground",
+        "absolute left-1/2 top-0.5 grid h-3 w-6 -translate-x-1/2 cursor-grab place-items-center rounded-sm text-muted-foreground",
         "opacity-0 transition-opacity hover:bg-muted focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover/tile:opacity-100",
         className,
       )}
     >
-      <GripHorizontal aria-hidden className="size-3.5" />
+      <GripHorizontal aria-hidden className="size-3" />
     </button>
   );
 }

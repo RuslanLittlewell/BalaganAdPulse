@@ -58,8 +58,8 @@ function EditableFigure({
 }) {
   const [editing, setEditing] = useState(false);
   return (
-    <div className="rounded-lg border border-border glass-card p-4">
-      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+    <div className="rounded-lg border border-border glass-card p-3">
+      <div className="text-xs font-medium text-muted-foreground">
         {label}
       </div>
       <div className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
@@ -119,7 +119,7 @@ function StaffBar({ report }: { report: Report }) {
   const failed = () => raise(t("report.saveFailed"));
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-border p-3">
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-border p-2">
       <span
         data-status={report.status}
         className={cn(
@@ -219,9 +219,9 @@ function ReportBody({
   return (
     <article
       aria-label={`${t("report.title")} · ${monthTitle(report.month)}`}
-      className="flex flex-col gap-6 pb-4"
+      className="flex flex-col gap-5 pb-3"
     >
-      <header className="flex flex-wrap items-end justify-between gap-3">
+      <header className="flex flex-wrap items-end justify-between gap-2">
         <div className="flex flex-col gap-1">
           <span className="text-sm text-muted-foreground">{projectName}</span>
           <h1 className="text-2xl font-semibold text-foreground">
@@ -233,10 +233,10 @@ function ReportBody({
 
       {staff ? <StaffBar report={report} /> : null}
 
-      <div className={cn("grid gap-3", showsCover && "lg:grid-cols-2")}>
+      <div className={cn("grid gap-2", showsCover && "lg:grid-cols-2")}>
         <div
           className={cn(
-            "grid gap-3",
+            "grid gap-2",
             showsCover ? "content-start" : "sm:grid-cols-2 lg:grid-cols-4",
           )}
         >
@@ -278,7 +278,7 @@ function ReportBody({
         {showsCover ? <ReportCover report={report} editable={staff} /> : null}
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid gap-2 lg:grid-cols-2">
         <TrendChart
           title={t("report.trend.leads")}
           points={report.trend.map((point) => ({

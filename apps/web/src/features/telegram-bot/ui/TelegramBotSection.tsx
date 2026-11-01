@@ -32,10 +32,10 @@ export function TelegramBotSection() {
     <section
       aria-labelledby="telegram-bot-title"
       data-linked={bot.linked}
-      className="flex flex-col gap-3 rounded-lg border border-border p-4 sm:flex-row sm:items-center sm:justify-between"
+      className="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
     >
-      <div className="flex min-w-0 items-start gap-3">
-        <Send aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+      <div className="flex min-w-0 items-start gap-2">
+        <Send aria-hidden className="mt-0.5 size-3 shrink-0 text-muted-foreground" />
         <div className="flex min-w-0 flex-col gap-1">
           <h3 id="telegram-bot-title" className="text-sm font-semibold">{t("telegram.title")}</h3>
           {bot.linked ? (

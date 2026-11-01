@@ -118,8 +118,8 @@ export function CampaignPage() {
   }));
 
   return (
-    <div className="flex min-h-0 flex-col gap-6">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
+    <div className="flex min-h-0 flex-col gap-5">
+      <header className="flex flex-wrap items-start justify-between gap-2 border-b border-border pb-3">
         <div className="flex min-w-0 items-start gap-2">
           <Button
             type="button"
@@ -164,7 +164,7 @@ export function CampaignPage() {
       <DailyChart days={days.data ?? []} currency={currency} />
 
       <div>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-foreground">
             {t("adSets.title")}
           </h2>

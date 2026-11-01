@@ -31,9 +31,9 @@ export interface TaskCardViewProps {
 
 const PRIORITY_TONE: Record<Task["priority"], string> = {
   LOW: "bg-muted text-muted-foreground",
-  MEDIUM: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200",
-  HIGH: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
-  URGENT: "bg-red-600 text-white dark:bg-red-700",
+  MEDIUM: "bg-muted text-muted-foreground",
+  HIGH: "bg-amber-500/10 text-amber-800 dark:text-amber-300",
+  URGENT: "bg-destructive/10 text-destructive",
 };
 
 function shortDay(iso: string): string {
@@ -67,7 +67,7 @@ export function TaskCardView({
       style={style}
       className={cn(
         "group relative flex shrink-0 flex-col overflow-hidden rounded-xl border border-border glass-card",
-        "py-3 pl-6 pr-3 text-left",
+        "py-2 pl-5 pr-2 text-left",
         "shadow-sm transition-[border-color,box-shadow,opacity] hover:border-border hover:shadow-md",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
         onOpen && "cursor-pointer",
@@ -91,7 +91,7 @@ export function TaskCardView({
       <span
         aria-hidden
         className={cn(
-          "absolute inset-y-0 left-0 w-1.5 transition-opacity group-hover:opacity-0",
+          "absolute inset-y-0 left-0 w-1 transition-opacity group-hover:opacity-0",
           PRIORITY_BAR[task.priority],
         )}
       />
@@ -102,14 +102,14 @@ export function TaskCardView({
           aria-label={t("tasks.drag")}
           data-testid={`task-drag-${task.id}`}
           className={cn(
-            "absolute inset-y-0 left-0 grid w-5 place-items-center text-muted-foreground",
+            "absolute inset-y-0 left-0 grid w-4 place-items-center text-muted-foreground",
             "opacity-0 transition-opacity hover:bg-muted focus-visible:opacity-100 group-hover:opacity-100",
           )}
           onClick={(event) => event.stopPropagation()}
           onKeyDown={onHandleKeyDown}
           {...drag.attributes}
         >
-          <GripVertical aria-hidden className="size-4" />
+          <GripVertical aria-hidden className="size-3" />
         </button>
       ) : null}
 
@@ -125,7 +125,7 @@ export function TaskCardView({
           data-testid={`task-priority-${task.id}`}
           data-priority={task.priority}
           className={cn(
-            "shrink-0 rounded-md px-1.5 py-0.5 text-2xs font-medium leading-tight",
+            "shrink-0 rounded-md px-1 py-0.5 text-2xs font-medium leading-tight",
             PRIORITY_TONE[task.priority],
           )}
         >
@@ -134,33 +134,33 @@ export function TaskCardView({
       </div>
 
       {showColumn || task.dueDate || task.checklist.length > 0 || attachments > 0 ? (
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <div className="mt-2 flex flex-wrap items-center gap-1">
           {showColumn ? (
-            <span className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
+            <span className="inline-flex items-center rounded-md bg-muted px-1 py-0.5 text-2xs text-muted-foreground">
               {t(`tasks.column.${task.column}`)}
             </span>
           ) : null}
           {task.dueDate ? (
             <span
-              className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground"
+              className="inline-flex items-center gap-1 rounded-md bg-muted px-1 py-0.5 text-2xs text-muted-foreground"
               data-testid={`task-due-${task.id}`}
             >
-              <CalendarClock aria-hidden className="size-3" />
+              <CalendarClock aria-hidden className="size-2" />
               {shortDay(task.dueDate)}
               {task.dueTime ? ` ${timeRange(task)}` : ""}
               {task.repeatEvery === "NONE" ? null : (
-                <Repeat aria-hidden={false} aria-label={t("tasks.repeats")} className="size-3" />
+                <Repeat aria-hidden={false} aria-label={t("tasks.repeats")} className="size-2" />
               )}
-              {task.isCall ? <Phone aria-hidden={false} aria-label={t("tasks.call")} className="size-3" /> : null}
+              {task.isCall ? <Phone aria-hidden={false} aria-label={t("tasks.call")} className="size-2" /> : null}
             </span>
           ) : null}
 
           {task.checklist.length > 0 ? (
             <span
-              className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground"
+              className="inline-flex items-center gap-1 rounded-md bg-muted px-1 py-0.5 text-2xs text-muted-foreground"
               data-testid={`task-checklist-${task.id}`}
             >
-              <ListChecks aria-hidden className="size-3" />
+              <ListChecks aria-hidden className="size-2" />
               {`${ticked}/${task.checklist.length}`}
             </span>
           ) : null}
@@ -170,23 +170,23 @@ export function TaskCardView({
       {attachments > 0 ? (
         <div className="mt-2">
           <span
-            className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground"
+            className="inline-flex items-center gap-1 rounded-md bg-muted px-1 py-0.5 text-2xs text-muted-foreground"
             data-testid={`task-attachments-${task.id}`}
             aria-label={`${t("tasks.attachments.count")}: ${attachments}`}
           >
-            <Paperclip aria-hidden className="size-3" />
+            <Paperclip aria-hidden className="size-2" />
             {attachments}
           </span>
         </div>
       ) : null}
 
-      <span aria-hidden className="min-h-3 flex-1" />
+      <span aria-hidden className="min-h-2 flex-1" />
 
-      <footer className="flex items-center justify-between gap-2 border-t border-border/60 pt-2.5">
+      <footer className="flex items-center justify-between gap-2 border-t border-border/60 pt-2">
         <span className="flex min-w-0 flex-col">
-          <span className="flex min-w-0 items-center gap-1.5" data-testid={`task-project-${task.id}`}>
+          <span className="flex min-w-0 items-center gap-1" data-testid={`task-project-${task.id}`}>
             {project ? <ProjectAvatar project={project} size="sm" /> : null}
-            <span className="truncate text-[8px] text-muted-foreground">
+            <span className="truncate text-2xs text-muted-foreground">
               {project?.name ?? t("tasks.noProject")}
             </span>
           </span>

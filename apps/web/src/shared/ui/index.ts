@@ -59,6 +59,5 @@ export { GradientWaves } from "./GradientWaves/index.js";
 export type { GradientWavesProps } from "./GradientWaves/index.js";
 export { Dropzone } from "./Dropzone/Dropzone.js";
 export type { DropzoneProps } from "./Dropzone/Dropzone.js";
-export { BorderGlow } from "./BorderGlow/index.js";
 export { AddTile } from "./AddTile/AddTile.js";
 export type { AddTileProps } from "./AddTile/AddTile.js";

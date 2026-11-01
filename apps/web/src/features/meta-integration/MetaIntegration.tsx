@@ -142,11 +142,11 @@ export function MetaIntegration({ projectId }: { projectId: string }) {
 
   if (!allowed) return null;
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex flex-col gap-2">
       <h2 className="text-sm font-semibold text-foreground">{t("integrations.title")}</h2>
-      <div className="flex flex-wrap items-stretch gap-3">
+      <div className="flex flex-wrap items-stretch gap-2">
         {connections.isError && (
-          <section className="flex items-center gap-3 rounded-lg border border-border glass-card p-4">
+          <section className="flex items-center gap-2 rounded-lg border border-border glass-card p-3">
             <p role="alert" className="text-xs text-destructive">{t("meta.error.read")}</p>
             <Button variant="outline" size="sm" onClick={() => void connections.refetch()}>
               {t("state.retry")}
@@ -155,7 +155,7 @@ export function MetaIntegration({ projectId }: { projectId: string }) {
         )}
         <GoogleReturn projectId={projectId} />
         {googleFailure && (
-          <section className="flex items-center gap-3 rounded-lg border border-border glass-card p-4">
+          <section className="flex items-center gap-2 rounded-lg border border-border glass-card p-3">
             <p role="alert" className="text-xs text-destructive">{googleFailure}</p>
             <Button variant="outline" size="sm" onClick={() => setGoogleFailure(null)}>
               {t("action.close")}
@@ -171,7 +171,7 @@ export function MetaIntegration({ projectId }: { projectId: string }) {
           style={{ width: square.side }}
           disabled={connections.isPending || connections.isError}
           onClick={() => setChoosing(true)}
-          className="min-w-24 shrink-0 self-stretch"
+          className="min-w-19 shrink-0 self-stretch"
         />
         <ProviderDialog
           open={choosing}
@@ -207,7 +207,7 @@ function ProviderDialog({
         <DialogHeader>
           <DialogTitle>{t("integrations.choose")}</DialogTitle>
         </DialogHeader>
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {PROVIDERS.map((provider) => {
             const available = AVAILABLE.includes(provider);
             return (
@@ -215,11 +215,11 @@ function ProviderDialog({
                 <Button
                   type="button"
                   variant="outline"
-                  className="aspect-square h-auto w-full flex-col gap-3 whitespace-normal p-3"
+                  className="aspect-square h-auto w-full flex-col gap-2 whitespace-normal p-2"
                   disabled={!available}
                   onClick={() => onChoose(provider)}
                 >
-                  <ProviderLogo provider={provider} className="size-10" />
+                  <ProviderLogo provider={provider} className="size-8" />
                   <span className="flex flex-col items-center gap-0.5">
                     <span>{t(`integrations.provider.${provider}`)}</span>
                     {!available && <span className="text-xs text-muted-foreground">{t("integrations.soon")}</span>}
@@ -260,12 +260,12 @@ function MetaConnectionCard({ projectId, connection }: { projectId: string; conn
 
   return (
     <section
-      className="flex w-min flex-col justify-between gap-3 rounded-lg border border-border glass-card p-4"
+      className="flex w-min flex-col justify-between gap-2 rounded-lg border border-border glass-card p-3"
       aria-label={t("meta.title")}
     >
       <div className="grid gap-1">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <ProviderLogo provider="META" className="size-4 shrink-0" />
+          <ProviderLogo provider="META" className="size-3 shrink-0" />
           {t("meta.title")}
         </h2>
         {connection.lastSuccessAt && (
@@ -372,7 +372,7 @@ function MetaConnectionForm({
         <DialogHeader>
           <DialogTitle>{t("meta.settings")}</DialogTitle>
         </DialogHeader>
-        <form className="grid gap-4" onSubmit={submit}>
+        <form className="grid gap-3" onSubmit={submit}>
           <TextField
             label={t("meta.accountId")}
             value={accountId}

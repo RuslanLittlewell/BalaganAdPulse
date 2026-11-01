@@ -368,7 +368,7 @@ export function PerformanceSummary({
         <div
           role="group"
           aria-label={t("summary.title")}
-          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
+          className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
         >
           {shown.map(cell)}
           {configurable ? (
@@ -384,7 +384,7 @@ export function PerformanceSummary({
               <div
                 className={cn(
                   "h-full cursor-grabbing",
-                  drag.tile === "KPI" && kpiGroup && "grid grid-flow-col auto-cols-fr gap-3",
+                  drag.tile === "KPI" && kpiGroup && "grid grid-flow-col auto-cols-fr gap-2",
                 )}
               >
                 {render(drag.tile)}
@@ -399,7 +399,7 @@ export function PerformanceSummary({
       <Dialog open={configurable && configuring} onOpenChange={setConfiguring}>
         <DialogContent className="w-[min(760px,calc(100vw-2rem))] max-w-none">
           <DialogHeader>
-            <div className="flex items-center justify-between gap-3 pr-8">
+            <div className="flex items-center justify-between gap-2 pr-6">
               <DialogTitle>{t("summary.title")}</DialogTitle>
               <span className="text-sm tabular-nums text-muted-foreground">
                 {chosen.length}/{MAX_SUMMARY_TILES}
@@ -409,7 +409,7 @@ export function PerformanceSummary({
               {atLimit ? t("summary.limit") : t("summary.choose")}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid auto-rows-fr gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {offered.map((tile) => {
               const selected = chosen.includes(tile);
               return (

@@ -31,12 +31,12 @@ export function CreativeMedia({
 
   return (
     <figure className="m-0 grid gap-2">
-      <div className="grid min-h-40 place-items-center overflow-hidden rounded-md border border-border bg-muted/30">
+      <div className="grid min-h-32 place-items-center overflow-hidden rounded-md border border-border bg-muted/30">
         {file.isPending && (creative.hasFile || creative.hasPoster) && (
           <Loader size="sm" />
         )}
         {file.isError && (
-          <p className="p-4 text-sm text-destructive">
+          <p className="p-3 text-sm text-destructive">
             {t("creatives.failed")}
           </p>
         )}

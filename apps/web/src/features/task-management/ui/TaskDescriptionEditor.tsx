@@ -62,7 +62,7 @@ function EditorToolbar({ editor }: { editor: Editor }) {
           <Strikethrough />
         </EditorToolbarButton>
 
-        <Separator orientation="vertical" className="mx-1 h-5" />
+        <Separator orientation="vertical" className="mx-1 h-4" />
 
         <EditorToolbarButton
           label={t("tasks.editor.bulletList")}
@@ -86,7 +86,7 @@ function EditorToolbar({ editor }: { editor: Editor }) {
           <Quote />
         </EditorToolbarButton>
 
-        <Separator orientation="vertical" className="mx-1 h-5" />
+        <Separator orientation="vertical" className="mx-1 h-4" />
 
         <EditorToolbarButton
           label={t("tasks.editor.undo")}

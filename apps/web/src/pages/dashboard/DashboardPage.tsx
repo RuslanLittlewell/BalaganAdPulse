@@ -19,8 +19,8 @@ export function DashboardPage() {
   const { raise } = useAlerts();
 
   return (
-    <div className="flex min-h-0 flex-col gap-6 pb-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
+    <div className="flex min-h-0 flex-col gap-5 pb-5">
+      <header className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold text-foreground">{t("nav.dashboard")}</h1>
         <PeriodControl />
       </header>
@@ -36,7 +36,7 @@ export function DashboardPage() {
         kpi={managesAgencyKpi ? { scope: { kind: "organization" }, canEdit: true } : undefined}
       />
 
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         <KpiOverview />
         <ChannelPanel range={range} />
       </div>

@@ -52,7 +52,7 @@ export function DeleteOrganizationDialog({ organization, open, onClose }: Delete
           <DialogTitle>{t("platform.delete.title")}</DialogTitle>
           <DialogDescription>{t("platform.delete.description")}</DialogDescription>
         </DialogHeader>
-        <form className="flex flex-col gap-4" noValidate onSubmit={(event) => void submit(event)}>
+        <form className="flex flex-col gap-3" noValidate onSubmit={(event) => void submit(event)}>
           <p className="text-sm font-medium">{organization.name}</p>
           <TextField
             label={t("platform.delete.confirmLabel")}

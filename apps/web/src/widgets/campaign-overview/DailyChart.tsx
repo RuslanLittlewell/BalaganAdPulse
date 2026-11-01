@@ -28,7 +28,7 @@ export function DailyChart({
 
   if (days.length === 0) {
     return (
-      <div className="rounded-lg border border-border p-8 text-center text-sm text-muted-foreground">
+      <div className="rounded-lg border border-border p-6 text-center text-sm text-muted-foreground">
         {t("chart.empty")}
       </div>
     );
@@ -39,7 +39,7 @@ export function DailyChart({
   const highest = Math.max(...spend);
 
   return (
-    <figure className="rounded-lg border border-border p-4">
+    <figure className="rounded-lg border border-border p-3">
       <figcaption className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="text-sm font-semibold text-foreground">{t("chart.title")}</span>
         <span className="text-xs text-muted-foreground">
@@ -47,7 +47,7 @@ export function DailyChart({
         </span>
       </figcaption>
       <div
-        className="relative mt-3 cursor-crosshair rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="relative mt-2 cursor-crosshair rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
         role="group"
         aria-label={t("chart.title")}
         aria-describedby={activeDay ? tooltipId : undefined}
@@ -76,7 +76,7 @@ export function DailyChart({
           aria-label={t("dashboard.spendByDay")}
           viewBox={`0 0 ${BOX.width} ${BOX.height}`}
           preserveAspectRatio="none"
-          className="h-44 w-full"
+          className="h-35 w-full"
         >
           <path d={areaPath(spend, BOX)} className="fill-primary/10" />
           <path
@@ -105,7 +105,7 @@ export function DailyChart({
             <div
               id={tooltipId}
               role="tooltip"
-              className="pointer-events-none absolute top-2 z-10 w-[200px] max-w-full rounded-md border border-border bg-popover p-3 text-xs text-popover-foreground shadow-md"
+              className="pointer-events-none absolute top-2 z-10 w-[200px] max-w-full rounded-md border border-border bg-popover p-2 text-xs text-popover-foreground shadow-md"
               style={{ left: `clamp(0px, calc(${activePosition}% - 100px), max(0px, calc(100% - 200px)))` }}
             >
               <p className="mb-2 font-semibold">
@@ -113,7 +113,7 @@ export function DailyChart({
                   day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
                 })}
               </p>
-              <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 tabular-nums">
+              <dl className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-1 tabular-nums">
                 <dt className="text-muted-foreground">{t("metric.spend")}</dt>
                 <dd>{formatCurrency(activeDay.spend, currency)}</dd>
                 <dt className="text-muted-foreground">{t("metric.conversions")}</dt>
@@ -127,12 +127,12 @@ export function DailyChart({
         <span>{formatDay(days[0].date)}</span>
         <span>{formatDay(days[days.length - 1].date)}</span>
       </div>
-      <ul className="mt-3 flex gap-4 text-xs text-muted-foreground">
-        <li className="flex items-center gap-1.5">
-          <span aria-hidden className="h-0.5 w-4 rounded bg-primary" />{t("metric.spend")}
+      <ul className="mt-2 flex gap-3 text-xs text-muted-foreground">
+        <li className="flex items-center gap-1">
+          <span aria-hidden className="h-0.5 w-3 rounded bg-primary" />{t("metric.spend")}
         </li>
-        <li className="flex items-center gap-1.5">
-          <span aria-hidden className="h-0.5 w-4 rounded bg-muted-foreground" />
+        <li className="flex items-center gap-1">
+          <span aria-hidden className="h-0.5 w-3 rounded bg-muted-foreground" />
           {t("metric.conversions")}
         </li>
       </ul>

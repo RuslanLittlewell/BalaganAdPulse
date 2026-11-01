@@ -57,7 +57,7 @@ export function ResetPasswordPage() {
           role="status"
           className="flex items-center justify-center gap-2 text-sm text-muted-foreground"
         >
-          <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+          <LoaderCircle className="size-3 animate-spin" aria-hidden="true" />
           {t("auth.reset.checking")}
         </p>
       </CenteredPanel>
@@ -67,11 +67,11 @@ export function ResetPasswordPage() {
   if (link.isError || spent) {
     return (
       <CenteredPanel title={t("auth.reset.title")}>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3">
           <p role="alert" className="text-sm text-muted-foreground">
             {t("auth.reset.invalid")}
           </p>
-          <Button asChild className="h-11">
+          <Button asChild className="h-9">
             <Link to="/password-reset">{t("auth.reset.again")}</Link>
           </Button>
         </div>
@@ -82,7 +82,7 @@ export function ResetPasswordPage() {
   return (
     <CenteredPanel title={t("auth.reset.title")}>
       <form
-        className="flex flex-col gap-4"
+        className="flex flex-col gap-3"
         onSubmit={(event) => void submit(event)}
         noValidate
       >
@@ -113,7 +113,7 @@ export function ResetPasswordPage() {
         />
         <Button
           type="submit"
-          className="h-11"
+          className="h-9"
           disabled={isSubmitting}
           aria-busy={isSubmitting}
         >

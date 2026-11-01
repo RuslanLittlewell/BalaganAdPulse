@@ -77,7 +77,7 @@ function ListEnd() {
       ref={setNodeRef}
       data-testid="project-list-end"
       data-over={isOver}
-      className="min-h-8 flex-1"
+      className="min-h-6 flex-1"
     />
   );
 }
@@ -241,11 +241,11 @@ export function ProjectList({ collapsed = false }: { collapsed?: boolean }) {
     <div className="relative">
       <SearchIcon
         aria-hidden
-        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+        className="pointer-events-none absolute left-2 top-1/2 size-3 -translate-y-1/2 text-muted-foreground"
       />
       <Input
         type="search"
-        className="pl-9 focus-visible:ring-0"
+        className="pl-7 focus-visible:ring-0"
         value={search}
         onChange={(event) => setSearch(event.target.value)}
         placeholder={t("projects.search.placeholder")}
@@ -276,7 +276,7 @@ export function ProjectList({ collapsed = false }: { collapsed?: boolean }) {
               <SearchIcon aria-hidden />
             </Button>
           </PopoverTrigger>
-          <PopoverContent side="right" align="start" className="w-64 p-1">
+          <PopoverContent side="right" align="start" className="w-51 p-1">
             {searchField}
           </PopoverContent>
         </Popover>
@@ -295,15 +295,15 @@ export function ProjectList({ collapsed = false }: { collapsed?: boolean }) {
         </p>
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-auto pb-12">
+      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-auto pb-10">
         {projects.isPending && (
-          <div className="grid place-items-center gap-3 p-6">
+          <div className="grid place-items-center gap-2 p-5">
             <Loader size="sm" />
           </div>
         )}
 
         {projects.isError && (
-          <div className="grid place-items-center gap-3 p-6">
+          <div className="grid place-items-center gap-2 p-5">
             <p className="text-sm text-muted-foreground">
               {t("state.error.title")}
             </p>
@@ -338,7 +338,7 @@ export function ProjectList({ collapsed = false }: { collapsed?: boolean }) {
         <ContextMenu>
           <ContextMenuTrigger asChild>
             <div
-              className="flex min-h-16 flex-1 flex-col"
+              className="flex min-h-13 flex-1 flex-col"
               data-testid="project-list-area"
             >
               <DndContext
@@ -430,7 +430,7 @@ export function ProjectList({ collapsed = false }: { collapsed?: boolean }) {
               <button
                 type="button"
                 aria-label={chosen ? `${t("projects.list.open")}: ${chosen.name}` : t("projects.list.open")}
-                className="flex w-full min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-left shadow-xs transition-colors hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex w-full min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-2 py-2 text-left shadow-xs transition-colors hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {chosen ? <ProjectAvatar project={chosen} size="sm" /> : null}
                 <span className="grid min-w-0 flex-1">
@@ -443,7 +443,7 @@ export function ProjectList({ collapsed = false }: { collapsed?: boolean }) {
                     </span>
                   ) : null}
                 </span>
-                <ChevronDownIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+                <ChevronDownIcon aria-hidden className="size-3 shrink-0 text-muted-foreground" />
               </button>
             </PopoverTrigger>
             <PopoverContent

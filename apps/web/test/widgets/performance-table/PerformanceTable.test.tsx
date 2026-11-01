@@ -535,45 +535,43 @@ describe("a table limited to a number of visible rows", () => {
     });
   });
 
-  describe("fitting its container", () => {
+  describe("scrolling sideways", () => {
     const widthOfScroller = (width: number) =>
       vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(width);
+    const handles = () => screen.getAllByRole("separator").slice(1);
 
     afterEach(() => vi.restoreAllMocks());
 
-    it("narrows the figure columns instead of scrolling sideways when the container is too narrow", () => {
-      widthOfScroller(1400);
-      const { container } = render(<PerformanceTable tableKey="fit-narrow" heading="Кампания" rows={rows} />);
+    it("keeps every chosen width when the container is narrower, so the table runs past it", () => {
+      widthOfScroller(400);
+      const { container } = render(<PerformanceTable tableKey="scroll-narrow" heading="Кампания" rows={rows} />);
 
-      const table = container.querySelector("table")!;
-      expect(parseFloat(table.style.width)).toBeLessThanOrEqual(1400);
-      for (const col of [...container.querySelectorAll("col")].slice(0, -1)) {
-        expect(parseFloat((col as HTMLElement).style.width)).toBeGreaterThanOrEqual(40);
-      }
+      const widths = [...container.querySelectorAll("col")].map((col) => (col as HTMLElement).style.width);
+      expect(widths.slice(1, -1).every((width) => width === "128px")).toBe(true);
+      expect(parseFloat(container.querySelector("table")!.style.width)).toBeGreaterThan(400);
     });
 
-    it("widens a column at capacity by narrowing the column to its right, leaving the one to its left", async () => {
+    it("widens one column without narrowing the columns to its right", async () => {
       const user = userEvent.setup();
-      const handles = () => screen.getAllByRole("separator").slice(1);
-      widthOfScroller(5000);
-      const probe = render(<PerformanceTable tableKey="fit-push-probe" heading="Кампания" rows={rows} />);
-      const figures = handles().length;
-      probe.unmount();
-      widthOfScroller(280 + figures * 128 + 40);
-      render(<PerformanceTable tableKey="fit-push" heading="Кампания" rows={rows} />);
+      widthOfScroller(400);
+      render(<PerformanceTable tableKey="scroll-widen" heading="Кампания" rows={rows} />);
 
       handles()[1]!.focus();
       await user.keyboard("{ArrowRight}");
 
-      expect(handles().slice(0, 3).map((handle) => handle.getAttribute("aria-valuenow"))).toEqual(["128", "138", "118"]);
+      expect(handles().slice(0, 3).map((handle) => handle.getAttribute("aria-valuenow"))).toEqual(["128", "138", "128"]);
     });
 
-    it("keeps the chosen widths when the container is wide enough", () => {
-      widthOfScroller(5000);
-      const { container } = render(<PerformanceTable tableKey="fit-wide" heading="Кампания" rows={rows} />);
+    it("grows wider as a column widens", async () => {
+      const user = userEvent.setup();
+      widthOfScroller(400);
+      const { container } = render(<PerformanceTable tableKey="scroll-grow" heading="Кампания" rows={rows} />);
+      const before = parseFloat(container.querySelector("table")!.style.width);
 
-      const widths = [...container.querySelectorAll("col")].map((col) => (col as HTMLElement).style.width);
-      expect(widths.slice(1, -1).every((width) => width === "128px")).toBe(true);
+      handles()[0]!.focus();
+      await user.keyboard("{ArrowRight}");
+
+      expect(parseFloat(container.querySelector("table")!.style.width)).toBe(before + 10);
     });
   });
 });

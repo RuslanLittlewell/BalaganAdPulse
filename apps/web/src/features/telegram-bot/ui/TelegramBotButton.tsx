@@ -12,13 +12,13 @@ export function TelegramBotButton() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" data-linked={bot.linked} className="relative max-md:size-10">
-          <Send aria-hidden className="size-4" />
+        <Button type="button" variant="outline" data-linked={bot.linked} className="relative max-md:size-8">
+          <Send aria-hidden className="size-3" />
           <span className="sr-only md:not-sr-only">{t("telegram.button")}</span>
           {bot.linked && (
             <span
               aria-hidden
-              className="size-1.5 rounded-full bg-emerald-500 max-md:absolute max-md:right-2 max-md:top-2"
+              className="size-1 rounded-full bg-emerald-500 max-md:absolute max-md:right-2 max-md:top-2"
             />
           )}
         </Button>

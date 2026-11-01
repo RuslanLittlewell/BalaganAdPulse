@@ -51,7 +51,7 @@ export function CampaignKpiStrip({ campaigns, range, highlightedId, onHighlight,
             onBlur={() => onHighlight(null)}
             onClick={() => onOpen(campaign.id)}
             className={cn(
-              "flex min-w-0 flex-col gap-1.5 rounded-lg border border-border glass-card px-3 py-2 text-left transition-colors",
+              "flex min-w-0 flex-col gap-1 rounded-lg border border-border glass-card px-2 py-2 text-left transition-colors",
               "hover:border-primary/50 focus-visible:outline-2 focus-visible:outline-ring",
               highlighted && "border-primary/50",
             )}

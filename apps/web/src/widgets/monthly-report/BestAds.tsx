@@ -66,8 +66,8 @@ export function BestAds({
   };
 
   return (
-    <section aria-labelledby="report-ads" className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
+    <section aria-labelledby="report-ads" className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-2">
         <h2 id="report-ads" className="text-sm font-semibold text-foreground">{t("report.ads")}</h2>
         {editable ? (
           <Button size="sm" variant="outline" onClick={() => setPicking(true)}>{t("report.ads.pick")}</Button>
@@ -76,11 +76,11 @@ export function BestAds({
       {ads.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("report.ads.empty")}</p>
       ) : (
-        <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {ads.map((ad, index) => (
             <li key={ad.adId} aria-label={ad.name} className="overflow-hidden rounded-lg border border-border">
               <AdThumbnail ad={ad} />
-              <div className="flex flex-col gap-1 p-3">
+              <div className="flex flex-col gap-1 p-2">
                 <span className="truncate text-sm font-medium text-foreground" title={ad.name}>{ad.name}</span>
                 <span className="text-sm tabular-nums text-muted-foreground">{resultOf(ad, currency)}</span>
                 {editable ? (
@@ -150,7 +150,7 @@ function AdPicker({
         <ul className="flex max-h-[50vh] flex-col gap-1 overflow-y-auto">
           {[...running].sort((a, b) => b.leads - a.leads).map((ad) => (
             <li key={ad.adId}>
-              <label className="flex items-center gap-3 rounded-md p-2 hover:bg-muted/50">
+              <label className="flex items-center gap-2 rounded-md p-2 hover:bg-muted/50">
                 <input
                   type="checkbox"
                   checked={selected.has(ad.adId)}

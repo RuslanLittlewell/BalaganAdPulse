@@ -57,10 +57,10 @@ export function ProjectGroupCard({
           >
             {collapsed ? (
               <WarmTooltip content={name} side="right">
-                <span tabIndex={0} aria-label={name} className="mx-auto block h-1 w-6 rounded-full bg-muted-foreground/40" />
+                <span tabIndex={0} aria-label={name} className="mx-auto block h-1 w-5 rounded-full bg-muted-foreground/40" />
               </WarmTooltip>
             ) : (
-              <span className="block truncate font-mono text-2xs uppercase tracking-[.12em] text-muted-foreground">
+              <span className="block truncate font-mono text-2xs text-muted-foreground">
                 {name}
               </span>
             )}
@@ -75,7 +75,7 @@ export function ProjectGroupCard({
         items={projectIds.map(dragId.project)}
         strategy={verticalListSortingStrategy}
       >
-        <div className="min-h-9">{children}</div>
+        <div className="min-h-7">{children}</div>
       </SortableContext>
     </div>
   );

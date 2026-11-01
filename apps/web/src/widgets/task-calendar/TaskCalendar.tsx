@@ -125,7 +125,7 @@ function NowLine({ time, hourHeight }: { time: string; hourHeight: number }) {
       className="pointer-events-none absolute inset-x-0 z-15 border-t-2 border-primary"
       style={{ top: topOfTime(time, hourHeight) ?? 0 }}
     >
-      <span className="absolute left-[-5px] top-[-6px] size-2.5 rounded-full bg-primary" />
+      <span className="absolute left-[-5px] top-[-6px] size-2 rounded-full bg-primary" />
     </div>
   );
 }
@@ -216,7 +216,7 @@ export function TaskCalendar({
 
   return (
     <WarmTooltipGroup>
-      <div className="flex h-full min-h-0 flex-col gap-3">
+      <div className="flex h-full min-h-0 flex-col gap-2">
         <header className="flex shrink-0 items-center gap-2">
           <Button
             type="button"
@@ -282,7 +282,7 @@ export function TaskCalendar({
               <div
                 key={day}
                 className={cn(
-                  "flex flex-col items-center justify-center border-r border-border px-3 py-2 text-center last:border-r-0",
+                  "flex flex-col items-center justify-center border-r border-border px-2 py-2 text-center last:border-r-0",
                   day === now && "bg-primary/5",
                 )}
               >
@@ -319,7 +319,7 @@ export function TaskCalendar({
                   }}
                 >
                   {String((hour + CALENDAR_START_HOUR) % HOURS_PER_DAY).padStart(2, "0")}
-                  <sup className="ml-0.5 text-[9px]">00</sup>
+                  <sup className="ml-0.5 text-2xs">00</sup>
                 </div>
               ))}
             </div>
@@ -376,7 +376,7 @@ export function TaskCalendar({
                     {day === now ? <NowLine time={timeOfDay(clock)} hourHeight={hourHeight} /> : null}
                   </div>
 
-                  <div className="absolute inset-x-0 top-0 z-10 space-y-1 p-1.5">
+                  <div className="absolute inset-x-0 top-0 z-10 space-y-1 p-1">
                     {untimed.map((task) => (
                       <CalendarTaskEvent
                         key={task.id}
@@ -688,10 +688,10 @@ function CalendarTaskEvent({
       }}
       className={cn(
         "group rounded-lg border border-border glass-card text-left shadow-sm",
-        "transition-all hover:border-border hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "transition-[border-color,box-shadow] hover:border-border hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
         compact ? "relative h-full w-full" : floating ? "absolute z-10" : "relative",
-        compact ? "overflow-hidden py-0.5 pl-3 pr-1.5" : "flex flex-col overflow-hidden py-2 pl-4 pr-2",
+        compact ? "overflow-hidden py-0.5 pl-2 pr-1" : "flex flex-col overflow-hidden py-2 pl-3 pr-2",
       )}
       style={compact ? undefined : placement}
     >
@@ -703,14 +703,14 @@ function CalendarTaskEvent({
         )}
       />
       {compact ? (
-        <div className="flex min-w-0 items-center gap-1.5 text-2xs leading-tight">
+        <div className="flex min-w-0 items-center gap-1 text-2xs leading-tight">
           {onToggleDone ? <TaskDoneCheck task={task} size={11} onToggle={onToggleDone} /> : null}
           <h3 className="min-w-0 truncate font-medium">{task.title}</h3>
           <span className="shrink-0 text-muted-foreground">{timeRange(task) ?? t("tasks.form.noTime")}</span>
         </div>
       ) : (
         <>
-        <div className="flex min-h-0 min-w-0 shrink items-start gap-1.5 overflow-hidden">
+        <div className="flex min-h-0 min-w-0 shrink items-start gap-1 overflow-hidden">
           {onToggleDone ? <TaskDoneCheck task={task} size={14} onToggle={onToggleDone} /> : null}
           <h3 className="min-w-0 line-clamp-2 text-xs font-medium leading-snug">
             {task.title}
@@ -719,20 +719,20 @@ function CalendarTaskEvent({
 
         <div className="mb-1 mt-1 flex min-h-0 min-w-0 shrink flex-wrap items-center gap-1 overflow-hidden text-2xs text-muted-foreground">
           <span className="inline-flex items-center gap-1">
-            <CalendarClock aria-hidden className="size-3" />
+            <CalendarClock aria-hidden className="size-2" />
             {timeRange(task) ?? t("tasks.form.noTime")}
             {task.repeatEvery === "NONE" ? null : (
               <Repeat
                 aria-hidden={false}
                 aria-label={t("tasks.repeats")}
-                className="size-3"
+                className="size-2"
               />
             )}
-            {task.isCall ? <Phone aria-hidden={false} aria-label={t("tasks.call")} className="size-3" /> : null}
+            {task.isCall ? <Phone aria-hidden={false} aria-label={t("tasks.call")} className="size-2" /> : null}
           </span>
           {task.checklist.length > 0 ? (
             <span className="inline-flex items-center gap-1">
-              <ListChecks aria-hidden className="size-3" />
+              <ListChecks aria-hidden className="size-2" />
               {`${ticked}/${task.checklist.length}`}
             </span>
           ) : null}
@@ -741,14 +741,14 @@ function CalendarTaskEvent({
               className="inline-flex items-center gap-1"
               aria-label={`${t("tasks.attachments.count")}: ${attachments}`}
             >
-              <Paperclip aria-hidden className="size-3" />
+              <Paperclip aria-hidden className="size-2" />
               {attachments}
             </span>
           ) : null}
         </div>
 
-        <footer className="mt-auto flex min-w-0 shrink-0 items-center justify-between gap-2 border-t border-border/50 pt-1.5">
-          <span className="flex min-w-0 items-center gap-1.5">
+        <footer className="mt-auto flex min-w-0 shrink-0 items-center justify-between gap-2 border-t border-border/50 pt-1">
+          <span className="flex min-w-0 items-center gap-1">
             {project ? <ProjectAvatar project={project} size="sm" /> : null}
             <span className="truncate text-2xs text-muted-foreground">
               {project?.name ?? t("tasks.noProject")}
@@ -768,7 +768,7 @@ function CalendarTaskEvent({
       side="right"
       style={floating ? { ...placement, position: "absolute", zIndex: 10 } : { display: "flex", width: "100%" }}
       content={
-        <span className="flex max-w-64 flex-col gap-0.5 text-left">
+        <span className="flex max-w-51 flex-col gap-0.5 text-left">
           <span className="font-medium">{task.title}</span>
           <span>{timeRange(task) ?? t("tasks.form.noTime")}</span>
           {project ? <span>{project.name}</span> : null}

@@ -27,7 +27,7 @@ export function GroupDialog({ onClose, onCreate }: GroupDialogProps) {
         </DialogHeader>
         <form
           noValidate
-          className="grid gap-3"
+          className="grid gap-2"
           onSubmit={(event) => {
             event.preventDefault();
             if (name.trim() === "") { setError(t("projects.group.required")); return; }

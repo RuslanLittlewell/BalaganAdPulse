@@ -17,9 +17,9 @@ export function LeadsSetupInfo() {
           <InfoIcon />
         </Button>
       </PopoverTrigger>
-      <PopoverContent side="top" align="start" className="w-96 text-sm" aria-label={t("meta.leads.info.title")}>
+      <PopoverContent side="top" align="start" className="w-77 text-sm" aria-label={t("meta.leads.info.title")}>
         <p className="mb-2 font-medium">{t("meta.leads.info.title")}</p>
-        <ol className="list-decimal space-y-1.5 pl-4 text-muted-foreground">
+        <ol className="list-decimal space-y-1 pl-3 text-muted-foreground">
           {STEPS.map((step) => <li key={step}>{t(step)}</li>)}
         </ol>
       </PopoverContent>

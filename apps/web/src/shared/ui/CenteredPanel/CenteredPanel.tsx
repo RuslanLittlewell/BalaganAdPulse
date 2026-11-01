@@ -12,7 +12,7 @@ export interface CenteredPanelProps {
 
 export function CenteredPanel({ title, children, wide = false, above }: CenteredPanelProps) {
   return (
-    <div className="relative grid min-h-screen place-items-center overflow-hidden bg-background p-4">
+    <div className="relative grid min-h-screen place-items-center overflow-hidden bg-background p-3">
       <div
         aria-hidden="true"
         data-testid="signed-out-rays"
@@ -21,7 +21,7 @@ export function CenteredPanel({ title, children, wide = false, above }: Centered
         <LightRays raysOrigin="top-center" raysSpeed={0.8} lightSpread={1.2} rayLength={1.6} />
       </div>
 
-      <div className="relative z-10 flex max-w-full flex-col items-center gap-6">
+      <div className="relative z-10 flex max-w-full flex-col items-center gap-5">
         {above}
         <Card
           className={"relative z-10 rounded-3xl shadow-2xl dark:border-white/10 " + (wide
@@ -30,7 +30,7 @@ export function CenteredPanel({ title, children, wide = false, above }: Centered
         >
           <CardHeader>
             <CardTitle>
-              <h1 className="text-xl font-bold">{title}</h1>
+              <h1 className="text-xl font-semibold">{title}</h1>
             </CardTitle>
             <CardAction className="-my-2 -mr-2 self-center">
               <ThemeToggle />

@@ -53,19 +53,19 @@ export function CreativePreviewDialog({ ads, initialAdId, onClose }: CreativePre
           <DialogDescription>{t("creatives.dialog")}</DialogDescription>
         </DialogHeader>
 
-        <div className="grid max-h-[70vh] gap-4 overflow-auto">
+        <div className="grid max-h-[70vh] gap-3 overflow-auto">
           {creatives.isPending && (
-            <div className="grid min-h-40 place-items-center rounded-md border border-border bg-muted/30">
+            <div className="grid min-h-32 place-items-center rounded-md border border-border bg-muted/30">
               <Loader size="sm" />
             </div>
           )}
 
           {creatives.isError && (
-            <p className="py-8 text-center text-sm text-destructive">{t("creatives.failed")}</p>
+            <p className="py-6 text-center text-sm text-destructive">{t("creatives.failed")}</p>
           )}
 
           {creatives.isSuccess && variants.length === 0 && (
-            <p className="py-8 text-center text-sm text-muted-foreground">{t("creatives.empty")}</p>
+            <p className="py-6 text-center text-sm text-muted-foreground">{t("creatives.empty")}</p>
           )}
 
           {unplayable.length > 0 && (

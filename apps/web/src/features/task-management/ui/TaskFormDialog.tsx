@@ -135,10 +135,10 @@ function Block({
 }) {
   return (
     <div
-      className="flex min-w-0 flex-col gap-1 pb-4 border-b border-border"
+      className="flex min-w-0 flex-col gap-1 pb-3 border-b border-border"
       data-testid={`task-block-${block}`}
     >
-      <div className="flex min-h-7 items-center justify-between gap-2">
+      <div className="flex min-h-6 items-center justify-between gap-2">
         <Label>
           {t(`tasks.block.${block}`)}
         </Label>
@@ -147,7 +147,7 @@ function Block({
             type="button"
             variant="ghost"
             size="icon"
-            className="size-7 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+            className="size-6 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
             aria-label={t(`tasks.block.remove.${block}`)}
             onClick={onRemove}
           >
@@ -396,7 +396,7 @@ export function TaskFormDialog({
 
   const properties = (
     <div className="flex shrink-0 flex-col gap-1">
-      <div className="flex items-center gap-2 max-md:grid max-md:grid-cols-[auto_minmax(0,1fr)] max-md:gap-x-3">
+      <div className="flex items-center gap-2 max-md:grid max-md:grid-cols-[auto_minmax(0,1fr)] max-md:gap-x-2">
         {showsStage ? (
           <>
             <Label
@@ -410,7 +410,7 @@ export function TaskFormDialog({
               name="column"
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
-                  <SelectTrigger id="task-column" className="w-40 max-md:w-full">
+                  <SelectTrigger id="task-column" className="w-32 max-md:w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -436,7 +436,7 @@ export function TaskFormDialog({
           name="priority"
           render={({ field }) => (
             <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
-              <SelectTrigger id="task-priority" className="w-36 max-md:w-full">
+              <SelectTrigger id="task-priority" className="w-29 max-md:w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -479,7 +479,7 @@ export function TaskFormDialog({
           "max-md:gap-0 max-md:overflow-hidden max-md:p-0",
         )}
       >
-        <DialogHeader className="shrink-0 flex-row items-center justify-between gap-3 border-border border-b pb-2 max-md:gap-2 max-md:p-2 max-md:pr-3">
+        <DialogHeader className="shrink-0 flex-row items-center justify-between gap-2 border-border border-b pb-2 max-md:gap-2 max-md:p-2 max-md:pr-2">
           {narrow ? (
             <Button
               type="button"
@@ -488,7 +488,7 @@ export function TaskFormDialog({
               aria-label={readOnly ? t("action.close") : t("action.cancel")}
               onClick={requestClose}
             >
-              <XIcon aria-hidden className="size-5" />
+              <XIcon aria-hidden className="size-4" />
             </Button>
           ) : null}
           <DialogTitle className="max-md:min-w-0 max-md:flex-1 max-md:truncate max-md:leading-normal">
@@ -504,11 +504,11 @@ export function TaskFormDialog({
         <form
           id={formId}
           onSubmit={onSubmit}
-          className="flex min-h-0 flex-1 flex-col gap-4 max-md:overflow-y-auto max-md:px-4 max-md:pb-6 max-md:pt-4"
+          className="flex min-h-0 flex-1 flex-col gap-3 max-md:overflow-y-auto max-md:px-3 max-md:pb-5 max-md:pt-3"
         >
           <div
             data-testid="task-form-body"
-            className="flex flex-col gap-4 md:min-h-0 md:flex-1"
+            className="flex flex-col gap-3 md:min-h-0 md:flex-1"
           >
             <TextField
               label={t("tasks.form.title")}
@@ -521,9 +521,9 @@ export function TaskFormDialog({
 
             {narrow ? properties : null}
 
-            <div className="grid grid-cols-1 gap-4 md:min-h-0 md:flex-1 md:grid-cols-[7fr_3fr] md:gap-0">
+            <div className="grid grid-cols-1 gap-3 md:min-h-0 md:flex-1 md:grid-cols-[7fr_3fr] md:gap-0">
               <div
-                className="flex min-w-0 flex-col gap-4 md:min-h-0 md:overflow-y-auto md:pr-4"
+                className="flex min-w-0 flex-col gap-3 md:min-h-0 md:overflow-y-auto md:pr-3"
                 data-testid="task-form-main"
               >
                 <div className="flex flex-col gap-2">
@@ -542,7 +542,7 @@ export function TaskFormDialog({
                   </div>
                   <TaskDescriptionEditor
                     ref={editor}
-                    className="flex min-h-62 flex-col"
+                    className="flex min-h-50 flex-col"
                     value={description}
                     onChange={setDescription}
                     editable={editingDescription && !readOnly}
@@ -588,7 +588,7 @@ export function TaskFormDialog({
               </div>
 
               <div
-                className="flex min-w-0 flex-col gap-4 max-md:order-first md:border-l md:border-border md:pl-4"
+                className="flex min-w-0 flex-col gap-3 max-md:order-first md:border-l md:border-border md:pl-3"
                 data-testid="task-form-params"
               >
                 {offeredParams.length > 0 && !readOnly ? (
@@ -655,7 +655,7 @@ export function TaskFormDialog({
                       ) : null}
 
                       {block === "assign" ? (
-                        <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-2">
                           <div className="flex min-w-0 flex-col gap-2">
                             <Label htmlFor="task-project">
                               {t("tasks.form.project")}
@@ -723,7 +723,7 @@ export function TaskFormDialog({
           {narrow && !sharesWithClient && !personalNote && !deleteTask ? null : (
             <DialogFooter
               data-testid="task-form-footer"
-              className="shrink-0 items-center border-t border-border pt-4 sm:justify-between max-md:flex-row max-md:flex-wrap max-md:justify-between"
+              className="shrink-0 items-center border-t border-border pt-3 sm:justify-between max-md:flex-row max-md:flex-wrap max-md:justify-between"
             >
               {sharesWithClient ? (
                 <div className="flex items-center gap-2">

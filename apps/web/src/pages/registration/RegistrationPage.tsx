@@ -26,7 +26,7 @@ export function RegistrationPage() {
     return (
       <CenteredPanel title={t("registration.invalid.title")}>
         <p className="text-sm text-muted-foreground">{t("registration.invalid.description")}</p>
-        <Link to="/login" className="mt-4 inline-block text-sm underline">{t("auth.login.submit")}</Link>
+        <Link to="/login" className="mt-3 inline-block text-sm underline">{t("auth.login.submit")}</Link>
       </CenteredPanel>
     );
   }

@@ -38,8 +38,8 @@ export function DocumentSheet({ projectId, document, canWrite, onBack, onDeleted
   ].filter(Boolean).join(" · ");
 
   return (
-    <article className="flex min-w-0 flex-col gap-3" aria-label={title || document.title}>
-      <div className="flex items-start justify-between gap-3">
+    <article className="flex min-w-0 flex-col gap-2" aria-label={title || document.title}>
+      <div className="flex items-start justify-between gap-2">
         <Button type="button" variant="ghost" size="icon" aria-label={t("documents.back")} onClick={onBack}>
           <ArrowLeftIcon />
         </Button>
@@ -71,7 +71,7 @@ export function DocumentSheet({ projectId, document, canWrite, onBack, onDeleted
         ) : null}
       </div>
 
-      <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+      <p className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
         <span>{changed}</span>
         {autosave.status !== "idle" ? (
           <span role="status" data-status={autosave.status} className={autosave.status === "failed" ? "text-destructive" : undefined}>

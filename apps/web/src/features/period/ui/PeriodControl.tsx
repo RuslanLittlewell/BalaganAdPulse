@@ -54,10 +54,10 @@ export function PeriodControl() {
       {(["from", "to"] as const).map((side) => {
         const fieldError = error == null ? undefined : error;
         return (
-          <div key={side} className="flex w-37 flex-col gap-1">
+          <div key={side} className="flex w-30 flex-col gap-1">
             <Label
               htmlFor={`period-${side}`}
-              className="font-mono text-[10px] uppercase tracking-[.12em] text-muted-foreground"
+              className="text-xs text-muted-foreground"
             >
               {t(side === "from" ? "period.from" : "period.to")}
             </Label>
@@ -71,7 +71,7 @@ export function PeriodControl() {
                 autoComplete="off"
                 aria-invalid={fieldError ? true : undefined}
                 aria-describedby={fieldError ? "period-error" : undefined}
-                className="h-8 font-mono text-xs"
+                className="h-6 font-mono text-xs"
               />
               <DatePicker
                 value={isIsoDate(draft[side]) ? draft[side] : range[side]}
@@ -87,7 +87,7 @@ export function PeriodControl() {
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="size-8 shrink-0 bg-transparent dark:bg-transparent"
+                  className="size-6 shrink-0 bg-transparent dark:bg-transparent"
                   aria-label={t(side === "from" ? "period.from.open" : "period.to.open")}
                 >
                   <CalendarIcon />

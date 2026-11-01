@@ -6,7 +6,7 @@ import { useRemoveCover, useReportCover, useUploadCover, type Report } from "@/e
 
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 10 * 1024 * 1024;
-const FRAME = "relative h-full min-h-64 overflow-hidden rounded-lg border";
+const FRAME = "relative h-full min-h-51 overflow-hidden rounded-lg border";
 
 function Picture({ report }: { report: Report }) {
   const picture = useReportCover(report);
@@ -19,8 +19,8 @@ function Picture({ report }: { report: Report }) {
 
 function Placeholder() {
   return (
-    <div className="flex size-full flex-col items-center justify-center gap-2 p-4 text-center text-muted-foreground">
-      <ImageIcon aria-hidden className="size-8" />
+    <div className="flex size-full flex-col items-center justify-center gap-2 p-3 text-center text-muted-foreground">
+      <ImageIcon aria-hidden className="size-6" />
       <span className="text-sm text-foreground">{t("report.cover.drop")}</span>
       <span className="text-xs">{t("report.cover.hint")}</span>
     </div>

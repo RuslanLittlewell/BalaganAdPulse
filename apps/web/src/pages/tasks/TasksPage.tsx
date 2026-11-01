@@ -60,8 +60,8 @@ export function TasksPage() {
   const calls = useMemo(() => shown.filter((task) => task.isCall), [shown]);
 
   return (
-    <section className="flex h-full flex-col gap-4">
-      <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3">
+    <section className="flex h-full flex-col gap-3">
+      <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2">
         <div className="justify-self-start">
           <TaskFilters
             tasks={onShelf}
@@ -91,7 +91,7 @@ export function TasksPage() {
         <div className="flex items-center gap-2 justify-self-end">
           <TelegramBotButton />
           <Can action="create" resource="task">
-            <Button onClick={() => create()} className="max-md:size-10 md:has-[>svg]:px-4">
+            <Button onClick={() => create()} className="max-md:size-8 md:has-[>svg]:px-3">
               <PlusIcon aria-hidden className="md:hidden" />
               <span className="sr-only md:not-sr-only">{t("tasks.create")}</span>
             </Button>

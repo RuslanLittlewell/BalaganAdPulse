@@ -204,14 +204,14 @@ export function ProjectFormDialog({
           <DialogTitle>{t(isEdit ? "project.form.edit.title" : "project.form.new.title")}</DialogTitle>
         </DialogHeader>
 
-        <form noValidate className="grid gap-3" onSubmit={(event) => void submit(event)}>
-          <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_minmax(0,4fr)]">
-          <div className="flex min-w-0 flex-col items-center gap-3 sm:border-r sm:border-border sm:pr-6">
+        <form noValidate className="grid gap-2" onSubmit={(event) => void submit(event)}>
+          <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,4fr)]">
+          <div className="flex min-w-0 flex-col items-center gap-2 sm:border-r sm:border-border sm:pr-5">
             {logoPreview != null ? (
               <img
                 src={logoPreview}
                 alt={t("project.logo.preview")}
-                className="size-[110px] shrink-0 rounded-md object-contain"
+                className="size-28 shrink-0 rounded-md object-contain"
               />
             ) : project != null ? (
               <ProjectAvatar project={project} size="xl" />
@@ -219,9 +219,9 @@ export function ProjectFormDialog({
               <div
                 role="img"
                 aria-label={t("project.logo.empty")}
-                className="grid size-[110px] shrink-0 place-items-center rounded-md border-2 border-dashed border-border text-muted-foreground"
+                className="grid size-28 shrink-0 place-items-center rounded-md border-2 border-dashed border-border text-muted-foreground"
               >
-                <ImageIcon aria-hidden className="size-8" />
+                <ImageIcon aria-hidden className="size-6" />
               </div>
             )}
             <Button
@@ -235,7 +235,7 @@ export function ProjectFormDialog({
             </Button>
             <span
               title={logo?.name}
-              className="block h-4 w-full truncate text-center text-xs text-muted-foreground"
+              className="block h-3 w-full truncate text-center text-xs text-muted-foreground"
             >
               {logo?.name}
             </span>
@@ -253,7 +253,7 @@ export function ProjectFormDialog({
             />
           </div>
 
-            <div className="flex min-w-0 flex-col gap-3">
+            <div className="flex min-w-0 flex-col gap-2">
             <TextField
               compact
               label={t("project.name.label")}

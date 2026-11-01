@@ -105,12 +105,12 @@ export function GoogleConnectionCard({
 
   return (
     <section
-      className="flex w-min flex-col justify-between gap-3 rounded-lg border border-border glass-card p-4"
+      className="flex w-min flex-col justify-between gap-2 rounded-lg border border-border glass-card p-3"
       aria-label={t("google.title")}
     >
       <div className="grid gap-1">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <ProviderLogo provider="GOOGLE" className="size-4 shrink-0" />
+          <ProviderLogo provider="GOOGLE" className="size-3 shrink-0" />
           {t("google.title")}
         </h2>
         {connection.lastSuccessAt && (
@@ -189,7 +189,7 @@ function GoogleSettingsDialog({
         <DialogHeader>
           <DialogTitle>{t("google.settings")}</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4">
+        <div className="grid gap-3">
           <p className="text-sm">
             {t("google.account")}: <span className="font-medium">{connection.accountId}</span>
           </p>
@@ -231,7 +231,7 @@ export function GoogleReturn({ projectId }: { projectId: string }) {
   return (
     <>
       {failed && (
-        <section className="flex items-center gap-3 rounded-lg border border-border glass-card p-4">
+        <section className="flex items-center gap-2 rounded-lg border border-border glass-card p-3">
           <p role="alert" className="text-xs text-destructive">{t("google.error.signIn")}</p>
           <Button variant="outline" size="sm" onClick={() => setFailed(false)}>
             {t("action.close")}
@@ -305,7 +305,7 @@ function GoogleAccountDialog({
         <DialogHeader>
           <DialogTitle>{t("google.choose")}</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4">
+        <div className="grid gap-3">
           {accounts.isPending || accounts.data?.renewing ? (
             <p className="text-sm text-muted-foreground">{t("google.loading")}</p>
           ) : loadFailure ? (

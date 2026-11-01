@@ -67,7 +67,7 @@ export function ContactForm({ client, onDone, onCancel }: ContactFormProps) {
   return (
     <form
       noValidate
-      className="grid gap-3 sm:grid-cols-2"
+      className="grid gap-2 sm:grid-cols-2"
       onSubmit={(event) => void submit(event)}
       aria-label={t(isEdit ? "contacts.edit" : "contacts.new")}
     >
@@ -97,7 +97,7 @@ export function ContactForm({ client, onDone, onCancel }: ContactFormProps) {
           )}
         />
       ))}
-      <div className="flex items-center justify-end gap-2 border-t border-border pt-4 sm:col-span-2">
+      <div className="flex items-center justify-end gap-2 border-t border-border pt-3 sm:col-span-2">
         <Button type="button" variant="outline" onClick={onCancel}>
           {t("action.cancel")}
         </Button>

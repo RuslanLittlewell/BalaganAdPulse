@@ -50,7 +50,7 @@ export function ProjectItem({
             <ProjectAvatar project={project} size="sm" />
             <span
               aria-hidden="true"
-              className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-background"
+              className="absolute -bottom-0.5 -right-0.5 size-2 rounded-full ring-2 ring-background"
               style={{ background: MARKER[tone] }}
             />
           </span>

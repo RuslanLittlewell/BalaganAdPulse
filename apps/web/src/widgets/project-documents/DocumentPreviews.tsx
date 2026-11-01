@@ -7,9 +7,9 @@ const dayOf = (iso: string) =>
 
 function Thumbnail({ document }: { document: DocumentSummary }) {
   return (
-    <div aria-hidden className="relative h-40 overflow-hidden rounded-xl bg-linear-to-b from-primary/15 to-primary/5">
-      <div className="absolute inset-x-10 top-5 bottom-0 translate-x-3 rounded-t-lg border border-border/60 bg-background/60" />
-      <div className="absolute inset-x-8 top-7 bottom-0 rounded-t-lg border border-border bg-background px-5 pt-4 shadow-sm transition-transform duration-200 group-hover:-translate-y-1 motion-reduce:transition-none">
+    <div aria-hidden className="relative h-32 overflow-hidden rounded-xl bg-linear-to-b from-primary/15 to-primary/5">
+      <div className="absolute inset-x-8 top-4 bottom-0 translate-x-2 rounded-t-lg border border-border/60 bg-background/60" />
+      <div className="absolute inset-x-6 top-6 bottom-0 rounded-t-lg border border-border bg-background px-4 pt-3 shadow-sm transition-transform duration-200 group-hover:-translate-y-1 motion-reduce:transition-none">
         <p className="line-clamp-2 font-serif text-sm leading-snug text-foreground">{document.title}</p>
         <p className="mt-1 truncate text-[9px] text-muted-foreground">
           {[dayOf(document.updatedAt), document.updatedBy?.name].filter(Boolean).join(" · ")}
@@ -32,13 +32,13 @@ export function DocumentPreviews({
   onOpen: (documentId: string) => void;
 }) {
   return (
-    <ul aria-label={t("documents.previews")} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <ul aria-label={t("documents.previews")} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {documents.map((document) => (
         <li key={document.id}>
           <button
             type="button"
             onClick={() => onOpen(document.id)}
-            className="group flex w-full flex-col gap-3 rounded-2xl border border-border bg-card p-2 pb-3 text-left transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="group flex w-full flex-col gap-2 rounded-2xl border border-border bg-card p-2 pb-2 text-left transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Thumbnail document={document} />
             <span className="flex min-w-0 flex-col px-2">

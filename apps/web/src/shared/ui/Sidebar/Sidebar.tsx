@@ -17,15 +17,15 @@ export const sidebarNavClassName = (collapsed: boolean) =>
 
 export const sidebarLinkClassName = (collapsed: boolean, active: boolean) =>
   cn(
-    "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-2xs font-medium transition-colors",
+    "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 text-2xs font-medium transition-colors",
     "md:flex-none md:flex-row md:rounded-md md:text-sm",
-    collapsed ? "md:size-10 md:p-0" : "md:justify-start md:gap-3 md:px-3 md:py-2",
+    collapsed ? "md:size-8 md:p-0" : "md:justify-start md:gap-2 md:px-2 md:py-2",
     active
       ? "bg-sidebar-accent text-sidebar-accent-foreground"
       : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
   );
 
-export const SIDEBAR_ICON_CLASS_NAME = "size-5 shrink-0 md:size-6";
+export const SIDEBAR_ICON_CLASS_NAME = "size-4 shrink-0 md:size-5";
 
 export const sidebarLabelClassName = (collapsed: boolean) =>
   cn("max-w-full truncate", collapsed && "md:sr-only");
@@ -38,14 +38,14 @@ export function Sidebar({ header, children, action, footer }: SidebarProps) {
         {children}
       </div>
       {action != null && (
-        <div className="p-3" data-region="action">
+        <div className="p-2" data-region="action">
           {action}
         </div>
       )}
       {footer != null && (
         <>
           <Separator />
-          <div className="mt-auto p-3" data-region="footer">
+          <div className="mt-auto p-2" data-region="footer">
             {footer}
           </div>
         </>

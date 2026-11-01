@@ -66,7 +66,7 @@ export function AvatarEditorDialog({ open, initial, onClose, onSave }: Props) {
           <DialogTitle>{t("avatar.title")}</DialogTitle>
         </DialogHeader>
         <form
-          className={"grid gap-6 md:grid-cols-[220px_1fr]"}
+          className={"grid gap-5 md:grid-cols-[220px_1fr]"}
           onSubmit={(event) => {
             event.stopPropagation();
             void submit(event);
@@ -74,7 +74,7 @@ export function AvatarEditorDialog({ open, initial, onClose, onSave }: Props) {
         >
           <aside
             className={
-              "sticky top-0 grid self-start gap-4 [&>img]:aspect-square [&>img]:w-full [&>img]:rounded-full"
+              "sticky top-0 grid self-start gap-3 [&>img]:aspect-square [&>img]:w-full [&>img]:rounded-full"
             }
           >
             <AvatarPreview options={preview} />
@@ -86,7 +86,7 @@ export function AvatarEditorDialog({ open, initial, onClose, onSave }: Props) {
               {t("avatar.random")}
             </Button>
           </aside>
-          <div className={"grid grid-cols-1 gap-3 sm:grid-cols-2"}>
+          <div className={"grid grid-cols-1 gap-2 sm:grid-cols-2"}>
             {(Object.keys(avatarChoices) as (keyof AvatarOptions)[]).map((key) => (
               <Controller
                 key={key}

@@ -23,8 +23,8 @@ export function AvatarStep({
   const [editing, setEditing] = useState(false);
 
   return (
-    <div className="flex items-center gap-4">
-      <div className="size-20 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
+    <div className="flex items-center gap-3">
+      <div className="size-16 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
         {value.preview != null ? (
           <img src={value.preview} alt="" className="size-full object-cover" />
         ) : value.options != null ? (

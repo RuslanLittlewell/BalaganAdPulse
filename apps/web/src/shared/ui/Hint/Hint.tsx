@@ -28,14 +28,14 @@ export function Hint({ open, text, onDismiss, side = "bottom", children }: HintP
           onCloseAutoFocus={keepOpen}
           onInteractOutside={keepOpen}
           onEscapeKeyDown={keepOpen}
-          className="z-50 flex max-w-64 items-start gap-2 rounded-lg bg-primary py-2 pr-1 pl-3 text-sm font-medium text-primary-foreground shadow-lg data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
+          className="z-50 flex max-w-51 items-start gap-2 rounded-lg bg-primary py-2 pr-1 pl-2 text-sm font-medium text-primary-foreground shadow-lg data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
         >
           <p className="py-1">{text}</p>
           <Button
             variant="ghost"
             size="icon"
             aria-label={t("hint.dismiss")}
-            className="size-7 shrink-0 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground"
+            className="size-6 shrink-0 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground"
             onClick={onDismiss}
           >
             <XIcon />

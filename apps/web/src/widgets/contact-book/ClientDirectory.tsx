@@ -55,7 +55,7 @@ export function ClientDirectory() {
 
   if (clients.isPending) {
     return (
-      <div className="grid place-items-center py-10">
+      <div className="grid place-items-center py-8">
         <Loader />
       </div>
     );
@@ -64,9 +64,9 @@ export function ClientDirectory() {
   if (!clients.isSuccess) return null;
 
   return (
-    <div data-testid="contact-book-columns" className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-4 sm:grid-cols-[minmax(14rem,22%)_minmax(0,1fr)] sm:grid-rows-[minmax(0,1fr)]">
+    <div data-testid="contact-book-columns" className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-3 sm:grid-cols-[minmax(14rem,22%)_minmax(0,1fr)] sm:grid-rows-[minmax(0,1fr)]">
       <div data-testid="contact-book-list" className="relative flex min-h-0 min-w-0 flex-col">
-        <div className="grid min-h-0 flex-1 content-start gap-1 overflow-y-auto pb-14">
+        <div className="grid min-h-0 flex-1 content-start gap-1 overflow-y-auto pb-11">
           {list.map((client) => (
             <ListItem
               key={client.id}
@@ -102,11 +102,11 @@ export function ClientDirectory() {
 
       <div
         data-testid="contact-book-details"
-        className="flex min-h-0 min-w-0 flex-col overflow-y-auto sm:border-l sm:border-border sm:pl-4"
+        className="flex min-h-0 min-w-0 flex-col overflow-y-auto sm:border-l sm:border-border sm:pl-3"
       >
         {(mode.kind === "create" || selected != null) && (
-          <div className="mb-2 flex min-h-9 items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-3">
+          <div className="mb-2 flex min-h-7 items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               {mode.kind !== "create" && selected != null && (
                 <Can action="update" resource="client"><ContactAvatar client={selected} /></Can>
               )}

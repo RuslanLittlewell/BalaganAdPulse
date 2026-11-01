@@ -7,9 +7,9 @@ import { Button } from "@/shared/ui/index.js";
 
 const CONTENT_CLASS = [
   "outline-none text-sm leading-relaxed text-foreground",
-  "[&_p]:my-1.5 [&_strong]:font-semibold",
-  "[&_ul]:my-1.5 [&_ul]:list-disc [&_ul]:pl-5",
-  "[&_ol]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5",
+  "[&_p]:my-1 [&_strong]:font-semibold",
+  "[&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-4",
+  "[&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-4",
 ].join(" ");
 
 const isEmpty = (value: unknown) => {
@@ -71,7 +71,7 @@ function Writer({
     extensions: [StarterKit],
     content: (value as never) ?? "",
     onUpdate: ({ editor: instance }) => setDraft(instance.getJSON()),
-    editorProps: { attributes: { "aria-label": title, class: `${CONTENT_CLASS} min-h-24 p-3` } },
+    editorProps: { attributes: { "aria-label": title, class: `${CONTENT_CLASS} min-h-19 p-2` } },
   });
   return (
     <div className="flex flex-col gap-2">
@@ -104,8 +104,8 @@ export function ReportText({
   const headingId = useId();
 
   return (
-    <section aria-labelledby={headingId} className="rounded-lg border border-border p-4">
-      <div className="mb-2 flex items-center justify-between gap-3">
+    <section aria-labelledby={headingId} className="rounded-lg border border-border p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
         <h2 id={headingId} className="text-sm font-semibold text-foreground">{title}</h2>
         {editable && !editing ? (
           <Button size="sm" variant="ghost" aria-label={`${t("report.edit")}: ${title}`} onClick={() => setEditing(true)}>

@@ -68,7 +68,7 @@ export function OrganizationTable() {
             column="name"
             label={t("platform.column.name")}
             sorting={sorting}
-            className="pl-4"
+            className="pl-3"
           />
           <SortableHeader
             column="status"
@@ -90,7 +90,7 @@ export function OrganizationTable() {
             column="firstAdmin"
             label={t("platform.column.firstAdmin")}
             sorting={sorting}
-            className="pl-4"
+            className="pl-3"
           />
           <SortableHeader
             column="createdAt"
@@ -153,7 +153,7 @@ function OrganizationRow({
       <th
         scope="row"
         className={cn(
-          "border-l-4 py-3 pl-3 text-left font-medium",
+          "border-l-4 py-2 pl-2 text-left font-medium",
           organization.status === "ACTIVE"
             ? "border-l-emerald-500"
             : "border-l-red-500",
@@ -166,7 +166,7 @@ function OrganizationRow({
           </span>
         </span>
       </th>
-      <td className="py-3">
+      <td className="py-2">
         <span
           className={cn(
             "rounded-full px-2 py-0.5 text-xs font-medium",
@@ -178,7 +178,7 @@ function OrganizationRow({
           {t(`platform.status.${organization.status}`)}
         </span>
       </td>
-      <td className="py-3">
+      <td className="py-2">
         <ul
           aria-label={`${t("platform.column.modules")}: ${organization.name}`}
           className="flex flex-wrap gap-1"
@@ -186,23 +186,23 @@ function OrganizationRow({
           {organization.modules.map((module) => (
             <li
               key={module}
-              className="rounded-md border border-border px-1.5 py-0.5 text-xs"
+              className="rounded-md border border-border px-1 py-0.5 text-xs"
             >
               {moduleLabel(module)}
             </li>
           ))}
         </ul>
       </td>
-      <td className="py-3 text-right tabular-nums">
+      <td className="py-2 text-right tabular-nums">
         {organization.activeMembers}
       </td>
-      <td className="py-3 pl-4">
+      <td className="py-2 pl-3">
         <FirstAdmin organization={organization} />
       </td>
-      <td className="py-3 text-muted-foreground">
+      <td className="py-2 text-muted-foreground">
         {formatCalendarDate(organization.createdAt)}
       </td>
-      <td className="py-3">
+      <td className="py-2">
         <OrganizationActions organization={organization} />
       </td>
     </tr>

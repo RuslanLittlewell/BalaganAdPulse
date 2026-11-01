@@ -43,7 +43,7 @@ export function LeadFilesTab({ boardKey, leadId, editable }: LeadFilesTabProps) 
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
       {editable ? (
         <div>
           <input
@@ -59,7 +59,7 @@ export function LeadFilesTab({ boardKey, leadId, editable }: LeadFilesTabProps) 
             }}
           />
           <Button type="button" variant="outline" size="sm" disabled={attach.isPending} onClick={() => picker.current?.click()}>
-            <Paperclip aria-hidden className="size-4" />
+            <Paperclip aria-hidden className="size-3" />
             {t("crm.files.attach")}
           </Button>
         </div>
@@ -70,7 +70,7 @@ export function LeadFilesTab({ boardKey, leadId, editable }: LeadFilesTabProps) 
       ) : (
         <ul aria-label={t("crm.card.files")} className="flex flex-col gap-2">
           {files.map((file) => (
-            <li key={file.id} className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm">
+            <li key={file.id} className="flex items-center gap-2 rounded-lg border border-border p-2 text-sm">
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{file.name}</p>
                 <p className="truncate text-xs text-muted-foreground">
@@ -78,11 +78,11 @@ export function LeadFilesTab({ boardKey, leadId, editable }: LeadFilesTabProps) 
                 </p>
               </div>
               <Button type="button" variant="ghost" size="icon" aria-label={`${t("crm.files.download")} ${file.name}`} onClick={() => void download(file)}>
-                <Download aria-hidden className="size-4" />
+                <Download aria-hidden className="size-3" />
               </Button>
               {editable ? (
                 <Button type="button" variant="ghost" size="icon" aria-label={`${t("crm.files.remove")} ${file.name}`} onClick={() => setRemoving(file)}>
-                  <Trash2 aria-hidden className="size-4" />
+                  <Trash2 aria-hidden className="size-3" />
                 </Button>
               ) : null}
             </li>

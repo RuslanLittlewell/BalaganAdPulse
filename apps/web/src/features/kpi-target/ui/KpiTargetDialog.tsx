@@ -88,7 +88,7 @@ export function KpiTargetDialog({ scope, kpi, range, onClose }: KpiTargetDialogP
         <DialogHeader>
           <DialogTitle>{t("kpi.title")}</DialogTitle>
         </DialogHeader>
-        <form className="grid gap-4" onSubmit={submit} noValidate>
+        <form className="grid gap-3" onSubmit={submit} noValidate>
           <div className="flex flex-col gap-2">
             <Label htmlFor="kpi-metric">{t("kpi.metric")}</Label>
             <Select value={choice} onValueChange={setChoice} disabled={pending}>

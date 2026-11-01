@@ -15,9 +15,9 @@ export function TrendChart({ title, points }: { title: string; points: TrendPoin
   const drawn = points.flatMap((point, index) => (point.value === null ? [] : [{ x: x(index), y: y(point.value) }]));
 
   return (
-    <figure className="rounded-lg border border-border p-4">
+    <figure className="rounded-lg border border-border p-3">
       <figcaption className="text-sm font-semibold text-foreground">{title}</figcaption>
-      <div className="relative mt-3 h-40">
+      <div className="relative mt-2 h-32">
         <svg aria-hidden viewBox={`0 0 100 ${HEIGHT}`} preserveAspectRatio="none" className="absolute inset-0 size-full">
           <polyline
             points={drawn.map((point) => `${point.x},${point.y}`).join(" ")}
@@ -34,16 +34,16 @@ export function TrendChart({ title, points }: { title: string; points: TrendPoin
               className="absolute flex -translate-x-1/2 flex-col items-center"
               style={{ left: `${x(index)}%`, top: `${point.value === null ? 88 : y(point.value)}%` }}
             >
-              <span className="-translate-y-6 whitespace-nowrap text-xs font-medium tabular-nums text-foreground">
+              <span className="-translate-y-5 whitespace-nowrap text-xs font-medium tabular-nums text-foreground">
                 {point.label}
               </span>
-              <span aria-hidden className="-mt-4 size-2.5 -translate-y-1/2 rounded-full bg-primary" />
+              <span aria-hidden className="-mt-3 size-2 -translate-y-1/2 rounded-full bg-primary" />
               <span className="sr-only">{monthShort(point.month)}</span>
             </li>
           ))}
         </ol>
       </div>
-      <div aria-hidden className="relative mt-1 h-4 text-xs text-muted-foreground">
+      <div aria-hidden className="relative mt-1 h-3 text-xs text-muted-foreground">
         {points.map((point, index) => (
           <span key={point.month} className="absolute -translate-x-1/2" style={{ left: `${x(index)}%` }}>
             {monthShort(point.month)}

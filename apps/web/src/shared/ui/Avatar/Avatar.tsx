@@ -3,10 +3,10 @@ import { Avatar as AvatarRoot, AvatarFallback } from "../ui/avatar.js";
 const PALETTE_SIZE = 5;
 
 const SIZES = {
-  sm: { box: "size-8", text: "text-xs" },
-  md: { box: "size-10", text: "text-sm" },
-  lg: { box: "size-14", text: "text-lg" },
-  xl: { box: "size-[110px]", text: "text-3xl" },
+  sm: { box: "size-6", text: "text-xs" },
+  md: { box: "size-8", text: "text-sm" },
+  lg: { box: "size-11", text: "text-lg" },
+  xl: { box: "size-28", text: "text-3xl" },
 } as const;
 
 export interface AvatarProps {

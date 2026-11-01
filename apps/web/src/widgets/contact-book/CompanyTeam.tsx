@@ -23,7 +23,7 @@ export function CompanyTeam({ clientId }: { clientId: string }) {
 
   if (people.isPending) {
     return (
-      <div className="grid place-items-center py-10">
+      <div className="grid place-items-center py-8">
         <Loader />
       </div>
     );
@@ -32,7 +32,7 @@ export function CompanyTeam({ clientId }: { clientId: string }) {
   const list = people.data ?? [];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-foreground">
           {t("company.team")}
@@ -52,7 +52,7 @@ export function CompanyTeam({ clientId }: { clientId: string }) {
             <li
               key={person.id}
               data-testid={`company-person-${person.id}`}
-              className="grid items-center gap-3 p-3 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,0.8fr)_auto]"
+              className="grid items-center gap-2 p-2 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,0.8fr)_auto]"
             >
               <span className="flex min-w-0 items-center gap-2">
                 <MemberAvatar member={person} size="sm" />

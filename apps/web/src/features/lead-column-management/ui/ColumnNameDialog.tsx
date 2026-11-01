@@ -52,7 +52,7 @@ export function ColumnNameDialog({ boardKey, columns, column, onClose }: ColumnN
         <DialogHeader>
           <DialogTitle>{column ? t("crm.columns.renameTitle") : t("crm.columns.createTitle")}</DialogTitle>
         </DialogHeader>
-        <form className="flex flex-col gap-4" onSubmit={(event) => void submit(event)} noValidate>
+        <form className="flex flex-col gap-3" onSubmit={(event) => void submit(event)} noValidate>
           <TextField
             label={t("crm.columns.name")}
             value={name}

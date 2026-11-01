@@ -455,7 +455,7 @@ export const WarmTooltipGroup = forwardRef<WarmTooltipGroupHandle, WarmTooltipGr
                       ref={el => {
                         if (el) textRef.current = el;
                       }}
-                      className="inline-flex items-center gap-[7px] whitespace-nowrap font-medium leading-[1.2] tracking-[-0.01em] [font-size:var(--wt-font)]"
+                      className="inline-flex items-center gap-2 whitespace-nowrap font-medium leading-[1.2] [font-size:var(--wt-font)]"
                     >
                       {current.content}
                       {current.shortcut ? (

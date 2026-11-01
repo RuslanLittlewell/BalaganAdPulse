@@ -43,12 +43,12 @@ export function LeadSourceSection({ source, onPreview }: LeadSourceSectionProps)
   ];
 
   return (
-    <section aria-label={t("crm.source.title")} className="shrink-0 rounded-lg border border-border bg-muted/30 p-4">
+    <section aria-label={t("crm.source.title")} className="shrink-0 rounded-lg border border-border bg-muted/30 p-3">
       <h3 className="text-sm font-semibold">{t("crm.source.title")}</h3>
-      <dl className="mt-3 grid gap-x-6 gap-y-3 text-xs sm:grid-cols-2">
+      <dl className="mt-2 grid gap-x-5 gap-y-2 text-xs sm:grid-cols-2">
         {facts.map((fact) => (
           <div key={fact.key} className="min-w-0">
-            <dt className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">{fact.label}</dt>
+            <dt className="text-2xs font-medium text-muted-foreground">{fact.label}</dt>
             <dd className="mt-0.5 truncate text-sm" title={fact.value}>{fact.value}</dd>
           </div>
         ))}
@@ -56,10 +56,10 @@ export function LeadSourceSection({ source, onPreview }: LeadSourceSectionProps)
 
       {source.answers.length > 0 ? (
         <>
-          <h4 className="mt-5 border-t border-border/70 pt-4 text-sm font-semibold">{t("crm.source.answers")}</h4>
-          <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+          <h4 className="mt-4 border-t border-border/70 pt-3 text-sm font-semibold">{t("crm.source.answers")}</h4>
+          <dl className="mt-2 grid gap-2 sm:grid-cols-2">
             {source.answers.map((answer, index) => (
-              <div key={`${answer.question}-${index}`} className="min-w-0 rounded-md border border-border/70 bg-background p-3">
+              <div key={`${answer.question}-${index}`} className="min-w-0 rounded-md border border-border/70 bg-background p-2">
                 <dt className="text-xs font-medium text-muted-foreground">{formatMetaFieldLabel(answer.question)}</dt>
                 <dd className="mt-1 whitespace-pre-wrap break-words text-sm font-medium">
                   {answer.values.filter(Boolean).join(" · ") || "—"}
@@ -75,7 +75,7 @@ export function LeadSourceSection({ source, onPreview }: LeadSourceSectionProps)
       ) : null}
 
       {onPreview ? (
-        <Button type="button" variant="outline" size="sm" className="mt-3" onClick={onPreview}>
+        <Button type="button" variant="outline" size="sm" className="mt-2" onClick={onPreview}>
           {t("crm.source.preview")}
         </Button>
       ) : null}

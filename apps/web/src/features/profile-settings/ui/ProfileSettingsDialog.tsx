@@ -108,13 +108,13 @@ export function ProfileSettingsDialog({ open, onClose, onAvatarSaved }: Props) {
             <DialogTitle>{t("profile.title")}</DialogTitle>
           </DialogHeader>
           <form
-            className="flex flex-col gap-6"
+            className="flex flex-col gap-5"
             onSubmit={(event) => void submit(event)}
             noValidate
           >
-            <div className="grid gap-6 sm:grid-cols-[180px_minmax(0,1fr)]">
-              <div className="flex flex-col items-center gap-3 sm:border-r sm:border-border sm:pr-6">
-                <div className="w-32 sm:w-full [&>img]:aspect-square [&>img]:w-full [&>img]:rounded-full">
+            <div className="grid gap-5 sm:grid-cols-[180px_minmax(0,1fr)]">
+              <div className="flex flex-col items-center gap-2 sm:border-r sm:border-border sm:pr-5">
+                <div className="w-26 sm:w-full [&>img]:aspect-square [&>img]:w-full [&>img]:rounded-full">
                   <AvatarPreview options={options} />
                 </div>
                 <strong className="text-sm">{t("profile.avatar")}</strong>
@@ -129,13 +129,13 @@ export function ProfileSettingsDialog({ open, onClose, onAvatarSaved }: Props) {
                 </Button>
               </div>
 
-              <div className="flex min-w-0 flex-col gap-4">
+              <div className="flex min-w-0 flex-col gap-3">
                 <TextField
                   label={t("auth.name.label")}
                   error={errors.name?.message}
                   {...register("name", { required: t("auth.name.required") })}
                 />
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-2">
                   <TextField
                     label={t("contacts.phone")}
                     autoComplete="tel"
@@ -146,7 +146,7 @@ export function ProfileSettingsDialog({ open, onClose, onAvatarSaved }: Props) {
                     {...register("telegram")}
                   />
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-2">
                   <TextField
                     label={t("profile.currentPassword")}
                     type="password"

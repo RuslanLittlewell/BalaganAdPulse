@@ -24,18 +24,18 @@ export interface TaskPreviewDialogProps {
 
 const PRIORITY_TONE: Record<Task["priority"], string> = {
   LOW: "bg-muted text-muted-foreground",
-  MEDIUM: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200",
-  HIGH: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
-  URGENT: "bg-red-600 text-white dark:bg-red-700",
+  MEDIUM: "bg-muted text-muted-foreground",
+  HIGH: "bg-amber-500/10 text-amber-800 dark:text-amber-300",
+  URGENT: "bg-destructive/10 text-destructive",
 };
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex min-w-0 flex-col gap-1">
-      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <span className="text-xs font-medium text-muted-foreground">
         {label}
       </span>
-      <span className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm text-foreground">
+      <span className="flex min-w-0 flex-wrap items-center gap-1 text-sm text-foreground">
         {children}
       </span>
     </div>
@@ -62,15 +62,15 @@ export function TaskPreviewDialog({ task, onClose }: TaskPreviewDialogProps) {
         className={cn(
           "flex max-h-[80vh] w-[min(720px,calc(100vw-2rem))] flex-col",
           PHONE_SHEET_CLASS_NAME,
-          "max-md:p-4",
+          "max-md:p-3",
         )}
       >
         <DialogHeader className="shrink-0">
           <DialogTitle>{task.title}</DialogTitle>
         </DialogHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
-          <div className="flex flex-wrap gap-x-8 gap-y-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+          <div className="flex flex-wrap gap-x-6 gap-y-3">
             <Fact label={t("tasks.form.column")}>
               <span className="rounded-md bg-muted px-2 py-0.5 text-xs">
                 {t(`tasks.column.${task.column}`)}
@@ -95,7 +95,7 @@ export function TaskPreviewDialog({ task, onClose }: TaskPreviewDialogProps) {
             <Fact label={t("tasks.form.participants")}>
               {people.length > 0 ? (
                 people.map((member) => (
-                  <span key={member.id} className="flex min-w-0 items-center gap-1.5">
+                  <span key={member.id} className="flex min-w-0 items-center gap-1">
                     <MemberAvatar member={member} size="sm" />
                     <span className="truncate">{member.name}</span>
                   </span>
@@ -121,7 +121,7 @@ export function TaskPreviewDialog({ task, onClose }: TaskPreviewDialogProps) {
           </div>
 
           <div className="flex flex-col gap-2">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <span className="text-xs font-medium text-muted-foreground">
               {t("tasks.form.description")}
             </span>
             {task.description == null ? (
@@ -139,7 +139,7 @@ export function TaskPreviewDialog({ task, onClose }: TaskPreviewDialogProps) {
 
           {task.checklist.length > 0 ? (
             <div className="flex flex-col gap-2">
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <span className="text-xs font-medium text-muted-foreground">
                 {`${t("tasks.checklist")} · ${task.checklist.filter((item) => item.done).length} ${t("tasks.checklist.of")} ${task.checklist.length}`}
               </span>
               <ul className="flex flex-col gap-1">
@@ -150,7 +150,7 @@ export function TaskPreviewDialog({ task, onClose }: TaskPreviewDialogProps) {
                       checked={item.done}
                       disabled
                       readOnly
-                      className="size-4 accent-primary"
+                      className="size-3 accent-primary"
                     />
                     <span
                       className={

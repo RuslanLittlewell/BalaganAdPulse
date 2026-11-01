@@ -95,7 +95,7 @@ export function OrganizationFormDialog({ organization, open, onClose }: Organiza
         {createdLink ? (
           <div className="flex flex-col gap-2">
             <p className="text-sm text-muted-foreground">{t("platform.form.created")}</p>
-            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 p-3">
+            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 p-2">
               <code className="min-w-0 flex-1 break-all text-sm">{createdLink}</code>
               <CopyButton value={createdLink} label={t("platform.copyLink")} />
             </div>
@@ -104,7 +104,7 @@ export function OrganizationFormDialog({ organization, open, onClose }: Organiza
             </DialogFooter>
           </div>
         ) : (
-          <form className="flex flex-col gap-4" noValidate onSubmit={(event) => void submit(event)}>
+          <form className="flex flex-col gap-3" noValidate onSubmit={(event) => void submit(event)}>
             <TextField
               label={t("platform.form.name")}
               value={name}

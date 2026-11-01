@@ -107,7 +107,7 @@ export function ClientFormDialog({ client, onClose, onCreated }: ClientFormDialo
         <form
           noValidate
           onSubmit={(event) => void onSubmit(event)}
-          className="grid max-h-[65vh] gap-4 overflow-auto pr-1 sm:grid-cols-2"
+          className="grid max-h-[65vh] gap-3 overflow-auto pr-1 sm:grid-cols-2"
         >
         <div className="sm:col-span-2">
             <TextField label={t("form.name.label")} {...register("name")} error={errors.name?.message} autoFocus />

@@ -56,7 +56,7 @@ export function ContactAvatar({ client }: ContactAvatarProps) {
           >
             <ClientAvatar client={client} size="lg" />
             <span className="absolute inset-0 grid place-items-center rounded-md bg-black/55 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 group-data-[state=open]:opacity-100">
-              <PencilIcon className="size-4 text-white" aria-hidden="true" />
+              <PencilIcon className="size-3 text-white" aria-hidden="true" />
             </span>
           </button>
         </DropdownMenuTrigger>

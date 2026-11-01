@@ -45,15 +45,15 @@ export function KpiGauge({ range, counts }: KpiGaugeProps) {
     : t("dashboard.kpi.title");
 
   return (
-    <section aria-labelledby={titleId} className="flex max-h-[340px] flex-col overflow-y-auto rounded-lg border border-border p-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+    <section aria-labelledby={titleId} className="flex max-h-[340px] flex-col overflow-y-auto rounded-lg border border-border p-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
         <h2 id={titleId} className="text-sm font-semibold text-foreground">{t("dashboard.kpi.title")}</h2>
         <span className="text-xs tabular-nums text-muted-foreground">
           {formatDay(range.from)} – {formatDay(range.to)}
         </span>
       </div>
 
-      <svg viewBox="0 0 128 72" role="img" aria-label={label} className="mx-auto mt-4 w-full max-w-72">
+      <svg viewBox="0 0 128 72" role="img" aria-label={label} className="mx-auto mt-3 w-full max-w-58">
         <ArcPart length={100} color={PARTS[3].color} />
         <ArcPart length={ratedShare} color={PARTS[2].color} />
         <ArcPart length={behindShare} color={PARTS[1].color} />
@@ -79,10 +79,10 @@ export function KpiGauge({ range, counts }: KpiGaugeProps) {
         <div className="text-xs text-muted-foreground">{t("dashboard.kpi.caption")}</div>
       </div>
 
-      <ul className="mt-4 space-y-1.5">
+      <ul className="mt-3 space-y-1">
         {PARTS.map((part) => (
           <li key={part.key} className="flex items-center gap-2 text-sm">
-            <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: part.color }} />
+            <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ background: part.color }} />
             <span className="flex-1 text-muted-foreground">{t(part.label)}</span>
             <span className="font-medium tabular-nums text-foreground">{counts ? counts[part.key] : "—"}</span>
           </li>

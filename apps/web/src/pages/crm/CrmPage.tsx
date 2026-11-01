@@ -73,13 +73,13 @@ export function CrmPage() {
   if (boards && boards.length === 0) return <EmptyState title={t("crm.noBoards")} />;
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
-      <header className="flex shrink-0 flex-wrap items-end justify-between gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      <header className="flex shrink-0 flex-wrap items-end justify-between gap-2">
         {(boards ?? []).length > 1 ? (
           <div className="flex min-w-0 flex-col gap-2">
             <Label htmlFor="crm-board">{t("crm.board")}</Label>
             <Select value={board?.key ?? ""} onValueChange={(next) => setParams({ board: next })}>
-              <SelectTrigger id="crm-board" className="w-56"><SelectValue /></SelectTrigger>
+              <SelectTrigger id="crm-board" className="w-45"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {(boards ?? []).map((candidate) => (
                   <SelectItem key={candidate.key} value={candidate.key}>
@@ -110,7 +110,7 @@ export function CrmPage() {
 
         {board?.capabilities.create ? (
           <Button type="button" onClick={() => setEditing({})}>
-            <Plus aria-hidden className="size-4" />
+            <Plus aria-hidden className="size-3" />
             {t("crm.create")}
           </Button>
         ) : null}

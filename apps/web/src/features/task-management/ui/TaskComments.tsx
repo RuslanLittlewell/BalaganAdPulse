@@ -195,7 +195,7 @@ export function TaskComments({ task }: TaskCommentsProps) {
   };
 
   return (
-    <section aria-labelledby={`task-comments-${task.id}`} className="flex flex-col gap-3">
+    <section aria-labelledby={`task-comments-${task.id}`} className="flex flex-col gap-2">
       <Label id={`task-comments-${task.id}`}>
         {t("comments.title")}
         {comments && comments.length > 0 ? ` · ${comments.length}` : ""}
@@ -220,14 +220,14 @@ export function TaskComments({ task }: TaskCommentsProps) {
               <li
                 key={comment.id}
                 data-editing={editing?.id === comment.id ? "true" : undefined}
-                className={cn("group flex gap-3 rounded-lg px-2 py-1.5", editing?.id === comment.id && "bg-primary/10")}
+                className={cn("group flex gap-2 rounded-lg px-2 py-1", editing?.id === comment.id && "bg-primary/10")}
               >
                 {author ? (
                   <MemberAvatar member={author} size="sm" />
                 ) : authorName ? (
                   <Avatar name={authorName} size="sm" />
                 ) : (
-                  <span className="size-8 shrink-0 rounded-md bg-muted" />
+                  <span className="size-6 shrink-0 rounded-md bg-muted" />
                 )}
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -242,12 +242,12 @@ export function TaskComments({ task }: TaskCommentsProps) {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="size-6"
+                          className="size-5"
                           aria-label={t("comments.edit")}
                           disabled={pending}
                           onClick={() => startEditing(comment)}
                         >
-                          <Pencil aria-hidden className="size-3.5" />
+                          <Pencil aria-hidden className="size-3" />
                         </Button>
                       ) : null}
                       {mayDelete(comment) ? (
@@ -255,7 +255,7 @@ export function TaskComments({ task }: TaskCommentsProps) {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="size-6"
+                          className="size-5"
                           aria-label={t("comments.delete")}
                           disabled={remove.isPending}
                           onClick={() => {
@@ -263,7 +263,7 @@ export function TaskComments({ task }: TaskCommentsProps) {
                             remove.mutate(comment.id, { onError: () => raise(t("comments.deleteFailed")) });
                           }}
                         >
-                          <Trash2 aria-hidden className="size-3.5" />
+                          <Trash2 aria-hidden className="size-3" />
                         </Button>
                       ) : null}
                     </span>
@@ -282,10 +282,10 @@ export function TaskComments({ task }: TaskCommentsProps) {
         </ul>
       ) : null}
 
-      <div className="relative flex flex-col gap-1.5">
+      <div className="relative flex flex-col gap-1">
         {editing ? (
           <div className="flex items-center gap-2 rounded-md border-l-2 border-primary bg-primary/5 py-1 pl-2 pr-1">
-            <Pencil aria-hidden className="size-4 shrink-0 text-primary" />
+            <Pencil aria-hidden className="size-3 shrink-0 text-primary" />
             <div className="min-w-0 flex-1">
               <div className="text-xs font-medium text-primary">{t("comments.editing")}</div>
               <div className="truncate text-xs text-muted-foreground">{editing.body}</div>
@@ -294,15 +294,15 @@ export function TaskComments({ task }: TaskCommentsProps) {
               type="button"
               variant="ghost"
               size="icon"
-              className="size-7 shrink-0"
+              className="size-6 shrink-0"
               aria-label={t("comments.cancelEdit")}
               onClick={cancelEditing}
             >
-              <X aria-hidden className="size-4" />
+              <X aria-hidden className="size-3" />
             </Button>
           </div>
         ) : null}
-        <div className="flex items-end gap-2 rounded-2xl border border-input py-1.5 pl-3.5 pr-1.5 transition-colors focus-within:border-ring">
+        <div className="flex items-end gap-2 rounded-2xl border border-input py-1 pl-3 pr-1 transition-colors focus-within:border-ring">
           <textarea
             ref={field}
             aria-label={t("comments.field")}
@@ -313,25 +313,25 @@ export function TaskComments({ task }: TaskCommentsProps) {
             onKeyDown={onKeyDown}
             onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
             onBlur={() => setDismissed(true)}
-            className="min-h-8 flex-1 resize-none overflow-y-auto bg-transparent py-1.5 text-sm leading-5 outline-none placeholder:text-muted-foreground"
+            className="min-h-6 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm leading-4 outline-none placeholder:text-muted-foreground"
             style={{ maxHeight: FIELD_MAX_HEIGHT }}
           />
           <Button
             type="button"
             size="icon"
-            className="size-8 shrink-0 rounded-full"
+            className="size-6 shrink-0 rounded-full"
             aria-label={editing ? t("comments.save") : t("comments.send")}
             disabled={text.trim() === "" || pending}
             onClick={submit}
           >
-            {editing ? <Check aria-hidden className="size-4" /> : <SendHorizontal aria-hidden className="size-4" />}
+            {editing ? <Check aria-hidden className="size-3" /> : <SendHorizontal aria-hidden className="size-3" />}
           </Button>
         </div>
         {choosing ? (
           <ul
             role="listbox"
             aria-label={t("comments.mentions")}
-            className="absolute bottom-full left-0 z-50 mb-1 max-h-48 w-64 overflow-y-auto rounded-md border border-border bg-popover p-1 shadow-md"
+            className="absolute bottom-full left-0 z-50 mb-1 max-h-38 w-51 overflow-y-auto rounded-md border border-border bg-popover p-1 shadow-md"
           >
             {offered.map((member, index) => (
               <li
@@ -340,7 +340,7 @@ export function TaskComments({ task }: TaskCommentsProps) {
                 aria-selected={index === active}
                 onMouseDown={(event) => { event.preventDefault(); choose(member); }}
                 className={cn(
-                  "flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm",
+                  "flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm",
                   index === active && "bg-accent",
                 )}
               >

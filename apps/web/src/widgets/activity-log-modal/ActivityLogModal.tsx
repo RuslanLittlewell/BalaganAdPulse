@@ -47,7 +47,7 @@ function FilterSelect({ label, allLabel, options, value, onChange }: {
       searchLabel={t("select.search")}
       emptyLabel={t("select.search.empty")}
       ariaLabel={label}
-      className="sm:w-64"
+      className="sm:w-51"
     />
   );
 }
@@ -71,8 +71,8 @@ function ActivitySections() {
     : (actorId === ALL ? {} : { actorId });
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
-      <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+      <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <Tabs
           items={SECTIONS}
           activeId={section}

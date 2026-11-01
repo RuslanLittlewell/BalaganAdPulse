@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject, type UIEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type UIEvent } from "react";
 import {
   ChevronRightIcon,
   EllipsisVerticalIcon,
@@ -41,10 +41,8 @@ import {
   MIN_NAME_WIDTH,
   MIN_VISIBLE_COLUMNS,
   columnWidth,
-  fitWidths,
   isRequiredColumn,
   orderedColumnIds,
-  resizedWidths,
   useColumnWidths,
   visibleColumnIds,
   type MoveDirection,
@@ -176,20 +174,6 @@ function useRowWindow(total: number, limit: number | undefined) {
 
 const RESERVED_COLUMN_WIDTH = 40;
 
-function useAvailableWidth(scroller: RefObject<HTMLDivElement | null>, active: boolean): number {
-  const [available, setAvailable] = useState(0);
-  useLayoutEffect(() => {
-    const element = scroller.current;
-    if (!active || !element) return;
-    const measure = () => setAvailable(element.clientWidth);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [scroller, active]);
-  return available;
-}
-
 interface FigureColumn {
   id: string;
   label: string;
@@ -219,7 +203,7 @@ function Figures({
       {figures.map((column) => (
         <TableCell
           key={column.id}
-          className="overflow-hidden pr-[33px] text-right tabular-nums whitespace-nowrap"
+          className="overflow-hidden pr-8 text-right tabular-nums whitespace-nowrap"
         >
           {column.value(performance, currency, extra, mixedResults)}
         </TableCell>
@@ -298,8 +282,8 @@ function MoveButton({
       type="button"
       aria-label={`${t(direction === "left" ? "table.moveLeft" : "table.moveRight")} «${label}»`}
       className={cn(
-        "absolute top-1/2 grid size-4 -translate-y-1/2 place-items-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:text-primary focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring group-hover/column:opacity-100",
-        direction === "left" ? "left-0.5" : "right-2.5",
+        "absolute top-1/2 grid size-3 -translate-y-1/2 place-items-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:text-primary focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring group-hover/column:opacity-100",
+        direction === "left" ? "left-0.5" : "right-2",
       )}
       onClick={onMove}
     >
@@ -341,7 +325,7 @@ function Name({
         <ChevronRightIcon
           aria-hidden
           className={cn(
-            "size-4 shrink-0 transition-transform",
+            "size-3 shrink-0 transition-transform",
             expanded === true && "rotate-90",
           )}
         />
@@ -439,7 +423,7 @@ export function PerformanceTable({
   const savedWidths = useColumnWidths(
     (state) => state.columnWidths?.[tableKey],
   );
-  const setColumnWidths = useColumnWidths((state) => state.setColumnWidths);
+  const setColumnWidth = useColumnWidths((state) => state.setColumnWidth);
   const savedOrder = useColumnWidths((state) => state.columnOrder?.[tableKey]);
   const moveColumn = useColumnWidths((state) => state.moveColumn);
   const savedColumns = useColumnWidths(
@@ -476,20 +460,8 @@ export function PerformanceTable({
     .filter((id) => visibleIds.includes(id))
     .map((id) => allFigures.find((column) => column.id === id)!);
   const shownFigureIds = figures.map((column) => column.id);
-  const available = useAvailableWidth(rowWindow.scroller, !(rows.length === 0 && empty != null));
-  const room = available - nameWidth - RESERVED_COLUMN_WIDTH;
-  const fitted = fitWidths(
-    figures.map((column) => columnWidth(savedWidths?.[column.id])),
-    room,
-  );
-  const widthOf = (id: string) => fitted[shownFigureIds.indexOf(id)] ?? columnWidth(savedWidths?.[id]);
-  const resize = (id: string, width: number) => {
-    const next = resizedWidths(fitted, shownFigureIds.indexOf(id), width, room);
-    setColumnWidths(tableKey, Object.fromEntries(
-      shownFigureIds.flatMap((shownId, index) =>
-        next[index] === columnWidth(savedWidths?.[shownId]) ? [] : [[shownId, next[index]!]]),
-    ));
-  };
+  const widthOf = (id: string) => columnWidth(savedWidths?.[id]);
+  const resize = (id: string, width: number) => setColumnWidth(tableKey, id, width);
   const move = (id: string, direction: MoveDirection) =>
     moveColumn(tableKey, id, direction, shownFigureIds, figureIds);
   const choices = [...METRIC_COLUMNS, ...extraColumns]
@@ -504,7 +476,7 @@ export function PerformanceTable({
 
   if (rows.length === 0 && empty != null) {
     return (
-      <div className="rounded-lg border border-border p-8 text-center text-sm text-muted-foreground flex items-center justify-center">
+      <div className="rounded-lg border border-border p-6 text-center text-sm text-muted-foreground flex items-center justify-center">
         {empty}
       </div>
     );
@@ -571,7 +543,7 @@ export function PerformanceTable({
         style={{
           width:
             nameWidth +
-            fitted.reduce((sum, width) => sum + width, 0) +
+            figures.reduce((sum, column) => sum + widthOf(column.id), 0) +
             RESERVED_COLUMN_WIDTH,
           minWidth: "100%",
         }}
@@ -589,7 +561,7 @@ export function PerformanceTable({
               scope="col"
               aria-label={heading}
               aria-sort={ariaSortOf(sorting.directionOf(NAME_COLUMN))}
-              className="sticky left-0 z-10 pr-3 backdrop-blur-xl"
+              className="sticky left-0 z-10 pr-2 backdrop-blur-xl"
             >
               <SortButton
                 label={heading}
@@ -609,7 +581,7 @@ export function PerformanceTable({
                 scope="col"
                 aria-label={column.label}
                 aria-sort={ariaSortOf(sorting.directionOf(column.id))}
-                className="group/column relative pl-3 pr-6 text-right whitespace-nowrap"
+                className="group/column relative pl-2 pr-5 text-right whitespace-nowrap"
               >
                 <SortButton
                   label={column.label}
@@ -652,7 +624,7 @@ export function PerformanceTable({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="end"
-                  className="max-h-96 overflow-y-auto"
+                  className="max-h-77 overflow-y-auto"
                 >
                   <DropdownMenuLabel>{t("table.columns")}</DropdownMenuLabel>
                   <p className="px-2 pb-2 text-xs text-muted-foreground">

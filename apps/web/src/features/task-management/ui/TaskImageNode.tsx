@@ -41,9 +41,9 @@ function TaskImageView({ node, editor, getPos }: NodeViewProps) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-baseline gap-1 rounded border border-border bg-muted/50 px-1.5 py-0 align-baseline text-sm leading-snug text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex items-baseline gap-1 rounded border border-border bg-muted/50 px-1 py-0 align-baseline text-sm leading-snug text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <Paperclip aria-hidden className="size-3.5 text-muted-foreground" />
+        <Paperclip aria-hidden className="size-3 text-muted-foreground" />
         <span className="underline underline-offset-2">{label}</span>
       </button>
 

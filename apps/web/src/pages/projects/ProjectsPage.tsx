@@ -81,18 +81,18 @@ export function ProjectsPage() {
   return (
     <div
       className={cn(
-        "grid overflow-hidden max-h-screen h-full min-h-0 gap-4 transition-[grid-template-columns] duration-200 motion-reduce:transition-none",
+        "grid overflow-hidden max-h-screen h-full min-h-0 gap-3 transition-[grid-template-columns] duration-200 motion-reduce:transition-none",
         previewing
           ? "grid-cols-1"
           : collapsed
             ? "lg:grid-cols-[32px_minmax(0,1fr)]"
             : "lg:grid-cols-[200px_minmax(0,1fr)]",
         !previewing && "max-lg:grid-rows-[auto_minmax(0,1fr)]",
-        !previewing && "lg:[&>*:last-child]:border-l lg:[&>*:last-child]:border-border lg:[&>*:last-child]:pl-6",
+        !previewing && "lg:[&>*:last-child]:border-l lg:[&>*:last-child]:border-border lg:[&>*:last-child]:pl-5",
       )}
     >
       {previewing ? null : <ProjectList collapsed={collapsed} />}
-      <div className={cn("relative min-h-0 min-w-0", previewing && "flex flex-col gap-4")}>
+      <div className={cn("relative min-h-0 min-w-0", previewing && "flex flex-col gap-3")}>
         {previewing && previewedId ? <PreviewBar projectId={previewedId} /> : null}
         {previewing ? null : (
         <button
@@ -102,16 +102,16 @@ export function ProjectsPage() {
           aria-label={t(
             collapsed ? "projects.list.expand" : "projects.list.collapse",
           )}
-          className="absolute top-1/2 left-0 z-20 hidden h-12 w-4 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:grid"
+          className="absolute top-1/2 left-0 z-20 hidden h-10 w-3 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:grid"
         >
           {collapsed ? (
-            <ChevronRightIcon aria-hidden className="size-3" />
+            <ChevronRightIcon aria-hidden className="size-2" />
           ) : (
-            <ChevronLeftIcon aria-hidden className="size-3" />
+            <ChevronLeftIcon aria-hidden className="size-2" />
           )}
         </button>
         )}
-        <div className={cn("min-w-0 overflow-y-auto overflow-x-hidden pr-4", previewing ? "min-h-0 flex-1" : "h-full")}>
+        <div className={cn("min-w-0 overflow-y-auto overflow-x-hidden pr-3", previewing ? "min-h-0 flex-1" : "h-full")}>
           <Routes>
             <Route path="/" element={<ProjectsHome />} />
             <Route path=":projectId" element={<ProjectPage />} />

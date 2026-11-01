@@ -13,9 +13,9 @@ export interface EmptyStateProps {
 
 export function EmptyState({ icon, title, description, actionLabel, onAction, compact = false }: EmptyStateProps) {
   return (
-    <div className={cn("grid place-items-center text-center", compact ? "py-6" : "py-12")}>
+    <div className={cn("grid place-items-center text-center", compact ? "py-5" : "py-10")}>
       {icon != null && <div className={"mx-auto text-muted-foreground"}>{icon}</div>}
-      <h2 className={compact ? "whitespace-nowrap text-sm font-semibold text-muted-foreground" : "text-xl font-bold"}>{title}</h2>
+      <h2 className={compact ? "whitespace-nowrap text-sm font-semibold text-muted-foreground" : "text-xl font-semibold"}>{title}</h2>
       {description != null && <p className={"mt-2 text-sm text-muted-foreground"}>{description}</p>}
       {actionLabel != null && onAction != null && (
         <div className={"flex items-center justify-end gap-2"}>

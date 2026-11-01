@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Avatar } from "@/shared/ui/index.js";
 import type { Membership } from "../../api/api.js";
 
-const SIZES = { sm: "size-8", md: "size-10", lg: "size-14" } as const;
+const SIZES = { sm: "size-6", md: "size-8", lg: "size-11" } as const;
 
 export interface MemberAvatarProps {
   member: Pick<Membership, "id" | "name" | "image">;

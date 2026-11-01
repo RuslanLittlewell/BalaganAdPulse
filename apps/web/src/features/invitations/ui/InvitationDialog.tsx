@@ -98,7 +98,7 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
         ) : (
           <>
             {isEmployee ? (
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="invitation-role">{t("invites.role")}</Label>
                   <Select value={role} onValueChange={(next) => setRole(next as EmployeeRole)}>
@@ -117,7 +117,7 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
                     {projects.isPending && <Loader label={t("state.loading")} />}
                     <div
                       data-testid="invite-projects"
-                      className="grid max-h-72 grid-cols-2 gap-2 overflow-auto"
+                      className="grid max-h-58 grid-cols-2 gap-2 overflow-auto"
                     >
                       {(projects.data ?? []).map((project) => (
                         <ProjectChoice
@@ -137,7 +137,7 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
 
             {failure && <p role="alert" className="text-sm text-destructive">{failure}</p>}
 
-            <div className="mt-4 border-t border-border pt-4">
+            <div className="mt-3 border-t border-border pt-3">
               <InvitationList registrationType={registrationType} />
             </div>
           </>
@@ -167,13 +167,13 @@ function ProjectChoice({
     <label
       data-testid={`invite-project-${project.id}`}
       className={cn(
-        "flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors",
+        "flex cursor-pointer items-center gap-2 rounded-lg border p-2 transition-colors",
         checked
           ? "border-primary bg-primary/5"
           : "border-border hover:border-primary/40 hover:bg-muted",
       )}
     >
-      <span className="relative grid size-5 shrink-0 place-items-center">
+      <span className="relative grid size-4 shrink-0 place-items-center">
         <input
           type="checkbox"
           aria-label={project.name}
@@ -184,12 +184,12 @@ function ProjectChoice({
         <span
           aria-hidden
           className={cn(
-            "grid size-5 place-items-center rounded-md border-2 transition-colors",
+            "grid size-4 place-items-center rounded-md border-2 transition-colors",
             "peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-1",
             checked ? "border-primary bg-primary text-primary-foreground" : "border-input",
           )}
         >
-          {checked && <CheckIcon className="size-3.5" strokeWidth={3} />}
+          {checked && <CheckIcon className="size-3" strokeWidth={3} />}
         </span>
       </span>
 
@@ -208,7 +208,7 @@ function CreatedStep({ invitation }: { invitation: Invitation }) {
   return (
     <div className="flex flex-col gap-2">
       <p className="text-sm text-muted-foreground">{t("invites.ready")}</p>
-      <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 p-3">
+      <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 p-2">
         <code className="min-w-0 flex-1 break-all text-sm">{link}</code>
         <CopyButton value={link} label={t("invites.copyLink")} />
       </div>

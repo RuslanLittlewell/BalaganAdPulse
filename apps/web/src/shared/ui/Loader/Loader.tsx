@@ -14,8 +14,8 @@ export function Loader({ label, size = "md" }: LoaderProps) {
       role="status"
       aria-live="polite"
     >
-      <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-      <span className="text-xs font-semibold uppercase tracking-wider">
+      <LoaderCircle className="size-3 animate-spin" aria-hidden="true" />
+      <span className="text-xs font-semibold">
         {label ?? t("state.loading")}
       </span>
     </div>

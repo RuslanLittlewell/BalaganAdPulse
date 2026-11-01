@@ -24,7 +24,7 @@ export function TaskParticipants({ task, people }: TaskParticipantsProps) {
 
   return (
     <WarmTooltipGroup>
-      <span className="flex shrink-0 items-center -space-x-1.5" data-testid={`task-participants-${task.id}`}>
+      <span className="flex shrink-0 items-center -space-x-1" data-testid={`task-participants-${task.id}`}>
         {shown.map((member) => (
           <WarmTooltip key={member.id} content={member.name} side="top">
             <span role="img" aria-label={member.name}>
@@ -37,7 +37,7 @@ export function TaskParticipants({ task, people }: TaskParticipantsProps) {
         {rest > 0 ? (
           <span
             aria-label={`${t("tasks.participants.more")}: ${rest}`}
-            className="grid size-8 place-items-center rounded-md bg-muted text-2xs font-medium text-muted-foreground"
+            className="grid size-6 place-items-center rounded-md bg-muted text-2xs font-medium text-muted-foreground"
           >
             {`+${rest}`}
           </span>

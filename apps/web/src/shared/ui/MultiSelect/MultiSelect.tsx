@@ -68,21 +68,21 @@ export function MultiSelect({
           data-placeholder={first ? undefined : ""}
           className={cn(selectTriggerClassName, "min-w-0", className)}
         >
-          <span className="flex min-w-0 items-center gap-1.5">
+          <span className="flex min-w-0 items-center gap-1">
             {first?.icon ? <span aria-hidden className="shrink-0">{first.icon}</span> : null}
             <span className="truncate">{first?.label ?? placeholder}</span>
             {rest.length > 0 ? (
               <span className="shrink-0 text-muted-foreground">{`+${rest.length}`}</span>
             ) : null}
           </span>
-          <ChevronDown aria-hidden className="size-4 shrink-0 opacity-50" />
+          <ChevronDown aria-hidden className="size-3 shrink-0 opacity-50" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="max-h-96 overflow-y-auto">
+      <DropdownMenuContent align="start" className="max-h-77 overflow-y-auto">
         {searchable ? (
-          <div className="sticky top-0 z-10 -mt-1 mb-1 border-b bg-popover p-1.5">
+          <div className="sticky top-0 z-10 -mt-1 mb-1 border-b bg-popover p-1">
             <div className="relative">
-              <SearchIcon aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <SearchIcon aria-hidden className="pointer-events-none absolute left-2 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="search"
                 autoFocus
@@ -90,7 +90,7 @@ export function MultiSelect({
                 placeholder={t("select.search")}
                 aria-label={t("select.search")}
                 autoComplete="off"
-                className="h-9 w-full rounded-md border border-input bg-transparent pl-8 pr-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring"
+                className="h-7 w-full rounded-md border border-input bg-transparent pl-6 pr-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring"
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={stopTyping}
               />
@@ -123,7 +123,7 @@ export function MultiSelect({
           </DropdownMenuCheckboxItem>
         ))}
         {searchable && shownItems.length === 0 ? (
-          <p role="status" className="px-3 py-2 text-sm text-muted-foreground">{t("select.search.empty")}</p>
+          <p role="status" className="px-2 py-2 text-sm text-muted-foreground">{t("select.search.empty")}</p>
         ) : null}
       </DropdownMenuContent>
     </DropdownMenu>

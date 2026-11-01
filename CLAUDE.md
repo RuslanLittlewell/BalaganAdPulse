@@ -17,6 +17,13 @@ the stack, layout and commands.
   messages and API error messages are English. Everything a user reads in the web
   app is Russian and lives in `apps/web/src/shared/config/ru.ts`; reach it through
   `t("key")` rather than writing copy inline.
+- **English prose follows unslop.** Write the README, CONTRIBUTING, OpenSpec artifacts,
+  commit messages and PR descriptions by the rules of the `unslop-prose` skill
+  ([source](https://github.com/cursor/plugins/blob/main/pstack/skills/unslop/SKILL.md)):
+  plain words instead of AI vocabulary, active voice, whole sentences with their articles
+  and verbs, no em dashes, no decorative bold or emoji, no filler, hedging or generic
+  conclusions. Check a draft against these rules before handing it over. The Russian copy
+  in `ru.ts` is outside them.
 - **Buttons are never passed as props** — a component that shows a button imports
   `Button` itself and renders it. Its parent decides through props whether the button
   appears and what it does (`onRetry`, `canEdit`, `retryLabel`), never by handing over

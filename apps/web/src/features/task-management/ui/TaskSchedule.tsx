@@ -60,7 +60,7 @@ export function TaskSchedule({
   const [picking, setPicking] = useState(false);
 
   return (
-    <div className="grid gap-3" data-testid="task-form-schedule">
+    <div className="grid gap-2" data-testid="task-form-schedule">
       <div className="flex min-w-0 flex-col gap-2">
         <Label>{t("tasks.form.due")}</Label>
         <div className="flex gap-1">
@@ -79,7 +79,7 @@ export function TaskSchedule({
             }}
           >
             <Button type="button" variant="outline" className="min-w-0 flex-1 justify-start gap-2 bg-transparent dark:bg-transparent">
-              <CalendarIcon className="size-4 shrink-0" />
+              <CalendarIcon className="size-3 shrink-0" />
               <span className="truncate">
                 {dueDate === null ? t("tasks.form.noDue") : dayLabel(dueDate)}
               </span>

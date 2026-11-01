@@ -11,7 +11,7 @@ export interface ClientHeaderProps {
 
 export function ClientHeader({ client, onEdit, onDelete }: ClientHeaderProps) {
   return (
-    <header className={"flex min-h-16 items-center justify-between gap-4 border-b border-border px-5"}>
+    <header className={"flex min-h-13 items-center justify-between gap-3 border-b border-border px-4"}>
       <div className={"grid min-w-0 text-left"}>
         <ClientAvatar client={client} size="lg" />
         <h1 className={"truncate font-semibold"}>{client.name}</h1>

@@ -34,7 +34,7 @@ function OpenDocument({
   if (document.isError) {
     return <EmptyState title={t("documents.notFound")} actionLabel={t("documents.back")} onAction={onBack} />;
   }
-  if (!document.data) return <Skeleton className="h-80 w-full" />;
+  if (!document.data) return <Skeleton className="h-64 w-full" />;
   return (
     <DocumentSheet
       key={document.data.id}
@@ -54,8 +54,8 @@ export function ProjectDocuments({ projectId, documentId, onOpen, onClose }: Pro
   const listed = documents.data ?? [];
 
   return (
-    <div className="grid min-h-[28rem] flex-1 grid-rows-[auto_1fr] gap-6 md:grid-cols-[16rem_minmax(0,1fr)] md:grid-rows-1">
-      <aside className="flex min-w-0 flex-col gap-3 md:border-r md:border-border md:pr-4">
+    <div className="grid min-h-[28rem] flex-1 grid-rows-[auto_1fr] gap-5 md:grid-cols-[16rem_minmax(0,1fr)] md:grid-rows-1">
+      <aside className="flex min-w-0 flex-col gap-2 md:border-r md:border-border md:pr-3">
         {canWrite ? (
           <Button type="button" variant="outline" onClick={() => setCreating(true)}>
             <FilePlus2 /> {t("documents.add")}
@@ -63,9 +63,9 @@ export function ProjectDocuments({ projectId, documentId, onOpen, onClose }: Pro
         ) : null}
         <nav aria-label={t("documents.list")}>
           {documents.isPending ? (
-            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-19 w-full" />
           ) : listed.length === 0 ? (
-            <p className="py-4 text-sm text-muted-foreground">{t("documents.empty")}</p>
+            <p className="py-3 text-sm text-muted-foreground">{t("documents.empty")}</p>
           ) : (
             <ul className="flex flex-col gap-1">
               {listed.map((entry) => {
@@ -77,7 +77,7 @@ export function ProjectDocuments({ projectId, documentId, onOpen, onClose }: Pro
                       aria-current={open ? "page" : undefined}
                       onClick={() => onOpen(entry.id)}
                       className={cn(
-                        "flex w-full flex-col items-start rounded-md px-3 py-2 text-left transition-colors",
+                        "flex w-full flex-col items-start rounded-md px-2 py-2 text-left transition-colors",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                         open ? "bg-accent text-accent-foreground" : "hover:bg-muted",
                       )}
@@ -106,7 +106,7 @@ export function ProjectDocuments({ projectId, documentId, onOpen, onClose }: Pro
         ) : listed.length > 0 ? (
           <DocumentPreviews documents={listed} onOpen={onOpen} />
         ) : (
-          <p className="py-12 text-center text-sm text-muted-foreground">
+          <p className="py-10 text-center text-sm text-muted-foreground">
             {canWrite ? t("documents.invite") : t("documents.empty")}
           </p>
         )}

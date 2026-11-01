@@ -1,28 +1,6 @@
 import {
-  ALL_COLUMN_IDS, fitWidths, MIN_COLUMN_WIDTH, resizedWidths, useColumnWidths, visibleColumnIds,
+  ALL_COLUMN_IDS, useColumnWidths, visibleColumnIds,
 } from "@/widgets/performance-table/columnWidths.js";
-
-describe("resizedWidths", () => {
-  it("changes only the resized column while the columns fit, or when the room is unknown", () => {
-    expect(resizedWidths([128, 128, 128], 1, 160, 500)).toEqual([128, 160, 128]);
-    expect(resizedWidths([128, 128, 128], 1, 300, 0)).toEqual([128, 300, 128]);
-  });
-
-  it("takes the excess from the columns to the right, nearest first, down to the minimum", () => {
-    expect(resizedWidths([128, 128, 128, 128], 1, 148, 512)).toEqual([128, 148, 108, 128]);
-    expect(resizedWidths([128, 128, 128, 128], 0, 240, 512)).toEqual([240, MIN_COLUMN_WIDTH, MIN_COLUMN_WIDTH, 128]);
-  });
-
-  it("stops widening once the columns to the right are at their minimum", () => {
-    const widths = resizedWidths([128, 128, 128], 1, 400, 384);
-    expect(widths).toEqual([128, 128 + (128 - MIN_COLUMN_WIDTH), MIN_COLUMN_WIDTH]);
-    expect(widths.reduce((sum, width) => sum + width, 0)).toBe(384);
-  });
-
-  it("never narrows a column below the minimum", () => {
-    expect(resizedWidths([128, 128], 0, 10, 500)).toEqual([MIN_COLUMN_WIDTH, 128]);
-  });
-});
 
 describe("a table's layout copied for an account", () => {
   beforeEach(() => useColumnWidths.setState({
@@ -62,24 +40,6 @@ describe("a table's layout copied for an account", () => {
     useColumnWidths.getState().inherit("campaigns:META:1", "campaigns");
 
     expect(useColumnWidths.getState().columnWidths["campaigns:META:1"]).toEqual({ spend: 150 });
-  });
-});
-
-describe("fitWidths", () => {
-  it("keeps the wanted widths when they fit, and when the room is unknown", () => {
-    expect(fitWidths([128, 128], 300)).toEqual([128, 128]);
-    expect(fitWidths([128, 128], 256)).toEqual([128, 128]);
-    expect(fitWidths([128, 128], 0)).toEqual([128, 128]);
-  });
-
-  it("narrows every column in proportion until the columns fit", () => {
-    const fitted = fitWidths([200, 100, 100], 300);
-    expect(fitted).toEqual([150, 75, 75]);
-    expect(fitted.reduce((sum, width) => sum + width, 0)).toBeLessThanOrEqual(300);
-  });
-
-  it("never narrows a column below the minimum", () => {
-    expect(fitWidths([128, 128, 128], 150)).toEqual([MIN_COLUMN_WIDTH, MIN_COLUMN_WIDTH, MIN_COLUMN_WIDTH]);
   });
 });
 

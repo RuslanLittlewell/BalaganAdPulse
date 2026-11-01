@@ -42,7 +42,7 @@ export function UserMenu({ onSettings, avatarVersion, canEditProfile = true }: U
     <div className={"relative"} ref={menuRef}>
       <button
         type="button"
-        className={"flex items-center gap-3 rounded-md p-1.5 hover:bg-accent"}
+        className={"flex items-center gap-2 rounded-md p-1 hover:bg-accent"}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
@@ -52,11 +52,11 @@ export function UserMenu({ onSettings, avatarVersion, canEditProfile = true }: U
           <span className={"truncate font-semibold"}>{user.name}</span>
           <span className={"text-xs text-muted-foreground"}>{user.email ?? user.login}</span>
         </span>
-        <ChevronDown className={"hidden size-4 text-muted-foreground md:block"} aria-hidden="true" />
+        <ChevronDown className={"hidden size-3 text-muted-foreground md:block"} aria-hidden="true" />
       </button>
 
       {open && (
-        <div className={"absolute right-0 top-full z-40 mt-2 grid min-w-48 overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg [&>button]:flex [&>button]:items-center [&>button]:gap-2 [&>button]:rounded-sm [&>button]:px-3 [&>button]:py-2 [&>button]:text-sm [&>button:hover]:bg-accent [&_svg]:size-4"} role="menu">
+        <div className={"absolute right-0 top-full z-40 mt-2 grid min-w-38 overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg [&>button]:flex [&>button]:items-center [&>button]:gap-2 [&>button]:rounded-sm [&>button]:px-2 [&>button]:py-2 [&>button]:text-sm [&>button:hover]:bg-accent [&_svg]:size-3"} role="menu">
           {canEditProfile && (
             <button type="button" role="menuitem" onClick={() => { setOpen(false); onSettings?.(); }}>
               <Settings aria-hidden="true" />

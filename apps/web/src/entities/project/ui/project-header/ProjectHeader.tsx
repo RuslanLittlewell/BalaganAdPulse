@@ -18,7 +18,7 @@ export function ProjectHeader({
   project, clientName, onKpiTrackedChange, kpiTrackedPending = false, onPreview,
 }: ProjectHeaderProps) {
   return (
-    <header className="flex min-h-16 items-center gap-3 border-b border-border pb-4">
+    <header className="flex min-h-13 items-center gap-2 border-b border-border pb-3">
       <ProjectAvatar project={project} size="lg" />
       <div className="grid min-w-0">
         <h1 className="truncate text-lg font-semibold">{project.name}</h1>

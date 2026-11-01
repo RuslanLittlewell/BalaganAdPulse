@@ -28,17 +28,17 @@ export function CrmColumnPanel({
       aria-label={title}
       data-testid={`crm-column-${column.id}`}
       className={cn(
-        "flex h-full min-h-0 w-80 shrink-0 flex-col rounded-xl border border-border",
+        "flex h-full min-h-0 w-64 shrink-0 flex-col rounded-xl border border-border",
         "bg-muted/30 shadow-sm transition-colors",
         isOver && "border-primary/40 bg-primary/5 shadow-md",
       )}
     >
-      <header className="flex shrink-0 items-center gap-2 border-b border-border/70 px-3 py-2.5">
+      <header className="flex shrink-0 items-center gap-2 border-b border-border/70 px-2 py-2">
         <span
           aria-hidden
           className={cn("size-2 shrink-0 rounded-full", accentOf(column.id))}
         />
-        <h2 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight" title={title}>
+        <h2 className="min-w-0 flex-1 truncate text-sm font-semibold" title={title}>
           {title}
         </h2>
         <span className="shrink-0 rounded-full bg-background px-2 py-0.5 text-xs font-medium text-muted-foreground ring-1 ring-inset ring-border">
@@ -60,7 +60,7 @@ export function CrmColumnPanel({
           ))}
 
           {leads.length === 0 ? (
-            <p className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border/70 p-4 text-center text-xs text-muted-foreground">
+            <p className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border/70 p-3 text-center text-xs text-muted-foreground">
               {t("crm.empty")}
             </p>
           ) : null}

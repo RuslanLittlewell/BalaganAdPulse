@@ -20,7 +20,7 @@ export function AdPreviewFrame({
 
   if (rendered.isPending) {
     return (
-      <div className="grid min-h-40 place-items-center rounded-md border border-border bg-muted/30">
+      <div className="grid min-h-32 place-items-center rounded-md border border-border bg-muted/30">
         <Loader size="sm" />
       </div>
     );

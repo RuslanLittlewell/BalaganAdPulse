@@ -67,7 +67,7 @@ export function TaskImagePreview({
             className="max-h-[70vh] w-full rounded-md object-contain"
           />
         ) : (
-          <p className="py-8 text-center text-sm text-muted-foreground">
+          <p className="py-6 text-center text-sm text-muted-foreground">
             {failed
               ? t("tasks.editor.uploadFailed")
               : t("tasks.editor.uploading")}

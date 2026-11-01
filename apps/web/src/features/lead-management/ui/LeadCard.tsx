@@ -52,7 +52,7 @@ type TextField = "company" | "service" | "phone" | "telegram" | "messenger" | "e
 
 const LAST_POSITION = 2147483647;
 
-const INPUT = "h-9 w-full min-w-0 rounded-md border border-transparent bg-transparent px-2 text-sm outline-none " +
+const INPUT = "h-7 w-full min-w-0 rounded-md border border-transparent bg-transparent px-2 text-sm outline-none " +
   "placeholder:text-muted-foreground/60 hover:border-input focus-visible:border-ring disabled:cursor-not-allowed disabled:hover:border-transparent";
 
 const messageOf = (error: unknown) =>
@@ -60,7 +60,7 @@ const messageOf = (error: unknown) =>
 
 function Row({ id, label, children }: { id: string; label: MessageKey; children: ReactNode }) {
   return (
-    <li data-field={t(label)} className="grid grid-cols-[9rem_minmax(0,1fr)] items-center gap-3 border-b border-border py-1.5">
+    <li data-field={t(label)} className="grid grid-cols-[9rem_minmax(0,1fr)] items-center gap-2 border-b border-border py-1">
       <Label id={`${id}-label`} htmlFor={id}>{t(label)}</Label>
       <div className="min-w-0">{children}</div>
     </li>
@@ -152,7 +152,7 @@ export function LeadCard({ boardKey, capabilities, lead: opened, onClose, onPrev
           lead && "grid-rows-[auto_auto] overflow-y-auto md:grid-cols-2 md:grid-rows-1 md:overflow-hidden",
         )}>
           <form onSubmit={onSubmit} className={cn("flex min-h-0 flex-col", lead && "md:border-r md:border-border")}>
-            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-5">
               <div className="w-fit">
                 <Label htmlFor="lead-stage" className="sr-only">{t("crm.form.stage")}</Label>
                 <Controller
@@ -160,7 +160,7 @@ export function LeadCard({ boardKey, capabilities, lead: opened, onClose, onPrev
                   name="stage"
                   render={({ field }) => (
                     <Select value={field.value} onValueChange={field.onChange} disabled={!editable}>
-                      <SelectTrigger id="lead-stage" className="h-8 rounded-full border-primary/30 bg-primary/10 text-primary">
+                      <SelectTrigger id="lead-stage" className="h-6 rounded-full border-primary/30 bg-primary/10 text-primary">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -205,7 +205,7 @@ export function LeadCard({ boardKey, capabilities, lead: opened, onClose, onPrev
                     name="assigneeId"
                     render={({ field }) => (
                       <Select value={field.value} onValueChange={field.onChange} disabled={!editable || !clientMembers}>
-                        <SelectTrigger id="lead-assignee" className="h-9 w-full border-transparent shadow-none hover:border-input"><SelectValue /></SelectTrigger>
+                        <SelectTrigger id="lead-assignee" className="h-7 w-full border-transparent shadow-none hover:border-input"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value={NONE}>{t("crm.form.unassigned")}</SelectItem>
                           {assignees.map((member) => (
@@ -250,7 +250,7 @@ export function LeadCard({ boardKey, capabilities, lead: opened, onClose, onPrev
                 <Label htmlFor="lead-notes">{t("crm.card.description")}</Label>
                 <textarea
                   id="lead-notes"
-                  className="min-h-28 rounded-md border border-input bg-transparent p-3 text-sm outline-none transition-colors focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-h-22 rounded-md border border-input bg-transparent p-2 text-sm outline-none transition-colors focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={!editable}
                   {...register("notes")}
                 />
@@ -258,7 +258,7 @@ export function LeadCard({ boardKey, capabilities, lead: opened, onClose, onPrev
 
             </div>
 
-            <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-6 py-4">
+            <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-5 py-3">
               {lead && capabilities.delete ? (
                 <Button
                   type="button"
@@ -277,7 +277,7 @@ export function LeadCard({ boardKey, capabilities, lead: opened, onClose, onPrev
           </form>
 
           {lead ? (
-            <section className="flex min-h-0 flex-col gap-4 bg-muted/20 p-6 pt-10">
+            <section className="flex min-h-0 flex-col gap-3 bg-muted/20 p-5 pt-8">
               <Tabs
                 items={[
                   { id: "activity", label: t("crm.card.activity") },

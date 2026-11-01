@@ -72,9 +72,9 @@ function Marker({ action }: { action: AuditAction }) {
 
 function PresenceItem({ event }: { event: AuditEvent }) {
   return (
-    <li data-action={event.action} className="relative py-1.5 pl-5">
+    <li data-action={event.action} className="relative py-1 pl-4">
       <Marker action={event.action} />
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2 text-sm">
           <span className="truncate font-medium">{event.actorName}</span>
           <ActionBadge action={event.action} />
@@ -92,9 +92,9 @@ function ChangeItem({ event, projectName }: { event: AuditEvent; projectName: st
   const changes = Array.isArray(event.changes) ? event.changes : [];
 
   return (
-    <li data-action={event.action} className="relative py-2 pl-5">
+    <li data-action={event.action} className="relative py-2 pl-4">
       <Marker action={event.action} />
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-2">
         <p className="min-w-0 text-sm leading-snug">
           {described ? (
             <>
@@ -114,7 +114,7 @@ function ChangeItem({ event, projectName }: { event: AuditEvent; projectName: st
         {context && <span>· {context}</span>}
       </div>
       {changes.length > 0 && (
-        <ul className="mt-2 space-y-1 rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+        <ul className="mt-2 space-y-1 rounded-md bg-muted/50 px-2 py-2 text-xs text-muted-foreground">
           {changes.map((change, index) => (
             <li key={`${change.field}-${index}`}>
               <span className="font-medium text-foreground">{change.field}:</span>{" "}
@@ -135,15 +135,15 @@ export function ActivityList({ filters, projectNames }: {
   const events = query.data?.pages.flatMap((page) => page.items) ?? [];
 
   if (query.isPending) return <div className="grid flex-1 place-items-center"><Loader /></div>;
-  if (query.isError) return <p className="flex-1 py-8 text-center text-sm text-destructive">{t("activity.loadFailed")}</p>;
-  if (events.length === 0) return <p className="flex-1 py-8 text-center text-sm text-muted-foreground">{t("activity.empty")}</p>;
+  if (query.isError) return <p className="flex-1 py-6 text-center text-sm text-destructive">{t("activity.loadFailed")}</p>;
+  if (events.length === 0) return <p className="flex-1 py-6 text-center text-sm text-muted-foreground">{t("activity.empty")}</p>;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1">
       {groupByDay(events, new Date()).map((group) => (
         <section key={group.key} aria-label={group.label} className="flex flex-col gap-1">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{group.label}</h3>
-          <ol className="ml-5 border-l border-border">
+          <h3 className="text-xs font-semibold text-muted-foreground">{group.label}</h3>
+          <ol className="ml-4 border-l border-border">
             {group.events.map((event) => PRESENCE_ACTIONS.includes(event.action)
               ? <PresenceItem key={event.id} event={event} />
               : (

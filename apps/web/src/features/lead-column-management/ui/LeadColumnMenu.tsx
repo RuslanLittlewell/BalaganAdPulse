@@ -64,10 +64,10 @@ export function LeadColumnMenu({ boardKey, column, columns, leadCount, capabilit
             type="button"
             variant="ghost"
             size="icon"
-            className="size-7 shrink-0"
+            className="size-6 shrink-0"
             aria-label={`${t("crm.columns.actions")}: ${column.name}`}
           >
-            <MoreHorizontal aria-hidden className="size-4" />
+            <MoreHorizontal aria-hidden className="size-3" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">

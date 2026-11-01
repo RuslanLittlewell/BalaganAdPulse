@@ -16,7 +16,7 @@ export function ImportantInfo({
   return (
     <section
       aria-labelledby={titleId}
-      className="flex min-h-0 max-h-[340px] flex-col overflow-y-auto rounded-lg border border-border p-4"
+      className="flex min-h-0 max-h-[340px] flex-col overflow-y-auto rounded-lg border border-border p-3"
     >
       <div className="flex items-center justify-between gap-2">
         <h2 id={titleId} className="text-sm font-semibold text-foreground">
@@ -33,26 +33,26 @@ export function ImportantInfo({
       </div>
 
       {projectsWithoutKpi?.length === 0 ? (
-        <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+        <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
           <CircleCheck
             aria-hidden="true"
-            className="size-4 shrink-0 text-emerald-600"
+            className="size-3 shrink-0 text-emerald-600"
           />
           {t("dashboard.notices.allSet")}
         </p>
       ) : null}
 
       {projectsWithoutKpi && projectsWithoutKpi.length > 0 ? (
-        <ul className="-mx-2 mt-3 max-h-72 space-y-0.5 overflow-y-auto">
+        <ul className="-mx-2 mt-2 max-h-58 space-y-0.5 overflow-y-auto">
           {projectsWithoutKpi.map((project) => (
             <li key={project.id}>
               <Link
                 to={`${projectPath(project.id)}${location.search}`}
-                className="flex items-center gap-3 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <TriangleAlert
                   aria-hidden="true"
-                  className="size-4 shrink-0 text-amber-500"
+                  className="size-3 shrink-0 text-amber-500"
                 />
                 <span className="min-w-0 flex-1 truncate font-medium text-foreground">
                   {project.name}

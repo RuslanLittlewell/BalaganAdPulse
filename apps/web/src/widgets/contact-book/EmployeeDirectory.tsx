@@ -38,11 +38,11 @@ export function EmployeeDirectory() {
   }
 
   if (members.isPending) {
-    return <div className="grid place-items-center py-10"><Loader /></div>;
+    return <div className="grid place-items-center py-8"><Loader /></div>;
   }
 
   return (
-    <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-4 sm:grid-cols-[minmax(14rem,22%)_minmax(0,1fr)] sm:grid-rows-[minmax(0,1fr)]">
+    <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-3 sm:grid-cols-[minmax(14rem,22%)_minmax(0,1fr)] sm:grid-rows-[minmax(0,1fr)]">
       <div data-testid="employee-list" className="grid min-h-0 min-w-0 content-start gap-1 overflow-y-auto">
         {list.map((member) => (
           <ListItem
@@ -58,7 +58,7 @@ export function EmployeeDirectory() {
 
       <div
         data-testid="employee-panel"
-        className="flex min-h-0 min-w-0 flex-col overflow-y-auto sm:border-l sm:border-border sm:pl-4"
+        className="flex min-h-0 min-w-0 flex-col overflow-y-auto sm:border-l sm:border-border sm:pl-3"
       >
         {selected == null && (
           <div className="grid flex-1 place-items-center">
@@ -113,9 +113,9 @@ function EmployeeDetails({ member }: { member: Membership }) {
         <div
           key={key}
           data-testid={`employee-${key}`}
-          className="grid gap-1 py-3 sm:grid-cols-[200px_minmax(0,1fr)] sm:items-baseline sm:gap-4"
+          className="grid gap-1 py-2 sm:grid-cols-[200px_minmax(0,1fr)] sm:items-baseline sm:gap-3"
         >
-          <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          <dt className="text-xs font-medium text-muted-foreground">
             {label}
           </dt>
           <dd className="min-w-0 break-words text-sm">{value}</dd>

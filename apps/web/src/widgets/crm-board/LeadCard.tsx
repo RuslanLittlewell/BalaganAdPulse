@@ -6,7 +6,6 @@ import type { Lead } from "@/entities/lead/index.js";
 import { MemberAvatar } from "@/entities/membership/index.js";
 import { t } from "@/shared/config/index.js";
 import { cn } from "@/shared/lib/index.js";
-import { accentOf } from "./accent.js";
 
 export interface LeadCardProps {
   lead: Lead;
@@ -36,7 +35,7 @@ export function LeadCard({ lead, draggable = false, placeholder = false, onOpen 
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn(
         "group relative shrink-0 overflow-hidden rounded-xl border border-border glass-card",
-        "py-3 pl-6 pr-3 text-left",
+        "py-2 pl-5 pr-2 text-left",
         "shadow-sm transition-[border-color,box-shadow,opacity] hover:border-border hover:shadow-md",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
         onOpen && "cursor-pointer",
@@ -57,43 +56,35 @@ export function LeadCard({ lead, draggable = false, placeholder = false, onOpen 
       }}
       {...(draggable ? pointerListeners : {})}
     >
-      <span
-        aria-hidden
-        className={cn(
-          "absolute inset-y-0 left-0 w-1.5 transition-opacity group-hover:opacity-0",
-          accentOf(lead.stage),
-        )}
-      />
-
       {draggable ? (
         <button
           type="button"
           aria-label={t("crm.drag")}
           data-testid={`lead-drag-${lead.id}`}
           className={cn(
-            "absolute inset-y-0 left-0 grid w-6 cursor-grab place-items-center text-muted-foreground active:cursor-grabbing",
+            "absolute inset-y-0 left-0 grid w-5 cursor-grab place-items-center text-muted-foreground active:cursor-grabbing",
             "opacity-0 transition-opacity hover:bg-muted focus-visible:opacity-100 group-hover:opacity-100",
           )}
           onClick={(event) => event.stopPropagation()}
           onKeyDown={onHandleKeyDown}
           {...attributes}
         >
-          <GripVertical aria-hidden className="size-4" />
+          <GripVertical aria-hidden className="size-3" />
         </button>
       ) : null}
 
       <h3 className="min-w-0 truncate text-sm font-medium leading-snug">{lead.name}</h3>
 
-      <div className="mt-3 grid min-w-0 gap-2 text-xs">
+      <div className="mt-2 grid min-w-0 gap-2 text-xs">
         <p className="flex min-w-0 items-center gap-2" data-testid={`lead-project-${lead.id}`}>
-          <FolderKanban aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
-          <span className="w-16 shrink-0 text-muted-foreground">{t("crm.form.project")}</span>
+          <FolderKanban aria-hidden className="size-3 shrink-0 text-muted-foreground" />
+          <span className="w-13 shrink-0 text-muted-foreground">{t("crm.form.project")}</span>
           <span className="truncate font-medium">{lead.project.name}</span>
         </p>
         {lead.email ? (
           <p className="flex min-w-0 items-center gap-2">
-            <Mail aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="w-16 shrink-0 text-muted-foreground">{t("crm.form.email")}</span>
+            <Mail aria-hidden className="size-3 shrink-0 text-muted-foreground" />
+            <span className="w-13 shrink-0 text-muted-foreground">{t("crm.form.email")}</span>
             <a href={`mailto:${lead.email}`} className="truncate hover:underline" onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
               {lead.email}
             </a>
@@ -101,11 +92,11 @@ export function LeadCard({ lead, draggable = false, placeholder = false, onOpen 
         ) : null}
       </div>
 
-      <footer className="mt-3 flex min-w-0 items-center justify-between gap-3 border-t border-border/60 pt-3">
+      <footer className="mt-2 flex min-w-0 items-center justify-between gap-2 border-t border-border/60 pt-2">
         {lead.tags.length > 0 ? (
           <span className="flex min-w-0 items-center gap-1" data-testid={`lead-tags-${lead.id}`}>
             {lead.tags.slice(0, SHOWN_TAGS).map((tag) => (
-              <span key={tag} className="truncate rounded-md bg-primary/10 px-1.5 py-0.5 text-2xs font-medium text-primary">
+              <span key={tag} className="truncate rounded-md bg-primary/10 px-1 py-0.5 text-2xs font-medium text-primary">
                 {tag}
               </span>
             ))}
@@ -117,7 +108,7 @@ export function LeadCard({ lead, draggable = false, placeholder = false, onOpen 
         {lead.assignee ? (
           <span className="flex min-w-0 items-center gap-2" data-testid={`lead-assignee-${lead.id}`} title={lead.assignee.name}>
             <MemberAvatar member={lead.assignee} size="sm" />
-            <span className="max-w-28 truncate text-xs font-medium">{lead.assignee.name}</span>
+            <span className="max-w-22 truncate text-xs font-medium">{lead.assignee.name}</span>
           </span>
         ) : (
           <span className="shrink-0 text-xs text-muted-foreground">{t("crm.form.unassigned")}</span>

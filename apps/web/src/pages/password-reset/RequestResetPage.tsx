@@ -30,12 +30,12 @@ export function RequestResetPage() {
   return (
     <CenteredPanel title={t("auth.recover.title")}>
       {sent ? (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3">
           <p role="status" className="text-sm text-muted-foreground">{t("auth.recover.sent")}</p>
           <Link to="/login" className={BACK_LINK}>{t("auth.backToLogin")}</Link>
         </div>
       ) : (
-        <form className="flex flex-col gap-4" onSubmit={(event) => void submit(event)} noValidate>
+        <form className="flex flex-col gap-3" onSubmit={(event) => void submit(event)} noValidate>
           <p className="text-sm text-muted-foreground">{t("auth.recover.hint")}</p>
           <TextField
             label={t("auth.email.label")}
@@ -44,7 +44,7 @@ export function RequestResetPage() {
             error={errors.email?.message}
             {...register("email", { validate: (value) => isEmail(value.trim()) || t("auth.email.invalid") })}
           />
-          <Button type="submit" className="h-11" disabled={isSubmitting} aria-busy={isSubmitting}>
+          <Button type="submit" className="h-9" disabled={isSubmitting} aria-busy={isSubmitting}>
             {t("auth.recover.submit")}
           </Button>
           <Link to="/login" className={BACK_LINK}>{t("auth.backToLogin")}</Link>

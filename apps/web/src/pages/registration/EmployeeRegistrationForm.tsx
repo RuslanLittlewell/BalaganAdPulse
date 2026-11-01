@@ -55,9 +55,9 @@ export function EmployeeRegistrationForm({ code, knownEmail = null }: EmployeeRe
   });
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={(event) => void submit(event)} noValidate>
+    <form className="flex flex-col gap-3" onSubmit={(event) => void submit(event)} noValidate>
       {failure != null && (
-        <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+        <p role="alert" className="rounded-md bg-destructive/10 p-2 text-sm text-destructive">
           {failure}
         </p>
       )}
@@ -110,7 +110,7 @@ export function EmployeeRegistrationForm({ code, knownEmail = null }: EmployeeRe
 
       <AvatarStep value={avatar} onChange={setAvatar} />
 
-      <Button type="submit" className="h-11" disabled={isSubmitting}>{t("registration.submit")}</Button>
+      <Button type="submit" className="h-9" disabled={isSubmitting}>{t("registration.submit")}</Button>
     </form>
   );
 }

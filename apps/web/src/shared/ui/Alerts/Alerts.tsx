@@ -49,7 +49,7 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
       {alerts.length > 0 ? createPortal(
         <section
           aria-label={t("alert.region")}
-          className="pointer-events-none fixed right-4 bottom-[calc(16px+env(safe-area-inset-bottom,0px))] z-1000 flex w-[min(356px,calc(100vw-32px))] flex-col sm:right-8 sm:bottom-[calc(32px+env(safe-area-inset-bottom,0px))]"
+          className="pointer-events-none fixed right-3 bottom-[calc(16px+env(safe-area-inset-bottom,0px))] z-1000 flex w-[min(356px,calc(100vw-32px))] flex-col sm:right-6 sm:bottom-[calc(32px+env(safe-area-inset-bottom,0px))]"
         >
           {alerts.map((alert) => (
             <div key={alert.id} role={TONES[alert.tone].role} data-tone={alert.tone} className="pointer-events-auto">

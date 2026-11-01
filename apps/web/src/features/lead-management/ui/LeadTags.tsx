@@ -41,7 +41,7 @@ export function LeadTags({ value, onChange, suggestions, disabled = false }: Lea
   }
 
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+    <div className="flex min-w-0 flex-wrap items-center gap-1">
       {value.map((tag) => (
         <span key={tag} className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
           {tag}
@@ -52,7 +52,7 @@ export function LeadTags({ value, onChange, suggestions, disabled = false }: Lea
               className="rounded-sm opacity-70 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => onChange(value.filter((held) => held !== tag))}
             >
-              <X aria-hidden className="size-3" />
+              <X aria-hidden className="size-2" />
             </button>
           )}
         </span>
@@ -68,7 +68,7 @@ export function LeadTags({ value, onChange, suggestions, disabled = false }: Lea
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={onKeyDown}
             onBlur={add}
-            className="h-7 w-36 rounded-md border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring"
+            className="h-6 w-29 rounded-md border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring"
           />
           <datalist id={listId} data-testid="tag-suggestions">
             {offered.map((tag) => <option key={tag} value={tag} />)}
@@ -78,10 +78,10 @@ export function LeadTags({ value, onChange, suggestions, disabled = false }: Lea
         <button
           type="button"
           aria-label={t("crm.card.tagAdd")}
-          className="grid size-7 place-items-center rounded-md border border-primary/40 text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="grid size-6 place-items-center rounded-md border border-primary/40 text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           onClick={() => setAdding(true)}
         >
-          <Plus aria-hidden className="size-4" />
+          <Plus aria-hidden className="size-3" />
         </button>
       ) : null}
     </div>

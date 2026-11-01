@@ -19,7 +19,7 @@ export function TextField({ label, error, id, compact = false, ...rest }: TextFi
       </Label>
       <Input
         id={inputId}
-        className="h-10"
+        className="h-8"
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
         {...rest}

@@ -21,10 +21,10 @@ export function PreviewBar({ projectId }: PreviewBarProps) {
     : [];
 
   return (
-    <div className="flex shrink-0 items-center justify-between gap-3">
+    <div className="flex shrink-0 items-center justify-between gap-2">
       {current ? (
         <Select value={projectId} onValueChange={(id) => navigate(`${projectPath(id)}${location.search}`)}>
-          <SelectTrigger className="h-9 w-72 max-w-full" aria-label={t("preview.project")}>
+          <SelectTrigger className="h-7 w-58 max-w-full" aria-label={t("preview.project")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

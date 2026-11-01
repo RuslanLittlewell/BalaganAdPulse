@@ -30,8 +30,8 @@ export function PlatformNav() {
     <Sidebar
       header={
         <div
-          className={`flex min-h-16 items-center text-xl font-bold text-sidebar-foreground ${
-            collapsed ? "justify-center px-0" : "px-4"
+          className={`flex min-h-13 items-center text-xl font-semibold text-sidebar-foreground ${
+            collapsed ? "justify-center px-0" : "px-3"
           }`}
         >
           {collapsed ? t("platform.brand").slice(0, 1) : t("platform.brand")}

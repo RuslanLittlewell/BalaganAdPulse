@@ -19,8 +19,8 @@ function Field({ label, value, href }: { label: string; value: string | null; hr
     );
   }
   return (
-    <div className="grid gap-1 py-3 sm:grid-cols-[200px_minmax(0,1fr)] sm:items-baseline sm:gap-4">
-      <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+    <div className="grid gap-1 py-2 sm:grid-cols-[200px_minmax(0,1fr)] sm:items-baseline sm:gap-3">
+      <dt className="text-xs font-medium text-muted-foreground">
         {label}
       </dt>
       <dd className="min-w-0 break-words text-sm">{content}</dd>

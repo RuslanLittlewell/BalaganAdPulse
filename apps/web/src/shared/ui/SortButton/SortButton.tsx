@@ -28,7 +28,7 @@ export function SortButton({ label, direction, onSort, align = "start", classNam
       <Icon
         aria-hidden
         className={cn(
-          "size-3 shrink-0",
+          "size-2 shrink-0",
           direction === null && "opacity-0 transition-opacity group-hover/sort:opacity-60 group-focus-visible/sort:opacity-60",
         )}
       />

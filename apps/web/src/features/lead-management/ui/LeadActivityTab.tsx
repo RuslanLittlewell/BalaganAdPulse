@@ -43,10 +43,10 @@ export function LeadActivityTab({ boardKey, leadId }: { boardKey: string; leadId
   if (!entries?.length) return <p className="text-sm text-muted-foreground">{t("crm.activity.empty")}</p>;
 
   return (
-    <ol aria-label={t("crm.card.activity")} className="flex flex-col gap-3">
+    <ol aria-label={t("crm.card.activity")} className="flex flex-col gap-2">
       {entries.map((entry) => (
-        <li key={entry.id} className="rounded-lg border border-border p-3 text-sm">
-          <div className="flex items-baseline justify-between gap-3">
+        <li key={entry.id} className="rounded-lg border border-border p-2 text-sm">
+          <div className="flex items-baseline justify-between gap-2">
             <span className="font-medium">{entry.actor?.name ?? ""}</span>
             <time dateTime={entry.at} className="shrink-0 text-xs text-muted-foreground">
               {formatDateTime(entry.at)}

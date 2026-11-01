@@ -146,13 +146,13 @@ export function CrmBoard({
           data-testid="crm-loading"
           className="pointer-events-none fixed inset-0 z-50 grid place-items-center bg-background/40"
         >
-          <span className="rounded-lg border border-border bg-background px-4 py-3 shadow-lg">
+          <span className="rounded-lg border border-border bg-background px-3 py-2 shadow-lg">
             <Loader />
           </span>
         </div>
       ) : null}
 
-      <div className="flex h-full min-h-0 gap-3 overflow-x-auto pb-2">
+      <div className="flex h-full min-h-0 gap-2 overflow-x-auto pb-2">
         {columns.map((column) => (
           <CrmColumnPanel
             key={column.id}
@@ -195,7 +195,7 @@ export function CrmBoard({
 
 function LeadCardOverlay({ lead }: { lead: Lead }) {
   return (
-    <div className="w-80 cursor-grabbing opacity-95 shadow-xl">
+    <div className="w-64 cursor-grabbing opacity-95 shadow-xl">
       <LeadCard lead={lead} />
     </div>
   );

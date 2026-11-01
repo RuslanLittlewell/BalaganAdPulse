@@ -91,7 +91,7 @@ export default function Stepper({
   return (
     <div className="flex w-full flex-col" {...rest}>
       <div className={`w-full ${stepCircleContainerClassName}`}>
-        <div className={`${stepContainerClassName} flex w-full items-center pb-6`}>
+        <div className={`${stepContainerClassName} flex w-full items-center pb-5`}>
           {stepsArray.map((_, index) => {
             const stepNumber = index + 1;
             const isNotLastStep = index < totalSteps - 1;
@@ -130,14 +130,14 @@ export default function Stepper({
         {!isCompleted && (
           <div
             data-testid="stepper-footer"
-            className={`mt-8 border-t border-border pt-4 ${footerClassName}`}
+            className={`mt-6 border-t border-border pt-3 ${footerClassName}`}
           >
             <div className={`flex gap-2 ${currentStep !== 1 ? 'justify-between' : 'justify-end'}`}>
               {currentStep !== 1 && (
                 <button
                   onClick={handleBack}
                   type="button"
-                  className={`h-9 rounded-md border border-input px-4 text-sm font-medium transition-colors ${
+                  className={`h-7 rounded-md border border-input px-3 text-sm font-medium transition-colors ${
                     currentStep === 1
                       ? 'pointer-events-none opacity-50 text-muted-foreground'
                       : 'text-foreground hover:bg-accent hover:text-accent-foreground'
@@ -150,7 +150,7 @@ export default function Stepper({
               <button
                 onClick={() => { void (isLastStep ? handleComplete() : handleNext()); }}
                 type="button"
-                className="flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                className="flex h-7 items-center justify-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                 {...nextButtonProps}
               >
                 {isLastStep ? completeButtonText : nextButtonText}
@@ -249,7 +249,7 @@ interface StepProps {
 }
 
 export function Step({ children }: StepProps) {
-  return <div className="px-8">{children}</div>;
+  return <div className="px-6">{children}</div>;
 }
 
 interface StepIndicatorProps {
@@ -289,12 +289,12 @@ function StepIndicator({ step, currentStep, onClickStep, label, disableStepIndic
       transition={{ duration: 0.3 }}
     >
       <span
-        className={`flex h-8 w-8 items-center justify-center rounded-full font-semibold ${tone}`}
+        className={`flex h-6 w-6 items-center justify-center rounded-full font-semibold ${tone}`}
       >
         {status === 'complete' ? (
-          <CheckIcon className="h-4 w-4" />
+          <CheckIcon className="h-3 w-3" />
         ) : status === 'active' ? (
-          <span className="h-3 w-3 rounded-full bg-primary-foreground" />
+          <span className="h-2 w-2 rounded-full bg-primary-foreground" />
         ) : (
           <span className="text-sm">{step}</span>
         )}

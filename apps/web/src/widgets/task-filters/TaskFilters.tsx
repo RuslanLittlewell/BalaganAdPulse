@@ -73,8 +73,8 @@ export function TaskFilters({
   );
 
   return (
-    <div className="flex min-w-0 items-center gap-3">
-      <div className="hidden min-w-0 items-center gap-3 md:flex">{filters("max-w-52")}</div>
+    <div className="flex min-w-0 items-center gap-2">
+      <div className="hidden min-w-0 items-center gap-2 md:flex">{filters("max-w-42")}</div>
       <Popover>
         <PopoverTrigger asChild>
           <Button
@@ -91,14 +91,14 @@ export function TaskFilters({
             {chosenCount > 0 ? (
               <span
                 aria-hidden
-                className="absolute -right-1.5 -top-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-2xs font-semibold text-primary-foreground"
+                className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-2xs font-semibold text-primary-foreground"
               >
                 {chosenCount}
               </span>
             ) : null}
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="start" aria-label={t("tasks.filters")} className="grid w-64 gap-2 p-2">
+        <PopoverContent align="start" aria-label={t("tasks.filters")} className="grid w-51 gap-2 p-2">
           {filters("w-full")}
         </PopoverContent>
       </Popover>

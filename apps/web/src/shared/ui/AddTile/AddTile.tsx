@@ -1,12 +1,6 @@
 import type { CSSProperties, Ref } from "react";
 import { PlusIcon } from "lucide-react";
-import { cn, useTheme, type Theme } from "@/shared/lib/index.js";
-import { BorderGlow } from "../BorderGlow/index.js";
-
-const GLOW: Record<Theme, { surface: string; glow: string; colors: string[] }> = {
-  light: { surface: "#FFFFFF", glow: "175 77 35", colors: ["#0F766E", "#14B8A6", "#5EEAD4"] },
-  dark: { surface: "#1a2438", glow: "33 40 61", colors: ["#c4a074", "#e0c49a", "#8a6a45"] },
-};
+import { cn } from "@/shared/lib/index.js";
 
 export interface AddTileProps {
   label: string;
@@ -18,16 +12,12 @@ export interface AddTileProps {
 }
 
 export function AddTile({ label, onClick, disabled = false, className, style, ref }: AddTileProps) {
-  const glow = GLOW[useTheme()];
   return (
-    <BorderGlow
+    <div
       ref={ref}
       style={style}
-      backgroundColor={glow.surface}
-      glowColor={glow.glow}
-      colors={glow.colors}
       className={cn(
-        "group min-h-24 rounded-lg border-2 border-dashed text-muted-foreground transition-colors hover:text-primary",
+        "grid min-h-19 rounded-lg border-2 border-dashed border-border bg-card text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary",
         "has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring",
         disabled && "pointer-events-none opacity-50",
         className,
@@ -38,13 +28,10 @@ export function AddTile({ label, onClick, disabled = false, className, style, re
         aria-label={label}
         disabled={disabled}
         onClick={onClick}
-        className="grid flex-1 place-items-center outline-none"
+        className="grid place-items-center outline-none"
       >
-        <PlusIcon
-          aria-hidden
-          className="size-6 transition-transform duration-200 group-hover:scale-125 motion-reduce:transition-none"
-        />
+        <PlusIcon aria-hidden className="size-5" />
       </button>
-    </BorderGlow>
+    </div>
   );
 }

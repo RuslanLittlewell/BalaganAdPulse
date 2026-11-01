@@ -43,7 +43,7 @@
 }
 
 @theme {
-  --spacing: 0.2rem;
+  --spacing: 0.25rem;
   --text-2xs: calc(0.6875rem * var(--type-scale, 1));
   --text-xs: calc(0.625rem * var(--type-scale, 1));
   --text-xs--line-height: calc(0.875rem * var(--type-scale, 1));

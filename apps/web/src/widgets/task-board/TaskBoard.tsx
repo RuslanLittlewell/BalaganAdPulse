@@ -127,7 +127,7 @@ export function TaskBoard({ tasks, allTasks, isLoading, isError, onOpen, onCreat
         <p role="alert" className="mb-2 text-sm text-destructive">{moveError}</p>
       ) : null}
 
-      <div className="flex h-full min-h-0 gap-3 overflow-x-auto pb-2">
+      <div className="flex h-full min-h-0 gap-2 overflow-x-auto pb-2">
         {TASK_COLUMNS.map((column) => (
           <TaskColumnPanel
             key={column}

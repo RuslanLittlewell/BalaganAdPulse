@@ -44,7 +44,7 @@ export function AppHeader() {
   const firstPeople = useFirstPeopleHint(contactsOpen);
   return (
     <>
-      <header className="flex min-h-16 w-full items-center justify-end gap-2 border-b border-border px-5">
+      <header className="flex min-h-13 w-full items-center justify-end gap-2 border-b border-border px-4">
         <TooltipProvider delayDuration={200}>
           <div className="flex items-center gap-2">
             <NotificationCenter />

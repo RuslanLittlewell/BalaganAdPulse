@@ -10,12 +10,12 @@ export function ChannelPanel({ range }: { range: DateRange }) {
   }
 
   return (
-    <section className="max-h-[340px] overflow-y-auto rounded-lg border border-border p-4">
+    <section className="max-h-[340px] overflow-y-auto rounded-lg border border-border p-3">
       <h2 className="text-sm font-semibold text-foreground">{t("dashboard.sources")}</h2>
       {channels.isSuccess && channels.data.length === 0 && (
-        <p className="mt-4 text-sm text-muted-foreground">{t("dashboard.sources.empty")}</p>
+        <p className="mt-3 text-sm text-muted-foreground">{t("dashboard.sources.empty")}</p>
       )}
-      <ul className="mt-4 space-y-3">
+      <ul className="mt-3 space-y-2">
         {(channels.data ?? []).map((share) => {
           const total = totals.get(share.currency) ?? 0;
           return (
@@ -26,7 +26,7 @@ export function ChannelPanel({ range }: { range: DateRange }) {
                   {formatCurrency(share.performance.spend, share.currency ?? null)}
                 </span>
               </div>
-              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div className="mt-1 h-1 overflow-hidden rounded-full bg-muted">
                 <div
                   className="h-full rounded-full bg-primary"
                   style={{ width: total === 0 ? "0%" : `${(share.performance.spend / total) * 100}%` }}

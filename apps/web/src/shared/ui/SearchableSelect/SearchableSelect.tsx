@@ -97,9 +97,9 @@ export function SearchableSelect({
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent ref={content} position="popper" className="min-w-(--radix-select-trigger-width)">
-        <div className="sticky top-0 z-10 border-b bg-popover p-1.5">
+        <div className="sticky top-0 z-10 border-b bg-popover p-1">
           <div className="relative">
-            <SearchIcon aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <SearchIcon aria-hidden className="pointer-events-none absolute left-2 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
             <input
               ref={input}
               type="search"
@@ -107,7 +107,7 @@ export function SearchableSelect({
               placeholder={searchLabel}
               aria-label={searchLabel}
               autoComplete="off"
-              className="h-9 w-full rounded-md border border-input bg-transparent pl-8 pr-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring"
+              className="h-7 w-full rounded-md border border-input bg-transparent pl-6 pr-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring"
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={onKeyDown}
             />
@@ -116,7 +116,7 @@ export function SearchableSelect({
         {pinned.map((option) => item(option, needle === ""))}
         {options.map((option) => item(option, matches(option)))}
         {found.length === 0 ? (
-          <p role="status" className="px-3 py-2 text-sm text-muted-foreground">{emptyLabel}</p>
+          <p role="status" className="px-2 py-2 text-sm text-muted-foreground">{emptyLabel}</p>
         ) : null}
       </SelectContent>
     </Select>

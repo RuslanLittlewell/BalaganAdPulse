@@ -113,7 +113,7 @@ function KpiBlock({
       aria-label={`KPI ${position}`}
       data-enabled={draft.enabled}
       className={cn(
-        "relative grid gap-4 rounded-xl border p-3 sm:grid-cols-[210px_minmax(0,1fr)]",
+        "relative grid gap-3 rounded-xl border p-2 sm:grid-cols-[210px_minmax(0,1fr)]",
         empty ? "border-dashed bg-muted/10" : "border-border",
       )}
     >
@@ -128,9 +128,9 @@ function KpiBlock({
           onEdit={noop}
         />
       </div>
-      <div className="grid min-w-0 content-start gap-3">
-        <div className="flex items-center justify-between gap-3 pr-8">
-          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <div className="grid min-w-0 content-start gap-2">
+        <div className="flex items-center justify-between gap-2 pr-6">
+          <span className="text-xs font-medium text-muted-foreground">
             {empty ? t("kpi.new") : `KPI ${position}`}
           </span>
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -154,7 +154,7 @@ function KpiBlock({
           </Select>
         </div>
         {manual ? (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-2">
             <TextField
               label={t("kpi.name")}
               autoComplete="off"
@@ -191,12 +191,12 @@ function KpiBlock({
           type="button"
           variant="ghost"
           size="icon-sm"
-          className="absolute right-2 top-2 size-7 rounded-full text-destructive hover:bg-destructive/15 hover:text-destructive"
+          className="absolute right-2 top-2 size-6 rounded-full text-destructive hover:bg-destructive/15 hover:text-destructive"
           disabled={disabled}
           aria-label={`${t("kpi.remove")} ${position}`}
           onClick={onRemove}
         >
-          <XIcon aria-hidden className="size-5" strokeWidth={2.5} />
+          <XIcon aria-hidden className="size-4" strokeWidth={2.5} />
         </Button>
       ) : null}
     </div>
@@ -266,7 +266,7 @@ export function ProjectKpiDialog({
         <DialogHeader>
           <DialogTitle>{t("kpi.title")}</DialogTitle>
         </DialogHeader>
-        <form className="grid gap-4" onSubmit={submit} noValidate>
+        <form className="grid gap-3" onSubmit={submit} noValidate>
           {drafts.map((draft, index) => (
             <KpiBlock
               key={draft.key}

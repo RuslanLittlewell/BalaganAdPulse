@@ -64,10 +64,10 @@ export function KpiCard({
       data-testid={testId}
       data-state={rows.length === 1 ? rows[0]?.progress?.state : undefined}
       data-enabled={enabled}
-      className="flex h-full flex-col rounded-lg border border-border glass-card p-4"
+      className="flex h-full flex-col rounded-lg border border-border glass-card p-3"
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
           {enabled === undefined ? null : (
             <span
               role="img"
@@ -87,7 +87,7 @@ export function KpiCard({
             aria-label={t("kpi.edit")}
             onClick={onEdit}
           >
-            <Pencil aria-hidden className="size-3.5" />
+            <Pencil aria-hidden className="size-3" />
           </Button>
         ) : null}
       </div>
@@ -132,7 +132,7 @@ export function KpiCard({
                       aria-valuemin={0}
                       aria-valuemax={100}
                       aria-valuenow={Math.min(100, percent ?? 100)}
-                      className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted"
+                      className="mt-2 h-1 overflow-hidden rounded-full bg-muted"
                     >
                       <div
                         className={cn(
@@ -164,7 +164,7 @@ export function KpiCard({
               type="button"
               variant="outline"
               size="sm"
-              className="mt-3 self-start"
+              className="mt-2 self-start"
               onClick={onEdit}
             >
               {t("kpi.set")}

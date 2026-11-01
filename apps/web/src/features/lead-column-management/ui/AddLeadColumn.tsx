@@ -17,7 +17,7 @@ export function AddLeadColumn({ boardKey, columns }: AddLeadColumnProps) {
       <AddTile
         label={t("crm.columns.add")}
         onClick={() => setOpen(true)}
-        className="h-full min-h-40 w-80 shrink-0 rounded-xl"
+        className="min-h-32 w-64 shrink-0 self-start rounded-xl"
       />
 
       {open ? (

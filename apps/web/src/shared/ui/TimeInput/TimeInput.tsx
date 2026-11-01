@@ -15,7 +15,7 @@ export function TimeInput({ value, onChange, className, ...props }: TimeInputPro
       value={value ?? ""}
       onChange={(event) => onChange(event.target.value || null)}
       className={cn(
-        "h-10 cursor-text tabular-nums [color-scheme:light] dark:[color-scheme:dark]",
+        "h-8 cursor-text tabular-nums [color-scheme:light] dark:[color-scheme:dark]",
         "[&::-webkit-calendar-picker-indicator]:cursor-pointer",
         "[&::-webkit-calendar-picker-indicator]:rounded-sm",
         "[&::-webkit-calendar-picker-indicator]:opacity-50",

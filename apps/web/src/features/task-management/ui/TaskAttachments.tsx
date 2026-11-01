@@ -96,7 +96,7 @@ export function TaskAttachments({ imageIds, onRemoved, onAttach }: TaskAttachmen
               type="button"
               variant="ghost"
               size="icon"
-              className="size-7 shrink-0"
+              className="size-6 shrink-0"
               aria-label={t("tasks.attachments.attach")}
               disabled={uploading}
               onClick={() => picker.current?.click()}
@@ -145,7 +145,7 @@ export function TaskAttachments({ imageIds, onRemoved, onAttach }: TaskAttachmen
                   aria-label={label}
                   onClick={() => setPreviewing({ id, label })}
                   className={cn(
-                    "block size-20 overflow-hidden rounded-md border transition-colors",
+                    "block size-16 overflow-hidden rounded-md border transition-colors",
                     "hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   )}
                 >
@@ -168,7 +168,7 @@ export function TaskAttachments({ imageIds, onRemoved, onAttach }: TaskAttachmen
                   aria-label={`${t("tasks.attachments.remove")}: ${label}`}
                   data-testid={`task-attachment-remove-${id}`}
                   className={cn(
-                    "absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full",
+                    "absolute -right-1 -top-1 grid size-4 place-items-center rounded-full",
                     "bg-destructive text-white shadow-sm transition-opacity",
                     "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -178,7 +178,7 @@ export function TaskAttachments({ imageIds, onRemoved, onAttach }: TaskAttachmen
                     void remove(id);
                   }}
                 >
-                  <X aria-hidden className="size-3" />
+                  <X aria-hidden className="size-2" />
                 </button>
                 ) : null}
               </li>

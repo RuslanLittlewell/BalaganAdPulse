@@ -51,7 +51,7 @@ export function NewReportDialog({
         <DialogHeader>
           <DialogTitle>{t("report.new")}</DialogTitle>
         </DialogHeader>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-2">
             <Label htmlFor="report-project">{t("report.project")}</Label>
             <SearchableSelect

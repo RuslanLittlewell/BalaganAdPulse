@@ -67,11 +67,11 @@ function CampaignTablePlaceholder() {
     <div
       role="status"
       aria-label={t("campaigns.loading")}
-      className="space-y-3 rounded-lg border border-border p-4"
+      className="space-y-2 rounded-lg border border-border p-3"
     >
-      <Skeleton className="h-8 w-full" />
+      <Skeleton className="h-6 w-full" />
       {Array.from({ length: 5 }, (_, index) => (
-        <Skeleton key={index} className="h-11 w-full" />
+        <Skeleton key={index} className="h-9 w-full" />
       ))}
     </div>
   );
@@ -206,7 +206,7 @@ export function ProjectPage() {
   const onlyAccount = sourceKeys.length === 1 ? sources.get(sourceKeys[0]!)?.account ?? null : null;
 
   return (
-    <div className="flex min-h-full flex-col gap-6">
+    <div className="flex min-h-full flex-col gap-5">
       {previewing ? null : (
       <ProjectHeader
         project={project}
@@ -223,7 +223,7 @@ export function ProjectPage() {
       )}
 
       {readsDocuments && !previewing ? (
-        <div className="border-b border-border pb-4">
+        <div className="border-b border-border pb-3">
           <Tabs
             items={[
               { id: "overview", label: t("project.tab.overview") },
@@ -256,7 +256,7 @@ export function ProjectPage() {
         <>
           {previewing ? null : <MetaIntegration key={project.id} projectId={project.id} />}
 
-          <div className={cn("flex flex-wrap items-center justify-between gap-3", !previewing && "border-t pt-2")}>
+          <div className={cn("flex flex-wrap items-center justify-between gap-2", !previewing && "border-t pt-2")}>
             <h2 className="text-sm font-semibold text-foreground">
               {t("project.metrics")}
             </h2>
@@ -293,9 +293,9 @@ export function ProjectPage() {
               onAction={() => campaigns.refetch()}
             />
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
               {(sources.size > 0 || all.length > 0) && (
-                <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   {sources.size > 0 && (
                     <Tabs
                       items={[...sources].map(([id, { label }]) => ({ id, label }))}

@@ -62,6 +62,7 @@ export interface StoredCreative {
   posterKey?: string;
   posterContentType?: string;
   sourceUrl?: string;
+  complete: boolean;
 }
 export interface Snapshot {
   from: string;

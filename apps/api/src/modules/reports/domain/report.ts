@@ -8,11 +8,29 @@ const SUGGESTED_ADS = 3;
 export const MAX_CHOSEN_ADS = 6;
 const TREND_MONTHS = 6;
 export const AVAILABLE_MONTHS = 12;
+export const ENTERED_MONTHS = TREND_MONTHS - 1;
+const DEFAULT_CONTACTS = "MESSAGES";
 
 export interface MonthTotals {
   readonly month: Month;
   readonly spend: string;
   readonly leads: number;
+}
+
+export interface HistoryMonth {
+  readonly month: Month;
+  readonly spend: string | null;
+  readonly leads: number;
+}
+
+export interface EnteredMonth {
+  readonly leads: number;
+  readonly spend: string | null;
+}
+
+export interface ResultTotal {
+  readonly type: string;
+  readonly results: number;
 }
 
 export interface AdTotals {
@@ -25,8 +43,9 @@ export interface AdTotals {
 export interface ReportFigures {
   readonly spend: string;
   readonly leads: number;
-  readonly history: readonly MonthTotals[];
+  readonly history: readonly HistoryMonth[];
   readonly ads: readonly AdTotals[];
+  readonly results?: readonly ResultTotal[];
 }
 
 export interface ReportRecord {
@@ -39,6 +58,7 @@ export interface ReportRecord {
   readonly computedAt: Date;
   readonly leadsOverride: number | null;
   readonly messengerContacts: number | null;
+  readonly contactsSource: string | null;
   readonly conclusions: unknown;
   readonly plan: unknown;
   readonly adIds: readonly string[];
@@ -54,32 +74,64 @@ export interface FigureSources {
   readonly firstMonth: Month | null;
   readonly totals: readonly MonthTotals[];
   readonly corrections: ReadonlyMap<Month, number>;
+  readonly entries: ReadonlyMap<Month, EnteredMonth>;
   readonly ads: readonly AdTotals[];
+  readonly results: readonly ResultTotal[];
 }
 
 export function trendStart(month: Month): Month {
   return addMonths(month, 1 - TREND_MONTHS);
 }
 
-export function computeFigures(sources: FigureSources): ReportFigures {
+export function enteredWindow(month: Month): Month[] {
+  return monthsBetween(trendStart(month), addMonths(month, -1));
+}
+
+export function computeHistory(sources: Omit<FigureSources, "ads" | "results">): HistoryMonth[] {
   const byMonth = new Map(sources.totals.map((totals) => [totals.month, totals]));
-  const current = byMonth.get(sources.month);
-  const start = sources.firstMonth && sources.firstMonth > trendStart(sources.month)
-    ? sources.firstMonth
-    : trendStart(sources.month);
-  const history = sources.firstMonth === null || start >= sources.month
-    ? []
-    : monthsBetween(start, addMonths(sources.month, -1)).map((month) => ({
+  const window = new Set(enteredWindow(sources.month));
+  const firstEntered = [...sources.entries.keys()].filter((month) => window.has(month)).sort()[0] ?? null;
+  const earliest = [sources.firstMonth, firstEntered].filter((month): month is Month => month !== null).sort()[0] ?? null;
+  if (earliest === null) return [];
+  const start = earliest > trendStart(sources.month) ? earliest : trendStart(sources.month);
+  if (start >= sources.month) return [];
+  const synced = (month: Month) => sources.firstMonth !== null && month >= sources.firstMonth;
+  return monthsBetween(start, addMonths(sources.month, -1)).map((month) => {
+    const entry = window.has(month) ? sources.entries.get(month) : undefined;
+    return {
       month,
-      spend: byMonth.get(month)?.spend ?? "0.0000",
-      leads: sources.corrections.get(month) ?? byMonth.get(month)?.leads ?? 0,
-    }));
+      spend: entry?.spend ?? byMonth.get(month)?.spend ?? (synced(month) ? "0.0000" : null),
+      leads: entry?.leads ?? sources.corrections.get(month) ?? byMonth.get(month)?.leads ?? 0,
+    };
+  });
+}
+
+export function computeFigures(sources: FigureSources): ReportFigures {
+  const current = sources.totals.find((totals) => totals.month === sources.month);
   return {
     spend: current?.spend ?? "0.0000",
     leads: current?.leads ?? 0,
-    history,
+    history: computeHistory(sources),
     ads: sources.ads,
+    results: sources.results.filter((total) => total.results > 0),
   };
+}
+
+export function resultsOf(figures: ReportFigures): readonly ResultTotal[] {
+  return figures.results ?? [];
+}
+
+export function holdsResults(figures: ReportFigures, type: string): boolean {
+  return resultsOf(figures).some((total) => total.type === type && total.results > 0);
+}
+
+export function defaultContactsSource(figures: ReportFigures): string | null {
+  return holdsResults(figures, DEFAULT_CONTACTS) ? DEFAULT_CONTACTS : null;
+}
+
+export function contactsOf(report: Pick<ReportRecord, "figures" | "contactsSource" | "messengerContacts">): number | null {
+  if (report.contactsSource === null) return report.messengerContacts;
+  return resultsOf(report.figures).find((total) => total.type === report.contactsSource)?.results ?? 0;
 }
 
 export function suggestAds(ads: readonly AdTotals[]): string[] {
@@ -99,7 +151,10 @@ export function effectiveLeads(report: Pick<ReportRecord, "figures" | "leadsOver
   return report.leadsOverride ?? report.figures.leads;
 }
 
-const withCost = (totals: MonthTotals) => ({ ...totals, costPerLead: costPerLead(totals.spend, totals.leads) });
+const withCost = <T extends HistoryMonth>(totals: T) => ({
+  ...totals,
+  costPerLead: totals.spend === null ? null : costPerLead(totals.spend, totals.leads),
+});
 
 export function describeFigures(report: ReportRecord) {
   const current = withCost({ month: report.month, spend: report.figures.spend, leads: effectiveLeads(report) });

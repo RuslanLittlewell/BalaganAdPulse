@@ -1,12 +1,25 @@
 import { Prisma } from "@prisma/client";
 import type { PrismaClient } from "@prisma/client";
+import { sumByType, type MetricRepository } from "#modules/campaigns/index.js";
 import type { ReportMetrics } from "../application/ports.js";
 import { addMonths, firstDay, monthOf, type Month } from "../domain/month.js";
+
+const DAY = 86_400_000;
 
 const amount = (value: Prisma.Decimal | null) => (value ?? new Prisma.Decimal(0)).toFixed(4);
 
 export class PrismaReportMetrics implements ReportMetrics {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly typed: Pick<MetricRepository, "readTypedDays">,
+  ) {}
+
+  async resultTotals(projectId: string, month: Month) {
+    const campaigns = await this.prisma.campaign.findMany({ where: { projectId }, select: { id: true, channel: true } });
+    const last = new Date(firstDay(addMonths(month, 1)).getTime() - DAY);
+    const days = await this.typed.readTypedDays(campaigns, firstDay(month), last);
+    return sumByType(days).map(({ type, results }) => ({ type, results }));
+  }
 
   async timezones(projectId: string) {
     const rows = await this.prisma.projectIntegration.findMany({ where: { projectId }, select: { timezone: true } });

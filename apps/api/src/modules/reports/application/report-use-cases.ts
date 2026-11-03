@@ -2,14 +2,19 @@ import { can } from "@adpulse/access-policy";
 import { AppError } from "#shared/domain/index.js";
 import type { ActorContext, Clock, IdGenerator, UnitOfWork } from "#shared/application/index.js";
 import type { AuditWriter } from "#modules/audit/index.js";
-import { costPerLead } from "../domain/money.js";
+import { costPerLead, fourDecimals } from "../domain/money.js";
 import { addMonths, hasEnded, monthsBetween, recentEnded, type Month } from "../domain/month.js";
 import {
   AVAILABLE_MONTHS,
   MAX_CHOSEN_ADS,
   computeFigures,
+  computeHistory,
+  contactsOf,
+  defaultContactsSource,
   describeFigures,
   effectiveLeads,
+  enteredWindow,
+  holdsResults,
   keepRunningAds,
   suggestAds,
   trendStart,
@@ -17,11 +22,14 @@ import {
   type ReportRecord,
 } from "../domain/report.js";
 import { coverKey, coverType } from "../domain/cover.js";
-import type { ReportChange, ReportCoverStorage, ReportMetrics, ReportProject, ReportProjectReach, ReportRepository } from "./ports.js";
+import type {
+  MonthEntryChange, ReportChange, ReportCoverStorage, ReportMetrics, ReportProject, ReportProjectReach, ReportRepository,
+} from "./ports.js";
 
 export interface ReportEdit {
   readonly leadsOverride?: number | null;
   readonly messengerContacts?: number | null;
+  readonly contactsSource?: string | null;
   readonly conclusions?: unknown;
   readonly plan?: unknown;
   readonly adIds?: readonly string[];
@@ -58,18 +66,32 @@ export function createReportUseCases(d: ReportDependencies) {
     if (!editor(actor)) throw new AppError("forbidden", "Your role may not change reports");
   }
 
-  async function figuresFor(projectId: string, month: Month): Promise<ReportFigures> {
+  async function historySources(projectId: string, month: Month) {
     const from = trendStart(month);
-    const [firstMonth, totals, corrections, ads] = await Promise.all([
+    const [firstMonth, totals, corrections, entries] = await Promise.all([
       d.metrics.firstMonth(projectId),
       d.metrics.monthTotals(projectId, from, month),
       d.reports.corrections(projectId, monthsBetween(from, addMonths(month, -1))),
-      d.metrics.adTotals(projectId, month),
+      d.reports.entries(projectId, enteredWindow(month)),
     ]);
-    return computeFigures({ month, firstMonth, totals, corrections, ads });
+    return { month, firstMonth, totals, corrections, entries };
   }
 
-  function describe(actor: ActorContext, report: ReportRecord) {
+  async function figuresFor(projectId: string, month: Month): Promise<ReportFigures> {
+    const [sources, ads, results] = await Promise.all([
+      historySources(projectId, month),
+      d.metrics.adTotals(projectId, month),
+      d.metrics.resultTotals(projectId, month),
+    ]);
+    return computeFigures({ ...sources, ads, results });
+  }
+
+  async function enteredMonths(report: ReportRecord) {
+    const entries = await d.reports.entries(report.projectId, enteredWindow(report.month));
+    return [...entries].sort(([a], [b]) => a.localeCompare(b)).map(([month, entry]) => ({ month, ...entry }));
+  }
+
+  async function describe(actor: ActorContext, report: ReportRecord) {
     const { runningAds, ...figures } = describeFigures(report);
     const staff = editor(actor);
     return {
@@ -80,6 +102,8 @@ export function createReportUseCases(d: ReportDependencies) {
       currency: report.currency,
       ...figures,
       messengerContacts: report.messengerContacts,
+      contactsSource: report.contactsSource,
+      contacts: contactsOf(report),
       hasCover: report.coverKey !== null,
       conclusions: report.conclusions ?? null,
       plan: report.plan ?? null,
@@ -91,6 +115,8 @@ export function createReportUseCases(d: ReportDependencies) {
         computedLeads: report.figures.leads,
         leadsOverride: report.leadsOverride,
         runningAds,
+        resultTotals: report.figures.results ?? null,
+        history: await enteredMonths(report),
       } : {}),
     };
   }
@@ -178,6 +204,7 @@ export function createReportUseCases(d: ReportDependencies) {
           figures,
           computedAt: d.clock.now(),
           adIds: suggestAds(figures.ads),
+          contactsSource: defaultContactsSource(figures),
           createdById: actor.membershipId,
         });
         await d.audit.append(context, {
@@ -217,7 +244,42 @@ export function createReportUseCases(d: ReportDependencies) {
           throw new AppError("validation", "Only ads that spent in the report's month can be chosen");
         }
       }
+      if (edit.contactsSource != null && !holdsResults(report.figures, edit.contactsSource)) {
+        throw new AppError("validation", "The report's figures hold no results of this type");
+      }
       return change(actor, project, report, edit, `Edited the ${report.month} report`);
+    },
+
+    async enterHistory(actor: ActorContext, projectId: string, id: string, months: readonly MonthEntryChange[]) {
+      const { project, report } = await reportOf(actor, projectId, id);
+      requireEditor(actor);
+      const window = new Set(enteredWindow(report.month));
+      if (months.some((entry) => !window.has(entry.month))) {
+        throw new AppError("validation", "Only the five months before the report's month can be entered");
+      }
+      if (new Set(months.map((entry) => entry.month)).size !== months.length) {
+        throw new AppError("validation", "A month is entered once");
+      }
+      const changes = months.map((entry) => ({ ...entry, spend: entry.spend === null ? null : fourDecimals(entry.spend) }));
+      const sources = await historySources(project.id, report.month);
+      const entries = new Map(sources.entries);
+      for (const entry of changes) {
+        if (entry.leads === null) entries.delete(entry.month);
+        else entries.set(entry.month, { leads: entry.leads, spend: entry.spend });
+      }
+      const history = computeHistory({ ...sources, entries });
+      const updated = await d.unitOfWork.run(async (context) => {
+        await d.reports.saveEntries(context, project.id, changes);
+        const saved = await d.reports.update(context, report.id, { figures: { ...report.figures, history } });
+        await d.audit.append(context, {
+          action: "UPDATE", entityType: "report", entityId: report.id,
+          clientId: project.clientId, projectId: project.id,
+          summary: `Entered past months for the ${report.month} report`,
+          changes: { month: report.month, months: months.map((entry) => entry.month) },
+        }, actor);
+        return saved;
+      });
+      return describe(actor, updated);
     },
 
     async publish(actor: ActorContext, projectId: string, id: string) {

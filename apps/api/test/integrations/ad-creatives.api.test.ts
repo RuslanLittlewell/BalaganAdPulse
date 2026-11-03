@@ -114,6 +114,62 @@ describe("Ad creatives on demand", () => {
     copied.mockRestore();
   });
 
+  it("tries the better copy again on the next view after a copy failed", async () => {
+    await connect();
+    await prisma.adCreative.create({
+      data: { adId, externalId: "c0", position: 0, kind: "IMAGE", fileKey: "creatives/old", title: "Старый" },
+    });
+    const read = vi.spyOn(GraphProvider.prototype, "adCreatives").mockResolvedValue(anImage);
+    const copied = vi.spyOn(S3CreativeFiles.prototype, "copy")
+      .mockRejectedValueOnce(new Error("storage full"))
+      .mockResolvedValueOnce({ key: "creatives/new", contentType: "image/jpeg", bytes: 4096 });
+
+    const first = await request(app).get(`/api/ads/${adId}/creatives`).set(auth);
+    const second = await request(app).get(`/api/ads/${adId}/creatives`).set(auth);
+
+    expect(first.body).toEqual([expect.objectContaining({ title: "Старый", hasFile: true })]);
+    expect(second.body).toEqual([expect.objectContaining({ title: "Баннер", hasFile: true })]);
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(await prisma.adCreative.findMany({ select: { fileKey: true, quality: true } }))
+      .toEqual([{ fileKey: "creatives/new", quality: 1 }]);
+    read.mockRestore();
+    copied.mockRestore();
+  });
+
+  it("stores a first look without its picture when copying fails, and copies it on the next view", async () => {
+    await connect();
+    const read = vi.spyOn(GraphProvider.prototype, "adCreatives").mockResolvedValue(anImage);
+    const copied = vi.spyOn(S3CreativeFiles.prototype, "copy")
+      .mockRejectedValueOnce(new Error("storage full"))
+      .mockResolvedValueOnce({ key: "creatives/one", contentType: "image/jpeg", bytes: 2048 });
+
+    const first = await request(app).get(`/api/ads/${adId}/creatives`).set(auth);
+    const stored = await prisma.adCreative.findMany({ select: { fileKey: true, quality: true } });
+    const second = await request(app).get(`/api/ads/${adId}/creatives`).set(auth);
+
+    expect(first.body).toEqual([expect.objectContaining({ title: "Баннер", hasFile: false })]);
+    expect(stored).toEqual([{ fileKey: null, quality: 0 }]);
+    expect(second.body).toEqual([expect.objectContaining({ title: "Баннер", hasFile: true })]);
+    expect(read).toHaveBeenCalledTimes(2);
+    read.mockRestore();
+    copied.mockRestore();
+  });
+
+  it("does not read a creative again when its file was skipped by rule", async () => {
+    await connect();
+    const read = vi.spyOn(GraphProvider.prototype, "adCreatives").mockResolvedValue(anImage);
+    const copied = vi.spyOn(S3CreativeFiles.prototype, "copy").mockResolvedValue(null);
+
+    await request(app).get(`/api/ads/${adId}/creatives`).set(auth);
+    await request(app).get(`/api/ads/${adId}/creatives`).set(auth);
+
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(await prisma.adCreative.findMany({ select: { fileKey: true, quality: true } }))
+      .toEqual([{ fileKey: null, quality: 1 }]);
+    read.mockRestore();
+    copied.mockRestore();
+  });
+
   it("keeps the earlier copies when the connection is gone", async () => {
     await prisma.adCreative.create({
       data: { adId, externalId: "c0", position: 0, kind: "IMAGE", fileKey: "creatives/old", title: "Старый" },

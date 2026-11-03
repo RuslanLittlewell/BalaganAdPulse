@@ -31,6 +31,12 @@ function counted(count: number, stem: "lead" | "contact"): string {
   return `${count} ${t(key)}`;
 }
 
+function contactsLine(report: Report): string | null {
+  if (!report.contacts) return null;
+  if (report.contactsSource === null) return `+ ${counted(report.contacts, "contact")}`;
+  return `+ ${t(`resultType.${report.contactsSource}` as MessageKey)}: ${report.contacts}`;
+}
+
 const shortMonth = (month: string) =>
   new Date(`${month}-01T00:00:00Z`).toLocaleDateString("ru-RU", { month: "long", timeZone: "UTC" });
 
@@ -59,7 +65,7 @@ export function buildDeck(input: {
       budgetNote: `${t("report.pdf.budget")} ${shortMonth(report.month)}`,
       leads: counted(report.leads, "lead"),
       cost: `${t("report.pdf.cost")}${money(report.costPerLead)}`,
-      contacts: report.messengerContacts ? `+ ${counted(report.messengerContacts, "contact")}` : null,
+      contacts: contactsLine(report),
     },
     {
       kind: "trends",

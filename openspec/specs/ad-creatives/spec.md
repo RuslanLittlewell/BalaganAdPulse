@@ -27,7 +27,7 @@ Every imported ad SHALL carry the creative it ran with: one entry for a single i
 
 ### Requirement: Creative files are fetched when first looked at, then kept
 
-An ad's creatives SHALL be read from the provider the first time someone opens that ad's preview, not while the daily import runs, so that importing figures stays fast and storage holds only what someone has looked at. Each file SHALL then be copied into the system's own storage, and every later view SHALL be served from that copy without asking the provider again. A creative already stored SHALL keep working after the access token expires, the ad is paused, or the ad is removed at the provider. A video too large for the system's limit SHALL keep its poster frame and be shown through the provider's own rendering instead.
+An ad's creatives SHALL be read from the provider the first time someone opens that ad's preview, not while the daily import runs, so that importing figures stays fast and storage holds only what someone has looked at. Each file SHALL be copied in the best quality the provider offers: an image's original upload rather than a scaled thumbnail, and a video's largest preview frame as its poster. Each file SHALL then be copied into the system's own storage, and every later view SHALL be served from that copy without asking the provider again, except that creatives copied under an earlier, lower-quality rule SHALL be read from the provider once more on their next view and replaced when the provider answers. A file that could not be copied because downloading it or writing it to storage failed SHALL leave its creative to be read from the provider again on the next view, and until a copy succeeds the creative SHALL keep the file copied for it earlier, if there is one. A file skipped by rule, because it exceeds the size limit or is not of the creative's kind, SHALL NOT cause another read. A creative already stored SHALL keep working after the access token expires, the ad is paused, or the ad is removed at the provider. A video too large for the system's limit SHALL keep its poster frame and be shown through the provider's own rendering instead.
 
 #### Scenario: First look
 
@@ -38,6 +38,31 @@ An ad's creatives SHALL be read from the provider the first time someone opens t
 
 - **WHEN** the same ad's preview is opened again
 - **THEN** the stored creatives are shown without any request to the provider
+
+#### Scenario: Best quality
+
+- **WHEN** an ad runs an image uploaded at 1080 px and a video whose provider offers preview frames of 130 px and 1080 px
+- **THEN** the stored image is the 1080 px original and the video's poster is the 1080 px frame
+
+#### Scenario: A creative stored under the earlier rule
+
+- **WHEN** an ad whose creatives were copied before the best-quality rule is opened and its connection works
+- **THEN** its creatives are read again, replaced with the better copies, and not read again on later views
+
+#### Scenario: The earlier copy when the provider cannot answer
+
+- **WHEN** such an ad is opened after its connection is gone
+- **THEN** the earlier copies are shown and no error is reported
+
+#### Scenario: A copy that fails
+
+- **WHEN** an ad's image is read from the provider but writing it to storage fails
+- **THEN** the creative is stored without a picture, and the next view reads it from the provider and copies the image
+
+#### Scenario: A failed copy keeps the earlier picture
+
+- **WHEN** an ad stored under the earlier rule is read again and copying its better image fails
+- **THEN** the earlier picture is still shown, and the next view tries the better copy again
 
 #### Scenario: A stored creative outlives the connection
 
@@ -52,7 +77,7 @@ An ad's creatives SHALL be read from the provider the first time someone opens t
 #### Scenario: An oversized video
 
 - **WHEN** a video creative exceeds the copying limit
-- **THEN** its poster frame is stored and the ad is shown through the provider's own rendering
+- **THEN** its poster frame is stored, the ad is shown through the provider's own rendering, and later views do not read it from the provider again
 
 ### Requirement: Creative files follow the reach of their ad
 

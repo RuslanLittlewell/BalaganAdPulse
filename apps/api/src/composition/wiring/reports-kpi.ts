@@ -1,5 +1,6 @@
 import { prisma } from "#shared/infrastructure/prisma.js";
 import { createKpiRouter, createKpiUseCases } from "#modules/kpi/index.js";
+import { PrismaMetricRepository } from "#modules/campaigns/infrastructure/prisma-metric-repository.js";
 import { PrismaKpiRepository, PrismaProjectKpiRepository } from "#modules/kpi/infrastructure/prisma-kpi-repository.js";
 import { createReportIndexRouter, createReportRouter, createReportUseCases } from "#modules/reports/index.js";
 import { PrismaReportMetrics } from "#modules/reports/infrastructure/prisma-report-metrics.js";
@@ -19,7 +20,7 @@ export function wireReportsAndKpi(
   const reports = createReportUseCases({
     reports: new PrismaReportRepository(prisma, unitOfWork),
     projects: projectRepository,
-    metrics: new PrismaReportMetrics(prisma),
+    metrics: new PrismaReportMetrics(prisma, new PrismaMetricRepository(prisma)),
     covers: new S3ReportCoverStorage(),
     audit,
     unitOfWork,

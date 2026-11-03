@@ -1,5 +1,7 @@
 export { reportsApi } from "./api/api.js";
-export type { AdFigures, MonthFigures, Report, ReportEdit, ReportList, ReportStatus, ReportSummary } from "./api/api.js";
+export type {
+  AdFigures, EnteredMonth, MonthEntry, MonthFigures, Report, ReportEdit, ReportList, ReportStatus, ReportSummary, ResultTotal,
+} from "./api/api.js";
 export {
   allReportsKey,
   projectReportsKey,
@@ -7,6 +9,7 @@ export {
   useAllReports,
   useDeleteReport,
   useEditReport,
+  useEnterHistory,
   useGenerateReport,
   useProjectReports,
   useReport,

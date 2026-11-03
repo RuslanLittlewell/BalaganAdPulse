@@ -3,7 +3,7 @@ import type { MonthlyReport, MonthlyReportAd, PrismaClient } from "@prisma/clien
 import type { TransactionContext } from "#shared/application/index.js";
 import { AppError } from "#shared/domain/index.js";
 import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
-import type { NewReport, ReportChange, ReportRepository } from "../application/ports.js";
+import type { MonthEntryChange, NewReport, ReportChange, ReportRepository } from "../application/ports.js";
 import { firstDay, monthOf, type Month } from "../domain/month.js";
 import type { ReportFigures, ReportRecord } from "../domain/report.js";
 
@@ -25,6 +25,7 @@ function toRecord(row: Row): ReportRecord {
     computedAt: row.computedAt,
     leadsOverride: row.leadsOverride,
     messengerContacts: row.messengerContacts,
+    contactsSource: row.contactsSource,
     conclusions: row.conclusions,
     plan: row.plan,
     adIds: row.ads.map((ad) => ad.adId),
@@ -85,6 +86,29 @@ export class PrismaReportRepository implements ReportRepository {
     return new Map(rows.map((row) => [monthOf(row.month), row.leadsOverride!]));
   }
 
+  async entries(projectId: string, months: readonly Month[]) {
+    const rows = await this.prisma.projectMonthFigure.findMany({
+      where: { projectId, month: { in: months.map(firstDay) } },
+      select: { month: true, leads: true, spend: true },
+    });
+    return new Map(rows.map((row) => [monthOf(row.month), { leads: row.leads, spend: row.spend?.toFixed(4) ?? null }]));
+  }
+
+  async saveEntries(context: TransactionContext, projectId: string, changes: readonly MonthEntryChange[]) {
+    const client = this.client(context);
+    for (const { month, leads, spend } of changes) {
+      if (leads === null) {
+        await client.projectMonthFigure.deleteMany({ where: { projectId, month: firstDay(month) } });
+        continue;
+      }
+      await client.projectMonthFigure.upsert({
+        where: { projectId_month: { projectId, month: firstDay(month) } },
+        create: { projectId, month: firstDay(month), leads, spend },
+        update: { leads, spend },
+      });
+    }
+  }
+
   async create(context: TransactionContext, report: NewReport) {
     try {
       const row = await this.client(context).monthlyReport.create({
@@ -95,6 +119,7 @@ export class PrismaReportRepository implements ReportRepository {
           currency: report.currency,
           figures: report.figures as unknown as Prisma.InputJsonValue,
           computedAt: report.computedAt,
+          contactsSource: report.contactsSource,
           createdById: report.createdById,
           ads: { create: report.adIds.map((adId, position) => ({ adId, position })) },
         },

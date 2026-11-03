@@ -35,7 +35,7 @@ export class PrismaCreativeStore implements CreativeStore {
           fileKey: creative.fileKey ?? null, contentType: creative.contentType ?? null,
           bytes: creative.bytes ?? null, posterKey: creative.posterKey ?? null,
           posterContentType: creative.posterContentType ?? null, sourceUrl: creative.sourceUrl ?? null,
-          quality: CREATIVE_QUALITY,
+          quality: creative.complete ? CREATIVE_QUALITY : CREATIVE_QUALITY - 1,
         })),
       });
     });

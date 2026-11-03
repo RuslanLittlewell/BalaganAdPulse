@@ -2,7 +2,7 @@ import { Router, type NextFunction, type Request, type Response } from "express"
 import { AppError } from "#shared/domain/index.js";
 import type { ReportUseCases } from "#modules/reports/application/report-use-cases.js";
 import { coverUpload } from "./cover-upload.js";
-import { editSchema, generateSchema, listQuerySchema } from "./report-schemas.js";
+import { editSchema, generateSchema, historySchema, listQuerySchema } from "./report-schemas.js";
 
 type ProjectRequest = Request<{ projectId: string }>;
 type ReportRequest = Request<{ projectId: string; reportId: string }>;
@@ -29,6 +29,10 @@ export function createReportRouter(reports: ReportUseCases): Router {
   router.patch("/:reportId", handle(async (req: ReportRequest, res) => {
     const actor = actorOf(req);
     res.json(await reports.edit(actor, req.params.projectId, req.params.reportId, editSchema.parse(req.body)));
+  }));
+  router.put("/:reportId/history", handle(async (req: ReportRequest, res) => {
+    const actor = actorOf(req);
+    res.json(await reports.enterHistory(actor, req.params.projectId, req.params.reportId, historySchema.parse(req.body).months));
   }));
   router.delete("/:reportId", handle(async (req: ReportRequest, res) => {
     await reports.remove(actorOf(req), req.params.projectId, req.params.reportId);

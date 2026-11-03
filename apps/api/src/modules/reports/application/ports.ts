@@ -1,6 +1,6 @@
 import type { ActorContext, TransactionContext } from "#shared/application/index.js";
 import type { Month } from "../domain/month.js";
-import type { AdTotals, MonthTotals, ReportFigures, ReportRecord, ReportStatus } from "../domain/report.js";
+import type { AdTotals, EnteredMonth, MonthTotals, ReportFigures, ReportRecord, ReportStatus, ResultTotal } from "../domain/report.js";
 
 export interface ReportProject {
   readonly id: string;
@@ -21,7 +21,14 @@ export interface NewReport {
   readonly figures: ReportFigures;
   readonly computedAt: Date;
   readonly adIds: readonly string[];
+  readonly contactsSource: string | null;
   readonly createdById: string;
+}
+
+export interface MonthEntryChange {
+  readonly month: Month;
+  readonly leads: number | null;
+  readonly spend: string | null;
 }
 
 export interface ReportChange {
@@ -31,6 +38,7 @@ export interface ReportChange {
   readonly computedAt?: Date;
   readonly leadsOverride?: number | null;
   readonly messengerContacts?: number | null;
+  readonly contactsSource?: string | null;
   readonly conclusions?: unknown;
   readonly plan?: unknown;
   readonly adIds?: readonly string[];
@@ -45,6 +53,8 @@ export interface ReportRepository {
   listForProjects(projectIds: readonly string[]): Promise<ReportRecord[]>;
   exists(projectId: string, month: Month): Promise<boolean>;
   corrections(projectId: string, months: readonly Month[]): Promise<Map<Month, number>>;
+  entries(projectId: string, months: readonly Month[]): Promise<Map<Month, EnteredMonth>>;
+  saveEntries(context: TransactionContext, projectId: string, changes: readonly MonthEntryChange[]): Promise<void>;
   create(context: TransactionContext, report: NewReport): Promise<ReportRecord>;
   update(context: TransactionContext, id: string, change: ReportChange): Promise<ReportRecord>;
   delete(context: TransactionContext, id: string): Promise<void>;
@@ -55,6 +65,7 @@ export interface ReportMetrics {
   firstMonth(projectId: string): Promise<Month | null>;
   monthTotals(projectId: string, from: Month, to: Month): Promise<MonthTotals[]>;
   adTotals(projectId: string, month: Month): Promise<AdTotals[]>;
+  resultTotals(projectId: string, month: Month): Promise<ResultTotal[]>;
 }
 
 export interface ReportCoverStorage {

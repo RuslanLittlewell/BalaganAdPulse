@@ -211,6 +211,14 @@ export function createIntegrationUseCases(d: IntegrationDependencies) {
         }
         if (read.length === 0) return stored;
 
+        const attempt = async (url: string | undefined, kind: ImportedCreative["kind"]) => {
+          if (!url) return { file: null, failed: false };
+          try {
+            return { file: await d.files.copy(url, kind), failed: false };
+          } catch {
+            return { file: null, failed: true };
+          }
+        };
         const copied = await Promise.all(
           (read as ImportedCreative[]).map(
             async ({
@@ -219,20 +227,22 @@ export function createIntegrationUseCases(d: IntegrationDependencies) {
               ...creative
             }): Promise<StoredCreative> => {
               const [file, poster] = await Promise.all([
-                fileUrl ? d.files.copy(fileUrl, creative.kind) : null,
-                posterUrl ? d.files.copy(posterUrl, "IMAGE") : null,
+                attempt(fileUrl, creative.kind),
+                attempt(posterUrl, "IMAGE"),
               ]);
               return {
                 ...creative,
-                fileKey: file?.key,
-                contentType: file?.contentType,
-                bytes: file?.bytes,
-                posterKey: poster?.key,
-                posterContentType: poster?.contentType,
+                fileKey: file.file?.key,
+                contentType: file.file?.contentType,
+                bytes: file.file?.bytes,
+                posterKey: poster.file?.key,
+                posterContentType: poster.file?.contentType,
+                complete: !file.failed && !poster.failed,
               };
             },
           ),
         );
+        if (stored.length > 0 && copied.some((creative) => !creative.complete)) return stored;
         return d.creatives.save(adId, copied);
       };
       const loading = (async () => {

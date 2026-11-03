@@ -179,7 +179,7 @@ function ReportView({ projects }: { projects: Project[] }) {
   if (!reportId) return null;
 
   return (
-    <div className="flex min-h-0 flex-col gap-3">
+    <div className="mx-auto flex min-h-0 w-full flex-col gap-3 lg:w-[70%]">
       <Link
         to={ROUTES.reports}
         className="inline-flex items-center gap-1 self-start text-sm text-muted-foreground hover:text-foreground"

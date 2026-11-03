@@ -196,6 +196,168 @@ describe("hand-entered parts", () => {
   );
 });
 
+async function messages(of: string, results: number) {
+  const set = await prisma.adSet.create({ data: { campaignId, name: "Direct", optimizationGoal: "CONVERSATIONS", position: 1 } });
+  await prisma.adSetDailyMetric.create({ data: { adSetId: set.id, date: day(of), spend: "50", results } });
+}
+
+async function calls(of: string, results: number) {
+  const google = await seedCampaign(projectId, "Search", "GOOGLE");
+  await prisma.campaign.update({ where: { id: google.id }, data: { conversionCategories: ["PHONE_CALL_LEAD"] } });
+  await prisma.campaignDailyMetric.create({ data: { campaignId: google.id, date: day(of), spend: "30", conversions: results } });
+  await prisma.campaignDailyResult.create({ data: { campaignId: google.id, date: day(of), category: "PHONE_CALL_LEAD", results } });
+}
+
+describe("the fourth figure", () => {
+  it("starts on messages and stores the month's results by type", async () => {
+    await messages(month, 105);
+    await calls(month, 12);
+
+    const response = await generate();
+
+    expect(response.body).toMatchObject({ contactsSource: "MESSAGES", contacts: 105 });
+    expect(response.body.resultTotals).toEqual(expect.arrayContaining([
+      { type: "MESSAGES", results: 105 }, { type: "CALLS", results: 12 },
+    ]));
+  });
+
+  it("keeps the hand-entered count for a month without messages", async () => {
+    await calls(month, 12);
+
+    const response = await generate();
+
+    expect(response.body).toMatchObject({ contactsSource: null, contacts: null });
+  });
+
+  it("switches to another type and back to the count entered by hand, refusing a type without results", async () => {
+    await messages(month, 105);
+    await calls(month, 12);
+    const { id } = (await generate()).body;
+
+    const chosen = await request(app).patch(`${reports()}/${id}`).set(admin).send({ contactsSource: "CALLS" });
+    expect(chosen.body).toMatchObject({ contactsSource: "CALLS", contacts: 12 });
+
+    for (const contactsSource of ["PROFILE_VISITS", "NOT_A_TYPE"]) {
+      expect((await request(app).patch(`${reports()}/${id}`).set(admin).send({ contactsSource })).status).toBe(400);
+    }
+
+    const manual = await request(app).patch(`${reports()}/${id}`).set(admin).send({ contactsSource: null, messengerContacts: 40 });
+    expect(manual.body).toMatchObject({ contactsSource: null, contacts: 40, messengerContacts: 40 });
+  });
+
+  it("offers only the hand-entered count on a report stored before results by type, until refreshed", async () => {
+    await calls(month, 12);
+    const { id, spend, leads, trend, runningAds } = (await generate()).body;
+    await prisma.monthlyReport.update({
+      where: { id },
+      data: { figures: { spend, leads, history: trend.slice(0, -1).map(({ month: of, spend: s, leads: l }: { month: string; spend: string; leads: number }) => ({ month: of, spend: s, leads: l })), ads: runningAds } },
+    });
+
+    expect((await request(app).get(`/api/reports/${id}`).set(admin)).body.resultTotals).toBeNull();
+    expect((await request(app).patch(`${reports()}/${id}`).set(admin).send({ contactsSource: "CALLS" })).status).toBe(400);
+
+    const refreshed = await request(app).post(`${reports()}/${id}/refresh`).set(admin);
+    expect(refreshed.body.resultTotals).toEqual([{ type: "CALLS", results: 12 }]);
+    expect(refreshed.body.contactsSource).toBeNull();
+    expect((await request(app).patch(`${reports()}/${id}`).set(admin).send({ contactsSource: "CALLS" })).body.contacts).toBe(12);
+  });
+
+  it("shows readers the figure without the choice", async () => {
+    await messages(month, 105);
+    const { id } = (await generate()).body;
+    await request(app).post(`${reports()}/${id}/publish`).set(admin);
+
+    const read = await request(app).get(`/api/reports/${id}`).set(await member("CLIENT"));
+
+    expect(read.body).toMatchObject({ contactsSource: "MESSAGES", contacts: 105 });
+    expect(read.body).not.toHaveProperty("resultTotals");
+  });
+});
+
+describe("months entered for the trend", () => {
+  const history = (id: string) => `${reports()}/${id}/history`;
+
+  it("fill months before the first synced month and show them on the report at once", async () => {
+    await record(month, "1000.0000", 40);
+    const { id } = (await generate()).body;
+
+    const response = await request(app).put(history(id)).set(admin).send({ months: [
+      { month: addMonths(month, -3), leads: 40, spend: "900" },
+      { month: addMonths(month, -2), leads: 52, spend: null },
+    ] });
+
+    expect(response.status).toBe(200);
+    expect(response.body.trend).toEqual([
+      { month: addMonths(month, -3), spend: "900.0000", leads: 40, costPerLead: "22.5000" },
+      { month: addMonths(month, -2), spend: null, leads: 52, costPerLead: null },
+      { month: addMonths(month, -1), spend: null, leads: 0, costPerLead: null },
+      { month, spend: "1000.0000", leads: 40, costPerLead: "25.0000" },
+    ]);
+    expect(response.body.history).toEqual([
+      { month: addMonths(month, -3), leads: 40, spend: "900.0000" },
+      { month: addMonths(month, -2), leads: 52, spend: null },
+    ]);
+    await expectAudit({ action: "UPDATE", entityType: "report", entityId: id, projectId });
+  });
+
+  it("win over the synced count and a correction, and clearing one restores them", async () => {
+    await record(before, "690.0000", 58);
+    await record(month, "950.0000", 95);
+    const earlier = (await generate(before)).body;
+    await request(app).patch(`${reports()}/${earlier.id}`).set(admin).send({ leadsOverride: 60 });
+    const { id } = (await generate(month)).body;
+
+    const entered = await request(app).put(history(id)).set(admin).send({ months: [{ month: before, leads: 64, spend: null }] });
+    expect(entered.body.previous).toMatchObject({ month: before, leads: 64, spend: "690.0000" });
+
+    const cleared = await request(app).put(history(id)).set(admin).send({ months: [{ month: before, leads: null, spend: null }] });
+    expect(cleared.body.previous).toMatchObject({ month: before, leads: 60 });
+    expect(cleared.body.history).toEqual([]);
+  });
+
+  it("reach another report when it is refreshed", async () => {
+    await record(month, "100.0000", 5);
+    await record(later, "100.0000", 5);
+    const first = (await generate(month)).body;
+    const second = (await generate(later)).body;
+
+    await request(app).put(history(second.id)).set(admin).send({ months: [{ month: addMonths(month, -1), leads: 30, spend: "300" }] });
+
+    expect((await request(app).get(`/api/reports/${first.id}`).set(admin)).body.trend[0].month).toBe(month);
+    const refreshed = await request(app).post(`${reports()}/${first.id}/refresh`).set(admin);
+    expect(refreshed.body.trend[0]).toMatchObject({ month: addMonths(month, -1), leads: 30 });
+    expect(refreshed.body.history).toEqual([{ month: addMonths(month, -1), leads: 30, spend: "300.0000" }]);
+  });
+
+  it.each([
+    { months: [{ month: "SELF", leads: 1, spend: null }] },
+    { months: [{ month: "SIX_BACK", leads: 1, spend: null }] },
+    { months: [{ month: "ONE_BACK", leads: -1, spend: null }] },
+    { months: [{ month: "ONE_BACK", leads: 1.5, spend: null }] },
+    { months: [{ month: "ONE_BACK", leads: 1, spend: "-5" }] },
+    { months: [{ month: "ONE_BACK", leads: 1, spend: null }, { month: "ONE_BACK", leads: 2, spend: null }] },
+  ])("refuse %j", async (body) => {
+    const { id } = (await generate()).body;
+    const named: Record<string, string> = { SELF: month, SIX_BACK: addMonths(month, -6), ONE_BACK: addMonths(month, -1) };
+    const months = body.months.map((entry) => ({ ...entry, month: named[entry.month] }));
+
+    expect((await request(app).put(history(id)).set(admin).send({ months })).status).toBe(400);
+    expect(await prisma.projectMonthFigure.count()).toBe(0);
+  });
+
+  it("are entered by staff alone, and readers see only the trend", async () => {
+    const { id } = (await generate()).body;
+    await request(app).put(history(id)).set(admin).send({ months: [{ month: addMonths(month, -1), leads: 7, spend: null }] });
+    await request(app).post(`${reports()}/${id}/publish`).set(admin);
+    const reader = await member("CLIENT");
+
+    expect((await request(app).put(history(id)).set(reader).send({ months: [] })).status).toBe(403);
+    const read = await request(app).get(`/api/reports/${id}`).set(reader);
+    expect(read.body.trend[0]).toMatchObject({ month: addMonths(month, -1), leads: 7 });
+    expect(read.body).not.toHaveProperty("history");
+  });
+});
+
 describe("publishing and reach", () => {
   it("shows drafts to staff alone and published reports to every reader", async () => {
     const draft = (await generate(month)).body;

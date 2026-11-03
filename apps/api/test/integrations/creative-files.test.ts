@@ -32,11 +32,14 @@ it("keeps the same key for the same source and does not fetch it twice", async (
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
 
-it("refuses a file beyond the limit for its kind", async () => {
+it("refuses a file beyond the limit for its kind, and does not fetch it again", async () => {
   const huge = Buffer.alloc(11 * 1024 * 1024, 1);
-  const files = new S3CreativeFiles(vi.fn(async () => ok(huge, "image/jpeg")));
+  const fetcher = vi.fn(async () => ok(huge, "image/jpeg"));
+  const files = new S3CreativeFiles(fetcher);
 
   expect(await files.copy("https://cdn.invalid/huge.jpg", "IMAGE")).toBeNull();
+  expect(await files.copy("https://cdn.invalid/huge.jpg", "IMAGE")).toBeNull();
+  expect(fetcher).toHaveBeenCalledTimes(1);
 });
 
 it("allows a video larger than the image limit, up to its own", async () => {
@@ -48,12 +51,22 @@ it("allows a video larger than the image limit, up to its own", async () => {
   expect(stored).toMatchObject({ contentType: "video/mp4", bytes: video.length });
 });
 
-it("gives nothing back when the source cannot be fetched", async () => {
-  const failing = new S3CreativeFiles(vi.fn(async () => { throw new Error("network"); }));
-  expect(await failing.copy("https://cdn.invalid/gone.png", "IMAGE")).toBeNull();
+it("fails when the source cannot be fetched, and fetches it again on the next copy", async () => {
+  const fetcher = vi.fn<typeof fetch>()
+    .mockRejectedValueOnce(new Error("network"))
+    .mockResolvedValueOnce(ok(png));
+  const files = new S3CreativeFiles(fetcher);
+  const source = `https://cdn.invalid/${randomUUID()}.png`;
 
+  await expect(files.copy(source, "IMAGE")).rejects.toThrow("network");
+  expect(await files.copy(source, "IMAGE")).toMatchObject({ contentType: "image/png", bytes: png.length });
+  expect(fetcher).toHaveBeenCalledTimes(2);
+});
+
+it("fails when the source answers with an error", async () => {
   const refused = new S3CreativeFiles(vi.fn(async () => new Response("no", { status: 403 })));
-  expect(await refused.copy("https://cdn.invalid/forbidden.png", "IMAGE")).toBeNull();
+
+  await expect(refused.copy(`https://cdn.invalid/${randomUUID()}.png`, "IMAGE")).rejects.toThrow("403");
 });
 
 it("refuses a source that is not an http url", async () => {

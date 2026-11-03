@@ -15,6 +15,8 @@ const report: Report = {
     { adId: "a2", name: "Tilt", spend: "601.2900", leads: 1, costPerLead: "601.2900" },
   ],
   messengerContacts: 12,
+  contactsSource: null,
+  contacts: 12,
   hasCover: false,
   conclusions: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Выросли", marks: [{ type: "bold" }] }, { type: "text", text: " на 38%" }] }] },
   plan: null,
@@ -42,10 +44,15 @@ describe("the PDF deck", () => {
   });
 
   it("drops the optional slides and lines that have nothing to show", () => {
-    const built = deck({ conclusions: null, plan: null, ads: [], messengerContacts: null });
+    const built = deck({ conclusions: null, plan: null, ads: [], messengerContacts: null, contacts: null });
     expect(built.slides.map((slide) => slide.kind)).toEqual(["cover", "summary", "trends"]);
     expect(built.slides[0]).toMatchObject({ pictureKey: null });
     expect(built.slides[1]).toMatchObject({ contacts: null });
+  });
+
+  it("states a chosen result type by its name", () => {
+    expect(deck({ contactsSource: "MESSAGES", contacts: 105 }).slides[1]).toMatchObject({ contacts: "+ Сообщения: 105" });
+    expect(deck({ contactsSource: "CALLS", contacts: 0 }).slides[1]).toMatchObject({ contacts: null });
   });
 
   it("puts the uploaded cover picture on the cover before the first ad's", () => {

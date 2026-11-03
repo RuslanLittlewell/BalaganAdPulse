@@ -31,3 +31,7 @@ export function relativeChange(current: string, previous: string): string | null
   if (before === 0n) return null;
   return fromUnits(divideRounded((toUnits(current) - before) * SCALE, before));
 }
+
+export function fourDecimals(amount: string): string {
+  return fromUnits(toUnits(amount));
+}

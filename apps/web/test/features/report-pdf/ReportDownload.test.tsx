@@ -14,7 +14,7 @@ const report = {
   spend: "100.0000", leads: 4, costPerLead: "25.0000", previous: null, change: { leads: null, costPerLead: null },
   trend: [{ month: "2026-08", spend: "100.0000", leads: 4, costPerLead: "25.0000" }],
   ads: [{ adId: "a1", name: "Smart", spend: "100.0000", leads: 4, costPerLead: "25.0000" }],
-  messengerContacts: null, hasCover: false, conclusions: null, plan: null, publishedAt: null, createdAt: "", updatedAt: "",
+  messengerContacts: null, contactsSource: null, contacts: null, hasCover: false, conclusions: null, plan: null, publishedAt: null, createdAt: "", updatedAt: "",
 } satisfies Report;
 
 describe("ReportDownload", () => {

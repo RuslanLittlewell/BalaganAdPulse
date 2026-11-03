@@ -4,9 +4,26 @@ export type ReportStatus = "DRAFT" | "PUBLISHED";
 
 export interface MonthFigures {
   month: string;
-  spend: string;
+  spend: string | null;
   leads: number;
   costPerLead: string | null;
+}
+
+export interface EnteredMonth {
+  month: string;
+  leads: number;
+  spend: string | null;
+}
+
+export interface MonthEntry {
+  month: string;
+  leads: number | null;
+  spend: string | null;
+}
+
+export interface ResultTotal {
+  type: string;
+  results: number;
 }
 
 export interface AdFigures {
@@ -48,6 +65,8 @@ export interface Report {
   trend: MonthFigures[];
   ads: AdFigures[];
   messengerContacts: number | null;
+  contactsSource: string | null;
+  contacts: number | null;
   hasCover: boolean;
   conclusions: unknown | null;
   plan: unknown | null;
@@ -58,11 +77,14 @@ export interface Report {
   computedLeads?: number;
   leadsOverride?: number | null;
   runningAds?: AdFigures[];
+  resultTotals?: ResultTotal[];
+  history?: EnteredMonth[];
 }
 
 export interface ReportEdit {
   leadsOverride?: number | null;
   messengerContacts?: number | null;
+  contactsSource?: string | null;
   conclusions?: unknown | null;
   plan?: unknown | null;
   adIds?: string[];
@@ -79,6 +101,8 @@ export const reportsApi = {
   generate: (projectId: string, month: string) => http.post<Report>(base(projectId), { month }),
   edit: (projectId: string, id: string, edit: ReportEdit) => http.patch<Report>(one(projectId, id), edit),
   refresh: (projectId: string, id: string) => http.post<Report>(`${one(projectId, id)}/refresh`, {}),
+  enterHistory: (projectId: string, id: string, months: MonthEntry[]) =>
+    http.put<Report>(`${one(projectId, id)}/history`, { months }),
   publish: (projectId: string, id: string) => http.post<Report>(`${one(projectId, id)}/publish`, {}),
   unpublish: (projectId: string, id: string) => http.post<Report>(`${one(projectId, id)}/unpublish`, {}),
   remove: (projectId: string, id: string) => http.del(one(projectId, id)),

@@ -1,6 +1,6 @@
 import type { RouteDoc } from "#shared/presentation/openapi.js";
 import { z } from "zod";
-import { editSchema, generateSchema, listQuerySchema, reportListSchema, reportSchema, reportSummarySchema } from "./report-schemas.js";
+import { editSchema, generateSchema, historySchema, listQuerySchema, reportListSchema, reportSchema, reportSummarySchema } from "./report-schemas.js";
 
 const report = { status: 200, description: "The report", schema: reportSchema } as const;
 
@@ -10,7 +10,8 @@ export const reportDoc: RouteDoc = {
   operations: [
     { method: "get", path: "/", summary: "List the project's reports, newest month first, and the ended months staff may still generate", success: { status: 200, description: "The reports", schema: reportListSchema }, errors: [401, 404] },
     { method: "post", path: "/", summary: "Generate the report for a month that has ended", body: generateSchema, success: { status: 201, description: "The new draft", schema: reportSchema }, errors: [400, 401, 403, 404, 409] },
-    { method: "patch", path: "/:reportId", summary: "Correct leads, set messenger contacts, conclusions, plan or the chosen ads", body: editSchema, success: report, errors: [400, 401, 403, 404] },
+    { method: "patch", path: "/:reportId", summary: "Correct leads, choose the fourth figure, set the hand-entered contacts, conclusions, plan or the chosen ads", body: editSchema, success: report, errors: [400, 401, 403, 404] },
+    { method: "put", path: "/:reportId/history", summary: "Enter or clear the project's leads and spend for the five months before the report's month, and update this report's trend", body: historySchema, success: report, errors: [400, 401, 403, 404] },
     { method: "delete", path: "/:reportId", summary: "Delete a report", success: { status: 204, description: "The report is gone" }, errors: [401, 403, 404] },
     { method: "put", path: "/:reportId/cover", summary: "Upload the report's cover picture: a JPEG, PNG or WebP image up to 10 MB", bodyType: "multipart/form-data", body: { type: "object", properties: { image: { type: "string", format: "binary" } }, required: ["image"] }, success: report, errors: [400, 401, 403, 404] },
     { method: "get", path: "/:reportId/cover", summary: "Read the report's cover picture", success: { status: 200, description: "The picture", contentType: "image/*", schema: { type: "string", format: "binary" } }, errors: [401, 404] },

@@ -48,29 +48,25 @@ export class S3CreativeFiles implements CreativeFiles {
       return { key, contentType: known.contentType ?? FALLBACK[kind], bytes: known.bytes };
     }
 
-    try {
-      const timeout = AbortSignal.timeout(this.timeoutMs);
-      const response = await this.fetcher(address, {
-        redirect: "follow",
-        signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
-      });
-      if (!response.ok) return null;
+    const timeout = AbortSignal.timeout(this.timeoutMs);
+    const response = await this.fetcher(address, {
+      redirect: "follow",
+      signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+    });
+    if (!response.ok) throw new Error(`The creative source answered ${response.status}`);
 
-      const declared = Number(response.headers.get("content-length") ?? Number.NaN);
-      if (Number.isFinite(declared) && declared > LIMITS[kind]) return null;
+    const declared = Number(response.headers.get("content-length") ?? Number.NaN);
+    if (Number.isFinite(declared) && declared > LIMITS[kind]) return null;
 
-      const contentType = (response.headers.get("content-type") ?? "").split(";")[0].trim();
-      if (contentType !== "" && !contentType.startsWith(FAMILY[kind])) return null;
+    const contentType = (response.headers.get("content-type") ?? "").split(";")[0].trim();
+    if (contentType !== "" && !contentType.startsWith(FAMILY[kind])) return null;
 
-      const body = await this.read(response, LIMITS[kind]);
-      if (!body) return null;
+    const body = await this.read(response, LIMITS[kind]);
+    if (!body) return null;
 
-      const type = contentType === "" ? FALLBACK[kind] : contentType;
-      await putObject(key, body, type);
-      return { key, contentType: type, bytes: body.length };
-    } catch {
-      return null;
-    }
+    const type = contentType === "" ? FALLBACK[kind] : contentType;
+    await putObject(key, body, type);
+    return { key, contentType: type, bytes: body.length };
   }
 
   private async read(response: Response, limit: number): Promise<Buffer | null> {

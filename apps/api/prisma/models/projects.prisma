@@ -31,6 +31,7 @@ model Project {
   googleAuthorizations GoogleAuthorization[]
   placements           ProjectPlacement[]
   reports              MonthlyReport[]
+  monthFigures         ProjectMonthFigure[]
   documents            ProjectDocument[]
   notifications        Notification[]
   kpis                 ProjectKpi[]

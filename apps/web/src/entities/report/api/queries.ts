@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { reportsApi, type Report, type ReportEdit } from "./api.js";
+import { reportsApi, type MonthEntry, type Report, type ReportEdit } from "./api.js";
 
 export const allReportsKey = (projectId?: string) => ["reports", "all", projectId ?? null] as const;
 export const projectReportsKey = (projectId: string) => ["reports", "project", projectId] as const;
@@ -49,6 +49,14 @@ export function useEditReport(report: Pick<Report, "id" | "projectId">) {
   const store = useStored();
   return useMutation({
     mutationFn: (edit: ReportEdit) => reportsApi.edit(report.projectId, report.id, edit),
+    onSuccess: store,
+  });
+}
+
+export function useEnterHistory(report: Pick<Report, "id" | "projectId">) {
+  const store = useStored();
+  return useMutation({
+    mutationFn: (months: MonthEntry[]) => reportsApi.enterHistory(report.projectId, report.id, months),
     onSuccess: store,
   });
 }

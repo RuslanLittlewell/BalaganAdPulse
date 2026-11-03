@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
+import { PencilIcon } from "lucide-react";
 import { ApiError, cn, ROUTES, type Currency } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import {
@@ -23,10 +24,12 @@ import {
   type ReportEdit,
 } from "@/entities/report/index.js";
 import { BestAds } from "./BestAds.js";
+import { ContactsFigure } from "./ContactsFigure.js";
 import { NumberEditor } from "./NumberEditor.js";
 import { ReportCover } from "./ReportCover.js";
 import { ReportText } from "./ReportText.js";
 import { TrendChart } from "./TrendChart.js";
+import { TrendHistory } from "./TrendHistory.js";
 
 function changeHint(fraction: string | null): string | undefined {
   const change = formatChange(fraction);
@@ -58,10 +61,21 @@ function EditableFigure({
 }) {
   const [editing, setEditing] = useState(false);
   return (
-    <div className="rounded-lg border border-border glass-card p-3">
-      <div className="text-xs font-medium text-muted-foreground">
+    <div className="relative rounded-lg border border-border glass-card p-3">
+      <div className={cn("text-xs font-medium text-muted-foreground", editable && "pr-8")}>
         {label}
       </div>
+      {editable && !editing ? (
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          aria-label={editLabel}
+          className="absolute top-2 right-2"
+          onClick={() => setEditing(true)}
+        >
+          <PencilIcon aria-hidden />
+        </Button>
+      ) : null}
       <div className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
         <RollingNumber value={value} />
       </div>
@@ -81,16 +95,6 @@ function EditableFigure({
               {t("report.leads.reset")}
             </Button>
           </span>
-        ) : null}
-        {editable && !editing ? (
-          <Button
-            size="sm"
-            variant="link"
-            className="h-auto px-0"
-            onClick={() => setEditing(true)}
-          >
-            {editLabel}
-          </Button>
         ) : null}
         {editing ? (
           <NumberEditor
@@ -265,14 +269,11 @@ function ReportBody({
             value={formatMoney(report.costPerLead, money)}
             hint={changeHint(report.change.costPerLead)}
           />
-          <EditableFigure
-            label={t("report.messengerContacts")}
-            value={report.messengerContacts ?? "—"}
+          <ContactsFigure
+            report={report}
             editable={staff}
-            editLabel={t("report.edit")}
-            initial={report.messengerContacts}
             pending={edit.isPending}
-            onSave={(value, done) => save({ messengerContacts: value }, done)}
+            onSave={save}
           />
         </div>
         {showsCover ? <ReportCover report={report} editable={staff} /> : null}
@@ -297,6 +298,8 @@ function ReportBody({
           }))}
         />
       </div>
+
+      {staff ? <TrendHistory report={report} /> : null}
 
       <BestAds
         ads={report.ads}

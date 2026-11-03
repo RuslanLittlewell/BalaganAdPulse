@@ -1,7 +1,8 @@
 import { useId, useState } from "react";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { Bold, Italic, List, ListOrdered } from "lucide-react";
+import { Bold, Italic, List, ListOrdered, PencilIcon } from "lucide-react";
+import { cn } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import { Button } from "@/shared/ui/index.js";
 
@@ -104,15 +105,19 @@ export function ReportText({
   const headingId = useId();
 
   return (
-    <section aria-labelledby={headingId} className="rounded-lg border border-border p-3">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <h2 id={headingId} className="text-sm font-semibold text-foreground">{title}</h2>
-        {editable && !editing ? (
-          <Button size="sm" variant="ghost" aria-label={`${t("report.edit")}: ${title}`} onClick={() => setEditing(true)}>
-            {t("report.edit")}
-          </Button>
-        ) : null}
-      </div>
+    <section aria-labelledby={headingId} className="relative rounded-lg border border-border p-3">
+      <h2 id={headingId} className={cn("mb-2 text-sm font-semibold text-foreground", editable && "pr-8")}>{title}</h2>
+      {editable && !editing ? (
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          aria-label={`${t("report.edit")}: ${title}`}
+          className="absolute top-2 right-2"
+          onClick={() => setEditing(true)}
+        >
+          <PencilIcon aria-hidden />
+        </Button>
+      ) : null}
       {editing ? (
         <Writer
           title={title}

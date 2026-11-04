@@ -54,6 +54,18 @@ export function createLeadRouter(leads: LeadUseCases, files: LeadFileUseCases) {
     handle(async (req, res) => res.json(await leads.boards(actor(req)))),
   );
   router.get(
+    "/boards/:boardKey/stage-counts",
+    handle(async (req, res) =>
+      res.json(
+        await leads.boardStageCounts(
+          actor(req),
+          req.params.boardKey,
+          stageCountsQuerySchema.parse(req.query),
+        ),
+      ),
+    ),
+  );
+  router.get(
     "/boards/:boardKey/leads",
     handle(async (req, res) =>
       res.json(await leads.list(actor(req), req.params.boardKey)),

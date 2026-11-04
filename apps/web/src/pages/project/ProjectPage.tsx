@@ -34,6 +34,7 @@ import {
   EMPTY_PERFORMANCE,
 } from "@/entities/campaign/index.js";
 import { ACTIVE_TASK_COLUMNS, useTasks } from "@/entities/task/index.js";
+import { useBoardStageCounts } from "@/entities/lead/index.js";
 import { kpiInputOf, MANUAL_KPI, useProjectKpis, type KpiAccount } from "@/entities/kpi/index.js";
 import {
   tilesOf,
@@ -53,6 +54,9 @@ import { useMembers } from "@/entities/membership/index.js";
 import { TaskList } from "@/widgets/task-list/index.js";
 import { PerformanceSummary } from "@/widgets/agency-overview/index.js";
 import {
+  CAMPAIGN_LEAD_STAGES,
+  crmStageColumns,
+  crmStageFigures,
   PerformanceTable,
   resultTypeColumns,
   type PerformanceRow,
@@ -87,6 +91,8 @@ export function ProjectPage() {
   const clients = useClients();
   const summary = useProjectSummary(projectId, range);
   const campaigns = useProjectCampaigns(projectId, range);
+  const countsLeads = useModuleEnabled("CRM");
+  const stageCounts = useBoardStageCounts(projectId ?? undefined, range, { enabled: countsLeads });
   const projectKpis = useProjectKpis(projectId);
   const tiles = useSummaryTiles(
     projectId ? { kind: "project", id: projectId } : undefined,
@@ -181,13 +187,24 @@ export function ProjectPage() {
 
   const offeredTypes = orderedResultTypes(all.flatMap((campaign) => campaign.resultTypes));
 
+  const countsByCampaign = new Map(
+    (stageCounts.data?.campaigns ?? []).map((counts) => [counts.campaignId, counts]),
+  );
+  const stageFiguresOf = (campaignIds: readonly string[]) =>
+    countsLeads
+      ? crmStageFigures(campaignIds.map((id) => countsByCampaign.get(id)), CAMPAIGN_LEAD_STAGES)
+      : {};
+
   const toneOf = (campaign: (typeof listed)[number]) => campaignTone(campaign, range);
   const rows: PerformanceRow[] = listed.map((campaign) => ({
     id: campaign.id,
     name: campaign.name,
     note: `${channelLabel(campaign.channel)} · ${statusLabel(campaign.status)}`,
     performance: campaign.performance,
-    extra: resultTypeFiguresOf(campaign.performance, offeredTypes),
+    extra: {
+      ...resultTypeFiguresOf(campaign.performance, offeredTypes),
+      ...stageFiguresOf([campaign.id]),
+    },
     mixedResults: hasMixedResults(campaign.performance.resultTypes),
     tone: toneOf(campaign),
   }));
@@ -328,9 +345,14 @@ export function ProjectPage() {
                 rows={rows}
                 visibleRows={10}
                 totals={totals}
-                totalsExtra={resultTypeFiguresOf(totals, offeredTypes)}
+                totalsExtra={{
+                  ...resultTypeFiguresOf(totals, offeredTypes),
+                  ...stageFiguresOf(listed.map((campaign) => campaign.id)),
+                }}
                 totalsMixedResults={hasMixedResults(totals.resultTypes)}
-                extraColumns={resultTypeColumns(offeredTypes)}
+                extraColumns={countsLeads
+                  ? [...resultTypeColumns(offeredTypes), ...crmStageColumns(CAMPAIGN_LEAD_STAGES)]
+                  : resultTypeColumns(offeredTypes)}
                 currency={project.budgetCurrency}
                 empty={
                   campaigns.isSuccess

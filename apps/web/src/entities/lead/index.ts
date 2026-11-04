@@ -6,6 +6,7 @@ export {
 } from "./api/api.js";
 export type {
   BoardCapabilities,
+  BoardStageCounts,
   Lead,
   LeadAd,
   LeadAssignee,
@@ -18,6 +19,7 @@ export type {
   LeadColumnInput,
   CountingPeriod,
   ProjectStageCounts,
+  StageCounts,
   LeadMetaSource,
   LeadOrigin,
   LeadInput,
@@ -32,6 +34,7 @@ export {
   leadFilesKey,
   leadsKey,
   useAttachLeadFile,
+  useBoardStageCounts,
   useCreateLead,
   useCreateLeadColumn,
   useDeleteLead,

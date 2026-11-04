@@ -27,10 +27,15 @@ import {
 import { tilesOf, useSummaryTiles, type SummaryAccount, type SummaryTile } from "@/entities/summary-tiles/index.js";
 import { PeriodControl, usePeriod } from "@/features/period/index.js";
 import { useCan } from "@/features/permissions/index.js";
+import { useModuleEnabled } from "@/features/auth/index.js";
+import { useBoardStageCounts, type StageCounts } from "@/entities/lead/index.js";
 import { usePreviewMode } from "@/features/preview-mode/index.js";
 import { PerformanceSummary } from "@/widgets/agency-overview/index.js";
 import { DailyChart } from "@/widgets/campaign-overview/index.js";
 import {
+  CAMPAIGN_LEAD_STAGES,
+  crmStageColumns,
+  crmStageFigures,
   PerformanceTable,
   resultTypeColumns,
   type PerformanceRow,
@@ -72,6 +77,8 @@ export function CampaignPage() {
   const campaign = useCampaign(campaignId, range);
   const days = useCampaignDaily(campaignId, range);
   const adSets = useAdSets(campaignId, range);
+  const countsLeads = useModuleEnabled("CRM");
+  const stageCounts = useBoardStageCounts(projectId ?? undefined, range, { enabled: countsLeads });
   const projects = useProjects();
   const projectTiles = useSummaryTiles(
     projectId ? { kind: "project", id: projectId } : undefined,
@@ -96,6 +103,13 @@ export function CampaignPage() {
 
   const offeredTypes = campaign.data?.resultTypes ?? [];
 
+  const countsByAdSet = new Map(
+    (stageCounts.data?.adSets ?? []).map((counts) => [counts.adSetId, counts]),
+  );
+  const countsByAd = new Map((stageCounts.data?.ads ?? []).map((counts) => [counts.adId, counts]));
+  const stageFigures = (counts: StageCounts | undefined) =>
+    countsLeads ? crmStageFigures([counts], CAMPAIGN_LEAD_STAGES) : {};
+
   const allAdSets = adSets.data ?? [];
   const listedAds = (adSetId: string) => runningFirst(adsBySet.get(adSetId) ?? [], runningOnly);
 
@@ -106,14 +120,20 @@ export function CampaignPage() {
       .filter(Boolean)
       .join(" · "),
     performance: adSet.performance,
-    extra: resultTypeFiguresOf(adSet.performance, offeredTypes),
+    extra: {
+      ...resultTypeFiguresOf(adSet.performance, offeredTypes),
+      ...stageFigures(countsByAdSet.get(adSet.id)),
+    },
     expandable: true,
     children: listedAds(adSet.id).map((ad) => ({
       id: ad.id,
       name: ad.name,
       note: [ad.format, statusLabel(ad.status)].filter(Boolean).join(" · "),
       performance: ad.performance,
-      extra: resultTypeFiguresOf(ad.performance, offeredTypes),
+      extra: {
+        ...resultTypeFiguresOf(ad.performance, offeredTypes),
+        ...stageFigures(countsByAd.get(ad.id)),
+      },
     })),
   }));
 
@@ -183,7 +203,9 @@ export function CampaignPage() {
           heading={t("adSets.one")}
           rows={rows}
           currency={currency}
-          extraColumns={resultTypeColumns(offeredTypes)}
+          extraColumns={countsLeads
+            ? [...resultTypeColumns(offeredTypes), ...crmStageColumns(CAMPAIGN_LEAD_STAGES)]
+            : resultTypeColumns(offeredTypes)}
           onExpandedChange={setOpenSets}
           onOpen={(adId) => {
             for (const [adSetId, ads] of adsBySet) {

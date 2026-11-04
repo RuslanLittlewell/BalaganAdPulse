@@ -8,7 +8,13 @@ import { LEAD_STAGES, useProjectStageCounts } from "@/entities/lead/index.js";
 import { useModuleEnabled } from "@/features/auth/index.js";
 import { kpiTrend } from "./kpiTrend.js";
 import { projectKpiPercent, toneOfPercent, type ProjectTone } from "@/widgets/project-list/projectTone.js";
-import { PerformanceTable, type ExtraColumn, type PerformanceRow } from "@/widgets/performance-table/index.js";
+import {
+  crmStageColumns,
+  crmStageFigures,
+  PerformanceTable,
+  type ExtraColumn,
+  type PerformanceRow,
+} from "@/widgets/performance-table/index.js";
 
 const KPI_COLUMN: ExtraColumn = {
   id: "kpi",
@@ -24,10 +30,7 @@ const ROW_TONE: Record<ProjectTone, NonNullable<PerformanceRow["tone"]>> = {
   met: "profitable",
 };
 
-const STAGE_COLUMNS: readonly ExtraColumn[] = LEAD_STAGES.map((stage) => ({
-  id: `crm-${stage}`,
-  label: `${t("dashboard.crmColumn")} (${t(`crm.stage.${stage}`)})`,
-}));
+const STAGE_COLUMNS = crmStageColumns(LEAD_STAGES);
 
 function useProjectFigures(projects: Project[], range: DateRange) {
   const summary = useProjectsSummary(range);
@@ -51,11 +54,7 @@ export function ProjectPerformanceTable({ range }: { range: DateRange }) {
   const rows: PerformanceRow[] = figures.map(({ project, performance, entry }) => {
     const percent = projectKpiPercent(entry, range);
     const trend = kpiTrend(entry, range);
-    const stageCounts = crm
-      ? Object.fromEntries(
-        LEAD_STAGES.map((stage) => [`crm-${stage}`, countsByProject.get(project.id)?.[stage] ?? 0]),
-      )
-      : {};
+    const stageCounts = crm ? crmStageFigures([countsByProject.get(project.id)], LEAD_STAGES) : {};
     return {
       id: project.id,
       name: project.name,

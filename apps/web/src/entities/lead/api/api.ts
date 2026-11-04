@@ -17,7 +17,15 @@ export interface LeadColumn {
   position: number;
 }
 
-export type ProjectStageCounts = { projectId: string } & Record<LeadStage, number>;
+export type StageCounts = Record<LeadStage, number>;
+
+export type ProjectStageCounts = { projectId: string } & StageCounts;
+
+export interface BoardStageCounts {
+  campaigns: ({ campaignId: string } & StageCounts)[];
+  adSets: ({ adSetId: string } & StageCounts)[];
+  ads: ({ adId: string } & StageCounts)[];
+}
 
 export interface CountingPeriod {
   from: string;
@@ -176,6 +184,8 @@ export const leadsApi = {
     http.patch<Lead[]>(`${board(boardKey)}/leads/${id}/move`, body),
   projectStageCounts: ({ from, to }: CountingPeriod) =>
     http.get<ProjectStageCounts[]>(`/crm/project-stage-counts?from=${from}&to=${to}`),
+  boardStageCounts: (boardKey: string, { from, to }: CountingPeriod) =>
+    http.get<BoardStageCounts>(`${board(boardKey)}/stage-counts?from=${from}&to=${to}`),
   columns: (boardKey: string) => http.get<LeadColumn[]>(`${board(boardKey)}/columns`),
   createColumn: (boardKey: string, name: string) =>
     http.post<LeadColumn>(`${board(boardKey)}/columns`, { name }),

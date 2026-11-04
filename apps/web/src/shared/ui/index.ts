@@ -32,6 +32,7 @@ export * from "./CopyButton/CopyButton.js";
 export * from "./ListItem/ListItem.js";
 export * from "./Loader/Loader.js";
 export * from "./MultiSelect/MultiSelect.js";
+export * from "./MenuSearch/MenuSearch.js";
 export * from "./SearchableSelect/SearchableSelect.js";
 export * from "./PhoneSheet/PhoneSheet.js";
 export * from "./SectionLabel/SectionLabel.js";

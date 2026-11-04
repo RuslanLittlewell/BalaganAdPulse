@@ -9,7 +9,35 @@ export function isLeadStage(value: string): value is LeadStage {
 export function placementOf(stage: string): { stage: LeadStage; columnId: null } | { stage: null; columnId: string } {
   return isLeadStage(stage) ? { stage, columnId: null } : { stage: null, columnId: stage };
 }
-export type ProjectStageCounts = { projectId: string } & Record<LeadStage, number>;
+export type StageCounts = Record<LeadStage, number>;
+export type ProjectStageCounts = { projectId: string } & StageCounts;
+export interface BoardStageCounts {
+  campaigns: ({ campaignId: string } & StageCounts)[];
+  adSets: ({ adSetId: string } & StageCounts)[];
+  ads: ({ adId: string } & StageCounts)[];
+}
+export interface StageGroup { campaignId: string | null; adId: string | null; stage: LeadStage; count: number }
+export function emptyStageCounts(): StageCounts {
+  return Object.fromEntries(LEAD_STAGES.map(stage => [stage, 0])) as StageCounts;
+}
+function tally(groups: readonly StageGroup[], keyOf: (group: StageGroup) => string | null | undefined): [string, StageCounts][] {
+  const rows = new Map<string, StageCounts>();
+  for (const group of groups) {
+    const key = keyOf(group);
+    if (key == null) continue;
+    const row = rows.get(key) ?? emptyStageCounts();
+    row[group.stage] += group.count;
+    rows.set(key, row);
+  }
+  return [...rows].sort(([a], [b]) => a.localeCompare(b));
+}
+export function foldBoardStageCounts(groups: readonly StageGroup[], adSetOf: ReadonlyMap<string, string>): BoardStageCounts {
+  return {
+    campaigns: tally(groups, group => group.campaignId).map(([campaignId, counts]) => ({ campaignId, ...counts })),
+    adSets: tally(groups, group => group.adId && adSetOf.get(group.adId)).map(([adSetId, counts]) => ({ adSetId, ...counts })),
+    ads: tally(groups, group => group.adId).map(([adId, counts]) => ({ adId, ...counts })),
+  };
+}
 export interface ArrivalWindow { start: Date; end: Date }
 export function arrivalWindow(from: Date, to: Date): ArrivalWindow {
   return { start: from, end: new Date(to.getTime() + 24 * 60 * 60 * 1000) };

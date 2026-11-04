@@ -12,6 +12,9 @@ import {
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
   DropdownMenuLabel,
+  MenuSearch,
+  MenuSearchEmpty,
+  matchesSearch,
   TableBody,
   TableCell,
   TableFooter,
@@ -401,6 +404,7 @@ export function PerformanceTable({
   highlightedId,
 }: PerformanceTableProps) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const [columnQuery, setColumnQuery] = useState("");
   const inherit = useColumnWidths((state) => state.inherit);
   useLayoutEffect(() => {
     if (inheritFrom != null && inheritFrom !== tableKey) inherit(tableKey, inheritFrom);
@@ -466,6 +470,7 @@ export function PerformanceTable({
     moveColumn(tableKey, id, direction, shownFigureIds, figureIds);
   const choices = [...METRIC_COLUMNS, ...extraColumns]
     .filter((column) => !isRequiredColumn(column.id));
+  const foundChoices = choices.filter((column) => matchesSearch(column.label, columnQuery));
 
   const toggle = (id: string) => {
     const next = new Set(expanded);
@@ -612,7 +617,7 @@ export function PerformanceTable({
               </TableHead>
             ))}
             <TableHead className="sticky right-0 z-20 text-right">
-              <DropdownMenu>
+              <DropdownMenu onOpenChange={(open) => { if (!open) setColumnQuery(""); }}>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
@@ -626,11 +631,12 @@ export function PerformanceTable({
                   align="end"
                   className="max-h-77 overflow-y-auto"
                 >
+                  <MenuSearch value={columnQuery} onChange={setColumnQuery} />
                   <DropdownMenuLabel>{t("table.columns")}</DropdownMenuLabel>
                   <p className="px-2 pb-2 text-xs text-muted-foreground">
                     {t("table.minimumColumns")}
                   </p>
-                  {choices.map((column) => (
+                  {foundChoices.map((column) => (
                     <DropdownMenuCheckboxItem
                       key={column.id}
                       checked={visibleIds.includes(column.id)}
@@ -646,6 +652,7 @@ export function PerformanceTable({
                       {column.label}
                     </DropdownMenuCheckboxItem>
                   ))}
+                  {foundChoices.length === 0 ? <MenuSearchEmpty /> : null}
                 </DropdownMenuContent>
               </DropdownMenu>
             </TableHead>

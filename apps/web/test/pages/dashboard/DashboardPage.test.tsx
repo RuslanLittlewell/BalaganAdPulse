@@ -3,6 +3,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { aSession, renderWithProviders, server } from "@test/shared/index.js";
 import { DashboardPage } from "@/pages/dashboard/index.js";
+import { useColumnWidths } from "@/widgets/performance-table/columnWidths.js";
 import { Route, Routes, useLocation } from "react-router-dom";
 
 function ProjectDestination() {
@@ -438,7 +439,7 @@ describe("this month's KPI on the dashboard", () => {
 });
 
 describe("CRM stage columns in the dashboard project table", () => {
-  const STAGE_COLUMNS = ["Лид (Новый)", "Лид (Квалифицированный)", "Лид (Целевой)", "Лид (КП)"];
+  const STAGE_COLUMNS = ["Лид (Новый)", "Квал. лид", "Целевой лид", "КП"];
 
   const cell = (rowName: RegExp, column: string) => {
     const index = screen.getAllByRole("columnheader").findIndex((header) => header.textContent === column);
@@ -476,12 +477,12 @@ describe("CRM stage columns in the dashboard project table", () => {
     renderWithProviders(<DashboardPage />, { route: "/?from=2026-09-01&to=2026-09-30" });
 
     await screen.findByRole("row", { name: /Клиника/ });
-    await turnOn(user, "Лид (Новый)", "Лид (КП)");
+    await turnOn(user, "Лид (Новый)", "КП");
 
     await waitFor(() => expect(cell(/Клиника/, "Лид (Новый)")).toHaveTextContent("3"));
-    expect(cell(/Клиника/, "Лид (КП)")).toHaveTextContent("2");
+    expect(cell(/Клиника/, "КП")).toHaveTextContent("2");
     expect(cell(/Автосалон/, "Лид (Новый)")).toHaveTextContent("0");
-    expect(cell(/Автосалон/, "Лид (КП)")).toHaveTextContent("0");
+    expect(cell(/Автосалон/, "КП")).toHaveTextContent("0");
     expect(requested).toContain("?from=2026-09-01&to=2026-09-30");
   });
 
@@ -511,12 +512,22 @@ describe("CRM stage columns in the dashboard project table", () => {
     const { unmount } = renderWithProviders(<DashboardPage />);
 
     await screen.findByRole("row", { name: /Клиника/ });
-    await turnOn(user, "Лид (Целевой)");
-    expect(screen.getByRole("columnheader", { name: "Лид (Целевой)" })).toBeInTheDocument();
+    await turnOn(user, "Целевой лид");
+    expect(screen.getByRole("columnheader", { name: "Целевой лид" })).toBeInTheDocument();
     unmount();
 
     renderWithProviders(<DashboardPage />);
     await screen.findByRole("row", { name: /Клиника/ });
-    expect(screen.getByRole("columnheader", { name: "Лид (Целевой)" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Целевой лид" })).toBeInTheDocument();
+  });
+
+  it("keeps a choice saved while the columns had their earlier names", async () => {
+    useColumnWidths.setState({ visibleColumns: { projects: ["name", "spend", "crm-TARGET"] } });
+    api();
+    renderWithProviders(<DashboardPage />);
+
+    await screen.findByRole("row", { name: /Клиника/ });
+    expect(screen.getByRole("columnheader", { name: "Целевой лид" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "КП" })).toBeNull();
   });
 });

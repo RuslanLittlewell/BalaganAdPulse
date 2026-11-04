@@ -1,7 +1,7 @@
 import type { ActorContext, TransactionContext } from '#shared/application/index.js';
 import type { StoredLeadFile, LeadFileRecord } from '../domain/lead-file.js';
 import type { LeadHistoryEvent } from '../domain/lead-activity.js';
-import type { ArrivalWindow, LeadBoard, LeadColumnRecord, LeadFields, LeadRecord, LeadStage, ProjectStageCounts } from '../domain/lead.js';
+import type { ArrivalWindow, BoardStageCounts, LeadBoard, LeadColumnRecord, LeadFields, LeadRecord, LeadStage, ProjectStageCounts } from '../domain/lead.js';
 export interface LeadRepository {
   boards(actor: ActorContext): Promise<LeadBoard[]>;
   reaches(actor: ActorContext, board: string): Promise<boolean>;
@@ -20,6 +20,7 @@ export interface LeadRepository {
   updateColumn(context: TransactionContext, id: string, input: {name?: string; afterStage?: LeadStage | null; position?: number}): Promise<LeadColumnRecord>;
   deleteColumn(context: TransactionContext, id: string): Promise<void>;
   projectStageCounts(actor: ActorContext, window: ArrivalWindow): Promise<ProjectStageCounts[]>;
+  boardStageCounts(actor: ActorContext, board: string, window: ArrivalWindow): Promise<BoardStageCounts>;
 }
 export interface LeadFileRepository {
   list(leadId: string): Promise<LeadFileRecord[]>;

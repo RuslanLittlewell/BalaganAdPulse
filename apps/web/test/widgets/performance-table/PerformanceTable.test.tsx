@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PerformanceTable, type PerformanceRow } from "@/widgets/performance-table/index.js";
 import { useColumnWidths } from "@/widgets/performance-table/columnWidths.js";
@@ -315,6 +315,92 @@ describe("sizing a figure column", () => {
     again.unmount();
     render(<PerformanceTable tableKey="resize-other-test" heading="Кампания" rows={rows} />);
     expect(handleOf("Расход")).toHaveAttribute("aria-valuenow", "128");
+  });
+});
+
+describe("searching the column chooser", () => {
+  const extraColumns = [{ id: "crm-QUALIFIED", label: "Квал. лид" }];
+  const chooser = () => screen.getByRole("button", { name: "Отображаемые столбцы" });
+  const search = () => screen.getByRole("searchbox", { name: "Поиск" });
+  const listed = () => screen.queryAllByRole("menuitemcheckbox").map((item) => item.textContent);
+
+  async function openChooser() {
+    const user = userEvent.setup();
+    render(<PerformanceTable tableKey="search-test" heading="Кампания" rows={rows} extraColumns={extraColumns} />);
+    await user.click(chooser());
+    return user;
+  }
+
+  it("opens with the focus in the search field", async () => {
+    await openChooser();
+
+    await waitFor(() => expect(search()).toHaveFocus());
+  });
+
+  it("narrows the list to the columns whose name holds the typed text", async () => {
+    const user = await openChooser();
+
+    await user.keyboard("cp");
+
+    expect(listed()).toEqual(["CPC", "CPM", "CPL"]);
+  });
+
+  it("ignores letter case and surrounding spaces", async () => {
+    const user = await openChooser();
+
+    await user.type(search(), " РАС ");
+
+    expect(listed()).toEqual(["Расход"]);
+  });
+
+  it("says so when no column matches", async () => {
+    const user = await openChooser();
+
+    await user.keyboard("ябл");
+
+    expect(listed()).toEqual([]);
+    expect(screen.getByRole("status")).toHaveTextContent("Ничего не найдено");
+  });
+
+  it("keeps the focus in the field while the member types a letter a column starts with", async () => {
+    const user = await openChooser();
+
+    await user.keyboard("Р");
+
+    expect(search()).toHaveValue("Р");
+    expect(search()).toHaveFocus();
+  });
+
+  it("turns a found column on and stays open with the same text", async () => {
+    const user = await openChooser();
+
+    await user.keyboard("квал");
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "Квал. лид" }));
+
+    expect(screen.getByRole("menuitemcheckbox", { name: "Квал. лид" })).toHaveAttribute("aria-checked", "true");
+    expect(search()).toHaveValue("квал");
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("columnheader", { name: "Квал. лид" })).toBeInTheDocument();
+  });
+
+  it("moves the focus to the first listed column on the down arrow", async () => {
+    const user = await openChooser();
+
+    await user.keyboard("cp{ArrowDown}");
+
+    expect(screen.getByRole("menuitemcheckbox", { name: "CPC" })).toHaveFocus();
+  });
+
+  it("starts empty when opened again", async () => {
+    const user = await openChooser();
+
+    await user.keyboard("cp{Escape}");
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    await user.click(chooser());
+
+    expect(search()).toHaveValue("");
+    expect(listed()).toContain("Расход");
+    expect(listed()).toContain("Квал. лид");
   });
 });
 

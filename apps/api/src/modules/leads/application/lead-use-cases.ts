@@ -133,6 +133,11 @@ export function createLeadUseCases(d: {leads:LeadRepository; storage:Pick<LeadFi
       if (!can(actor,'read','lead')) throw new AppError('forbidden','Action not permitted');
       return d.leads.projectStageCounts(actor,arrivalWindow(range.from,range.to));
     },
+    async boardStageCounts(actor:ActorContext,board:string,range:{from:Date;to:Date}) {
+      if (range.from.getTime()>range.to.getTime()) throw new AppError('validation','The range must start on or before its end');
+      await authorize(actor,board,'read');
+      return d.leads.boardStageCounts(actor,board,arrivalWindow(range.from,range.to));
+    },
     async columns(actor:ActorContext,board:string) { await authorize(actor,board,'read'); return boardColumns(await d.leads.columns(actor,board)); },
     createColumn(actor:ActorContext,board:string,input:{name:string}) {
       return mutation(actor,board,'create',async context=>{

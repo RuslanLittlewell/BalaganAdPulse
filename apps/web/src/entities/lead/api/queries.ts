@@ -34,6 +34,14 @@ export function useProjectStageCounts({ from, to }: CountingPeriod, { enabled = 
   });
 }
 
+export function useBoardStageCounts(boardKey: string | undefined, { from, to }: CountingPeriod, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ["crm", "board-stage-counts", boardKey ?? "", { from, to }],
+    queryFn: () => leadsApi.boardStageCounts(boardKey!, { from, to }),
+    enabled: enabled && Boolean(boardKey),
+  });
+}
+
 export function useLeadColumns(boardKey: string | undefined) {
   return useQuery({
     queryKey: leadColumnsKey(boardKey ?? ""),

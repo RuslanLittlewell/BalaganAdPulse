@@ -409,3 +409,65 @@ describe("showing only the running ad sets and ads", () => {
     expect(screen.queryByRole("switch", { name: "Только активные" })).toBeNull();
   });
 });
+
+describe("CRM stage columns in the ad set table", () => {
+  const STAGE_COLUMNS = ["Квал. лид", "Целевой лид", "КП"];
+
+  const cell = (rowName: RegExp, column: string) => {
+    const index = screen.getAllByRole("columnheader").findIndex((header) => header.textContent === column);
+    expect(index).toBeGreaterThanOrEqual(0);
+    return screen.getByRole("row", { name: rowName }).children[index];
+  };
+
+  it("shows each ad set's and ad's leads of the selected period by stage", async () => {
+    const user = userEvent.setup();
+    const requested: string[] = [];
+    api();
+    server.use(mock.get("/api/crm/boards/:board/stage-counts", ({ params, request }) => {
+      requested.push(`${String(params.board)}${new URL(request.url).search}`);
+      return HttpResponse.json({
+        campaigns: [{ campaignId: "c1", NEW: 0, QUALIFIED: 0, TARGET: 1, PROPOSAL: 0 }],
+        adSets: [{ adSetId: "s1", NEW: 0, QUALIFIED: 0, TARGET: 1, PROPOSAL: 0 }],
+        ads: [{ adId: "a1", NEW: 0, QUALIFIED: 0, TARGET: 1, PROPOSAL: 0 }],
+      });
+    }));
+    renderWithProviders(<App />, { route: "/projects/p1/campaigns/c1?from=2026-09-01&to=2026-09-30" });
+
+    await screen.findByRole("row", { name: /Москва · 28–55/ });
+    await user.click(screen.getByRole("button", { name: "Отображаемые столбцы" }));
+    for (const column of STAGE_COLUMNS) {
+      expect(await screen.findByRole("menuitemcheckbox", { name: column })).toHaveAttribute("aria-checked", "false");
+    }
+    expect(screen.queryByRole("menuitemcheckbox", { name: "Лид (Новый)" })).toBeNull();
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "Целевой лид" }));
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => expect(cell(/Москва · 28–55/, "Целевой лид")).toHaveTextContent("1"));
+    await user.click(screen.getByRole("button", { name: /Москва · 28–55/ }));
+    await screen.findByRole("row", { name: /Приём сегодня/ });
+    expect(cell(/Приём сегодня/, "Целевой лид")).toHaveTextContent("1");
+    expect(requested).toContain("p1?from=2026-09-01&to=2026-09-30");
+  });
+
+  it("offers no stage column, and asks for no counts, without the CRM module", async () => {
+    const user = userEvent.setup();
+    let asked = 0;
+    api();
+    server.use(
+      mock.get("/api/auth/me", () => HttpResponse.json(aSession({ modules: ["DASHBOARD", "PROJECTS", "TASKS"] }))),
+      mock.get("/api/crm/boards/:board/stage-counts", () => {
+        asked += 1;
+        return HttpResponse.json({ campaigns: [], adSets: [], ads: [] });
+      }),
+    );
+    renderWithProviders(<App />, route);
+
+    await screen.findByRole("row", { name: /Москва · 28–55/ });
+    await user.click(screen.getByRole("button", { name: "Отображаемые столбцы" }));
+    expect(await screen.findByRole("menuitemcheckbox", { name: "Расход" })).toBeInTheDocument();
+    for (const column of STAGE_COLUMNS) {
+      expect(screen.queryByRole("menuitemcheckbox", { name: column })).not.toBeInTheDocument();
+    }
+    expect(asked).toBe(0);
+  });
+});

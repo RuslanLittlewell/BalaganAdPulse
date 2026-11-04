@@ -1,7 +1,7 @@
-import { useState, type KeyboardEvent, type ReactNode } from "react";
-import { ChevronDown, SearchIcon } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/shared/lib/index.js";
-import { t } from "@/shared/config/index.js";
+import { MenuSearch, MenuSearchEmpty, matchesSearch } from "../MenuSearch/MenuSearch.js";
 import { selectTriggerClassName } from "../ui/select.js";
 import {
   DropdownMenu,
@@ -39,11 +39,8 @@ export function MultiSelect({
   className,
 }: MultiSelectProps) {
   const [query, setQuery] = useState("");
-  const needle = query.trim().toLocaleLowerCase("ru");
-  const shownItems = needle === "" ? items : items.filter((item) => item.label.toLocaleLowerCase("ru").includes(needle));
-  const stopTyping = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key !== "Escape") event.stopPropagation();
-  };
+  const searching = query.trim() !== "";
+  const shownItems = items.filter((item) => matchesSearch(item.label, query));
   const picked = items.filter((item) => chosen.includes(item.value));
   const [first, ...rest] = picked;
 
@@ -79,25 +76,8 @@ export function MultiSelect({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="max-h-77 overflow-y-auto">
-        {searchable ? (
-          <div className="sticky top-0 z-10 -mt-1 mb-1 border-b bg-popover p-1">
-            <div className="relative">
-              <SearchIcon aria-hidden className="pointer-events-none absolute left-2 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="search"
-                autoFocus
-                value={query}
-                placeholder={t("select.search")}
-                aria-label={t("select.search")}
-                autoComplete="off"
-                className="h-7 w-full rounded-md border border-input bg-transparent pl-6 pr-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring"
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={stopTyping}
-              />
-            </div>
-          </div>
-        ) : null}
-        {allLabel && needle === "" ? (
+        {searchable ? <MenuSearch value={query} onChange={setQuery} /> : null}
+        {allLabel && !searching ? (
           <>
             <DropdownMenuCheckboxItem
               checked={allChosen}
@@ -122,9 +102,7 @@ export function MultiSelect({
             </span>
           </DropdownMenuCheckboxItem>
         ))}
-        {searchable && shownItems.length === 0 ? (
-          <p role="status" className="px-2 py-2 text-sm text-muted-foreground">{t("select.search.empty")}</p>
-        ) : null}
+        {searchable && shownItems.length === 0 ? <MenuSearchEmpty /> : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );

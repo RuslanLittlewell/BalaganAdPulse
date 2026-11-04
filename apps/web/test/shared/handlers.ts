@@ -43,6 +43,7 @@ export const defaultHandlers = [
   http.get("/api/invites", () => HttpResponse.json([])),
   http.get("/api/members", () => HttpResponse.json([])),
   http.get("/api/crm/project-stage-counts", () => HttpResponse.json([])),
+  http.get("/api/crm/boards/:board/stage-counts", () => HttpResponse.json({ campaigns: [], adSets: [], ads: [] })),
   http.get("/api/crm/boards/:board/columns", () => HttpResponse.json([
     { id: "NEW", kind: "FIXED", name: "Новый", position: 0 },
     { id: "QUALIFIED", kind: "FIXED", name: "Квалифицированный", position: 1 },

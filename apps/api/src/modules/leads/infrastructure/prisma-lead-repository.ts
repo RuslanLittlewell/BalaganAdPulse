@@ -2,7 +2,7 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 import type { ActorContext, TransactionContext } from '#shared/application/index.js';
 import type { PrismaUnitOfWork } from '#shared/infrastructure/prisma-unit-of-work.js';
 import type { LeadRepository } from '../application/ports.js';
-import { LEAD_STAGES, placementOf, type ArrivalWindow, type LeadAnswer, type LeadColumnRecord, type LeadRecord, type LeadStage, type ProjectStageCounts } from '../domain/lead.js';
+import { emptyStageCounts, foldBoardStageCounts, placementOf, type ArrivalWindow, type LeadAnswer, type LeadColumnRecord, type LeadRecord, type ProjectStageCounts } from '../domain/lead.js';
 import { reachableProjects } from '#shared/infrastructure/project-reach.js';
 
 const leadInclude = {
@@ -13,6 +13,9 @@ const leadInclude = {
 } satisfies Prisma.LeadInclude;
 type LeadRow = Prisma.LeadGetPayload<{include:typeof leadInclude}>;
 const columnInclude = {project:{select:{clientId:true}}} satisfies Prisma.LeadColumnInclude;
+const arrivedIn = ({start, end}: ArrivalWindow): Prisma.LeadWhereInput => ({
+  OR:[{metaSource:{is:{submittedAt:{gte:start, lt:end}}}}, {metaSource:{is:null}, createdAt:{gte:start, lt:end}}],
+});
 type ColumnRow = Prisma.LeadColumnGetPayload<{include:typeof columnInclude}>;
 const toColumnRecord = ({project, ...column}: ColumnRow): LeadColumnRecord => ({...column, clientId:project.clientId});
 
@@ -100,21 +103,30 @@ export class PrismaLeadRepository implements LeadRepository {
   async deleteColumn(context: TransactionContext, id: string) {
     await this.uow.clientFor<Prisma.TransactionClient>(context).leadColumn.delete({where:{id}});
   }
-  async projectStageCounts(actor: ActorContext, {start, end}: ArrivalWindow) {
+  async projectStageCounts(actor: ActorContext, window: ArrivalWindow) {
     const groups = await this.prisma.lead.groupBy({
       by:['projectId','stage'],
-      where:{orgId:actor.orgId, stage:{not:null}, project:reachableProjects(actor), AND:[
-        {OR:[{metaSource:{is:{submittedAt:{gte:start, lt:end}}}}, {metaSource:{is:null}, createdAt:{gte:start, lt:end}}]},
-      ]},
+      where:{orgId:actor.orgId, stage:{not:null}, project:reachableProjects(actor), AND:[arrivedIn(window)]},
       _count:{_all:true},
     });
     const projects = new Map<string, ProjectStageCounts>();
     for (const group of groups) {
       if (!group.stage) continue;
-      const row = projects.get(group.projectId) ?? {projectId:group.projectId, ...Object.fromEntries(LEAD_STAGES.map(stage => [stage, 0])) as Record<LeadStage, number>};
+      const row = projects.get(group.projectId) ?? {projectId:group.projectId, ...emptyStageCounts()};
       row[group.stage] = group._count._all;
       projects.set(group.projectId, row);
     }
     return [...projects.values()].sort((a, b) => a.projectId.localeCompare(b.projectId));
+  }
+  async boardStageCounts(actor: ActorContext, board: string, window: ArrivalWindow) {
+    const groups = await this.prisma.lead.groupBy({
+      by:['campaignId','adId','stage'],
+      where:{orgId:actor.orgId, projectId:board, stage:{not:null}, AND:[arrivedIn(window)]},
+      _count:{_all:true},
+    });
+    const counted = groups.flatMap(({campaignId, adId, stage, _count}) => stage ? [{campaignId, adId, stage, count:_count._all}] : []);
+    const adIds = [...new Set(counted.flatMap(({adId}) => adId ? [adId] : []))];
+    const ads = adIds.length === 0 ? [] : await this.prisma.ad.findMany({where:{id:{in:adIds}}, select:{id:true, adSetId:true}});
+    return foldBoardStageCounts(counted, new Map(ads.map(ad => [ad.id, ad.adSetId])));
   }
 }

@@ -146,7 +146,7 @@ describe("period lead counts per campaign, ad set and ad", () => {
   });
 
   it("answers 404 while the organization's CRM module is off", async () => {
-    await prisma.organization.update({ where: { id: orgId }, data: { modules: ["TASKS", "REPORTS"] } });
+    await prisma.organization.update({ where: { id: orgId }, data: { tariff: "SOLO" } });
 
     expect((await counts()).status).toBe(404);
   });

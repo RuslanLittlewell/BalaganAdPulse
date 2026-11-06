@@ -4,6 +4,7 @@ import { FixedClock } from "../../src/shared/infrastructure/clock.js";
 import { DeterministicIdGenerator } from "../../src/shared/infrastructure/id-generator.js";
 import type { TransactionContext } from "../../src/shared/application/unit-of-work.js";
 import { createInviteUseCases, type Invite } from "../../src/modules/invites/index.js";
+import { unlimitedTariffs } from "../helpers/tariffs.js";
 
 const NOW = new Date("2026-09-01T12:00:00.000Z");
 const admin: ActorContext = { userId: "u-admin", membershipId: "m-admin", orgId: "org1", role: "ADMIN" };
@@ -69,6 +70,7 @@ function fixture(seed: readonly Partial<Invite>[] = []) {
     ids: new DeterministicIdGenerator(["id-1", "id-2", "id-3", "code-1", "code-2", "code-3"]),
     codes: new DeterministicIdGenerator(["code-1", "code-2", "code-3"]),
     unitOfWork: { run: (work) => work(context) },
+    tariffs: unlimitedTariffs,
   });
   return { useCases, invites, enrolled, context, createdCount: () => created };
 }

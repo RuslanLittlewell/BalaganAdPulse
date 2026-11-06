@@ -1,4 +1,4 @@
-import type { OptionalModule, Role } from "@adpulse/access-policy";
+import type { LimitedResource, Role, Tariff, TariffLimits } from "@adpulse/access-policy";
 import type {
   ActorContext,
   TransactionContext,
@@ -27,8 +27,21 @@ export interface OrganizationDirectory {
     name: string;
     slug: string;
     status: OrganizationStatus;
-    modules: readonly OptionalModule[];
+    tariff: Tariff;
+    trialEndsAt: Date | null;
   } | null>;
+}
+
+export interface TariffSummary {
+  readonly tariff: Tariff;
+  readonly trialEndsAt: Date | null;
+  readonly trialExpired: boolean;
+  readonly limits: TariffLimits;
+  readonly usage: Readonly<Record<LimitedResource, number>>;
+}
+
+export interface TariffSummaries {
+  describe(orgId: string): Promise<TariffSummary>;
 }
 
 export interface SessionUserDirectory {
@@ -51,6 +64,7 @@ export interface SessionDependencies {
   readonly organizations: OrganizationDirectory;
   readonly users: SessionUserDirectory;
   readonly clients: ClientReachDirectory;
+  readonly tariffs: TariffSummaries;
 }
 
 export const MEMBER_KINDS = ["staff"] as const;

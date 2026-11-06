@@ -33,7 +33,7 @@ import type { Leads } from "./leads.js";
 import type { Notifications } from "./notifications.js";
 
 export function wireCampaignsAndIntegrations(
-  { unitOfWork, clock, audit }: Kernel,
+  { unitOfWork, clock, audit, tariffs }: Kernel,
   { projectRepository, leadIntake }: Pick<ClientsAndProjects, "projectRepository"> & Pick<Leads, "leadIntake">,
   { imports }: Pick<Notifications, "imports">,
 ) {
@@ -55,6 +55,7 @@ export function wireCampaignsAndIntegrations(
     clock,
     unitOfWork,
     audit,
+    tariffs,
   });
   const googleIntegrations = createGoogleUseCases({
     repository: integrationRepository,
@@ -63,6 +64,7 @@ export function wireCampaignsAndIntegrations(
     clock,
     unitOfWork,
     audit,
+    tariffs,
     authorizations: new PrismaGoogleAuthorizations(prisma),
     google: oauth && googleAds
       ? {

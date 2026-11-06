@@ -1,6 +1,7 @@
 import { http } from "@/shared/lib/index.js";
 import type { TokenPair } from "@/shared/lib/index.js";
 import type { ModuleKey, Role } from "@adpulse/access-policy";
+import type { TariffSummary } from "@/entities/tariff/index.js";
 
 export interface ClientRegistrationBody {
   client: {
@@ -67,6 +68,7 @@ export interface AuthSession {
   membershipId: string | null;
   clientIds: string[];
   modules: ModuleKey[];
+  tariff: TariffSummary | null;
 }
 
 const UNAUTHENTICATED = { authenticated: false };

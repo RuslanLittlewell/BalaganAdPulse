@@ -109,7 +109,7 @@ describe("the Telegram bot in the API", () => {
       expect((await request(configured).post("/api/telegram/link").set(member.auth)).status).toBe(404);
     }
 
-    await prisma.organization.update({ where: { id: (await currentOrg()).id }, data: { modules: ["CRM", "REPORTS"] } });
+    await prisma.organization.update({ where: { id: (await currentOrg()).id }, data: { tariff: "BUSINESS" } });
     expect((await request(configured).get("/api/telegram").set(anna.auth)).body.available).toBe(false);
   });
 

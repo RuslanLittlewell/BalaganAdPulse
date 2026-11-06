@@ -82,4 +82,29 @@ describe("ClientFormDialog", () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(method).toBe("PATCH");
   });
+
+  it("says in Russian that the tariff limit stops a new client", async () => {
+    server.use(
+      mock.post("/api/clients", () =>
+        HttpResponse.json(
+          {
+            error: {
+              message: "Tariff limit reached for clients: 1. Upgrade the tariff to add more.",
+              details: [{ code: "TARIFF_LIMIT", resource: "clients", limit: 1 }],
+            },
+          },
+          { status: 403 },
+        ),
+      ),
+    );
+    const onClose = vi.fn();
+    renderWithProviders(<ClientFormDialog onClose={onClose} />);
+
+    await userEvent.type(screen.getByLabelText("Имя"), "Second");
+    await userEvent.click(screen.getByRole("button", { name: "Создать" }));
+
+    expect(await screen.findByRole("alert"))
+      .toHaveTextContent("Достигнут лимит тарифа «Клиенты»: 1. Чтобы добавить больше, смените тариф.");
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });

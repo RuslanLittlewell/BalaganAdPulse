@@ -37,6 +37,7 @@ import { useAuth } from "@/features/auth/index.js";
 import { Can, useCan } from "@/features/permissions/index.js";
 import { HINTS, useHint } from "@/features/hints/index.js";
 import { ClientFormDialog } from "@/features/client-management/index.js";
+import { tariffRefusal } from "@/entities/tariff/index.js";
 
 const UPLOADED = JSON.stringify({ source: "upload" });
 
@@ -188,7 +189,7 @@ export function ProjectFormDialog({
           if (key && message) setError(key as keyof Fields, { message });
         }
       }
-      setFailure(t("project.logo.failed"));
+      setFailure(tariffRefusal(error) ?? t("project.logo.failed"));
     }
   });
 

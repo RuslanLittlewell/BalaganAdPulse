@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import {
   Dialog,
@@ -17,6 +18,7 @@ import {
   type Client,
   type ClientInput,
 } from "@/entities/client/index.js";
+import { tariffRefusal } from "@/entities/tariff/index.js";
 
 export interface ClientFormDialogProps {
   client?: Client;
@@ -77,12 +79,14 @@ export function ClientFormDialog({ client, onClose, onCreated }: ClientFormDialo
   const { register, handleSubmit, setError, formState: { errors } } = useForm<Fields>({ defaultValues: initialFields(client) });
   const create = useCreateClient();
   const update = useUpdateClient();
+  const [failure, setFailure] = useState<string | null>(null);
 
   const onSubmit = handleSubmit(async (fields) => {
     const local = localErrors(fields);
     for (const [key, message] of Object.entries(local)) if (message) setError(key as keyof Fields, { message });
     if (Object.keys(local).length > 0) return;
     const input = toInput(fields);
+    setFailure(null);
     try {
       if (isEdit) {
         await update.mutateAsync({ id: client.id, body: input });
@@ -93,6 +97,7 @@ export function ClientFormDialog({ client, onClose, onCreated }: ClientFormDialo
       onClose();
     } catch (err) {
       for (const [key, message] of Object.entries(fieldErrors(err))) if (message) setError(key as keyof Fields, { message });
+      setFailure(tariffRefusal(err));
     }
   });
 
@@ -119,6 +124,7 @@ export function ClientFormDialog({ client, onClose, onCreated }: ClientFormDialo
           <TextField label={t("contacts.phone")} {...register("phone")} error={errors.phone?.message} type="tel" />
           <TextField label={t("contacts.telegram")} {...register("telegram")} error={errors.telegram?.message} />
           <TextField label={t("contacts.website")} {...register("website")} error={errors.website?.message} />
+          {failure && <p role="alert" className="text-sm text-destructive sm:col-span-2">{failure}</p>}
           <DialogFooter className="sm:col-span-2">
             <Button variant="outline" type="button" onClick={onClose}>
               {t("action.cancel")}

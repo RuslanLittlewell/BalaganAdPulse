@@ -8,6 +8,7 @@ import {
   createInviteUseCases,
   type Invite,
 } from "../../src/modules/invites/index.js";
+import { unlimitedTariffs } from "../helpers/tariffs.js";
 
 const NOW = new Date("2026-09-01T12:00:00.000Z");
 const admin: ActorContext = { userId: "u-admin", membershipId: "m-admin", orgId: "org-1", role: "ADMIN" };
@@ -143,6 +144,7 @@ function fixture(options: {
     clock: new FixedClock(NOW),
     ids: { generate: () => `invite-${++id}` },
     unitOfWork,
+    tariffs: unlimitedTariffs,
   };
 
   return {

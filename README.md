@@ -958,14 +958,33 @@ platform administrator exists, and it never changes an existing account's passwo
 address that already has an account without a membership is made the administrator, one
 that belongs to an organization is refused.
 
-Adding an organization takes its name, the optional modules it is entitled to and the
-email of its first administrator. Dashboard and Projects are always enabled; CRM, Tasks
-and Reports are optional, and a disabled one is absent from the organization's navigation
-while its endpoints answer 404. The organization is created with an admin invitation bound
-to that email, whose registration link the platform administrator hands over. An
-organization can later be renamed, given or relieved of modules — a removed module's data
-is kept and returns with it — and suspended: every request by its members is then refused
-with 403 until it is reactivated, and nothing it holds is deleted.
+Adding an organization takes its name, its tariff and the email of its first
+administrator. The organization is created with an admin invitation bound to that email,
+whose registration link the platform administrator hands over. An organization can later
+be renamed, moved to another tariff, and suspended. A suspended organization's members are
+refused with 403 on every request until it is reactivated, and nothing it holds is deleted.
+
+The tariff decides the modules and the limits. Dashboard and Projects are always enabled.
+CRM, Tasks and Reports come with the tariff, and a module the tariff lacks is absent from
+the navigation while its endpoints answer 404. The tariffs live in
+`packages/access-policy/src/index.ts`:
+
+| Tariff | Projects | Clients | Users | Ad accounts | Optional modules |
+| --- | --- | --- | --- | --- | --- |
+| `TRIAL` | 15 | 15 | 5 | no limit | CRM, Tasks, Reports |
+| `SOLO` | 5 | no limit | 1 | no limit | none |
+| `BUSINESS` | no limit | 1 | 3 | 3 | CRM |
+| `AGENCY` | 15 | 15 | 5 | no limit | CRM, Tasks, Reports |
+| `AGENCY_PRO` | 40 | 40 | 15 | no limit | CRM, Tasks, Reports |
+| `ENTERPRISE` | no limit | no limit | no limit | no limit | CRM, Tasks, Reports |
+
+Users count active members plus pending invitations. Creating a record over a limit
+answers 403 with `details: [{ code: "TARIFF_LIMIT", resource, limit }]`. A lower tariff
+never deletes or locks what the organization already holds, so a removed module's data
+returns with it. A new organization starts on `TRIAL` for 14 days. When the trial ends,
+every write by its members answers 403 with `details: [{ code: "TRIAL_ENDED" }]` and reads
+keep working, until the platform administrator assigns another tariff. Payment happens
+outside the system.
 
 ### Invitations
 

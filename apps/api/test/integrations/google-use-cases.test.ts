@@ -5,6 +5,7 @@ import {
   type GoogleAuthorizationRecord,
 } from "../../src/modules/integrations/application/google-use-cases.js";
 import { ProviderError, type Integration } from "../../src/modules/integrations/domain/integration.js";
+import { unlimitedTariffs } from "../helpers/tariffs.js";
 
 const NOW = new Date("2026-09-08T06:00:00Z");
 const admin: ActorContext = { userId: "u1", membershipId: "m1", orgId: "o1", role: "ADMIN" };
@@ -58,6 +59,7 @@ function fixture(options: { configured?: boolean; connected?: Integration[]; fig
     clock: { now: () => NOW },
     unitOfWork: { run: async (work: (context: unknown) => unknown) => work({}) } as never,
     audit: audit as never,
+    tariffs: unlimitedTariffs,
     google: options.configured === false ? null : google,
     authorizations: {
       open: async (data, _now, expiresAt) => {

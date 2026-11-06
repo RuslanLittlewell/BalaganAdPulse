@@ -315,7 +315,7 @@ describe("tasks with a due date", () => {
   it("leave out organizations without the tasks module", async () => {
     await seedTask();
     const org = await prisma.organization.findFirstOrThrow({ orderBy: { createdAt: "asc" } });
-    await prisma.organization.update({ where: { id: org.id }, data: { modules: ["CRM"] } });
+    await prisma.organization.update({ where: { id: org.id }, data: { tariff: "BUSINESS" } });
 
     expect(await dueTasks.dueBetween("2026-10-19", "2026-10-20")).toEqual([]);
   });

@@ -10,7 +10,8 @@ const summary = {
   name: true,
   slug: true,
   status: true,
-  modules: true,
+  tariff: true,
+  trialEndsAt: true,
   createdAt: true,
   _count: { select: { members: { where: { status: "ACTIVE" } } } },
   invites: {
@@ -29,7 +30,8 @@ function toRecord(row: SummaryRow): OrganizationRecord {
     name: row.name,
     slug: row.slug,
     status: row.status,
-    modules: row.modules,
+    tariff: row.tariff,
+    trialEndsAt: row.trialEndsAt,
     activeMembers: row._count.members,
     createdAt: row.createdAt,
     firstAdminInvitation: row.invites[0] ?? null,
@@ -70,7 +72,13 @@ export class PrismaOrganizationRegistry implements OrganizationRegistry {
   async create(context: TransactionContext, input: NewOrganization): Promise<void> {
     try {
       await this.client(context).organization.create({
-        data: { id: input.id, name: input.name, slug: input.slug, modules: [...input.modules] },
+        data: {
+          id: input.id,
+          name: input.name,
+          slug: input.slug,
+          tariff: input.tariff,
+          trialEndsAt: input.trialEndsAt,
+        },
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -86,7 +94,8 @@ export class PrismaOrganizationRegistry implements OrganizationRegistry {
       data: {
         name: change.name,
         status: change.status,
-        modules: change.modules && [...change.modules],
+        tariff: change.tariff,
+        trialEndsAt: change.trialEndsAt,
       },
     });
   }

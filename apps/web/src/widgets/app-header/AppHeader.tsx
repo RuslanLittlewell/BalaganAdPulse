@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { HistoryIcon, UserPlusIcon } from "lucide-react";
+import { GaugeIcon, HistoryIcon, UserPlusIcon } from "lucide-react";
 import { UserMenu, useAuth } from "@/features/auth/index.js";
 import { HINTS, useHint } from "@/features/hints/index.js";
 import { useClients } from "@/entities/client/index.js";
 import { useMembers } from "@/entities/membership/index.js";
 import { ProfileSettingsDialog } from "@/features/profile-settings/index.js";
+import { TariffDialog, TrialBanner } from "@/features/tariff-status/index.js";
 import { Can } from "@/features/permissions/index.js";
 import { ContactBook } from "@/widgets/contact-book/index.js";
 import { OnlineUsers } from "@/widgets/online-users/index.js";
@@ -40,11 +41,14 @@ export function AppHeader() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [contactsOpen, setContactsOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
+  const [tariffOpen, setTariffOpen] = useState(false);
+  const { role, tariff } = useAuth();
   const [avatarVersion, setAvatarVersion] = useState(0);
   const firstPeople = useFirstPeopleHint(contactsOpen);
   return (
     <>
       <header className="flex min-h-13 w-full items-center justify-end gap-2 border-b border-border px-4">
+        <TrialBanner />
         <TooltipProvider delayDuration={200}>
           <div className="flex items-center gap-2">
             <NotificationCenter />
@@ -84,6 +88,24 @@ export function AppHeader() {
                 <TooltipContent>{t("activity.title")}</TooltipContent>
               </Tooltip>
             </Can>
+            {role === "ADMIN" && tariff && (
+              <>
+                <ToolbarDivider />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={t("tariff.title")}
+                      onClick={() => setTariffOpen(true)}
+                    >
+                      <GaugeIcon />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t("tariff.title")}</TooltipContent>
+                </Tooltip>
+              </>
+            )}
             <ToolbarDivider />
             <OnlineUsers />
             <UserMenu
@@ -96,6 +118,7 @@ export function AppHeader() {
       </header>
       <ContactBook open={contactsOpen} onClose={() => setContactsOpen(false)} />
       <ActivityLogModal open={activityOpen} onOpenChange={setActivityOpen} />
+      <TariffDialog open={tariffOpen} onClose={() => setTariffOpen(false)} />
       <ProfileSettingsDialog
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}

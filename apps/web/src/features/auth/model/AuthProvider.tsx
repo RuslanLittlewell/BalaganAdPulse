@@ -8,6 +8,7 @@ import { endSession, onSessionExpired, onTokenRenewed } from "@/shared/lib/index
 import { authApi, type LoginBody, type RegisterBody, type UpdateProfileBody, type UserProfile } from "../api.js";
 import type { OrganizationSummary } from "../api.js";
 import type { ModuleKey, Role } from "@adpulse/access-policy";
+import type { TariffSummary } from "@/entities/tariff/index.js";
 
 export interface AuthUser {
   id: string;
@@ -24,6 +25,7 @@ interface AuthValue {
   clientIds: string[];
   platformAdmin: boolean;
   modules: ModuleKey[];
+  tariff: TariffSummary | null;
   login: (body: LoginBody) => Promise<void>;
   register: (body: RegisterBody) => Promise<void>;
   resetPassword: (token: string, password: string) => Promise<void>;
@@ -49,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [clientIds, setClientIds] = useState<string[]>([]);
   const [platformAdmin, setPlatformAdmin] = useState(false);
   const [modules, setModules] = useState<ModuleKey[]>([]);
+  const [tariff, setTariff] = useState<TariffSummary | null>(null);
 
   const loadSession = useCallback(async () => {
     const session = await authApi.session();
@@ -59,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setClientIds(session.clientIds);
     setPlatformAdmin(session.platformAdmin);
     setModules(session.modules);
+    setTariff(session.tariff ?? null);
   }, []);
 
   const leave = useCallback(() => {
@@ -69,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setClientIds([]);
     setPlatformAdmin(false);
     setModules([]);
+    setTariff(null);
     queryClient.clear();
     navigate("/login", { replace: true });
   }, [navigate, queryClient]);
@@ -91,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clientIds,
     platformAdmin,
     modules,
+    tariff,
     login: async (body) => {
       writeTokens(await authApi.login(body));
       queryClient.clear();
@@ -121,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     loadProfile: authApi.profile,
     saveAvatar: async (png, avatarPath) => { await authApi.saveAvatar(png, avatarPath); },
-  }), [user, organization, role, membershipId, clientIds, platformAdmin, modules, loadSession, queryClient]);
+  }), [user, organization, role, membershipId, clientIds, platformAdmin, modules, tariff, loadSession, queryClient]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

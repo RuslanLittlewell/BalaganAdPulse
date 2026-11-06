@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
-import type { OrgModule } from "@prisma/client";
+import type { OptionalModule, Tariff } from "@adpulse/access-policy";
 import { createApp } from "../../src/composition/app.js";
 import { prisma } from "../../src/shared/infrastructure/prisma.js";
 import { resetDb, seedProject } from "../helpers/db.js";
@@ -11,14 +11,16 @@ const app = createApp();
 beforeEach(async () => { await resetDb(); });
 afterAll(async () => { await prisma.$disconnect(); });
 
-async function entitle(modules: OrgModule[], orgId?: string) {
+async function onTariff(tariff: Tariff, orgId?: string) {
   await prisma.organization.update({
     where: { id: orgId ?? (await currentOrg()).id },
-    data: { modules },
+    data: { tariff, trialEndsAt: null },
   });
 }
 
-const GUARDED: ReadonlyArray<readonly [OrgModule, string, (projectId: string) => string]> = [
+const WITHOUT: Readonly<Record<OptionalModule, Tariff>> = { CRM: "SOLO", TASKS: "BUSINESS", REPORTS: "BUSINESS" };
+
+const GUARDED: ReadonlyArray<readonly [OptionalModule, string, (projectId: string) => string]> = [
   ["CRM", "GET", () => "/api/crm/boards"],
   ["TASKS", "GET", () => "/api/tasks"],
   ["TASKS", "POST", () => "/api/task-images"],
@@ -33,7 +35,7 @@ describe("a disabled module does not exist for the organization", () => {
   it.each(GUARDED)("answers %s %s %s with 404 when the module is off", async (module, method, path) => {
     const { auth, user } = await signInAs("Admin", { role: "ADMIN" });
     const { projectId } = await seedProject(user.id);
-    await entitle(["CRM", "TASKS", "REPORTS"].filter((key) => key !== module) as OrgModule[]);
+    await onTariff(WITHOUT[module]);
 
     const res = await call(method, path(projectId), auth);
 
@@ -52,7 +54,7 @@ describe("a disabled module does not exist for the organization", () => {
   });
 
   it("refuses every role alike", async () => {
-    await entitle([]);
+    await onTariff("SOLO");
     for (const role of ["ADMIN", "MANAGER", "GUEST", "CLIENT"] as const) {
       const { auth } = await signInAs(role, { role });
       expect((await request(app).get("/api/tasks").set(auth)).status, role).toBe(404);
@@ -61,7 +63,7 @@ describe("a disabled module does not exist for the organization", () => {
 
   it("keeps the dashboard and projects for an organization with no optional module", async () => {
     const { auth } = await signInAs("Admin", { role: "ADMIN" });
-    await entitle([]);
+    await onTariff("SOLO");
 
     expect((await request(app).get("/api/projects").set(auth)).status).toBe(200);
     expect((await request(app).get("/api/summary").set(auth)).status).not.toBe(404);
@@ -69,16 +71,16 @@ describe("a disabled module does not exist for the organization", () => {
 
   it("leaves an enabled module working beside a disabled one", async () => {
     const { auth } = await signInAs("Admin", { role: "ADMIN" });
-    await entitle(["REPORTS"]);
+    await onTariff("BUSINESS");
 
-    expect((await request(app).get("/api/reports").set(auth)).status).toBe(200);
-    expect((await request(app).get("/api/crm/boards").set(auth)).status).toBe(404);
+    expect((await request(app).get("/api/crm/boards").set(auth)).status).toBe(200);
+    expect((await request(app).get("/api/reports").set(auth)).status).toBe(404);
   });
 
   it("answers each organization by its own modules", async () => {
     const insider = await signInAs("Insider", { role: "ADMIN" });
     const outsider = await signInAsOutsider("Globex");
-    await entitle(["TASKS", "REPORTS"], outsider.org.id);
+    await onTariff("SOLO", outsider.org.id);
 
     expect((await request(app).get("/api/crm/boards").set(insider.auth)).status).toBe(200);
     expect((await request(app).get("/api/crm/boards").set(outsider.auth)).status).toBe(404);
@@ -86,27 +88,27 @@ describe("a disabled module does not exist for the organization", () => {
 });
 
 describe("the session names the enabled modules", () => {
-  it("lists dashboard, projects and the optional modules the organization has", async () => {
+  it("lists dashboard, projects and the optional modules the tariff includes", async () => {
     const { auth } = await signInAs("Member", { role: "MANAGER" });
-    await entitle(["TASKS"]);
+    await onTariff("BUSINESS");
 
     const res = await request(app).get("/api/auth/me").set(auth);
-    expect(res.body.modules).toEqual(["DASHBOARD", "PROJECTS", "TASKS"]);
+    expect(res.body.modules).toEqual(["DASHBOARD", "PROJECTS", "CRM"]);
   });
 });
 
-describe("changing the module set", () => {
+describe("changing the tariff", () => {
   it("applies to the organization's next request", async () => {
     const platform = await signInAsPlatformAdmin();
     const member = await signInAs("Admin", { role: "ADMIN" });
     const org = await currentOrg();
 
     await request(app).patch(`/api/platform/organizations/${org.id}`).set(platform.auth)
-      .send({ modules: ["CRM", "REPORTS"] });
+      .send({ tariff: "BUSINESS" });
     expect((await request(app).get("/api/tasks").set(member.auth)).status).toBe(404);
 
     await request(app).patch(`/api/platform/organizations/${org.id}`).set(platform.auth)
-      .send({ modules: ["CRM", "TASKS", "REPORTS"] });
+      .send({ tariff: "AGENCY" });
     expect((await request(app).get("/api/tasks").set(member.auth)).status).toBe(200);
   });
 
@@ -120,12 +122,12 @@ describe("changing the module set", () => {
     expect(created.status).toBe(201);
 
     await request(app).patch(`/api/platform/organizations/${org.id}`).set(platform.auth)
-      .send({ modules: ["CRM", "REPORTS"] });
+      .send({ tariff: "BUSINESS" });
     expect((await request(app).get(`/api/tasks/${created.body.id}`).set(auth)).status).toBe(404);
     expect(await prisma.task.count()).toBe(1);
 
     await request(app).patch(`/api/platform/organizations/${org.id}`).set(platform.auth)
-      .send({ modules: ["CRM", "TASKS", "REPORTS"] });
+      .send({ tariff: "AGENCY" });
     const restored = await request(app).get(`/api/tasks/${created.body.id}`).set(auth);
     expect(restored.status).toBe(200);
     expect(restored.body).toMatchObject({ id: created.body.id, title: "Write the brief" });

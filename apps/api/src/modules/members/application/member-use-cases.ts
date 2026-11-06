@@ -1,4 +1,4 @@
-import { can, enabledModules, isCustomer, type OptionalModule } from "@adpulse/access-policy";
+import { can, enabledModules, isCustomer, tariffModules, type OptionalModule } from "@adpulse/access-policy";
 import { AppError } from "#shared/domain/index.js";
 import type { ActorContext } from "#shared/application/index.js";
 import type { SessionPrincipal } from "#modules/identity/index.js";
@@ -169,7 +169,7 @@ export function createMemberUseCases(
 
     isEntitled: async (actor: ActorContext, module: OptionalModule): Promise<boolean> => {
       const organization = await dependencies.organizations.findById(actor.orgId);
-      return organization?.modules.includes(module) ?? false;
+      return organization ? tariffModules(organization.tariff).includes(module) : false;
     },
 
     describeSession: async (principal: SessionPrincipal) => {
@@ -179,7 +179,7 @@ export function createMemberUseCases(
       if (platformAdmin) {
         return {
           session: {
-            user, platformAdmin, organization: null, role: null, membershipId: null, clientIds: [], modules: [],
+            user, platformAdmin, organization: null, role: null, membershipId: null, clientIds: [], modules: [], tariff: null,
           },
           actor: null,
         };
@@ -187,11 +187,12 @@ export function createMemberUseCases(
       const { actor } = await activeMembershipOf(user.id);
       const held = await dependencies.organizations.findById(actor.orgId);
       if (!held) throw new AppError("not-found", "Session could not be resolved");
-      const { modules, ...organization } = held;
+      const { tariff } = held;
+      const organization = { id: held.id, name: held.name, slug: held.slug, status: held.status };
       if (organization.status === "SUSPENDED") {
         return {
           session: {
-            user, platformAdmin, organization, role: actor.role, membershipId: actor.membershipId, clientIds: [], modules: [],
+            user, platformAdmin, organization, role: actor.role, membershipId: actor.membershipId, clientIds: [], modules: [], tariff: null,
           },
           actor: null,
         };
@@ -200,7 +201,8 @@ export function createMemberUseCases(
       return {
         session: {
           user, platformAdmin, organization, role: actor.role, membershipId: actor.membershipId, clientIds,
-          modules: enabledModules(modules),
+          modules: enabledModules(tariffModules(tariff)),
+          tariff: await dependencies.tariffs.describe(actor.orgId),
         },
         actor,
       };

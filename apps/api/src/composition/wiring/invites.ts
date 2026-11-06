@@ -13,7 +13,7 @@ import type { ClientsAndProjects } from "./clients-projects.js";
 import type { Kernel } from "./kernel.js";
 
 export function wireInvites(
-  { unitOfWork, clock, ids }: Kernel,
+  { unitOfWork, clock, ids, tariffs }: Kernel,
   { clientReach, clientRepository, projectRepository }:
     Pick<ClientsAndProjects, "clientReach" | "clientRepository" | "projectRepository">,
 ) {
@@ -45,6 +45,7 @@ export function wireInvites(
         return created.id;
       },
     },
+    tariffs,
     clock,
     ids,
     codes: new CryptoInvitationCodeGenerator(),

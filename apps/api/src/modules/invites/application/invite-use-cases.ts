@@ -104,6 +104,7 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
           }
         }
       }
+      await dependencies.tariffs.assertCanAdd(actor.orgId, "users");
       const now = dependencies.clock.now();
       for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt += 1) {
         try {
@@ -199,6 +200,8 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
         if (!details) {
           throw new AppError("validation", "Client registration needs a contact and a project");
         }
+        await dependencies.tariffs.assertCanAdd(invite.orgId, "clients");
+        await dependencies.tariffs.assertCanAdd(invite.orgId, "projects");
         const clientId = await dependencies.clientDirectory.create(context, {
           ...details.client, orgId: invite.orgId,
         });

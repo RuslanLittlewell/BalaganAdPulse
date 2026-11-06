@@ -3,6 +3,7 @@ import type { OptionalModule } from "@adpulse/access-policy";
 import { config } from "#shared/infrastructure/config.js";
 import { requestContext } from "#shared/presentation/request-context.js";
 import { createAuditRouter } from "#modules/audit/index.js";
+import { createTrialGuard } from "#modules/tariffs/index.js";
 import type { SessionPrincipal } from "#modules/identity/index.js";
 import type { createImportWorker } from "#modules/integrations/application/import-worker.js";
 import type { createLeadPollWorker } from "#modules/integrations/application/lead-poll-worker.js";
@@ -42,6 +43,7 @@ export interface ApiContainer {
   readonly authentication: RequestHandler;
   readonly actorResolution: RequestHandler;
   readonly requestContext: RequestHandler;
+  readonly trialGuard: RequestHandler;
   readonly sessionRouter: Router;
   readonly platformRouter: Router;
   readonly userRouter: Router;
@@ -109,6 +111,7 @@ export function createContainer(): ApiContainer {
   return {
     documentationRouter: config.documentation ? createDocumentationRouter(apiDocument()) : Router(),
     requestContext,
+    trialGuard: createTrialGuard(kernel.tariffs),
     auditRouter: createAuditRouter(kernel.auditReader),
     connections: kernel.connections,
 

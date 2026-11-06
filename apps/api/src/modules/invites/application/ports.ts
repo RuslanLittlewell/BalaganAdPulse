@@ -1,6 +1,6 @@
 import type { Role } from "@adpulse/access-policy";
 import type { ActorContext } from "#shared/application/index.js";
-import type { Clock, IdGenerator, TransactionContext, UnitOfWork } from "#shared/application/index.js";
+import type { Clock, IdGenerator, TariffGate, TransactionContext, UnitOfWork } from "#shared/application/index.js";
 import type { Invite, RegistrationType } from "../domain/invite.js";
 
 export interface NewInvite {
@@ -104,6 +104,7 @@ export interface InviteDependencies {
   readonly projectAccess: InvitationProjectAccess;
   readonly clientDirectory: ClientDirectory;
   readonly projectDirectory: ProjectDirectory;
+  readonly tariffs: TariffGate;
   readonly clock: Clock;
   readonly ids: IdGenerator;
   readonly codes: InvitationCodeGenerator;

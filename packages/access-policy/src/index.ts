@@ -89,3 +89,57 @@ export function isOptionalModule(value: string): value is OptionalModule {
 export function enabledModules(optional: readonly OptionalModule[]): ModuleKey[] {
   return MODULES.filter((module) => !isOptionalModule(module) || optional.includes(module));
 }
+
+export const TARIFFS = ["TRIAL", "SOLO", "BUSINESS", "AGENCY", "AGENCY_PRO", "ENTERPRISE"] as const;
+export type Tariff = (typeof TARIFFS)[number];
+
+export const LIMITED_RESOURCES = ["projects", "clients", "users", "adAccounts"] as const;
+export type LimitedResource = (typeof LIMITED_RESOURCES)[number];
+
+export function isLimitedResource(value: string): value is LimitedResource {
+  return (LIMITED_RESOURCES as readonly string[]).includes(value);
+}
+
+export type TariffLimits = Readonly<Record<LimitedResource, number | null>>;
+
+export interface TariffPlan {
+  readonly limits: TariffLimits;
+  readonly modules: readonly OptionalModule[];
+}
+
+export const TRIAL_DAYS = 14;
+export const DEFAULT_TARIFF: Tariff = "TRIAL";
+
+const ALL_OPTIONAL: readonly OptionalModule[] = OPTIONAL_MODULES;
+
+const AGENCY_LIMITS: TariffLimits = { projects: 15, clients: 15, users: 5, adAccounts: null };
+
+export const TARIFF_PLANS: Readonly<Record<Tariff, TariffPlan>> = {
+  TRIAL: { limits: AGENCY_LIMITS, modules: ALL_OPTIONAL },
+  SOLO: { limits: { projects: 5, clients: null, users: 1, adAccounts: null }, modules: [] },
+  BUSINESS: { limits: { projects: null, clients: 1, users: 3, adAccounts: 3 }, modules: ["CRM"] },
+  AGENCY: { limits: AGENCY_LIMITS, modules: ALL_OPTIONAL },
+  AGENCY_PRO: { limits: { projects: 40, clients: 40, users: 15, adAccounts: null }, modules: ALL_OPTIONAL },
+  ENTERPRISE: { limits: { projects: null, clients: null, users: null, adAccounts: null }, modules: ALL_OPTIONAL },
+};
+
+export function isTariff(value: string): value is Tariff {
+  return (TARIFFS as readonly string[]).includes(value);
+}
+
+export function tariffModules(tariff: Tariff): readonly OptionalModule[] {
+  return TARIFF_PLANS[tariff].modules;
+}
+
+export function tariffsWithModule(module: OptionalModule): Tariff[] {
+  return TARIFFS.filter((tariff) => TARIFF_PLANS[tariff].modules.includes(module));
+}
+
+export function trialEndsAtFrom(start: Date): Date {
+  return new Date(start.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+}
+
+export function isTrialExpired(organization: { tariff: Tariff; trialEndsAt: Date | null }, now: Date): boolean {
+  return organization.tariff === "TRIAL" && organization.trialEndsAt !== null
+    && organization.trialEndsAt.getTime() <= now.getTime();
+}

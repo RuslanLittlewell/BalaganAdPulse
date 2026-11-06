@@ -81,6 +81,7 @@ export function createIntegrationUseCases(d: IntegrationDependencies) {
       input: { accountId: string; token: string; leadsEnabled?: boolean },
     ) => {
       const project = await reach(actor, projectId);
+      await d.tariffs.assertCanAdd(actor.orgId, "adAccounts");
       return explained(async () => {
         const encryptedToken = d.cipher.encrypt(input.token, projectId);
         const account = await verified(project, input);

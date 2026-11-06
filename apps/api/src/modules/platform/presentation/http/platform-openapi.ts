@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MODULES } from "@adpulse/access-policy";
+import { MODULES, TARIFFS } from "@adpulse/access-policy";
 import { arrayOf, ref, type ComponentDocs, type RouteDoc } from "#shared/presentation/openapi.js";
 import { ORGANIZATION_STATUSES } from "#modules/platform/domain/organization.js";
 import { createOrganizationSchema, updateOrganizationSchema } from "./platform-schemas.js";
@@ -9,6 +9,8 @@ const platformOrganization = z.object({
   name: z.string(),
   slug: z.string(),
   status: z.enum(ORGANIZATION_STATUSES),
+  tariff: z.enum(TARIFFS),
+  trialEndsAt: z.iso.datetime().nullable(),
   modules: z.array(z.enum(MODULES)),
   activeMembers: z.number().int(),
   createdAt: z.iso.datetime(),
@@ -37,7 +39,7 @@ export const platformDoc: RouteDoc = {
       method: "get",
       path: "/organizations",
       summary: "List every organization on the instance",
-      description: "Oldest first, with the modules each is entitled to, its active members and the state of its first administrator's invitation.",
+      description: "Oldest first, with the tariff and trial end of each, the modules it is entitled to, its active members and the state of its first administrator's invitation.",
       success: { status: 200, description: "The organizations", schema: arrayOf(ref("PlatformOrganization")) },
       errors: [401, 403],
     },
@@ -45,7 +47,7 @@ export const platformDoc: RouteDoc = {
       method: "post",
       path: "/organizations",
       summary: "Add an organization",
-      description: "Dashboard and Projects are always enabled; the listed optional modules are added to them. An admin invitation is issued for the given email, and its registration link returned.",
+      description: "The tariff defaults to TRIAL, which lasts 14 days. The tariff decides the modules and limits. An admin invitation is issued for the given email, and its registration link returned.",
       body: createOrganizationSchema,
       success: { status: 201, description: "The organization and its first administrator's registration link", schema: ref("CreatedOrganization") },
       errors: [400, 401, 403, 409],
@@ -53,8 +55,8 @@ export const platformDoc: RouteDoc = {
     {
       method: "patch",
       path: "/organizations/:id",
-      summary: "Rename an organization, change its modules, or suspend or reactivate it",
-      description: "Removing a module hides it without deleting its data. A suspended organization's members are refused on every request until it is reactivated.",
+      summary: "Rename an organization, change its tariff, or suspend or reactivate it",
+      description: "A tariff change applies to the next request. A module the new tariff lacks is hidden without deleting its data; records above a lower limit stay. A suspended organization's members are refused on every request until it is reactivated.",
       body: updateOrganizationSchema,
       success: { status: 200, description: "The organization as it now stands", schema: ref("PlatformOrganization") },
       errors: [400, 401, 403, 404],

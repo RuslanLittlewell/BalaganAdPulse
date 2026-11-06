@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MODULES, ROLES } from "@adpulse/access-policy";
+import { LIMITED_RESOURCES, MODULES, ROLES, TARIFFS } from "@adpulse/access-policy";
 import { arrayOf, ref, type ComponentDocs, type RouteDoc } from "#shared/presentation/openapi.js";
 import { MEMBER_KINDS } from "#modules/members/application/ports.js";
 import { setAccessSchema, updateMemberSchema } from "./member-schemas.js";
@@ -43,6 +43,13 @@ const session = z.object({
   membershipId: z.uuid().nullable(),
   clientIds: z.array(z.uuid()),
   modules: z.array(z.enum(MODULES)),
+  tariff: z.object({
+    tariff: z.enum(TARIFFS),
+    trialEndsAt: z.iso.datetime().nullable(),
+    trialExpired: z.boolean(),
+    limits: z.record(z.enum(LIMITED_RESOURCES), z.number().int().nullable()),
+    usage: z.record(z.enum(LIMITED_RESOURCES), z.number().int()),
+  }).nullable(),
 });
 
 export const memberComponents: ComponentDocs = {
@@ -122,7 +129,7 @@ export const sessionDoc: RouteDoc = {
       method: "get",
       path: "/",
       summary: "Describe the signed-in session",
-      description: "The user, their organization, their role, the clients they reach and the modules the organization is entitled to. The platform administrator belongs to no organization. A member of a suspended organization is described with no clients and no modules.",
+      description: "The user, their organization, their role, the clients they reach and the modules the organization is entitled to, and its tariff with limits and current usage. The platform administrator belongs to no organization. A member of a suspended organization is described with no clients and no modules.",
       success: { status: 200, description: "The session", schema: ref("Session") },
       errors: [401, 403, 404],
     },

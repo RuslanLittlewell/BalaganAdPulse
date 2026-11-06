@@ -4,6 +4,7 @@ import type { Lead } from "@/entities/lead/index.js";
 import type { Project } from "@/entities/project/index.js";
 import type { PlatformOrganization } from "@/entities/platform-organization/index.js";
 import type { AuthSession } from "@/features/auth/api.js";
+import type { TariffSummary } from "@/entities/tariff/index.js";
 
 export function aClient(overrides: Partial<Client> = {}): Client {
   return {
@@ -101,6 +102,17 @@ export function aTask(overrides: Partial<Task> = {}): Task {
   };
 }
 
+export function anEnterpriseTariff(overrides: Partial<TariffSummary> = {}): TariffSummary {
+  return {
+    tariff: "ENTERPRISE",
+    trialEndsAt: null,
+    trialExpired: false,
+    limits: { projects: null, clients: null, users: null, adAccounts: null },
+    usage: { projects: 0, clients: 0, users: 1, adAccounts: 0 },
+    ...overrides,
+  };
+}
+
 export function aSession(overrides: Partial<AuthSession> = {}): AuthSession {
   return {
     user: { id: "user-1", name: "Buyer", email: "buyer@acme.com", login: null, image: null },
@@ -110,6 +122,7 @@ export function aSession(overrides: Partial<AuthSession> = {}): AuthSession {
     membershipId: "member-1",
     clientIds: [],
     modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"],
+    tariff: anEnterpriseTariff(),
     ...overrides,
   };
 }
@@ -121,6 +134,7 @@ export function aPlatformAdminSession(): AuthSession {
     organization: null,
     role: null,
     modules: [],
+    tariff: null,
   });
 }
 
@@ -130,6 +144,8 @@ export function aPlatformOrganization(overrides: Partial<PlatformOrganization> =
     name: "Balagan",
     slug: "balagan",
     status: "ACTIVE",
+    tariff: "ENTERPRISE",
+    trialEndsAt: null,
     modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"],
     activeMembers: 12,
     createdAt: "2026-08-31T12:00:00.000Z",

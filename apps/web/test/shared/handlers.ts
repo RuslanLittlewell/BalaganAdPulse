@@ -23,6 +23,7 @@ export const defaultHandlers = [
   http.get("/api/user/profile", () => HttpResponse.json({
     name: "Buyer", email: "buyer@acme.com", login: null, image: null, avatarPath: null,
   })),
+  http.get("/api/support/contacts", () => HttpResponse.json({ email: "balagan.ads@gmail.com", feedback: true })),
   http.get("/api/clients", () => HttpResponse.json([])),
   http.get("/api/clients/:clientId/account", () => HttpResponse.json(null)),
   http.get("/api/projects/:projectId/integrations", () => HttpResponse.json([])),

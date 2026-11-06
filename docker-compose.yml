@@ -80,6 +80,7 @@ services:
       SMTP_HOST: "${SMTP_HOST:-}"
       SMTP_PORT: "${SMTP_PORT:-}"
       MAIL_FROM: "${MAIL_FROM:-}"
+      SUPPORT_EMAIL: "${SUPPORT_EMAIL:-}"
       TASK_TIME_ZONE: "${TASK_TIME_ZONE:-Europe/Minsk}"
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
       GROQ_API_KEY: "${GROQ_API_KEY:-}"

@@ -1,5 +1,4 @@
 import { config } from "#shared/infrastructure/config.js";
-import { LogMailTransport, SmtpMailTransport } from "#shared/infrastructure/mail.js";
 import { prisma } from "#shared/infrastructure/prisma.js";
 import { createIdentityUseCases, type InvitationRedemption } from "#modules/identity/index.js";
 import { PasswordAdapter } from "#modules/identity/infrastructure/password-adapter.js";
@@ -16,12 +15,9 @@ import { createIdentityHttpRouters } from "#modules/identity/presentation/http/i
 import type { Kernel } from "./kernel.js";
 
 export function wireIdentity(
-  { unitOfWork, clock }: Kernel,
+  { unitOfWork, clock, mail }: Kernel,
   { redeem, signedOut }: { redeem: InvitationRedemption["redeem"]; signedOut: (userId: string) => void },
 ) {
-  const mail = config.mail
-    ? new SmtpMailTransport(config.mail)
-    : config.production ? null : new LogMailTransport();
   const identity = createIdentityUseCases({
     users: new PrismaUserRepository(prisma, unitOfWork),
     invitations: { redeem },

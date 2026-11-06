@@ -5,6 +5,7 @@ export interface RateLimitOptions {
   limit: number;
   maxKeys?: number;
   sweepIntervalMs?: number;
+  keyOf?: (req: Request) => string;
 }
 
 export interface RateLimiter extends RequestHandler {
@@ -27,6 +28,7 @@ export function createRateLimit(options: RateLimitOptions): RateLimiter {
     limit,
     maxKeys = DEFAULT_MAX_KEYS,
     sweepIntervalMs = DEFAULT_SWEEP_INTERVAL_MS,
+    keyOf = (req: Request) => req.ip ?? "unknown",
   } = options;
 
   const windows = new Map<string, Window>();
@@ -56,7 +58,7 @@ export function createRateLimit(options: RateLimitOptions): RateLimiter {
   timer.unref();
 
   const middleware = (req: Request, res: Response, next: NextFunction): void => {
-    const key = req.ip ?? "unknown";
+    const key = keyOf(req);
     const now = Date.now();
 
     let window = windows.get(key);

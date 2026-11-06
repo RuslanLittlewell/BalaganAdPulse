@@ -32,6 +32,7 @@ import { summaryTileDoc } from "#modules/summary-tiles/index.js";
 import { projectDocumentComponents, projectDocumentDoc } from "#modules/project-documents/index.js";
 import { reportDoc, reportIndexDoc } from '#modules/reports/index.js';
 import { platformComponents, platformDoc } from "#modules/platform/index.js";
+import { supportComponents, supportDoc } from "#modules/support/index.js";
 import { notificationDoc } from "#modules/notifications/index.js";
 import { telegramDoc } from "#modules/telegram-bot/index.js";
 
@@ -90,6 +91,7 @@ export function apiDocument(): OpenApiDocument {
       { mount: mountPath("registration-resolver"), ...registrationResolverDoc },
       { mount: mountPath("session"), ...sessionDoc },
       { mount: mountPath("platform"), ...platformDoc },
+      { mount: mountPath("support"), ...supportDoc },
       { mount: mountPath("user"), ...userDoc },
       { mount: mountPath("invites"), ...inviteDoc },
       { mount: mountPath("members"), ...memberDoc },
@@ -132,6 +134,7 @@ export function apiDocument(): OpenApiDocument {
       taskComponents,
       projectDocumentComponents,
       platformComponents,
+      supportComponents,
     ),
   });
 }

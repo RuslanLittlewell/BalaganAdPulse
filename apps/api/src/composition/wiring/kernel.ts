@@ -3,6 +3,8 @@ import { prisma } from "#shared/infrastructure/prisma.js";
 import { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
 import { RandomIdGenerator } from "#shared/infrastructure/id-generator.js";
 import { SystemClock } from "#shared/infrastructure/clock.js";
+import { config } from "#shared/infrastructure/config.js";
+import { LogMailTransport, SmtpMailTransport } from "#shared/infrastructure/mail.js";
 import { createAuditReader, createAuditWriter } from "#modules/audit/index.js";
 import {
   PrismaActorSnapshots,
@@ -29,6 +31,9 @@ export function createKernel() {
   return {
     unitOfWork,
     clock,
+    mail: config.mail
+      ? new SmtpMailTransport(config.mail)
+      : config.production ? null : new LogMailTransport(),
     tariffs: createTariffUseCases({
       subscriptions: new PrismaOrganizationSubscriptions(prisma),
       usage: new PrismaUsageCounter(prisma, clock),

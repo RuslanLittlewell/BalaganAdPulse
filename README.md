@@ -154,7 +154,7 @@ Backups are gzipped `pg_dump` files in `/opt/adpulse/backups`, one per deploy, k
 
 | What | Where it lives | Who sets it |
 |---|---|---|
-| Postgres and MinIO credentials, `JWT_SECRET`, `INTEGRATION_ENCRYPTION_KEY`, `GOOGLE_*`, `SEED_ADMIN_*`, `APP_URL`, `SMTP_*`, `TELEGRAM_BOT_TOKEN`, `GROQ_API_KEY` | `/opt/adpulse/.env` on the server, passed whole to the app | Operator, by hand |
+| Postgres and MinIO credentials, `JWT_SECRET`, `INTEGRATION_ENCRYPTION_KEY`, `GOOGLE_*`, `SEED_ADMIN_*`, `APP_URL`, `SMTP_*`, `SUPPORT_EMAIL`, `TELEGRAM_BOT_TOKEN`, `GROQ_API_KEY` | `/opt/adpulse/.env` on the server, passed whole to the app | Operator, by hand |
 | `PRODUCTION_VPS_SSH_KEY` — the private key of `adpulse-deploy` | GitHub Actions repository secret | Operator |
 | The server's host key | [deploy/known_hosts](deploy/known_hosts), in the repository | Operator, when the server changes |
 | Access to the image registry | The job's own `GITHUB_TOKEN`, used for one deploy and logged out | Nobody |
@@ -787,6 +787,26 @@ password, deletes every refresh token of the account and signs in. Mail goes ove
 Without `SMTP_USER` and `SMTP_PASSWORD`, development writes the message, link included, to
 the API's log. In production, without them or without `APP_URL`, asking for a link
 answers **503**.
+
+### Help and feedback
+
+The last item of the organization's left menu, "Помощь", opens a dialog for every member
+of any role. Its form sends a topic, a message and up to three PNG, JPEG or WebP
+screenshots of at most 5 MB each to `POST /api/support/feedback`. The API sends them as
+one email to `SUPPORT_EMAIL` over the same SMTP transport, with the screenshots attached,
+the sender's email as the reply-to address, and the page, browser, screen, organization,
+person, role and tariff below the message. The organization and the person come from the
+session, never from the request. Nothing is stored.
+
+| Variable | Purpose |
+|----------|---------|
+| `SUPPORT_EMAIL` | Receives the feedback and is shown in the dialog as the support contact; production uses `balagan.ads@gmail.com` |
+
+The route is mounted before the trial guard, so members of an organization whose trial has
+ended can still write. One person may send five messages in ten minutes; the sixth answers
+**429**. Without `SUPPORT_EMAIL`, or in production without SMTP, or when the SMTP server
+refuses the message, the API answers **503** and the form keeps the text.
+`GET /api/support/contacts` tells the dialog the address and whether feedback can be sent.
 
 ### Roles and membership
 

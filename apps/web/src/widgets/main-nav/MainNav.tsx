@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink, useMatch } from "react-router-dom";
 import {
   ArchiveIcon,
@@ -13,6 +14,7 @@ import { t } from "@/shared/config/index.js";
 import { ROUTES } from "@/shared/lib/index.js";
 import { useNavCollapse } from "@/features/nav-collapse/index.js";
 import { useAuth } from "@/features/auth/index.js";
+import { HelpFeedbackDialog } from "@/features/help-feedback/index.js";
 import {
   SectionLabel,
   Sidebar,
@@ -87,35 +89,40 @@ function ModuleLink({ module, collapsed }: ModuleLinkProps) {
 export function MainNav() {
   const { collapsed } = useNavCollapse();
   const { role, modules } = useAuth();
+  const [helpOpen, setHelpOpen] = useState(false);
 
   return (
-    <Sidebar
-      header={
-        <div
-          className={`flex min-h-13 items-center text-xl font-semibold text-sidebar-foreground ${
-            collapsed ? "justify-center px-0" : "px-3"
-          }`}
-        >
-          {collapsed ? t("brand.title").slice(0, 1) : t("brand.title")}
-        </div>
-      }
-    >
-      {!collapsed && (
-        <div className="hidden md:block">
-          <SectionLabel>{t("nav.sections")}</SectionLabel>
-        </div>
-      )}
-      <WarmTooltipGroup>
-        <nav className={sidebarNavClassName(collapsed)} aria-label={t("nav.sections")}>
-          {MODULES.filter(
-            (entry) =>
-              (!entry.agencyOnly || role !== "CLIENT") &&
-              (!entry.module || modules.includes(entry.module)),
-          ).map((module) => (
-            <ModuleLink key={module.to} module={module} collapsed={collapsed} />
-          ))}
-        </nav>
-      </WarmTooltipGroup>
-    </Sidebar>
+    <>
+      <Sidebar
+        help={{ label: t("help.open"), collapsed, onOpen: () => setHelpOpen(true) }}
+        header={
+          <div
+            className={`flex min-h-13 items-center text-xl font-semibold text-sidebar-foreground ${
+              collapsed ? "justify-center px-0" : "px-3"
+            }`}
+          >
+            {collapsed ? t("brand.title").slice(0, 1) : t("brand.title")}
+          </div>
+        }
+      >
+        {!collapsed && (
+          <div className="hidden md:block">
+            <SectionLabel>{t("nav.sections")}</SectionLabel>
+          </div>
+        )}
+        <WarmTooltipGroup>
+          <nav className={sidebarNavClassName(collapsed)} aria-label={t("nav.sections")}>
+            {MODULES.filter(
+              (entry) =>
+                (!entry.agencyOnly || role !== "CLIENT") &&
+                (!entry.module || modules.includes(entry.module)),
+            ).map((module) => (
+              <ModuleLink key={module.to} module={module} collapsed={collapsed} />
+            ))}
+          </nav>
+        </WarmTooltipGroup>
+      </Sidebar>
+      <HelpFeedbackDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
+    </>
   );
 }

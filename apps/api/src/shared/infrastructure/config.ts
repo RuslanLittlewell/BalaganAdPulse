@@ -28,6 +28,7 @@ export interface Config {
   appUrl: string | null;
   landingHost: string | null;
   mail: MailConfig | null;
+  supportEmail: string | null;
   taskTimeZone: string;
   telegramBot: TelegramBotConfig | null;
   googleAds: GoogleAdsConfig | null;
@@ -121,6 +122,15 @@ function mailConfig(env: NodeJS.ProcessEnv): MailConfig | null {
   };
 }
 
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function supportEmail(env: NodeJS.ProcessEnv): string | null {
+  const email = env.SUPPORT_EMAIL?.trim();
+  if (!email) return null;
+  if (!EMAIL.test(email)) throw new Error("SUPPORT_EMAIL must be an email address, such as help@example.com");
+  return email;
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const jwtSecret = env.JWT_SECRET;
   if (!jwtSecret) throw new Error("JWT_SECRET is required but not set");
@@ -146,6 +156,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     appUrl,
     landingHost: env.LANDING_HOST === undefined ? DEFAULT_LANDING_HOST : env.LANDING_HOST.trim().toLowerCase() || null,
     mail: mailConfig(env),
+    supportEmail: supportEmail(env),
     taskTimeZone: taskTimeZone(env),
     telegramBot: telegramBotConfig(env),
     googleAds: googleAdsConfig(env, appUrl),

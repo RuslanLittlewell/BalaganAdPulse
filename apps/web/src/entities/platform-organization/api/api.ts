@@ -1,4 +1,4 @@
-import type { ModuleKey, OptionalModule } from "@adpulse/access-policy";
+import type { ModuleKey, Tariff } from "@adpulse/access-policy";
 import { http } from "@/shared/lib/index.js";
 
 export type PlatformOrganizationStatus = "ACTIVE" | "SUSPENDED";
@@ -9,6 +9,8 @@ export interface PlatformOrganization {
   name: string;
   slug: string;
   status: PlatformOrganizationStatus;
+  tariff: Tariff;
+  trialEndsAt: string | null;
   modules: ModuleKey[];
   activeMembers: number;
   createdAt: string;
@@ -21,7 +23,7 @@ export interface PlatformOrganization {
 
 export interface CreateOrganizationInput {
   name: string;
-  modules: OptionalModule[];
+  tariff: Tariff;
   adminEmail: string;
 }
 
@@ -32,7 +34,7 @@ export interface CreatedOrganization {
 
 export interface OrganizationChange {
   name?: string;
-  modules?: OptionalModule[];
+  tariff?: Tariff;
   status?: PlatformOrganizationStatus;
 }
 

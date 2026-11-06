@@ -63,7 +63,7 @@ describe("deleting an organization", () => {
     expect(await prisma.user.findUnique({ where: { id: globex.colleague.id } })).toBeNull();
     expect((await request(app).get("/api/auth/me").set(globex.auth)).status).toBe(401);
     const again = await request(app).post(ORGANIZATIONS).set(platform.auth)
-      .send({ name: "Globex", modules: [], adminEmail: "colleague@globex.com" });
+      .send({ name: "Globex", tariff: "SOLO", adminEmail: "colleague@globex.com" });
     expect(again.status).toBe(201);
   });
 

@@ -20,7 +20,7 @@ import type { Kernel } from "./kernel.js";
 import type { Notifications } from "./notifications.js";
 
 export function wireClientsAndProjects(
-  { unitOfWork, ids, audit }: Kernel,
+  { unitOfWork, ids, audit, tariffs }: Kernel,
   { projectEvents }: Pick<Notifications, "projectEvents">,
 ) {
   const clientRepository = new PrismaClientRepository(prisma, unitOfWork);
@@ -29,6 +29,7 @@ export function wireClientsAndProjects(
     clients: clientRepository,
     pictures: new S3ClientPictureStorage(),
     audit,
+    tariffs,
     ids,
     unitOfWork,
   });
@@ -42,6 +43,7 @@ export function wireClientsAndProjects(
     pictures: new S3ProjectPictureStorage(),
     staffing: new PrismaProjectStaffing(prisma, unitOfWork),
     audit,
+    tariffs,
     events: projectEvents,
     ids,
     unitOfWork,

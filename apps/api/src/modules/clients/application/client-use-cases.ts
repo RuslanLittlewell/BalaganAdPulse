@@ -33,6 +33,7 @@ export function createClientUseCases(dependencies: ClientDependencies) {
   return {
     create: async (actor: ActorContext, input: NewClient): Promise<ClientRecord> => {
       assertCan(actor, "create");
+      await dependencies.tariffs.assertCanAdd(actor.orgId, "clients");
       return dependencies.unitOfWork.run(async (context) => {
         const client = await dependencies.clients.create(
           context,

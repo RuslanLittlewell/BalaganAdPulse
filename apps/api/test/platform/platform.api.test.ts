@@ -16,7 +16,7 @@ const addOrganization = async (
   auth: { Authorization: string },
   body: Record<string, unknown> = {},
 ) => request(app).post(ORGANIZATIONS).set(auth).send({
-  name: "Acme", modules: ["CRM", "REPORTS"], adminEmail: "owner@acme.com", ...body,
+  name: "Acme", tariff: "BUSINESS", adminEmail: "owner@acme.com", ...body,
 });
 
 describe("who reaches the platform", () => {
@@ -68,6 +68,7 @@ describe("the platform administrator's session", () => {
       membershipId: null,
       clientIds: [],
       modules: [],
+      tariff: null,
     });
   });
 
@@ -97,6 +98,8 @@ describe("listing organizations", () => {
       name: org.name,
       slug: org.slug,
       status: "ACTIVE",
+      tariff: "ENTERPRISE",
+      trialEndsAt: null,
       modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"],
       activeMembers: 2,
       createdAt: expect.any(String),
@@ -133,7 +136,7 @@ describe("listing organizations", () => {
 });
 
 describe("adding an organization", () => {
-  it("stores it with dashboard, projects and the chosen modules, and an admin invitation for the email", async () => {
+  it("stores it with the chosen tariff, whose modules it gets, and an admin invitation for the email", async () => {
     const { auth } = await signInAsPlatformAdmin();
     const res = await addOrganization(auth);
 
@@ -142,7 +145,9 @@ describe("adding an organization", () => {
       name: "Acme",
       slug: "acme",
       status: "ACTIVE",
-      modules: ["DASHBOARD", "PROJECTS", "CRM", "REPORTS"],
+      tariff: "BUSINESS",
+      trialEndsAt: null,
+      modules: ["DASHBOARD", "PROJECTS", "CRM"],
       activeMembers: 0,
     });
     expect(res.body.registrationUrl).toMatch(/^\/registration\/[23456789A-HJ-NP-Z]{8}$/);
@@ -151,7 +156,7 @@ describe("adding an organization", () => {
       where: { id: res.body.organization.id },
       include: { invites: true },
     });
-    expect(stored.modules).toEqual(["CRM", "REPORTS"]);
+    expect(stored.tariff).toBe("BUSINESS");
     expect(stored.invites).toHaveLength(1);
     expect(stored.invites[0]).toMatchObject({
       registrationType: "EMPLOYEE",
@@ -199,10 +204,25 @@ describe("adding an organization", () => {
     expect(res.status).toBe(403);
   });
 
-  it("enables only dashboard and projects when no optional module is chosen", async () => {
+  it("enables only dashboard and projects on Solo", async () => {
     const { auth } = await signInAsPlatformAdmin();
-    const res = await addOrganization(auth, { modules: [] });
+    const res = await addOrganization(auth, { tariff: "SOLO" });
     expect(res.body.organization.modules).toEqual(["DASHBOARD", "PROJECTS"]);
+  });
+
+  it("starts on a 14-day trial with every module when no tariff is named", async () => {
+    const { auth } = await signInAsPlatformAdmin();
+    const before = Date.now();
+    const res = await addOrganization(auth, { tariff: undefined });
+
+    expect(res.body.organization).toMatchObject({
+      tariff: "TRIAL",
+      modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"],
+    });
+    const endsAt = new Date(res.body.organization.trialEndsAt).getTime();
+    const fourteenDays = 14 * 24 * 60 * 60 * 1000;
+    expect(endsAt - before).toBeGreaterThanOrEqual(fourteenDays);
+    expect(endsAt - before).toBeLessThan(fourteenDays + 60_000);
   });
 
   it("gives a second organization of the same name a distinct slug", async () => {
@@ -223,9 +243,8 @@ describe("adding an organization", () => {
   });
 
   it.each([
-    ["an unknown module", { modules: ["BILLING"] }],
-    ["the dashboard as optional", { modules: ["DASHBOARD"] }],
-    ["projects as optional", { modules: ["PROJECTS"] }],
+    ["an unknown tariff", { tariff: "PLATINUM" }],
+    ["a module list", { modules: ["CRM"] }],
     ["an invalid email", { adminEmail: "not-an-email" }],
     ["an empty name", { name: "   " }],
     ["a missing email", { adminEmail: undefined }],
@@ -263,15 +282,27 @@ describe("editing an organization", () => {
     expect(res.body).toMatchObject({ name: "Acme Ltd", slug: "acme" });
   });
 
-  it("adds and removes optional modules", async () => {
+  it("changes the tariff and with it the modules", async () => {
     const { auth } = await signInAsPlatformAdmin();
     const { body } = await addOrganization(auth);
 
-    const added = await patch(auth, body.organization.id, { modules: ["CRM", "REPORTS", "TASKS"] });
-    expect(added.body.modules).toEqual(["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"]);
+    const upgraded = await patch(auth, body.organization.id, { tariff: "AGENCY" });
+    expect(upgraded.body).toMatchObject({
+      tariff: "AGENCY", trialEndsAt: null, modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"],
+    });
 
-    const removed = await patch(auth, body.organization.id, { modules: ["TASKS"] });
-    expect(removed.body.modules).toEqual(["DASHBOARD", "PROJECTS", "TASKS"]);
+    const downgraded = await patch(auth, body.organization.id, { tariff: "SOLO" });
+    expect(downgraded.body.modules).toEqual(["DASHBOARD", "PROJECTS"]);
+  });
+
+  it("starts a fresh trial when an organization moves to the trial tariff", async () => {
+    const { auth } = await signInAsPlatformAdmin();
+    const { body } = await addOrganization(auth);
+
+    const res = await patch(auth, body.organization.id, { tariff: "TRIAL" });
+
+    expect(res.body.tariff).toBe("TRIAL");
+    expect(new Date(res.body.trialEndsAt).getTime()).toBeGreaterThan(Date.now());
   });
 
   it("suspends and reactivates it", async () => {
@@ -288,13 +319,13 @@ describe("editing an organization", () => {
 
     const res = await patch(auth, body.organization.id, { status: "SUSPENDED" });
     expect(res.body).toMatchObject({
-      name: "Acme", modules: ["DASHBOARD", "PROJECTS", "CRM", "REPORTS"], status: "SUSPENDED",
+      name: "Acme", tariff: "BUSINESS", status: "SUSPENDED",
     });
   });
 
   it.each([
-    ["an unknown module", { modules: ["BILLING"] }],
-    ["projects as optional", { modules: ["PROJECTS"] }],
+    ["an unknown tariff", { tariff: "PLATINUM" }],
+    ["a module list", { modules: ["CRM"] }],
     ["an unknown status", { status: "CLOSED" }],
     ["an empty name", { name: "" }],
     ["the slug", { slug: "elsewhere" }],
@@ -304,7 +335,7 @@ describe("editing an organization", () => {
 
     expect((await patch(auth, org.id, change)).status).toBe(400);
     expect(await prisma.organization.findUniqueOrThrow({ where: { id: org.id } })).toMatchObject({
-      name: org.name, slug: org.slug, status: "ACTIVE", modules: ["CRM", "TASKS", "REPORTS"],
+      name: org.name, slug: org.slug, status: "ACTIVE", tariff: "ENTERPRISE",
     });
   });
 

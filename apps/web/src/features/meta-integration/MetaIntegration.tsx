@@ -20,6 +20,7 @@ import { useCan } from "@/features/permissions/index.js";
 import { useModuleEnabled } from "@/features/auth/index.js";
 import { LeadsSetupInfo } from "./LeadsSetupInfo.js";
 import { GoogleConnectionCard, GoogleReturn, googleFailureOf, startGoogleSignIn } from "@/features/google-integration/index.js";
+import { tariffRefusal } from "@/entities/tariff/index.js";
 
 export interface Connection {
   id: string;
@@ -72,6 +73,8 @@ const failureText = (code: unknown) => {
   }
 };
 const failureOf = (error: unknown) => {
+  const refusal = tariffRefusal(error);
+  if (refusal) return refusal;
   if (error instanceof ApiError && error.status === 409) return t("meta.error.duplicate");
   const code = error instanceof ApiError
     ? (error.details[0] as { code?: string } | undefined)?.code

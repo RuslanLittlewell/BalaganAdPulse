@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { isOptionalModule, type OptionalModule } from "@adpulse/access-policy";
+import { DEFAULT_TARIFF, type Tariff } from "@adpulse/access-policy";
 import {
   useCreateOrganization,
   useUpdateOrganization,
@@ -18,7 +18,7 @@ import {
   TextField,
 } from "@/shared/ui/index.js";
 import { registrationLink } from "../lib/link.js";
-import { ModuleChoices } from "./ModuleChoices.js";
+import { TariffChoices } from "./TariffChoices.js";
 
 export interface OrganizationFormDialogProps {
   organization?: PlatformOrganization;
@@ -31,16 +31,13 @@ interface Problems {
   adminEmail?: string;
 }
 
-const optionalModulesOf = (organization?: PlatformOrganization): OptionalModule[] =>
-  (organization?.modules ?? []).filter(isOptionalModule);
-
 export function OrganizationFormDialog({ organization, open, onClose }: OrganizationFormDialogProps) {
   const create = useCreateOrganization();
   const update = useUpdateOrganization();
   const editing = organization != null;
   const [name, setName] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
-  const [modules, setModules] = useState<OptionalModule[]>([]);
+  const [tariff, setTariff] = useState<Tariff>(DEFAULT_TARIFF);
   const [problems, setProblems] = useState<Problems>({});
   const [failure, setFailure] = useState<string | null>(null);
   const [createdLink, setCreatedLink] = useState<string | null>(null);
@@ -49,7 +46,7 @@ export function OrganizationFormDialog({ organization, open, onClose }: Organiza
     if (!open) return;
     setName(organization?.name ?? "");
     setAdminEmail("");
-    setModules(optionalModulesOf(organization));
+    setTariff(organization?.tariff ?? DEFAULT_TARIFF);
     setProblems({});
     setFailure(null);
     setCreatedLink(null);
@@ -72,11 +69,11 @@ export function OrganizationFormDialog({ organization, open, onClose }: Organiza
     setFailure(null);
     try {
       if (editing) {
-        await update.mutateAsync({ id: organization.id, change: { name: name.trim(), modules } });
+        await update.mutateAsync({ id: organization.id, change: { name: name.trim(), tariff } });
         onClose();
         return;
       }
-      const created = await create.mutateAsync({ name: name.trim(), modules, adminEmail: adminEmail.trim() });
+      const created = await create.mutateAsync({ name: name.trim(), tariff, adminEmail: adminEmail.trim() });
       setCreatedLink(registrationLink(created.registrationUrl));
     } catch (error) {
       setFailure(error instanceof ApiError && error.status === 409
@@ -87,7 +84,7 @@ export function OrganizationFormDialog({ organization, open, onClose }: Organiza
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
-      <DialogContent className="w-[min(560px,calc(100vw-2rem))] max-w-none">
+      <DialogContent className="w-[min(640px,calc(100vw-2rem))] max-w-none">
         <DialogHeader>
           <DialogTitle>{editing ? t("platform.form.editTitle") : t("platform.form.createTitle")}</DialogTitle>
         </DialogHeader>
@@ -120,7 +117,7 @@ export function OrganizationFormDialog({ organization, open, onClose }: Organiza
                 onChange={(event) => setAdminEmail(event.target.value)}
               />
             )}
-            <ModuleChoices selected={modules} onChange={setModules} />
+            <TariffChoices selected={tariff} onChange={setTariff} />
             {failure && <p role="alert" className="text-sm text-destructive">{failure}</p>}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose}>{t("action.cancel")}</Button>

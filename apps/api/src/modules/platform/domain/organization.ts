@@ -1,4 +1,4 @@
-import type { OptionalModule } from "@adpulse/access-policy";
+import type { Tariff } from "@adpulse/access-policy";
 
 export const ORGANIZATION_STATUSES = ["ACTIVE", "SUSPENDED"] as const;
 export type OrganizationStatus = (typeof ORGANIZATION_STATUSES)[number];
@@ -18,7 +18,8 @@ export interface OrganizationRecord {
   readonly name: string;
   readonly slug: string;
   readonly status: OrganizationStatus;
-  readonly modules: readonly OptionalModule[];
+  readonly tariff: Tariff;
+  readonly trialEndsAt: Date | null;
   readonly activeMembers: number;
   readonly createdAt: Date;
   readonly firstAdminInvitation: FirstAdminInvitation | null;

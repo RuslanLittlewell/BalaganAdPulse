@@ -1,5 +1,5 @@
+import { TARIFFS } from "@adpulse/access-policy";
 import {
-  moduleLabel,
   usePlatformOrganizations,
   type PlatformOrganization,
 } from "@/entities/platform-organization/index.js";
@@ -7,6 +7,7 @@ import {
   OrganizationActions,
   registrationLink,
 } from "@/features/organization-admin/index.js";
+import { tariffName } from "@/entities/tariff/index.js";
 import { t } from "@/shared/config/index.js";
 import {
   ariaSortOf,
@@ -20,7 +21,7 @@ import { CopyButton, Loader, SortButton } from "@/shared/ui/index.js";
 type SortableColumn =
   | "name"
   | "status"
-  | "modules"
+  | "tariff"
   | "members"
   | "firstAdmin"
   | "createdAt";
@@ -31,7 +32,7 @@ const SORT_VALUES: Record<
 > = {
   name: (organization) => organization.name,
   status: (organization) => t(`platform.status.${organization.status}`),
-  modules: (organization) => organization.modules.length,
+  tariff: (organization) => TARIFFS.indexOf(organization.tariff),
   members: (organization) => organization.activeMembers,
   firstAdmin: (organization) => organization.firstAdmin?.email,
   createdAt: (organization) => Date.parse(organization.createdAt),
@@ -76,8 +77,8 @@ export function OrganizationTable() {
             sorting={sorting}
           />
           <SortableHeader
-            column="modules"
-            label={t("platform.column.modules")}
+            column="tariff"
+            label={t("platform.column.tariff")}
             sorting={sorting}
           />
           <SortableHeader
@@ -178,20 +179,15 @@ function OrganizationRow({
           {t(`platform.status.${organization.status}`)}
         </span>
       </td>
-      <td className="py-2">
-        <ul
-          aria-label={`${t("platform.column.modules")}: ${organization.name}`}
-          className="flex flex-wrap gap-1"
-        >
-          {organization.modules.map((module) => (
-            <li
-              key={module}
-              className="rounded-md border border-border px-1 py-0.5 text-xs"
-            >
-              {moduleLabel(module)}
-            </li>
-          ))}
-        </ul>
+      <td className="py-2" data-tariff={organization.tariff}>
+        <span className="flex flex-col">
+          <span>{tariffName(organization.tariff)}</span>
+          {organization.trialEndsAt && (
+            <span className="text-xs text-muted-foreground">
+              {t("tariff.trial.until")} {formatCalendarDate(organization.trialEndsAt)}
+            </span>
+          )}
+        </span>
       </td>
       <td className="py-2 text-right tabular-nums">
         {organization.activeMembers}

@@ -30,7 +30,7 @@ export interface GoogleAccess {
   account(accountId: string, loginCustomerId: string | null, refreshToken: string): Promise<Account>;
 }
 
-export interface GoogleDependencies extends Pick<IntegrationDependencies, "repository" | "cipher" | "projects" | "clock" | "unitOfWork" | "audit"> {
+export interface GoogleDependencies extends Pick<IntegrationDependencies, "repository" | "cipher" | "projects" | "clock" | "unitOfWork" | "audit" | "tariffs"> {
   google: GoogleAccess | null;
   authorizations: GoogleAuthorizations;
 }
@@ -135,6 +135,7 @@ export function createGoogleUseCases(d: GoogleDependencies) {
       const refreshToken = d.cipher.decrypt(authorization.encryptedRefreshToken, projectId);
       const existing = authorization.integrationId ? await googleConnection(projectId, authorization.integrationId) : null;
       if (!existing && !input.accountId) throw new AppError("validation", "accountId is required");
+      if (!existing) await d.tariffs.assertCanAdd(actor.orgId, "adAccounts");
       const accountId = existing?.accountId ?? input.accountId!;
       const loginCustomerId = existing ? existing.loginCustomerId : (input.loginCustomerId ?? null);
 

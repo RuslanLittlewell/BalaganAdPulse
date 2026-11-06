@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { Prisma, PrismaClient } from "@prisma/client";
+import { tariffModules } from "@adpulse/access-policy";
 import type { ActorContext } from "#shared/application/index.js";
 import { reachableProjects } from "#shared/infrastructure/project-reach.js";
 import type { BotMembership } from "../domain/link.js";
@@ -97,7 +98,7 @@ export class PrismaTelegramMembers implements TelegramMembers {
       where: { id: membershipId },
       select: {
         id: true, userId: true, orgId: true, role: true, status: true,
-        org: { select: { status: true, modules: true } },
+        org: { select: { status: true, tariff: true } },
       },
     });
     if (!membership) return null;
@@ -105,7 +106,7 @@ export class PrismaTelegramMembers implements TelegramMembers {
       role: membership.role,
       active: membership.status === "ACTIVE",
       organizationActive: membership.org.status === "ACTIVE",
-      tasksOn: membership.org.modules.includes("TASKS"),
+      tasksOn: tariffModules(membership.org.tariff).includes("TASKS"),
       actor: {
         userId: membership.userId,
         membershipId: membership.id,

@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
-import { isCustomer } from "@adpulse/access-policy";
+import { isCustomer, tariffsWithModule } from "@adpulse/access-policy";
 import { performanceOf, sumByType, type KpiAccount, type MetricRepository, type ResultType } from "#modules/campaigns/index.js";
 import { isKpiMetric, MANUAL_KPI, type IsoDateRange, type KpiFigures, type KpiInput } from "#modules/kpi/index.js";
 import type {
@@ -210,7 +210,7 @@ export class PrismaDueTasks implements DueTasks {
       where: {
         dueDate: { gte: new Date(`${fromDay}T00:00:00Z`), lte: new Date(`${toDay}T00:00:00Z`) },
         column: { notIn: ["DONE", "ARCHIVED"] },
-        org: { status: "ACTIVE", modules: { has: "TASKS" } },
+        org: { status: "ACTIVE", tariff: { in: tariffsWithModule("TASKS") } },
       },
       select: {
         id: true, projectId: true, dueDate: true, dueTime: true, timeZone: true, createdById: true, visibleToClient: true, personal: true,

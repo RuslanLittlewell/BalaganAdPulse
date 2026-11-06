@@ -11,12 +11,13 @@ const rowOf = async (name: string) =>
   (await screen.findByRole("rowheader", { name: new RegExp(name) })).closest("tr") as HTMLElement;
 
 describe("the organization table", () => {
-  it("lists each organization with its status, modules, members and creation date", async () => {
+  it("lists each organization with its status, tariff, members and creation date", async () => {
     listed(
       aPlatformOrganization(),
       aPlatformOrganization({
         id: "org-2", name: "Acme", slug: "acme", status: "SUSPENDED",
-        modules: ["DASHBOARD", "PROJECTS", "CRM"], activeMembers: 0,
+        tariff: "TRIAL", trialEndsAt: "2026-10-29T12:00:00.000Z",
+        modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"], activeMembers: 0,
         createdAt: "2026-10-15T09:00:00.000Z",
       }),
     );
@@ -27,15 +28,15 @@ describe("the organization table", () => {
     expect(within(balagan).getByText("Активна")).toBeInTheDocument();
     expect(within(balagan).getByText("balagan")).toBeInTheDocument();
     expect(within(balagan).getByText("12")).toBeInTheDocument();
-    expect(within(within(balagan).getByRole("list", { name: "Модули: Balagan" })).getAllByRole("listitem")
-      .map((item) => item.textContent)).toEqual(["Дашборд", "Проекты", "CRM", "Задачи", "Отчёты"]);
+    expect(within(balagan).getByText("Enterprise")).toBeInTheDocument();
+    expect(within(balagan).queryByText(/^до /)).not.toBeInTheDocument();
 
     const acme = await rowOf("Acme");
     expect(acme).toHaveAttribute("data-status", "SUSPENDED");
     expect(within(acme).getByText("Приостановлена")).toBeInTheDocument();
     expect(within(acme).getByText("15.10.2026")).toBeInTheDocument();
-    expect(within(within(acme).getByRole("list", { name: "Модули: Acme" })).getAllByRole("listitem")
-      .map((item) => item.textContent)).toEqual(["Дашборд", "Проекты", "CRM"]);
+    expect(within(acme).getByText("Пробный период")).toBeInTheDocument();
+    expect(within(acme).getByText("до 29.10.2026")).toBeInTheDocument();
   });
 
   it("offers the pending first administrator's link for copying", async () => {

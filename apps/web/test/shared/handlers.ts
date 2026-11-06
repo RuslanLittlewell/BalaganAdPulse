@@ -12,6 +12,13 @@ export const defaultHandlers = [
     membershipId: "member-1",
     clientIds: [],
     modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"],
+    tariff: {
+      tariff: "ENTERPRISE",
+      trialEndsAt: null,
+      trialExpired: false,
+      limits: { projects: null, clients: null, users: null, adAccounts: null },
+      usage: { projects: 0, clients: 0, users: 1, adAccounts: 0 },
+    },
   })),
   http.get("/api/user/profile", () => HttpResponse.json({
     name: "Buyer", email: "buyer@acme.com", login: null, image: null, avatarPath: null,

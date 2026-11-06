@@ -15,12 +15,15 @@ enum MembershipStatus {
   @@map("membership_status")
 }
 
-enum OrgModule {
-  CRM
-  TASKS
-  REPORTS
+enum Tariff {
+  TRIAL
+  SOLO
+  BUSINESS
+  AGENCY
+  AGENCY_PRO
+  ENTERPRISE
 
-  @@map("org_module")
+  @@map("tariff")
 }
 
 enum OrgStatus {
@@ -36,7 +39,8 @@ model Organization {
   id           String       @id @default(uuid())
   name         String
   slug         String       @unique
-  modules      OrgModule[]  @default([CRM, TASKS, REPORTS])
+  tariff       Tariff       @default(TRIAL)
+  trialEndsAt  DateTime?    @map("trial_ends_at")
   status       OrgStatus    @default(ACTIVE)
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")

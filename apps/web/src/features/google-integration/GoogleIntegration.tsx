@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/index.js";
+import { tariffRefusal } from "@/entities/tariff/index.js";
 
 export interface GoogleConnection {
   id: string;
@@ -61,6 +62,8 @@ const failureText = (code: unknown) => {
 };
 
 export const googleFailureOf = (error: unknown) => {
+  const refusal = tariffRefusal(error);
+  if (refusal) return refusal;
   if (error instanceof ApiError && error.status === 409) return t("meta.error.duplicate");
   const code = error instanceof ApiError
     ? (error.details[0] as { code?: string } | undefined)?.code

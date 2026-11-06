@@ -1,4 +1,4 @@
-import type { OptionalModule } from "@adpulse/access-policy";
+import type { Tariff } from "@adpulse/access-policy";
 import type { Clock, IdGenerator, TransactionContext, UnitOfWork } from "#shared/application/index.js";
 import type { OrganizationRecord, OrganizationStatus } from "../domain/organization.js";
 
@@ -6,12 +6,14 @@ export interface NewOrganization {
   readonly id: string;
   readonly name: string;
   readonly slug: string;
-  readonly modules: readonly OptionalModule[];
+  readonly tariff: Tariff;
+  readonly trialEndsAt: Date | null;
 }
 
 export interface OrganizationChange {
   readonly name?: string;
-  readonly modules?: readonly OptionalModule[];
+  readonly tariff?: Tariff;
+  readonly trialEndsAt?: Date | null;
   readonly status?: OrganizationStatus;
 }
 

@@ -25,7 +25,7 @@ import { runDetached, type Kernel } from "./kernel.js";
 const PRESENCE_SUMMARY = { ONLINE: "Came online", OFFLINE: "Went offline" } as const;
 
 export function wireMembersAndPresence(
-  { unitOfWork, connections, clock, audit }: Kernel,
+  { unitOfWork, connections, clock, audit, tariffs }: Kernel,
   { clients }: Pick<ClientsAndProjects, "clients">,
 ) {
   const recordPresence = (person: PresencePerson, action: "ONLINE" | "OFFLINE", at: Date) =>
@@ -60,6 +60,7 @@ export function wireMembersAndPresence(
       },
     },
     clients: { reachableClientIds: clients.reachableIds },
+    tariffs,
     directory: memberDirectory,
     access: new PrismaAccessRepository(prisma, unitOfWork),
     avatars: new S3MemberAvatarStorage(),

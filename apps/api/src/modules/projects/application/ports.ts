@@ -1,6 +1,7 @@
 import type {
   ActorContext,
   IdGenerator,
+  TariffGate,
   TransactionContext,
   UnitOfWork,
 } from "#shared/application/index.js";
@@ -47,6 +48,7 @@ export interface ProjectDependencies {
   readonly pictures: ProjectPictureStorage;
   readonly staffing: ProjectStaffing;
   readonly audit: AuditWriter;
+  readonly tariffs: TariffGate;
   readonly events: ProjectEvents;
   readonly ids: IdGenerator;
   readonly unitOfWork: UnitOfWork;

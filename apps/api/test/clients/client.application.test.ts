@@ -3,6 +3,7 @@ import type { ActorContext } from "../../src/shared/application/index.js";
 import type { TransactionContext } from "../../src/shared/application/unit-of-work.js";
 import { DeterministicIdGenerator } from "../../src/shared/infrastructure/id-generator.js";
 import { createClientUseCases, type ClientRecord } from "../../src/modules/clients/index.js";
+import { unlimitedTariffs } from "../helpers/tariffs.js";
 
 const admin: ActorContext = { userId: "u1", membershipId: "m1", orgId: "org1", role: "ADMIN" };
 const manager: ActorContext = { ...admin, membershipId: "m2", role: "MANAGER" };
@@ -49,6 +50,7 @@ function fixture(seed: ClientRecord[] = []) {
     audit: { append: async (_tx, event) => { audit.push(event as never); } },
     ids: new DeterministicIdGenerator(["new-1", "new-2"]),
     unitOfWork: { run: (work) => work(context) },
+    tariffs: unlimitedTariffs,
   });
   return { useCases, clients, grants, audit, pictures };
 }

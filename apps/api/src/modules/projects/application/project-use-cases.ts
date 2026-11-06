@@ -60,6 +60,7 @@ export function createProjectUseCases(dependencies: ProjectDependencies) {
       const { memberIds, ...fields } = input;
       const staff = await staffOf(actor, memberIds);
       await assertClientReachable(actor, fields.clientId);
+      await dependencies.tariffs.assertCanAdd(actor.orgId, "projects");
       const created = await dependencies.unitOfWork.run(async (context) => {
         const project = await dependencies.projects.create(context, {
           ...fields,

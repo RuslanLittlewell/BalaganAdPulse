@@ -122,7 +122,7 @@ describe("a member as the bot sees them", () => {
       actor: { userId: boris.user.id, membershipId: idOf(boris), orgId: (await currentOrg()).id, role: "MANAGER" },
     });
 
-    await prisma.organization.update({ where: { id: (await currentOrg()).id }, data: { modules: ["CRM"], status: "SUSPENDED" } });
+    await prisma.organization.update({ where: { id: (await currentOrg()).id }, data: { tariff: "BUSINESS", status: "SUSPENDED" } });
     await prisma.membership.update({ where: { id: idOf(boris) }, data: { status: "SUSPENDED" } });
     expect(await members.describe(idOf(boris))).toMatchObject({ active: false, organizationActive: false, tasksOn: false });
     expect(await members.describe("00000000-0000-0000-0000-000000000000")).toBeNull();

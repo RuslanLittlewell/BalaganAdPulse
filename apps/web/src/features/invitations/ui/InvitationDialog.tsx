@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/shared/ui/index.js";
 import { registrationLink } from "../lib/link.js";
+import { tariffRefusal } from "@/entities/tariff/index.js";
 
 export interface InvitationDialogProps {
   registrationType: RegistrationType;
@@ -81,8 +82,8 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
             ? { registrationType: "CLIENT_STAFF", clientId: clientId as string }
             : { registrationType: "CLIENT" },
       ));
-    } catch {
-      setFailure(t("invites.failed"));
+    } catch (error) {
+      setFailure(tariffRefusal(error) ?? t("invites.failed"));
     }
   }
 

@@ -11,6 +11,11 @@ import {
 } from "#modules/audit/infrastructure/prisma-audit-repository.js";
 import { AmbientRequestMetadata } from "#modules/audit/infrastructure/request-metadata.js";
 import { createConnectionRegistry } from "#modules/realtime/index.js";
+import {
+  createTariffUseCases,
+  PrismaOrganizationSubscriptions,
+  PrismaUsageCounter,
+} from "#modules/tariffs/index.js";
 
 export function createKernel() {
   const unitOfWork = new PrismaUnitOfWork<Prisma.TransactionClient>(prisma);
@@ -20,9 +25,15 @@ export function createKernel() {
     metadata: new AmbientRequestMetadata(),
     snapshots: new PrismaActorSnapshots(unitOfWork),
   };
+  const clock = new SystemClock();
   return {
     unitOfWork,
-    clock: new SystemClock(),
+    clock,
+    tariffs: createTariffUseCases({
+      subscriptions: new PrismaOrganizationSubscriptions(prisma),
+      usage: new PrismaUsageCounter(prisma, clock),
+      clock,
+    }),
     ids: new RandomIdGenerator(),
     audit: createAuditWriter(auditDependencies),
     auditReader: createAuditReader(auditDependencies),

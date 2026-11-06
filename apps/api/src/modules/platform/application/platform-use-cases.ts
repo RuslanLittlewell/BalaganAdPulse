@@ -1,4 +1,10 @@
-import { enabledModules, type OptionalModule } from "@adpulse/access-policy";
+import {
+  DEFAULT_TARIFF,
+  enabledModules,
+  tariffModules,
+  trialEndsAtFrom,
+  type Tariff,
+} from "@adpulse/access-policy";
 import { AppError } from "#shared/domain/index.js";
 import type { SessionPrincipal } from "#modules/identity/index.js";
 import { InvitationCodeConflictError } from "#modules/invites/index.js";
@@ -14,7 +20,7 @@ const MAX_CODE_ATTEMPTS = 5;
 
 export interface CreateOrganizationInput {
   readonly name: string;
-  readonly modules: readonly OptionalModule[];
+  readonly tariff?: Tariff;
   readonly adminEmail: string;
 }
 
@@ -29,7 +35,9 @@ export function createPlatformUseCases(dependencies: PlatformDependencies) {
       name: record.name,
       slug: record.slug,
       status: record.status,
-      modules: enabledModules(record.modules),
+      tariff: record.tariff,
+      trialEndsAt: record.trialEndsAt,
+      modules: enabledModules(tariffModules(record.tariff)),
       activeMembers: record.activeMembers,
       createdAt: record.createdAt,
       firstAdmin: invitation && state
@@ -64,11 +72,12 @@ export function createPlatformUseCases(dependencies: PlatformDependencies) {
       const base = slugBase(input.name);
       const slug = uniqueSlug(base, await dependencies.organizations.slugsStartingWith(base));
       const id = dependencies.ids.generate();
-      const modules = [...new Set(input.modules)];
+      const tariff = input.tariff ?? DEFAULT_TARIFF;
+      const trialEndsAt = tariff === "TRIAL" ? trialEndsAtFrom(dependencies.clock.now()) : null;
       for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt += 1) {
         try {
           const { code } = await dependencies.unitOfWork.run(async (context) => {
-            await dependencies.organizations.create(context, { id, name: input.name, slug, modules });
+            await dependencies.organizations.create(context, { id, name: input.name, slug, tariff, trialEndsAt });
             return dependencies.invitations.issue(context, { orgId: id, email: input.adminEmail });
           });
           return { organization: view(await existing(id)), registrationUrl: registrationUrlFor(code) };
@@ -80,10 +89,12 @@ export function createPlatformUseCases(dependencies: PlatformDependencies) {
     },
 
     update: async (id: string, change: OrganizationChange) => {
-      await existing(id);
-      const modules = change.modules && [...new Set(change.modules)];
+      const current = await existing(id);
+      const tariffChanged = change.tariff !== undefined && change.tariff !== current.tariff;
+      const trialEndsAt = !tariffChanged ? undefined
+        : change.tariff === "TRIAL" ? trialEndsAtFrom(dependencies.clock.now()) : null;
       await dependencies.unitOfWork.run((context) =>
-        dependencies.organizations.update(context, id, { ...change, modules }),
+        dependencies.organizations.update(context, id, { ...change, trialEndsAt }),
       );
       return view(await existing(id));
     },

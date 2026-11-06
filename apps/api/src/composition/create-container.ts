@@ -23,6 +23,7 @@ import { wireMembersAndPresence } from "./wiring/members-presence.js";
 import { wireNotifications } from "./wiring/notifications.js";
 import { wirePlatform } from "./wiring/platform.js";
 import { wireSupport } from "./wiring/support.js";
+import { wireOnboarding } from "./wiring/onboarding.js";
 import { wireReportsAndKpi } from "./wiring/reports-kpi.js";
 import { wireSummaryTiles } from "./wiring/summary-tiles.js";
 import { wireProjectDocuments } from "./wiring/project-documents.js";
@@ -47,6 +48,7 @@ export interface ApiContainer {
   readonly requestContext: RequestHandler;
   readonly trialGuard: RequestHandler;
   readonly supportRouter: SupportRouter;
+  readonly onboardingRouter: Router;
   readonly sessionRouter: Router;
   readonly platformRouter: Router;
   readonly userRouter: Router;
@@ -111,12 +113,14 @@ export function createContainer(): ApiContainer {
   const notebook = wireProjectDocuments(kernel, { projectRepository: catalog.projectRepository }, notices);
   const platform = wirePlatform(kernel);
   const support = wireSupport(kernel);
+  const onboarding = wireOnboarding(kernel, { telegram: telegram.telegramLinks });
 
   return {
     documentationRouter: config.documentation ? createDocumentationRouter(apiDocument()) : Router(),
     requestContext,
     trialGuard: createTrialGuard(kernel.tariffs),
     supportRouter: support.supportRouter,
+    onboardingRouter: onboarding.onboardingRouter,
     auditRouter: createAuditRouter(kernel.auditReader),
     connections: kernel.connections,
 

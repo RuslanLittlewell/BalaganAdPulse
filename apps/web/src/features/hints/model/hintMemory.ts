@@ -7,6 +7,7 @@ export const HINTS = {
   contactsFirstClient: "contacts.firstClient",
   projectsFirstProject: "projects.firstProject",
   projectsFirstClient: "projects.firstClient",
+  projectsFirstAdAccount: "projects.firstAdAccount",
 } as const;
 
 export type HintId = (typeof HINTS)[keyof typeof HINTS];

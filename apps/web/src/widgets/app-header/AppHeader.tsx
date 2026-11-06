@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { GaugeIcon, HistoryIcon, UserPlusIcon } from "lucide-react";
 import { UserMenu, useAuth } from "@/features/auth/index.js";
 import { HINTS, useHint } from "@/features/hints/index.js";
@@ -7,7 +8,8 @@ import { useMembers } from "@/entities/membership/index.js";
 import { ProfileSettingsDialog } from "@/features/profile-settings/index.js";
 import { TariffDialog, TrialBanner } from "@/features/tariff-status/index.js";
 import { Can } from "@/features/permissions/index.js";
-import { ContactBook } from "@/widgets/contact-book/index.js";
+import { ContactBook, type ContactDirectory } from "@/widgets/contact-book/index.js";
+import { CONTACTS_PARAM, PROFILE_PARAM } from "@/features/onboarding/index.js";
 import { OnlineUsers } from "@/widgets/online-users/index.js";
 import { ActivityLogModal } from "@/widgets/activity-log-modal/index.js";
 import { NotificationCenter } from "@/widgets/notification-center/index.js";
@@ -37,14 +39,44 @@ function useFirstPeopleHint(contactsOpen: boolean) {
   return useHint(HINTS.contactsFirstPeople, empty && !contactsOpen);
 }
 
+const DIRECTORY_PARAMS: Readonly<Record<string, ContactDirectory>> = {
+  clients: "CLIENT",
+  employees: "EMPLOYEE",
+};
+
+function useDialogLinks(openContacts: (directory: ContactDirectory) => void, openProfile: () => void) {
+  const [params, setParams] = useSearchParams();
+  const contacts = params.get(CONTACTS_PARAM);
+  const profile = params.get(PROFILE_PARAM);
+  useEffect(() => {
+    if (contacts == null && profile == null) return;
+    const directory = contacts == null ? undefined : DIRECTORY_PARAMS[contacts];
+    if (directory) openContacts(directory);
+    if (profile === "open") openProfile();
+    setParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete(CONTACTS_PARAM);
+      next.delete(PROFILE_PARAM);
+      return next;
+    }, { replace: true });
+  }, [contacts, profile, openContacts, openProfile, setParams]);
+}
+
 export function AppHeader() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [contactsOpen, setContactsOpen] = useState(false);
+  const [contactsDirectory, setContactsDirectory] = useState<ContactDirectory | undefined>(undefined);
   const [activityOpen, setActivityOpen] = useState(false);
   const [tariffOpen, setTariffOpen] = useState(false);
   const { role, tariff } = useAuth();
   const [avatarVersion, setAvatarVersion] = useState(0);
   const firstPeople = useFirstPeopleHint(contactsOpen);
+  const openContacts = useCallback((directory: ContactDirectory) => {
+    setContactsDirectory(directory);
+    setContactsOpen(true);
+  }, []);
+  const openProfile = useCallback(() => setSettingsOpen(true), []);
+  useDialogLinks(openContacts, openProfile);
   return (
     <>
       <header className="flex min-h-13 w-full items-center justify-end gap-2 border-b border-border px-4">
@@ -116,7 +148,14 @@ export function AppHeader() {
           </div>
         </TooltipProvider>
       </header>
-      <ContactBook open={contactsOpen} onClose={() => setContactsOpen(false)} />
+      <ContactBook
+        open={contactsOpen}
+        initialDirectory={contactsDirectory}
+        onClose={() => {
+          setContactsOpen(false);
+          setContactsDirectory(undefined);
+        }}
+      />
       <ActivityLogModal open={activityOpen} onOpenChange={setActivityOpen} />
       <TariffDialog open={tariffOpen} onClose={() => setTariffOpen(false)} />
       <ProfileSettingsDialog

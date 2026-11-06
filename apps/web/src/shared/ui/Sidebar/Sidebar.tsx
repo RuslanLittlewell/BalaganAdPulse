@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CircleHelpIcon } from "lucide-react";
+import { CircleHelpIcon, ListChecksIcon } from "lucide-react";
 import { cn } from "@/shared/lib/utils.js";
 import { Button } from "../ui/button.js";
 import WarmTooltip from "../WarmTooltip/WarmTooltip.js";
@@ -10,10 +10,18 @@ export interface SidebarHelp {
   onOpen: () => void;
 }
 
+export interface SidebarFirstSteps {
+  label: string;
+  progress: string;
+  collapsed: boolean;
+  onOpen: () => void;
+}
+
 export interface SidebarProps {
   header?: ReactNode;
   children: ReactNode;
   action?: ReactNode;
+  firstSteps?: SidebarFirstSteps;
   help?: SidebarHelp;
 }
 
@@ -54,7 +62,27 @@ function HelpItem({ label, collapsed, onOpen }: SidebarHelp) {
   return <WarmTooltip content={label} side="right">{button}</WarmTooltip>;
 }
 
-export function Sidebar({ header, children, action, help }: SidebarProps) {
+function FirstStepsItem({ label, progress, collapsed, onOpen }: SidebarFirstSteps) {
+  const button = (
+    <Button
+      type="button"
+      variant="ghost"
+      onClick={onOpen}
+      data-attention="true"
+      className={cn(sidebarLinkClassName(collapsed, false), "first-steps-attention hidden h-auto w-full md:flex")}
+    >
+      <ListChecksIcon className={SIDEBAR_ICON_CLASS_NAME} aria-hidden="true" />
+      <span className={sidebarLabelClassName(collapsed)}>{label}</span>
+      <span className={cn("ml-auto text-xs font-normal tabular-nums", collapsed && "md:sr-only")}>
+        {progress}
+      </span>
+    </Button>
+  );
+  if (!collapsed) return button;
+  return <WarmTooltip content={`${label}: ${progress}`} side="right">{button}</WarmTooltip>;
+}
+
+export function Sidebar({ header, children, action, firstSteps, help }: SidebarProps) {
   return (
     <aside className="flex min-h-0 flex-row md:h-full md:flex-col">
       {header != null && <div className="hidden md:block" data-region="header">{header}</div>}
@@ -66,15 +94,16 @@ export function Sidebar({ header, children, action, help }: SidebarProps) {
           {action}
         </div>
       )}
-      {help != null && (
+      {(help != null || firstSteps != null) && (
         <div
           className={cn(
-            "flex shrink-0 p-1 md:mt-auto md:border-t md:border-border/60",
-            help.collapsed ? "md:justify-center md:px-0 md:py-2" : "md:p-2",
+            "flex shrink-0 p-1 md:mt-auto md:flex-col md:gap-1 md:border-t md:border-border/60",
+            (help ?? firstSteps)?.collapsed ? "md:items-center md:px-0 md:py-2" : "md:p-2",
           )}
           data-region="help"
         >
-          <HelpItem {...help} />
+          {firstSteps != null && <FirstStepsItem {...firstSteps} />}
+          {help != null && <HelpItem {...help} />}
         </div>
       )}
     </aside>

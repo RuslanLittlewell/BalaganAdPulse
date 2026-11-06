@@ -15,6 +15,7 @@ import { ROUTES } from "@/shared/lib/index.js";
 import { useNavCollapse } from "@/features/nav-collapse/index.js";
 import { useAuth } from "@/features/auth/index.js";
 import { HelpFeedbackDialog } from "@/features/help-feedback/index.js";
+import { useFirstSteps, useFirstStepsDialog } from "@/features/onboarding/index.js";
 import {
   SectionLabel,
   Sidebar,
@@ -90,11 +91,19 @@ export function MainNav() {
   const { collapsed } = useNavCollapse();
   const { role, modules } = useAuth();
   const [helpOpen, setHelpOpen] = useState(false);
+  const firstSteps = useFirstSteps();
+  const showFirstSteps = useFirstStepsDialog((state) => state.show);
 
   return (
     <>
       <Sidebar
         help={{ label: t("help.open"), collapsed, onOpen: () => setHelpOpen(true) }}
+        firstSteps={firstSteps.visible ? {
+          label: t("onboarding.steps"),
+          progress: `${firstSteps.done} ${t("onboarding.of")} ${firstSteps.total}`,
+          collapsed,
+          onOpen: showFirstSteps,
+        } : undefined}
         header={
           <div
             className={`flex min-h-13 items-center text-xl font-semibold text-sidebar-foreground ${

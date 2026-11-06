@@ -22,6 +22,7 @@ import { previewedProjectId, usePreviewMode } from "@/features/preview-mode/inde
 import { AppHeader } from "@/widgets/app-header/index.js";
 import { MainNav } from "@/widgets/main-nav/index.js";
 import { PlatformHeader } from "@/widgets/platform-header/index.js";
+import { OnboardingLayer } from "@/features/onboarding/index.js";
 import { PlatformNav } from "@/widgets/platform-nav/index.js";
 import { AlertsProvider, Loader } from "@/shared/ui/index.js";
 import { createQueryClient, moduleKeyFromPathname, ROUTES } from "@/shared/lib/index.js";
@@ -40,6 +41,7 @@ function OrganizationArea() {
       <StaffSync />
       <ProjectsSync />
       <SessionHeartbeat />
+      <OnboardingLayer />
       <AppShell sidebar={<MainNav />} header={<AppHeader />} moduleKey={moduleKeyFromPathname(location.pathname)} preview={previewing && previewedProjectId(location.pathname) !== null}>
         <Routes location={location}>
           <Route path={ROUTES.dashboard} element={<DashboardPage />} />

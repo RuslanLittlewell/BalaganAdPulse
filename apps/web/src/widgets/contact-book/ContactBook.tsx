@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { isCustomer } from "@adpulse/access-policy";
 import { useAuth } from "@/features/auth/index.js";
 import { t } from "@/shared/config/index.js";
@@ -17,15 +17,21 @@ import { EmployeeDirectory } from "./EmployeeDirectory.js";
 import { ClientDirectory } from "./ClientDirectory.js";
 import { Can } from "@/features/permissions/index.js";
 
+export type ContactDirectory = "CLIENT" | "EMPLOYEE";
+
 export interface ContactBookProps {
   open: boolean;
   onClose: () => void;
+  initialDirectory?: ContactDirectory;
 }
 
-type Directory = "CLIENT" | "EMPLOYEE";
+type Directory = ContactDirectory;
 
-export function ContactBook({ open, onClose }: ContactBookProps) {
+export function ContactBook({ open, onClose, initialDirectory }: ContactBookProps) {
   const [directory, setDirectory] = useState<Directory>("CLIENT");
+  useEffect(() => {
+    if (open && initialDirectory) setDirectory(initialDirectory);
+  }, [open, initialDirectory]);
   const [inviting, setInviting] = useState(false);
   const { role, clientIds } = useAuth();
   const isAgency = role != null && !isCustomer(role);

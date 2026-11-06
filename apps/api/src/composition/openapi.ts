@@ -33,6 +33,7 @@ import { projectDocumentComponents, projectDocumentDoc } from "#modules/project-
 import { reportDoc, reportIndexDoc } from '#modules/reports/index.js';
 import { platformComponents, platformDoc } from "#modules/platform/index.js";
 import { supportComponents, supportDoc } from "#modules/support/index.js";
+import { onboardingComponents, onboardingDoc } from "#modules/onboarding/index.js";
 import { notificationDoc } from "#modules/notifications/index.js";
 import { telegramDoc } from "#modules/telegram-bot/index.js";
 
@@ -92,6 +93,7 @@ export function apiDocument(): OpenApiDocument {
       { mount: mountPath("session"), ...sessionDoc },
       { mount: mountPath("platform"), ...platformDoc },
       { mount: mountPath("support"), ...supportDoc },
+      { mount: mountPath("onboarding"), ...onboardingDoc },
       { mount: mountPath("user"), ...userDoc },
       { mount: mountPath("invites"), ...inviteDoc },
       { mount: mountPath("members"), ...memberDoc },
@@ -135,6 +137,7 @@ export function apiDocument(): OpenApiDocument {
       projectDocumentComponents,
       platformComponents,
       supportComponents,
+      onboardingComponents,
     ),
   });
 }

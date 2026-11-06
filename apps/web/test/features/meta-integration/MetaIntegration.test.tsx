@@ -300,3 +300,45 @@ describe("the lead import switch", () => {
   });
 });
 
+
+describe("the hint on connecting an ad account", () => {
+  const hint = "Подключите рекламный кабинет: так появятся цифры";
+
+  it("points an admin at the add tile while the project has no account", async () => {
+    server.use(http.get(list, () => HttpResponse.json([])));
+    renderWithProviders(<MetaIntegration projectId="p1" />);
+
+    expect(await screen.findByText(hint)).toBeInTheDocument();
+  });
+
+  it("points a manager at it too", async () => {
+    server.use(
+      http.get("/api/auth/me", () => HttpResponse.json(aSession({ role: "MANAGER" }))),
+      http.get(list, () => HttpResponse.json([])),
+    );
+    renderWithProviders(<MetaIntegration projectId="p1" />);
+
+    expect(await screen.findByText(hint)).toBeInTheDocument();
+  });
+
+  it("is gone once the project has an account", async () => {
+    server.use(http.get(list, () => HttpResponse.json([connected])));
+    renderWithProviders(<MetaIntegration projectId="p1" />);
+
+    expect(await screen.findByRole("button", { name: "Обновить" })).toBeInTheDocument();
+    expect(screen.queryByText(hint)).not.toBeInTheDocument();
+  });
+
+  it("stays closed once closed", async () => {
+    server.use(http.get(list, () => HttpResponse.json([])));
+    const { unmount } = renderWithProviders(<MetaIntegration projectId="p1" />);
+    await screen.findByText(hint);
+
+    await userEvent.click(screen.getByRole("button", { name: "Закрыть подсказку" }));
+    unmount();
+    renderWithProviders(<MetaIntegration projectId="p1" />);
+
+    await screen.findByRole("button", { name: "Добавить интеграцию" });
+    expect(screen.queryByText(hint)).not.toBeInTheDocument();
+  });
+});

@@ -59,20 +59,22 @@ model Organization {
 }
 
 model Membership {
-  id             String           @id @default(uuid())
-  userId         String           @map("user_id")
-  orgId          String           @map("org_id")
-  role           Role
-  status         MembershipStatus @default(ACTIVE)
-  createdAt      DateTime         @default(now()) @map("created_at")
-  updatedAt      DateTime         @updatedAt @map("updated_at")
-  dashboardTiles SummaryTile[]    @default([CONVERSIONS]) @map("dashboard_tiles")
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  org            Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  invites        Invite[]         @relation("InviteCreator")
-  access         ClientAccess[]
-  clientAccount  ClientAccount?
-  auditEvents    AuditEvent[]
+  id                 String           @id @default(uuid())
+  userId             String           @map("user_id")
+  orgId              String           @map("org_id")
+  role               Role
+  status             MembershipStatus @default(ACTIVE)
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+  dashboardTiles     SummaryTile[]    @default([CONVERSIONS]) @map("dashboard_tiles")
+  welcomedAt         DateTime?        @map("welcomed_at")
+  onboardingHiddenAt DateTime?        @map("onboarding_hidden_at")
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org                Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  invites            Invite[]         @relation("InviteCreator")
+  access             ClientAccess[]
+  clientAccount      ClientAccount?
+  auditEvents        AuditEvent[]
 
   projectGroups     ProjectGroup[]
   projectPlacements ProjectPlacement[]

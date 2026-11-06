@@ -808,6 +808,27 @@ ended can still write. One person may send five messages in ten minutes; the six
 refuses the message, the API answers **503** and the form keeps the text.
 `GET /api/support/contacts` tells the dialog the address and whether feedback can be sent.
 
+### First steps
+
+A member's first visit to an organization opens a welcome whose text depends on the role.
+Admins and managers also get "Первые шаги" in the left menu, above "Помощь", on wide
+screens: a list of steps with "2 из 6" progress. An admin's steps are adding a client,
+creating a project, connecting an ad account, inviting an employee (left out when the
+tariff allows one user), setting the KPI target and linking the Telegram bot (left out
+when the bot is not offered). A manager's are filling in a phone or Telegram name and
+linking the bot. Guests and clients get the welcome only.
+
+A step is done when the data says so, whoever did it. `GET /api/onboarding` computes the
+steps on each read; the web app reads it every minute and after any change the person
+makes. The menu item pulses while steps are left. Steps are taken in order: only the first
+one not done can be chosen, and it leads to where it is done; the contact book and the profile open
+from the `?contacts=clients`, `?contacts=employees` and `?profile=open` links. The
+membership keeps `welcomed_at` and `onboarding_hidden_at`, written by
+`POST /api/onboarding/welcome` and `POST /api/onboarding/hide`, which stay open after a
+trial has ended. The list leaves the menu when every step is done or when the person
+chooses "Пропустить"; closing it otherwise keeps it. Members who existed when this shipped
+were marked as welcomed with the list hidden.
+
 ### Roles and membership
 
 A user is an identity — a name, an email, and optionally a phone and a Telegram handle

@@ -97,7 +97,7 @@ export function wireTelegramBot(
     links, members, tokens: new RandomLinkTokens(), identity: telegram, clock,
   });
   const telegramRouter = createTelegramRouter(linkUseCases);
-  if (!settings || !telegram) return { telegramRouter, telegramPoller: IDLE_POLLER };
+  if (!settings || !telegram) return { telegramRouter, telegramLinks: linkUseCases, telegramPoller: IDLE_POLLER };
 
   const drafts = createTaskDraftUseCases({
     links,
@@ -124,6 +124,7 @@ export function wireTelegramBot(
   });
   return {
     telegramRouter,
+    telegramLinks: linkUseCases,
     telegramPoller: createUpdatePoller({
       api: telegram, handle: bot.handle, prepare: () => telegram.setCommands(BOT_COPY.commands),
     }),

@@ -11,13 +11,15 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Hint,
   ProviderLogo,
   Switch,
   TextField,
   type IntegrationProvider,
 } from "@/shared/ui/index.js";
 import { useCan } from "@/features/permissions/index.js";
-import { useModuleEnabled } from "@/features/auth/index.js";
+import { useAuth, useModuleEnabled } from "@/features/auth/index.js";
+import { HINTS, useHint } from "@/features/hints/index.js";
 import { LeadsSetupInfo } from "./LeadsSetupInfo.js";
 import { GoogleConnectionCard, GoogleReturn, googleFailureOf, startGoogleSignIn } from "@/features/google-integration/index.js";
 import { tariffRefusal } from "@/entities/tariff/index.js";
@@ -142,6 +144,11 @@ export function MetaIntegration({ projectId }: { projectId: string }) {
   const [googleFailure, setGoogleFailure] = useState<string | null>(null);
   const square = useSquareByHeight<HTMLDivElement>();
   useRefreshOnImport(projectId, connections.data);
+  const { role } = useAuth();
+  const firstAccount = useHint(
+    HINTS.projectsFirstAdAccount,
+    (role === "ADMIN" || role === "MANAGER") && connections.isSuccess && connections.data.length === 0,
+  );
 
   if (!allowed) return null;
   return (
@@ -168,14 +175,20 @@ export function MetaIntegration({ projectId }: { projectId: string }) {
         {(connections.data ?? []).map((connection) => connection.provider === "GOOGLE"
           ? <GoogleConnectionCard key={connection.id} projectId={projectId} connection={connection} />
           : <MetaConnectionCard key={connection.id} projectId={projectId} connection={connection} />)}
-        <AddTile
-          ref={square.ref}
-          label={t("integrations.add")}
-          style={{ width: square.side }}
-          disabled={connections.isPending || connections.isError}
-          onClick={() => setChoosing(true)}
-          className="min-w-19 shrink-0 self-stretch"
-        />
+        <Hint
+          open={firstAccount.open && !choosing && !adding}
+          text={t("hint.projects.firstAdAccount")}
+          onDismiss={firstAccount.dismiss}
+        >
+          <AddTile
+            ref={square.ref}
+            label={t("integrations.add")}
+            style={{ width: square.side }}
+            disabled={connections.isPending || connections.isError}
+            onClick={() => setChoosing(true)}
+            className="min-w-19 shrink-0 self-stretch"
+          />
+        </Hint>
         <ProviderDialog
           open={choosing}
           onClose={() => setChoosing(false)}

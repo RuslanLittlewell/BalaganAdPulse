@@ -10,13 +10,12 @@
 ## 2. Web
 
 - [x] 2.1 Give `Sidebar` a `help` prop that renders the bottom help item, and remove the unused `footer` slot
-- [x] 2.2 Add `useHintMemory().forget(userId)`
-- [x] 2.3 Add the support contacts query and the feedback mutation
-- [x] 2.4 Build `HelpFeedbackDialog`: topic, message, screenshots by pick, drop and paste, context notice, sent and unavailable states, support email, hint reset
-- [x] 2.5 Open the dialog from `MainNav`, on desktop and in the mobile bar
-- [x] 2.6 Add the Russian copy to `ru.ts`
+- [x] 2.2 Add the support contacts query and the feedback mutation
+- [x] 2.3 Build `HelpFeedbackDialog`: topic, message, screenshots by pick, drop and paste, sent and unavailable states, the support email on failure
+- [x] 2.4 Open the dialog from `MainNav`, on desktop and in the mobile bar
+- [x] 2.5 Add the Russian copy to `ru.ts`
 
 ## 3. Tests
 
 - [x] 3.1 API tests: delivery with attachments and reply-to, context from the session, validation errors, 503 when unconfigured or failing, expired trial, client role, platform administrator, rate limit, contacts
-- [x] 3.2 Web tests: menu item and collapsed name, default topic, validation, paste and removal of a screenshot, context notice, sent state, unavailable state, `mailto:` link, hint reset
+- [x] 3.2 Web tests: menu item and collapsed name, default topic, validation, paste and removal of a screenshot, sent state and closing it, unavailable state, `mailto:` link on failure, no help block beside the form

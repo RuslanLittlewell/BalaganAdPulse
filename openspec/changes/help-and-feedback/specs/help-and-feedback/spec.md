@@ -1,7 +1,7 @@
 ## Purpose
 
 Lets every member of an organization reach support from inside the app: send a problem,
-an idea or a question with the context support needs, and find the support address.
+an idea or a question with the context support needs.
 
 ## ADDED Requirements
 
@@ -69,9 +69,7 @@ with 400 and send nothing.
 
 The form SHALL send, with the message, the page path, the browser's user agent and the
 screen size. The API SHALL add the organization, the person's name, email or login, their
-role and the tariff from the session, so the client cannot forge them. The form SHALL show
-the person, before sending, that the page, the browser, the organization and their account
-go along with the message.
+role and the tariff from the session, so the client cannot forge them.
 
 #### Scenario: Context in the email
 - **WHEN** a manager of "Acme" sends a problem from `/projects/42`
@@ -129,21 +127,26 @@ SHALL answer 429.
 - **WHEN** a person sends a sixth message within ten minutes
 - **THEN** the API responds 429 and sends nothing
 
-### Requirement: The dialog shows the support email
+### Requirement: The dialog points to the support email when feedback fails
 
 `GET /api/support/contacts` SHALL return, to any active member, the support email from
-`SUPPORT_EMAIL` and whether feedback can be sent. The dialog SHALL show the email as a
-`mailto:` link when it is set and SHALL leave the contact out when it is not. When
-feedback cannot be sent the form SHALL be replaced by a notice that points to the email,
-or says that writing to support is unavailable when no email is set.
+`SUPPORT_EMAIL` and whether feedback can be sent. The dialog SHALL show the email only
+when writing through the form does not work: as a `mailto:` link in the notice that
+replaces the form when feedback cannot be sent, and after a failed send. When no email is
+set the notice SHALL say that writing to support is unavailable. Beside a working form the
+dialog SHALL show no contacts and no further help.
 
-#### Scenario: Email set
-- **WHEN** `SUPPORT_EMAIL` is `balagan.ads@gmail.com`
-- **THEN** the dialog links to `mailto:balagan.ads@gmail.com`
+#### Scenario: Form works
+- **WHEN** feedback can be sent
+- **THEN** the dialog shows the form and no support email
 
 #### Scenario: Mail transport down
-- **WHEN** the email is set but feedback cannot be sent
-- **THEN** the form is replaced by a notice with the `mailto:` link
+- **WHEN** `SUPPORT_EMAIL` is `balagan.ads@gmail.com` but feedback cannot be sent
+- **THEN** the form is replaced by a notice that links to `mailto:balagan.ads@gmail.com`
+
+#### Scenario: Send fails
+- **WHEN** the API answers 503 to a message
+- **THEN** the form keeps the message and its error links to the support email
 
 #### Scenario: Nothing configured
 - **WHEN** `SUPPORT_EMAIL` is unset

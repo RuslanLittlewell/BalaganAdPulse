@@ -6,7 +6,6 @@ project's button rule forbids for buttons. The API already sends mail through
 `MailTransport` (`SmtpMailTransport`, or `LogMailTransport` when SMTP is unset), used by
 password recovery. There is a shared `createRateLimit` middleware, multer for uploads, and
 a trial guard mounted after actor resolution that refuses writes on an expired trial.
-Closed hints live in a persisted zustand store keyed by user id.
 
 ## Goals / Non-Goals
 
@@ -31,9 +30,8 @@ Closed hints live in a persisted zustand store keyed by user id.
 - **Email body.** Plain text and escaped HTML in Russian, like the reset link: topic, message, then a context table. Subject: `[Balagan BI] <topic> · <organization>`, the brand the users see and the password email uses.
 - **Sidebar help button from props.** `Sidebar` gets `help?: { label: string; collapsed: boolean; onOpen: () => void }` and renders the button itself in a bottom region, styled as a nav item, with a tooltip when collapsed. `MainNav` owns the open state and renders the dialog. `PlatformNav` passes no `help`. The unused `footer` slot is removed, since its only purpose would now break the button rule.
 - **Mobile.** On narrow screens the sidebar is a bottom bar; the help item becomes its last item, after the sections.
-- **Dialog layout.** `features/help-feedback` holds `HelpFeedbackDialog`: the form on top (topic as a select, message, screenshots, the context notice, send), then a help block with the support email and "Показать подсказки снова". The email and the availability come from `GET /api/support/contacts` through React Query.
+- **Dialog layout.** `features/help-feedback` holds `HelpFeedbackDialog`, which holds the form alone: topic as a select, message, screenshots, send. The technical context goes along without a notice. The email and the availability come from `GET /api/support/contacts` through React Query and appear only in the unavailable notice and in the error after a failed send.
 - **Screenshots in the web app.** The shared `Dropzone` takes one file at a time, picked or dropped; a paste handler on the dialog takes every image in `clipboardData.files`. Thumbnails use object URLs, revoked on removal and when the dialog closes. The form checks type and size before attaching, and the API checks them again.
-- **Hint reset.** `useHintMemory` gains `forget(userId)`, which drops that user's entry only.
 
 ## Risks / Trade-offs
 

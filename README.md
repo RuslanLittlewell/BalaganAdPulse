@@ -800,7 +800,7 @@ session, never from the request. Nothing is stored.
 
 | Variable | Purpose |
 |----------|---------|
-| `SUPPORT_EMAIL` | Receives the feedback and is shown in the dialog as the support contact; production uses `balagan.ads@gmail.com` |
+| `SUPPORT_EMAIL` | Receives the feedback, and is offered in the dialog when the form cannot send; production uses `balagan.ads@gmail.com` |
 
 The route is mounted before the trial guard, so members of an organization whose trial has
 ended can still write. One person may send five messages in ten minutes; the sixth answers

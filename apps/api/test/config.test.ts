@@ -77,6 +77,16 @@ describe("loadConfig", () => {
     }).mail).toMatchObject({ host: "smtp.example.com", port: 587, from: "Robot <robot@example.com>" });
   });
 
+  it("reads the support address, and leaves it unset when empty", () => {
+    expect(loadConfig({ JWT_SECRET: "s", SUPPORT_EMAIL: " balagan.ads@gmail.com " }).supportEmail).toBe("balagan.ads@gmail.com");
+    expect(loadConfig({ JWT_SECRET: "s", SUPPORT_EMAIL: "" }).supportEmail).toBeNull();
+    expect(loadConfig({ JWT_SECRET: "s" }).supportEmail).toBeNull();
+  });
+
+  it("refuses a support address that is not an email", () => {
+    expect(() => loadConfig({ JWT_SECRET: "s", SUPPORT_EMAIL: "support" })).toThrow(/SUPPORT_EMAIL/);
+  });
+
   it("refuses an SMTP port that is not a number", () => {
     expect(() => loadConfig({ JWT_SECRET: "s", SMTP_USER: "u", SMTP_PASSWORD: "p", SMTP_PORT: "smtp" }))
       .toThrow(/SMTP_PORT/);

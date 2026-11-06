@@ -4,6 +4,7 @@ import { config } from "#shared/infrastructure/config.js";
 import { requestContext } from "#shared/presentation/request-context.js";
 import { createAuditRouter } from "#modules/audit/index.js";
 import { createTrialGuard } from "#modules/tariffs/index.js";
+import type { SupportRouter } from "#modules/support/index.js";
 import type { SessionPrincipal } from "#modules/identity/index.js";
 import type { createImportWorker } from "#modules/integrations/application/import-worker.js";
 import type { createLeadPollWorker } from "#modules/integrations/application/lead-poll-worker.js";
@@ -21,6 +22,7 @@ import { wireLeads } from "./wiring/leads.js";
 import { wireMembersAndPresence } from "./wiring/members-presence.js";
 import { wireNotifications } from "./wiring/notifications.js";
 import { wirePlatform } from "./wiring/platform.js";
+import { wireSupport } from "./wiring/support.js";
 import { wireReportsAndKpi } from "./wiring/reports-kpi.js";
 import { wireSummaryTiles } from "./wiring/summary-tiles.js";
 import { wireProjectDocuments } from "./wiring/project-documents.js";
@@ -44,6 +46,7 @@ export interface ApiContainer {
   readonly actorResolution: RequestHandler;
   readonly requestContext: RequestHandler;
   readonly trialGuard: RequestHandler;
+  readonly supportRouter: SupportRouter;
   readonly sessionRouter: Router;
   readonly platformRouter: Router;
   readonly userRouter: Router;
@@ -107,11 +110,13 @@ export function createContainer(): ApiContainer {
   const summaries = wireSummaryTiles(kernel, { projectRepository: catalog.projectRepository });
   const notebook = wireProjectDocuments(kernel, { projectRepository: catalog.projectRepository }, notices);
   const platform = wirePlatform(kernel);
+  const support = wireSupport(kernel);
 
   return {
     documentationRouter: config.documentation ? createDocumentationRouter(apiDocument()) : Router(),
     requestContext,
     trialGuard: createTrialGuard(kernel.tariffs),
+    supportRouter: support.supportRouter,
     auditRouter: createAuditRouter(kernel.auditReader),
     connections: kernel.connections,
 

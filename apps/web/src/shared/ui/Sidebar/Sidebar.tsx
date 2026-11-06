@@ -1,12 +1,20 @@
 import type { ReactNode } from "react";
+import { CircleHelpIcon } from "lucide-react";
 import { cn } from "@/shared/lib/utils.js";
-import { Separator } from "../ui/separator.js";
+import { Button } from "../ui/button.js";
+import WarmTooltip from "../WarmTooltip/WarmTooltip.js";
+
+export interface SidebarHelp {
+  label: string;
+  collapsed: boolean;
+  onOpen: () => void;
+}
 
 export interface SidebarProps {
   header?: ReactNode;
   children: ReactNode;
   action?: ReactNode;
-  footer?: ReactNode;
+  help?: SidebarHelp;
 }
 
 export const sidebarNavClassName = (collapsed: boolean) =>
@@ -30,11 +38,27 @@ export const SIDEBAR_ICON_CLASS_NAME = "size-4 shrink-0 md:size-5";
 export const sidebarLabelClassName = (collapsed: boolean) =>
   cn("max-w-full truncate", collapsed && "md:sr-only");
 
-export function Sidebar({ header, children, action, footer }: SidebarProps) {
+function HelpItem({ label, collapsed, onOpen }: SidebarHelp) {
+  const button = (
+    <Button
+      type="button"
+      variant="ghost"
+      onClick={onOpen}
+      className={cn(sidebarLinkClassName(collapsed, false), "h-auto w-full")}
+    >
+      <CircleHelpIcon className={SIDEBAR_ICON_CLASS_NAME} aria-hidden="true" />
+      <span className={sidebarLabelClassName(collapsed)}>{label}</span>
+    </Button>
+  );
+  if (!collapsed) return button;
+  return <WarmTooltip content={label} side="right">{button}</WarmTooltip>;
+}
+
+export function Sidebar({ header, children, action, help }: SidebarProps) {
   return (
-    <aside className="flex min-h-0 flex-col md:h-full">
+    <aside className="flex min-h-0 flex-row md:h-full md:flex-col">
       {header != null && <div className="hidden md:block" data-region="header">{header}</div>}
-      <div className="min-h-0 flex-1 overflow-x-auto md:overflow-auto" data-region="list">
+      <div className="min-h-0 min-w-0 flex-1 overflow-x-auto md:overflow-auto" data-region="list">
         {children}
       </div>
       {action != null && (
@@ -42,13 +66,16 @@ export function Sidebar({ header, children, action, footer }: SidebarProps) {
           {action}
         </div>
       )}
-      {footer != null && (
-        <>
-          <Separator />
-          <div className="mt-auto p-2" data-region="footer">
-            {footer}
-          </div>
-        </>
+      {help != null && (
+        <div
+          className={cn(
+            "flex shrink-0 p-1 md:mt-auto md:border-t md:border-border/60",
+            help.collapsed ? "md:justify-center md:px-0 md:py-2" : "md:p-2",
+          )}
+          data-region="help"
+        >
+          <HelpItem {...help} />
+        </div>
       )}
     </aside>
   );

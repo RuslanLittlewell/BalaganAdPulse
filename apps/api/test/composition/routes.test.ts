@@ -12,6 +12,7 @@ const expectedMounts = [
   "/api/platform",
   "/api",
   "/api",
+  "/api/support",
   "/api",
   "/api",
   "/api/projects/:projectId/reports",

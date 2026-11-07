@@ -63,8 +63,11 @@ import {
 } from "@/widgets/performance-table/index.js";
 import { ProjectDocuments } from "@/widgets/project-documents/index.js";
 import { CampaignKpiStrip, type CampaignKpiItem } from "@/widgets/campaign-kpi-strip/index.js";
+import { useSeoSites } from "@/entities/seo/index.js";
+import { SeoOverview, SeoSummary } from "@/widgets/seo-overview/index.js";
 
 const sourceKey = (provider: string, accountId: string) => `${provider}:${accountId}`;
+const siteKey = (siteId: string) => `seo:${siteId}`;
 
 function CampaignTablePlaceholder() {
   return (
@@ -121,6 +124,7 @@ export function ProjectPage() {
     projectId ?? "",
     managesIntegrations && projectId != null,
   );
+  const seoSites = useSeoSites(projectId);
   const source = useSourceMemory((state) => (projectId ? state.sources[projectId] : undefined)) ?? null;
   const rememberSource = useSourceMemory((state) => state.rememberSource);
   const [runningOnly, setRunningOnly] = useState(true);
@@ -170,10 +174,13 @@ export function ProjectPage() {
     if (account) addSource(account, `${channelLabel(account.channel)} · ${account.accountId}`);
   }
   const sourceKeys = [...sources.keys()];
+  const sites = (seoSites.data ?? []).map((site) => ({ key: siteKey(site.id), label: `${t("seo.tab")} · ${site.label}`, site }));
+  const tabKeys = [...sourceKeys, ...sites.map((entry) => entry.key)];
   const separated = sourceKeys.length > 1;
   const chosen =
-    source != null && sources.has(source) ? source : sourceKeys[0];
-  const chosenAccount = separated && chosen ? sources.get(chosen)?.account : undefined;
+    source != null && tabKeys.includes(source) ? source : tabKeys[0];
+  const chosenSite = sites.find((entry) => entry.key === chosen)?.site;
+  const chosenAccount = separated && chosen && !chosenSite ? sources.get(chosen)?.account : undefined;
   const inAccount = all.filter(
     (campaign) =>
       !separated ||
@@ -221,6 +228,19 @@ export function ProjectPage() {
     .filter((campaign) => campaign.channel === account.channel && campaign.sourceAccountId === account.accountId)
     .map((campaign) => campaign.performance));
   const onlyAccount = sourceKeys.length === 1 ? sources.get(sourceKeys[0]!)?.account ?? null : null;
+
+  const sourceTabs = tabKeys.length > 0 ? (
+    <Tabs
+      items={[
+        ...[...sources].map(([id, { label }]) => ({ id, label })),
+        ...sites.map((entry) => ({ id: entry.key, label: entry.label })),
+      ]}
+      activeId={chosen}
+      onSelect={(id) => rememberSource(project.id, id)}
+      ariaLabel={t("campaigns.sources")}
+      className="w-fit"
+    />
+  ) : null;
 
   return (
     <div className="flex min-h-full flex-col gap-5">
@@ -280,6 +300,9 @@ export function ProjectPage() {
             <PeriodControl />
           </div>
 
+          {chosenSite ? (
+            <SeoSummary key={chosenSite.id} projectId={project.id} siteId={chosenSite.id} range={range} />
+          ) : (
           <PerformanceSummary
             tiles={tiles.data ? tilesOf(tiles.data, chosenAccount) : []}
             onTilesChange={
@@ -300,8 +323,20 @@ export function ProjectPage() {
               projectFigures: summary.data ?? EMPTY_PERFORMANCE,
             }}
           />
+          )}
 
-          {campaigns.isPending ? (
+          {chosenSite ? (
+            <div className="flex flex-col gap-2">
+              {sourceTabs}
+              <SeoOverview
+                key={chosenSite.id}
+                projectId={project.id}
+                site={chosenSite}
+                range={range}
+                canCheck={managesIntegrations && !previewing}
+              />
+            </div>
+          ) : campaigns.isPending ? (
             <CampaignTablePlaceholder />
           ) : campaigns.isError ? (
             <EmptyState
@@ -311,16 +346,9 @@ export function ProjectPage() {
             />
           ) : (
             <div className="flex flex-col gap-2">
-              {(sources.size > 0 || all.length > 0) && (
+              {(tabKeys.length > 0 || all.length > 0) && (
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  {sources.size > 0 && (
-                    <Tabs
-                      items={[...sources].map(([id, { label }]) => ({ id, label }))}
-                      activeId={chosen}
-                      onSelect={(id) => rememberSource(project.id, id)}
-                      ariaLabel={t("campaigns.sources")}
-                    />
-                  )}
+                  {sourceTabs}
                   {all.length > 0 && (
                     <label className="ml-auto flex items-center gap-2 text-sm">
                       <Switch checked={runningOnly} onCheckedChange={setRunningOnly} />

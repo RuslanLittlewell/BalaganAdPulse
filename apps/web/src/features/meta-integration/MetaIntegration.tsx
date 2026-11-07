@@ -22,6 +22,8 @@ import { useAuth, useModuleEnabled } from "@/features/auth/index.js";
 import { HINTS, useHint } from "@/features/hints/index.js";
 import { LeadsSetupInfo } from "./LeadsSetupInfo.js";
 import { GoogleConnectionCard, GoogleReturn, googleFailureOf, startGoogleSignIn } from "@/features/google-integration/index.js";
+import { SeoConnectionCard, SeoReturn, seoFailureOf, startSeoSignIn } from "@/features/seo-integration/index.js";
+import { useSeoSites } from "@/entities/seo/index.js";
 import { tariffRefusal } from "@/entities/tariff/index.js";
 
 export interface Connection {
@@ -43,8 +45,8 @@ interface LeadImport {
   lastError: string | null;
 }
 
-const PROVIDERS: readonly IntegrationProvider[] = ["META", "GOOGLE", "YANDEX", "TIKTOK", "GPT"];
-const AVAILABLE: readonly IntegrationProvider[] = ["META", "GOOGLE"];
+const PROVIDERS: readonly IntegrationProvider[] = ["META", "GOOGLE", "SEARCH_CONSOLE", "YANDEX", "TIKTOK", "GPT"];
+const AVAILABLE: readonly IntegrationProvider[] = ["META", "GOOGLE", "SEARCH_CONSOLE"];
 
 const integrationsPath = (projectId: string) => `/projects/${projectId}/integrations`;
 const integrationsKey = (projectId: string) => ["integrations", projectId];
@@ -139,6 +141,7 @@ function useSquareByHeight<T extends HTMLElement>() {
 export function MetaIntegration({ projectId }: { projectId: string }) {
   const allowed = useCan("update", "integration");
   const connections = useIntegrations(projectId, allowed);
+  const sites = useSeoSites(allowed ? projectId : null);
   const [choosing, setChoosing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [googleFailure, setGoogleFailure] = useState<string | null>(null);
@@ -164,6 +167,7 @@ export function MetaIntegration({ projectId }: { projectId: string }) {
           </section>
         )}
         <GoogleReturn projectId={projectId} />
+        <SeoReturn projectId={projectId} />
         {googleFailure && (
           <section className="flex items-center gap-2 rounded-lg border border-border glass-card p-3">
             <p role="alert" className="text-xs text-destructive">{googleFailure}</p>
@@ -175,6 +179,7 @@ export function MetaIntegration({ projectId }: { projectId: string }) {
         {(connections.data ?? []).map((connection) => connection.provider === "GOOGLE"
           ? <GoogleConnectionCard key={connection.id} projectId={projectId} connection={connection} />
           : <MetaConnectionCard key={connection.id} projectId={projectId} connection={connection} />)}
+        {(sites.data ?? []).map((site) => <SeoConnectionCard key={site.id} projectId={projectId} site={site} />)}
         <Hint
           open={firstAccount.open && !choosing && !adding}
           text={t("hint.projects.firstAdAccount")}
@@ -197,6 +202,11 @@ export function MetaIntegration({ projectId }: { projectId: string }) {
             if (provider === "GOOGLE") {
               setGoogleFailure(null);
               startGoogleSignIn(projectId).catch((error: unknown) => setGoogleFailure(googleFailureOf(error)));
+              return;
+            }
+            if (provider === "SEARCH_CONSOLE") {
+              setGoogleFailure(null);
+              startSeoSignIn(projectId).catch((error: unknown) => setGoogleFailure(seoFailureOf(error)));
               return;
             }
             setAdding(true);

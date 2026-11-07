@@ -8,6 +8,7 @@ import type { SupportRouter } from "#modules/support/index.js";
 import type { SessionPrincipal } from "#modules/identity/index.js";
 import type { createImportWorker } from "#modules/integrations/application/import-worker.js";
 import type { createLeadPollWorker } from "#modules/integrations/application/lead-poll-worker.js";
+import type { createSeoWorker } from "#modules/seo/index.js";
 import type { PresenceRegistry } from "#modules/presence/index.js";
 import type { Connection, ConnectionRegistry } from "#modules/realtime/index.js";
 import type { DueSoonWorker } from "#modules/notifications/index.js";
@@ -26,12 +27,15 @@ import { wireSupport } from "./wiring/support.js";
 import { wireOnboarding } from "./wiring/onboarding.js";
 import { wireReportsAndKpi } from "./wiring/reports-kpi.js";
 import { wireSummaryTiles } from "./wiring/summary-tiles.js";
+import { wireSeo } from "./wiring/seo.js";
 import { wireProjectDocuments } from "./wiring/project-documents.js";
 import { wireTasks } from "./wiring/tasks.js";
 import { wireTelegramBot, wireTelegramNotifications, type TelegramPoller } from "./wiring/telegram-bot.js";
 
 export interface ApiContainer {
   readonly integrationRouter: Router;
+  readonly seoRouter: Router;
+  readonly seoWorker: ReturnType<typeof createSeoWorker>;
   readonly googleCallbackRouter: Router;
   readonly importWorker: ReturnType<typeof createImportWorker>;
   readonly leadPollWorker: ReturnType<typeof createLeadPollWorker>;
@@ -110,6 +114,7 @@ export function createContainer(): ApiContainer {
     campaignRepository: advertising.campaignRepository,
   }, notices);
   const summaries = wireSummaryTiles(kernel, { projectRepository: catalog.projectRepository });
+  const seo = wireSeo(kernel, { projectRepository: catalog.projectRepository });
   const notebook = wireProjectDocuments(kernel, { projectRepository: catalog.projectRepository }, notices);
   const platform = wirePlatform(kernel);
   const support = wireSupport(kernel);
@@ -155,6 +160,8 @@ export function createContainer(): ApiContainer {
     projectMetricRouter: advertising.projectMetricRouter,
     summaryRouter: advertising.summaryRouter,
     integrationRouter: advertising.integrationRouter,
+    seoRouter: seo.seoRouter,
+    seoWorker: seo.seoWorker,
     googleCallbackRouter: advertising.googleCallbackRouter,
     adPreviewRouter: advertising.adPreviewRouter,
     importWorker: advertising.importWorker,

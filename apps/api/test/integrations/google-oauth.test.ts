@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import { GoogleOAuth } from "../../src/modules/integrations/infrastructure/google-oauth.js";
+import { GoogleOAuth, SEARCH_CONSOLE_SCOPE } from "../../src/modules/integrations/infrastructure/google-oauth.js";
 
 const settings = { clientId: "client-id", clientSecret: "client-secret", redirectUri: "https://app.test/api/integrations/google/callback" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
@@ -16,6 +16,12 @@ it("sends the member to Google asking for offline access to Google Ads with the 
     prompt: "consent",
     state: "state-1",
   });
+});
+
+it("asks for read-only Search Console access when given that scope", () => {
+  const url = new URL(new GoogleOAuth(settings).authorizeUrl("state-2", SEARCH_CONSOLE_SCOPE));
+  expect(url.searchParams.get("scope")).toBe("https://www.googleapis.com/auth/webmasters.readonly");
+  expect(url.searchParams.get("state")).toBe("state-2");
 });
 
 it("redeems a code for a refresh token with the client credentials in the form body", async () => {

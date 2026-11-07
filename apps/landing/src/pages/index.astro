@@ -39,8 +39,9 @@ const features = [
 
 const data = [
   "Только данные выбранного кабинета Google Ads: названия и статусы кампаний, групп объявлений и объявлений, расходы, показы, клики, конверсии и ценность конверсий, а также валюту и часовой пояс аккаунта.",
-  "BalaganBI только читает данные: он не создаёт и не меняет кампании, ставки, бюджеты и объявления.",
-  "Данные используются только для отчётов агентства перед клиентом, чей это кабинет.",
+  "Для выбранного сайта Google Search Console: список доступных сайтов, карты сайта, клики, показы, CTR, среднюю позицию, запросы и страницы.",
+  "BalaganBI только читает данные: он не меняет кампании, ставки, бюджеты, объявления или данные Search Console.",
+  "Данные используются только для отчётов агентства перед клиентом, которому принадлежит кабинет или сайт.",
   "Мы не продаём данные, не передаём их третьим лицам, не используем для рекламы и для обучения моделей ИИ.",
   "Доступ можно отозвать в любой момент: отключить интеграцию в проекте или удалить доступ на странице myaccount.google.com/permissions.",
 ];
@@ -135,7 +136,12 @@ const data = [
         changes campaigns, bids, budgets or ads.
       </p>
       <p class="leading-7">
-        The data is used only for the agency's reporting to the client who owns the account. It is not sold, shared
+        When a Search Console site is connected, its verified owner grants read-only access. BalaganBI reads the
+        accessible sites, the selected site's sitemaps and search performance, including clicks, impressions,
+        CTR, average position, queries and pages. It never changes Search Console data.
+      </p>
+      <p class="leading-7">
+        The data is used only for the agency's reporting to the client who owns the account or site. It is not sold, shared
         with third parties, used for advertising or used to train AI models. Access can be revoked at any time by
         disconnecting the integration or at myaccount.google.com/permissions.
       </p>

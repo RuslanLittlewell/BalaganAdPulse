@@ -36,6 +36,7 @@ import { supportComponents, supportDoc } from "#modules/support/index.js";
 import { onboardingComponents, onboardingDoc } from "#modules/onboarding/index.js";
 import { notificationDoc } from "#modules/notifications/index.js";
 import { telegramDoc } from "#modules/telegram-bot/index.js";
+import { seoAuditDoc, seoConnectionDoc, seoReadDoc } from "#modules/seo/index.js";
 
 const require = createRequire(import.meta.url);
 
@@ -103,6 +104,9 @@ export function apiDocument(): OpenApiDocument {
       { mount: mountPath("report-index"), ...reportIndexDoc },
       { mount: mountPath("integrations"), ...integrationDoc },
       { mount: mountPath("integrations"), ...googleIntegrationDoc },
+      { mount: mountPath("seo"), ...seoConnectionDoc },
+      { mount: mountPath("seo"), ...seoReadDoc },
+      { mount: mountPath("seo"), ...seoAuditDoc },
       { mount: mountPath("google-callback"), ...googleCallbackDoc },
       { mount: mountPath("ad-previews"), ...adPreviewDoc },
       { mount: mountPath("projects"), ...projectDoc },

@@ -94,7 +94,7 @@ describe("starting a sign-in", () => {
     const d = fixture();
     const { url } = await d.service.start(admin, "p1", null);
     const state = new URL(url).searchParams.get("state")!;
-    expect(d.authorizations.get(state)).toMatchObject({ projectId: "p1", userId: "u1", integrationId: null, encryptedRefreshToken: null });
+    expect(d.authorizations.get(state)).toMatchObject({ projectId: "p1", userId: "u1", integrationId: null, purpose: "ADS", encryptedRefreshToken: null });
   });
 
   it("says Google is not configured rather than failing obscurely", async () => {
@@ -125,7 +125,7 @@ describe("Google's answer", () => {
 
     const outcome = await d.service.complete({ state, code: "abc" });
 
-    expect(outcome).toEqual({ projectId: "p1", authorization: state });
+    expect(outcome).toEqual({ projectId: "p1", authorization: state, purpose: "ADS" });
     expect(d.authorizations.get(state)?.encryptedRefreshToken).toBe("enc(refresh(abc))");
   });
 
@@ -134,12 +134,12 @@ describe("Google's answer", () => {
     const state = new URL(url).searchParams.get("state")!;
     await d.service.complete({ state, code: "abc" });
 
-    expect(await d.service.complete({ state, code: "abc" })).toEqual({ projectId: "p1", authorization: null });
+    expect(await d.service.complete({ state, code: "abc" })).toEqual({ projectId: "p1", authorization: null, purpose: "ADS" });
     expect(d.google.redeem).toHaveBeenCalledOnce();
   });
 
   it("knows nothing of a state it never issued", async () => {
-    expect(await d.service.complete({ state: "forged", code: "abc" })).toEqual({ projectId: null, authorization: null });
+    expect(await d.service.complete({ state: "forged", code: "abc" })).toEqual({ projectId: null, authorization: null, purpose: "ADS" });
     expect(d.google.redeem).not.toHaveBeenCalled();
   });
 
@@ -147,8 +147,18 @@ describe("Google's answer", () => {
     const { url } = await d.service.start(admin, "p1", null);
     const state = new URL(url).searchParams.get("state")!;
 
-    expect(await d.service.complete({ state, code: null })).toEqual({ projectId: "p1", authorization: null });
+    expect(await d.service.complete({ state, code: null })).toEqual({ projectId: "p1", authorization: null, purpose: "ADS" });
     expect(d.authorizations.has(state)).toBe(false);
+  });
+
+  it("names the purpose of a Search Console sign-in so the browser returns to the right place", async () => {
+    d.authorizations.set("console", {
+      id: "console", projectId: "p1", userId: "u1", integrationId: null, purpose: "SEARCH_CONSOLE",
+      encryptedRefreshToken: null, expiresAt: new Date(NOW.getTime() + 60_000),
+    });
+
+    expect(await d.service.complete({ state: "console", code: "abc" })).toEqual({ projectId: "p1", authorization: "console", purpose: "SEARCH_CONSOLE" });
+    expect(d.authorizations.get("console")?.encryptedRefreshToken).toBe("enc(refresh(abc))");
   });
 
   it("closes the sign-in when Google refuses the code", async () => {
@@ -156,7 +166,7 @@ describe("Google's answer", () => {
     const { url } = await d.service.start(admin, "p1", null);
     const state = new URL(url).searchParams.get("state")!;
 
-    expect(await d.service.complete({ state, code: "stale" })).toEqual({ projectId: "p1", authorization: null });
+    expect(await d.service.complete({ state, code: "stale" })).toEqual({ projectId: "p1", authorization: null, purpose: "ADS" });
     expect(d.authorizations.has(state)).toBe(false);
   });
 });
@@ -184,6 +194,18 @@ describe("choosing an account", () => {
     const d = fixture();
     const { url } = await d.service.start(admin, "p1", null);
     await expect(d.service.accounts(admin, "p1", new URL(url).searchParams.get("state")!)).rejects.toMatchObject({ category: "not-found" });
+  });
+
+  it("does not list Google Ads accounts for a sign-in made for Search Console", async () => {
+    const d = fixture();
+    d.authorizations.set("console", {
+      id: "console", projectId: "p1", userId: "u1", integrationId: null, purpose: "SEARCH_CONSOLE",
+      encryptedRefreshToken: "enc(refresh)", expiresAt: new Date(NOW.getTime() + 60_000),
+    });
+
+    await expect(d.service.accounts(admin, "p1", "console")).rejects.toMatchObject({ category: "not-found" });
+    await expect(d.service.connect(admin, "p1", { authorization: "console", accountId: "222" })).rejects.toMatchObject({ category: "not-found" });
+    expect(d.google.accounts).not.toHaveBeenCalled();
   });
 
   it("has no choice to offer when the sign-in renews a connection", async () => {

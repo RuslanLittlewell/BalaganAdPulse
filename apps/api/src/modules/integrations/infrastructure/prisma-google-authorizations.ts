@@ -1,22 +1,27 @@
 import type { PrismaClient } from "@prisma/client";
-import type { GoogleAuthorizationRecord, GoogleAuthorizations } from "../application/google-use-cases.js";
+import type { GoogleAuthorizationRecord, GoogleAuthorizations, SignInPurpose } from "../application/google-use-cases.js";
 
-const record = { id: true, projectId: true, userId: true, integrationId: true, encryptedRefreshToken: true } as const;
+const record = { id: true, projectId: true, userId: true, integrationId: true, purpose: true, encryptedRefreshToken: true } as const;
 
 export class PrismaGoogleAuthorizations implements GoogleAuthorizations {
   constructor(private readonly prisma: PrismaClient) {}
 
   async open(
-    data: { projectId: string; userId: string; integrationId: string | null },
+    data: { projectId: string; userId: string; integrationId: string | null; purpose: SignInPurpose },
     now: Date,
     expiresAt: Date,
   ): Promise<GoogleAuthorizationRecord> {
     await this.prisma.googleAuthorization.deleteMany({ where: { expiresAt: { lt: now } } });
-    return this.prisma.googleAuthorization.create({ data: { ...data, expiresAt }, select: record });
+    return this.withPurpose(await this.prisma.googleAuthorization.create({ data: { ...data, expiresAt }, select: record }));
   }
 
-  read(id: string, now: Date): Promise<GoogleAuthorizationRecord | null> {
-    return this.prisma.googleAuthorization.findFirst({ where: { id, expiresAt: { gt: now } }, select: record });
+  async read(id: string, now: Date): Promise<GoogleAuthorizationRecord | null> {
+    const found = await this.prisma.googleAuthorization.findFirst({ where: { id, expiresAt: { gt: now } }, select: record });
+    return found ? this.withPurpose(found) : null;
+  }
+
+  private withPurpose<T extends { purpose: string }>(row: T): T & { purpose: SignInPurpose } {
+    return { ...row, purpose: row.purpose === "SEARCH_CONSOLE" ? "SEARCH_CONSOLE" : "ADS" };
   }
 
   async grant(id: string, encryptedRefreshToken: string, now: Date, expiresAt: Date): Promise<boolean> {

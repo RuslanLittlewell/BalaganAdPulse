@@ -4,7 +4,8 @@ import { exchange } from "./google-http.js";
 
 const AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
-const SCOPE = "https://www.googleapis.com/auth/adwords";
+export const ADS_SCOPE = "https://www.googleapis.com/auth/adwords";
+export const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 
 export interface GoogleOAuthSettings {
   clientId: string;
@@ -22,13 +23,13 @@ export class GoogleOAuth {
     private readonly timeoutMs = 30_000,
   ) {}
 
-  authorizeUrl(state: string): string {
+  authorizeUrl(state: string, scope = ADS_SCOPE): string {
     const url = new URL(AUTHORIZE_URL);
     url.search = new URLSearchParams({
       client_id: this.settings.clientId,
       redirect_uri: this.settings.redirectUri,
       response_type: "code",
-      scope: SCOPE,
+      scope,
       access_type: "offline",
       prompt: "consent",
       include_granted_scopes: "false",

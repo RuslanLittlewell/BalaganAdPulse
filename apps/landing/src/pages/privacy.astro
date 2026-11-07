@@ -8,7 +8,7 @@ const userDataPolicy = "https://developers.google.com/terms/api-services-user-da
 
 <Base
   title="Политика конфиденциальности - BalaganBI"
-  description="Как BalaganBI обрабатывает данные пользователей и данные подключённых рекламных кабинетов, включая Google Ads."
+  description="Как BalaganBI обрабатывает данные пользователей, Google Ads и Google Search Console."
 >
   <div class="site-container flex max-w-4xl flex-col gap-6 pt-32">
   <section class="glass flex flex-col gap-3 p-3 sm:p-10">
@@ -31,6 +31,7 @@ const userDataPolicy = "https://developers.google.com/terms/api-services-user-da
     <ul class="flex list-disc flex-col gap-2 pl-5 marker:text-primary">
       <li>Данные пользователей {SITE.name}: имя, адрес электронной почты, а также телефон и Telegram, если пользователь их указал.</li>
       <li>Данные рекламных кабинетов, которые пользователь подключил к проекту, в том числе Google Ads.</li>
+      <li>Данные сайтов, которые пользователь подключил к проекту через Google Search Console.</li>
     </ul>
   </PolicyBlock>
 
@@ -46,12 +47,19 @@ const userDataPolicy = "https://developers.google.com/terms/api-services-user-da
       <li>ежедневную статистику: расходы, показы, клики, конверсии и ценность конверсий.</li>
     </ul>
     <p>Мы ничего не меняем в аккаунте Google Ads: не создаём и не редактируем кампании, ставки, бюджеты и объявления.</p>
+    <p>
+      Когда пользователь подключает сайт, он даёт {SITE.name} разрешение
+      <code class="rounded bg-muted px-1.5 py-0.5 text-sm">https://www.googleapis.com/auth/webmasters.readonly</code>.
+      Мы читаем список сайтов, к которым у него есть доступ, выбранный сайт и его карты сайта, а также статистику
+      поиска: клики, показы, CTR, среднюю позицию, запросы и страницы. Мы не меняем данные Search Console.
+    </p>
   </PolicyBlock>
 
   <PolicyBlock title="Как мы используем данные">
     <p>
-      Только для того, чтобы показывать статистику и выполнение KPI на страницах проектов в {SITE.name}
-      сотрудникам агентства и клиенту, которому принадлежит кабинет. Мы не используем данные Google для рекламы,
+      Только для того, чтобы показывать рекламную и поисковую статистику, выполнение KPI и результаты проверки страниц
+      в проектах {SITE.name} сотрудникам агентства и клиенту, которому принадлежит кабинет или сайт.
+      Мы не используем данные Google для рекламы,
       не продаём их, не передаём третьим лицам и не используем для обучения моделей искусственного интеллекта.
     </p>
   </PolicyBlock>
@@ -94,7 +102,7 @@ const userDataPolicy = "https://developers.google.com/terms/api-services-user-da
     </p>
     <p>
       We process the name, email address and, if provided, phone number and Telegram handle of BalaganBI users,
-      and the data of the ad accounts they connect to a project.
+      and the data of the ad accounts and Search Console sites they connect to a project.
     </p>
     <p>
       When a user connects Google Ads, they sign in with Google and grant the
@@ -105,8 +113,15 @@ const userDataPolicy = "https://developers.google.com/terms/api-services-user-da
       or change campaigns, bids, budgets or ads.
     </p>
     <p>
-      The data is used only to show statistics and KPI progress on BalaganBI project pages to the agency's staff
-      and to the client who owns the account. We do not use Google user data for advertising, do not sell it,
+      When a user connects a site, they grant the
+      <code class="rounded bg-muted px-1.5 py-0.5 text-sm">https://www.googleapis.com/auth/webmasters.readonly</code>
+      scope. We read the sites they can access, the selected site's sitemaps, and search performance: clicks,
+      impressions, CTR, average position, queries and pages. We never change Search Console data.
+    </p>
+    <p>
+      The data is used only to show ad and search statistics, KPI progress and page check results on BalaganBI
+      project pages to the agency's staff and to the client who owns the account or site.
+      We do not use Google user data for advertising, do not sell it,
       do not share it with third parties and do not use it to train artificial intelligence models.
     </p>
     <p>

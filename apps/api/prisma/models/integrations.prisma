@@ -43,6 +43,7 @@ model GoogleAuthorization {
   project               Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   userId                String   @map("user_id")
   integrationId         String?  @map("integration_id")
+  purpose               String   @default("ADS") @db.VarChar(16)
   encryptedRefreshToken String?  @map("encrypted_refresh_token")
   expiresAt             DateTime @map("expires_at")
   createdAt             DateTime @default(now()) @map("created_at")

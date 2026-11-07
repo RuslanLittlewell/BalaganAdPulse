@@ -1211,6 +1211,22 @@ interface; each project signs in on its own. See
 [Google Ads integration](docs/google-ads-integration.md) for the sign-in, what is
 imported and the server configuration it needs.
 
+## SEO sites
+
+Projects can connect a verified site from Google Search Console by signing in with Google. The
+site gets its own SEO tab. Search clicks, impressions and positions are imported each morning
+(16 months on the first import, then the latest 10 days); top queries and pages are kept for
+90 days. Core Web Vitals are imported for phones and desktops. Pages are checked weekly, or on
+request, for titles, descriptions, headings, robots directives and JSON-LD.
+
+In the Google Cloud project used for Google sign-in, enable the Search Console API, Chrome UX
+Report API and PageSpeed Insights API. Add `https://www.googleapis.com/auth/webmasters.readonly`
+to the OAuth consent screen. Set `GOOGLE_API_KEY` for Chrome UX Report and PageSpeed; the key is
+optional for Search Console data and page checks. The checker sends
+`AdPulseBot/1.0 (+https://<LANDING_HOST>)` and checks at most 500 pages per site, one page per
+second, with a 15-second and 2 MB limit per page and a 45-minute limit per check. See
+[SEO integration](docs/seo-integration.md) for setup and behavior in detail.
+
 ## Landing
 
 The public site of BalaganBI lives in [apps/landing](apps/landing): Astro with Tailwind,

@@ -32,6 +32,7 @@ export interface Config {
   taskTimeZone: string;
   telegramBot: TelegramBotConfig | null;
   googleAds: GoogleAdsConfig | null;
+  googleApiKey: string | null;
   storage: {
     endpoint: string;
     region: string;
@@ -160,6 +161,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     taskTimeZone: taskTimeZone(env),
     telegramBot: telegramBotConfig(env),
     googleAds: googleAdsConfig(env, appUrl),
+    googleApiKey: env.GOOGLE_API_KEY?.trim() || null,
     storage: {
       endpoint: env.S3_ENDPOINT ?? "http://localhost:9000",
       region: env.S3_REGION ?? "us-east-1",

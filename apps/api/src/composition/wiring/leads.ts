@@ -1,5 +1,7 @@
 import { prisma } from "#shared/infrastructure/prisma.js";
 import {
+  createCrmRecordUseCases,
+  createLeadFieldUseCases,
   createLeadFileUseCases,
   createLeadIntake,
   createLeadRouter,
@@ -7,6 +9,8 @@ import {
   type LeadEvent,
 } from "#modules/leads/index.js";
 import { PrismaLeadFileRepository, S3LeadFileStorage } from "#modules/leads/infrastructure/prisma-lead-file-repository.js";
+import { PrismaLeadFieldRepository } from "#modules/leads/infrastructure/prisma-lead-field-repository.js";
+import { PrismaCrmRecordRepository } from "#modules/leads/infrastructure/prisma-crm-record-repository.js";
 import { PrismaLeadIntakeRepository } from "#modules/leads/infrastructure/prisma-lead-intake-repository.js";
 import { PrismaLeadRepository } from "#modules/leads/infrastructure/prisma-lead-repository.js";
 import { createLeadEventDelivery } from "#modules/realtime/index.js";
@@ -21,7 +25,11 @@ export function wireLeads(
   const delivery = createLeadEventDelivery({ registry: connections, members, boards: leadRepository });
   const publish = (event: LeadEvent) => runDetached("Failed to deliver a CRM event:", delivery.deliver(event));
   const storage = new S3LeadFileStorage();
-  const leads = createLeadUseCases({ leads: leadRepository, storage, audit, ids, unitOfWork, publish });
+  const fieldRepository = new PrismaLeadFieldRepository(prisma, unitOfWork);
+  const recordRepository = new PrismaCrmRecordRepository(prisma, unitOfWork);
+  const leads = createLeadUseCases({ leads: leadRepository, fields: fieldRepository, records: recordRepository, storage, audit, ids, unitOfWork, publish });
+  const records = createCrmRecordUseCases({ records: recordRepository, audit, ids, unitOfWork, publish });
+  const fields = createLeadFieldUseCases({ leads: leadRepository, fields: fieldRepository, audit, ids, unitOfWork, publish });
   const files = createLeadFileUseCases({
     leads: leadRepository,
     files: new PrismaLeadFileRepository(prisma, unitOfWork),
@@ -38,7 +46,7 @@ export function wireLeads(
       unitOfWork,
       publish,
     }),
-    leadRouter: createLeadRouter(leads, files),
+    leadRouter: createLeadRouter(leads, files, fields, records),
   };
 }
 

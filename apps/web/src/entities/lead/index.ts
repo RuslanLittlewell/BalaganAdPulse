@@ -1,13 +1,31 @@
 export {
   COLUMN_NAME_LIMIT,
+  FIELD_LIMIT,
+  FIELD_NAME_LIMIT,
   isLeadStage,
+  isListField,
+  LEAD_FIELD_TYPES,
   LEAD_STAGES,
   leadsApi,
+  OPTION_COLORS,
+  OPTION_LIMIT,
+  OPTION_NAME_LIMIT,
 } from "./api/api.js";
 export type {
   BoardCapabilities,
   BoardStageCounts,
+  CustomChangeValue,
+  CustomValue,
+  CustomValues,
+  FieldOption,
+  FieldOptionInput,
   Lead,
+  LeadActivityChange,
+  LeadCustomChange,
+  LeadField,
+  LeadFieldInput,
+  LeadFieldType,
+  OptionColor,
   LeadAd,
   LeadAssignee,
   LeadActivity,
@@ -31,12 +49,18 @@ export {
   BOARDS_KEY,
   leadActivityKey,
   leadColumnsKey,
+  leadFieldsKey,
   leadFilesKey,
   leadsKey,
   useAttachLeadFile,
   useBoardStageCounts,
   useCreateLead,
   useCreateLeadColumn,
+  useCreateLeadField,
+  useDeleteLeadField,
+  useLeadFields,
+  usePatchLead,
+  useUpdateLeadField,
   useDeleteLead,
   useDeleteLeadColumn,
   useLeadBoards,
@@ -50,7 +74,11 @@ export {
   useMoveLead,
   useUpdateLead,
 } from "./api/queries.js";
-export { FIXED_LEAD_COLUMNS, leadColumnLabel } from "./lib/columns.js";
+export { FIXED_LEAD_COLUMNS, FIXED_STAGE_COLORS, leadColumnLabel } from "./lib/columns.js";
+export { arrivalDay, arrivalIso } from "./lib/arrival.js";
+export { calendarDay, compactSum, readableNumber } from "./lib/format.js";
+export { ColumnPill, OPTION_CHIP_CLASS, OptionChip, OptionSwatch } from "./ui/OptionChip.js";
+export { LetterAvatar } from "./ui/LetterAvatar.js";
 export {
   applyLeadMove,
   leadPlacementFor,

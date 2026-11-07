@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { leadActivityKey, leadColumnsKey, leadFilesKey, leadsKey } from "./queries.js";
+import { crmRecordsKey } from "@/entities/crm-record/index.js";
+import { leadActivityKey, leadColumnsKey, leadFieldsKey, leadFilesKey, leadsKey } from "./queries.js";
 
 const REALTIME_PATH = "/api/realtime";
 
@@ -22,7 +23,7 @@ function realtimeUrl(): string {
   return `${protocol}//${window.location.host}${REALTIME_PATH}`;
 }
 
-export function useCrmEvents(boardKey: string | undefined, options: CrmEventsOptions = {}): void {
+export function useCrmEvents(boardKey: string | undefined, options: CrmEventsOptions = {}, clientId?: string): void {
   const queryClient = useQueryClient();
   const createSocket = options.createSocket;
 
@@ -39,8 +40,10 @@ export function useCrmEvents(boardKey: string | undefined, options: CrmEventsOpt
     const refetch = () => {
       void queryClient.invalidateQueries({ queryKey: leadsKey(boardKey) });
       void queryClient.invalidateQueries({ queryKey: leadColumnsKey(boardKey) });
+      void queryClient.invalidateQueries({ queryKey: leadFieldsKey(boardKey) });
       void queryClient.invalidateQueries({ queryKey: leadActivityKey(boardKey) });
       void queryClient.invalidateQueries({ queryKey: leadFilesKey(boardKey) });
+      if (clientId) void queryClient.invalidateQueries({ queryKey: crmRecordsKey(clientId) });
     };
 
     const scheduleRetry = () => {
@@ -86,5 +89,5 @@ export function useCrmEvents(boardKey: string | undefined, options: CrmEventsOpt
       socket = null;
       closing?.close();
     };
-  }, [boardKey, queryClient, createSocket]);
+  }, [boardKey, clientId, queryClient, createSocket]);
 }

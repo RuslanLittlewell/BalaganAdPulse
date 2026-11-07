@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { createApp } from "../../src/composition/app.js";
@@ -40,10 +42,10 @@ const listLeads = async (board: string = projectId) =>
   (await request(app).get(leads(board)).set(auth).expect(200)).body as Array<{ id: string; name: string; stage: string; position: number }>;
 
 const FIXED = [
-  { id: "NEW", kind: "FIXED", name: "Новый", position: 0 },
-  { id: "QUALIFIED", kind: "FIXED", name: "Квалифицированный", position: 1 },
-  { id: "TARGET", kind: "FIXED", name: "Целевой", position: 2 },
-  { id: "PROPOSAL", kind: "FIXED", name: "КП", position: 3 },
+  { id: "NEW", kind: "FIXED", name: "Новый", position: 0, color: "blue" },
+  { id: "QUALIFIED", kind: "FIXED", name: "Квалифицированный", position: 1, color: "purple" },
+  { id: "TARGET", kind: "FIXED", name: "Целевой", position: 2, color: "orange" },
+  { id: "PROPOSAL", kind: "FIXED", name: "КП", position: 3, color: "green" },
 ];
 
 describe("board columns", () => {
@@ -52,13 +54,13 @@ describe("board columns", () => {
 
     const meeting = await addColumn("  Встреча  ");
     expect(meeting.status).toBe(201);
-    expect(meeting.body).toEqual({ id: expect.any(String), kind: "CUSTOM", name: "Встреча", position: 0 });
+    expect(meeting.body).toEqual({ id: expect.any(String), kind: "CUSTOM", name: "Встреча", position: 0, color: "gray" });
     await addColumn("Договор").expect(201);
 
     expect(await listColumns()).toEqual([
       ...FIXED,
-      { id: meeting.body.id, kind: "CUSTOM", name: "Встреча", position: 0 },
-      { id: expect.any(String), kind: "CUSTOM", name: "Договор", position: 1 },
+      { id: meeting.body.id, kind: "CUSTOM", name: "Встреча", position: 0, color: "gray" },
+      { id: expect.any(String), kind: "CUSTOM", name: "Договор", position: 1, color: "gray" },
     ]);
     expect(await listColumns(otherProjectId)).toEqual(FIXED);
   });
@@ -141,7 +143,7 @@ describe("board columns", () => {
       ["Встреча", "Новый", "Квалифицированный", "Целевой", "КП"],
     );
     expect(await listColumns()).toEqual([
-      { id: meeting.id, kind: "CUSTOM", name: "Встреча", position: 0 },
+      { id: meeting.id, kind: "CUSTOM", name: "Встреча", position: 0, color: "gray" },
       ...FIXED,
     ]);
   });
@@ -149,6 +151,7 @@ describe("board columns", () => {
   it("refuses renaming, moving or deleting a fixed stage", async () => {
     expect((await request(app).patch(`${columns()}/TARGET`).set(auth).send({ name: "Горячий" })).status).toBe(400);
     expect((await request(app).patch(`${columns()}/TARGET`).set(auth).send({ position: 0 })).status).toBe(400);
+    expect((await request(app).patch(`${columns()}/TARGET`).set(auth).send({ color: "red" })).status).toBe(400);
     expect((await request(app).delete(`${columns()}/TARGET`).set(auth)).status).toBe(400);
     expect(await listColumns()).toEqual(FIXED);
   });
@@ -177,8 +180,8 @@ describe("board columns", () => {
       ["Встреча 1", "NEW", 3],
     ]);
     expect((await listColumns()).slice(4)).toEqual([
-      { id: first.id, kind: "CUSTOM", name: "Первый", position: 0 },
-      { id: last.id, kind: "CUSTOM", name: "Последний", position: 1 },
+      { id: first.id, kind: "CUSTOM", name: "Первый", position: 0, color: "gray" },
+      { id: last.id, kind: "CUSTOM", name: "Последний", position: 1, color: "gray" },
     ]);
   });
 });
@@ -228,6 +231,69 @@ describe("leads in custom columns", () => {
     expect((await request(app).patch(`${leads()}/${lead.id}/move`).set(auth).send({ stage: foreign.id, position: 0 })).status).toBe(400);
     expect((await request(app).patch(`${leads()}/${lead.id}/move`).set(auth).send({ stage: "WON", position: 0 })).status).toBe(400);
     expect(await listLeads()).toEqual([expect.objectContaining({ id: lead.id, stage: "NEW", position: 0 })]);
+  });
+});
+
+describe("column colors", () => {
+  it("makes a new column gray unless a color is given", async () => {
+    expect((await addColumn("Встреча")).body.color).toBe("gray");
+    expect((await request(app).post(columns()).set(auth).send({ name: "Договор", color: "teal" })).body.color).toBe("teal");
+  });
+
+  it("recolors a column, keeping its name, place and leads, and records it", async () => {
+    const meeting = (await addColumn("Встреча")).body;
+    const lead = (await addLead("Леонид", meeting.id)).body;
+
+    const response = await request(app).patch(`${columns()}/${meeting.id}`).set(auth).send({ color: "purple" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.slice(4)).toEqual([{ id: meeting.id, kind: "CUSTOM", name: "Встреча", position: 0, color: "purple" }]);
+    expect(await listLeads()).toEqual([expect.objectContaining({ id: lead.id, stage: meeting.id })]);
+    const event = await prisma.auditEvent.findFirstOrThrow({ where: { entityType: "lead-column", action: "UPDATE" } });
+    expect(event.changes).toMatchObject({ before: { color: "gray" }, after: { color: "purple" } });
+  });
+
+  it.each([["pink"], [""], [7]])("refuses the color %j", async (color) => {
+    const meeting = (await addColumn("Встреча")).body;
+
+    expect((await request(app).patch(`${columns()}/${meeting.id}`).set(auth).send({ color })).status).toBe(400);
+    expect((await request(app).post(columns()).set(auth).send({ name: "Договор", color })).status).toBe(400);
+    expect((await listColumns()).slice(4)).toEqual([expect.objectContaining({ name: "Встреча", color: "gray" })]);
+  });
+
+  it("tells open boards that a column was recolored", async () => {
+    const unitOfWork = new PrismaUnitOfWork(prisma);
+    const publish = vi.fn();
+    const useCases = createLeadUseCases({
+      leads: new PrismaLeadRepository(prisma, unitOfWork),
+      fields: { list: vi.fn().mockResolvedValue([]) },
+      storage: { remove: vi.fn() },
+      audit: { append: vi.fn() },
+      ids: new RandomIdGenerator(),
+      unitOfWork,
+      publish,
+    });
+    const meeting = (await addColumn("Встреча")).body;
+
+    await useCases.updateColumn(admin.actor!, projectId, meeting.id, { color: "red" });
+
+    expect(publish).toHaveBeenCalledWith({ kind: "crm.changed", orgId: admin.actor!.orgId, board: projectId });
+  });
+
+  it("gives existing columns gray in the migration", async () => {
+    const sql = readFileSync(new URL("../../prisma/migrations/20261109120000_lead_column_color/migration.sql", import.meta.url), "utf8");
+    const schema = `migration_${randomUUID().replaceAll("-", "")}`;
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`CREATE SCHEMA "${schema}"`);
+      await tx.$executeRawUnsafe(`SET LOCAL search_path TO "${schema}"`);
+      await tx.$executeRawUnsafe('CREATE TABLE "lead_column" (id TEXT PRIMARY KEY)');
+      await tx.$executeRawUnsafe(`INSERT INTO "lead_column" VALUES ('meeting')`);
+      for (const statement of sql.split(";").map((part) => part.replace(/^--.*$/gm, "").trim()).filter(Boolean)) {
+        await tx.$executeRawUnsafe(statement);
+      }
+      expect(await tx.$queryRawUnsafe('SELECT id, color FROM "lead_column"')).toEqual([{ id: "meeting", color: "gray" }]);
+      await tx.$executeRawUnsafe(`DROP SCHEMA "${schema}" CASCADE`);
+    });
   });
 });
 
@@ -294,6 +360,7 @@ describe("column history and notifications", () => {
     const publish = vi.fn();
     const useCases = createLeadUseCases({
       leads: new PrismaLeadRepository(prisma, unitOfWork),
+      fields: { list: vi.fn().mockResolvedValue([]) },
       storage: { remove: vi.fn() },
       audit: { append: vi.fn() },
       ids: new RandomIdGenerator(),

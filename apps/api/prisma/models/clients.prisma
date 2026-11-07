@@ -18,6 +18,8 @@ model Client {
   org          Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
   access       ClientAccess[]
   account      ClientAccount?
+  companies    Company[]
+  people       Person[]
 
   @@unique([id, orgId])
   @@index([orgId, createdAt])

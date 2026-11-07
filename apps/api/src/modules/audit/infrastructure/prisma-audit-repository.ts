@@ -11,14 +11,16 @@ import type {
   AuditRepository,
 } from "../application/ports.js";
 
-const CRM_ENTITY_TYPES = ['lead', 'lead-column'];
+const CLIENT_CRM_ENTITY_TYPES = ['crm-company', 'crm-person'];
+const BOARD_CRM_ENTITY_TYPES = ['lead', 'lead-column', 'lead-field'];
 
 function scopeToWhere(scope: AuditScope): Prisma.AuditEventWhereInput {
   if (scope.everything) return { orgId: scope.orgId };
   return {
     orgId: scope.orgId,
     OR: [
-      { entityType: { notIn: CRM_ENTITY_TYPES }, projectId: null, clientId: { in: [...scope.clientIds] } },
+      { entityType: { notIn: [...BOARD_CRM_ENTITY_TYPES, ...CLIENT_CRM_ENTITY_TYPES] }, projectId: null, clientId: { in: [...scope.clientIds] } },
+      { entityType: { in: CLIENT_CRM_ENTITY_TYPES }, projectId: null, clientId: { in: [...scope.clientIds] } },
       { clientId: { in: [...scope.wholeClientIds] } },
       { projectId: { in: [...scope.projectIds] } },
     ],

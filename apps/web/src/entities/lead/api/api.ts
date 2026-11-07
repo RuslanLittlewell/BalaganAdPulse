@@ -15,6 +15,7 @@ export interface LeadColumn {
   kind: "FIXED" | "CUSTOM";
   name: string;
   position: number;
+  color: OptionColor;
 }
 
 export type StageCounts = Record<LeadStage, number>;
@@ -35,6 +36,55 @@ export interface CountingPeriod {
 export interface LeadColumnInput {
   name?: string;
   position?: number;
+  color?: OptionColor;
+}
+
+export const LEAD_FIELD_TYPES = ["TEXT", "NUMBER", "DATE", "SELECT", "MULTI_SELECT", "CHECKBOX", "LINK"] as const;
+
+export type LeadFieldType = (typeof LEAD_FIELD_TYPES)[number];
+
+export const OPTION_COLORS = ["gray", "red", "orange", "yellow", "green", "teal", "blue", "purple"] as const;
+
+export type OptionColor = (typeof OPTION_COLORS)[number];
+
+export const FIELD_LIMIT = 30;
+export const FIELD_NAME_LIMIT = 50;
+export const OPTION_LIMIT = 50;
+export const OPTION_NAME_LIMIT = 50;
+
+export interface FieldOption {
+  id: string;
+  name: string;
+  color: OptionColor;
+}
+
+export interface LeadField {
+  id: string;
+  name: string;
+  type: LeadFieldType;
+  options: FieldOption[];
+  position: number;
+}
+
+export interface FieldOptionInput {
+  id?: string;
+  name: string;
+  color: OptionColor;
+}
+
+export interface LeadFieldInput {
+  name?: string;
+  type?: LeadFieldType;
+  options?: FieldOptionInput[];
+  position?: number;
+}
+
+export type CustomValue = string | true | string[];
+
+export type CustomValues = Record<string, CustomValue>;
+
+export function isListField(type: LeadFieldType): boolean {
+  return type === "SELECT" || type === "MULTI_SELECT";
 }
 
 export interface BoardCapabilities {
@@ -46,6 +96,7 @@ export interface BoardCapabilities {
 export interface LeadBoard {
   key: string;
   label: string;
+  clientId: string;
   clientName: string;
   capabilities: BoardCapabilities;
 }
@@ -95,17 +146,16 @@ export interface Lead {
   id: string;
   orgId: string;
   name: string;
-  company: string | null;
-  phone: string | null;
-  email: string | null;
-  website: string | null;
+  personId: string | null;
+  companyId: string | null;
+  person: { id: string; name: string; phone: string | null; email: string | null; telegram: string | null; messenger: string | null } | null;
+  company: { id: string; name: string; website: string | null } | null;
   source: string | null;
   notes: string | null;
   amount: string | null;
   service: string | null;
-  telegram: string | null;
-  messenger: string | null;
   tags: string[];
+  customValues: CustomValues;
   projectId: string;
   campaignId: string | null;
   assigneeId: string | null;
@@ -123,19 +173,18 @@ export interface Lead {
 
 export interface LeadInput {
   name?: string;
-  company?: string | null;
-  phone?: string | null;
-  email?: string | null;
-  website?: string | null;
+  personId?: string | null;
+  companyId?: string | null;
+  contact?: { phone?: string | null; email?: string | null; telegram?: string | null; messenger?: string | null };
+  organization?: { website?: string | null };
   source?: string | null;
   notes?: string | null;
   amount?: string | null;
   service?: string | null;
-  telegram?: string | null;
-  messenger?: string | null;
   tags?: string[];
   campaignId?: string | null;
   assigneeId?: string | null;
+  customValues?: Record<string, CustomValue | null>;
   stage?: string;
 }
 
@@ -158,6 +207,19 @@ export type LeadActivityField =
   | "name" | "amount" | "assignee" | "company" | "tags" | "service" | "phone"
   | "telegram" | "messenger" | "email" | "website" | "source" | "campaign" | "notes";
 
+export type CustomChangeValue = string | boolean | (string | null)[] | null;
+
+export interface LeadCustomChange {
+  field: "custom";
+  fieldId: string;
+  name: string;
+  type: LeadFieldType;
+  before: CustomChangeValue;
+  after: CustomChangeValue;
+}
+
+export type LeadActivityChange = { field: LeadActivityField; before: string; after: string } | LeadCustomChange;
+
 interface ActivityBase {
   id: string;
   actor: { name: string } | null;
@@ -166,7 +228,7 @@ interface ActivityBase {
 
 export type LeadActivity =
   | ActivityBase & { kind: "created" | "imported" }
-  | ActivityBase & { kind: "changed"; changes: { field: LeadActivityField; before: string; after: string }[] }
+  | ActivityBase & { kind: "changed"; changes: LeadActivityChange[] }
   | ActivityBase & { kind: "moved"; stage: { from: string | null; to: string | null } }
   | ActivityBase & { kind: "file-added" | "file-removed"; file: { name: string } };
 
@@ -192,6 +254,12 @@ export const leadsApi = {
   updateColumn: (boardKey: string, id: string, body: LeadColumnInput) =>
     http.patch<LeadColumn[]>(`${board(boardKey)}/columns/${id}`, body),
   removeColumn: (boardKey: string, id: string) => http.del(`${board(boardKey)}/columns/${id}`),
+  fields: (boardKey: string) => http.get<LeadField[]>(`${board(boardKey)}/fields`),
+  createField: (boardKey: string, body: LeadFieldInput) =>
+    http.post<LeadField>(`${board(boardKey)}/fields`, body),
+  updateField: (boardKey: string, id: string, body: LeadFieldInput) =>
+    http.patch<LeadField[]>(`${board(boardKey)}/fields/${id}`, body),
+  removeField: (boardKey: string, id: string) => http.del(`${board(boardKey)}/fields/${id}`),
   activity: (boardKey: string, id: string) =>
     http.get<LeadActivity[]>(`${board(boardKey)}/leads/${id}/activity`),
   files: (boardKey: string, id: string) => http.get<LeadFile[]>(`${board(boardKey)}/leads/${id}/files`),

@@ -53,11 +53,12 @@ export const defaultHandlers = [
   http.get("/api/members", () => HttpResponse.json([])),
   http.get("/api/crm/project-stage-counts", () => HttpResponse.json([])),
   http.get("/api/crm/boards/:board/stage-counts", () => HttpResponse.json({ campaigns: [], adSets: [], ads: [] })),
+  http.get("/api/crm/boards/:board/fields", () => HttpResponse.json([])),
   http.get("/api/crm/boards/:board/columns", () => HttpResponse.json([
-    { id: "NEW", kind: "FIXED", name: "Новый", position: 0 },
-    { id: "QUALIFIED", kind: "FIXED", name: "Квалифицированный", position: 1 },
-    { id: "TARGET", kind: "FIXED", name: "Целевой", position: 2 },
-    { id: "PROPOSAL", kind: "FIXED", name: "КП", position: 3 },
+    { id: "NEW", kind: "FIXED", name: "Новый", position: 0, color: "blue" },
+    { id: "QUALIFIED", kind: "FIXED", name: "Квалифицированный", position: 1, color: "purple" },
+    { id: "TARGET", kind: "FIXED", name: "Целевой", position: 2, color: "orange" },
+    { id: "PROPOSAL", kind: "FIXED", name: "КП", position: 3, color: "green" },
   ])),
   realtime.addEventListener("connection", () => undefined),
 ];

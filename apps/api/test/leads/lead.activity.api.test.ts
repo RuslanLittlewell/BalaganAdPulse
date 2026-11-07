@@ -25,10 +25,10 @@ const activity = (leadId: string, board = projectId, as = admin.auth) =>
 
 describe("a lead's activity", () => {
   it("lists creation, field changes, moves and files newest first, each with who and when", async () => {
-    const created = (await request(app).post(leads()).set(admin.auth).send({ name: "Леонид", phone: "+375290000000" })).body;
+    const created = (await request(app).post(leads()).set(admin.auth).send({ name: "Леонид", contact: { phone: "+375290000000" } })).body;
     const colleague = await signInAs("Мария", { role: "MANAGER" });
     await grantAccess(colleague.membership!.id, clientId);
-    await request(app).patch(`${leads()}/${created.id}`).set(colleague.auth).send({ phone: "+375291111111", tags: ["Срочно"] }).expect(200);
+    await request(app).patch(`${leads()}/${created.id}`).set(colleague.auth).send({ contact: { phone: "+375291111111" }, tags: ["Срочно"] }).expect(200);
     await request(app).patch(`${leads()}/${created.id}/move`).set(colleague.auth).send({ stage: "PROPOSAL", position: 0 }).expect(200);
     const file = (await request(app).post(`${leads()}/${created.id}/files`).set(admin.auth)
       .attach("file", Buffer.from("x"), { filename: "Смета.xlsx", contentType: "application/octet-stream" })).body;

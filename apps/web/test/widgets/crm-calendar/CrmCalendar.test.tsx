@@ -99,7 +99,7 @@ describe("what the calendar holds", () => {
 
     const wednesday = await screen.findByRole("group", { name: /среда/ });
     await within(wednesday).findByText("Утром");
-    const names = [...wednesday.querySelectorAll("article h3")].map((node) => node.textContent);
+    const names = [...wednesday.querySelectorAll("article")].map((node) => node.getAttribute("aria-label")?.replace("Открыть лид: ", ""));
     expect(names).toEqual(["Утром", "Днём"]);
   });
 });

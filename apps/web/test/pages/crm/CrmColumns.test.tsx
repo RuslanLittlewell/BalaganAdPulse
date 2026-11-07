@@ -8,13 +8,13 @@ const capabilities = { create: true, update: true, delete: true };
 const readOnly = { create: false, update: false, delete: false };
 
 const FIXED = [
-  { id: "NEW", kind: "FIXED", name: "Новый", position: 0 },
-  { id: "QUALIFIED", kind: "FIXED", name: "Квалифицированный", position: 1 },
-  { id: "TARGET", kind: "FIXED", name: "Целевой", position: 2 },
-  { id: "PROPOSAL", kind: "FIXED", name: "КП", position: 3 },
+  { id: "NEW", kind: "FIXED", name: "Новый", position: 0, color: "blue" },
+  { id: "QUALIFIED", kind: "FIXED", name: "Квалифицированный", position: 1, color: "purple" },
+  { id: "TARGET", kind: "FIXED", name: "Целевой", position: 2, color: "orange" },
+  { id: "PROPOSAL", kind: "FIXED", name: "КП", position: 3, color: "green" },
 ];
 
-const custom = (id: string, name: string, position: number) => ({ id, kind: "CUSTOM", name, position });
+const custom = (id: string, name: string, position: number) => ({ id, kind: "CUSTOM", name, position, color: "gray" });
 
 const aLead = (id: string, stage: string, position: number) => ({
   id, orgId: "org-1", name: `Лид ${id}`, company: null, phone: null, email: null,

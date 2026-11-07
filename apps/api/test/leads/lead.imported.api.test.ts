@@ -26,7 +26,7 @@ beforeEach(async () => {
   adId = ad.id;
   const lead = await prisma.lead.create({
     data: {
-      name: "Анна", phone: "+375291234567", orgId: (await currentOrg()).id, projectId, campaignId, adId,
+      name: "Анна", orgId: (await currentOrg()).id, projectId, campaignId, adId,
       origin: "META",
       metaSource: {
         create: {
@@ -100,10 +100,10 @@ describe("an imported lead", () => {
 
   it("accepts a save repeating its campaign and keeps the ad", async () => {
     const updated = await request(app).patch(`${leads(projectId)}/${leadId}`).set(auth)
-      .send({ campaignId, notes: "Перезвонить", phone: "+375290000000" });
+      .send({ campaignId, notes: "Перезвонить", contact: { phone: "+375290000000" } });
 
     expect(updated.status).toBe(200);
-    expect(updated.body).toMatchObject({ ...importedShape(), notes: "Перезвонить", phone: "+375290000000" });
+    expect(updated.body).toMatchObject({ ...importedShape(), notes: "Перезвонить", person: { phone: "+375290000000" } });
   });
 
   it("keeps the source out of reach of the lead API", async () => {

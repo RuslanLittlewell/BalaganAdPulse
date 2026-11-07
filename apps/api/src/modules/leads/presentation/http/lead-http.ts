@@ -7,6 +7,8 @@ import {
 import { AppError } from "#shared/domain/index.js";
 import type { LeadUseCases } from "#modules/leads/application/lead-use-cases.js";
 import type { LeadFileUseCases } from "#modules/leads/application/lead-file-use-cases.js";
+import type { LeadFieldUseCases } from "#modules/leads/application/lead-field-use-cases.js";
+import type { CrmRecordUseCases } from "#modules/leads/application/crm-record-use-cases.js";
 import { leadFileUpload, uploadedName } from "./lead-file-upload.js";
 import {
   createLeadSchema,
@@ -14,20 +16,26 @@ import {
   moveLeadSchema,
   createColumnSchema,
   updateColumnSchema,
+  createFieldSchema,
+  updateFieldSchema,
+  createCompanySchema,
+  updateCompanySchema,
+  createPersonSchema,
+  updatePersonSchema,
   stageCountsQuerySchema,
   normalize,
 } from "./lead-schemas.js";
-export function createLeadRouter(leads: LeadUseCases, files: LeadFileUseCases) {
+export function createLeadRouter(leads: LeadUseCases, files: LeadFileUseCases, fields: LeadFieldUseCases, records: CrmRecordUseCases) {
   const router = Router();
   const handle =
     (
       fn: (
-        req: Request<{ boardKey: string; id: string; fileId: string }>,
+        req: Request<{ boardKey: string; id: string; fileId: string; clientId: string }>,
         res: Response,
       ) => Promise<unknown>,
     ) =>
     (
-      req: Request<{ boardKey: string; id: string; fileId: string }>,
+      req: Request<{ boardKey: string; id: string; fileId: string; clientId: string }>,
       res: Response,
       next: NextFunction,
     ) => {
@@ -229,5 +237,65 @@ export function createLeadRouter(leads: LeadUseCases, files: LeadFileUseCases) {
       res.status(204).end();
     }),
   );
+  router.get(
+    "/boards/:boardKey/fields",
+    handle(async (req, res) =>
+      res.json(await fields.list(actor(req), req.params.boardKey)),
+    ),
+  );
+  router.post(
+    "/boards/:boardKey/fields",
+    handle(async (req, res) =>
+      res
+        .status(201)
+        .json(
+          await fields.create(
+            actor(req),
+            req.params.boardKey,
+            createFieldSchema.parse(req.body),
+          ),
+        ),
+    ),
+  );
+  router.patch(
+    "/boards/:boardKey/fields/:id",
+    handle(async (req, res) =>
+      res.json(
+        await fields.update(
+          actor(req),
+          req.params.boardKey,
+          req.params.id,
+          updateFieldSchema.parse(req.body),
+        ),
+      ),
+    ),
+  );
+  router.delete(
+    "/boards/:boardKey/fields/:id",
+    handle(async (req, res) => {
+      await fields.delete(actor(req), req.params.boardKey, req.params.id);
+      res.status(204).end();
+    }),
+  );
+  router.get("/clients/:clientId/companies", handle(async (req, res) => res.json(await records.companies(actor(req), req.params.clientId))));
+  router.post("/clients/:clientId/companies", handle(async (req, res) =>
+    res.status(201).json(await records.createCompany(actor(req), req.params.clientId, createCompanySchema.parse(req.body)))));
+  router.get("/clients/:clientId/companies/:id", handle(async (req, res) => res.json(await records.company(actor(req), req.params.clientId, req.params.id))));
+  router.patch("/clients/:clientId/companies/:id", handle(async (req, res) =>
+    res.json(await records.updateCompany(actor(req), req.params.clientId, req.params.id, updateCompanySchema.parse(req.body)))));
+  router.delete("/clients/:clientId/companies/:id", handle(async (req, res) => {
+    await records.deleteCompany(actor(req), req.params.clientId, req.params.id);
+    res.status(204).end();
+  }));
+  router.get("/clients/:clientId/people", handle(async (req, res) => res.json(await records.people(actor(req), req.params.clientId))));
+  router.post("/clients/:clientId/people", handle(async (req, res) =>
+    res.status(201).json(await records.createPerson(actor(req), req.params.clientId, createPersonSchema.parse(req.body)))));
+  router.get("/clients/:clientId/people/:id", handle(async (req, res) => res.json(await records.person(actor(req), req.params.clientId, req.params.id))));
+  router.patch("/clients/:clientId/people/:id", handle(async (req, res) =>
+    res.json(await records.updatePerson(actor(req), req.params.clientId, req.params.id, updatePersonSchema.parse(req.body)))));
+  router.delete("/clients/:clientId/people/:id", handle(async (req, res) => {
+    await records.deletePerson(actor(req), req.params.clientId, req.params.id);
+    res.status(204).end();
+  }));
   return router;
 }

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { applyLeadMove } from "../lib/ordering.js";
-import { leadsApi, type CountingPeriod, type Lead, type LeadColumn, type LeadColumnInput, type LeadInput, type LeadMove } from "./api.js";
+import { leadsApi, type CountingPeriod, type Lead, type LeadColumn, type LeadColumnInput, type LeadField, type LeadFieldInput, type LeadInput, type LeadMove } from "./api.js";
 
 export const leadActivityKey = (boardKey: string, leadId?: string) =>
   (leadId ? ["crm", "lead-activity", boardKey, leadId] : ["crm", "lead-activity", boardKey]) as readonly string[];
@@ -13,6 +13,8 @@ export const BOARDS_KEY = ["crm", "boards"] as const;
 export const leadsKey = (boardKey: string) => ["crm", "leads", boardKey] as const;
 
 export const leadColumnsKey = (boardKey: string) => ["crm", "columns", boardKey] as const;
+
+export const leadFieldsKey = (boardKey: string) => ["crm", "fields", boardKey] as const;
 
 export function useLeadBoards() {
   return useQuery({ queryKey: BOARDS_KEY, queryFn: () => leadsApi.boards() });
@@ -79,11 +81,49 @@ export function useDeleteLeadColumn(boardKey: string) {
   });
 }
 
+export function useLeadFields(boardKey: string | undefined) {
+  return useQuery({
+    queryKey: leadFieldsKey(boardKey ?? ""),
+    queryFn: () => leadsApi.fields(boardKey!),
+    enabled: Boolean(boardKey),
+  });
+}
+
+export function useCreateLeadField(boardKey: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: LeadFieldInput) => leadsApi.createField(boardKey, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: leadFieldsKey(boardKey) }),
+  });
+}
+
+export function useUpdateLeadField(boardKey: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: LeadFieldInput }) => leadsApi.updateField(boardKey, id, body),
+    onSuccess: (fields) => {
+      qc.setQueryData<LeadField[]>(leadFieldsKey(boardKey), fields);
+      return qc.invalidateQueries({ queryKey: leadsKey(boardKey) });
+    },
+  });
+}
+
+export function useDeleteLeadField(boardKey: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => leadsApi.removeField(boardKey, id),
+    onSuccess: () => Promise.all([
+      qc.invalidateQueries({ queryKey: leadFieldsKey(boardKey) }),
+      qc.invalidateQueries({ queryKey: leadsKey(boardKey) }),
+    ]),
+  });
+}
+
 export function useCreateLead(boardKey: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: LeadInput) => leadsApi.create(boardKey, body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: leadsKey(boardKey) }),
+    onSuccess: () => Promise.all([qc.invalidateQueries({ queryKey: leadsKey(boardKey) }), qc.invalidateQueries({ queryKey: ["crm", "records"] })]),
   });
 }
 
@@ -92,7 +132,18 @@ export function useUpdateLead(boardKey: string) {
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: LeadInput }) =>
       leadsApi.update(boardKey, id, body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: leadsKey(boardKey) }),
+    onSuccess: () => Promise.all([qc.invalidateQueries({ queryKey: leadsKey(boardKey) }), qc.invalidateQueries({ queryKey: ["crm", "records"] })]),
+  });
+}
+
+export function usePatchLead(boardKey: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: LeadInput }) => leadsApi.update(boardKey, id, body),
+    onSuccess: (lead) => {
+      qc.setQueryData<Lead[]>(leadsKey(boardKey), (board) => board?.map((entry) => (entry.id === lead.id ? lead : entry)));
+      return Promise.all([qc.invalidateQueries({ queryKey: leadActivityKey(boardKey, lead.id) }), qc.invalidateQueries({ queryKey: ["crm", "records"] })]);
+    },
   });
 }
 
@@ -100,7 +151,7 @@ export function useDeleteLead(boardKey: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => leadsApi.remove(boardKey, id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: leadsKey(boardKey) }),
+    onSuccess: () => Promise.all([qc.invalidateQueries({ queryKey: leadsKey(boardKey) }), qc.invalidateQueries({ queryKey: ["crm", "records"] })]),
   });
 }
 

@@ -27,21 +27,23 @@ describe("the fields of a lead", () => {
   it("starts with no amount and no tags", async () => {
     const created = await create({});
     expect(created.body).toMatchObject({
-      amount: null, service: null, telegram: null, messenger: null, tags: [],
+      amount: null, service: null, person: null, company: null, tags: [],
     });
   });
 
   it("round trips the service, Telegram and messenger", async () => {
-    const fields = { service: "Лендинг", telegram: "@leonid", messenger: "WhatsApp" };
-    const created = await create(fields);
+    const created = await create({ service: "Лендинг", contact: { telegram: "@leonid", messenger: "WhatsApp" } });
 
     expect(created.status).toBe(201);
-    expect((await request(app).get(`${leads()}/${created.body.id}`).set(auth)).body).toMatchObject(fields);
+    expect((await request(app).get(`${leads()}/${created.body.id}`).set(auth)).body).toMatchObject({
+      service: "Лендинг", person: { name: "Леонид", telegram: "@leonid", messenger: "WhatsApp" },
+    });
   });
 
   it.each([
-    { telegram: "x".repeat(101) },
-    { messenger: "x".repeat(101) },
+    { contact: { telegram: "x".repeat(101) } },
+    { contact: { messenger: "x".repeat(101) } },
+    { telegram: "@leonid" },
     { service: "x".repeat(201) },
   ])("refuses a field over its limit %#", async (fields) => {
     expect((await create(fields)).status).toBe(400);

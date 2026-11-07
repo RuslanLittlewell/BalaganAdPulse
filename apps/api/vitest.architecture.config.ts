@@ -7,6 +7,12 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["test/architecture/**/*.test.ts", "test/composition/**/*.test.ts", "test/shared/**/*.test.ts", "test/identity/**/*.test.ts"],
-    exclude: ["test/identity/**/*.prisma-adapters.test.ts", "**/node_modules/**", "**/.git/**"],
+    exclude: [
+      "test/identity/**/*.prisma-adapters.test.ts",
+      "test/shared/input-safety.api.test.ts",
+      "test/shared/storage.test.ts",
+      "**/node_modules/**",
+      "**/.git/**",
+    ],
   },
 });

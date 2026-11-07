@@ -3,6 +3,8 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { aLead, renderWithProviders, server } from "@test/shared/index.js";
 import { CrmPage } from "@/pages/crm/index.js";
+import { CrmLayout } from "@/pages/crm/index.js";
+import { Route, Routes } from "react-router-dom";
 import { useModuleMemory } from "@/shared/lib/index.js";
 
 const capabilities = { create: true, update: true, delete: true };
@@ -12,7 +14,7 @@ const boards = [
 ];
 
 function setup() {
-  return renderWithProviders(<CrmPage />, { route: "/crm" });
+  return renderWithProviders(<Routes><Route path="/crm" element={<CrmLayout />}><Route index element={<CrmPage />} /></Route></Routes>, { route: "/crm" });
 }
 
 const sessionOf = (userId: string) => ({
@@ -31,7 +33,18 @@ beforeEach(() => {
   );
 });
 
-const tab = (name: string) => screen.getByRole("radio", { name });
+async function openOptions() {
+  if (!screen.queryByRole("radiogroup", { name: "Раскладка" })) {
+    await userEvent.click(await screen.findByRole("button", { name: "Настройки" }));
+  }
+  return screen.findByRole("radiogroup", { name: "Раскладка" });
+}
+
+async function choose(name: string) {
+  await openOptions();
+  await userEvent.click(screen.getByRole("radio", { name }));
+  await userEvent.keyboard("{Escape}");
+}
 
 const onCalendar = () => screen.queryByRole("button", { name: "Следующая неделя" }) !== null;
 const onBoard = () => screen.queryByRole("region", { name: "Новый" }) !== null;
@@ -39,33 +52,35 @@ const onBoard = () => screen.queryByRole("region", { name: "Новый" }) !== n
 describe("switching between the board and the calendar", () => {
   it("starts on the board", async () => {
     setup();
-    expect(await screen.findByRole("radio", { name: "Канбан" })).toHaveAttribute("aria-checked", "true");
     expect(await screen.findByRole("region", { name: "Новый" })).toBeInTheDocument();
+    await openOptions();
+    expect(screen.getByRole("radio", { name: "Канбан" })).toHaveAttribute("aria-checked", "true");
     expect(onCalendar()).toBe(false);
   });
 
   it("shows the calendar once it is chosen, and only the calendar", async () => {
     setup();
-    await userEvent.click(await screen.findByRole("radio", { name: "Календарь" }));
+    await choose("Календарь");
 
     await waitFor(() => expect(onCalendar()).toBe(true));
-    expect(tab("Календарь")).toHaveAttribute("aria-checked", "true");
+    await openOptions();
+    expect(screen.getByRole("radio", { name: "Календарь" })).toHaveAttribute("aria-checked", "true");
     expect(onBoard()).toBe(false);
   });
 
   it("comes back to the board", async () => {
     setup();
-    await userEvent.click(await screen.findByRole("radio", { name: "Календарь" }));
+    await choose("Календарь");
     await waitFor(() => expect(onCalendar()).toBe(true));
 
-    await userEvent.click(tab("Канбан"));
+    await choose("Канбан");
     expect(await screen.findByRole("region", { name: "Новый" })).toBeInTheDocument();
     expect(onCalendar()).toBe(false);
   });
 
   it("returns to the view the member left", async () => {
     const first = setup();
-    await userEvent.click(await screen.findByRole("radio", { name: "Календарь" }));
+    await choose("Календарь");
     await waitFor(() => expect(onCalendar()).toBe(true));
     first.unmount();
 
@@ -76,7 +91,7 @@ describe("switching between the board and the calendar", () => {
   it("keeps one person's view off another signing in on the same browser", async () => {
     server.use(mock.get("/api/auth/me", () => HttpResponse.json(sessionOf("user-1"))));
     const first = setup();
-    await userEvent.click(await screen.findByRole("radio", { name: "Календарь" }));
+    await choose("Календарь");
     await waitFor(() => expect(onCalendar()).toBe(true));
     first.unmount();
 
@@ -88,7 +103,7 @@ describe("switching between the board and the calendar", () => {
 
   it("keeps the calendar shown when the board is switched", async () => {
     setup();
-    await userEvent.click(await screen.findByRole("radio", { name: "Календарь" }));
+    await choose("Календарь");
     await waitFor(() => expect(onCalendar()).toBe(true));
 
     await userEvent.click(screen.getByLabelText("Воронка"));

@@ -10,7 +10,7 @@ import { LoginPage } from "@/pages/login/index.js";
 import { RegistrationPage } from "@/pages/registration/index.js";
 import { RequestResetPage, ResetPasswordPage } from "@/pages/password-reset/index.js";
 import { TasksPage } from "@/pages/tasks/index.js";
-import { CrmPage } from "@/pages/crm/index.js";
+import { CrmLayout, CrmPage, CrmRecordsPage } from "@/pages/crm/index.js";
 import { OrganizationsPage } from "@/pages/organizations/index.js";
 import { SuspendedPage } from "@/pages/suspended/index.js";
 import { AuthProvider, RequireAuth, SessionHeartbeat, useAuth } from "@/features/auth/index.js";
@@ -47,7 +47,11 @@ function OrganizationArea() {
           <Route path={ROUTES.dashboard} element={<DashboardPage />} />
           <Route path={`${ROUTES.projects}/*`} element={<ProjectsPage />} />
           <Route path={ROUTES.tasks} element={entitled("TASKS", <TasksPage />)} />
-          <Route path={ROUTES.crm} element={entitled("CRM", <CrmPage />)} />
+          <Route path={ROUTES.crm} element={entitled("CRM", <CrmLayout />)}>
+            <Route index element={<CrmPage />} />
+            <Route path="companies" element={<CrmRecordsPage kind="companies" />} />
+            <Route path="people" element={<CrmRecordsPage kind="people" />} />
+          </Route>
           <Route path={`${ROUTES.reports}/*`} element={entitled("REPORTS", <ReportsPage />)} />
           <Route path={ROUTES.archive} element={<ArchivePage />} />
           <Route path="/clients/*" element={<Navigate to={ROUTES.projects} replace />} />

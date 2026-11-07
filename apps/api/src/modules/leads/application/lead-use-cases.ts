@@ -1,17 +1,62 @@
-import { can, type Action } from '@adpulse/access-policy';
+import { can } from '@adpulse/access-policy';
 import { AppError } from '#shared/domain/index.js';
 import type { ActorContext, IdGenerator, UnitOfWork, TransactionContext } from '#shared/application/index.js';
 import type { AuditWriter } from '#modules/audit/index.js';
-import { arrivalWindow, boardColumns, customColumnOf, CUSTOM_COLUMN_LIMIT, isLeadStage, LEAD_STAGE_NAMES, LEAD_STAGES, type BoardColumn, type LeadColumnRecord, type LeadFields, type LeadRecord, type LeadStage } from '../domain/lead.js';
+import { arrivalWindow, boardColumns, customColumnOf, CUSTOM_COLUMN_LIMIT, DEFAULT_COLUMN_COLOR, isLeadStage, LEAD_STAGE_NAMES, LEAD_STAGES, type BoardColumn, type LeadColumnRecord, type LeadFields, type LeadRecord, type LeadStage } from '../domain/lead.js';
 import { buildActivity, campaignIdsIn } from '../domain/lead-activity.js';
-import type { LeadFileStorage, LeadRepository, LeadEvent } from './ports.js';
+import { applyCustomValues, type OptionColor } from '../domain/lead-field.js';
+import type { CrmRecordRepository, LeadFieldRepository, LeadFileStorage, LeadRepository, LeadEvent } from './ports.js';
+import { hasValues, type ContactPatch, type OrganizationPatch } from '../domain/crm-record.js';
+export type LeadRecordLinks = Pick<CrmRecordRepository,'personInClient'|'companyInClient'|'createPerson'|'updatePerson'|'createCompany'|'updateCompany'|'person'|'company'|'projectsOf'>;
+import { createBoardMutation } from './board-mutation.js';
 
-export function createLeadUseCases(d: {leads:LeadRepository; storage:Pick<LeadFileStorage,'remove'>; audit:AuditWriter; ids:IdGenerator; unitOfWork:UnitOfWork; publish:(event:LeadEvent)=>void}) {
-  async function authorize(actor:ActorContext, board:string, action:Action) {
-    if (!await d.leads.reaches(actor,board)) throw new AppError('not-found','Board not found');
-    if (!can(actor,action,'lead')) throw new AppError('forbidden','Action not permitted');
+export type LeadInput = Omit<LeadFields,'customValues'> & {customValues?: Readonly<Record<string, unknown>>; contact?: ContactPatch; organization?: OrganizationPatch};
+export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFieldRepository,'list'>; records:LeadRecordLinks; storage:Pick<LeadFileStorage,'remove'>; audit:AuditWriter; ids:IdGenerator; unitOfWork:UnitOfWork; publish:(event:LeadEvent)=>void}) {
+  const {authorize,mutation}=createBoardMutation(d);
+  async function recordAudit(context:TransactionContext,actor:ActorContext,kind:'crm-person'|'crm-company',record:{id:string;clientId:string},action:'CREATE'|'UPDATE',changes:unknown) {
+    await d.audit.append(context,{action,entityType:kind,entityId:record.id,clientId:record.clientId,projectId:null,summary:`${action} ${kind==='crm-person'?'person':'company'}`,changes:JSON.parse(JSON.stringify(changes))},actor);
   }
-  async function attribution(board:string, before:Pick<LeadRecord,'campaignId'|'origin'>, input:Partial<LeadFields>) {
+  async function linked(context:TransactionContext,actor:ActorContext,clientId:string,lead:{name:string;personId:string|null;companyId:string|null},input:Partial<LeadInput>) {
+    let {personId,companyId}=lead;
+    if (input.personId!==undefined) {
+      if (input.personId&&!await d.records.personInClient(actor.orgId,clientId,input.personId,context)) throw new AppError('validation','That contact belongs to another client');
+      personId=input.personId;
+    }
+    if (input.companyId!==undefined) {
+      if (input.companyId&&!await d.records.companyInClient(actor.orgId,clientId,input.companyId,context)) throw new AppError('validation','That organization belongs to another client');
+      companyId=input.companyId;
+    }
+    let touched=false;
+    if (hasValues(input.organization)) {
+      touched=true;
+      if (companyId) {
+        const before=await d.records.company(actor,clientId,companyId,context);
+        const after=await d.records.updateCompany(context,actor,companyId,input.organization!);
+        await recordAudit(context,actor,'crm-company',after,'UPDATE',{before,after});
+      } else {
+        const created=await d.records.createCompany(context,actor,{...input.organization,name:lead.name,id:d.ids.generate(),orgId:actor.orgId,clientId});
+        await recordAudit(context,actor,'crm-company',created,'CREATE',{after:created});
+        companyId=created.id;
+      }
+    }
+    if (hasValues(input.contact)) {
+      touched=true;
+      if (personId) {
+        const before=await d.records.person(actor,clientId,personId,context);
+        const after=await d.records.updatePerson(context,actor,personId,input.contact!);
+        await recordAudit(context,actor,'crm-person',after,'UPDATE',{before,after});
+      } else {
+        const created=await d.records.createPerson(context,actor,{...input.contact,name:lead.name,companyId,id:d.ids.generate(),orgId:actor.orgId,clientId});
+        await recordAudit(context,actor,'crm-person',created,'CREATE',{after:created});
+        personId=created.id;
+      }
+    }
+    return {personId,companyId,touched};
+  }
+  async function announce(actor:ActorContext,clientId:string,board:string) {
+    for (const other of await d.records.projectsOf(clientId)) if (other!==board) d.publish({kind:'crm.changed',orgId:actor.orgId,board:other});
+  }
+  async function attribution(board:string, before:Pick<LeadRecord,'campaignId'|'origin'>, input:Pick<LeadFields,'campaignId'>) {
     if (before.origin==='META') {
       if (input.campaignId!==undefined&&input.campaignId!==before.campaignId) throw new AppError('validation','An imported lead keeps the campaign it came from');
       return {campaignId:before.campaignId};
@@ -22,7 +67,7 @@ export function createLeadUseCases(d: {leads:LeadRepository; storage:Pick<LeadFi
     }
     return {campaignId};
   }
-  async function assignment(actor:ActorContext,board:string,before:Pick<LeadRecord,'assigneeId'>,input:Partial<LeadFields>) {
+  async function assignment(actor:ActorContext,board:string,before:Pick<LeadRecord,'assigneeId'>,input:Pick<LeadFields,'assigneeId'>) {
     const assigneeId=input.assigneeId===undefined?before.assigneeId:input.assigneeId;
     if (assigneeId&&!await d.leads.assigneeReachesBoard(actor.orgId,assigneeId,board)) {
       throw new AppError('validation','The assignee is not an active member of this project');
@@ -60,16 +105,6 @@ export function createLeadUseCases(d: {leads:LeadRepository; storage:Pick<LeadFi
       position++;
     }
   }
-  async function mutation<T>(actor:ActorContext, board:string, action:Action, work:(context:TransactionContext,rows:LeadRecord[])=>Promise<T>) {
-    await authorize(actor,board,action);
-    const result=await d.unitOfWork.run(async context=> {
-      await d.leads.lock(context,actor,board);
-      await authorize(actor,board,action);
-      return work(context,await d.leads.list(actor,board,context));
-    });
-    d.publish({kind:'crm.changed',orgId:actor.orgId,board});
-    return result;
-  }
   async function audit(context:TransactionContext,actor:ActorContext,row:LeadRecord,action:'CREATE'|'UPDATE'|'DELETE',changes:unknown) {
     const withoutSource=(value:unknown)=>value&&typeof value==='object'&&'metaSource' in value?{...value,metaSource:undefined,ad:undefined}:value;
     const trimmed=Object.fromEntries(Object.entries(changes as Record<string,unknown>).map(([key,value])=>[key,withoutSource(value)]));
@@ -85,30 +120,48 @@ export function createLeadUseCases(d: {leads:LeadRepository; storage:Pick<LeadFi
       await authorize(actor,board,'read');
       if (!await d.leads.leadOnBoard(actor.orgId,board,id)) throw new AppError('not-found','Lead not found');
       const {events,importedAt}=await d.leads.history(actor.orgId,id);
-      const [columns,campaigns]=await Promise.all([d.leads.columns(actor,board),d.leads.campaignNames(campaignIdsIn(events))]);
-      return buildActivity(id,events,{columns:new Map(columns.map(column=>[column.id,column.name])),campaigns},importedAt);
+      const [columns,campaigns,fields]=await Promise.all([d.leads.columns(actor,board),d.leads.campaignNames(campaignIdsIn(events)),d.fields.list(actor.orgId,board)]);
+      return buildActivity(id,events,{columns:new Map(columns.map(column=>[column.id,column.name])),campaigns,fields},importedAt);
     },
     async read(actor:ActorContext,board:string,id:string) { await authorize(actor,board,'read'); return find(await d.leads.list(actor,board),id); },
-    create(actor:ActorContext,board:string,input:LeadFields & {stage?:string}) {
-      return mutation(actor,board,'create',async (context,rows)=> {
+    async create(actor:ActorContext,board:string,input:LeadInput & {stage?:string}) {
+      let touched=false;
+      let clientId='';
+      const created=await mutation(actor,board,'create',async (context,rows)=> {
+        clientId=await d.leads.clientOf(board);
         const stage=input.stage ?? 'NEW';
         await placement(context,actor,board,stage);
         const named=await attribution(board,{campaignId:null,origin:'MANUAL'},input);
         const assigned=await assignment(actor,board,{assigneeId:null},input);
-        const row=await d.leads.create(context,{...input,...named,...assigned,id:d.ids.generate(),orgId:actor.orgId,projectId:board,stage,position:0});
+        const customValues=applyCustomValues(await d.fields.list(actor.orgId,board,context),{},input.customValues);
+        const links=await linked(context,actor,clientId,{name:input.name,personId:null,companyId:null},input);
+        touched=links.touched;
+        const {contact:_contact,organization:_organization,...fields}=input;
+        const row=await d.leads.create(context,{...fields,...named,...assigned,customValues,personId:links.personId,companyId:links.companyId,id:d.ids.generate(),orgId:actor.orgId,projectId:board,stage,position:0});
         await ordered(context,[{...row,position:-1},...rows.filter(l=>l.stage===stage)]);
         await audit(context,actor,row,'CREATE',{after:row}); return row;
       });
+      if (touched) await announce(actor,clientId,board);
+      return created;
     },
-    update(actor:ActorContext,board:string,id:string,input:Partial<LeadFields>) {
-      return mutation(actor,board,'update',async(context,rows)=>{
+    async update(actor:ActorContext,board:string,id:string,input:Partial<LeadInput>) {
+      let touched=false;
+      let clientId='';
+      const updated=await mutation(actor,board,'update',async(context,rows)=>{
+        clientId=await d.leads.clientOf(board);
         const before=find(rows,id);
         const named=await attribution(board,before,input);
         const assigned=await assignment(actor,board,before,input);
-        const row=await d.leads.update(context,id,{...input,...named,...assigned});
+        const {customValues:patch,contact:_contact,organization:_organization,...rest}=input;
+        const custom=patch===undefined?{}:{customValues:applyCustomValues(await d.fields.list(actor.orgId,board,context),before.customValues,patch)};
+        const links=await linked(context,actor,clientId,{name:input.name??before.name,personId:before.personId,companyId:before.companyId},input);
+        touched=links.touched;
+        const row=await d.leads.update(context,id,{...rest,...named,...assigned,...custom,personId:links.personId,companyId:links.companyId});
         await audit(context,actor,row,'UPDATE',{before,after:row});
         return row;
       });
+      if (touched) await announce(actor,clientId,board);
+      return updated;
     },
     async delete(actor:ActorContext,board:string,id:string) {
       const storageKeys=await mutation(actor,board,'delete',async(context,rows)=>{const row=find(rows,id); const keys=await d.leads.delete(context,id); await ordered(context,rows.filter(l=>l.stage===row.stage&&l.id!==id)); await audit(context,actor,row,'DELETE',{before:row}); return keys;});
@@ -139,23 +192,24 @@ export function createLeadUseCases(d: {leads:LeadRepository; storage:Pick<LeadFi
       return d.leads.boardStageCounts(actor,board,arrivalWindow(range.from,range.to));
     },
     async columns(actor:ActorContext,board:string) { await authorize(actor,board,'read'); return boardColumns(await d.leads.columns(actor,board)); },
-    createColumn(actor:ActorContext,board:string,input:{name:string}) {
+    createColumn(actor:ActorContext,board:string,input:{name:string;color?:OptionColor}) {
       return mutation(actor,board,'create',async context=>{
         const columns=await d.leads.columns(actor,board,context);
         if (columns.length>=CUSTOM_COLUMN_LIMIT) throw new AppError('validation',`A board holds at most ${CUSTOM_COLUMN_LIMIT} columns`);
         assertNameFree(columns,input.name);
         const afterStage=LEAD_STAGES[LEAD_STAGES.length-1];
         const position=columns.filter(column=>column.afterStage===afterStage).length;
-        const column=await d.leads.createColumn(context,{id:d.ids.generate(),orgId:actor.orgId,projectId:board,name:input.name,afterStage,position});
+        const column=await d.leads.createColumn(context,{id:d.ids.generate(),orgId:actor.orgId,projectId:board,name:input.name,afterStage,position,color:input.color??DEFAULT_COLUMN_COLOR});
         await auditColumn(context,actor,column,'CREATE',{after:column});
         return customColumnOf(column);
       });
     },
-    updateColumn(actor:ActorContext,board:string,id:string,input:{name?:string;position?:number}) {
+    updateColumn(actor:ActorContext,board:string,id:string,input:{name?:string;position?:number;color?:OptionColor}) {
       return mutation(actor,board,'update',async context=>{
         const columns=await d.leads.columns(actor,board,context);
         const before=customColumn(columns,id);
         if (input.name!==undefined) { assertNameFree(columns,input.name,id); await d.leads.updateColumn(context,id,{name:input.name}); }
+        if (input.color!==undefined) await d.leads.updateColumn(context,id,{color:input.color});
         if (input.position!==undefined) {
           const full=boardColumns(columns);
           const moving=full.find(entry=>entry.id===id)!;

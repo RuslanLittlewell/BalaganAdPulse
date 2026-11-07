@@ -1,7 +1,11 @@
+import type { CustomValues, OptionColor } from './lead-field.js';
+import type { CompanySummary, PersonSummary } from './crm-record.js';
 export const LEAD_STAGES = ['NEW', 'QUALIFIED', 'TARGET', 'PROPOSAL'] as const;
 export type LeadStage = typeof LEAD_STAGES[number];
 export const LEAD_STAGE_NAMES: Record<LeadStage, string> = { NEW: 'Новый', QUALIFIED: 'Квалифицированный', TARGET: 'Целевой', PROPOSAL: 'КП' };
 export const COLUMN_NAME_LIMIT = 50;
+export const FIXED_STAGE_COLORS: Record<LeadStage, OptionColor> = { NEW: 'blue', QUALIFIED: 'purple', TARGET: 'orange', PROPOSAL: 'green' };
+export const DEFAULT_COLUMN_COLOR: OptionColor = 'gray';
 export const CUSTOM_COLUMN_LIMIT = 20;
 export function isLeadStage(value: string): value is LeadStage {
   return (LEAD_STAGES as readonly string[]).includes(value);
@@ -50,14 +54,15 @@ export interface LeadColumnRecord {
   name: string;
   afterStage: LeadStage | null;
   position: number;
+  color: OptionColor;
   createdAt: Date;
   updatedAt: Date;
 }
 export type BoardColumn =
-  | { id: LeadStage; kind: 'FIXED'; name: string; position: number }
-  | { id: string; kind: 'CUSTOM'; name: string; position: number };
-export function customColumnOf({ id, name, position }: LeadColumnRecord): BoardColumn {
-  return { id, kind: 'CUSTOM', name, position };
+  | { id: LeadStage; kind: 'FIXED'; name: string; position: number; color: OptionColor }
+  | { id: string; kind: 'CUSTOM'; name: string; position: number; color: OptionColor };
+export function customColumnOf({ id, name, position, color }: LeadColumnRecord): BoardColumn {
+  return { id, kind: 'CUSTOM', name, position, color };
 }
 export function boardColumns(custom: readonly LeadColumnRecord[]): BoardColumn[] {
   const after = (stage: LeadStage | null) =>
@@ -65,7 +70,7 @@ export function boardColumns(custom: readonly LeadColumnRecord[]): BoardColumn[]
   return [
     ...after(null),
     ...LEAD_STAGES.flatMap((stage, position) => [
-      { id: stage, kind: 'FIXED' as const, name: LEAD_STAGE_NAMES[stage], position },
+      { id: stage, kind: 'FIXED' as const, name: LEAD_STAGE_NAMES[stage], position, color: FIXED_STAGE_COLORS[stage] },
       ...after(stage),
     ]),
   ];
@@ -76,19 +81,16 @@ export const TAG_LIMIT = 10;
 export const TAG_LENGTH_LIMIT = 30;
 export interface LeadFields {
   name: string;
-  company?: string | null;
-  phone?: string | null;
-  email?: string | null;
-  website?: string | null;
+  personId?: string | null;
+  companyId?: string | null;
   source?: string | null;
   notes?: string | null;
   amount?: string | null;
   service?: string | null;
-  telegram?: string | null;
-  messenger?: string | null;
   tags?: string[];
   campaignId?: string | null;
   assigneeId?: string | null;
+  customValues?: CustomValues;
 }
 export interface LeadAnswer { question: string; values: string[] }
 export interface MetaEntityName { externalId: string; name: string }
@@ -111,9 +113,14 @@ export interface LeadRecord extends LeadFields {
   projectId: string;
   campaignId: string | null;
   assigneeId: string | null;
+  personId: string | null;
+  companyId: string | null;
+  person: PersonSummary | null;
+  company: CompanySummary | null;
   adId: string | null;
   amount: string | null;
   tags: string[];
+  customValues: CustomValues;
   origin: LeadOrigin;
   ad: LeadAd | null;
   project: LeadProject;
@@ -124,4 +131,4 @@ export interface LeadRecord extends LeadFields {
   createdAt: Date;
   updatedAt: Date;
 }
-export interface LeadBoard { key: string; label: string; clientName: string }
+export interface LeadBoard { key: string; label: string; clientId: string; clientName: string }

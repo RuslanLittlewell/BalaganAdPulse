@@ -40,6 +40,8 @@ export * from "./Sidebar/Sidebar.js";
 export * from "./Tabs/Tabs.js";
 export * from "./SortButton/SortButton.js";
 export * from "./TextField/TextField.js";
+export * from "./InlineText/InlineText.js";
+export * from "./SidePanel/SidePanel.js";
 export * from "./TimeInput/TimeInput.js";
 export * from "./ToolbarDivider/ToolbarDivider.js";
 export * from "./ThemeToggle/ThemeToggle.js";

@@ -24,6 +24,7 @@ model Project {
   campaigns            Campaign[]
   leads                Lead[]
   leadColumns          LeadColumn[]
+  leadFields           LeadField[]
   access               ClientAccess[]
   tasks                Task[]
   invitations          InviteProject[]

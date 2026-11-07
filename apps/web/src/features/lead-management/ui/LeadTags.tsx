@@ -18,9 +18,11 @@ export function LeadTags({ value, onChange, suggestions, disabled = false }: Lea
   const listId = useId();
   const taken = new Set(value.map((tag) => tag.toLowerCase()));
   const offered = suggestions.filter((tag) => !taken.has(tag.toLowerCase()));
+  const needle = draft.trim().toLocaleLowerCase("ru");
+  const matching = offered.filter((tag) => needle === "" || tag.toLocaleLowerCase("ru").includes(needle)).slice(0, 8);
 
-  function add() {
-    const tag = draft.trim();
+  function add(entered = draft) {
+    const tag = entered.trim();
     if (tag && tag.length <= TAG_LENGTH_LIMIT && !taken.has(tag.toLowerCase()) && value.length < TAG_LIMIT) {
       onChange([...value, tag]);
     }
@@ -58,22 +60,41 @@ export function LeadTags({ value, onChange, suggestions, disabled = false }: Lea
         </span>
       ))}
       {disabled ? null : adding ? (
-        <>
+        <span className="relative">
           <input
             autoFocus
             aria-label={t("crm.card.tagNew")}
-            list={listId}
+            aria-controls={matching.length > 0 ? listId : undefined}
+            aria-autocomplete="list"
             maxLength={TAG_LENGTH_LIMIT}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={onKeyDown}
-            onBlur={add}
+            onBlur={() => add()}
             className="h-6 w-29 rounded-md border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring"
           />
-          <datalist id={listId} data-testid="tag-suggestions">
-            {offered.map((tag) => <option key={tag} value={tag} />)}
-          </datalist>
-        </>
+          {matching.length > 0 ? (
+            <ul
+              id={listId}
+              role="listbox"
+              aria-label={t("crm.card.tagSuggestions")}
+              className="absolute top-full left-0 z-50 mt-1 max-h-48 min-w-36 overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md"
+            >
+              {matching.map((tag) => (
+                <li
+                  key={tag}
+                  role="option"
+                  aria-selected={false}
+                  className="cursor-pointer truncate rounded-sm px-2 py-1 text-sm hover:bg-accent hover:text-accent-foreground"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => add(tag)}
+                >
+                  {tag}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </span>
       ) : value.length < TAG_LIMIT ? (
         <button
           type="button"

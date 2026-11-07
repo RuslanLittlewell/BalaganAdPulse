@@ -51,6 +51,43 @@ const boardLeads = (board: string) =>
   prisma.lead.findMany({ where: { orgId, projectId: board }, orderBy: [{ stage: "asc" }, { position: "asc" }] });
 
 describe("lead intake", () => {
+  it("reuses a contact by email before phone and preserves its values", async () => {
+    const clientId = (await prisma.project.findUniqueOrThrow({ where: { id: projectId } })).clientId;
+    const byEmail = await prisma.person.create({ data: { orgId, clientId, name: "Existing email", email: "Anna@Example.com", phone: "+375291111111" } });
+    const byPhone = await prisma.person.create({ data: { orgId, clientId, name: "Existing phone", phone: "+375292222222" } });
+    await deliver([incoming("email", { email: "anna@example.com", phone: "+375292222222" })]);
+    const lead = await prisma.lead.findFirstOrThrow({ where: { name: "Лид email" } });
+    expect(lead.personId).toBe(byEmail.id);
+    expect((await prisma.person.findUniqueOrThrow({ where: { id: byEmail.id } })).phone).toBe("+375291111111");
+    expect((await prisma.person.findUniqueOrThrow({ where: { id: byPhone.id } })).name).toBe("Existing phone");
+    expect(await prisma.person.count()).toBe(2);
+  });
+
+  it("reuses a contact by phone digits and creates an organization from the company answer", async () => {
+    const clientId = (await prisma.project.findUniqueOrThrow({ where: { id: projectId } })).clientId;
+    const existing = await prisma.person.create({ data: { orgId, clientId, name: "Existing", phone: "+375 (29) 123-45-67" } });
+    await deliver([incoming("phone", { phone: "375291234567", company: " Romashka " })]);
+    const lead = await prisma.lead.findFirstOrThrow({ where: { name: "Лид phone" }, include: { company: true } });
+    expect(lead.personId).toBe(existing.id);
+    expect(lead.company).toMatchObject({ name: "Romashka" });
+    expect((await prisma.person.findUniqueOrThrow({ where: { id: existing.id } })).companyId).toBeNull();
+    await deliver([incoming("again", { phone: "+375291234567", company: "romashka" })]);
+    expect(await prisma.company.count()).toBe(1);
+    expect(await prisma.person.count()).toBe(1);
+  });
+
+  it("creates a new contact linked to its organization and keeps clients apart", async () => {
+    const other = await seedProject("unused", "Other");
+    await deliver([incoming("first", { phone: null, email: "anna@example.com", company: "Romashka" })]);
+    await deliver([incoming("second", { phone: null, email: "ANNA@example.com", company: "Romashka" })], { orgId, projectId: other.projectId });
+    const rows = await prisma.lead.findMany({ include: { person: true, company: true }, orderBy: { name: "asc" } });
+    expect(rows).toHaveLength(2);
+    expect(rows[0].personId).not.toBe(rows[1].personId);
+    expect(rows[0].companyId).not.toBe(rows[1].companyId);
+    expect(rows.every((row) => row.person?.companyId === row.companyId)).toBe(true);
+    expect(await prisma.person.count()).toBe(2);
+  });
+
   it("places imported leads first in Новый лид on the project's board, ahead of leads already there", async () => {
     await prisma.lead.create({ data: { name: "Вручную", orgId, projectId, position: 0 } });
 
@@ -61,8 +98,8 @@ describe("lead intake", () => {
     expect(rows.map((row) => [row.name, row.stage, row.position])).toEqual([
       ["Лид L1", "NEW", 0], ["Лид L2", "NEW", 1], ["Вручную", "NEW", 2],
     ]);
-    const imported = await prisma.lead.findFirstOrThrow({ where: { name: "Лид L1" }, include: { metaSource: true, metaKey: true } });
-    expect(imported).toMatchObject({ origin: "META", projectId, phone: "+375291234567" });
+    const imported = await prisma.lead.findFirstOrThrow({ where: { name: "Лид L1" }, include: { metaSource: true, metaKey: true, person: true } });
+    expect(imported).toMatchObject({ origin: "META", projectId, person: { name: "Лид L1", phone: "+375291234567" } });
     expect(imported.metaSource).toMatchObject({ formId: "f1", campaignName: "Весна", adSetName: "Москва", adName: "Видео 1", adExternalId: "555" });
     expect(imported.metaKey).toMatchObject({ orgId, externalId: "L1" });
   });

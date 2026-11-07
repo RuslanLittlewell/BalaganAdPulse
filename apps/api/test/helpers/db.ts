@@ -3,8 +3,20 @@ import { prisma } from "../../src/shared/infrastructure/prisma.js";
 import { PrismaUnitOfWork } from "../../src/shared/infrastructure/prisma-unit-of-work.js";
 import { RandomIdGenerator } from "../../src/shared/infrastructure/id-generator.js";
 import { currentOrg } from "./auth.js";
+import { SCHEMA_PREFIX } from "../workers.js";
+
+export function assertTestDatabase(url: string | undefined = process.env.DATABASE_URL): void {
+  const schema = url && URL.canParse(url) ? new URL(url).searchParams.get("schema") : null;
+  if (!schema?.startsWith(SCHEMA_PREFIX)) {
+    throw new Error(
+      `Refusing to reset a database outside a test schema (${SCHEMA_PREFIX}*). ` +
+        "Run the suite through a config that loads test/setup.ts and test/global-setup.ts.",
+    );
+  }
+}
 
 export async function resetDb(): Promise<void> {
+  assertTestDatabase();
   await prisma.notification.deleteMany();
   await prisma.lead.deleteMany();
   await prisma.leadColumn.deleteMany();

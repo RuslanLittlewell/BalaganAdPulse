@@ -3,6 +3,7 @@ import type { TransactionContext } from '#shared/application/index.js';
 import type { PrismaUnitOfWork } from '#shared/infrastructure/prisma-unit-of-work.js';
 import type { ImportedLeadInput, LeadIntakeRepository } from '../application/lead-intake.js';
 import type { LeadMetaSource } from '../domain/lead.js';
+import { phoneDigitsOf } from '../domain/crm-record.js';
 
 export class PrismaLeadIntakeRepository implements LeadIntakeRepository {
   constructor(private readonly uow: PrismaUnitOfWork<Prisma.TransactionClient>) {}
@@ -25,13 +26,40 @@ export class PrismaLeadIntakeRepository implements LeadIntakeRepository {
     const ad = await tx.ad.findFirst({ where: { externalId: source.ad.externalId, adSet: { campaign: { projectId, channel: 'META' } } }, select: { id: true } });
     return { campaignId: campaign?.id ?? null, adId: ad?.id ?? null };
   }
+  private async organization(context: TransactionContext, orgId: string, clientId: string, name: string | null) {
+    const title = name?.trim();
+    if (!title) return null;
+    const tx = this.tx(context);
+    const [found] = await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM crm_company WHERE org_id = ${orgId} AND client_id = ${clientId} AND lower(trim(name)) = lower(${title}) ORDER BY created_at LIMIT 1`;
+    if (found) return found.id;
+    return (await tx.company.create({ data: { orgId, clientId, name: title }, select: { id: true } })).id;
+  }
+  private async contact(context: TransactionContext, input: ImportedLeadInput, clientId: string, companyId: string | null) {
+    const tx = this.tx(context);
+    const email = input.email?.trim() || null;
+    const digits = phoneDigitsOf(input.phone);
+    if (email) {
+      const [found] = await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM crm_person WHERE org_id = ${input.orgId} AND client_id = ${clientId} AND lower(email) = lower(${email}) ORDER BY created_at LIMIT 1`;
+      if (found) return found.id;
+    }
+    if (digits) {
+      const found = await tx.person.findFirst({ where: { orgId: input.orgId, clientId, phoneDigits: digits }, orderBy: { createdAt: 'asc' }, select: { id: true } });
+      if (found) return found.id;
+    }
+    return (await tx.person.create({ data: {
+      orgId: input.orgId, clientId, companyId, name: input.name, email, phone: input.phone,
+    }, select: { id: true } })).id;
+  }
   async createImported(context: TransactionContext, input: ImportedLeadInput) {
     const tx = this.tx(context);
     const { source } = input;
+    const { clientId } = await tx.project.findUniqueOrThrow({ where: { id: input.projectId }, select: { clientId: true } });
+    const companyId = await this.organization(context, input.orgId, clientId, input.company);
+    const personId = await this.contact(context, input, clientId, companyId);
     await tx.lead.create({ data: {
       id: input.id, orgId: input.orgId, projectId: input.projectId,
       campaignId: input.campaignId, adId: input.adId, origin: 'META', stage: 'NEW', position: input.position,
-      name: input.name, company: input.company, phone: input.phone, email: input.email,
+      name: input.name, personId, companyId,
       metaSource: { create: {
         accountId: source.accountId, formId: source.formId,
         campaignExternalId: source.campaign.externalId, campaignName: source.campaign.name,

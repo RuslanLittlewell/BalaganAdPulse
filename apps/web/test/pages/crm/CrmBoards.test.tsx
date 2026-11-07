@@ -1,22 +1,23 @@
 import { http as mock, HttpResponse, delay } from "msw";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { Route, Routes } from "react-router-dom";
 import { renderWithProviders, server } from "@test/shared/index.js";
-import { CrmPage } from "@/pages/crm/index.js";
+import { CrmLayout, CrmPage } from "@/pages/crm/index.js";
 
 const capabilities = { create: true, update: true, delete: true };
 
 const aLead = (fields: Record<string, unknown>) => ({
-  id: "lead-1", orgId: "org-1", projectId: "project-1", project: { id: "project-1", clientId: "client-1", name: "Сайт" }, tags: [], name: "Анна", company: null,
-  phone: null, email: null, telegram: null, website: null, source: null, notes: null,
+  id: "lead-1", orgId: "org-1", projectId: "project-1", project: { id: "project-1", clientId: "client-1", name: "Сайт" }, tags: [], name: "Анна", companyId: null, personId: null, company: null, person: null,
+  source: null, notes: null,
   stage: "NEW", position: 0, createdAt: "2026-09-05T00:00:00.000Z",
   updatedAt: "2026-09-05T00:00:00.000Z", ...fields,
 });
 
 const boards = (...keys: { key: string; label: string; clientName?: string }[]) =>
-  mock.get("/api/crm/boards", () => HttpResponse.json(keys.map((board) => ({ ...board, capabilities }))));
+  mock.get("/api/crm/boards", () => HttpResponse.json(keys.map((board) => ({ ...board, clientId: 'client-1', capabilities }))));
 
-const setup = (route = "/crm") => renderWithProviders(<CrmPage />, { route });
+const setup = (route = "/crm") => renderWithProviders(<Routes><Route path="/crm" element={<CrmLayout />}><Route index element={<CrmPage />} /></Route></Routes>, { route });
 
 describe("the CRM board selector", () => {
   const asRole = (role: string) => mock.get("/api/auth/me", () => HttpResponse.json({
@@ -179,7 +180,8 @@ describe("the CRM board while it loads and when it fails", () => {
     await userEvent.click(screen.getByRole("option", { name: "Реклама" }));
 
     expect(screen.getByRole("region", { name: "Новый" })).toBeInTheDocument();
-    expect(await screen.findAllByText("Нет лидов")).toHaveLength(4);
+    await waitFor(() => expect(screen.queryByText("Анна")).not.toBeInTheDocument());
+    expect(screen.getByTestId("crm-count-NEW")).toHaveTextContent("0");
   });
 
   it("reports leads it could not load", async () => {

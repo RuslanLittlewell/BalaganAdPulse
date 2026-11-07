@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { MoreHorizontal } from "lucide-react";
 import {
+  OPTION_COLORS,
+  OptionSwatch,
   useDeleteLeadColumn,
   useUpdateLeadColumn,
   type BoardCapabilities,
   type LeadColumn,
+  type OptionColor,
 } from "@/entities/lead/index.js";
 import { t } from "@/shared/config/index.js";
 import {
@@ -13,6 +16,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
   useAlerts,
 } from "@/shared/ui/index.js";
@@ -39,6 +47,14 @@ export function LeadColumnMenu({ boardKey, column, columns, leadCount, capabilit
     update.mutate(
       { id: column.id, body: { position: index + by } },
       { onError: () => raise(t("crm.columns.moveFailed")) },
+    );
+  }
+
+  function recolor(color: OptionColor) {
+    if (color === column.color) return;
+    update.mutate(
+      { id: column.id, body: { color } },
+      { onError: () => raise(t("crm.columns.recolorFailed")) },
     );
   }
 
@@ -76,6 +92,19 @@ export function LeadColumnMenu({ boardKey, column, columns, leadCount, capabilit
               <DropdownMenuItem onSelect={() => setRenaming(true)}>
                 {t("crm.columns.rename")}
               </DropdownMenuItem>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>{t("crm.columns.color")}</DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuRadioGroup value={column.color} onValueChange={(color) => recolor(color as OptionColor)}>
+                    {OPTION_COLORS.map((color) => (
+                      <DropdownMenuRadioItem key={color} value={color}>
+                        <OptionSwatch color={color} />
+                        {t(`crm.fields.color.${color}`)}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
               <DropdownMenuItem disabled={index <= 0} onSelect={() => shift(-1)}>
                 {t("crm.columns.moveLeft")}
               </DropdownMenuItem>

@@ -1,12 +1,4 @@
-import type { Lead } from "@/entities/lead/index.js";
-
-function arrivalIso(lead: Lead): string {
-  return lead.metaSource?.submittedAt ?? lead.createdAt;
-}
-
-function arrivalDay(lead: Lead): string {
-  return arrivalIso(lead).slice(0, 10);
-}
+import { arrivalDay, arrivalIso, type Lead } from "@/entities/lead/index.js";
 
 export function leadsOfDay(leads: readonly Lead[], day: string): Lead[] {
   return leads

@@ -3,7 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Link, Route, Routes, useLocation } from "react-router-dom";
 import { renderWithProviders, server } from "@test/shared/index.js";
-import { CrmPage } from "@/pages/crm/index.js";
+import { CrmLayout, CrmPage } from "@/pages/crm/index.js";
 import { useModuleMemory } from "@/shared/lib/index.js";
 
 const capabilities = { create: true, update: true, delete: true };
@@ -22,7 +22,7 @@ function App() {
       </nav>
       <Address />
       <Routes>
-        <Route path="/crm" element={<CrmPage />} />
+        <Route path="/crm" element={<CrmLayout />}><Route index element={<CrmPage />} /></Route>
         <Route path="/tasks" element={<h1>Задачи</h1>} />
       </Routes>
     </>
@@ -31,7 +31,7 @@ function App() {
 
 function boards(...list: { key: string; label: string }[]) {
   server.use(
-    mock.get("/api/crm/boards", () => HttpResponse.json(list.map((board) => ({ ...board, capabilities })))),
+    mock.get("/api/crm/boards", () => HttpResponse.json(list.map((board) => ({ ...board, clientId: 'client-1', clientName: 'Ромашка', capabilities })))),
     mock.get("/api/crm/boards/:board/leads", () => HttpResponse.json([])),
   );
 }
@@ -49,7 +49,7 @@ describe("the CRM board a member last selected", () => {
     renderWithProviders(<App />, { route: "/crm" });
 
     await userEvent.click(await screen.findByLabelText("Воронка"));
-    await userEvent.click(await screen.findByRole("option", { name: "Реклама" }));
+    await userEvent.click(await screen.findByRole("option", { name: /Реклама/ }));
     await waitFor(() => expect(screen.getByLabelText("Адрес")).toHaveTextContent("/crm?board=project-2"));
 
     await userEvent.click(screen.getByRole("link", { name: "Задачи" }));

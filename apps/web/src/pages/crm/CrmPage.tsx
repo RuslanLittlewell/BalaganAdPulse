@@ -1,62 +1,113 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Plus } from "lucide-react";
-import { useCrmEvents, useLeadBoards, type Lead, type LeadAd } from "@/entities/lead/index.js";
-import { LeadCard } from "@/features/lead-management/index.js";
+import { AnimatePresence } from 'motion/react';
+import {
+  FIXED_LEAD_COLUMNS,
+  useCrmEvents,
+  useLeadBoards,
+  useLeadColumns,
+  useLeadFields,
+  useLeads,
+  useUpdateLead,
+  type Lead,
+  type LeadAd,
+} from "@/entities/lead/index.js";
 import { useAuth } from "@/features/auth/index.js";
+import { LeadFieldsDialog } from "@/features/lead-field-management/index.js";
+import {
+  CrmViewChips,
+  CrmViewControls,
+  pruneState,
+  useViewState,
+  type FilterContext,
+  type Layout,
+} from "@/features/lead-view-options/index.js";
 import { t } from "@/shared/config/index.js";
 import { useModuleMemory } from "@/shared/lib/index.js";
 import {
   Button,
   EmptyState,
   FadeContent,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Tabs,
+  useAlerts,
 } from "@/shared/ui/index.js";
 import { CrmBoard } from "@/widgets/crm-board/index.js";
 import { CrmCalendar } from "@/widgets/crm-calendar/index.js";
 import { CreativePreviewDialog } from "@/widgets/creative-preview/index.js";
+import { CreateLeadPanel, LeadSidePanel } from "@/widgets/lead-side-panel/index.js";
+import { CreateRecordPanel } from '@/widgets/record-panel/index.js';
+import { LeadTable } from "@/widgets/record-table/index.js";
 
-type Editing = { lead?: Lead } | null;
+const LAYOUTS = ["board", "calendar", "table"] as const;
 
-const VIEWS = ["board", "calendar"] as const;
+function isLayout(value: string | undefined): value is Layout {
+  return LAYOUTS.includes(value as Layout);
+}
 
-type View = (typeof VIEWS)[number];
-
-function isView(value: string | undefined): value is View {
-  return VIEWS.includes(value as View);
+function useBoardChoices(leads: readonly Lead[] | undefined) {
+  return useMemo(() => {
+    const assignees = new Map<string, string>();
+    const tags = new Set<string>();
+    for (const lead of leads ?? []) {
+      if (lead.assignee) assignees.set(lead.assignee.id, lead.assignee.name);
+      for (const tag of lead.tags) tags.add(tag);
+    }
+    return {
+      assignees: [...assignees].map(([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label, "ru")),
+      tags: [...tags].sort((a, b) => a.localeCompare(b, "ru")),
+    };
+  }, [leads]);
 }
 
 export function CrmPage() {
   const { data: boards, isLoading, isError } = useLeadBoards();
   const [params, setParams] = useSearchParams();
-  const [editing, setEditing] = useState<Editing>(null);
   const [previewing, setPreviewing] = useState<LeadAd | null>(null);
+  const [creatingIn, setCreatingIn] = useState<string | null>(null);
+  const [creatingRecord, setCreatingRecord] = useState<'companies' | 'people' | null>(null);
+  const [managingFields, setManagingFields] = useState(false);
+  const [freshFilter, setFreshFilter] = useState<string | null>(null);
 
   const { user } = useAuth();
   const remembered = useModuleMemory((state) => (user ? state.boards[user.id] : undefined));
   const rememberBoard = useModuleMemory((state) => state.rememberBoard);
   const forgetBoard = useModuleMemory((state) => state.forgetBoard);
-
-  const rememberedView = useModuleMemory((state) => (user ? state.crmViews[user.id] : undefined));
+  const rememberedLayout = useModuleMemory((state) => (user ? state.crmViews[user.id] : undefined));
   const rememberCrmView = useModuleMemory((state) => state.rememberCrmView);
-  const [chosenView, setChosenView] = useState<View | null>(null);
-  const view: View = chosenView ?? (isView(rememberedView) ? rememberedView : "board");
+  const [chosenLayout, setChosenLayout] = useState<Layout | null>(null);
+  const layout: Layout = chosenLayout ?? (isLayout(rememberedLayout) ? rememberedLayout : "board");
 
   const chosen = params.get("board");
   const restorable = !chosen && remembered ? boards?.find((candidate) => candidate.key === remembered) : undefined;
   const board = chosen
     ? boards?.find((candidate) => candidate.key === chosen)
     : restorable ?? (user ? boards?.[0] : undefined);
+  const openLeadId = params.get("lead");
 
-  useCrmEvents(board?.key);
+  useCrmEvents(board?.key, {}, board?.clientId);
+  const updateLead = useUpdateLead(board?.key ?? '');
+  const { raise } = useAlerts();
 
-  useEffect(() => { setEditing(null); setPreviewing(null); }, [chosen]);
+  const { data: leads } = useLeads(board?.key);
+  const { data: fields } = useLeadFields(board?.key);
+  const { data: columns } = useLeadColumns(board?.key);
+  const { view: storedView, change } = useViewState(user?.id, board?.key);
+  const view = useMemo(
+    () => (fields && columns ? pruneState(storedView, fields, columns) : storedView),
+    [storedView, fields, columns],
+  );
+  const choices = useBoardChoices(leads);
+  const context: FilterContext = useMemo(
+    () => ({ fields: fields ?? [], columns: columns ?? FIXED_LEAD_COLUMNS, assignees: choices.assignees, tags: choices.tags }),
+    [fields, columns, choices],
+  );
+
+  useEffect(() => {
+    setPreviewing(null);
+    setCreatingIn(null);
+    setCreatingRecord(null);
+    setManagingFields(false);
+  }, [chosen]);
 
   useEffect(() => {
     if (!user || !boards) return;
@@ -69,93 +120,113 @@ export function CrmPage() {
     }
   }, [user, boards, chosen, board, restorable, remembered, rememberBoard, forgetBoard, setParams]);
 
+  const openLead = useCallback((lead: Lead) => {
+    setCreatingIn(null);
+    setCreatingRecord(null);
+    setParams((current) => {
+      const next = new URLSearchParams(current);
+      if (board && !next.get("board")) next.set("board", board.key);
+      next.set("lead", lead.id);
+      return next;
+    });
+  }, [board, setParams]);
+
+  const closeLead = useCallback(() => {
+    setParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete("lead");
+      return next;
+    });
+  }, [setParams]);
+
   if (isError) return <EmptyState title={t("crm.loadFailed")} />;
   if (boards && boards.length === 0) return <EmptyState title={t("crm.noBoards")} />;
 
+  const capabilities = board?.capabilities;
+
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
-      <header className="flex shrink-0 flex-wrap items-end justify-between gap-2">
-        {(boards ?? []).length > 1 ? (
-          <div className="flex min-w-0 flex-col gap-2">
-            <Label htmlFor="crm-board">{t("crm.board")}</Label>
-            <Select value={board?.key ?? ""} onValueChange={(next) => setParams({ board: next })}>
-              <SelectTrigger id="crm-board" className="w-45"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {(boards ?? []).map((candidate) => (
-                  <SelectItem key={candidate.key} value={candidate.key}>
-                    <span className="flex min-w-0 items-baseline gap-2">
-                      <span className="truncate">{candidate.label}</span>
-                      <span className="truncate text-xs text-muted-foreground">{candidate.clientName}</span>
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : <div />}
+    <div className="flex h-full min-h-0 flex-col gap-2">
+      <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border pb-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <h1 className="truncate text-lg font-semibold">{t("crm.nav.leads")}</h1>
+          {leads ? (
+            <span className="text-xs tabular-nums text-muted-foreground" aria-label={`${t("crm.view.leadCount")}: ${leads.length}`}>
+              {leads.length}
+            </span>
+          ) : null}
+        </div>
 
-        <Tabs
-          items={[
-            { id: "board", label: t("crm.view.board") },
-            { id: "calendar", label: t("crm.view.calendar") },
-          ]}
-          activeId={view}
-          onSelect={(id) => {
-            if (!isView(id)) return;
-            setChosenView(id);
-            if (user) rememberCrmView(user.id, id);
-          }}
-          ariaLabel={t("crm.view.label")}
-        />
+        <span className="flex-1" />
 
-        {board?.capabilities.create ? (
-          <Button type="button" onClick={() => setEditing({})}>
-            <Plus aria-hidden className="size-3" />
-            {t("crm.create")}
-          </Button>
+        {board ? (
+          <CrmViewControls
+            view={view}
+            context={context}
+            layout={layout}
+            canManageFields={capabilities?.create ?? false}
+            onChange={change}
+            onAddFilter={(filter) => { change({ filters: [...view.filters, filter] }); setFreshFilter(filter.id); }}
+            onLayout={(next) => { setChosenLayout(next); if (user) rememberCrmView(user.id, next); }}
+            onBoardFields={() => setManagingFields(true)}
+          />
         ) : null}
+
+        {board && capabilities?.create ? <Button type="button" className="h-8" onClick={() => { closeLead(); setCreatingRecord(null); setCreatingIn('NEW'); }}><Plus aria-hidden className="size-3" />{t("crm.create")}</Button> : null}
       </header>
 
-      <div className="min-h-0 flex-1">
-        <FadeContent key={view} className="h-full">
-          {board || isLoading || !user ? (
-            view === "board" ? (
-              <CrmBoard
-                boardKey={board?.key}
-                busy={isLoading || !user}
-                draggable={board?.capabilities.update ?? false}
-                capabilities={board?.capabilities}
-                onOpen={(lead) => setEditing({ lead })}
-              />
+      {board ? <CrmViewChips view={view} context={context} freshId={freshFilter} fields={fields ?? []} onChange={change} /> : null}
+
+      <div className="relative flex min-h-0 flex-1 overflow-clip">
+        <div className="min-h-0 min-w-0 flex-1">
+          <FadeContent key={layout} className="h-full">
+            {board || isLoading || !user ? (
+              layout === "board" ? (
+                <CrmBoard
+                  boardKey={board?.key}
+                  busy={isLoading || !user}
+                  capabilities={capabilities}
+                  view={view}
+                  fields={fields ?? []}
+                  selectedId={openLeadId}
+                  creatingIn={creatingIn}
+                  onCreatingChange={(stage) => { closeLead(); setCreatingRecord(null); setCreatingIn(stage); }}
+                  onOpen={openLead}
+                />
+              ) : layout === "calendar" ? (
+                <CrmCalendar
+                  boardKey={board?.key}
+                  busy={isLoading || !user}
+                  view={view}
+                  fields={fields ?? []}
+                  selectedId={openLeadId}
+                  onOpen={openLead}
+                />
+              ) : (
+                <LeadTable leads={leads ?? []} columns={columns ?? FIXED_LEAD_COLUMNS} fields={fields ?? []} view={view} onOpen={openLead} onSort={(sort) => change({ sort })} />
+              )
             ) : (
-              <CrmCalendar
-                boardKey={board?.key}
-                busy={isLoading || !user}
-                onOpen={(lead) => setEditing({ lead })}
-              />
-            )
-          ) : (
-            <EmptyState title={t("crm.boardUnavailable")} />
-          )}
-        </FadeContent>
+              <EmptyState title={t("crm.boardUnavailable")} />
+            )}
+          </FadeContent>
+        </div>
+
+        <AnimatePresence mode="wait">
+          {board && capabilities?.create && creatingRecord ? <CreateRecordPanel key={`link-${creatingRecord}`} kind={creatingRecord} clientId={board.clientId} onClose={() => setCreatingRecord(null)} onCreated={(id) => {
+            const kind = creatingRecord;
+            setCreatingRecord(null);
+            if (openLeadId) void updateLead.mutateAsync({ id: openLeadId, body: kind === 'people' ? { personId: id } : { companyId: id } }).catch(() => raise(t('crm.form.saveFailed')));
+          }} />
+            : board && capabilities && openLeadId ? <LeadSidePanel key={`lead-${board.key}`} boardKey={board.key} leadId={openLeadId} capabilities={capabilities} onClose={closeLead} onPreviewCreative={setPreviewing} onCreateRecord={capabilities.create ? setCreatingRecord : undefined} />
+            : board && capabilities?.create && creatingIn ? <CreateLeadPanel key={`new-${board.key}`} boardKey={board.key} clientId={board.clientId} initialStage={creatingIn} fields={fields ?? []} onCreated={(lead) => { setCreatingIn(null); openLead(lead); }} onClose={() => setCreatingIn(null)} /> : null}
+        </AnimatePresence>
       </div>
 
-      {board && editing ? (
-        <LeadCard
-          boardKey={board.key}
-          capabilities={board.capabilities}
-          lead={editing.lead}
-          onClose={() => setEditing(null)}
-          onPreviewCreative={setPreviewing}
-        />
+      {board && capabilities && managingFields ? (
+        <LeadFieldsDialog boardKey={board.key} capabilities={capabilities} onClose={() => setManagingFields(false)} />
       ) : null}
 
       {previewing ? (
-        <CreativePreviewDialog
-          ads={[previewing]}
-          initialAdId={previewing.id}
-          onClose={() => setPreviewing(null)}
-        />
+        <CreativePreviewDialog ads={[previewing]} initialAdId={previewing.id} onClose={() => setPreviewing(null)} />
       ) : null}
     </div>
   );

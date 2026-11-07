@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useLeads, type Lead } from "@/entities/lead/index.js";
+import { useLeads, type Lead, type LeadField } from "@/entities/lead/index.js";
+import { DEFAULT_VIEW, visibleLeads, type ViewState } from "@/features/lead-view-options/index.js";
 import { LeadCard } from "@/widgets/crm-board/LeadCard.js";
 import {
   dayAndMonth,
@@ -20,6 +21,9 @@ export interface CrmCalendarProps {
   boardKey?: string;
   busy?: boolean;
   today?: string;
+  view?: Pick<ViewState, "search" | "filters">;
+  fields?: readonly LeadField[];
+  selectedId?: string | null;
   onOpen?: (lead: Lead) => void;
 }
 
@@ -27,6 +31,9 @@ export function CrmCalendar({
   boardKey,
   busy = false,
   today,
+  view = DEFAULT_VIEW,
+  fields = [],
+  selectedId = null,
   onOpen,
 }: CrmCalendarProps) {
   const now = today ?? toIso(new Date());
@@ -34,10 +41,10 @@ export function CrmCalendar({
   const [weekStart, setWeekStart] = useState(() => startOfWeek(now));
 
   const days = useMemo(() => weekDays(weekStart), [weekStart]);
-  const board = leads ?? [];
+  const board = useMemo(() => visibleLeads(leads ?? [], view, fields), [leads, view, fields]);
   const loading = busy || isLoading;
 
-  if (isError && board.length === 0)
+  if (isError && (leads ?? []).length === 0)
     return <EmptyState title={t("crm.loadFailed")} />;
 
   return (
@@ -117,7 +124,7 @@ export function CrmCalendar({
 
                 <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
                   {dayLeads.map((lead) => (
-                    <LeadCard key={lead.id} lead={lead} onOpen={onOpen} />
+                    <LeadCard key={lead.id} lead={lead} compact selected={lead.id === selectedId} onOpen={onOpen} />
                   ))}
                 </div>
               </section>

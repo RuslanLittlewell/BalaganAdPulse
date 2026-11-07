@@ -1,68 +1,105 @@
-import type { ReactNode } from "react";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useDroppable } from "@dnd-kit/core";
-import { leadColumnLabel, type Lead, type LeadColumn } from "@/entities/lead/index.js";
+import { Plus } from "lucide-react";
+import {
+  ColumnPill,
+  compactSum,
+  leadColumnLabel,
+  type BoardCapabilities,
+  type Lead,
+  type LeadColumn,
+  type LeadField,
+} from "@/entities/lead/index.js";
+import { LeadColumnMenu } from "@/features/lead-column-management/index.js";
+import type { FieldRef } from "@/features/lead-view-options/index.js";
 import { t } from "@/shared/config/index.js";
 import { cn } from "@/shared/lib/index.js";
-import { accentOf } from "./accent.js";
+import { Button } from "@/shared/ui/index.js";
 import { LeadCard } from "./LeadCard.js";
 
 export interface CrmColumnProps {
+  boardKey?: string;
   column: LeadColumn;
+  columns: readonly LeadColumn[];
   leads: Lead[];
+  storedCount: number;
+  fields: readonly LeadField[];
+  cardFields: readonly FieldRef[];
+  compact: boolean;
+  capabilities?: BoardCapabilities;
   draggable?: boolean;
   draggingId?: string | null;
-  actions?: ReactNode;
+  selectedId?: string | null;
   onOpen?: (lead: Lead) => void;
+  onStartCreate: () => void;
 }
 
-export function CrmColumnPanel({
-  column, leads, draggable = false, draggingId, actions, onOpen,
+function amountSum(leads: readonly Lead[]): number | null {
+  const amounts = leads.flatMap((lead) => (lead.amount ? [Number(lead.amount)] : []));
+  return amounts.length === 0 ? null : amounts.reduce((total, amount) => total + amount, 0);
+}
+
+export function CrmColumn({
+  boardKey, column, columns, leads, storedCount, fields, cardFields, compact, capabilities, draggable = false,
+  draggingId, selectedId, onOpen, onStartCreate,
 }: CrmColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   const title = leadColumnLabel(column);
+  const sum = amountSum(leads);
+  const manages = Boolean(boardKey && capabilities && column.kind === "CUSTOM" && (capabilities.update || capabilities.delete));
 
   return (
     <section
       ref={setNodeRef}
       aria-label={title}
       data-testid={`crm-column-${column.id}`}
+      data-color={column.color}
       className={cn(
-        "flex h-full min-h-0 w-64 shrink-0 flex-col rounded-xl border border-border",
-        "bg-muted/30 shadow-sm transition-colors",
-        isOver && "border-primary/40 bg-primary/5 shadow-md",
+        "flex h-full min-h-0 w-64 shrink-0 flex-col border-r border-border/60 px-2 transition-colors last:border-r-0",
+        isOver && "bg-muted/40",
       )}
     >
-      <header className="flex shrink-0 items-center gap-2 border-b border-border/70 px-2 py-2">
-        <span
-          aria-hidden
-          className={cn("size-2 shrink-0 rounded-full", accentOf(column.id))}
-        />
-        <h2 className="min-w-0 flex-1 truncate text-sm font-semibold" title={title}>
-          {title}
-        </h2>
-        <span className="shrink-0 rounded-full bg-background px-2 py-0.5 text-xs font-medium text-muted-foreground ring-1 ring-inset ring-border">
-          {leads.length}
-        </span>
-        {actions}
+      <header className="flex shrink-0 items-center gap-2 py-2">
+        <ColumnPill name={title} color={column.color} />
+        <span className="text-xs tabular-nums text-muted-foreground" data-testid={`crm-count-${column.id}`}>{leads.length}</span>
+        {sum !== null ? (
+          <span className="text-xs tabular-nums text-muted-foreground" title={t("crm.columnSum")} data-testid={`crm-sum-${column.id}`}>
+            {compactSum(sum)}
+          </span>
+        ) : null}
+        <span className="flex-1" />
+        {manages && boardKey && capabilities ? (
+          <LeadColumnMenu boardKey={boardKey} column={column} columns={columns} leadCount={storedCount} capabilities={capabilities} />
+        ) : null}
       </header>
 
       <SortableContext id={column.id} items={leads.map((lead) => lead.id)} strategy={verticalListSortingStrategy}>
-        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
+        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pb-2">
           {leads.map((lead) => (
             <LeadCard
               key={lead.id}
               lead={lead}
+              fields={fields}
+              cardFields={cardFields}
+              compact={compact}
               draggable={draggable}
               placeholder={lead.id === draggingId}
+              selected={lead.id === selectedId}
               onOpen={onOpen}
             />
           ))}
 
-          {leads.length === 0 ? (
-            <p className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border/70 p-3 text-center text-xs text-muted-foreground">
-              {t("crm.empty")}
-            </p>
+          {boardKey && capabilities?.create ? (
+              <Button
+                type="button"
+                variant="ghost"
+                aria-label={`${t("crm.addLeadIn")} ${title}`}
+                className="h-7 justify-start gap-1 px-1.5 text-xs font-normal text-muted-foreground"
+                onClick={onStartCreate}
+              >
+                <Plus aria-hidden className="size-3" />
+                {t("crm.newLead")}
+              </Button>
           ) : null}
         </div>
       </SortableContext>

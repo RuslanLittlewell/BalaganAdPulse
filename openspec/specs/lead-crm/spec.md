@@ -25,25 +25,6 @@ A lead SHALL have a required nonblank name and optional company, phone, email, w
 - **WHEN** a member creates a lead without source text
 - **THEN** its card shows Не указан as the source
 
-### Requirement: CRM uses the task board visual language
-The CRM SHALL appear in navigation at `/crm`. It SHALL use the task board's column panels, card styling, spacing, scroll behavior, drag overlay and keyboard drag affordance. Each card SHALL show name, supplied company and contact details, and the lead's tags, and SHALL NOT show its acquisition source or campaign. A lead without tags SHALL show no tag row. Long values SHALL truncate on the card and be readable in the lead card. Empty contacts SHALL NOT produce blank rows on the board card. Notes SHALL be editable in the lead card as its description. Contact actions SHALL NOT initiate a drag or accidentally open the editor. The lead card's stage choice SHALL offer every fixed stage and custom column of the lead's board in board order.
-
-#### Scenario: Opening a card
-- **WHEN** a member clicks or keyboard-opens a lead card
-- **THEN** the two-column lead card shows the lead's fields and stage, with editing controls only when permitted
-
-#### Scenario: Narrow display
-- **WHEN** the viewport cannot fit every column
-- **THEN** columns scroll horizontally and each column's cards scroll vertically within the available board height
-
-#### Scenario: Stage choice with custom columns
-- **WHEN** a member opens a lead on a board with a custom column Встреча
-- **THEN** the stage choice lists Новый, Квалифицированный, Целевой, КП and Встреча in that order
-
-#### Scenario: Tags on the board card
-- **WHEN** a lead carries the tags Срочно and VIP
-- **THEN** its board card shows Срочно and VIP where the source used to be
-
 ### Requirement: Stable atomic ordering and deletion
 Leads SHALL have stable ordering per board and per fixed stage or custom column, and custom columns SHALL have stable contiguous ordering per board. Creation SHALL prepend, placing the new lead first in its stage or column and shifting the leads already there down by one; editing SHALL preserve order; moving SHALL atomically update stage and position together with affected neighbors. Out-of-range positive positions given to an explicit move SHALL append; negative or noninteger positions SHALL return 400. Concurrent moves SHALL preserve unique contiguous ordering. The UI SHALL show moves optimistically and restore authoritative state with feedback after failure. Deleting a lead SHALL require confirmation and close the ordering gap.
 
@@ -99,7 +80,7 @@ Each successful lead or column mutation by a member SHALL record its actor, boar
 - **THEN** the card appears without a manual reload and no audit event names a member as its creator
 
 ### Requirement: Imported leads show where they came from
-A lead that arrived through an integration SHALL offer, in the right column of its card, a Доп. информация tab holding everything the integration delivered, read-only: the channel Meta and the ad account identifier; the form identifier; the campaign, ad set and ad names recorded at import; the moment the prospect submitted the form; and every kept form answer in form order, with a notice when answers were omitted. When the lead is linked to an ad the member can reach, the tab SHALL offer that ad's creative preview. A lead created by a member SHALL offer no such tab.
+A lead that arrived through an integration SHALL offer, in its side panel, a Доп. информация tab holding everything the integration delivered, read-only: the channel Meta and the ad account identifier; the form identifier; the campaign, ad set and ad names recorded at import; the moment the prospect submitted the form; and every kept form answer in form order, with a notice when answers were omitted. When the lead is linked to an ad the member can reach, the tab SHALL offer that ad's creative preview. A lead created by a member SHALL offer no such tab.
 
 The board card SHALL NOT name the Meta campaign an imported lead came from.
 
@@ -211,11 +192,11 @@ remain a manual decision without mandatory fields or automatic checks.
 - **THEN** only its stage, ordering, update metadata and history change
 
 ### Requirement: Project board columns are created, renamed, reordered and deleted
-A member who may manage leads on a board SHALL be able to create a custom column with a name, rename it, move it one place left or right among all of the board's columns — crossing a fixed stage where that is the next position in either direction — and delete it. A newly created column SHALL be placed last, after every fixed stage and every existing custom column. Column names SHALL be trimmed, nonblank, at most 50 characters, and unique on their board without regard to case, including the fixed stage names. A board SHALL hold at most 20 custom columns. Deleting a column SHALL require confirmation stating how many leads it holds, and SHALL move those leads to the end of Новый in their existing order in the same transaction. Columns SHALL belong to one project board and SHALL be removed with it.
+A member who may manage leads on a board SHALL be able to create a custom column with a name, rename it, recolor it, move it one place left or right among all of the board's columns — crossing a fixed stage where that is the next position in either direction — and delete it. A newly created column SHALL be placed last, after every fixed stage and every existing custom column, and SHALL be серый. Column names SHALL be trimmed, nonblank, at most 50 characters, and unique on their board without regard to case, including the fixed stage names. A board SHALL hold at most 20 custom columns. Deleting a column SHALL require confirmation stating how many leads it holds, and SHALL move those leads to the end of Новый in their existing order in the same transaction. Columns SHALL belong to one project board and SHALL be removed with it.
 
 #### Scenario: Create a column
 - **WHEN** a member activates Добавить столбец and enters Встреча
-- **THEN** a column Встреча appears after the last column of that board only
+- **THEN** a gray column Встреча appears after the last column of that board only
 
 #### Scenario: Duplicate name
 - **WHEN** a member names a column Целевой or the name of an existing column in any letter case
@@ -224,6 +205,10 @@ A member who may manage leads on a board SHALL be able to create a custom column
 #### Scenario: Rename a column
 - **WHEN** a member renames Встреча to Встреча назначена
 - **THEN** the column keeps its place and leads under the new name
+
+#### Scenario: Recolor a column
+- **WHEN** a member picks синий for Встреча
+- **THEN** the column keeps its place, name and leads and shows a blue pill
 
 #### Scenario: Move a column
 - **WHEN** a member moves the second of three custom columns, all sitting after `PROPOSAL`, one place left
@@ -247,7 +232,7 @@ A member who may manage leads on a board SHALL be able to create a custom column
 - **THEN** the column and its leads are unchanged
 
 #### Scenario: Fixed stages cannot be changed
-- **WHEN** a request renames, moves or deletes a fixed stage
+- **WHEN** a request renames, recolors, moves or deletes a fixed stage
 - **THEN** the API responds 400 and nothing changes
 
 #### Scenario: Columns of one project only
@@ -334,38 +319,15 @@ Members SHALL see an upper-left selector listing the project boards they reach, 
 - **THEN** project B's board opens and becomes the remembered board
 
 ### Requirement: Removing a project removes its funnel
-Deleting a project SHALL delete every lead and custom column of its board in the same operation. Deleting a client SHALL do the same for each of its projects. Audit history SHALL be preserved under its existing authorization rules. Other project boards SHALL remain unchanged.
+Deleting a project SHALL delete every lead, custom column and custom field of its board in the same operation. Deleting a client SHALL do the same for each of its projects. Audit history SHALL be preserved under its existing authorization rules. Other project boards SHALL remain unchanged.
 
 #### Scenario: Project deleted
-- **WHEN** an admin deletes a project whose board holds leads and a custom column
-- **THEN** that board becomes unavailable, its leads and column are removed, and other boards are unchanged
+- **WHEN** an admin deletes a project whose board holds leads, a custom column and a custom field
+- **THEN** that board becomes unavailable, its leads, column and field are removed, and other boards are unchanged
 
 #### Scenario: Client deleted
 - **WHEN** an admin confirms deletion of a client with two projects holding leads
 - **THEN** both boards become unavailable and their leads are removed without affecting other clients' boards
-
-### Requirement: The lead card has two columns
-Opening a stored lead SHALL show a card with two columns; creating a lead SHALL show the left column alone. The left column SHALL show, from the top: the stage choice; the lead's name as the heading, typed in when creating; one labelled row per field in this order — Сумма сделки, Ответственный, Компания, Метки, Услуга, Номер телефона, Telegram, Мессенджер, Email, Сайт, Источник; and the description. The card SHALL offer no campaign choice. The right column SHALL offer the tabs Активность and Файлы, and, for a lead that arrived through an integration, Доп. информация; no other tab. A new lead SHALL be stored only when the member presses Создать, after which the card shows it as a stored lead with both columns; an opened lead's changes SHALL be stored only when the member presses Сохранить. Members who may not edit leads SHALL see every value and no editing control. On a narrow screen the columns SHALL stack.
-
-#### Scenario: Creating a lead
-- **WHEN** a member opens the create control, types a name and a phone, and presses Создать
-- **THEN** one lead is stored with that name and phone and the card shows it as a saved lead
-
-#### Scenario: Creating shows one column
-- **WHEN** a member is creating a lead that is not yet stored
-- **THEN** only the left column is shown, and no activity, files or tab are offered
-
-#### Scenario: The field order
-- **WHEN** a member opens a lead
-- **THEN** the rows read Сумма сделки, Ответственный, Компания, Метки, Услуга, Номер телефона, Telegram, Мессенджер, Email, Сайт, Источник, and no campaign choice is offered
-
-#### Scenario: The tabs of a hand-made lead
-- **WHEN** a member opens a lead a member created
-- **THEN** the right column offers Активность and Файлы and no Доп. информация
-
-#### Scenario: A guest
-- **WHEN** a guest opens a lead
-- **THEN** every value is shown, the files can be downloaded, and nothing can be changed, attached or removed
 
 ### Requirement: A lead carries a deal amount
 A lead SHALL optionally carry a nonnegative deal amount with up to four decimal places. The card SHALL show it as a number with no currency sign. The API SHALL exchange the amount as a decimal string, never a float. A negative, malformed or out-of-range amount SHALL be refused with 400.
@@ -409,7 +371,7 @@ A member who may edit leads SHALL be able to attach files of any type up to 20 M
 - **THEN** its files can no longer be listed or downloaded
 
 ### Requirement: A lead's activity is listed
-The lead card's Активность tab SHALL list what happened to the lead, newest first: its creation by a member or its import from Meta, each change of a field with the value before and after, each stage move with the stage names, and each file added or removed with its name. Each entry SHALL name who made it and when; an imported lead's arrival SHALL name no member. The list SHALL be visible to every member who can read the board.
+The lead card's Активность tab SHALL list what happened to the lead, newest first: its creation by a member or its import from Meta, each change of a field with the value before and after, each stage move with the stage names, and each file added or removed with its name. A change of a custom field SHALL be listed under the field's current name, with list values given as their options' current names, a checkbox as Да or Нет and a day as `ДД.ММ.ГГГГ`. An option that no longer exists SHALL be shown as удалённый вариант, and changes of a field that no longer exists SHALL NOT be listed. Each entry SHALL name who made it and when; an imported lead's arrival SHALL name no member. The list SHALL be visible to every member who can read the board.
 
 #### Scenario: Reading the history
 - **WHEN** a member creates a lead, another changes its phone and then moves it to КП
@@ -423,16 +385,24 @@ The lead card's Активность tab SHALL list what happened to the lead, n
 - **WHEN** a member attaches Смета.xlsx to a lead
 - **THEN** the activity shows that member added Смета.xlsx
 
+#### Scenario: A custom value changed
+- **WHEN** a member changes a lead's Сегмент from Опт to Розница
+- **THEN** the activity shows that member changed Сегмент from Опт to Розница
+
+#### Scenario: A field deleted later
+- **WHEN** a lead's Бюджет was changed and the field Бюджет was deleted afterward
+- **THEN** the activity no longer lists the Бюджет change
+
 ### Requirement: Creating and deleting a lead are confirmed
-A lead stored through Создать SHALL raise the success alert Лид создан, and a lead deleted through the card SHALL raise the success alert Лид удалён, each announced as a status outside the card. A refused create or delete SHALL raise its error alert instead and no success alert.
+A lead created through + Новый or Создать SHALL raise the success alert Лид создан, and a lead deleted from its side panel SHALL raise the success alert Лид удалён, each announced as a status. A refused create or delete SHALL raise its error alert instead and no success alert.
 
 #### Scenario: A lead is created
-- **WHEN** a member creates a lead from the card
+- **WHEN** a member creates a lead through + Новый
 - **THEN** the alert Лид создан is shown
 
 #### Scenario: A lead is deleted
-- **WHEN** a member confirms deleting a lead
-- **THEN** the card closes and the alert Лид удалён is shown
+- **WHEN** a member confirms deleting a lead from its panel
+- **THEN** the panel closes and the alert Лид удалён is shown
 
 #### Scenario: A refused create
 - **WHEN** creating a lead is refused

@@ -25,6 +25,7 @@ const SUBJECTS: Record<string, string> = {
   report: t("activity.subject.report"),
   lead: t("activity.subject.lead"),
   "lead-column": t("activity.subject.leadColumn"),
+  "lead-field": t("activity.subject.leadField"),
 };
 
 const KPI_SUBJECTS: Record<string, string> = {

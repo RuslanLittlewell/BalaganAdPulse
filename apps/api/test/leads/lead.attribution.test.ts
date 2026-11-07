@@ -53,9 +53,9 @@ describe("the campaign a lead came from", () => {
     const created = await create({ campaignId });
 
     const updated = await request(app).patch(`${leads()}/${created.body.id}`)
-      .set(auth).send({ company: "Acme" });
+      .set(auth).send({ notes: "Acme" });
 
-    expect(updated.body).toMatchObject({ projectId, campaignId, company: "Acme" });
+    expect(updated.body).toMatchObject({ projectId, campaignId, notes: "Acme" });
   });
 
   it("leaves a lead standing with no campaign when its campaign is deleted", async () => {

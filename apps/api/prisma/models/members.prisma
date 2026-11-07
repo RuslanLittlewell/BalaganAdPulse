@@ -36,6 +36,9 @@ enum OrgStatus {
 model Organization {
   leads        Lead[]
   leadColumns  LeadColumn[]
+  leadFields   LeadField[]
+  companies    Company[]
+  people       Person[]
   id           String       @id @default(uuid())
   name         String
   slug         String       @unique

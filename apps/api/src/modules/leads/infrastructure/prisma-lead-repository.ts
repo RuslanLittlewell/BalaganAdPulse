@@ -3,6 +3,7 @@ import type { ActorContext, TransactionContext } from '#shared/application/index
 import type { PrismaUnitOfWork } from '#shared/infrastructure/prisma-unit-of-work.js';
 import type { LeadRepository } from '../application/ports.js';
 import { emptyStageCounts, foldBoardStageCounts, placementOf, type ArrivalWindow, type LeadAnswer, type LeadColumnRecord, type LeadRecord, type ProjectStageCounts } from '../domain/lead.js';
+import { customValuesOf, isOptionColor } from '../domain/lead-field.js';
 import { reachableProjects } from '#shared/infrastructure/project-reach.js';
 
 const leadInclude = {
@@ -10,6 +11,8 @@ const leadInclude = {
   project:{select:{id:true,clientId:true,name:true}},
   assignee:{select:{id:true,user:{select:{name:true,image:true}}}},
   metaSource:true,
+  person:{select:{id:true,name:true,phone:true,email:true,telegram:true,messenger:true}},
+  company:{select:{id:true,name:true,website:true}},
 } satisfies Prisma.LeadInclude;
 type LeadRow = Prisma.LeadGetPayload<{include:typeof leadInclude}>;
 const columnInclude = {project:{select:{clientId:true}}} satisfies Prisma.LeadColumnInclude;
@@ -17,10 +20,10 @@ const arrivedIn = ({start, end}: ArrivalWindow): Prisma.LeadWhereInput => ({
   OR:[{metaSource:{is:{submittedAt:{gte:start, lt:end}}}}, {metaSource:{is:null}, createdAt:{gte:start, lt:end}}],
 });
 type ColumnRow = Prisma.LeadColumnGetPayload<{include:typeof columnInclude}>;
-const toColumnRecord = ({project, ...column}: ColumnRow): LeadColumnRecord => ({...column, clientId:project.clientId});
+const toColumnRecord = ({project, color, ...column}: ColumnRow): LeadColumnRecord => ({...column, color:isOptionColor(color) ? color : 'gray', clientId:project.clientId});
 
-function toLeadRecord({metaSource, columnId, assignee, amount, ...lead}: LeadRow): LeadRecord {
-  return {...lead, amount:amount === null ? null : amount.toFixed(4), assignee:assignee&&{id:assignee.id,name:assignee.user.name,image:assignee.user.image}, stage: lead.stage ?? columnId ?? 'NEW', metaSource: metaSource && {
+function toLeadRecord({metaSource, columnId, assignee, amount, customValues, ...lead}: LeadRow): LeadRecord {
+  return {...lead, customValues:customValuesOf(customValues), amount:amount === null ? null : amount.toFixed(4), assignee:assignee&&{id:assignee.id,name:assignee.user.name,image:assignee.user.image}, stage: lead.stage ?? columnId ?? 'NEW', metaSource: metaSource && {
     accountId:metaSource.accountId, formId:metaSource.formId,
     campaign:{externalId:metaSource.campaignExternalId, name:metaSource.campaignName},
     adSet:{externalId:metaSource.adSetExternalId, name:metaSource.adSetName},
@@ -34,13 +37,16 @@ export class PrismaLeadRepository implements LeadRepository {
   async boards(actor: ActorContext) {
     const projects = await this.prisma.project.findMany({
       where:reachableProjects(actor),
-      select:{id:true, name:true, client:{select:{name:true}}},
+      select:{id:true, name:true, clientId:true, client:{select:{name:true}}},
       orderBy:[{client:{name:'asc'}}, {clientId:'asc'}, {position:'asc'}, {id:'asc'}],
     });
-    return projects.map(project => ({key:project.id, label:project.name, clientName:project.client.name}));
+    return projects.map(project => ({key:project.id, label:project.name, clientId:project.clientId, clientName:project.client.name}));
   }
   async reaches(actor: ActorContext, board: string) {
     return (await this.prisma.project.count({where:{AND:[{id:board}, reachableProjects(actor)]}})) > 0;
+  }
+  async clientOf(board: string) {
+    return (await this.prisma.project.findUniqueOrThrow({where:{id:board}, select:{clientId:true}})).clientId;
   }
   async campaignInProject(campaignId: string, projectId: string) {
     return (await this.prisma.campaign.count({where:{id:campaignId, projectId}})) > 0;

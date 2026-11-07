@@ -141,6 +141,14 @@ new schema, so migrations must stay backward-compatible with the version already
 There is no automatic rollback: to return to an earlier version, run on the server
 `APP_IMAGE=ghcr.io/<repository>:<earlier sha> /opt/adpulse/deploy.sh`, or revert and push.
 
+The `crm_companies_people` migration moves lead contact values into organizations and people,
+then drops the old lead columns. Before deploying a version containing it, run
+`/opt/adpulse/backup.sh` on the server and verify the new dump in `/opt/adpulse/backups`.
+The deploy script also takes a dump before `prisma migrate deploy`. Schedule this deploy for a
+short maintenance window: the old app can fail CRM requests between the column drop and its
+replacement. Rolling back the image alone does not restore the old columns; restore the
+pre-migration database dump if a rollback across this migration is needed.
+
 The server keeps only the image it is running. Each image is about 1.7 GB, and before
 superseded ones were removed they filled the disk, which took down Postgres, MinIO and
 nginx at once. So a rollback on the server pulls the earlier image from the registry
@@ -472,6 +480,117 @@ more than one would leave a member connected to instance A unaware of a change c
 through instance B; a shared broker (Postgres `LISTEN/NOTIFY` is the smallest step) is needed
 before the board can be trusted across instances. Until then the board still converges on
 reconnect and on reload.
+
+### CRM boards, organizations, people and custom fields
+
+CRM has three sections: **Лиды** at `/crm`, **Организации** at `/crm/companies`, and **Люди** at
+`/crm/people`. Its menu shows the selected project board and the count in each section. Changing
+sections keeps the board; on narrow screens the menu becomes a row above the content. Each project
+has its own lead funnel. Organizations and people belong to the board's client and are shared by
+all that client's project boards. Leads arrive by hand or from Meta lead forms.
+
+**Columns.** Each board has four fixed stages and up to 20 columns of its own. The fixed stages
+keep their colors: Новый blue, Квалифицированный purple, Целевой orange and КП green. A custom
+column starts gray, and its menu offers another color from the same eight-color palette that
+field options use. The API stores the color in `lead_column.color` and returns a color for every
+column.
+
+Each column header shows a colored pill, the number of leads shown and the sum of their deal
+amounts. The column ends with **+ Новый** and the header has **Добавить лид**. Both open a
+creation side panel with name, stage, deal, contact, organization, custom fields and description.
+The column action preselects its stage; the header starts at Новый. Submitting creates the lead
+and opens its record panel. Closing the creation panel leaves no lead.
+
+**Cards.** A card shows the lead's name and one icon row per chosen field, with no labels. The
+default fields are the amount, assignee, organization, phone, arrival date and tags. Контакт can
+also be shown. Contact and organization values come from the linked records. A field with no value
+has no row.
+
+**The side panel.** Clicking a card opens the lead in a panel over the right side of the board or
+table, with a shadow. The board or table keeps its size underneath. CRM panels slide and fade on
+opening and closing, with reduced motion respected.
+- The open lead is the `lead` address parameter, so a reload reopens it.
+- The panel has the tabs Поля, Активность, Файлы and, for Meta leads, Доп. информация.
+- Поля groups the values into Сделка, Контакты, Свои поля, Описание and Системные.
+- Контакты lets a member pick or create a person and organization in a side panel, open their records, and edit
+  the contact's phone, email and handles or the organization's website. Entering a value on a lead
+  without a linked record creates one named after the lead.
+- Each value is edited in place. Enter, leaving the field, or picking a choice saves that one
+  value with a `PATCH` that names only it. Escape restores the stored value.
+
+**The view bar.** Above the board are a search field and **Фильтр**, **Сортировка** and
+**Настройки**.
+- Search matches the name, linked contact and organization, phone, email, Telegram, messenger and tags.
+- Фильтр adds conditions as chips, with operators chosen by the field's type, custom fields
+  included. All conditions apply together.
+- Сортировка orders the cards inside each column by one field. While a sort is on, cards cannot
+  be reordered by hand within a column.
+- Настройки switches between Канбан, Календарь and Таблица, chooses and orders the card fields, hides
+  empty columns, makes cards compact, and opens Поля доски.
+
+The browser remembers these settings for each person and board in `localStorage`
+(`adpulse-crm-views`). Filtering and sorting run in the browser over the board the API already
+returns. The calendar and table honor the same search and filters. The lead table shows one row
+per lead, with the stage and chosen card fields as columns; without a sort, rows follow board
+stage and position order.
+
+**Organizations and people.** Each section has a table with a sticky header and name column.
+Search, filters, sorting and visible columns are remembered separately for each member, client
+and section. Members who can change leads can open a creation panel with every organization or
+person field, then edit table cells or fields in a
+record's side panel. Guests can read them. The panel lists related people and leads, with links
+that open a lead on its board. Deleting a record asks for confirmation with its linked lead count
+and, for an organization, its linked person count; deletion unlinks those records without deleting
+them. An open panel is reflected in the `record` address parameter.
+
+**Lead and record API.** `GET` and `POST /api/crm/clients/:clientId/companies` and `/people`
+list and create records; `GET`, `PATCH` and `DELETE` on their `/:id` paths read, change and delete
+one. Board access controls client access, and guests cannot write. Lead responses contain `person`
+and `company` summaries. `POST` and `PATCH /api/crm/boards/:boardKey/leads` accept `personId`,
+`companyId`, `contact` (phone, email, Telegram and messenger) and `organization` (website).
+Contact or organization values update the linked record or create one if absent. The former lead
+fields `company`, `phone`, `email`, `website`, `telegram` and `messenger` are rejected. Record
+changes emit `crm.changed` for every reached project of the client and are audited.
+
+**Custom fields.** A board defines up to 30 lead fields of its own. Members who may create leads
+manage them from Настройки → Поля доски. A field is one of seven types:
+
+- Текст
+- Число
+- Дата
+- Список
+- Несколько из списка
+- Флажок
+- Ссылка
+
+List fields carry 1 to 50 options. Each option has a name and one of eight colors.
+
+A field's type cannot change after it is created. Renaming, recoloring or reordering an option
+keeps its identity, so leads that hold it keep holding it. Removing an option clears it from
+every lead in the same transaction. Deleting a field asks for confirmation and states how many
+leads hold a value in it, then removes those values the same way.
+
+Values live on the lead, in the `custom_values` JSONB column keyed by field id.
+
+| Type | Stored value |
+| --- | --- |
+| Текст, Ссылка | String |
+| Число | String with four decimals |
+| Дата | `YYYY-MM-DD` |
+| Флажок | `true` |
+| Список | Option id |
+| Несколько из списка | Array of option ids |
+
+An empty value is not stored. `POST` and `PATCH /api/crm/boards/:boardKey/leads` accept
+`customValues` and change only the fields named in it; `null` clears one. The API refuses a field
+of another board or a value of the wrong type with 400.
+
+The side panel shows the fields under Свои поля, with an editor for each type, and saves each
+value on its own. Field definitions are audited as `lead-field`. Value changes appear in the
+lead's Активность tab under the field's current name.
+
+The field routes are `GET` and `POST /api/crm/boards/:boardKey/fields`, and `PATCH` and `DELETE`
+on `/fields/:id`.
 
 ### Notifications
 

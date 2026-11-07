@@ -1,12 +1,17 @@
 import { isLeadStage, LEAD_STAGE_NAMES } from './lead.js';
+import { customValuesOf, type CustomValue, type LeadFieldRecord, type LeadFieldType } from './lead-field.js';
 
 const TRACKED_FIELDS = [
-  'name', 'amount', 'assignee', 'company', 'tags', 'service', 'phone',
+  'name', 'amount', 'assignee', 'contact', 'organization', 'company', 'tags', 'service', 'phone',
   'telegram', 'messenger', 'email', 'website', 'source', 'campaign', 'notes',
 ] as const;
 export type TrackedField = typeof TRACKED_FIELDS[number];
 
-export interface FieldChange { field: TrackedField; before: string; after: string }
+export interface TrackedFieldChange { field: TrackedField; before: string; after: string }
+export type CustomChangeValue = string | boolean | (string | null)[] | null;
+export interface CustomFieldChange { field: 'custom'; fieldId: string; name: string; type: LeadFieldType; before: CustomChangeValue; after: CustomChangeValue }
+export type FieldChange = TrackedFieldChange | CustomFieldChange;
+export type ActivityField = Pick<LeadFieldRecord, 'id' | 'name' | 'type' | 'options'>;
 
 export type ActivityEntry =
   | { id: string; kind: 'created'; actor: { name: string } | null; at: Date }
@@ -26,6 +31,7 @@ export interface LeadHistoryEvent {
 export interface ActivityNames {
   columns: ReadonlyMap<string, string>;
   campaigns: ReadonlyMap<string, string>;
+  fields: readonly ActivityField[];
 }
 
 type Snapshot = Record<string, unknown>;
@@ -43,6 +49,23 @@ function valueOf(snapshot: Snapshot, field: TrackedField, names: ActivityNames):
     const assignee = snapshot.assignee;
     return isSnapshot(assignee) ? text(assignee.name) : '';
   }
+  if (field === 'contact') {
+    const person = snapshot.person;
+    return isSnapshot(person) ? text(person.name) : '';
+  }
+  if (field === 'organization') {
+    const company = snapshot.company;
+    return isSnapshot(company) ? text(company.name) : '';
+  }
+  if (field === 'company') return typeof snapshot.company === 'string' ? snapshot.company : '';
+  if (field === 'phone' || field === 'email' || field === 'telegram' || field === 'messenger') {
+    const person = snapshot.person;
+    return isSnapshot(person) ? text(person[field]) : text(snapshot[field]);
+  }
+  if (field === 'website') {
+    const company = snapshot.company;
+    return isSnapshot(company) ? text(company.website) : text(snapshot.website);
+  }
   if (field === 'campaign') {
     const id = snapshot.campaignId;
     return typeof id === 'string' ? names.campaigns.get(id) ?? '' : '';
@@ -53,6 +76,27 @@ function valueOf(snapshot: Snapshot, field: TrackedField, names: ActivityNames):
 function stageName(stage: unknown, names: ActivityNames): string | null {
   if (typeof stage !== 'string') return null;
   return isLeadStage(stage) ? LEAD_STAGE_NAMES[stage] : names.columns.get(stage) ?? null;
+}
+
+function customValueOf(field: ActivityField, value: CustomValue | undefined): CustomChangeValue {
+  if (field.type === 'CHECKBOX') return value === true;
+  if (value === undefined) return null;
+  if (field.type === 'SELECT' || field.type === 'MULTI_SELECT') {
+    const ids = Array.isArray(value) ? value : [String(value)];
+    return ids.map(id => field.options.find(option => option.id === id)?.name ?? null);
+  }
+  return String(value);
+}
+
+function customChanges(before: Snapshot, after: Snapshot, fields: readonly ActivityField[]): CustomFieldChange[] {
+  const was = customValuesOf(before.customValues);
+  const now = customValuesOf(after.customValues);
+  return fields
+    .filter(field => JSON.stringify(was[field.id] ?? null) !== JSON.stringify(now[field.id] ?? null))
+    .map(field => ({
+      field: 'custom', fieldId: field.id, name: field.name, type: field.type,
+      before: customValueOf(field, was[field.id]), after: customValueOf(field, now[field.id]),
+    }));
 }
 
 export function campaignIdsIn(events: readonly LeadHistoryEvent[]): string[] {
@@ -79,9 +123,12 @@ function entryOf(event: LeadHistoryEvent, names: ActivityNames): ActivityEntry |
     if (before.stage === after.stage) return null;
     return { ...base, kind: 'moved', stage: { from: stageName(before.stage, names), to: stageName(after.stage, names) } };
   }
-  const changes = TRACKED_FIELDS
-    .map((field) => ({ field, before: valueOf(before, field, names), after: valueOf(after, field, names) }))
-    .filter((change) => change.before !== change.after);
+  const changes: FieldChange[] = [
+    ...TRACKED_FIELDS
+      .map((field) => ({ field, before: valueOf(before, field, names), after: valueOf(after, field, names) }))
+      .filter((change) => change.before !== change.after),
+    ...customChanges(before, after, names.fields),
+  ];
   return changes.length === 0 ? null : { ...base, kind: 'changed', changes };
 }
 

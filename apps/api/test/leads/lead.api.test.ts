@@ -46,9 +46,10 @@ it('names each board by its project, beside its client, ordered by client then p
 });
 it('round trips contacts and isolates the boards of one client', async () => {
   const second=await secondProject();
-  const a=await create(); const fields={company:'Company',phone:'+48123456789',email:'lead@example.com',website:'https://example.com',source:'Referral',notes:'Needs a demo'};
-  expect((await request(app).patch(`${url()}/${a.body.id}`).set(auth).send(fields)).body).toMatchObject(fields);
-  expect((await request(app).get(`${url()}/${a.body.id}`).set(auth)).body).toMatchObject(fields);
+  const a=await create(); const fields={source:'Referral',notes:'Needs a demo'};
+  const patched=await request(app).patch(`${url()}/${a.body.id}`).set(auth).send({...fields,contact:{phone:'+48123456789',email:'lead@example.com'},organization:{website:'https://example.com'}});
+  expect(patched.body).toMatchObject({...fields,person:{name:a.body.name,phone:'+48123456789',email:'lead@example.com'},company:{name:a.body.name,website:'https://example.com'}});
+  expect((await request(app).get(`${url()}/${a.body.id}`).set(auth)).body).toMatchObject({...fields,person:{phone:'+48123456789'},company:{website:'https://example.com'}});
   expect((await request(app).get(url(second.id)).set(auth)).body).toEqual([]);
   expect((await request(app).get(`${url(second.id)}/${a.body.id}`).set(auth)).status).toBe(404);
 });
@@ -79,9 +80,10 @@ it('rejects an assignee who does not reach the board project', async () => {
   expect(response.status).toBe(400);
   expect(await prisma.lead.count()).toBe(0);
 });
-it.each([{name:' '},{name:'x'.repeat(201)},{email:'bad'},{website:'javascript:alert(1)'},{phone:'x'.repeat(51)},{source:'x'.repeat(201)},{notes:'x'.repeat(10001)},{stage:'BAD'}])('rejects invalid fields %j', async fields => {
+it.each([{name:' '},{name:'x'.repeat(201)},{contact:{email:'bad'}},{organization:{website:'javascript:alert(1)'}},{contact:{phone:'x'.repeat(51)}},{phone:'+375290000000'},{company:'Ромашка'},{source:'x'.repeat(201)},{notes:'x'.repeat(10001)},{stage:'BAD'}])('rejects invalid fields %j', async fields => {
   expect((await request(app).post(url()).set(auth).send({name:'Valid',...fields})).status).toBe(400);
   expect(await prisma.lead.count()).toBe(0);
+  expect(await prisma.person.count()).toBe(0);
 });
 it.each(['CLIENT','CLIENT_ADMIN'] as const)('allows %s to manage the funnels of their own projects only', async role => {
   const second=await secondProject();

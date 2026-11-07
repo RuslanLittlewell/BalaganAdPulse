@@ -23,11 +23,11 @@ beforeEach(async () => {
 afterAll(() => prisma.$disconnect());
 
 describe("pending Google sign-ins", () => {
-  const open = (expiresAt = minutes(10)) => authorizations.open({ projectId, userId, integrationId: null }, now, expiresAt);
+  const open = (expiresAt = minutes(10)) => authorizations.open({ projectId, userId, integrationId: null, purpose: "ADS" }, now, expiresAt);
 
   it("are found until they expire", async () => {
     const opened = await open();
-    expect(await authorizations.read(opened.id, now)).toMatchObject({ id: opened.id, projectId, userId, encryptedRefreshToken: null });
+    expect(await authorizations.read(opened.id, now)).toMatchObject({ id: opened.id, projectId, userId, purpose: "ADS", encryptedRefreshToken: null });
     expect(await authorizations.read(opened.id, minutes(11))).toBeNull();
   });
 
@@ -43,6 +43,11 @@ describe("pending Google sign-ins", () => {
     expect(["enc-a", "enc-b"]).toContain(stored.encryptedRefreshToken);
   });
 
+  it("remember a Search Console purpose", async () => {
+    const opened = await authorizations.open({ projectId, userId, integrationId: null, purpose: "SEARCH_CONSOLE" }, now, minutes(10));
+    expect(await authorizations.read(opened.id, now)).toMatchObject({ purpose: "SEARCH_CONSOLE" });
+  });
+
   it("do not take a credential once expired", async () => {
     const opened = await open();
     expect(await authorizations.grant(opened.id, "enc", minutes(11), minutes(40))).toBe(false);
@@ -50,7 +55,7 @@ describe("pending Google sign-ins", () => {
 
   it("are swept away with the expired ones when another is opened", async () => {
     const stale = await open(minutes(1));
-    await authorizations.open({ projectId, userId, integrationId: null }, minutes(5), minutes(15));
+    await authorizations.open({ projectId, userId, integrationId: null, purpose: "ADS" }, minutes(5), minutes(15));
     expect(await prisma.googleAuthorization.findUnique({ where: { id: stale.id } })).toBeNull();
   });
 

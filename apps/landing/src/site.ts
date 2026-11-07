@@ -3,7 +3,7 @@ export const SITE = {
   appUrl: "https://app.balagan.pro",
   agencyUrl: "https://balagan.pro",
   contact: "balagan.ads@gmail.com",
-  policyDate: "21 октября 2026 г.",
+  policyDate: "7 ноября 2026 г.",
 } as const;
 
 export const SECTIONS = [

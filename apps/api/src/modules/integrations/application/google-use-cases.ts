@@ -8,16 +8,19 @@ import { nextMorning } from "./schedule.js";
 const SIGN_IN_MS = 10 * 60_000;
 const CHOICE_MS = 30 * 60_000;
 
+export type SignInPurpose = "ADS" | "SEARCH_CONSOLE";
+
 export interface GoogleAuthorizationRecord {
   readonly id: string;
   readonly projectId: string;
   readonly userId: string;
   readonly integrationId: string | null;
+  readonly purpose: SignInPurpose;
   readonly encryptedRefreshToken: string | null;
 }
 
 export interface GoogleAuthorizations {
-  open(data: { projectId: string; userId: string; integrationId: string | null }, now: Date, expiresAt: Date): Promise<GoogleAuthorizationRecord>;
+  open(data: { projectId: string; userId: string; integrationId: string | null; purpose: SignInPurpose }, now: Date, expiresAt: Date): Promise<GoogleAuthorizationRecord>;
   read(id: string, now: Date): Promise<GoogleAuthorizationRecord | null>;
   grant(id: string, encryptedRefreshToken: string, now: Date, expiresAt: Date): Promise<boolean>;
   close(id: string): Promise<void>;
@@ -38,6 +41,7 @@ export interface GoogleDependencies extends Pick<IntegrationDependencies, "repos
 export interface GoogleSignInOutcome {
   readonly projectId: string | null;
   readonly authorization: string | null;
+  readonly purpose: SignInPurpose;
 }
 
 export function createGoogleUseCases(d: GoogleDependencies) {
@@ -48,7 +52,7 @@ export function createGoogleUseCases(d: GoogleDependencies) {
 
   const owned = async (actor: ActorContext, projectId: string, id: string) => {
     const found = await d.authorizations.read(id, d.clock.now());
-    if (!found || found.projectId !== projectId || found.userId !== actor.userId || found.encryptedRefreshToken === null) {
+    if (!found || found.purpose !== "ADS" || found.projectId !== projectId || found.userId !== actor.userId || found.encryptedRefreshToken === null) {
       throw new AppError("not-found", "Google sign-in not found");
     }
     return { ...found, encryptedRefreshToken: found.encryptedRefreshToken };
@@ -77,7 +81,7 @@ export function createGoogleUseCases(d: GoogleDependencies) {
       if (integrationId) await googleConnection(projectId, integrationId);
       const now = d.clock.now();
       const opened = await d.authorizations.open(
-        { projectId, userId: actor.userId, integrationId },
+        { projectId, userId: actor.userId, integrationId, purpose: "ADS" },
         now,
         new Date(now.getTime() + SIGN_IN_MS),
       );
@@ -87,10 +91,12 @@ export function createGoogleUseCases(d: GoogleDependencies) {
     complete: async (input: { state: string; code: string | null }): Promise<GoogleSignInOutcome> => {
       const now = d.clock.now();
       const pending = await d.authorizations.read(input.state, now);
-      if (!pending || pending.encryptedRefreshToken !== null) return { projectId: pending?.projectId ?? null, authorization: null };
+      if (!pending || pending.encryptedRefreshToken !== null) {
+        return { projectId: pending?.projectId ?? null, authorization: null, purpose: pending?.purpose ?? "ADS" };
+      }
       const failed = async () => {
         await d.authorizations.close(pending.id);
-        return { projectId: pending.projectId, authorization: null };
+        return { projectId: pending.projectId, authorization: null, purpose: pending.purpose };
       };
       if (!input.code || !d.google) return failed();
       try {
@@ -101,7 +107,7 @@ export function createGoogleUseCases(d: GoogleDependencies) {
           now,
           new Date(now.getTime() + CHOICE_MS),
         );
-        return granted ? { projectId: pending.projectId, authorization: pending.id } : failed();
+        return granted ? { projectId: pending.projectId, authorization: pending.id, purpose: pending.purpose } : failed();
       } catch (error) {
         if (error instanceof ProviderError) return failed();
         throw error;

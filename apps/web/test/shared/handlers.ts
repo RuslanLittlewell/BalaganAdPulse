@@ -28,6 +28,7 @@ export const defaultHandlers = [
   http.get("/api/clients", () => HttpResponse.json([])),
   http.get("/api/clients/:clientId/account", () => HttpResponse.json(null)),
   http.get("/api/projects/:projectId/integrations", () => HttpResponse.json([])),
+  http.get("/api/projects/:projectId/seo/sites", () => HttpResponse.json([])),
   http.get("/api/projects", () => HttpResponse.json([])),
   http.get("/api/project-layout", () => HttpResponse.json({ pinned: [], items: [] })),
   http.get("/api/summary", () => HttpResponse.json([])),

@@ -2,20 +2,21 @@ import { useMemo, useState } from "react";
 import { AnimatePresence } from "motion/react";
 import { formatCount } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
-import { Skeleton } from "@/shared/ui/index.js";
+import { Loader, Skeleton } from "@/shared/ui/index.js";
 import { useSeoAuditPages, useSeoSearch, type SeoRange, type SeoSite } from "@/entities/seo/index.js";
 import { DayChart } from "./DayChart.js";
 import { AuditBlock } from "./AuditBlock.js";
 import { PagePanel } from "./PagePanel.js";
 import { TopList } from "./TopList.js";
-import { VitalsBlock } from "./VitalsBlock.js";
+import { LabBlock } from "./LabBlock.js";
+import { TrafficBlock } from "./TrafficBlock.js";
 import { position, shortDate } from "./format.js";
 
 function SearchCharts({ projectId, site, range }: { projectId: string; site: SeoSite; range: SeoRange }) {
   const search = useSeoSearch(projectId, site.id, range);
   if (!search.data) return <Skeleton className="h-48 w-full" />;
   if (site.lastSuccessAt === null && search.data.days.length === 0) {
-    return <p role="status" className="rounded-lg border border-border p-6 text-center text-sm text-muted-foreground">{t("seo.importing")}</p>;
+    return <div className="flex justify-center rounded-lg border border-border p-6"><Loader label={t("seo.importing")} /></div>;
   }
   const days = search.data.days;
   const dates = days.map((day) => day.date);
@@ -51,7 +52,8 @@ export function SeoOverview({ projectId, site, range, canCheck }: { projectId: s
   return (
     <div className="flex flex-col gap-5">
       <SearchCharts projectId={projectId} site={site} range={range} />
-      <VitalsBlock projectId={projectId} siteId={site.id} range={range} />
+      <TrafficBlock projectId={projectId} site={site} range={range} canManage={canCheck} />
+      <LabBlock projectId={projectId} site={site} range={range} />
       <div className="grid gap-2 lg:grid-cols-2">
         <TopList projectId={projectId} siteId={site.id} kind="query" range={range} />
         <TopList projectId={projectId} siteId={site.id} kind="page" range={range} checkedPages={checkedPages} onOpenPage={setPageId} />

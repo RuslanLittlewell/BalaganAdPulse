@@ -66,6 +66,8 @@ export {
   occurrencesBetween,
   timeRange,
 } from "./lib/schedule.js";
+export { DUE_SOON_DAYS, dueSoon } from "./lib/due.js";
+export type { DueTask, DueWhen } from "./lib/due.js";
 export { inZone, localTask, occurrencesIn, viewerTimeZone } from "./lib/zone.js";
 export type { Occurrence } from "./lib/zone.js";
 export { MAX_TASK_IMAGE_BYTES, TASK_IMAGE_TYPES, imageRefusal } from "./lib/images.js";

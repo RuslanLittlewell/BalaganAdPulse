@@ -21,7 +21,7 @@ export class PrismaGoogleAuthorizations implements GoogleAuthorizations {
   }
 
   private withPurpose<T extends { purpose: string }>(row: T): T & { purpose: SignInPurpose } {
-    return { ...row, purpose: row.purpose === "SEARCH_CONSOLE" ? "SEARCH_CONSOLE" : "ADS" };
+    return { ...row, purpose: row.purpose === "SEARCH_CONSOLE" || row.purpose === "SITE_ANALYTICS" ? row.purpose : "ADS" };
   }
 
   async grant(id: string, encryptedRefreshToken: string, now: Date, expiresAt: Date): Promise<boolean> {

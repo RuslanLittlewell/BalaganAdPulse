@@ -2,6 +2,7 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 import type { SeoReads, StoredAudit, StoredAuditPage, StoredLab, TopTotal } from "../application/ports.js";
 import type { PageFacts } from "../domain/page-audit.js";
 import type { SearchDay, TopKind } from "../domain/search.js";
+import type { ChannelTotal, DayTotal, SourceTotal } from "../domain/traffic.js";
 import type { Device, Metric, VitalReading, VitalWeek } from "../domain/vitals.js";
 
 const day = (date: string) => new Date(`${date}T00:00:00Z`);
@@ -34,6 +35,37 @@ const TOP_SOURCES: Record<TopKind, { table: Prisma.Sql; column: Prisma.Sql }> = 
 
 export class PrismaSeoReads implements SeoReads {
   constructor(private readonly prisma: PrismaClient) {}
+
+  async trafficChannels(siteId: string, from: string, to: string): Promise<ChannelTotal[]> {
+    const rows = await this.prisma.seoTrafficDay.groupBy({
+      by: ["channel"],
+      where: { siteId, date: { gte: day(from), lte: day(to) } },
+      _sum: { sessions: true },
+      orderBy: { _sum: { sessions: "desc" } },
+    });
+    return rows.map((row) => ({ channel: row.channel, sessions: row._sum.sessions ?? 0 }));
+  }
+
+  async trafficSources(siteId: string, from: string, to: string, limit: number): Promise<SourceTotal[]> {
+    const rows = await this.prisma.seoTrafficDay.groupBy({
+      by: ["source", "medium"],
+      where: { siteId, date: { gte: day(from), lte: day(to) } },
+      _sum: { sessions: true },
+      orderBy: [{ _sum: { sessions: "desc" } }, { source: "asc" }, { medium: "asc" }],
+      take: limit,
+    });
+    return rows.map((row) => ({ source: row.source, medium: row.medium, sessions: row._sum.sessions ?? 0 }));
+  }
+
+  async trafficDays(siteId: string, from: string, to: string): Promise<DayTotal[]> {
+    const rows = await this.prisma.seoTrafficDay.groupBy({
+      by: ["date"],
+      where: { siteId, date: { gte: day(from), lte: day(to) } },
+      _sum: { sessions: true },
+      orderBy: { date: "asc" },
+    });
+    return rows.map((row) => ({ date: iso(row.date), sessions: row._sum.sessions ?? 0 }));
+  }
 
   async days(siteId: string, from: string, to: string): Promise<SearchDay[]> {
     const rows = await this.prisma.seoDay.findMany({ where: { siteId, date: { gte: day(from), lte: day(to) } }, orderBy: { date: "asc" } });

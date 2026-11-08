@@ -16,6 +16,9 @@ import {
   SearchableSelect,
 } from "@/shared/ui/index.js";
 import { seoApi, seoSiteKey, seoSitesKey, type SeoSite } from "@/entities/seo/index.js";
+import { analyticsFailureOf, startAnalyticsSignIn } from "./AnalyticsLink.js";
+
+const NO_PROPERTY = "none";
 
 export function seoFailureText(code: unknown): string {
   switch (code) {
@@ -103,16 +106,45 @@ function SeoSettingsDialog({ projectId, site, onClose }: { projectId: string; si
   const queryClient = useQueryClient();
   const [pending, setPending] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [unlinking, setUnlinking] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
 
   const signInAgain = async () => {
     setPending(true);
     setFailure(null);
     try {
-      await startSeoSignIn(projectId, site.id);
+      if (site.analytics) await startAnalyticsSignIn(projectId, site.id);
+      else await startSeoSignIn(projectId, site.id);
     } catch (error) {
       setFailure(seoFailureOf(error));
       setPending(false);
+    }
+  };
+
+  const connectAnalytics = async () => {
+    setPending(true);
+    setFailure(null);
+    try {
+      await startAnalyticsSignIn(projectId, site.id);
+    } catch (error) {
+      setFailure(analyticsFailureOf(error));
+      setPending(false);
+    }
+  };
+
+  const unlinkAnalytics = async () => {
+    setPending(true);
+    setFailure(null);
+    try {
+      await seoApi.unlinkAnalytics(projectId, site.id);
+      await queryClient.invalidateQueries({ queryKey: seoSitesKey(projectId) });
+      await queryClient.invalidateQueries({ queryKey: [...seoSiteKey(projectId, site.id), "traffic"] });
+      setUnlinking(false);
+      setPending(false);
+    } catch (error) {
+      setFailure(analyticsFailureOf(error));
+      setPending(false);
+      setUnlinking(false);
     }
   };
 
@@ -133,7 +165,7 @@ function SeoSettingsDialog({ projectId, site, onClose }: { projectId: string; si
 
   return (
     <>
-      <Dialog open={!confirming} onOpenChange={(value) => { if (!value) onClose(); }}>
+      <Dialog open={!confirming && !unlinking} onOpenChange={(value) => { if (!value) onClose(); }}>
         <DialogContent className="h-auto">
           <DialogHeader>
             <DialogTitle>{t("seo.settings")}</DialogTitle>
@@ -141,8 +173,18 @@ function SeoSettingsDialog({ projectId, site, onClose }: { projectId: string; si
           <div className="grid gap-3">
             <p className="text-sm">{t("seo.site")}: <span className="font-medium">{site.label}</span></p>
             <p className="text-xs text-muted-foreground">{t("seo.help")}</p>
+            {site.analytics && <p className="text-sm">{t("seo.traffic.property")}: <span className="font-medium">{site.analytics.name}</span></p>}
             {failure && <p role="alert" className="text-xs text-destructive">{failure}</p>}
             <DialogFooter className="flex-wrap gap-2">
+              {site.analytics ? (
+                <Button type="button" variant="ghost" disabled={pending} onClick={() => setUnlinking(true)}>
+                  {t("seo.traffic.disconnect")}
+                </Button>
+              ) : (
+                <Button type="button" variant="outline" disabled={pending} onClick={() => void connectAnalytics()}>
+                  {t("seo.traffic.connect")}
+                </Button>
+              )}
               <Button type="button" variant="ghost" disabled={pending} onClick={() => setConfirming(true)}>
                 {t("meta.disconnect")}
               </Button>
@@ -152,6 +194,15 @@ function SeoSettingsDialog({ projectId, site, onClose }: { projectId: string; si
           </div>
         </DialogContent>
       </Dialog>
+      <ConfirmDialog
+        open={unlinking}
+        title={t("seo.traffic.unlinkTitle")}
+        description={t("seo.traffic.unlinkText")}
+        confirmLabel={t("seo.traffic.disconnect")}
+        pending={pending}
+        onConfirm={() => void unlinkAnalytics()}
+        onClose={() => setUnlinking(false)}
+      />
       <ConfirmDialog
         open={confirming}
         title={t("seo.disconnect.title")}
@@ -204,6 +255,7 @@ function SiteChoiceDialog({ projectId, authorization, onClose }: { projectId: st
     gcTime: 0,
   });
   const [chosen, setChosen] = useState("");
+  const [property, setProperty] = useState(NO_PROPERTY);
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const renewing = useRef(false);
@@ -212,11 +264,15 @@ function SiteChoiceDialog({ projectId, authorization, onClose }: { projectId: st
     setPending(true);
     setFailure(null);
     try {
-      await seoApi.connect(projectId, { authorization, ...(siteUrl ? { siteUrl } : {}) });
+      await seoApi.connect(projectId, {
+        authorization,
+        ...(siteUrl ? { siteUrl } : {}),
+        ...(siteUrl && property !== NO_PROPERTY ? { propertyId: property } : {}),
+      });
       await queryClient.invalidateQueries({ queryKey: seoSitesKey(projectId) });
       onClose();
     } catch (error) {
-      setFailure(seoFailureOf(error));
+      setFailure(error instanceof ApiError && (error.details[0] as { code?: string } | undefined)?.code === "PROPERTY" ? analyticsFailureOf(error) : seoFailureOf(error));
       setPending(false);
     }
   };
@@ -228,6 +284,7 @@ function SiteChoiceDialog({ projectId, authorization, onClose }: { projectId: st
   });
 
   const list = choices.data?.sites ?? [];
+  const properties = choices.data?.properties ?? [];
   const loadFailure = choices.isError ? seoFailureOf(choices.error) : null;
 
   return (
@@ -254,6 +311,19 @@ function SiteChoiceDialog({ projectId, authorization, onClose }: { projectId: st
               disabled={pending}
               options={list.map((choice) => ({ value: choice.siteUrl, label: choice.label }))}
               onValueChange={setChosen}
+            />
+          )}
+          {properties.length > 0 && (
+            <SearchableSelect
+              id="seo-site-property"
+              ariaLabel={t("seo.traffic.property")}
+              value={property}
+              placeholder={t("seo.traffic.property")}
+              searchLabel={t("select.search")}
+              emptyLabel={t("select.search.empty")}
+              disabled={pending}
+              options={[{ value: NO_PROPERTY, label: t("seo.traffic.skip") }, ...properties.map((choice) => ({ value: choice.propertyId, label: choice.name }))]}
+              onValueChange={setProperty}
             />
           )}
           <p className="text-xs text-muted-foreground">{t("seo.help")}</p>

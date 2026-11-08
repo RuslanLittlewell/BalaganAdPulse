@@ -1,9 +1,9 @@
 export { seoApi } from "./api/api.js";
 export type {
-  SeoAudit, SeoAuditListedPage, SeoAuditPage, SeoCheckStatus, SeoDevice, SeoDeviceVitals, SeoImportStatus, SeoLab, SeoMetric,
-  SeoPageFacts, SeoProblem, SeoProblemKind, SeoRange, SeoRating, SeoSearch, SeoSeverity, SeoSite, SeoSiteChoice, SeoTop,
-  SeoTopItem, SeoTopKind, SeoTotals, SeoVitalMetric, SeoVitals,
+  SeoAnalyticsLink, SeoAudit, SeoAuditListedPage, SeoAuditPage, SeoCheckStatus, SeoDevice, SeoDeviceVitals, SeoImportStatus, SeoLab, SeoMetric,
+  SeoPageFacts, SeoProblem, SeoProblemKind, SeoRange, SeoRating, SeoSearch, SeoSeverity, SeoSite, SeoPropertyChoice, SeoSiteChoice, SeoTop,
+  SeoTopItem, SeoTopKind, SeoTotals, SeoTraffic, SeoTrafficChannel, SeoTrafficSource, SeoVitalMetric, SeoVitals,
 } from "./api/api.js";
 export {
-  seoSiteKey, seoSitesKey, useSeoAudit, useSeoAuditPage, useSeoAuditPages, useSeoSearch, useSeoSites, useSeoTop, useSeoVitals,
+  seoSiteKey, seoSitesKey, useSeoAudit, useSeoAuditPage, useSeoAuditPages, useSeoSearch, useSeoSites, useSeoTop, useSeoTraffic, useSeoVitals,
 } from "./api/queries.js";

@@ -12,7 +12,7 @@ const performance = (spend: number) => ({
 });
 const site = {
   id: "s1", siteUrl: "sc-domain:site.ru", label: "site.ru", status: "SUCCESS", lastSuccessAt: "2026-11-07T06:00:00Z",
-  lastError: null, checkStatus: "SUCCESS", lastCheckAt: "2026-11-05T06:00:00Z", checkError: null,
+  lastError: null, checkStatus: "SUCCESS", lastCheckAt: "2026-11-05T06:00:00Z", checkError: null, analytics: null,
 };
 const totals = (clicks: number, impressions: number, position: number) => ({ clicks, impressions, ctr: clicks / impressions, position });
 const seo = "/api/projects/p1/seo/sites/s1";
@@ -29,7 +29,10 @@ const signedInAs = (role: string) => server.use(mock.get("/api/auth/me", () => H
   modules: [],
 })));
 
-function api(options: { sites?: unknown[]; checkStatus?: string } = {}) {
+const desktopLab = { score: 45, rating: "POOR", lcpMs: 4100, cls: 0.2, tbtMs: 600, fcpMs: 2000, speedIndexMs: 5000 };
+
+function api(options: { sites?: unknown[]; checkStatus?: string; labs?: Record<string, typeof desktopLab>; traffic?: unknown } = {}) {
+  const labs = options.labs ?? { DESKTOP: desktopLab };
   server.use(
     mock.get("/api/members", () => HttpResponse.json([])),
     mock.get("/api/tasks", () => HttpResponse.json([])),
@@ -65,22 +68,15 @@ function api(options: { sites?: unknown[]; checkStatus?: string } = {}) {
     mock.get(`${seo}/vitals`, () => HttpResponse.json({
       configured: true,
       readAt: "2026-11-07T06:00:00Z",
-      devices: [
-        {
-          device: "PHONE", periodEnd: "2026-11-05", passes: true,
-          metrics: [
-            { metric: "LCP", p75: 2100, rating: "GOOD", good: 0.8, needsImprovement: 0.15, poor: 0.05, weeks: [] },
-            { metric: "INP", p75: 150, rating: "GOOD", good: 0.9, needsImprovement: 0.08, poor: 0.02, weeks: [] },
-            { metric: "CLS", p75: 0.05, rating: "GOOD", good: 0.95, needsImprovement: 0.03, poor: 0.02, weeks: [] },
-          ],
-          lab: null,
-        },
-        {
-          device: "DESKTOP", periodEnd: null, passes: null, metrics: [],
-          lab: { device: "DESKTOP", measuredAt: "2026-11-05T06:00:00Z", score: 45, rating: "POOR", lcpMs: 4100, cls: 0.2, tbtMs: 600, fcpMs: 2000, speedIndexMs: 5000 },
-        },
-      ],
+      devices: (["PHONE", "DESKTOP"] as const).map((device) => {
+        const lab = labs[device];
+        return {
+          device, periodEnd: null, passes: null, metrics: [],
+          lab: lab ? { device, measuredAt: "2026-11-05T06:00:00Z", ...lab } : null,
+        };
+      }),
     })),
+    mock.get(`${seo}/traffic`, () => HttpResponse.json(options.traffic ?? { connected: false })),
     mock.get(`${seo}/audit`, () => HttpResponse.json({
       status: options.checkStatus ?? "SUCCESS", lastCheckAt: "2026-11-05T06:00:00Z", checkError: null,
       result: {
@@ -186,20 +182,50 @@ describe("a connected site on the project page", () => {
 });
 
 describe("the SEO view", () => {
-  it("rates Core Web Vitals per device and says whether the site passes", async () => {
+  it("shows the lab measurement of the home page as plain numbers per device", async () => {
     const user = userEvent.setup();
-    api();
+    api({ labs: { PHONE: { score: 92, rating: "GOOD", lcpMs: 1800, cls: 0.05, tbtMs: 120, fcpMs: 900, speedIndexMs: 2100 }, DESKTOP: desktopLab } });
     renderWithProviders(<App />, route);
     await openSeo(user);
 
-    const vitals = await screen.findByRole("region", { name: "Core Web Vitals" });
-    expect(await within(vitals).findByText("Сайт проходит Core Web Vitals")).toBeInTheDocument();
-    expect(within(vitals).getByRole("listitem", { name: /LCP: 2,1.с, Хорошо/ })).toBeInTheDocument();
+    const lab = await screen.findByRole("region", { name: "Лабораторный замер главной страницы" });
+    expect(screen.queryByRole("region", { name: "Core Web Vitals" })).toBeNull();
+    await waitFor(() => expect(within(lab).getByText("Производительность").nextSibling).toHaveTextContent("92"));
+    expect(within(lab).getByText("LCP").nextSibling).toHaveTextContent("1,8 с");
+    expect(within(lab).getByText("CLS").nextSibling).toHaveTextContent("0,05");
+    expect(within(lab).getByText("TBT").nextSibling).toHaveTextContent("120 мс");
+    expect(within(lab).getByText("LCP").nextSibling).toHaveAttribute("data-rating", "GOOD");
 
-    await user.click(within(vitals).getByRole("radio", { name: "Компьютер" }));
+    await user.click(within(lab).getByRole("radio", { name: "Компьютер" }));
 
-    expect(within(vitals).getByText(/слишком мало визитов/)).toBeInTheDocument();
-    expect(within(vitals).getByRole("region", { name: "Лабораторный замер главной страницы" })).toHaveTextContent("45");
+    expect(within(lab).getByText("Производительность").nextSibling).toHaveTextContent("45");
+    expect(within(lab).getByText("LCP").nextSibling).toHaveTextContent("4,1 с");
+    expect(within(lab).getByText("Speed Index").nextSibling).toHaveTextContent("5,0 с");
+    expect(within(lab).getByText("Speed Index").nextSibling).toHaveAttribute("data-rating", "NEEDS_IMPROVEMENT");
+    expect(within(lab).getByText("LCP").nextSibling).toHaveAttribute("data-rating", "POOR");
+    expect(within(lab).getByText("Производительность").nextSibling).toHaveAttribute("data-rating", "POOR");
+  });
+
+  it("shows a loader instead of the numbers while the first measurement is awaited", async () => {
+    const user = userEvent.setup();
+    api({ sites: [{ ...site, status: "RUNNING", lastSuccessAt: null, checkStatus: "QUEUED", lastCheckAt: null }], labs: {} });
+    renderWithProviders(<App />, route);
+    await openSeo(user);
+
+    const lab = await screen.findByRole("region", { name: "Лабораторный замер главной страницы" });
+    expect(await within(lab).findByRole("status")).toHaveTextContent("Измеряем главную страницу");
+    expect(within(lab).queryByText("Производительность")).toBeNull();
+  });
+
+  it("says there is no measurement when nothing is running", async () => {
+    const user = userEvent.setup();
+    api({ labs: {} });
+    renderWithProviders(<App />, route);
+    await openSeo(user);
+
+    const lab = await screen.findByRole("region", { name: "Лабораторный замер главной страницы" });
+    expect(await within(lab).findByText("Замера ещё нет")).toBeInTheDocument();
+    expect(within(lab).queryByRole("status")).toBeNull();
   });
 
   it("ranks the top queries and pages in scrollable lists", async () => {
@@ -267,5 +293,98 @@ describe("the SEO view", () => {
     await user.click(await screen.findByRole("button", { name: "Проверить сейчас" }));
 
     await waitFor(() => expect(checked).toBe(true));
+  });
+});
+
+const linked = { propertyId: "111", name: "Acme / site.ru", status: "SUCCESS", lastSuccessAt: "2026-11-07T06:00:00Z", lastError: null };
+const traffic = {
+  connected: true, propertyName: "Acme / site.ru", status: "SUCCESS", lastSuccessAt: "2026-11-07T06:00:00Z", lastError: null,
+  from: "2026-10-08", to: "2026-11-06", totalSessions: 1000, previousSessions: 800,
+  channels: [
+    { channel: "Organic Search", sessions: 600, share: 0.6, previous: 500 },
+    { channel: "Direct", sessions: 400, share: 0.4, previous: 300 },
+    { channel: "Paid Search", sessions: 0, share: 0, previous: 70 },
+  ],
+  sources: [
+    { source: "google", medium: "organic", sessions: 600, share: 0.6 },
+    { source: "(direct)", medium: "(none)", sessions: 400, share: 0.4 },
+  ],
+  days: [{ date: "2026-11-03", sessions: 450 }, { date: "2026-11-04", sessions: 550 }],
+};
+
+describe("the traffic sources block", () => {
+  it("lists the channels with sessions, share and change, and the sources and mediums", async () => {
+    const user = userEvent.setup();
+    api({ sites: [{ ...site, analytics: linked }], traffic });
+    renderWithProviders(<App />, route);
+    await openSeo(user);
+
+    const block = await screen.findByRole("region", { name: "Источники трафика" });
+    const channels = await within(block).findByRole("region", { name: "Каналы" });
+    const items = within(channels).getAllByRole("listitem");
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent("Поиск");
+    expect(items[0]).toHaveTextContent("600");
+    expect(items[0]).toHaveTextContent("60,00%");
+    expect(items[0]).toHaveTextContent("+20,0%");
+    expect(within(items[0]!).getByText(/\+20,0%/)).toHaveAttribute("data-trend", "up");
+    expect(items[1]).toHaveTextContent("Прямые заходы");
+    const sources = within(block).getByRole("region", { name: "Источники и каналы" });
+    expect(within(sources).getAllByRole("listitem")[0]).toHaveTextContent("google / organic");
+    expect(within(block).getByText(/Всего сессий/)).toHaveTextContent(/1\s000/);
+  });
+
+  it("shows a loader instead of figures while the first import runs", async () => {
+    const user = userEvent.setup();
+    api({ sites: [{ ...site, analytics: { ...linked, status: "RUNNING", lastSuccessAt: null } }], traffic: { ...traffic, status: "RUNNING", lastSuccessAt: null, totalSessions: 0, channels: [], sources: [], days: [] } });
+    renderWithProviders(<App />, route);
+    await openSeo(user);
+
+    const block = await screen.findByRole("region", { name: "Источники трафика" });
+    expect(await within(block).findByRole("status")).toHaveTextContent("Загружаем данные Google Analytics");
+    expect(within(block).queryByRole("region", { name: "Каналы" })).toBeNull();
+  });
+
+  it("offers to connect Google Analytics to a member who manages integrations", async () => {
+    const user = userEvent.setup();
+    api();
+    renderWithProviders(<App />, route);
+    await openSeo(user);
+
+    const block = await screen.findByRole("region", { name: "Источники трафика" });
+    expect(await within(block).findByText(/не подключены/)).toBeInTheDocument();
+    expect(within(block).getByRole("button", { name: "Подключить Google Analytics" })).toBeEnabled();
+  });
+
+  it("only says traffic is not connected to a client's person", async () => {
+    const user = userEvent.setup();
+    signedInAs("CLIENT");
+    api();
+    renderWithProviders(<App />, route);
+    await openSeo(user);
+
+    const block = await screen.findByRole("region", { name: "Источники трафика" });
+    expect(await within(block).findByText(/не подключены/)).toBeInTheDocument();
+    expect(within(block).queryByRole("button")).toBeNull();
+  });
+
+  it("says Analytics recorded no sessions", async () => {
+    const user = userEvent.setup();
+    api({ sites: [{ ...site, analytics: linked }], traffic: { ...traffic, totalSessions: 0, channels: [], sources: [], days: [] } });
+    renderWithProviders(<App />, route);
+    await openSeo(user);
+
+    const block = await screen.findByRole("region", { name: "Источники трафика" });
+    expect(await within(block).findByText(/не записал сессий/)).toBeInTheDocument();
+  });
+
+  it("asks to sign in again when Google revoked the access", async () => {
+    const user = userEvent.setup();
+    api({ sites: [{ ...site, analytics: { ...linked, status: "AUTH_REQUIRED", lastError: "TOKEN" } }], traffic: { ...traffic, status: "AUTH_REQUIRED" } });
+    renderWithProviders(<App />, route);
+    await openSeo(user);
+
+    const block = await screen.findByRole("region", { name: "Источники трафика" });
+    expect(await within(block).findByRole("alert")).toHaveTextContent("Войдите через Google заново");
   });
 });

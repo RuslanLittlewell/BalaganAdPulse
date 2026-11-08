@@ -7,6 +7,7 @@ import {
 import { t } from "@/shared/config/index.js";
 import { useAlerts } from "@/shared/ui/index.js";
 import { useCan } from "@/features/permissions/index.js";
+import { useAuth } from "@/features/auth/index.js";
 
 const DASHBOARD = { kind: "dashboard" } as const;
 
@@ -17,6 +18,7 @@ export function DashboardPage() {
   const tiles = useSummaryTiles(DASHBOARD);
   const chooseTiles = useChooseSummaryTiles(DASHBOARD);
   const { raise } = useAlerts();
+  const hasTasks = useAuth().modules.includes("TASKS");
 
   return (
     <div className="flex min-h-0 flex-col gap-5 pb-5">
@@ -36,7 +38,7 @@ export function DashboardPage() {
         kpi={managesAgencyKpi ? { scope: { kind: "organization" }, canEdit: true } : undefined}
       />
 
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+      <div className={`grid gap-5 md:grid-cols-2 ${hasTasks ? "xl:grid-cols-4" : "xl:grid-cols-3"}`}>
         <KpiOverview />
         <ChannelPanel range={range} />
       </div>

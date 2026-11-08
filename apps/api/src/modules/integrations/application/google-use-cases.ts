@@ -8,7 +8,7 @@ import { nextMorning } from "./schedule.js";
 const SIGN_IN_MS = 10 * 60_000;
 const CHOICE_MS = 30 * 60_000;
 
-export type SignInPurpose = "ADS" | "SEARCH_CONSOLE";
+export type SignInPurpose = "ADS" | "SEARCH_CONSOLE" | "SITE_ANALYTICS";
 
 export interface GoogleAuthorizationRecord {
   readonly id: string;

@@ -11,7 +11,7 @@ An agency member whose role may manage integrations SHALL be able to connect a s
 2. see the Search Console sites that sign-in reaches;
 3. choose one of them.
 
-The sign-in SHALL ask for read-only access to Search Console and nothing else. It SHALL be separate from any Google Ads sign-in on the same project. A site the signed-in account has not verified SHALL NOT be offered. Each chosen site SHALL become its own connection. A project MAY connect several sites, but a site SHALL be connected to a project at most once; connecting it again SHALL be refused with 409.
+The sign-in SHALL ask for read-only access to Search Console and to Google Analytics, and nothing else. Analytics access that the member does not grant SHALL NOT prevent connecting the site. It SHALL be separate from any Google Ads sign-in on the same project. A site the signed-in account has not verified SHALL NOT be offered. Each chosen site SHALL become its own connection. A project MAY connect several sites, but a site SHALL be connected to a project at most once; connecting it again SHALL be refused with 409.
 
 Customers SHALL NOT manage integrations, even on projects they may edit. The credential obtained SHALL belong to that connection alone: signing in on one project SHALL give no access on another. The credential MUST be encrypted at rest. It MUST be left out of read responses, logs, audit events, redirects and browser storage.
 

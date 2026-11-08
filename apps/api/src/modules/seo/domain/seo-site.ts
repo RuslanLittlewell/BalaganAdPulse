@@ -24,6 +24,16 @@ export interface SeoSite {
   readonly checkQueuedAt: Date | null;
   readonly checkLeaseOwner: string | null;
   readonly checkLeaseUntil: Date | null;
+  readonly analyticsPropertyId: string | null;
+  readonly analyticsName: string | null;
+  readonly trafficStatus: string;
+  readonly trafficSuccessAt: Date | null;
+  readonly trafficError: string | null;
+  readonly nextTrafficAt: Date | null;
+  readonly trafficQueuedAt: Date | null;
+  readonly trafficRetryCount: number;
+  readonly trafficLeaseOwner: string | null;
+  readonly trafficLeaseUntil: Date | null;
   readonly createdAt: Date;
 }
 
@@ -99,6 +109,15 @@ export function publicSite(row: SeoSite) {
     checkStatus: row.checkStatus,
     lastCheckAt: row.lastCheckAt,
     checkError: row.checkError,
+    analytics: row.analyticsPropertyId === null
+      ? null
+      : {
+          propertyId: row.analyticsPropertyId,
+          name: row.analyticsName ?? row.analyticsPropertyId,
+          status: row.trafficStatus,
+          lastSuccessAt: row.trafficSuccessAt,
+          lastError: row.trafficError,
+        },
   };
 }
 

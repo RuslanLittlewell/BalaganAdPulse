@@ -39,11 +39,11 @@
 
 - [x] 6.1 Add site tabs `SEO · host` to the project's source tabs, remembered with the other sources and left out of the single-account rule; render the SEO summary and view when a site's tab is chosen
 - [x] 6.2 Build `widgets/seo-overview`: the four tiles with change against the previous period, the daily charts with position on an inverted axis, and the latest-day note
-- [x] 6.3 Build the vitals block with the Телефон and Компьютер switch, the five metrics with ratings, share bars and weekly charts, the pass or fail line, the too-few-visits and not-configured states, and the lab measurement
+- [x] 6.3 Build the lab measurement block with the Телефон and Компьютер switch, the score, LCP, CLS, TBT, FCP and Speed Index as plain numbers, the time of the measurement, and a loader while the first measurement is awaited
 - [x] 6.4 Build the Запросы and Страницы ranked lists with share bars, independently scrollable lists of up to 100, and the 90-day note
 - [x] 6.5 Build the page check block with counts, Проверить сейчас, problems grouped by kind and the page list per kind, and the page side panel with all collected data, JSON-LD sources and the page's search figures
 - [x] 6.6 Add the Russian copy to `ru.ts`
-- [x] 6.7 Tests: tabs with an account and a site, choosing the site and coming back, a client's person seeing the view without controls, tiles and the position improvement, the latest-day note, vitals ratings and pass or fail per device, too few visits, scrollable top lists, problem kinds in order, opening a page panel with its JSON-LD
+- [x] 6.7 Tests: tabs with an account and a site, choosing the site and coming back, a client's person seeing the view without controls, tiles and the position improvement, the latest-day note, the lab measurement per device, the loader while waiting, scrollable top lists, problem kinds in order, opening a page panel with its JSON-LD
 
 ## 7. Docs
 

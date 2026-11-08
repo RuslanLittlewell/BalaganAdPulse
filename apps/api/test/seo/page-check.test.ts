@@ -10,7 +10,10 @@ const site = (over: Partial<SeoSite> = {}): SeoSite => ({
   id: "s1", projectId: "p1", siteUrl: "https://shop.ru/", origin: null, encryptedToken: "enc(refresh)", revision: "v1",
   status: "SUCCESS", lastSuccessAt: NOW, lastError: null, nextDailyAt: NOW, queuedAt: null, retryCount: 0,
   leaseOwner: null, leaseUntil: null, vitalsReadAt: null, checkStatus: "RUNNING", lastCheckAt: null, checkError: null,
-  nextCheckAt: NOW, checkQueuedAt: null, checkLeaseOwner: "me", checkLeaseUntil: NOW, createdAt: NOW,
+  nextCheckAt: NOW, checkQueuedAt: null, checkLeaseOwner: "me", checkLeaseUntil: NOW,
+  analyticsPropertyId: null, analyticsName: null, trafficStatus: "QUEUED", trafficSuccessAt: null, trafficError: null,
+  nextTrafficAt: null, trafficQueuedAt: null, trafficRetryCount: 0, trafficLeaseOwner: null, trafficLeaseUntil: null,
+  createdAt: NOW,
   ...over,
 });
 

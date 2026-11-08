@@ -11,7 +11,7 @@ The agency also runs SEO for some clients, and the project page shows only adver
 - The connected site gets its own tab, SEO · site, among the project's source tabs, as if it were another integration. The tab shows an SEO view with charts instead of tables:
   - tiles for the period;
   - search figures by day;
-  - Core Web Vitals blocks;
+  - the lab measurement block;
   - top queries and top pages;
   - the page check, with problems grouped by kind and a panel per page.
 - The window that adds an integration offers Google Search Console. The site's connection gets its own panel, with a refresh control, a sign-in-again state and a disconnect control.
@@ -22,7 +22,7 @@ The agency also runs SEO for some clients, and the project page shows only adver
 
 - `seo-site-integration`: connecting a Search Console site through Google sign-in, importing its daily search figures and top queries and pages, reading Core Web Vitals and the lab measurement, schedules, revoked sign-ins and disconnecting.
 - `site-page-audit`: checking a site's pages: which pages are checked, how they are fetched safely, what is collected from each page, which problems are marked, the weekly schedule and the manual check.
-- `seo-project-view`: what the SEO tab shows: tiles, charts, Core Web Vitals, top queries and pages, the page check and the page panel, and who sees it.
+- `seo-project-view`: what the SEO tab shows: tiles, charts, the lab measurement, top queries and pages, the page check and the page panel, and who sees it.
 
 ### Modified Capabilities
 

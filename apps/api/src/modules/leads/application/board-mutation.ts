@@ -10,19 +10,19 @@ export interface BoardMutationDependencies {
   publish: (event: LeadEvent) => void;
 }
 
-export function createBoardMutation(d: BoardMutationDependencies) {
+export function createBoardMutation(d: BoardMutationDependencies, resources: LeadEvent['resources'] = ['leads', 'activity', 'records', 'counts']) {
   async function authorize(actor: ActorContext, board: string, action: Action) {
     if (!await d.leads.reaches(actor, board)) throw new AppError('not-found', 'Board not found');
     if (!can(actor, action, 'lead')) throw new AppError('forbidden', 'Action not permitted');
   }
-  async function mutation<T>(actor: ActorContext, board: string, action: Action, work: (context: TransactionContext, rows: LeadRecord[]) => Promise<T>) {
+  async function mutation<T>(actor: ActorContext, board: string, action: Action, work: (context: TransactionContext, rows: LeadRecord[]) => Promise<T>, leadId?: string) {
     await authorize(actor, board, action);
     const result = await d.unitOfWork.run(async context => {
       await d.leads.lock(context, actor, board);
       await authorize(actor, board, action);
       return work(context, await d.leads.list(actor, board, context));
     });
-    d.publish({ kind: 'crm.changed', orgId: actor.orgId, board });
+    d.publish({ kind: 'crm.changed', orgId: actor.orgId, board, resources, ...(leadId ? { leadId } : {}) });
     return result;
   }
   return { authorize, mutation };

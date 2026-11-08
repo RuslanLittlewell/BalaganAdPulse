@@ -141,6 +141,7 @@ describe("the notification stream's upkeep", () => {
     const hub = createNotificationHub();
     const useCases = createNotificationUseCases({
       notifications: {
+        visible: async () => null,
         createMany: async () => [], refreshUnread: async () => null, latest: async () => [], unreadCount: async () => 0,
         markRead: async () => true, markAllRead: async () => {},
       },

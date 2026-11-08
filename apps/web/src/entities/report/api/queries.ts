@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { reportsApi, type MonthEntry, type Report, type ReportEdit } from "./api.js";
+import { useObjectUrl } from "@/shared/lib/useObjectUrl.js";
 
 export const allReportsKey = (projectId?: string) => ["reports", "all", projectId ?? null] as const;
 export const projectReportsKey = (projectId: string) => ["reports", "project", projectId] as const;
@@ -81,12 +82,15 @@ export function useDeleteReport(report: Pick<Report, "id" | "projectId">) {
 }
 
 export function useReportCover(report: Pick<Report, "id" | "projectId" | "hasCover" | "updatedAt">) {
-  return useQuery({
+  const query = useQuery({
     queryKey: [...reportKey(report.id), "cover", report.updatedAt],
-    queryFn: () => reportsApi.cover(report.projectId, report.id),
+    queryFn: ({ signal }) => reportsApi.coverBlob(report.projectId, report.id, signal),
     enabled: report.hasCover,
     staleTime: Infinity,
+    gcTime: 5 * 60_000,
   });
+  const data = useObjectUrl(query.data);
+  return { ...query, data };
 }
 
 export function useUploadCover(report: Pick<Report, "id" | "projectId">) {

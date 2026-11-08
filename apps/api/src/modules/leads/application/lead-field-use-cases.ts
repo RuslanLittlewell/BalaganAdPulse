@@ -27,7 +27,7 @@ export interface NewLeadField { name: string; type: LeadFieldType; options?: Req
 export interface LeadFieldChange { name?: string; options?: RequestedOption[]; position?: number }
 
 export function createLeadFieldUseCases(d: LeadFieldDependencies) {
-  const { authorize, mutation } = createBoardMutation(d);
+  const { authorize, mutation } = createBoardMutation(d, ['fields', 'leads', 'activity']);
 
   function find(fields: readonly LeadFieldRecord[], id: string) {
     const field = fields.find(candidate => candidate.id === id);

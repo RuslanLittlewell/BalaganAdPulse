@@ -5,12 +5,13 @@ const CLIENTS_KEY = ["clients"] as const;
 const accountKey = (clientId: string) => [...CLIENTS_KEY, clientId, "account"] as const;
 
 export function useClients() {
-  return useQuery({ queryKey: CLIENTS_KEY, queryFn: clientsApi.list });
+  return useQuery({ queryKey: CLIENTS_KEY, queryFn: ({ signal }) => clientsApi.list(signal) });
 }
 
 export function useCreateClient() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { affectsOnboarding: true },
     mutationFn: (body: ClientInput) => clientsApi.create(body),
     onSuccess: (created) => {
       qc.setQueryData<Client[]>(CLIENTS_KEY, (list) =>
@@ -31,6 +32,7 @@ export function useUpdateClient() {
 export function useDeleteClient() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { affectsOnboarding: true },
     mutationFn: (id: string) => clientsApi.remove(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: CLIENTS_KEY }),
   });

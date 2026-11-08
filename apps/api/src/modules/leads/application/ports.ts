@@ -61,4 +61,5 @@ export interface LeadFileStorage {
   get(key: string): Promise<{body: Uint8Array}>;
   remove(keys: readonly string[]): Promise<void>;
 }
-export interface LeadEvent { kind: 'crm.changed'; orgId: string; board: string }
+export type LeadEventResource = 'leads' | 'columns' | 'fields' | 'activity' | 'files' | 'records' | 'counts';
+export interface LeadEvent { kind: 'crm.changed'; orgId: string; board: string; resources?: readonly LeadEventResource[]; leadId?: string }

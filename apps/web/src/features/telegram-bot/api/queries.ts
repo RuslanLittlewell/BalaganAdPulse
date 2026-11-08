@@ -14,7 +14,7 @@ export function useTelegramStatus(waitingForLink: boolean) {
 }
 
 export function useTelegramLink() {
-  return useMutation({ mutationFn: telegramApi.link });
+  return useMutation({ mutationFn: telegramApi.link, meta: { affectsOnboarding: true } });
 }
 
 export function useTelegramNotifications() {
@@ -28,6 +28,7 @@ export function useTelegramNotifications() {
 export function useTelegramUnlink() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { affectsOnboarding: true },
     mutationFn: telegramApi.unlink,
     onSuccess: () => qc.invalidateQueries({ queryKey: TELEGRAM_KEY }),
   });

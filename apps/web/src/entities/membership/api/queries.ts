@@ -28,6 +28,7 @@ export function useMemberAccess(membershipId: string | undefined) {
 export function useUpdateMember() {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: { affectsOnboarding: true },
     mutationFn: ({ id, body }: { id: string; body: UpdateMemberInput }) =>
       membersApi.update(id, body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: MEMBERS_KEY }),
@@ -37,6 +38,7 @@ export function useUpdateMember() {
 export function useDeleteMember() {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: { affectsOnboarding: true },
     mutationFn: membersApi.remove,
     onSuccess: (_, id) => {
       forgetMember(id);

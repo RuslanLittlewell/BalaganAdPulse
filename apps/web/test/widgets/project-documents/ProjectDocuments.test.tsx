@@ -7,10 +7,12 @@ import { ProjectPage } from "@/pages/project/index.js";
 
 const author = { id: "member-1", name: "Роман Р." };
 
-type Stored = { id: string; title: string; content: unknown | null; createdAt: string; updatedAt: string; excerpt?: string };
+beforeEach(() => localStorage.clear());
+
+type Stored = { id: string; title: string; content: unknown | null; createdAt: string; updatedAt: string; revision?: number; excerpt?: string };
 
 function documentOf({ excerpt = "", ...entry }: Stored) {
-  return { ...entry, excerpt, projectId: "p1", createdBy: author, updatedBy: author };
+  return { ...entry, revision: entry.revision ?? 1, excerpt, projectId: "p1", createdBy: author, updatedBy: author };
 }
 
 function summaryOf({ content: _content, excerpt = "", ...rest }: Stored) {
@@ -44,11 +46,12 @@ function notebook(initial: Stored[] = [], options: { failSaves?: boolean } = {})
       return HttpResponse.json(documentOf(created), { status: 201 });
     }),
     mock.patch("/api/projects/p1/documents/:id", async ({ params, request }) => {
-      const change = await request.json() as Record<string, unknown>;
+      const { expectedRevision, ...change } = await request.json() as Record<string, unknown>;
+      const index = stored.findIndex((entry) => entry.id === params.id);
+      if (expectedRevision !== (stored[index]?.revision ?? 1)) return HttpResponse.json({ error: { message: "Conflict" } }, { status: 409 });
       saves.push(change);
       if (options.failSaves) return HttpResponse.json({ error: { message: "Boom" } }, { status: 500 });
-      const index = stored.findIndex((entry) => entry.id === params.id);
-      stored[index] = { ...stored[index]!, ...change, updatedAt: "2026-10-13T11:00:00.000Z" } as Stored;
+      stored[index] = { ...stored[index]!, ...change, revision: (stored[index]?.revision ?? 1) + 1, updatedAt: "2026-10-13T11:00:00.000Z" } as Stored;
       return HttpResponse.json(documentOf(stored[index]!));
     }),
     mock.delete("/api/projects/p1/documents/:id", ({ params }) => {
@@ -58,7 +61,7 @@ function notebook(initial: Stored[] = [], options: { failSaves?: boolean } = {})
       return new HttpResponse(null, { status: 204 });
     }),
   );
-  return { saves, deleted };
+  return { saves, deleted, stored };
 }
 
 const entry = (id: string, title: string, content: unknown | null = null): Stored => ({
@@ -103,6 +106,20 @@ async function editorSurface(): Promise<HTMLElement> {
 }
 
 describe("the project's tabs", () => {
+  it("does not load the hidden overview when documents open directly", async () => {
+    notebook();
+    const reads: string[] = [];
+    const paths = [
+      "/api/tasks", "/api/projects/p1/campaigns", "/api/projects/p1/summary", "/api/projects/p1/kpis",
+      "/api/projects/p1/summary-tiles", "/api/projects/p1/integrations", "/api/projects/p1/seo/sites",
+      "/api/crm/boards/p1/stage-counts",
+    ];
+    server.use(...paths.map((path) => mock.get(path, () => { reads.push(path); return HttpResponse.json([]); })));
+    open("/projects/p1/documents");
+    await screen.findByRole("navigation", { name: "Документы проекта" });
+    expect(reads).toEqual([]);
+  });
+
   it("switches between the project and its documents, keeping the period", async () => {
     const user = userEvent.setup();
     notebook([entry("doc-1", "О проекте")]);
@@ -252,14 +269,61 @@ describe("the notebook", () => {
 
   it("says so when a change cannot be saved and keeps it on screen", async () => {
     const user = userEvent.setup();
-    notebook([entry("doc-1", "Стратегия")], { failSaves: true });
-    open("/projects/p1/documents/doc-1");
+    const { saves } = notebook([entry("doc-1", "Стратегия")], { failSaves: true });
+    const view = open("/projects/p1/documents/doc-1");
 
     const title = await screen.findByRole("textbox", { name: "Название документа" });
     await user.type(title, "!");
 
     expect(await screen.findByText("Не удалось сохранить", {}, { timeout: 3000 })).toBeInTheDocument();
     expect(title).toHaveValue("Стратегия!");
+    view.unmount();
+    await waitFor(() => expect(saves).toHaveLength(2));
+  });
+
+  it("saves the local version after the editor explicitly resolves a conflict", async () => {
+    const user = userEvent.setup();
+    const { saves, stored } = notebook([entry("doc-1", "Стратегия")]);
+    open("/projects/p1/documents/doc-1");
+    const title = await screen.findByRole("textbox", { name: "Название документа" });
+    stored[0] = { ...stored[0]!, title: "Версия коллеги", revision: 2 };
+
+    await user.type(title, "!");
+    const resolve = await screen.findByRole("button", { name: "Сохранить мою версию" }, { timeout: 3000 });
+    expect(title).toHaveValue("Стратегия!");
+    expect(saves).toEqual([]);
+    let release: (() => void) | undefined;
+    server.use(mock.get("/api/projects/p1/documents/doc-1", async () => {
+      await new Promise<void>((done) => { release = done; });
+      return HttpResponse.json(documentOf(stored[0]!));
+    }));
+    await user.click(resolve);
+    await waitFor(() => expect(release).toBeTypeOf("function"));
+    await user.type(title, " Ещё");
+    release?.();
+
+    expect(await screen.findByText("Сохранено")).toBeInTheDocument();
+    expect(saves).toEqual([{ title: "Стратегия! Ещё", content: null }]);
+    expect(stored[0]).toMatchObject({ title: "Стратегия! Ещё", revision: 3 });
+  });
+
+  it("discards local edits only when the editor chooses the server version", async () => {
+    const user = userEvent.setup();
+    const { saves, stored } = notebook([entry("doc-1", "Стратегия")]);
+    open("/projects/p1/documents/doc-1");
+    const title = await screen.findByRole("textbox", { name: "Название документа" });
+    stored[0] = { ...stored[0]!, title: "Версия коллеги", revision: 2, content: {
+      type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Текст коллеги" }] }],
+    } };
+
+    await user.type(title, "!");
+    await user.click(await screen.findByRole("button", { name: "Отменить мои правки и загрузить версию сервера" }, { timeout: 3000 }));
+
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Название документа" })).toHaveValue("Версия коллеги"));
+    expect(await screen.findByText("Текст коллеги")).toBeInTheDocument();
+    expect(await within(screen.getByRole("navigation", { name: "Документы проекта" })).findByRole("button", { name: /Версия коллеги/ })).toBeInTheDocument();
+    expect(saves).toEqual([]);
+    expect(screen.queryByRole("button", { name: "Сохранить мою версию" })).toBeNull();
   });
 
   it("deletes a document once confirmed and returns to the list", async () => {

@@ -6,6 +6,7 @@ import type { NotificationHub } from "./notification-hub.js";
 export interface NotificationRepository {
   createMany(notifications: readonly NewNotification[]): Promise<AddressedNotification[]>;
   refreshUnread(notification: NewNotification, at: Date): Promise<AddressedNotification | null>;
+  visible(recipientId: string, id: string): Promise<NotificationView | null>;
   latest(recipientId: string, limit: number): Promise<NotificationView[]>;
   unreadCount(recipientId: string): Promise<number>;
   markRead(recipientId: string, id: string, at: Date): Promise<boolean>;

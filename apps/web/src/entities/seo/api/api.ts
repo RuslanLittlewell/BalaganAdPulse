@@ -201,7 +201,7 @@ const query = (values: Record<string, string | number | undefined>) =>
   new URLSearchParams(Object.entries(values).flatMap(([key, value]) => (value === undefined ? [] : [[key, String(value)]]))).toString();
 
 export const seoApi = {
-  sites: (projectId: string) => http.get<SeoSite[]>(`${base(projectId)}/sites`),
+  sites: (projectId: string, signal?: AbortSignal) => http.get<SeoSite[]>(`${base(projectId)}/sites`, { signal }),
   authorize: (projectId: string, siteId?: string) =>
     http.post<{ url: string }>(`${base(projectId)}/authorize`, siteId ? { siteId } : {}),
   choices: (projectId: string, authorization: string) =>
@@ -218,17 +218,17 @@ export const seoApi = {
   linkAnalytics: (projectId: string, siteId: string, body: { authorization: string; propertyId: string }) =>
     http.put<SeoSite>(`${site(projectId, siteId)}/analytics`, body),
   unlinkAnalytics: (projectId: string, siteId: string) => http.del(`${site(projectId, siteId)}/analytics`),
-  traffic: (projectId: string, siteId: string, range: SeoRange) =>
-    http.get<SeoTraffic>(`${site(projectId, siteId)}/traffic?${query({ ...range })}`),
-  search: (projectId: string, siteId: string, range: SeoRange) =>
-    http.get<SeoSearch>(`${site(projectId, siteId)}/search?${query({ ...range })}`),
-  top: (projectId: string, siteId: string, kind: SeoTopKind, range: SeoRange, limit: number) =>
-    http.get<SeoTop>(`${site(projectId, siteId)}/top?${query({ ...range, kind, limit })}`),
-  vitals: (projectId: string, siteId: string, range: SeoRange) =>
-    http.get<SeoVitals>(`${site(projectId, siteId)}/vitals?${query({ ...range })}`),
-  audit: (projectId: string, siteId: string) => http.get<SeoAudit>(`${site(projectId, siteId)}/audit`),
-  auditPages: (projectId: string, siteId: string, kind?: SeoProblemKind) =>
-    http.get<SeoAuditListedPage[]>(`${site(projectId, siteId)}/audit/pages${kind ? `?${query({ kind })}` : ""}`),
-  auditPage: (projectId: string, siteId: string, pageId: string, range: SeoRange) =>
-    http.get<SeoAuditPage>(`${site(projectId, siteId)}/audit/pages/${pageId}?${query({ ...range })}`),
+  traffic: (projectId: string, siteId: string, range: SeoRange, signal?: AbortSignal) =>
+    http.get<SeoTraffic>(`${site(projectId, siteId)}/traffic?${query({ ...range })}`, { signal }),
+  search: (projectId: string, siteId: string, range: SeoRange, signal?: AbortSignal) =>
+    http.get<SeoSearch>(`${site(projectId, siteId)}/search?${query({ ...range })}`, { signal }),
+  top: (projectId: string, siteId: string, kind: SeoTopKind, range: SeoRange, limit: number, signal?: AbortSignal) =>
+    http.get<SeoTop>(`${site(projectId, siteId)}/top?${query({ ...range, kind, limit })}`, { signal }),
+  vitals: (projectId: string, siteId: string, range: SeoRange, signal?: AbortSignal) =>
+    http.get<SeoVitals>(`${site(projectId, siteId)}/vitals?${query({ ...range })}`, { signal }),
+  audit: (projectId: string, siteId: string, signal?: AbortSignal) => http.get<SeoAudit>(`${site(projectId, siteId)}/audit`, { signal }),
+  auditPages: (projectId: string, siteId: string, kind?: SeoProblemKind, signal?: AbortSignal) =>
+    http.get<SeoAuditListedPage[]>(`${site(projectId, siteId)}/audit/pages${kind ? `?${query({ kind })}` : ""}`, { signal }),
+  auditPage: (projectId: string, siteId: string, pageId: string, range: SeoRange, signal?: AbortSignal) =>
+    http.get<SeoAuditPage>(`${site(projectId, siteId)}/audit/pages/${pageId}?${query({ ...range })}`, { signal }),
 };

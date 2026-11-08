@@ -16,6 +16,7 @@ export interface DocumentSummary {
 }
 
 export interface ProjectDocument extends DocumentSummary {
+  revision: number;
   content: unknown | null;
   createdBy: DocumentAuthor | null;
 }
@@ -32,7 +33,7 @@ export const projectDocumentsApi = {
   list: (projectId: string) => http.get<DocumentSummary[]>(documentsOf(projectId)),
   read: (projectId: string, id: string) => http.get<ProjectDocument>(documentAt(projectId, id)),
   create: (projectId: string, title: string) => http.post<ProjectDocument>(documentsOf(projectId), { title }),
-  update: (projectId: string, id: string, change: DocumentChange) =>
+  update: (projectId: string, id: string, change: DocumentChange & { expectedRevision: number }) =>
     http.patch<ProjectDocument>(documentAt(projectId, id), change),
   remove: (projectId: string, id: string) => http.del(documentAt(projectId, id)),
 };

@@ -215,6 +215,10 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
           ...(input.telegram === undefined ? {} : { telegram: input.telegram }),
           ...(passwordHash ? { passwordHash } : {}),
         });
+        if (passwordHash) {
+          await dependencies.sessions.revokeAll(context, userId);
+          return issueTokenPair(context, updated);
+        }
         return {
           accessToken: await dependencies.tokens.issueAccess(
             principalOf(updated),

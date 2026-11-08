@@ -43,7 +43,7 @@ export function useSaveProjectDocument(projectId: string, id: string) {
   const qc = useQueryClient();
   return useMutation({
     scope: { id: `project-document:${id}` },
-    mutationFn: (change: DocumentChange) => projectDocumentsApi.update(projectId, id, change),
+    mutationFn: (change: DocumentChange & { expectedRevision: number }) => projectDocumentsApi.update(projectId, id, change),
     onSuccess: (saved) => {
       qc.setQueryData(projectDocumentKey(projectId, saved.id), saved);
       qc.setQueryData<DocumentSummary[]>(projectDocumentsKey(projectId), (list) =>

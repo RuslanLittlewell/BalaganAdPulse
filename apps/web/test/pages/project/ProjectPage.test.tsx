@@ -639,7 +639,7 @@ describe("switching the campaigns by advertising account", () => {
     renderWithProviders(<App />, route);
     await screen.findByText("Поиск / Москва");
 
-    await user.click(screen.getByRole("radio", { name: "Meta · 222" }));
+    await user.click(await screen.findByRole("radio", { name: "Meta · 222" }));
 
     expect(screen.queryByText("Поиск / Москва")).toBeNull();
     expect(screen.getByText("Лента / Россия")).toBeInTheDocument();
@@ -651,7 +651,7 @@ describe("switching the campaigns by advertising account", () => {
     api({ campaigns: twoAccounts });
     const first = renderWithProviders(<App />, route);
     await screen.findByText("Поиск / Москва");
-    await user.click(screen.getByRole("radio", { name: "Meta · 222" }));
+    await user.click(await screen.findByRole("radio", { name: "Meta · 222" }));
     await user.click(screen.getByText("Лента / Россия"));
     expect(await screen.findByRole("heading", { name: "Экран кампании" })).toBeInTheDocument();
     first.unmount();
@@ -729,7 +729,7 @@ describe("switching the campaigns by advertising account", () => {
     renderWithProviders(<App />, route);
 
     await waitFor(() => expect(shownTiles()).toEqual(["CONVERSIONS"]));
-    await user.click(screen.getByRole("radio", { name: "Meta · 222" }));
+    await user.click(await screen.findByRole("radio", { name: "Meta · 222" }));
 
     expect(shownTiles()).toEqual(["CLICKS", "SPEND"]);
   });
@@ -745,7 +745,7 @@ describe("switching the campaigns by advertising account", () => {
     renderWithProviders(<App />, route);
     await screen.findByRole("radiogroup", { name: "Источник кампаний" });
 
-    await user.click(screen.getByRole("radio", { name: "Meta · 222" }));
+    await user.click(await screen.findByRole("radio", { name: "Meta · 222" }));
     await user.click(await screen.findByRole("button", { name: "Настроить показатели" }));
     await user.click(within(await screen.findByRole("dialog", { name: "Показатели за период" })).getByRole("button", { name: "Клики" }));
     await user.keyboard("{Escape}");
@@ -772,7 +772,7 @@ describe("switching the campaigns by advertising account", () => {
     await waitFor(() =>
       expect(within(within(summary()).getByTestId("kpi-tile")).getByRole("progressbar")).toHaveAttribute("aria-valuenow", "50"));
 
-    await user.click(screen.getByRole("radio", { name: "Meta · 222" }));
+    await user.click(await screen.findByRole("radio", { name: "Meta · 222" }));
 
     expect(within(summary()).getByText("1 200 Br")).toBeInTheDocument();
     expect(within(within(summary()).getByTestId("kpi-tile")).getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100");
@@ -829,7 +829,7 @@ describe("column layouts per advertising account", () => {
     await user.keyboard("{Escape}");
     await waitFor(() => expect(columnHeaders()).not.toContain("CPL"));
 
-    await user.click(screen.getByRole("radio", { name: "Meta · 222" }));
+    await user.click(await screen.findByRole("radio", { name: "Meta · 222" }));
     await screen.findByRole("row", { name: /Лента \/ Россия/ });
     expect(columnHeaders()).toContain("CPL");
 

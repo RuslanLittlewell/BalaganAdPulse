@@ -78,6 +78,7 @@ export function createProjectDocumentUseCases(dependencies: ProjectDocumentDepen
       assertContent(change.content);
       return dependencies.unitOfWork.run(async (context) => {
         const updated = await dependencies.documents.update(context, id, {
+          expectedRevision: change.expectedRevision,
           ...(title === undefined ? {} : { title }),
           ...(change.content === undefined ? {} : { content: change.content }),
           editorId: actor.membershipId,

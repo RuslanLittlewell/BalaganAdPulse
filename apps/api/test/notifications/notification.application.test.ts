@@ -26,6 +26,7 @@ function fixture(options: {
   unread?: string[];
   due?: DueTask[];
 } = {}) {
+  const visible = new Map<string, NotificationView>();
   const created: NewNotification[] = [];
   const refreshed: NewNotification[] = [];
   const forwarded: string[] = [];
@@ -35,20 +36,27 @@ function fixture(options: {
   const hub = createNotificationHub();
   const useCases = createNotificationUseCases({
     notifications: {
+      visible: async (_recipientId, id) => visible.get(id) ?? null,
       createMany: async (drafts) => drafts.map((draft, index) => {
         created.push(draft);
-        return {
+        const view = {
           id: `n${created.length}-${index}`, kind: draft.kind, createdAt: new Date(), readAt: null,
           project: null, task: null, document: null, actor: null, recipientId: draft.recipientId,
         };
+        const { recipientId: _recipientId, ...publicView } = view;
+        visible.set(view.id, publicView);
+        return view;
       }),
       refreshUnread: async (draft) => {
         if (!(options.unread ?? []).includes(draft.recipientId)) return null;
         refreshed.push(draft);
-        return {
+        const view = {
           id: `unread-${draft.recipientId}`, kind: draft.kind, createdAt: new Date(), readAt: null,
           project: null, task: null, document: null, actor: null, recipientId: draft.recipientId,
         };
+        const { recipientId: _recipientId, ...publicView } = view;
+        visible.set(view.id, publicView);
+        return view;
       },
       latest: async () => [],
       unreadCount: async () => 0,
@@ -90,7 +98,7 @@ function fixture(options: {
     clock: { now: () => options.now ?? new Date("2026-10-15T12:00:00Z") },
     timeZone: "Europe/Minsk",
   });
-  return { useCases, created, refreshed, forwarded, readsAsked, hub };
+  return { useCases, created, refreshed, forwarded, readsAsked, hub, visible };
 }
 
 const recipientsOf = (created: NewNotification[]) => created.map((notification) => notification.recipientId);
@@ -369,6 +377,34 @@ describe("a project's KPI being met", () => {
 });
 
 describe("delivery and reading", () => {
+  it("rechecks current access before delivering a queued stream notification", async () => {
+    const { useCases, hub, visible } = fixture();
+    await useCases.projectCreated({ id: "p1" }, anna);
+    const notification = visible.get("n1-0")!;
+    const delivered: NotificationView[] = [];
+    useCases.subscribe({ ...anna, membershipId: "boris" }, { deliver: (n) => delivered.push(n), end: () => {} });
+
+    visible.delete(notification.id);
+    hub.publish({ ...notification, recipientId: "boris" });
+    await Promise.resolve();
+
+    expect(delivered).toEqual([]);
+  });
+
+  it("does not deliver after an unsubscribe during an access check", async () => {
+    const { useCases, hub, visible } = fixture();
+    await useCases.projectCreated({ id: "p1" }, anna);
+    const notification = visible.get("n1-0")!;
+    const delivered: NotificationView[] = [];
+    const unsubscribe = useCases.subscribe({ ...anna, membershipId: "boris" }, { deliver: (n) => delivered.push(n), end: () => {} });
+
+    hub.publish({ ...notification, recipientId: "boris" });
+    unsubscribe();
+    await Promise.resolve();
+
+    expect(delivered).toEqual([]);
+  });
+
   it("hands each created notification to its recipient's subscribers only", async () => {
     const { useCases, hub } = fixture();
     const toBoris: NotificationView[] = [];

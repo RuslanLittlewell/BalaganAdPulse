@@ -146,7 +146,7 @@ describe("identity application use cases", () => {
     await expect(useCases.updateProfile("u1", { name: "New", currentPassword: "wrong", newPassword: "changed123" }))
       .rejects.toMatchObject({ category: "forbidden", message: "Current password is incorrect" });
     await expect(useCases.updateProfile("u1", { name: "New", currentPassword: "secret123", newPassword: "changed123" }))
-      .resolves.toEqual({ accessToken: "access:u1:New" });
+      .resolves.toEqual({ accessToken: "access:u1:New", refreshToken: "refresh-1" });
   });
 });
 

@@ -89,7 +89,7 @@ const failureOf = (error: unknown) => {
 export function useIntegrations(projectId: string, enabled = true) {
   return useQuery({
     queryKey: integrationsKey(projectId),
-    queryFn: () => http.get<Connection[]>(integrationsPath(projectId)),
+    queryFn: ({ signal }) => http.get<Connection[]>(integrationsPath(projectId), { signal }),
     enabled,
     refetchInterval: (query) =>
       (query.state.data ?? []).some((connection) => ["QUEUED", "RUNNING"].includes(connection.status))

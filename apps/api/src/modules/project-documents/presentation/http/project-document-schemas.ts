@@ -7,6 +7,7 @@ const title = z.string().max(NAME_LIMIT, `title ${atMost(NAME_LIMIT)}`);
 export const createDocumentSchema = z.object({ title }).strict();
 
 export const updateDocumentSchema = z.object({
+  expectedRevision: z.number().int().positive(),
   title: title.optional(),
   content: richText({ nodes: STARTER_NODES, marks: [...STARTER_MARKS, "link"] }).nullable().optional(),
 }).strict();

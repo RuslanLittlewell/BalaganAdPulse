@@ -1,7 +1,9 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
-import { isCustomer, tariffsWithModule } from "@adpulse/access-policy";
+import { can, isCustomer, tariffsWithModule } from "@adpulse/access-policy";
 import { performanceOf, sumByType, type KpiAccount, type MetricRepository, type ResultType } from "#modules/campaigns/index.js";
 import { isKpiMetric, MANUAL_KPI, type IsoDateRange, type KpiFigures, type KpiInput } from "#modules/kpi/index.js";
+import { reachableProjects, grantedProjects } from "#shared/infrastructure/project-reach.js";
+import type { ActorContext } from "#shared/application/index.js";
 import type {
   DueTask,
   DueTasks,
@@ -62,31 +64,68 @@ export class PrismaNotificationRepository implements NotificationRepository {
     return { ...viewOf(row, this.defaultTimeZone), recipientId: row.recipientId };
   }
 
+  private async visibleWhere(recipientId: string): Promise<Prisma.NotificationWhereInput> {
+    const member = await this.prisma.membership.findUnique({
+      where: { id: recipientId },
+      select: { id: true, userId: true, orgId: true, role: true, status: true, org: { select: { status: true, tariff: true } } },
+    });
+    if (!member || member.status !== "ACTIVE" || member.org.status !== "ACTIVE") return { id: { in: [] } };
+    const actor: ActorContext = { membershipId: member.id, userId: member.userId, orgId: member.orgId, role: member.role };
+    const project = reachableProjects(actor);
+    const task: Prisma.TaskWhereInput = {
+      orgId: actor.orgId,
+      OR: [
+        { personal: true, createdById: actor.membershipId },
+        ...(actor.role === "ADMIN" ? [{ personal: false }] : isCustomer(actor.role)
+          ? [{ personal: false, visibleToClient: true, project: grantedProjects(actor) }]
+          : [{ personal: false, OR: [
+            { project: grantedProjects(actor), OR: [
+              { participants: { some: { membershipId: actor.membershipId } } },
+              { participants: { none: {} }, createdById: actor.membershipId },
+            ] },
+            { projectId: null, OR: [{ participants: { some: { membershipId: actor.membershipId } } }, { createdById: actor.membershipId }] },
+          ] }]),
+      ],
+    };
+    return { recipientId, AND: [{ OR: [{ projectId: null }, { project }] }], OR: [
+      { taskId: null, documentId: null, project },
+      ...(can(actor, "read", "project-document") ? [{ taskId: null, document: { project } }] : []),
+      ...(can(actor, "read", "task") && tariffsWithModule("TASKS").includes(member.org.tariff) ? [{ task }] : []),
+    ] };
+  }
+
+  async visible(recipientId: string, id: string): Promise<NotificationView | null> {
+    const row = await this.prisma.notification.findFirst({ where: { AND: [{ id }, await this.visibleWhere(recipientId)] }, include: shown });
+    return row ? viewOf(row, this.defaultTimeZone) : null;
+  }
+
   async latest(recipientId: string, limit: number): Promise<NotificationView[]> {
     const rows = await this.prisma.notification.findMany({
-      where: { recipientId },
-      include: shown,
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: limit,
+      where: await this.visibleWhere(recipientId), include: shown,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: limit,
     });
     return rows.map((row) => viewOf(row, this.defaultTimeZone));
   }
 
-  unreadCount(recipientId: string): Promise<number> {
-    return this.prisma.notification.count({ where: { recipientId, readAt: null } });
+  async unreadCount(recipientId: string): Promise<number> {
+    return this.prisma.notification.count({ where: { AND: [await this.visibleWhere(recipientId), { readAt: null }] } });
   }
 
   async markRead(recipientId: string, id: string, at: Date): Promise<boolean> {
+    const visible = await this.visibleWhere(recipientId);
     const { count } = await this.prisma.notification.updateMany({
-      where: { id, recipientId, readAt: null }, data: { readAt: at },
+      where: { AND: [visible, { id, readAt: null }] }, data: { readAt: at },
     });
     if (count > 0) return true;
-    return (await this.prisma.notification.count({ where: { id, recipientId } })) > 0;
+    return (await this.prisma.notification.count({ where: { AND: [visible, { id }] } })) > 0;
   }
 
   async markAllRead(recipientId: string, at: Date): Promise<void> {
-    await this.prisma.notification.updateMany({ where: { recipientId, readAt: null }, data: { readAt: at } });
+    await this.prisma.notification.updateMany({
+      where: { AND: [await this.visibleWhere(recipientId), { readAt: null }] }, data: { readAt: at },
+    });
   }
+
 }
 
 export class PrismaNotificationRecipients implements NotificationRecipients {

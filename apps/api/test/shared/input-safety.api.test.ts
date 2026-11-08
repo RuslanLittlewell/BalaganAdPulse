@@ -62,13 +62,13 @@ describe("a task's description", () => {
 
 describe("a project document and a monthly report", () => {
   it("refuse a link that runs script", () => {
-    expect(updateDocumentSchema.safeParse({ content: linked("javascript:alert(1)") }).success).toBe(false);
+    expect(updateDocumentSchema.safeParse({ expectedRevision: 1, content: linked("javascript:alert(1)") }).success).toBe(false);
     expect(editSchema.safeParse({ conclusions: linked("https://acme.by") }).success).toBe(false);
     expect(editSchema.safeParse({ plan: doc({ type: "iframe" }) }).success).toBe(false);
   });
 
   it("take what their editors make", () => {
-    expect(updateDocumentSchema.safeParse({ content: linked("https://acme.by") }).success).toBe(true);
+    expect(updateDocumentSchema.safeParse({ expectedRevision: 1, content: linked("https://acme.by") }).success).toBe(true);
     expect(editSchema.safeParse({ conclusions: doc({ type: "paragraph", content: [{ type: "text", text: "Итог" }] }), plan: null }).success).toBe(true);
   });
 });

@@ -46,7 +46,7 @@ function Where() {
 }
 
 function AnyMutation() {
-  const mutation = useMutation({ mutationFn: async () => undefined });
+  const mutation = useMutation({ mutationFn: async () => undefined, meta: { affectsOnboarding: true } });
   return <button type="button" onClick={() => mutation.mutate()}>Сохранить что-то</button>;
 }
 
@@ -218,7 +218,7 @@ describe("the first steps in the menu", () => {
     expect(marks).toEqual(["hide"]);
   });
 
-  it("reads the steps again after any change the person makes", async () => {
+  it("reads the steps again after a relevant change the person makes", async () => {
     const { reads } = onboarding({});
     setup();
     await screen.findByRole("button", { name: /Первые шаги/ });

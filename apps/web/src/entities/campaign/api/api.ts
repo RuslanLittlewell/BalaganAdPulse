@@ -149,29 +149,31 @@ export interface ChannelShare {
 }
 
 export const campaignsApi = {
-  listByProject: (projectId: string, range: DateRange) =>
-    http.get<Campaign[]>(scoped(`/projects/${projectId}/campaigns`, range)),
-  namesByProject: (projectId: string) =>
-    http.get<CampaignReference[]>(`/projects/${projectId}/campaigns/names`),
-  get: (campaignId: string, range: DateRange) =>
-    http.get<Campaign>(scoped(`/campaigns/${campaignId}`, range)),
-  daily: (campaignId: string, range: DateRange) =>
-    http.get<MeasuredDay[]>(scoped(`/campaigns/${campaignId}/daily`, range)),
-  adSets: (campaignId: string, range: DateRange) =>
-    http.get<AdSet[]>(scoped(`/campaigns/${campaignId}/ad-sets`, range)),
-  ads: (adSetId: string, range: DateRange) =>
-    http.get<Ad[]>(scoped(`/ad-sets/${adSetId}/ads`, range)),
-  projectDaily: (projectId: string, range: DateRange) =>
-    http.get<MeasuredDay[]>(scoped(`/projects/${projectId}/daily`, range)),
-  projectSummary: (projectId: string, range: DateRange) =>
-    http.get<Performance>(scoped(`/projects/${projectId}/summary`, range)),
-  agencySummary: (range: DateRange) => http.get<CurrencyPerformance[]>(scoped("/summary", range)),
-  projectsSummary: (range: DateRange) => http.get<ProjectFigures[]>(scoped("/summary/projects", range)),
-  adCreatives: (adId: string) => http.get<Creative[]>(`/ads/${adId}/creatives`),
-  adPreview: (adId: string) => http.get<{ url: string }>(`/ads/${adId}/preview`),
+  listByProject: (projectId: string, range: DateRange, signal?: AbortSignal) =>
+    http.get<Campaign[]>(scoped(`/projects/${projectId}/campaigns`, range), { signal }),
+  namesByProject: (projectId: string, signal?: AbortSignal) =>
+    http.get<CampaignReference[]>(`/projects/${projectId}/campaigns/names`, { signal }),
+  get: (campaignId: string, range: DateRange, signal?: AbortSignal) =>
+    http.get<Campaign>(scoped(`/campaigns/${campaignId}`, range), { signal }),
+  daily: (campaignId: string, range: DateRange, signal?: AbortSignal) =>
+    http.get<MeasuredDay[]>(scoped(`/campaigns/${campaignId}/daily`, range), { signal }),
+  adSets: (campaignId: string, range: DateRange, signal?: AbortSignal) =>
+    http.get<AdSet[]>(scoped(`/campaigns/${campaignId}/ad-sets`, range), { signal }),
+  ads: (adSetId: string, range: DateRange, signal?: AbortSignal) =>
+    http.get<Ad[]>(scoped(`/ad-sets/${adSetId}/ads`, range), { signal }),
+  projectDaily: (projectId: string, range: DateRange, signal?: AbortSignal) =>
+    http.get<MeasuredDay[]>(scoped(`/projects/${projectId}/daily`, range), { signal }),
+  projectSummary: (projectId: string, range: DateRange, signal?: AbortSignal) =>
+    http.get<Performance>(scoped(`/projects/${projectId}/summary`, range), { signal }),
+  agencySummary: (range: DateRange, signal?: AbortSignal) => http.get<CurrencyPerformance[]>(scoped("/summary", range), { signal }),
+  projectsSummary: (range: DateRange, signal?: AbortSignal) => http.get<ProjectFigures[]>(scoped("/summary/projects", range), { signal }),
+  adCreatives: (adId: string, signal?: AbortSignal) => http.get<Creative[]>(`/ads/${adId}/creatives`, { signal }),
+  adPreview: (adId: string, signal?: AbortSignal) => http.get<{ url: string }>(`/ads/${adId}/preview`, { signal }),
+  creativeBlob: (creativeId: string, part: "file" | "poster", signal?: AbortSignal) =>
+    http.getBlob(`/ad-creatives/${creativeId}/${part}`, { signal }),
   creativeFile: async (creativeId: string, part: "file" | "poster") => {
     const blob = await http.getBlob(`/ad-creatives/${creativeId}/${part}`);
     return URL.createObjectURL(blob);
   },
-  channels: (range: DateRange) => http.get<ChannelShare[]>(scoped("/summary/channels", range)),
+  channels: (range: DateRange, signal?: AbortSignal) => http.get<ChannelShare[]>(scoped("/summary/channels", range), { signal }),
 };

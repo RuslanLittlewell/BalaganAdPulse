@@ -1,3 +1,4 @@
+import { AppError } from "#shared/domain/index.js";
 import { Prisma } from "@prisma/client";
 import type { PrismaClient } from "@prisma/client";
 import type { TransactionContext } from "#shared/application/index.js";
@@ -21,7 +22,7 @@ const SUMMARY = {
   id: true, projectId: true, title: true, createdAt: true, updatedAt: true, updatedBy: AUTHOR, content: true,
 } as const;
 
-const FULL = { ...SUMMARY, createdBy: AUTHOR } as const;
+const FULL = { ...SUMMARY, revision: true, createdBy: AUTHOR } as const;
 
 type SummaryRow = Prisma.ProjectDocumentGetPayload<{ select: typeof SUMMARY }>;
 type FullRow = Prisma.ProjectDocumentGetPayload<{ select: typeof FULL }>;
@@ -33,7 +34,7 @@ const toSummary = (row: SummaryRow): DocumentSummary => ({
 });
 
 const toDocument = (row: FullRow): ProjectDocument => ({
-  ...toSummary(row), content: row.content ?? null, createdBy: authorOf(row.createdBy),
+  ...toSummary(row), revision: row.revision, content: row.content ?? null, createdBy: authorOf(row.createdBy),
 });
 
 export class PrismaProjectDocumentRepository implements ProjectDocumentRepository {
@@ -77,17 +78,19 @@ export class PrismaProjectDocumentRepository implements ProjectDocumentRepositor
     id: string,
     change: DocumentChange & { editorId: string },
   ): Promise<ProjectDocument> {
-    const row = await this.client(context).projectDocument.update({
-      where: { id },
+    const { count } = await this.client(context).projectDocument.updateMany({
+      where: { id, revision: change.expectedRevision },
       data: {
+        revision: { increment: 1 },
         ...(change.title === undefined ? {} : { title: change.title }),
         ...(change.content === undefined
           ? {}
           : { content: change.content === null ? Prisma.DbNull : (change.content as Prisma.InputJsonValue) }),
         updatedById: change.editorId,
       },
-      select: FULL,
     });
+    if (count === 0) throw new AppError("conflict", "The document changed since it was read");
+    const row = await this.client(context).projectDocument.findUniqueOrThrow({ where: { id }, select: FULL });
     return toDocument(row);
   }
 

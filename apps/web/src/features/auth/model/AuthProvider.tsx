@@ -1,9 +1,9 @@
 import {
-  createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode,
+  createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode,
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { hasSession, writeTokens } from "@/shared/lib/index.js";
+import { ApiError, hasSession, writeTokens } from "@/shared/lib/index.js";
 import { endSession, onSessionExpired, onTokenRenewed } from "@/shared/lib/index.js";
 import { authApi, type LoginBody, type RegisterBody, type UpdateProfileBody, type UserProfile } from "../api.js";
 import type { OrganizationSummary } from "../api.js";
@@ -26,6 +26,8 @@ interface AuthValue {
   platformAdmin: boolean;
   modules: ModuleKey[];
   tariff: TariffSummary | null;
+  sessionError: boolean;
+  retrySession: () => void;
   login: (body: LoginBody) => Promise<void>;
   register: (body: RegisterBody) => Promise<void>;
   resetPassword: (token: string, password: string) => Promise<void>;
@@ -53,8 +55,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [modules, setModules] = useState<ModuleKey[]>([]);
   const [tariff, setTariff] = useState<TariffSummary | null>(null);
 
+  const [sessionError, setSessionError] = useState(false);
+  const generation = useRef(0);
+  const sessionRequest = useRef<AbortController | null>(null);
+  const invalidateSession = useCallback(() => {
+    generation.current += 1;
+    sessionRequest.current?.abort();
+    sessionRequest.current = null;
+  }, []);
+
   const loadSession = useCallback(async () => {
-    const session = await authApi.session();
+    sessionRequest.current?.abort();
+    const controller = new AbortController();
+    sessionRequest.current = controller;
+    const current = generation.current;
+    let session;
+    try {
+      session = await authApi.session(controller.signal);
+    } catch (error) {
+      if (current !== generation.current || controller.signal.aborted) return;
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) endSession();
+      else setSessionError(true);
+      throw error;
+    }
+    if (current !== generation.current || controller.signal.aborted) return;
+    setSessionError(false);
     setUser(session.user);
     setOrganization(session.organization);
     setRole(session.role);
@@ -66,6 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const leave = useCallback(() => {
+    invalidateSession();
+    setSessionError(false);
     setUser(null);
     setOrganization(null);
     setRole(null);
@@ -76,13 +103,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTariff(null);
     queryClient.clear();
     navigate("/login", { replace: true });
-  }, [navigate, queryClient]);
+  }, [navigate, queryClient, invalidateSession]);
 
   useEffect(() => onSessionExpired(leave), [leave]);
 
   useEffect(() => {
-    if (hasSession()) void loadSession().catch(() => endSession());
-  }, [loadSession]);
+    if (hasSession()) void loadSession().catch(() => {});
+    return invalidateSession;
+  }, [loadSession, invalidateSession]);
 
   useEffect(() => onTokenRenewed(() => {
     void loadSession().catch(() => {});
@@ -97,22 +125,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     platformAdmin,
     modules,
     tariff,
+    sessionError,
+    retrySession: () => { void loadSession().catch(() => {}); },
     login: async (body) => {
-      writeTokens(await authApi.login(body));
+      invalidateSession();
+      const current = generation.current;
+      const tokens = await authApi.login(body);
+      if (current !== generation.current) return;
+      writeTokens(tokens);
       queryClient.clear();
       await loadSession();
     },
     register: async (body) => {
-      writeTokens(await authApi.register(body));
+      invalidateSession();
+      const current = generation.current;
+      const tokens = await authApi.register(body);
+      if (current !== generation.current) return;
+      writeTokens(tokens);
       queryClient.clear();
       await loadSession();
     },
     resetPassword: async (token, password) => {
-      writeTokens(await authApi.resetPassword(token, password));
+      invalidateSession();
+      const current = generation.current;
+      const tokens = await authApi.resetPassword(token, password);
+      if (current !== generation.current) return;
+      writeTokens(tokens);
       queryClient.clear();
       await loadSession();
     },
     logout: async () => {
+      invalidateSession();
       if (hasSession()) {
         try {
           await authApi.logout();
@@ -124,10 +167,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updateProfile: async (body) => {
       await authApi.updateProfile(body);
       await loadSession();
+      void queryClient.invalidateQueries({ queryKey: ["onboarding"] });
     },
     loadProfile: authApi.profile,
     saveAvatar: async (png, avatarPath) => { await authApi.saveAvatar(png, avatarPath); },
-  }), [user, organization, role, membershipId, clientIds, platformAdmin, modules, tariff, loadSession, queryClient]);
+  }), [user, organization, role, membershipId, clientIds, platformAdmin, modules, tariff, sessionError, loadSession, invalidateSession, queryClient]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

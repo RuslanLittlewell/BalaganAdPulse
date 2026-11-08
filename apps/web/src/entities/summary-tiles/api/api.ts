@@ -26,7 +26,7 @@ const pathOf = (owner: SummaryOwner) => owner.kind === "dashboard"
   : `/projects/${encodeURIComponent(owner.id)}/summary-tiles`;
 
 export const summaryTilesApi = {
-  read: (owner: SummaryOwner) => http.get<ChosenTiles>(pathOf(owner)),
+  read: (owner: SummaryOwner, signal?: AbortSignal) => http.get<ChosenTiles>(pathOf(owner), { signal }),
   save: (owner: SummaryOwner, tiles: readonly SummaryTile[], account: SummaryAccount | null = null) =>
     http.put<ChosenTiles>(pathOf(owner), account ? { tiles, account } : { tiles }),
 };

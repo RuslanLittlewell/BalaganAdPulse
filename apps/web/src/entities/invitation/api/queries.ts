@@ -17,6 +17,7 @@ export function useInvitations(registrationType?: RegistrationType) {
 export function useCreateInvitation() {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: { affectsOnboarding: true },
     mutationFn: (body: CreateInvitationInput) => invitationsApi.create(body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: INVITATIONS_KEY }),
   });
@@ -25,6 +26,7 @@ export function useCreateInvitation() {
 export function useRevokeInvitation() {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: { affectsOnboarding: true },
     mutationFn: invitationsApi.revoke,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: INVITATIONS_KEY }),
   });

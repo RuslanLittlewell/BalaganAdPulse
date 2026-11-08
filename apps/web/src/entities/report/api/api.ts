@@ -112,6 +112,8 @@ export const reportsApi = {
     return http.putForm<Report>(`${one(projectId, id)}/cover`, form);
   },
   removeCover: (projectId: string, id: string) => http.del(`${one(projectId, id)}/cover`),
+  coverBlob: (projectId: string, id: string, signal?: AbortSignal) =>
+    http.getBlob(`${one(projectId, id)}/cover`, { signal }),
   cover: async (projectId: string, id: string) =>
     URL.createObjectURL(await http.getBlob(`${one(projectId, id)}/cover`)),
 };

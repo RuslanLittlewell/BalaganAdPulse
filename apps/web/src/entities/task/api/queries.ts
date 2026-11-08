@@ -20,7 +20,7 @@ export interface UseTasksOptions {
 export function useTasks({ projectId, enabled = true }: UseTasksOptions = {}) {
   return useQuery({
     queryKey: [...TASKS_KEY, projectId ?? null],
-    queryFn: () => tasksApi.list(projectId),
+    queryFn: ({ signal }) => tasksApi.list(projectId, signal),
     enabled,
   });
 }

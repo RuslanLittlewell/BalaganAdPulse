@@ -34,11 +34,11 @@ export interface ClientCredentials {
 }
 
 export const clientsApi = {
-  list: () => http.get<Client[]>("/clients"),
+  list: (signal?: AbortSignal) => http.get<Client[]>("/clients", { signal }),
   create: (body: ClientInput) => http.post<Client>("/clients", body),
   update: (id: string, body: ClientInput) => http.patch<Client>(`/clients/${id}`, body),
   remove: (id: string) => http.del(`/clients/${id}`),
-  account: (id: string) => http.get<ClientCredentials | null>(`/clients/${id}/account`),
+  account: (id: string, signal?: AbortSignal) => http.get<ClientCredentials | null>(`/clients/${id}/account`, { signal }),
   createAccount: (id: string) => http.post<ClientCredentials>(`/clients/${id}/account`, {}),
   reissuePassword: (id: string) => http.post<ClientCredentials>(`/clients/${id}/account/password`, {}),
   saveAvatar: (id: string, png: Blob, avatarPath: string) => {

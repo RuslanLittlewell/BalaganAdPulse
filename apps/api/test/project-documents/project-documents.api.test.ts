@@ -24,8 +24,10 @@ afterAll(() => prisma.$disconnect());
 const documents = (id = projectId) => `/api/projects/${id}/documents`;
 const create = (title: unknown, auth: Auth = admin, id = projectId) =>
   request(app).post(documents(id)).set(auth).send({ title });
-const change = (documentId: string, body: Record<string, unknown>, auth: Auth = admin) =>
-  request(app).patch(`${documents()}/${documentId}`).set(auth).send(body);
+const change = async (documentId: string, body: Record<string, unknown>, auth: Auth = admin) => {
+  const current = await request(app).get(`${documents()}/${documentId}`).set(admin);
+  return request(app).patch(`${documents()}/${documentId}`).set(auth).send({ expectedRevision: current.body.revision ?? 1, ...body });
+};
 const paragraph = (text: string) => ({
   type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }],
 });

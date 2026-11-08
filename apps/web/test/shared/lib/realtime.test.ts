@@ -22,6 +22,27 @@ beforeEach(() => { FakeSocket.opened = []; });
 afterEach(() => { vi.useRealTimers(); });
 
 describe("the realtime channel", () => {
+  it("shares one socket, replays current presence, and closes only after the last subscriber leaves", () => {
+    const first = openRealtimeChannel({ createSocket });
+    latest().send({ kind: "ready" });
+    latest().send({ kind: "presence.state", people: [{ userId: "u1" }] });
+    latest().send({ kind: "presence.joined", person: { userId: "u2" } });
+    latest().send({ kind: "presence.left", userId: "u1" });
+    const onMessage = vi.fn();
+    const onReady = vi.fn();
+    const second = openRealtimeChannel({ createSocket, onMessage, onReady });
+
+    expect(FakeSocket.opened).toHaveLength(1);
+    expect(onReady).toHaveBeenCalledWith(false);
+    expect(onMessage).toHaveBeenCalledWith({ kind: "presence.state", people: [{ userId: "u2" }] });
+    first.close();
+    expect(latest().closed).toBe(false);
+    latest().send({ kind: "task.deleted", taskId: "t1" });
+    expect(onMessage).toHaveBeenLastCalledWith({ kind: "task.deleted", taskId: "t1" });
+    second.close();
+    expect(latest().closed).toBe(true);
+  });
+
   it("opens one connection to the realtime path", () => {
     const channel = openRealtimeChannel({ createSocket });
 

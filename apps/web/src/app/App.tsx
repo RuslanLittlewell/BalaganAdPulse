@@ -24,7 +24,7 @@ import { MainNav } from "@/widgets/main-nav/index.js";
 import { PlatformHeader } from "@/widgets/platform-header/index.js";
 import { OnboardingLayer } from "@/features/onboarding/index.js";
 import { PlatformNav } from "@/widgets/platform-nav/index.js";
-import { AlertsProvider, Loader } from "@/shared/ui/index.js";
+import { AlertsProvider, Loader, EmptyState } from "@/shared/ui/index.js";
 import { createQueryClient, moduleKeyFromPathname, ROUTES } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 
@@ -78,8 +78,9 @@ function PlatformArea() {
 }
 
 function SignedIn() {
-  const { user, platformAdmin, organization } = useAuth();
+  const { user, platformAdmin, organization, sessionError, retrySession } = useAuth();
   if (!user) {
+    if (sessionError) return <EmptyState title={t("state.error.title")} actionLabel={t("state.retry")} onAction={retrySession} />;
     return (
       <div className="grid h-screen place-items-center bg-background">
         <Loader label={t("state.loading")} />

@@ -18,11 +18,13 @@ export interface DocumentSummary {
 }
 
 export interface ProjectDocument extends DocumentSummary {
+  readonly revision: number;
   readonly content: unknown | null;
   readonly createdBy: DocumentAuthor | null;
 }
 
 export interface DocumentChange {
+  readonly expectedRevision: number;
   readonly title?: string;
   readonly content?: unknown | null;
 }

@@ -40,7 +40,7 @@ export default defineConfig({
     watch: process.env.CHOKIDAR_USEPOLLING === "true" ? { usePolling: true } : undefined,
   },
   test: {
-    environment: "jsdom",
+    environment: path.resolve(__dirname, "./test/shared/environment.ts"),
     globals: true,
     setupFiles: "./test/shared/setup.ts",
     css: false,

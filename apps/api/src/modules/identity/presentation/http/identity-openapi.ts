@@ -25,6 +25,7 @@ const profile = z.object({
 export const identityComponents: ComponentDocs = {
   TokenPair: tokenPair,
   AccessToken: accessToken,
+  ProfileSession: accessToken.extend({ refreshToken: z.string().optional() }),
   Profile: profile,
 };
 
@@ -119,8 +120,9 @@ export const userDoc: RouteDoc = {
       method: "patch",
       path: "/profile",
       summary: "Change the profile, and optionally the password",
+      description: "A password change revokes all refresh sessions and issues a replacement session for this browser. Existing access tokens retain their expiry.",
       body: updateProfileSchema,
-      success: { status: 200, description: "A fresh access token carrying the new name", schema: ref("AccessToken") },
+      success: { status: 200, description: "A fresh access token, plus a new refresh token when the password changes; also set as cookies", schema: ref("ProfileSession") },
       errors: [400, 401, 403, 404],
     },
     {

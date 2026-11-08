@@ -17,13 +17,13 @@ export const leadColumnsKey = (boardKey: string) => ["crm", "columns", boardKey]
 export const leadFieldsKey = (boardKey: string) => ["crm", "fields", boardKey] as const;
 
 export function useLeadBoards() {
-  return useQuery({ queryKey: BOARDS_KEY, queryFn: () => leadsApi.boards() });
+  return useQuery({ queryKey: BOARDS_KEY, queryFn: ({ signal }) => leadsApi.boards(signal) });
 }
 
 export function useLeads(boardKey: string | undefined) {
   return useQuery({
     queryKey: leadsKey(boardKey ?? ""),
-    queryFn: () => leadsApi.list(boardKey!),
+    queryFn: ({ signal }) => leadsApi.list(boardKey!, signal),
     enabled: Boolean(boardKey),
   });
 }
@@ -31,7 +31,7 @@ export function useLeads(boardKey: string | undefined) {
 export function useProjectStageCounts({ from, to }: CountingPeriod, { enabled = true } = {}) {
   return useQuery({
     queryKey: ["crm", "project-stage-counts", { from, to }],
-    queryFn: () => leadsApi.projectStageCounts({ from, to }),
+    queryFn: ({ signal }) => leadsApi.projectStageCounts({ from, to }, signal),
     enabled,
   });
 }
@@ -39,7 +39,7 @@ export function useProjectStageCounts({ from, to }: CountingPeriod, { enabled = 
 export function useBoardStageCounts(boardKey: string | undefined, { from, to }: CountingPeriod, { enabled = true } = {}) {
   return useQuery({
     queryKey: ["crm", "board-stage-counts", boardKey ?? "", { from, to }],
-    queryFn: () => leadsApi.boardStageCounts(boardKey!, { from, to }),
+    queryFn: ({ signal }) => leadsApi.boardStageCounts(boardKey!, { from, to }, signal),
     enabled: enabled && Boolean(boardKey),
   });
 }
@@ -47,7 +47,7 @@ export function useBoardStageCounts(boardKey: string | undefined, { from, to }: 
 export function useLeadColumns(boardKey: string | undefined) {
   return useQuery({
     queryKey: leadColumnsKey(boardKey ?? ""),
-    queryFn: () => leadsApi.columns(boardKey!),
+    queryFn: ({ signal }) => leadsApi.columns(boardKey!, signal),
     enabled: Boolean(boardKey),
     staleTime: 5 * 60_000,
   });
@@ -84,7 +84,7 @@ export function useDeleteLeadColumn(boardKey: string) {
 export function useLeadFields(boardKey: string | undefined) {
   return useQuery({
     queryKey: leadFieldsKey(boardKey ?? ""),
-    queryFn: () => leadsApi.fields(boardKey!),
+    queryFn: ({ signal }) => leadsApi.fields(boardKey!, signal),
     enabled: Boolean(boardKey),
   });
 }
@@ -158,7 +158,7 @@ export function useDeleteLead(boardKey: string) {
 export function useLeadActivity(boardKey: string, leadId: string | undefined) {
   return useQuery({
     queryKey: leadActivityKey(boardKey, leadId ?? ""),
-    queryFn: () => leadsApi.activity(boardKey, leadId!),
+    queryFn: ({ signal }) => leadsApi.activity(boardKey, leadId!, signal),
     enabled: Boolean(leadId),
   });
 }
@@ -166,7 +166,7 @@ export function useLeadActivity(boardKey: string, leadId: string | undefined) {
 export function useLeadFiles(boardKey: string, leadId: string | undefined) {
   return useQuery({
     queryKey: leadFilesKey(boardKey, leadId ?? ""),
-    queryFn: () => leadsApi.files(boardKey, leadId!),
+    queryFn: ({ signal }) => leadsApi.files(boardKey, leadId!, signal),
     enabled: Boolean(leadId),
   });
 }

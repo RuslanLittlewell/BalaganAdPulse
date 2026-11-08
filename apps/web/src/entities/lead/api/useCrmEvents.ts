@@ -1,26 +1,26 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { openRealtimeChannel, REALTIME_BASE_DELAY_MS, REALTIME_MAX_DELAY_MS } from "@/shared/lib/realtime.js";
 import { crmRecordsKey } from "@/entities/crm-record/index.js";
 import { leadActivityKey, leadColumnsKey, leadFieldsKey, leadFilesKey, leadsKey } from "./queries.js";
 
-const REALTIME_PATH = "/api/realtime";
+export const CRM_EVENTS_BASE_DELAY_MS = REALTIME_BASE_DELAY_MS;
+export const CRM_EVENTS_MAX_DELAY_MS = REALTIME_MAX_DELAY_MS;
+export const CRM_REFRESH_WINDOW_MS = 150;
 
-export const CRM_EVENTS_BASE_DELAY_MS = 1_000;
-export const CRM_EVENTS_MAX_DELAY_MS = 15_000;
+const ALL_RESOURCES = ["leads", "columns", "fields", "activity", "files", "records", "counts"] as const;
+type CrmResource = typeof ALL_RESOURCES[number];
 
 export interface CrmEvent {
   kind: "crm.changed";
   orgId: string;
   board: string;
+  resources?: readonly CrmResource[];
+  leadId?: string;
 }
 
 export interface CrmEventsOptions {
   createSocket?: (url: string) => WebSocket;
-}
-
-function realtimeUrl(): string {
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${window.location.host}${REALTIME_PATH}`;
 }
 
 export function useCrmEvents(boardKey: string | undefined, options: CrmEventsOptions = {}, clientId?: string): void {
@@ -29,65 +29,56 @@ export function useCrmEvents(boardKey: string | undefined, options: CrmEventsOpt
 
   useEffect(() => {
     if (!boardKey) return;
+    let pending: ReturnType<typeof setTimeout> | null = null;
+    const keys = new Map<string, readonly unknown[]>();
 
-    const open = createSocket ?? ((url: string) => new WebSocket(url));
-    let stopped = false;
-    let socket: WebSocket | null = null;
-    let retry: ReturnType<typeof setTimeout> | null = null;
-    let attempt = 0;
-    let connectedBefore = false;
-
-    const refetch = () => {
-      void queryClient.invalidateQueries({ queryKey: leadsKey(boardKey) });
-      void queryClient.invalidateQueries({ queryKey: leadColumnsKey(boardKey) });
-      void queryClient.invalidateQueries({ queryKey: leadFieldsKey(boardKey) });
-      void queryClient.invalidateQueries({ queryKey: leadActivityKey(boardKey) });
-      void queryClient.invalidateQueries({ queryKey: leadFilesKey(boardKey) });
-      if (clientId) void queryClient.invalidateQueries({ queryKey: crmRecordsKey(clientId) });
+    const flush = () => {
+      pending = null;
+      if ([...keys.values()].some((queryKey) => queryClient.isFetching({ queryKey }) > 0)) {
+        pending = setTimeout(flush, CRM_REFRESH_WINDOW_MS);
+        return;
+      }
+      for (const queryKey of keys.values()) {
+        void queryClient.invalidateQueries({ queryKey }, { cancelRefetch: false });
+      }
+      keys.clear();
     };
 
-    const scheduleRetry = () => {
-      if (stopped) return;
-      const delay = Math.min(CRM_EVENTS_BASE_DELAY_MS * 2 ** attempt, CRM_EVENTS_MAX_DELAY_MS);
-      attempt += 1;
-      retry = setTimeout(() => { connect(); }, delay);
+    const refresh = (resources: readonly CrmResource[], leadId?: string) => {
+      for (const resource of resources) {
+        const selected = resource === "leads" ? [leadsKey(boardKey)]
+          : resource === "columns" ? [leadColumnsKey(boardKey)]
+          : resource === "fields" ? [leadFieldsKey(boardKey)]
+          : resource === "activity" ? [leadActivityKey(boardKey, leadId)]
+          : resource === "files" ? [leadFilesKey(boardKey, leadId)]
+          : resource === "records" ? (clientId ? [crmRecordsKey(clientId)] : [])
+          : resource === "counts" ? [["crm", "board-stage-counts", boardKey], ["crm", "project-stage-counts"]] : [];
+        for (const key of selected) keys.set(JSON.stringify(key), key);
+      }
+      if (!pending) pending = setTimeout(flush, CRM_REFRESH_WINDOW_MS);
     };
 
-    const connect = () => {
-      if (stopped) return;
-      const client = open(realtimeUrl());
-      socket = client;
-
-      client.onmessage = (message: MessageEvent) => {
-        let payload: CrmEvent | { kind: string };
-        try {
-          payload = JSON.parse(String(message.data)) as CrmEvent | { kind: string };
-        } catch {
-          return;
+    const channel = openRealtimeChannel({
+      createSocket,
+      onReady: (reconnected) => {
+        if (reconnected) {
+          if (pending) clearTimeout(pending);
+          pending = null;
+          refresh(ALL_RESOURCES);
+          if (pending) clearTimeout(pending);
+          flush();
         }
-        if (payload.kind === "ready") {
-          attempt = 0;
-          if (connectedBefore) refetch();
-          connectedBefore = true;
-          return;
-        }
-        if (payload.kind !== "crm.changed") return;
-        if ((payload as CrmEvent).board !== boardKey) return;
-        refetch();
-      };
-
-      client.onclose = () => { if (socket === client) scheduleRetry(); };
-      client.onerror = () => { client.close(); };
-    };
-
-    connect();
+      },
+      onMessage: (message) => {
+        if (message.kind !== "crm.changed" || message.board !== boardKey) return;
+        const event = message as unknown as CrmEvent;
+        refresh(Array.isArray(event.resources) ? event.resources : ALL_RESOURCES, event.leadId);
+      },
+    });
 
     return () => {
-      stopped = true;
-      if (retry) clearTimeout(retry);
-      const closing = socket;
-      socket = null;
-      closing?.close();
+      if (pending) clearTimeout(pending);
+      channel.close();
     };
   }, [boardKey, clientId, queryClient, createSocket]);
 }

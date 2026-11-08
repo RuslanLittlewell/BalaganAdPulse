@@ -58,7 +58,7 @@ export function createLeadFileUseCases(d: {
           }, actor);
           return created;
         });
-        d.publish({ kind: 'crm.changed', orgId: actor.orgId, board });
+        d.publish({ kind: 'crm.changed', orgId: actor.orgId, board, resources: ['files', 'activity'], leadId });
         return file;
       } catch (error) {
         await d.storage.remove([storageKey]);
@@ -85,7 +85,7 @@ export function createLeadFileUseCases(d: {
         }, actor);
       });
       await d.storage.remove([file.storageKey]);
-      d.publish({ kind: 'crm.changed', orgId: actor.orgId, board });
+      d.publish({ kind: 'crm.changed', orgId: actor.orgId, board, resources: ['files', 'activity'], leadId });
     },
   };
 }

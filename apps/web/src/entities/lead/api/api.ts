@@ -235,34 +235,34 @@ export type LeadActivity =
 const board = (boardKey: string) => `/crm/boards/${encodeURIComponent(boardKey)}`;
 
 export const leadsApi = {
-  boards: () => http.get<LeadBoard[]>("/crm/boards"),
-  list: (boardKey: string) => http.get<Lead[]>(`${board(boardKey)}/leads`),
-  read: (boardKey: string, id: string) => http.get<Lead>(`${board(boardKey)}/leads/${id}`),
+  boards: (signal?: AbortSignal) => http.get<LeadBoard[]>("/crm/boards", { signal }),
+  list: (boardKey: string, signal?: AbortSignal) => http.get<Lead[]>(`${board(boardKey)}/leads`, { signal }),
+  read: (boardKey: string, id: string, signal?: AbortSignal) => http.get<Lead>(`${board(boardKey)}/leads/${id}`, { signal }),
   create: (boardKey: string, body: LeadInput) => http.post<Lead>(`${board(boardKey)}/leads`, body),
   update: (boardKey: string, id: string, body: LeadInput) =>
     http.patch<Lead>(`${board(boardKey)}/leads/${id}`, body),
   remove: (boardKey: string, id: string) => http.del(`${board(boardKey)}/leads/${id}`),
   move: (boardKey: string, id: string, body: LeadMove) =>
     http.patch<Lead[]>(`${board(boardKey)}/leads/${id}/move`, body),
-  projectStageCounts: ({ from, to }: CountingPeriod) =>
-    http.get<ProjectStageCounts[]>(`/crm/project-stage-counts?from=${from}&to=${to}`),
-  boardStageCounts: (boardKey: string, { from, to }: CountingPeriod) =>
-    http.get<BoardStageCounts>(`${board(boardKey)}/stage-counts?from=${from}&to=${to}`),
-  columns: (boardKey: string) => http.get<LeadColumn[]>(`${board(boardKey)}/columns`),
+  projectStageCounts: ({ from, to }: CountingPeriod, signal?: AbortSignal) =>
+    http.get<ProjectStageCounts[]>(`/crm/project-stage-counts?from=${from}&to=${to}`, { signal }),
+  boardStageCounts: (boardKey: string, { from, to }: CountingPeriod, signal?: AbortSignal) =>
+    http.get<BoardStageCounts>(`${board(boardKey)}/stage-counts?from=${from}&to=${to}`, { signal }),
+  columns: (boardKey: string, signal?: AbortSignal) => http.get<LeadColumn[]>(`${board(boardKey)}/columns`, { signal }),
   createColumn: (boardKey: string, name: string) =>
     http.post<LeadColumn>(`${board(boardKey)}/columns`, { name }),
   updateColumn: (boardKey: string, id: string, body: LeadColumnInput) =>
     http.patch<LeadColumn[]>(`${board(boardKey)}/columns/${id}`, body),
   removeColumn: (boardKey: string, id: string) => http.del(`${board(boardKey)}/columns/${id}`),
-  fields: (boardKey: string) => http.get<LeadField[]>(`${board(boardKey)}/fields`),
+  fields: (boardKey: string, signal?: AbortSignal) => http.get<LeadField[]>(`${board(boardKey)}/fields`, { signal }),
   createField: (boardKey: string, body: LeadFieldInput) =>
     http.post<LeadField>(`${board(boardKey)}/fields`, body),
   updateField: (boardKey: string, id: string, body: LeadFieldInput) =>
     http.patch<LeadField[]>(`${board(boardKey)}/fields/${id}`, body),
   removeField: (boardKey: string, id: string) => http.del(`${board(boardKey)}/fields/${id}`),
-  activity: (boardKey: string, id: string) =>
-    http.get<LeadActivity[]>(`${board(boardKey)}/leads/${id}/activity`),
-  files: (boardKey: string, id: string) => http.get<LeadFile[]>(`${board(boardKey)}/leads/${id}/files`),
+  activity: (boardKey: string, id: string, signal?: AbortSignal) =>
+    http.get<LeadActivity[]>(`${board(boardKey)}/leads/${id}/activity`, { signal }),
+  files: (boardKey: string, id: string, signal?: AbortSignal) => http.get<LeadFile[]>(`${board(boardKey)}/leads/${id}/files`, { signal }),
   attachFile: (boardKey: string, id: string, file: File) => {
     const body = new FormData();
     body.append("file", file);

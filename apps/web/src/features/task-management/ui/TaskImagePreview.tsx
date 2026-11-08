@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { taskImagesApi } from "@/entities/task/index.js";
+import { useTaskImageUrl } from "@/entities/task/index.js";
 import { t } from "@/shared/config/index.js";
 import {
   Dialog,
@@ -21,35 +20,7 @@ export function TaskImagePreview({
   open,
   onOpenChange,
 }: TaskImagePreviewProps) {
-  const [src, setSrc] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    if (!open || !imageId) return;
-    let url: string | null = null;
-    let cancelled = false;
-    setFailed(false);
-
-    taskImagesApi
-      .blobUrl(imageId)
-      .then((resolved) => {
-        if (cancelled) {
-          URL.revokeObjectURL(resolved);
-          return;
-        }
-        url = resolved;
-        setSrc(resolved);
-      })
-      .catch(() => {
-        if (!cancelled) setFailed(true);
-      });
-
-    return () => {
-      cancelled = true;
-      if (url) URL.revokeObjectURL(url);
-      setSrc(null);
-    };
-  }, [open, imageId]);
+  const { src, failed } = useTaskImageUrl(open ? imageId : null);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

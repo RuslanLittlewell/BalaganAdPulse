@@ -84,7 +84,7 @@ const pathOf = (scope: SingleKpiScope) => scope.kind === "organization"
   : `/campaigns/${encodeURIComponent(scope.id)}/kpi`;
 
 export const kpiApi = {
-  read: (scope: SingleKpiScope) => http.get<Kpi | null>(pathOf(scope)),
+  read: (scope: SingleKpiScope, signal?: AbortSignal) => http.get<Kpi | null>(pathOf(scope), { signal }),
   save: (scope: SingleKpiScope, body: KpiInput) => http.put<Kpi>(pathOf(scope), body),
   clear: (scope: SingleKpiScope) => http.del(pathOf(scope)),
 };
@@ -92,6 +92,6 @@ export const kpiApi = {
 const projectPathOf = (projectId: string) => `/projects/${encodeURIComponent(projectId)}/kpis`;
 
 export const projectKpisApi = {
-  read: (projectId: string) => http.get<ProjectKpi[]>(projectPathOf(projectId)),
+  read: (projectId: string, signal?: AbortSignal) => http.get<ProjectKpi[]>(projectPathOf(projectId), { signal }),
   save: (projectId: string, body: ProjectKpiInput[]) => http.put<ProjectKpi[]>(projectPathOf(projectId), body),
 };

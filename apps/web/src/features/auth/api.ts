@@ -79,7 +79,7 @@ export const authApi = {
   logout: () => http.post<void>("/auth/logout", {}, UNAUTHENTICATED),
   resetPassword: (token: string, password: string) =>
     http.post<TokenPair>(`/auth/password-reset/${encodeURIComponent(token)}`, { password }, UNAUTHENTICATED),
-  session: () => http.get<AuthSession>("/auth/me"),
+  session: (signal?: AbortSignal) => http.get<AuthSession>("/auth/me", { signal }),
   profile: () => http.get<UserProfile>("/user/profile"),
   saveAvatar: (png: Blob, avatarPath: string) => {
     const form = new FormData();
@@ -88,7 +88,7 @@ export const authApi = {
     return http.putForm<void>("/user/avatar", form);
   },
   updateProfile: (body: UpdateProfileBody) =>
-    http.patch<{ accessToken: string }>("/user/profile", body),
+    http.patch<{ accessToken: string; refreshToken?: string }>("/user/profile", body),
 };
 
 export const passwordResetApi = {

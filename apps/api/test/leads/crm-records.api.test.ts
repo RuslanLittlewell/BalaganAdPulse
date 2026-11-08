@@ -123,8 +123,8 @@ it('publishes one value-free notification for every board after a committed reco
   });
   const person = await useCases.createPerson(actor, clientId, { name: 'Anna', phone: '+375291112233' });
   expect(publish.mock.calls).toEqual([
-    [{ kind: 'crm.changed', orgId: actor.orgId, board: projectId }],
-    [{ kind: 'crm.changed', orgId: actor.orgId, board: second.id }],
+    [{ kind: 'crm.changed', orgId: actor.orgId, board: projectId, resources: ['leads', 'records'] }],
+    [{ kind: 'crm.changed', orgId: actor.orgId, board: second.id, resources: ['leads', 'records'] }],
   ]);
   publish.mockClear();
   await useCases.updatePerson(actor, clientId, person.id, { email: 'anna@example.com' });

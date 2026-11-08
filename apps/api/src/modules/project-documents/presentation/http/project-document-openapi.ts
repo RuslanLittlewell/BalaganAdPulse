@@ -15,6 +15,7 @@ const summary = z.object({
 });
 
 const document = summary.extend({
+  revision: z.number().int().positive(),
   content: z.record(z.string(), z.unknown()).nullable(),
   createdBy: author,
 });
@@ -27,7 +28,7 @@ export const projectDocumentComponents: ComponentDocs = {
 export const projectDocumentDoc: RouteDoc = {
   tag: "Project documents",
   tagDescription:
-    "A project's internal notebook: rich-text documents read by the agency's admins, managers and guests who reach the project and written by its admins and managers. Each save replaces the document; the last one wins.",
+    "A project's internal notebook: rich-text documents read by the agency's admins, managers and guests who reach the project and written by its admins and managers. Each save requires the revision read by its editor; stale writes return 409.",
   operations: [
     {
       method: "get",
@@ -57,7 +58,7 @@ export const projectDocumentDoc: RouteDoc = {
       summary: "Replace a document's title, text or both",
       body: updateDocumentSchema,
       success: { status: 200, description: "The document as it now stands", schema: ref("ProjectDocument") },
-      errors: [400, 401, 403, 404],
+      errors: [400, 401, 403, 404, 409],
     },
     {
       method: "delete",

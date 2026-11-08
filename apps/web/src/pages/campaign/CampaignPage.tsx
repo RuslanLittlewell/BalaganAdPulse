@@ -58,7 +58,7 @@ function useAdsOfOpenSets(openIds: ReadonlySet<string>, range: DateRange) {
   const results = useQueries({
     queries: ids.map((adSetId) => ({
       queryKey: ["ad-sets", adSetId, "ads", { from: range.from, to: range.to }],
-      queryFn: () => campaignsApi.ads(adSetId, range),
+      queryFn: ({ signal }) => campaignsApi.ads(adSetId, range, signal),
     })),
   });
   return new Map(

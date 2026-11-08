@@ -26,8 +26,13 @@ export function createNotificationUseCases(d: NotificationDependencies) {
   const notify = async (drafts: readonly NewNotification[]) => {
     if (drafts.length === 0) return;
     const created = await d.notifications.createMany(drafts);
-    for (const notification of created) d.hub.publish(notification);
-    if (created.length > 0) d.relay.forward(created);
+    const authorized = await Promise.all(created.map(async (notification) => {
+      const current = await d.notifications.visible(notification.recipientId, notification.id);
+      return current ? { ...current, recipientId: notification.recipientId } : null;
+    }));
+    const deliverable = authorized.filter((notification) => notification !== null);
+    for (const notification of deliverable) d.hub.publish(notification);
+    if (deliverable.length > 0) d.relay.forward(deliverable);
   };
 
   const shownTo = async (memberIds: readonly string[], task: NamedTask) =>
@@ -60,7 +65,16 @@ export function createNotificationUseCases(d: NotificationDependencies) {
     },
 
     subscribe(actor: ActorContext, subscriber: NotificationSubscriber): () => void {
-      return d.hub.subscribe(actor.membershipId, subscriber);
+      let active = true;
+      const unsubscribe = d.hub.subscribe(actor.membershipId, {
+        end: () => { active = false; subscriber.end(); },
+        deliver: (notification) => {
+          void d.notifications.visible(actor.membershipId, notification.id).then((current) => {
+            if (active && current) subscriber.deliver(current);
+          }).catch(() => {});
+        },
+      });
+      return () => { active = false; unsubscribe(); };
     },
 
     async projectCreated(project: { readonly id: string }, actor: ActorContext): Promise<void> {

@@ -2,6 +2,11 @@ import { renderHook, act } from "@testing-library/react";
 import { hookWrapper } from "@test/shared/index.js";
 import { CRM_EVENTS_BASE_DELAY_MS, leadColumnsKey, leadsKey, useCrmEvents } from "@/entities/lead/index.js";
 
+import { CRM_REFRESH_WINDOW_MS } from "@/entities/lead/api/useCrmEvents.js";
+
+beforeEach(() => vi.useFakeTimers());
+afterEach(() => vi.useRealTimers());
+
 class FakeSocket {
   static opened: FakeSocket[] = [];
   onopen: (() => void) | null = null;
@@ -35,14 +40,54 @@ function setup(boardKey: string | undefined) {
 const changed = (board: string) => ({ kind: "crm.changed", orgId: "org1", board });
 
 describe("useCrmEvents", () => {
+  it("waits for an ongoing read and then refreshes once so events during the read are retained", async () => {
+    const { wrapper, invalidate, socket } = setup("project-1");
+    let finish: ((value: unknown[]) => void) | undefined;
+    const reading = wrapper.client.fetchQuery({
+      queryKey: leadsKey("project-1"),
+      queryFn: () => new Promise<unknown[]>((resolve) => { finish = resolve; }),
+    });
+    socket().deliver({ ...changed("project-1"), resources: ["leads"] });
+    await act(async () => { await vi.advanceTimersByTimeAsync(CRM_REFRESH_WINDOW_MS); });
+    expect(invalidate).not.toHaveBeenCalled();
+    await act(async () => { finish?.([]); await reading; });
+    await act(async () => { await vi.advanceTimersByTimeAsync(CRM_REFRESH_WINDOW_MS); });
+    expect(invalidate).toHaveBeenCalledTimes(1);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: leadsKey("project-1") }, { cancelRefetch: false });
+  });
+
+  it("coalesces a burst and refreshes only the affected lead's files and activity", () => {
+    const { invalidate, socket } = setup("project-1");
+    socket().ready();
+    invalidate.mockClear();
+    for (let i = 0; i < 10; i++) socket().deliver({
+      ...changed("project-1"), resources: ["files", "activity"], leadId: "l1",
+    });
+    expect(invalidate).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(CRM_REFRESH_WINDOW_MS));
+    expect(invalidate.mock.calls).toEqual([
+      [{ queryKey: ["crm", "lead-files", "project-1", "l1"] }, { cancelRefetch: false }],
+      [{ queryKey: ["crm", "lead-activity", "project-1", "l1"] }, { cancelRefetch: false }],
+    ]);
+  });
+
+  it("cancels a scheduled refresh when leaving the board", () => {
+    const { invalidate, socket, rendered } = setup("project-1");
+    socket().deliver(changed("project-1"));
+    rendered.unmount();
+    act(() => vi.advanceTimersByTime(CRM_REFRESH_WINDOW_MS));
+    expect(invalidate).not.toHaveBeenCalled();
+  });
+
   it("refetches the open board when it is told the board changed", () => {
     const { invalidate, socket } = setup("project-1");
     socket().ready();
     invalidate.mockClear();
 
     socket().deliver(changed("project-1"));
+    act(() => vi.advanceTimersByTime(CRM_REFRESH_WINDOW_MS));
 
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: leadsKey("project-1") });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: leadsKey("project-1") }, { cancelRefetch: false });
   });
 
   it("refetches the columns of the open board too, so a column another member added appears", () => {
@@ -51,8 +96,9 @@ describe("useCrmEvents", () => {
     invalidate.mockClear();
 
     socket().deliver(changed("project-1"));
+    act(() => vi.advanceTimersByTime(CRM_REFRESH_WINDOW_MS));
 
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: leadColumnsKey("project-1") });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: leadColumnsKey("project-1") }, { cancelRefetch: false });
   });
 
   it("ignores a change on a board the member is not looking at", () => {
@@ -86,7 +132,7 @@ describe("useCrmEvents", () => {
     expect(FakeSocket.opened).toHaveLength(2);
 
     socket().ready();
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: leadsKey("project-1") });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: leadsKey("project-1") }, { cancelRefetch: false });
     vi.useRealTimers();
   });
 

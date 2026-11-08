@@ -277,7 +277,7 @@ describe("column colors", () => {
 
     await useCases.updateColumn(admin.actor!, projectId, meeting.id, { color: "red" });
 
-    expect(publish).toHaveBeenCalledWith({ kind: "crm.changed", orgId: admin.actor!.orgId, board: projectId });
+    expect(publish).toHaveBeenCalledWith({ kind: "crm.changed", orgId: admin.actor!.orgId, board: projectId, resources: ['columns', 'leads', 'activity', 'counts'] });
   });
 
   it("gives existing columns gray in the migration", async () => {
@@ -374,9 +374,9 @@ describe("column history and notifications", () => {
     await useCases.deleteColumn(actor, projectId, meeting.id);
 
     expect(publish.mock.calls).toEqual([
-      [{ kind: "crm.changed", orgId: actor.orgId, board: projectId }],
-      [{ kind: "crm.changed", orgId: actor.orgId, board: projectId }],
-      [{ kind: "crm.changed", orgId: actor.orgId, board: projectId }],
+      [{ kind: "crm.changed", orgId: actor.orgId, board: projectId, resources: ['columns', 'leads', 'activity', 'counts'] }],
+      [{ kind: "crm.changed", orgId: actor.orgId, board: projectId, resources: ['columns', 'leads', 'activity', 'counts'] }],
+      [{ kind: "crm.changed", orgId: actor.orgId, board: projectId, resources: ['columns', 'leads', 'activity', 'counts'] }],
     ]);
   });
 

@@ -162,7 +162,7 @@ describe("lead intake", () => {
 
     await deliver([incoming("L1")]);
     intake.announce({ orgId, projectId });
-    expect(publish).toHaveBeenCalledExactlyOnceWith({ kind: "crm.changed", orgId, board: projectId });
+    expect(publish).toHaveBeenCalledExactlyOnceWith({ kind: "crm.changed", orgId, board: projectId, resources: ['leads', 'records', 'counts'] });
   });
 });
 
@@ -199,7 +199,7 @@ describe("attribution of imported leads", () => {
     await intake.link(projectId);
 
     expect(await prisma.lead.findFirstOrThrow({ where: { orgId } })).toMatchObject({ campaignId: campaign.id, adId: ad.id });
-    expect(publish).toHaveBeenCalledExactlyOnceWith({ kind: "crm.changed", orgId, board: projectId });
+    expect(publish).toHaveBeenCalledExactlyOnceWith({ kind: "crm.changed", orgId, board: projectId, resources: ['leads', 'records', 'counts'] });
   });
 
   it("releases links when the campaign and ad are removed locally, keeping the Meta names", async () => {

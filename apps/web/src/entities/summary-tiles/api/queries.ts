@@ -14,7 +14,7 @@ export const summaryTilesKey = (owner: SummaryOwner) =>
 export function useSummaryTiles(owner: SummaryOwner | undefined) {
   return useQuery({
     queryKey: owner ? summaryTilesKey(owner) : ["summary-tiles", "none"],
-    queryFn: () => summaryTilesApi.read(owner!),
+    queryFn: ({ signal }) => summaryTilesApi.read(owner!, signal),
     enabled: owner !== undefined,
   });
 }

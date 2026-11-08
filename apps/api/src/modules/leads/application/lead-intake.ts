@@ -29,7 +29,7 @@ export interface LeadIntakeRepository {
 
 export function createLeadIntake(d: { intake: LeadIntakeRepository; ids: IdGenerator; unitOfWork: UnitOfWork; publish: (event: LeadEvent) => void }) {
   const announce = ({ orgId, projectId }: LeadTarget) => {
-    d.publish({ kind: 'crm.changed', orgId, board: projectId });
+    d.publish({ kind: 'crm.changed', orgId, board: projectId, resources: ['leads', 'records', 'counts'] });
   };
   return {
     async deliver(context: TransactionContext, delivery: LeadDelivery): Promise<{ created: number }> {

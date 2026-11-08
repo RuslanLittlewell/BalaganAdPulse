@@ -47,13 +47,13 @@ const root = (clientId: string) => `/crm/clients/${encodeURIComponent(clientId)}
 const record = (clientId: string, kind: 'companies' | 'people', id: string) => `${root(clientId)}/${kind}/${encodeURIComponent(id)}`;
 
 export const crmRecordsApi = {
-  companies: (clientId: string) => http.get<Company[]>(`${root(clientId)}/companies`),
-  company: (clientId: string, id: string) => http.get<CompanyDetail>(record(clientId, 'companies', id)),
+  companies: (clientId: string, signal?: AbortSignal) => http.get<Company[]>(`${root(clientId)}/companies`, { signal }),
+  company: (clientId: string, id: string, signal?: AbortSignal) => http.get<CompanyDetail>(record(clientId, 'companies', id), { signal }),
   createCompany: (clientId: string, body: CompanyInput) => http.post<Company>(`${root(clientId)}/companies`, body),
   updateCompany: (clientId: string, id: string, body: CompanyInput) => http.patch<Company>(record(clientId, 'companies', id), body),
   deleteCompany: (clientId: string, id: string) => http.del(record(clientId, 'companies', id)),
-  people: (clientId: string) => http.get<Person[]>(`${root(clientId)}/people`),
-  person: (clientId: string, id: string) => http.get<PersonDetail>(record(clientId, 'people', id)),
+  people: (clientId: string, signal?: AbortSignal) => http.get<Person[]>(`${root(clientId)}/people`, { signal }),
+  person: (clientId: string, id: string, signal?: AbortSignal) => http.get<PersonDetail>(record(clientId, 'people', id), { signal }),
   createPerson: (clientId: string, body: PersonInput) => http.post<Person>(`${root(clientId)}/people`, body),
   updatePerson: (clientId: string, id: string, body: PersonInput) => http.patch<Person>(record(clientId, 'people', id), body),
   deletePerson: (clientId: string, id: string) => http.del(record(clientId, 'people', id)),

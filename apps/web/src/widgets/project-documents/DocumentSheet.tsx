@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowLeftIcon, Trash2 } from "lucide-react";
 import { t } from "@/shared/config/index.js";
-import { Button, ConfirmDialog } from "@/shared/ui/index.js";
+import { Button, ConfirmDialog, useAlerts } from "@/shared/ui/index.js";
 import {
+  projectDocumentsApi,
   useDeleteProjectDocument,
   useSaveProjectDocument,
   type ProjectDocument,
 } from "@/entities/project-document/index.js";
+import { useAuth } from "@/features/auth/index.js";
 import { DocumentEditor } from "./DocumentEditor.js";
 import { formatMoment } from "./formatMoment.js";
 import { useAutosave, type SaveStatus } from "./useAutosave.js";
@@ -17,20 +19,44 @@ export interface DocumentSheetProps {
   canWrite: boolean;
   onBack: () => void;
   onDeleted: () => void;
+  onReload: (document: ProjectDocument) => void;
 }
 
-const STATUS_KEY: Record<Exclude<SaveStatus, "idle">, "documents.saving" | "documents.saved" | "documents.failed"> = {
+const STATUS_KEY: Record<Exclude<SaveStatus, "idle">, "documents.saving" | "documents.saved" | "documents.failed" | "documents.conflict"> = {
   saving: "documents.saving",
   saved: "documents.saved",
+  conflict: "documents.conflict",
   failed: "documents.failed",
 };
 
-export function DocumentSheet({ projectId, document, canWrite, onBack, onDeleted }: DocumentSheetProps) {
-  const [title, setTitle] = useState(document.title);
+export function DocumentSheet({ projectId, document, canWrite, onBack, onDeleted, onReload }: DocumentSheetProps) {
   const [confirming, setConfirming] = useState(false);
   const save = useSaveProjectDocument(projectId, document.id);
   const remove = useDeleteProjectDocument(projectId);
-  const autosave = useAutosave((change) => save.mutateAsync(change));
+  const { user, membershipId } = useAuth();
+  const { raise } = useAlerts();
+  const [resolving, setResolving] = useState(false);
+  const autosave = useAutosave((change, expectedRevision) => save.mutateAsync({ ...change, expectedRevision }), {
+    revision: document.revision,
+    storageKey: canWrite && user ? `adpulse.document-draft:${user.id}:${membershipId}:${projectId}:${document.id}` : undefined,
+  });
+  const [title, setTitle] = useState(autosave.initialChange?.title ?? document.title);
+  const currentTitle = useRef(title);
+  currentTitle.current = title;
+  const [initialContent] = useState(autosave.initialChange?.content === undefined ? document.content : autosave.initialChange.content);
+  const content = useRef(initialContent);
+  const resolve = async (keepLocal: boolean) => {
+    setResolving(true);
+    try {
+      const latest = await projectDocumentsApi.read(projectId, document.id);
+      if (keepLocal) {
+        autosave.schedule({ title: currentTitle.current, content: content.current });
+        await autosave.retry(latest.revision);
+      }
+      else { autosave.discard(); onReload(latest); }
+    } catch { raise(t("state.error.title")); }
+    finally { setResolving(false); }
+  };
 
   const changed = [
     `${t("documents.changed")} ${formatMoment(document.updatedAt)}`,
@@ -80,10 +106,20 @@ export function DocumentSheet({ projectId, document, canWrite, onBack, onDeleted
         ) : null}
       </p>
 
+      {autosave.storageFailed ? <p role="alert">{t("documents.draftFailed")}</p> : null}
+      {autosave.status === "failed" ? (
+        <Button type="button" variant="outline" size="sm" onClick={() => void autosave.retry()}>{t("state.retry")}</Button>
+      ) : null}
+      {autosave.status === "conflict" ? (
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" size="sm" disabled={resolving} onClick={() => void resolve(true)}>{t("documents.keepMine")}</Button>
+          <Button type="button" variant="outline" size="sm" disabled={resolving} onClick={() => void resolve(false)}>{t("documents.loadServer")}</Button>
+        </div>
+      ) : null}
       <DocumentEditor
-        value={document.content}
+        value={initialContent}
         editable={canWrite}
-        onChange={(content) => autosave.schedule({ content })}
+        onChange={(next) => { content.current = next; autosave.schedule({ content: next }); }}
       />
 
       <ConfirmDialog
@@ -92,9 +128,9 @@ export function DocumentSheet({ projectId, document, canWrite, onBack, onDeleted
         description={`«${document.title}» ${t("documents.delete.body")}`}
         pending={remove.isPending}
         onConfirm={() => {
-          autosave.discard();
           remove.mutate(document.id, {
             onSuccess: () => {
+              autosave.discard();
               setConfirming(false);
               onDeleted();
             },

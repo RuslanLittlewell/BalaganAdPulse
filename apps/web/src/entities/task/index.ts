@@ -75,6 +75,7 @@ export type { DocumentRefusal } from "./lib/documents.js";
 export { MAX_TASK_IMAGE_BYTES, TASK_IMAGE_TYPES, imageRefusal } from "./lib/images.js";
 export type { ImageRefusal } from "./lib/images.js";
 export { taskCommentsApi, taskDocumentsApi } from "./api/api.js";
+export { useTaskImageUrl } from "./api/imageQueries.js";
 export type { TaskDocument, UploadedTaskDocument } from "./api/api.js";
 export type { TaskComment, TaskCommentInput, TaskParticipant } from "./api/api.js";
 export {

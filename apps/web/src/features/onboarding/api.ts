@@ -22,17 +22,22 @@ export const ONBOARDING_REFRESH_MS = 60_000;
 export const onboardingKey = ["onboarding"] as const;
 
 export const onboardingApi = {
-  get: () => http.get<Onboarding>("/onboarding"),
+  get: (signal?: AbortSignal) => http.get<Onboarding>("/onboarding", { signal }),
   welcome: () => http.post<void>("/onboarding/welcome", {}),
   hide: () => http.post<void>("/onboarding/hide", {}),
 };
 
+function needsRefresh(data: Onboarding | undefined): boolean {
+  return !data || !data.welcomed || (!data.hidden && data.steps.some((step) => !step.done));
+}
+
 export function useOnboarding(enabled: boolean) {
   return useQuery({
     queryKey: onboardingKey,
-    queryFn: onboardingApi.get,
+    queryFn: ({ signal }) => onboardingApi.get(signal),
     enabled,
-    refetchInterval: ONBOARDING_REFRESH_MS,
+    staleTime: (query) => needsRefresh(query.state.data) ? ONBOARDING_REFRESH_MS : Infinity,
+    refetchInterval: (query) => needsRefresh(query.state.data) ? ONBOARDING_REFRESH_MS : false,
   });
 }
 
@@ -41,7 +46,9 @@ export function useOnboardingFreshness(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
     return queryClient.getMutationCache().subscribe((event) => {
-      if (event.type === "updated" && event.action.type === "success") {
+      if (event.type === "updated" && event.action.type === "success"
+        && event.mutation.options.meta?.affectsOnboarding === true
+        && !queryClient.getQueryData<Onboarding>(onboardingKey)?.hidden) {
         void queryClient.invalidateQueries({ queryKey: onboardingKey });
       }
     });
@@ -52,8 +59,14 @@ function useOnboardingMark(send: () => Promise<void>, change: Partial<Onboarding
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: send,
-    onMutate: () => {
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: onboardingKey });
+      const previous = queryClient.getQueryData<Onboarding>(onboardingKey);
       queryClient.setQueryData<Onboarding>(onboardingKey, (current) => current && { ...current, ...change });
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) queryClient.setQueryData(onboardingKey, context.previous);
     },
   });
 }

@@ -236,7 +236,7 @@ export function TaskFormDialog({
     setValue,
     getFieldState,
     watch,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     defaultValues: {
       projectId: (task ? task.projectId : givenProject) ?? NO_PROJECT,
@@ -347,7 +347,8 @@ export function TaskFormDialog({
     return created ? { column: created } : {};
   };
 
-  const onSubmit = handleSubmit(async (values) => {
+  const submission = useRef(false);
+  const submitValues = handleSubmit(async (values) => {
     if (
       values.dueDate !== null && values.dueTime !== null && values.endTime !== null
       && !endsAfterStart(values.dueTime, values.endTime)
@@ -407,6 +408,14 @@ export function TaskFormDialog({
       if (rejected.length === 0) raise(messageOf(error));
     }
   });
+
+  const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!open || submission.current) return;
+    submission.current = true;
+    try { await submitValues(event); }
+    finally { submission.current = false; }
+  };
 
   const properties = (
     <div className="flex shrink-0 flex-col gap-1">
@@ -509,7 +518,7 @@ export function TaskFormDialog({
             {task ? (readOnly ? t("tasks.view") : t("tasks.edit")) : t("tasks.create")}
           </DialogTitle>
           {!narrow ? properties : readOnly ? null : (
-            <Button type="submit" form={formId} size="sm">
+            <Button type="submit" form={formId} size="sm" disabled={!open || isSubmitting}>
               {saveLabel}
             </Button>
           )}
@@ -791,7 +800,7 @@ export function TaskFormDialog({
                     {readOnly ? t("action.close") : t("action.cancel")}
                   </Button>
                 )}
-                {narrow || readOnly ? null : <Button type="submit">{saveLabel}</Button>}
+                {narrow || readOnly ? null : <Button type="submit" disabled={!open || isSubmitting}>{saveLabel}</Button>}
               </div>
             </DialogFooter>
           )}

@@ -4,6 +4,8 @@ import { t } from "@/shared/config/index.js";
 import { cn } from "@/shared/lib/index.js";
 import { Button, EmptyState, Skeleton } from "@/shared/ui/index.js";
 import { useCan } from "@/features/permissions/index.js";
+import { useQueryClient } from "@tanstack/react-query";
+import { projectDocumentKey, projectDocumentsKey } from "@/entities/project-document/api/queries.js";
 import { useProjectDocument, useProjectDocuments } from "@/entities/project-document/index.js";
 import { CreateDocumentDialog } from "./CreateDocumentDialog.js";
 import { DocumentPreviews } from "./DocumentPreviews.js";
@@ -31,18 +33,25 @@ function OpenDocument({
   onDeleted: () => void;
 }) {
   const document = useProjectDocument(projectId, documentId);
+  const queryClient = useQueryClient();
+  const [version, setVersion] = useState(0);
   if (document.isError) {
     return <EmptyState title={t("documents.notFound")} actionLabel={t("documents.back")} onAction={onBack} />;
   }
   if (!document.data) return <Skeleton className="h-64 w-full" />;
   return (
     <DocumentSheet
-      key={document.data.id}
+      key={`${document.data.id}:${version}`}
       projectId={projectId}
       document={document.data}
       canWrite={canWrite}
       onBack={onBack}
       onDeleted={onDeleted}
+      onReload={(latest) => {
+        queryClient.setQueryData(projectDocumentKey(projectId, documentId), latest);
+        void queryClient.invalidateQueries({ queryKey: projectDocumentsKey(projectId), exact: true });
+        setVersion((current) => current + 1);
+      }}
     />
   );
 }

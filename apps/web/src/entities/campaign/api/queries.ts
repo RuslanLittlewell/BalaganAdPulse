@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { campaignsApi, type DateRange } from "./api.js";
+import { useObjectUrl } from "@/shared/lib/useObjectUrl.js";
 
 const keyed = (parts: readonly unknown[], range: DateRange) =>
   [...parts, { from: range.from, to: range.to }] as const;
@@ -7,7 +8,7 @@ const keyed = (parts: readonly unknown[], range: DateRange) =>
 export function useProjectCampaigns(projectId: string | undefined, range: DateRange) {
   return useQuery({
     queryKey: keyed(["projects", projectId, "campaigns"], range),
-    queryFn: () => campaignsApi.listByProject(projectId as string, range),
+    queryFn: ({ signal }) => campaignsApi.listByProject(projectId as string, range, signal),
     enabled: projectId != null,
   });
 }
@@ -15,7 +16,7 @@ export function useProjectCampaigns(projectId: string | undefined, range: DateRa
 export function useCampaignReferences(projectId: string | undefined) {
   return useQuery({
     queryKey: ["projects", projectId, "campaigns", "names"],
-    queryFn: () => campaignsApi.namesByProject(projectId as string),
+    queryFn: ({ signal }) => campaignsApi.namesByProject(projectId as string, signal),
     enabled: projectId != null,
     staleTime: 5 * 60_000,
   });
@@ -24,7 +25,7 @@ export function useCampaignReferences(projectId: string | undefined) {
 export function useCampaign(campaignId: string | undefined, range: DateRange) {
   return useQuery({
     queryKey: keyed(["campaigns", campaignId], range),
-    queryFn: () => campaignsApi.get(campaignId as string, range),
+    queryFn: ({ signal }) => campaignsApi.get(campaignId as string, range, signal),
     enabled: campaignId != null,
   });
 }
@@ -32,7 +33,7 @@ export function useCampaign(campaignId: string | undefined, range: DateRange) {
 export function useCampaignDaily(campaignId: string | undefined, range: DateRange) {
   return useQuery({
     queryKey: keyed(["campaigns", campaignId, "daily"], range),
-    queryFn: () => campaignsApi.daily(campaignId as string, range),
+    queryFn: ({ signal }) => campaignsApi.daily(campaignId as string, range, signal),
     enabled: campaignId != null,
   });
 }
@@ -40,7 +41,7 @@ export function useCampaignDaily(campaignId: string | undefined, range: DateRang
 export function useAdSets(campaignId: string | undefined, range: DateRange) {
   return useQuery({
     queryKey: keyed(["campaigns", campaignId, "ad-sets"], range),
-    queryFn: () => campaignsApi.adSets(campaignId as string, range),
+    queryFn: ({ signal }) => campaignsApi.adSets(campaignId as string, range, signal),
     enabled: campaignId != null,
   });
 }
@@ -48,7 +49,7 @@ export function useAdSets(campaignId: string | undefined, range: DateRange) {
 export function useAds(adSetId: string | undefined, range: DateRange) {
   return useQuery({
     queryKey: keyed(["ad-sets", adSetId, "ads"], range),
-    queryFn: () => campaignsApi.ads(adSetId as string, range),
+    queryFn: ({ signal }) => campaignsApi.ads(adSetId as string, range, signal),
     enabled: adSetId != null,
   });
 }
@@ -56,7 +57,7 @@ export function useAds(adSetId: string | undefined, range: DateRange) {
 export function useProjectDaily(projectId: string | undefined, range: DateRange) {
   return useQuery({
     queryKey: keyed(["projects", projectId, "daily"], range),
-    queryFn: () => campaignsApi.projectDaily(projectId as string, range),
+    queryFn: ({ signal }) => campaignsApi.projectDaily(projectId as string, range, signal),
     enabled: projectId != null,
   });
 }
@@ -64,7 +65,7 @@ export function useProjectDaily(projectId: string | undefined, range: DateRange)
 export function useProjectSummary(projectId: string | undefined, range: DateRange) {
   return useQuery({
     queryKey: keyed(["projects", projectId, "summary"], range),
-    queryFn: () => campaignsApi.projectSummary(projectId as string, range),
+    queryFn: ({ signal }) => campaignsApi.projectSummary(projectId as string, range, signal),
     enabled: projectId != null,
   });
 }
@@ -72,7 +73,7 @@ export function useProjectSummary(projectId: string | undefined, range: DateRang
 export function useAgencySummary(range: DateRange) {
   return useQuery({
     queryKey: keyed(["summary"], range),
-    queryFn: () => campaignsApi.agencySummary(range),
+    queryFn: ({ signal }) => campaignsApi.agencySummary(range, signal),
   });
 }
 
@@ -91,31 +92,33 @@ export function useRefreshCampaign() {
 export function useProjectsSummary(range: DateRange) {
   return useQuery({
     queryKey: keyed(PROJECTS_SUMMARY_KEY, range),
-    queryFn: () => campaignsApi.projectsSummary(range),
+    queryFn: ({ signal }) => campaignsApi.projectsSummary(range, signal),
   });
 }
 
 export function useChannelShares(range: DateRange) {
   return useQuery({
     queryKey: keyed(["summary", "channels"], range),
-    queryFn: () => campaignsApi.channels(range),
+    queryFn: ({ signal }) => campaignsApi.channels(range, signal),
   });
 }
 
 export function useCreativeFile(creativeId: string | undefined, part: "file" | "poster") {
-  return useQuery({
+  const query = useQuery({
     queryKey: ["ad-creatives", creativeId, part],
-    queryFn: () => campaignsApi.creativeFile(creativeId as string, part),
+    queryFn: ({ signal }) => campaignsApi.creativeBlob(creativeId as string, part, signal),
     enabled: creativeId != null,
     staleTime: Infinity,
-    gcTime: Infinity,
+    gcTime: 5 * 60_000,
   });
+  const data = useObjectUrl(query.data);
+  return { ...query, data };
 }
 
 export function useAdCreatives(adId: string | undefined) {
   return useQuery({
     queryKey: ["ads", adId, "creatives"],
-    queryFn: () => campaignsApi.adCreatives(adId as string),
+    queryFn: ({ signal }) => campaignsApi.adCreatives(adId as string, signal),
     enabled: adId != null,
     retry: false,
     staleTime: Infinity,
@@ -126,7 +129,7 @@ export function useAdCreatives(adId: string | undefined) {
 export function useAdPreview(adId: string | undefined) {
   return useQuery({
     queryKey: ["ads", adId, "preview"],
-    queryFn: () => campaignsApi.adPreview(adId as string),
+    queryFn: ({ signal }) => campaignsApi.adPreview(adId as string, signal),
     enabled: adId != null,
     retry: false,
     staleTime: 10 * 60_000,

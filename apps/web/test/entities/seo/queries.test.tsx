@@ -1,12 +1,38 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { hookWrapper, server } from "@test/shared/index.js";
-import { seoSitesKey, useSeoAudit, useSeoAuditPages, useSeoSearch, useSeoSites } from "@/entities/seo/index.js";
+import { seoSitesKey, useSeoAudit, useSeoAuditPages, useSeoSearch, useSeoSites, useSeoTraffic } from "@/entities/seo/index.js";
 
 const site = {
   id: "s1", siteUrl: "sc-domain:site.ru", label: "site.ru", status: "RUNNING",
   lastSuccessAt: null, lastError: null, checkStatus: "RUNNING", lastCheckAt: null, checkError: null,
 };
+
+it("refreshes an audit once across two consumers without reloading search or traffic", async () => {
+  const reads = { audit: 0, search: 0, traffic: 0 };
+  server.use(
+    http.get("/api/projects/p1/seo/sites/s1/audit", () => { reads.audit++; return HttpResponse.json({ status: "SUCCESS" }); }),
+    http.get("/api/projects/p1/seo/sites/s1/search", () => { reads.search++; return HttpResponse.json({}); }),
+    http.get("/api/projects/p1/seo/sites/s1/traffic", () => { reads.traffic++; return HttpResponse.json({}); }),
+  );
+  const wrapper = hookWrapper();
+  wrapper.client.setQueryData(seoSitesKey("p1"), [site]);
+  const range = { from: "2026-11-01", to: "2026-11-07" };
+  const view = renderHook(() => {
+    useSeoSites("p1");
+    useSeoSites("p1");
+    useSeoAudit("p1", "s1");
+    useSeoSearch("p1", "s1", range);
+    useSeoTraffic("p1", "s1", range);
+  }, { wrapper });
+  await waitFor(() => expect(reads).toEqual({ audit: 1, search: 1, traffic: 1 }));
+  await waitFor(() => expect(wrapper.client.isFetching()).toBe(0));
+  act(() => wrapper.client.setQueryData(seoSitesKey("p1"), [{ ...site, lastCheckAt: "2026-11-08T12:00:00Z" }]));
+  await waitFor(() => expect(reads).toEqual({ audit: 2, search: 1, traffic: 1 }));
+  await waitFor(() => expect(wrapper.client.isFetching()).toBe(0));
+  view.unmount();
+  wrapper.client.clear();
+});
 
 it("refreshes open search figures and page checks when their jobs finish", async () => {
   let searchReads = 0;

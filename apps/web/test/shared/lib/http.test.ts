@@ -1,10 +1,30 @@
 import { http as mock, HttpResponse } from "msw";
 import { server } from "@test/shared/index.js";
+import { waitFor } from "@testing-library/react";
 import { http, ApiError } from "@/shared/lib/http.js";
 import { makeAccessToken, makeExpiredAccessToken } from "@test/shared/index.js";
 import { writeTokens } from "@/shared/lib/auth/tokenStore.js";
 
 describe("http", () => {
+  it.each(["json", "blob"])("cancels an in-flight %s request", async (format) => {
+    let started = false;
+    let finish: (() => void) | undefined;
+    server.use(mock.get("/api/cancellable", async () => {
+      started = true;
+      await new Promise<void>((resolve) => { finish = resolve; });
+      return HttpResponse.json({ ok: true });
+    }));
+    const controller = new AbortController();
+    const pending = format === "json"
+      ? http.get("/cancellable", { signal: controller.signal })
+      : http.getBlob("/cancellable", { signal: controller.signal });
+    const rejected = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    await waitFor(() => expect(started).toBe(true));
+    controller.abort();
+    await rejected;
+    finish?.();
+  });
+
   it("gets and parses JSON", async () => {
     server.use(
       mock.get("/api/clients", () => HttpResponse.json([{ id: "1", name: "Acme" }])),

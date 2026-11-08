@@ -30,6 +30,7 @@ async function send(path: string, init: RequestInit | undefined, _token: string 
 
 export interface RequestOptions {
   authenticated?: boolean;
+  signal?: AbortSignal;
 }
 
 async function request<T>(
@@ -38,12 +39,14 @@ async function request<T>(
   options?: RequestOptions,
 ): Promise<T> {
   const authenticated = options?.authenticated ?? true;
+  const requestInit = { ...init, signal: options?.signal };
   const token = authenticated ? await ensureFreshToken() : null;
-  let res = await send(path, init, token);
+  let res = await send(path, requestInit, token);
 
   if (authenticated && res.status === 401 && token !== null) {
+    options?.signal?.throwIfAborted();
     const renewed = await forceRefresh();
-    res = await send(path, init, renewed);
+    res = await send(path, requestInit, renewed);
   }
 
   if (!res.ok) {
@@ -63,11 +66,13 @@ async function request<T>(
   return (text ? JSON.parse(text) : undefined) as T;
 }
 
-async function requestBlob(path: string): Promise<Blob> {
+async function requestBlob(path: string, options?: RequestOptions): Promise<Blob> {
   const token = await ensureFreshToken();
-  let res = await send(path, undefined, token);
+  const init = { signal: options?.signal };
+  let res = await send(path, init, token);
   if (res.status === 401 && token !== null) {
-    res = await send(path, undefined, await forceRefresh());
+    options?.signal?.throwIfAborted();
+    res = await send(path, init, await forceRefresh());
   }
   if (!res.ok) {
     throw new ApiError(res.statusText || "Request failed", res.status);

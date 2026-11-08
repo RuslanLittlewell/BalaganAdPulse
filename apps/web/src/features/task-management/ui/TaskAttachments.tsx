@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Paperclip, X } from "lucide-react";
-import { TASKS_KEY, TASK_IMAGE_TYPES, imageRefusal, taskImagesApi } from "@/entities/task/index.js";
+import { TASKS_KEY, TASK_IMAGE_TYPES, imageRefusal, taskImagesApi, useTaskImageUrl } from "@/entities/task/index.js";
 import { t } from "@/shared/config/index.js";
 import { cn } from "@/shared/lib/index.js";
 import { Button } from "@/shared/ui/index.js";
@@ -13,9 +13,15 @@ export interface TaskAttachmentsProps {
   onAttach?: (imageId: string) => void;
 }
 
+function AttachmentImage({ id }: { id: string }) {
+  const { src } = useTaskImageUrl(id);
+  return src ? <img src={src} alt="" className="size-full object-cover" /> : (
+    <span className="flex size-full items-center justify-center text-xs text-muted-foreground">…</span>
+  );
+}
+
 export function TaskAttachments({ imageIds, onRemoved, onAttach }: TaskAttachmentsProps) {
   const queryClient = useQueryClient();
-  const [urls, setUrls] = useState<Record<string, string>>({});
   const [previewing, setPreviewing] = useState<{
     id: string;
     label: string;
@@ -26,30 +32,6 @@ export function TaskAttachments({ imageIds, onRemoved, onAttach }: TaskAttachmen
   const picker = useRef<HTMLInputElement>(null);
 
   const visible = imageIds.filter((id) => !removed.includes(id));
-
-  useEffect(() => {
-    let cancelled = false;
-    const made: string[] = [];
-
-    void Promise.all(
-      imageIds.map(async (id) => {
-        try {
-          const url = await taskImagesApi.blobUrl(id);
-          if (cancelled) {
-            URL.revokeObjectURL(url);
-            return;
-          }
-          made.push(url);
-          setUrls((current) => ({ ...current, [id]: url }));
-        } catch {}
-      }),
-    );
-
-    return () => {
-      cancelled = true;
-      for (const url of made) URL.revokeObjectURL(url);
-    };
-  }, [imageIds]);
 
   async function remove(id: string) {
     setFailure(null);
@@ -149,17 +131,7 @@ export function TaskAttachments({ imageIds, onRemoved, onAttach }: TaskAttachmen
                     "hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   )}
                 >
-                  {urls[id] ? (
-                    <img
-                      src={urls[id]}
-                      alt=""
-                      className="size-full object-cover"
-                    />
-                  ) : (
-                    <span className="flex size-full items-center justify-center text-xs text-muted-foreground">
-                      …
-                    </span>
-                  )}
+                  <AttachmentImage id={id} />
                 </button>
 
                 {onRemoved ? (

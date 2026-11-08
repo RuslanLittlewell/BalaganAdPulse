@@ -395,7 +395,7 @@ describe("auditing and synchronizing fields", () => {
     await useCases.delete(actor, projectId, field.id);
     await expect(useCases.create(actor, projectId, { name: "Компания", type: "TEXT" })).rejects.toThrow();
 
-    expect(publish.mock.calls).toEqual(Array.from({ length: 3 }, () => [{ kind: "crm.changed", orgId: actor.orgId, board: projectId }]));
+    expect(publish.mock.calls).toEqual(Array.from({ length: 3 }, () => [{ kind: "crm.changed", orgId: actor.orgId, board: projectId, resources: ['fields', 'leads', 'activity'] }]));
   });
 });
 

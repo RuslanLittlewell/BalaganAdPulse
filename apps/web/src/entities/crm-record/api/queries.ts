@@ -8,16 +8,16 @@ export const companyKey = (clientId: string, id: string) => [...companiesKey(cli
 export const personKey = (clientId: string, id: string) => [...peopleKey(clientId), id] as const;
 
 export function useCompanies(clientId: string | undefined) {
-  return useQuery({ queryKey: companiesKey(clientId ?? ''), queryFn: () => crmRecordsApi.companies(clientId!), enabled: Boolean(clientId) });
+  return useQuery({ queryKey: companiesKey(clientId ?? ''), queryFn: ({ signal }) => crmRecordsApi.companies(clientId!, signal), enabled: Boolean(clientId) });
 }
 export function usePeople(clientId: string | undefined) {
-  return useQuery({ queryKey: peopleKey(clientId ?? ''), queryFn: () => crmRecordsApi.people(clientId!), enabled: Boolean(clientId) });
+  return useQuery({ queryKey: peopleKey(clientId ?? ''), queryFn: ({ signal }) => crmRecordsApi.people(clientId!, signal), enabled: Boolean(clientId) });
 }
 export function useCompany(clientId: string | undefined, id: string | undefined) {
-  return useQuery({ queryKey: companyKey(clientId ?? '', id ?? ''), queryFn: () => crmRecordsApi.company(clientId!, id!), enabled: Boolean(clientId && id) });
+  return useQuery({ queryKey: companyKey(clientId ?? '', id ?? ''), queryFn: ({ signal }) => crmRecordsApi.company(clientId!, id!, signal), enabled: Boolean(clientId && id) });
 }
 export function usePerson(clientId: string | undefined, id: string | undefined) {
-  return useQuery({ queryKey: personKey(clientId ?? '', id ?? ''), queryFn: () => crmRecordsApi.person(clientId!, id!), enabled: Boolean(clientId && id) });
+  return useQuery({ queryKey: personKey(clientId ?? '', id ?? ''), queryFn: ({ signal }) => crmRecordsApi.person(clientId!, id!, signal), enabled: Boolean(clientId && id) });
 }
 
 function useRecordMutation<T, R>(clientId: string, mutationFn: (input: T) => Promise<R>) {

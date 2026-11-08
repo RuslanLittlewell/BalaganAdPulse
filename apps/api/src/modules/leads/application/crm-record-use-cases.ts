@@ -22,7 +22,7 @@ export function createCrmRecordUseCases(d: CrmRecordDependencies) {
   }
 
   async function announce(actor: ActorContext, clientId: string) {
-    for (const board of await d.records.projectsOf(clientId)) d.publish({ kind: 'crm.changed', orgId: actor.orgId, board });
+    for (const board of await d.records.projectsOf(clientId)) d.publish({ kind: 'crm.changed', orgId: actor.orgId, board, resources: ['leads', 'records'] });
   }
 
   async function mutation<T>(actor: ActorContext, clientId: string, action: Action, work: (context: TransactionContext) => Promise<T>) {

@@ -5,6 +5,7 @@ import { refreshProjects } from "../model/projects.js";
 export function useCreateProject() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { affectsOnboarding: true },
     mutationFn: (body: ProjectInput) => projectsApi.create(body),
     onSuccess: () => refreshProjects(),
   });
@@ -22,6 +23,7 @@ export function useUpdateProject() {
 export function useDeleteProject() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { affectsOnboarding: true },
     mutationFn: (id: string) => projectsApi.remove(id),
     onSuccess: () => refreshProjects(),
   });

@@ -106,11 +106,11 @@ function zoned(body: TaskInput): TaskInput {
 }
 
 export const tasksApi = {
-  list: async (projectId?: string) => {
+  list: async (projectId?: string, signal?: AbortSignal) => {
     const query = new URLSearchParams();
     if (projectId) query.set("projectId", projectId);
     const suffix = query.size === 0 ? "" : `?${query}`;
-    return (await http.get<Task[]>(`/tasks${suffix}`)).map(localTask);
+    return (await http.get<Task[]>(`/tasks${suffix}`, { signal })).map(localTask);
   },
   create: async (body: TaskInput) => localTask(await http.post<Task>("/tasks", zoned(body))),
   update: async (id: string, body: TaskInput) => localTask(await http.patch<Task>(`/tasks/${id}`, zoned(body))),
@@ -120,6 +120,7 @@ export const tasksApi = {
 };
 
 export const taskImagesApi = {
+  blob: (id: string, signal?: AbortSignal) => http.getBlob(`/task-images/${id}`, { signal }),
   upload: (file: Blob) => {
     const form = new FormData();
     form.append("image", file);

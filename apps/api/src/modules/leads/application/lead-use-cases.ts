@@ -13,6 +13,7 @@ import { createBoardMutation } from './board-mutation.js';
 export type LeadInput = Omit<LeadFields,'customValues'> & {customValues?: Readonly<Record<string, unknown>>; contact?: ContactPatch; organization?: OrganizationPatch};
 export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFieldRepository,'list'>; records:LeadRecordLinks; storage:Pick<LeadFileStorage,'remove'>; audit:AuditWriter; ids:IdGenerator; unitOfWork:UnitOfWork; publish:(event:LeadEvent)=>void}) {
   const {authorize,mutation}=createBoardMutation(d);
+  const columnMutation=createBoardMutation(d,['columns','leads','activity','counts']).mutation;
   async function recordAudit(context:TransactionContext,actor:ActorContext,kind:'crm-person'|'crm-company',record:{id:string;clientId:string},action:'CREATE'|'UPDATE',changes:unknown) {
     await d.audit.append(context,{action,entityType:kind,entityId:record.id,clientId:record.clientId,projectId:null,summary:`${action} ${kind==='crm-person'?'person':'company'}`,changes:JSON.parse(JSON.stringify(changes))},actor);
   }
@@ -54,7 +55,7 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
     return {personId,companyId,touched};
   }
   async function announce(actor:ActorContext,clientId:string,board:string) {
-    for (const other of await d.records.projectsOf(clientId)) if (other!==board) d.publish({kind:'crm.changed',orgId:actor.orgId,board:other});
+    for (const other of await d.records.projectsOf(clientId)) if (other!==board) d.publish({kind:'crm.changed',orgId:actor.orgId,board:other,resources:['leads','records']});
   }
   async function attribution(board:string, before:Pick<LeadRecord,'campaignId'|'origin'>, input:Pick<LeadFields,'campaignId'>) {
     if (before.origin==='META') {
@@ -159,7 +160,7 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
         const row=await d.leads.update(context,id,{...rest,...named,...assigned,...custom,personId:links.personId,companyId:links.companyId});
         await audit(context,actor,row,'UPDATE',{before,after:row});
         return row;
-      });
+      },id);
       if (touched) await announce(actor,clientId,board);
       return updated;
     },
@@ -179,7 +180,7 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
         const result=await d.leads.list(actor,board,context);
         await audit(context,actor,find(result,id),'UPDATE',{before:{stage:before.stage,position:before.position},after:input});
         return result;
-      });
+      },id);
     },
     async projectStageCounts(actor:ActorContext,range:{from:Date;to:Date}) {
       if (range.from.getTime()>range.to.getTime()) throw new AppError('validation','The range must start on or before its end');
@@ -193,7 +194,7 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
     },
     async columns(actor:ActorContext,board:string) { await authorize(actor,board,'read'); return boardColumns(await d.leads.columns(actor,board)); },
     createColumn(actor:ActorContext,board:string,input:{name:string;color?:OptionColor}) {
-      return mutation(actor,board,'create',async context=>{
+      return columnMutation(actor,board,'create',async context=>{
         const columns=await d.leads.columns(actor,board,context);
         if (columns.length>=CUSTOM_COLUMN_LIMIT) throw new AppError('validation',`A board holds at most ${CUSTOM_COLUMN_LIMIT} columns`);
         assertNameFree(columns,input.name);
@@ -205,7 +206,7 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
       });
     },
     updateColumn(actor:ActorContext,board:string,id:string,input:{name?:string;position?:number;color?:OptionColor}) {
-      return mutation(actor,board,'update',async context=>{
+      return columnMutation(actor,board,'update',async context=>{
         const columns=await d.leads.columns(actor,board,context);
         const before=customColumn(columns,id);
         if (input.name!==undefined) { assertNameFree(columns,input.name,id); await d.leads.updateColumn(context,id,{name:input.name}); }
@@ -224,7 +225,7 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
       });
     },
     deleteColumn(actor:ActorContext,board:string,id:string) {
-      return mutation(actor,board,'delete',async(context,rows)=>{
+      return columnMutation(actor,board,'delete',async(context,rows)=>{
         const columns=await d.leads.columns(actor,board,context);
         const column=customColumn(columns,id);
         const moving=rows.filter(lead=>lead.stage===id);

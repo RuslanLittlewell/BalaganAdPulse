@@ -1,7 +1,7 @@
 import { shortcutRange } from "@/features/period/index.js";
 import { DueTasks } from "./DueTasks.js";
 import { ImportantInfo } from "./ImportantInfo.js";
-import { KpiGauge } from "./KpiGauge.js";
+import { KpiDoughnut } from "./KpiDoughnut.js";
 import { useMonthlyKpiStandings } from "./monthlyKpiStandings.js";
 
 export function KpiOverview() {
@@ -10,7 +10,7 @@ export function KpiOverview() {
 
   return (
     <>
-      <KpiGauge range={range} counts={standings} />
+      <KpiDoughnut range={range} counts={standings} />
       <ImportantInfo projectsWithoutKpi={standings?.withoutKpi} />
       <DueTasks />
     </>

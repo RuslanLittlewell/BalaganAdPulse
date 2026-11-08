@@ -21,6 +21,7 @@ type ChecklistRow = { id: string; title: string; done: boolean; position: number
 
 type RowWithImages = TaskRow & {
   images?: { id: string }[];
+  documents?: { id: string; name: string; bytes: number }[];
   checklist?: ChecklistRow[];
   participants?: { membershipId: string }[];
 };
@@ -39,6 +40,7 @@ function toDomain(row: RowWithImages, defaultTimeZone: string): TaskRecord {
     skipWeekends: row.skipWeekends, timeZone: row.timeZone ?? defaultTimeZone,
     checklist: row.checklist ?? [],
     imageIds: (row.images ?? []).map((image) => image.id),
+    documents: (row.documents ?? []).map(({ id, name, bytes }) => ({ id, name, bytes })),
     archivedAt: row.archivedAt,
     createdAt: row.createdAt, updatedAt: row.updatedAt,
   };
@@ -46,6 +48,7 @@ function toDomain(row: RowWithImages, defaultTimeZone: string): TaskRecord {
 
 const WITH_IMAGES = {
   images: { select: { id: true }, orderBy: { createdAt: "asc" } },
+  documents: { select: { id: true, name: true, bytes: true }, orderBy: { createdAt: "asc" } },
   checklist: {
     select: { id: true, title: true, done: true, position: true },
     orderBy: { position: "asc" },

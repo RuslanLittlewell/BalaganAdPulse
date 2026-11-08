@@ -8,7 +8,7 @@ const task = (partial: Partial<Task> = {}): Task => ({
   visibleToClient: false, personal: false, position: 0,
   dueDate: null, dueTime: null, endTime: null, participantIds: [], repeatEvery: "NONE", isCall: false, skipWeekends: false, checklist: [],
   archivedAt: null,
-  imageIds: [], createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
+  imageIds: [], documents: [], createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
   ...partial,
 });
 

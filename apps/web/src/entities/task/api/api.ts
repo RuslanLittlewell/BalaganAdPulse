@@ -35,6 +35,12 @@ export interface ChecklistItem {
   position: number;
 }
 
+export interface TaskDocument {
+  id: string;
+  name: string;
+  bytes: number;
+}
+
 export interface Task {
   id: string;
   projectId: string | null;
@@ -57,6 +63,7 @@ export interface Task {
   timeZone?: string;
   checklist: ChecklistItem[];
   imageIds: string[];
+  documents: TaskDocument[];
   archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -78,6 +85,7 @@ export interface TaskInput {
   skipWeekends?: boolean;
   timeZone?: string;
   checklist?: { title: string; done: boolean }[];
+  documentIds?: string[];
 }
 
 export interface TaskMove {
@@ -121,6 +129,23 @@ export const taskImagesApi = {
   blobUrl: async (id: string): Promise<string> => {
     const blob = await http.getBlob(`/task-images/${id}`);
     return URL.createObjectURL(blob);
+  },
+};
+
+export interface UploadedTaskDocument extends TaskDocument {
+  taskId: string | null;
+}
+
+export const taskDocumentsApi = {
+  upload: (file: File) => {
+    const form = new FormData();
+    form.append("file", file, file.name);
+    return http.postForm<UploadedTaskDocument>("/task-documents", form);
+  },
+  remove: (id: string) => http.del(`/task-documents/${id}`),
+  pdfUrl: async (id: string): Promise<string> => {
+    const blob = await http.getBlob(`/task-documents/${id}`);
+    return URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
   },
 };
 

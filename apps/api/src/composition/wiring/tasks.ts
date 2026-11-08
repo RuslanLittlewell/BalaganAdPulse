@@ -3,6 +3,8 @@ import { prisma } from "#shared/infrastructure/prisma.js";
 import { createTaskEventDelivery } from "#modules/realtime/index.js";
 import {
   createTaskCommentUseCases,
+  createTaskDocumentRouter,
+  createTaskDocumentUseCases,
   createTaskImageRouter,
   createTaskImageUseCases,
   createTaskRouter,
@@ -10,12 +12,14 @@ import {
   type TaskEvent,
 } from "#modules/tasks/index.js";
 import { PrismaTaskCommentRepository } from "#modules/tasks/infrastructure/prisma-task-comment-repository.js";
+import { PrismaTaskDocumentRepository } from "#modules/tasks/infrastructure/prisma-task-document-repository.js";
 import { PrismaTaskImageRepository, S3TaskImageStorage } from "#modules/tasks/infrastructure/prisma-task-image-repository.js";
 import {
   PrismaTaskMemberReach,
   PrismaTaskProjectReach,
   PrismaTaskRepository,
 } from "#modules/tasks/infrastructure/prisma-task-repository.js";
+import { taskDocumentUpload } from "#modules/tasks/presentation/http/task-document-upload.js";
 import { taskImageUpload } from "#modules/tasks/presentation/http/task-image-upload.js";
 import { runDetached, type Kernel } from "./kernel.js";
 import type { MembersAndPresence } from "./members-presence.js";
@@ -31,6 +35,7 @@ export function wireTasks(
   const dependencies = {
     tasks: new PrismaTaskRepository(prisma, unitOfWork, config.taskTimeZone),
     images: new PrismaTaskImageRepository(prisma, unitOfWork),
+    documents: new PrismaTaskDocumentRepository(prisma, unitOfWork),
     imageStorage: new S3TaskImageStorage(),
     projects,
     members: new PrismaTaskMemberReach(prisma),
@@ -54,5 +59,6 @@ export function wireTasks(
       clock,
     })),
     taskImageRouter: createTaskImageRouter(createTaskImageUseCases(dependencies), taskImageUpload.single("image")),
+    taskDocumentRouter: createTaskDocumentRouter(createTaskDocumentUseCases(dependencies), taskDocumentUpload),
   };
 }

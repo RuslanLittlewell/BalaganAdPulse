@@ -24,7 +24,7 @@ import {
   projectMetricDoc,
   summaryDoc,
 } from "#modules/campaigns/presentation/http/campaign-openapi.js";
-import { taskComponents, taskDoc, taskImageDoc } from "#modules/tasks/presentation/http/task-openapi.js";
+import { taskComponents, taskDoc, taskDocumentDoc, taskImageDoc } from "#modules/tasks/presentation/http/task-openapi.js";
 import { mountPath } from "./create-routes.js";
 import { leadDoc, leadComponents } from '#modules/leads/presentation/http/lead-openapi.js';
 import { kpiDoc } from '#modules/kpi/index.js';
@@ -121,6 +121,7 @@ export function apiDocument(): OpenApiDocument {
       { mount: mountPath("tasks"), ...taskDoc },
       { mount: mountPath("leads"), ...leadDoc },
       { mount: mountPath("task-images"), ...taskImageDoc },
+      { mount: mountPath("task-documents"), ...taskDocumentDoc },
       { mount: mountPath("kpi"), ...kpiDoc },
       { mount: mountPath("summary-tiles"), ...summaryTileDoc },
       { mount: mountPath("project-documents"), ...projectDocumentDoc },

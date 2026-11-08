@@ -11,6 +11,12 @@ import type { TaskRepeat } from "../domain/schedule.js";
 
 export type TaskDescription = unknown;
 
+export interface TaskDocumentSummary {
+  readonly id: string;
+  readonly name: string;
+  readonly bytes: number;
+}
+
 export interface ChecklistItemRecord {
   readonly id: string;
   readonly title: string;
@@ -40,6 +46,7 @@ export interface TaskRecord {
   readonly timeZone: string;
   readonly checklist: readonly ChecklistItemRecord[];
   readonly imageIds: readonly string[];
+  readonly documents: readonly TaskDocumentSummary[];
   readonly archivedAt: Date | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
@@ -83,6 +90,7 @@ export interface TaskChange {
   readonly skipWeekends?: boolean;
   readonly timeZone?: string | null;
   readonly checklist?: readonly { title: string; done?: boolean }[];
+  readonly documentIds?: readonly string[];
 }
 
 export interface TaskFilter {
@@ -138,6 +146,7 @@ export interface TaskNotices {
 export interface TaskDependencies {
   readonly tasks: TaskRepository;
   readonly images: TaskImageRepository;
+  readonly documents: TaskDocumentRepository;
   readonly imageStorage: TaskImageStorage;
   readonly projects: ProjectReach;
   readonly members: MemberReach;
@@ -171,6 +180,34 @@ export interface TaskImageRepository {
     uploaderId: string,
     imageIds: readonly string[],
   ): Promise<string[]>;
+  deleteMany(context: TransactionContext, ids: readonly string[]): Promise<void>;
+}
+
+export interface TaskDocumentRecord {
+  readonly id: string;
+  readonly taskId: string | null;
+  readonly uploaderId: string;
+  readonly name: string;
+  readonly storageKey: string;
+  readonly bytes: number;
+  readonly createdAt: Date;
+}
+
+export interface TaskDocumentRepository {
+  create(
+    context: TransactionContext,
+    input: Omit<TaskDocumentRecord, "createdAt">,
+  ): Promise<TaskDocumentRecord>;
+  findById(id: string): Promise<TaskDocumentRecord | null>;
+  listForTask(taskId: string): Promise<TaskDocumentRecord[]>;
+  countForTask(taskId: string): Promise<number>;
+  unclaimedOf(uploaderId: string, ids: readonly string[]): Promise<string[]>;
+  claim(
+    context: TransactionContext,
+    taskId: string,
+    uploaderId: string,
+    documentIds: readonly string[],
+  ): Promise<TaskDocumentSummary[]>;
   deleteMany(context: TransactionContext, ids: readonly string[]): Promise<void>;
 }
 

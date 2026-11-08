@@ -8,7 +8,7 @@ const task = (id: string, dueDate: string | null, dueTime: string | null = null)
   column: "IDEA", priority: "LOW", createdById: null,
   visibleToClient: false, personal: false, position: 0, dueDate, dueTime, endTime: null, participantIds: [], repeatEvery: "NONE", isCall: false, skipWeekends: false, checklist: [],
   archivedAt: null,
-  imageIds: [], createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
+  imageIds: [], documents: [], createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
 });
 
 function setup() {

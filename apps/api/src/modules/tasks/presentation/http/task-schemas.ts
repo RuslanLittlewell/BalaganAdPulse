@@ -3,6 +3,7 @@ import { STARTER_MARKS, STARTER_NODES } from "#shared/domain/rich-text.js";
 import { TITLE_LIMIT, atMost, richText } from "#shared/presentation/input-schemas.js";
 import { TASK_COLUMNS, TASK_PRIORITIES } from "#modules/tasks/domain/board.js";
 import { MAX_COMMENT_LENGTH } from "#modules/tasks/domain/comment.js";
+import { MAX_DOCUMENTS_PER_TASK } from "#modules/tasks/domain/document.js";
 import { TASK_REPEATS, isCalendarDay, isEndTime, isTimeOfDay, isTimeZone } from "#modules/tasks/domain/schedule.js";
 
 const description = richText({ nodes: [...STARTER_NODES, "taskImage"], marks: [...STARTER_MARKS, "link"] })
@@ -38,6 +39,8 @@ const checklist = z.array(z.object({
   done: z.boolean().optional(),
 })).optional();
 
+const documentIds = z.array(z.uuid()).max(MAX_DOCUMENTS_PER_TASK).optional();
+
 export const createTaskSchema = z.object({
   projectId: z.uuid("projectId must be a uuid").nullable().optional(),
   title,
@@ -53,6 +56,7 @@ export const createTaskSchema = z.object({
   skipWeekends: z.boolean().optional(),
   timeZone,
   checklist,
+  documentIds,
 });
 
 export const updateTaskSchema = z.object({
@@ -70,6 +74,7 @@ export const updateTaskSchema = z.object({
   skipWeekends: z.boolean().optional(),
   timeZone,
   checklist,
+  documentIds,
 });
 
 export const taskFilterSchema = z.object({

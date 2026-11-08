@@ -15,6 +15,7 @@ import { ProjectAvatar, useProjects } from "@/entities/project/index.js";
 import { MemberAvatar, useMembers } from "@/entities/membership/index.js";
 import { participantsOf, timeRange, type Task } from "@/entities/task/index.js";
 import { TaskAttachments } from "./TaskAttachments.js";
+import { TaskDocuments } from "./TaskDocuments.js";
 import { TaskDescriptionEditor } from "./TaskDescriptionEditor.js";
 
 export interface TaskPreviewDialogProps {
@@ -168,6 +169,8 @@ export function TaskPreviewDialog({ task, onClose }: TaskPreviewDialogProps) {
           {task.imageIds.length > 0 ? (
             <TaskAttachments imageIds={task.imageIds} />
           ) : null}
+
+          {task.documents.length > 0 ? <TaskDocuments documents={task.documents} /> : null}
 
           <TaskComments task={task} />
         </div>

@@ -48,8 +48,8 @@ inside it, and SHALL be told it does not exist rather than that it is forbidden.
 ### Requirement: Figures are measured per day, per entity
 
 The system SHALL store, for a campaign, an ad set or an ad on a given date, the
-figures the platform measured: spend, impressions, reach, clicks, conversions
-and revenue. There SHALL be at most one row per entity per date, and recording
+figures the platform measured: spend, impressions, reach, clicks, conversions,
+results and revenue. There SHALL be at most one row per entity per date, and recording
 the same date again SHALL replace it rather than add to it.
 
 #### Scenario: Recording a day
@@ -64,7 +64,7 @@ the same date again SHALL replace it rather than add to it.
 
 ### Requirement: Ratios are derived, never stored
 
-The system SHALL NOT store CTR, CPC, CPM, CPA, ROAS or frequency. Each SHALL be
+The system SHALL NOT store CTR, CPC, CPM, CPA, cost per result, ROAS or frequency. Each SHALL be
 computed from the measured figures at the moment it is read, so that a stored
 total and a stored ratio can never contradict one another.
 
@@ -81,6 +81,10 @@ since no value was measured.
 
 - **WHEN** a campaign recorded spend but no clicks
 - **THEN** its cost per click is absent, not zero
+
+#### Scenario: Cost per result
+- **WHEN** a range spent 220.58 and recorded 56 results
+- **THEN** its cost per result is 220.58 / 56, and it is absent when no result was recorded
 
 ### Requirement: A range is summarised by summing what it contains
 
@@ -174,13 +178,18 @@ Every metrics view SHALL present two date inputs for the inclusive start and end
 
 ### Requirement: Users fill the range from shortcuts
 
-Every metrics view SHALL offer last-7-days, current-month and previous-month shortcuts before its date inputs. A shortcut SHALL apply its inclusive range the same way a manual entry does and SHALL report itself as pressed only while the current range equals the range it produces.
+Every metrics view SHALL offer yesterday, last-7-days, current-month and previous-month shortcuts, in that order, before its date inputs. The yesterday shortcut SHALL produce a range that starts and ends on the day before today. A shortcut SHALL apply its inclusive range the same way a manual entry does and SHALL report itself as pressed only while the current range equals the range it produces.
 
 #### Scenario: Apply a shortcut
 
 - **WHEN** a user presses the last-7-days shortcut
 - **THEN** both date inputs and every metrics request use the seven days ending today
 - **AND** the address carries those two dates
+
+#### Scenario: Yesterday
+
+- **WHEN** a user presses Вчера on 13 October
+- **THEN** both date inputs read 12 October and every metrics request covers that day alone
 
 #### Scenario: Shortcut reflects the current range
 
@@ -292,3 +301,124 @@ that the campaign has none.
 #### Scenario: Another campaign
 - **WHEN** a member who turned the switch off opens another campaign
 - **THEN** the switch is on again
+
+### Requirement: A project's figures are titled
+A project page SHALL open the figures of the period — the summary and the campaign table —
+with a second-level heading, Метрики, on the same row as the period control, styled like the
+other section titles of the page. Every member who opens the project SHALL see it.
+
+#### Scenario: Opening a project
+- **WHEN** a guest opens a project page
+- **THEN** the heading Метрики is shown beside the period control, above the summary
+
+### Requirement: Every reachable project's figures are read in one request
+
+The system SHALL offer a reading, over a date range, of every project the member
+reaches, returning in one response one entry per project: the project's id, its figures
+over the range summed from its campaigns, and its daily series over the range, one entry
+per measured day, oldest first. A project with no campaigns, or none measured in the
+range, SHALL be listed with zero figures and an empty series. A project the member
+cannot reach SHALL never be listed.
+
+The reading SHALL follow the same rules as the agency summary: the member's role must
+allow reading campaigns, and a range that ends before it starts SHALL be refused with a
+400.
+
+The dashboard's project table SHALL draw every project's row from this one reading, so
+the number of requests it makes does not grow with the number of projects.
+
+#### Scenario: Reading every project at once
+
+- **WHEN** a member reads the projects summary over a range
+- **THEN** one response holds each project they reach with its totals and its daily
+  series over that range
+
+#### Scenario: A project with nothing measured
+
+- **WHEN** a reachable project has no campaigns, or none measured in the range
+- **THEN** it is listed with zero spend and an empty daily series
+
+#### Scenario: A member with a partial grant
+
+- **WHEN** a member holding a grant over one project reads the projects summary
+- **THEN** only that project is listed
+
+#### Scenario: A range that ends before it starts
+
+- **WHEN** the projects summary is asked for with a range whose end precedes its start
+- **THEN** the API responds 400
+
+#### Scenario: The dashboard with many projects
+
+- **WHEN** the dashboard opens for a member who reaches many projects
+- **THEN** the project table's figures and sparklines come from a single projects
+  summary request, not from a request per project
+
+### Requirement: A project's campaign table shows running campaigns first or alone
+
+A project's campaign table SHALL offer a «Только активные» switch, which SHALL be on
+whenever a project is opened and SHALL NOT be remembered between projects or visits.
+A campaign SHALL count as running when it is active or learning, as its indicator
+counts it.
+
+While the switch is on, the table SHALL list only running campaigns. While it is off, the
+table SHALL list every campaign, running ones above the rest. In either case campaigns
+SHALL keep their existing order among themselves. The switch SHALL narrow the campaigns
+of the chosen advertising account when they are split by account.
+
+The table's total row SHALL total the campaigns the table lists: their measured figures
+summed, and every ratio derived from those sums as a project's total derives it. A
+project with campaigns of which none is running SHALL, with the switch on, say that no
+campaign is running rather than that the project has none.
+
+#### Scenario: Opening a project
+
+- **WHEN** a member opens a project whose campaigns are partly running
+- **THEN** the switch is on and the table lists only the running campaigns, in their
+  existing order, with a total row of those campaigns
+
+#### Scenario: Turning the switch off
+
+- **WHEN** a member turns the switch off
+- **THEN** every campaign is listed, running ones first, and the total row totals them all
+
+#### Scenario: Opening another project
+
+- **WHEN** a member who turned the switch off opens another project
+- **THEN** the switch is on again
+
+#### Scenario: A learning campaign
+
+- **WHEN** a campaign is learning
+- **THEN** it is listed with the switch on
+
+#### Scenario: Nothing running
+
+- **WHEN** a project's campaigns are all paused or ended and the switch is on
+- **THEN** the table says no campaign is running
+
+#### Scenario: A total of the listed campaigns
+
+- **WHEN** the table lists campaigns that spent 200 and 800 with revenue of 1000 each
+- **THEN** the total row shows a spend of 1000 and a ROAS of 2, not the average of the
+  campaigns' ROAS
+
+### Requirement: The results figure is shown with its cost
+Wherever figures are shown to members — performance tables and their column chooser and
+the period summary — the results figure SHALL be labelled Результаты and the cost per result
+SHALL be labelled Цена результата, formatted as a count and as an amount in the project's
+currency, as Лиды and CPL are. Both SHALL be offered as columns of every performance table;
+a member who saved a choice of visible columns before they existed SHALL find them hidden
+until they turn them on, as with any column added later.
+
+#### Scenario: Table header
+- **WHEN** a member who never chose columns opens a project's campaign table
+- **THEN** it shows the columns Результаты and Цена результата
+
+#### Scenario: A saved choice of columns
+- **WHEN** a member had chosen their visible columns before Результаты existed
+- **THEN** Результаты is offered in the column chooser and is not shown until they turn it on
+
+#### Scenario: Results beside leads
+- **WHEN** a campaign recorded 56 results and 2 leads in the period
+- **THEN** its row shows 56 under Результаты and 2 under Лиды

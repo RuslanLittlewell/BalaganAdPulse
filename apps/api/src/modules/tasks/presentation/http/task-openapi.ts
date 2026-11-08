@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { arrayOf, ref, type ComponentDocs, type RouteDoc } from "#shared/presentation/openapi.js";
+import { MAX_DOCUMENTS_PER_TASK, MAX_TASK_DOCUMENT_BYTES } from "#modules/tasks/domain/document.js";
 import { MAX_TASK_IMAGE_BYTES } from "#modules/tasks/domain/image.js";
 import { TASK_COLUMNS, TASK_PRIORITIES } from "#modules/tasks/domain/board.js";
 import { TASK_REPEATS } from "#modules/tasks/domain/schedule.js";
@@ -32,6 +33,7 @@ const task = z.object({
     position: z.int(),
   })),
   imageIds: z.array(z.uuid()),
+  documents: z.array(z.object({ id: z.uuid(), name: z.string(), bytes: z.int() })),
   archivedAt: z.iso.datetime().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
@@ -43,6 +45,15 @@ const taskImage = z.object({
   uploaderId: z.uuid(),
   storageKey: z.string(),
   contentType: z.enum(["image/png", "image/jpeg", "image/webp", "image/gif"]),
+  bytes: z.int(),
+  createdAt: z.iso.datetime(),
+});
+
+const taskDocument = z.object({
+  id: z.uuid(),
+  taskId: z.uuid().nullable(),
+  uploaderId: z.uuid(),
+  name: z.string(),
   bytes: z.int(),
   createdAt: z.iso.datetime(),
 });
@@ -69,6 +80,7 @@ export const taskComponents: ComponentDocs = {
   TaskComment: taskComment,
   TaskParticipant: taskParticipant,
   TaskImage: taskImage,
+  TaskDocument: taskDocument,
 };
 
 export const taskDoc: RouteDoc = {
@@ -214,6 +226,45 @@ export const taskImageDoc: RouteDoc = {
       path: "/:id",
       summary: "Delete an image",
       success: { status: 204, description: "The image is gone, and any description that showed it no longer does" },
+      errors: [401, 403, 404],
+    },
+  ],
+};
+
+export const taskDocumentDoc: RouteDoc = {
+  tag: "Tasks",
+  operations: [
+    {
+      method: "post",
+      path: "/",
+      summary: "Upload a PDF document for a task",
+      description: `PDF only, up to ${MAX_TASK_DOCUMENT_BYTES / (1024 * 1024)} MB, checked from the file's own content. The document is claimed by the task that first lists its id in documentIds, and a task holds at most ${MAX_DOCUMENTS_PER_TASK}.`,
+      bodyType: "multipart/form-data",
+      body: {
+        type: "object",
+        properties: { file: { type: "string", format: "binary" } },
+        required: ["file"],
+      },
+      success: { status: 201, description: "The stored document", schema: ref("TaskDocument") },
+      errors: [400, 401, 403, 413],
+    },
+    {
+      method: "get",
+      path: "/:id",
+      summary: "Read a document",
+      success: {
+        status: 200,
+        description: "The PDF, with its original file name",
+        contentType: "application/pdf",
+        schema: { type: "string", format: "binary" },
+      },
+      errors: [401, 403, 404],
+    },
+    {
+      method: "delete",
+      path: "/:id",
+      summary: "Delete a document",
+      success: { status: 204, description: "The document and its stored file are gone" },
       errors: [401, 403, 404],
     },
   ],

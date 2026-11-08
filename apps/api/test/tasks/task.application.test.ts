@@ -86,6 +86,15 @@ function fixture(options: {
       claim: async (_tx, taskId, _uploaderId, imageIds) => { claimed.push({ taskId, imageIds: [...imageIds] }); },
       deleteMany: async () => undefined,
     },
+    documents: {
+      create: async (_tx, input) => ({ ...input, createdAt: new Date("2026-09-01T00:00:00.000Z") }),
+      findById: async () => null,
+      listForTask: async () => [],
+      countForTask: async () => 0,
+      unclaimedOf: async () => [],
+      claim: async () => [],
+      deleteMany: async () => undefined,
+    },
     imageStorage: {
       put: async () => undefined,
       get: async () => ({ body: new Uint8Array(), contentType: "image/png" }),

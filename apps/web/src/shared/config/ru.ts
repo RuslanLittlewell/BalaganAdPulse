@@ -362,7 +362,7 @@ export const ru = {
   "dashboard.sources.campaigns": "Кампаний", "dashboard.spendByDay": "Расход по дням",
   "dashboard.kpi.title": "Выполнение KPI за месяц", "dashboard.kpi.outOf": "из",
   "dashboard.kpiColumn": "Выполнение KPI", "dashboard.kpiTrend": "Динамика выполнения KPI",
-  "dashboard.kpi.caption": "проектов выполняют KPI",
+  "dashboard.kpi.more": "и ещё",
   "dashboard.kpi.met": "Выполняют", "dashboard.kpi.behind": "Небольшое отставание", "dashboard.kpi.danger": "Сильное отставание", "dashboard.kpi.unrated": "Без оценки",
   "dashboard.due.title": "Задачи на сегодня и ближайшие дни", "dashboard.due.count": "Задач к выполнению:",
   "dashboard.due.overdue": "Просрочено", "dashboard.due.today": "Сегодня", "dashboard.due.tomorrow": "Завтра", "dashboard.due.until": "до",

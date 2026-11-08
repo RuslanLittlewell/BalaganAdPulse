@@ -298,7 +298,7 @@ describe("this month's KPI on the dashboard", () => {
     vi.useRealTimers();
   });
 
-  it("gauges how many projects meet their KPI and names each part", async () => {
+  it("draws the KPI doughnut and names each part", async () => {
     api({
       projects: [...three, project("p4", "Стоматология")],
       projectFigures: [
@@ -321,6 +321,134 @@ describe("this month's KPI on the dashboard", () => {
     expect(within(gauge).getByText("Без оценки").nextSibling).toHaveTextContent("1");
   });
 
+  describe("the far-behind tooltip", () => {
+    const behindApi = (count = 1) => {
+      const many = Array.from({ length: count }, (_, n) => project(`d${n}`, `Проект ${n + 1}`));
+      api({
+        projects: [project("ok", "Клиника"), ...many],
+        projectFigures: [
+          withKpi("ok", leads("62.0000"), { conversions: 30 }),
+          ...many.map((entry) => withKpi(entry.id, leads("62.0000"), { conversions: 10 })),
+        ],
+      });
+    };
+
+    it("lists the projects far behind when the red part is pointed at, and closes when the pointer leaves", async () => {
+      behindApi(2);
+      renderWithProviders(<DashboardPage />);
+      const chart = await within(await screen.findByRole("region", { name: "Выполнение KPI за месяц" })).findByRole("img");
+      const red = await waitFor(() => {
+        const part = chart.querySelector('[data-part="danger"]');
+        expect(part).not.toBeNull();
+        return part!;
+      });
+
+      await userEvent.hover(red);
+
+      const tip = await screen.findByRole("tooltip");
+      expect(tip).toHaveTextContent("Сильное отставание");
+      expect(within(tip).getAllByRole("listitem").map((item) => item.textContent)).toEqual(["Проект 1", "Проект 2"]);
+      await userEvent.unhover(red);
+      await waitFor(() => expect(screen.queryByRole("tooltip")).toBeNull());
+    });
+
+    it("lists the projects slightly behind when the yellow part is pointed at", async () => {
+      api({
+        projects: [project("ok", "Клиника"), project("late", "Стоматология"), project("far", "Автосалон")],
+        projectFigures: [
+          withKpi("ok", leads("62.0000"), { conversions: 30 }),
+          withKpi("late", leads("62.0000"), { conversions: 24 }),
+          withKpi("far", leads("62.0000"), { conversions: 10 }),
+        ],
+      });
+      renderWithProviders(<DashboardPage />);
+      const chart = await within(await screen.findByRole("region", { name: "Выполнение KPI за месяц" })).findByRole("img");
+      await waitFor(() => expect(chart.querySelector('[data-part="behind"]')).not.toBeNull());
+
+      await userEvent.hover(chart.querySelector('[data-part="behind"]')!);
+
+      const tip = await screen.findByRole("tooltip");
+      expect(tip).toHaveTextContent("Небольшое отставание");
+      expect(within(tip).getAllByRole("listitem").map((item) => item.textContent)).toEqual(["Стоматология"]);
+      await userEvent.unhover(chart.querySelector('[data-part="behind"]')!);
+      await userEvent.hover(chart.querySelector('[data-part="danger"]')!);
+      expect(within(await screen.findByRole("tooltip")).getAllByRole("listitem").map((item) => item.textContent)).toEqual(["Автосалон"]);
+    });
+
+    it("lists the projects with no KPI set when the grey part is pointed at", async () => {
+      api({
+        projects: [project("ok", "Клиника"), project("none", "Фитнес")],
+        projectFigures: [withKpi("ok", leads("62.0000"), { conversions: 30 }), withKpi("none", null)],
+      });
+      renderWithProviders(<DashboardPage />);
+      const chart = await within(await screen.findByRole("region", { name: "Выполнение KPI за месяц" })).findByRole("img");
+      await waitFor(() => expect(chart.querySelector('[data-part="unrated"]')).not.toBeNull());
+
+      await userEvent.hover(chart.querySelector('[data-part="unrated"]')!);
+
+      const tip = await screen.findByRole("tooltip");
+      expect(tip).toHaveTextContent("Без оценки");
+      expect(within(tip).getAllByRole("listitem").map((item) => item.textContent)).toEqual(["Фитнес"]);
+    });
+
+    it("lists ten projects and counts the rest", async () => {
+      behindApi(12);
+      renderWithProviders(<DashboardPage />);
+      const chart = await within(await screen.findByRole("region", { name: "Выполнение KPI за месяц" })).findByRole("img");
+      await waitFor(() => expect(chart.querySelector('[data-part="danger"]')).not.toBeNull());
+
+      await userEvent.hover(chart.querySelector('[data-part="danger"]')!);
+
+      const tip = await screen.findByRole("tooltip");
+      expect(within(tip).getAllByRole("listitem")).toHaveLength(10);
+      expect(tip).toHaveTextContent("и ещё 2");
+    });
+
+    it("opens from the legend row with the keyboard and closes when the focus moves on", async () => {
+      behindApi(1);
+      renderWithProviders(<DashboardPage />);
+      const row = (await screen.findByText("Сильное отставание")).closest("li")!;
+      await waitFor(() => expect(row).toHaveAttribute("tabindex", "0"));
+
+      row.focus();
+
+      const tip = await screen.findByRole("tooltip");
+      expect(row).toHaveAttribute("aria-describedby", tip.id);
+      expect(within(tip).getByText("Проект 1")).toBeInTheDocument();
+      row.blur();
+      await waitFor(() => expect(screen.queryByRole("tooltip")).toBeNull());
+    });
+
+    it("shows no tooltip when no project is far behind", async () => {
+      api({ projects: [project("ok", "Клиника")], projectFigures: [withKpi("ok", leads("62.0000"), { conversions: 30 })] });
+      renderWithProviders(<DashboardPage />);
+      const row = (await screen.findByText("Сильное отставание")).closest("li")!;
+      await within(row).findByText("0");
+
+      expect(row).not.toHaveAttribute("tabindex");
+      await userEvent.hover(row);
+      expect(screen.queryByRole("tooltip")).toBeNull();
+    });
+  });
+
+  it("divides the doughnut's ring by the counts and leaves out a group with no projects", async () => {
+    api({
+      projects: three,
+      projectFigures: [
+        withKpi("p1", leads("62.0000"), { conversions: 30 }),
+        withKpi("p2", leads("62.0000"), { conversions: 30 }),
+        withKpi("p3", null),
+      ],
+    });
+    renderWithProviders(<DashboardPage />);
+
+    const chart = await within(await screen.findByRole("region", { name: "Выполнение KPI за месяц" })).findByRole("img");
+    await waitFor(() => expect(chart.querySelector('[data-part="met"]')).toHaveAttribute("data-share", "66.7"));
+    expect(chart.querySelector('[data-part="unrated"]')).toHaveAttribute("data-share", "33.3");
+    expect(chart.querySelector('[data-part="behind"]')).toBeNull();
+    expect(chart.querySelector('[data-part="danger"]')).toBeNull();
+  });
+
   it("reads the current month whatever period the dashboard shows", async () => {
     const asked: string[] = [];
     api({ projects: three });
@@ -338,7 +466,7 @@ describe("this month's KPI on the dashboard", () => {
     expect(asked).toContain("?from=2026-09-01&to=2026-09-30");
   });
 
-  it("reads — over a grey arc when there are no projects", async () => {
+  it("reads — in the middle of a grey ring when there are no projects", async () => {
     api({ projects: [], projectFigures: [] });
     renderWithProviders(<DashboardPage />);
 
@@ -347,6 +475,8 @@ describe("this month's KPI on the dashboard", () => {
       name: "Выполнение KPI за месяц: Выполняют 0, Небольшое отставание 0, Сильное отставание 0, Без оценки 0",
     })).toBeInTheDocument();
     expect(within(gauge).getByText("—")).toBeInTheDocument();
+    expect(within(gauge).getByRole("img").querySelectorAll("[data-part]")).toHaveLength(1);
+    expect(within(gauge).getByRole("img").querySelector('[data-part="empty"]')).not.toBeNull();
   });
 
   describe("in the project table", () => {

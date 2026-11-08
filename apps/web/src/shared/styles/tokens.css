@@ -121,6 +121,11 @@
   --kpi-marker-behind: #f59e0b;
   --kpi-marker-met: #16a34a;
   --kpi-marker-none: #cbd5e1;
+  --kpi-neon-met: #00e060;
+  --kpi-neon-behind: #ffc800;
+  --kpi-neon-danger: #ff2e63;
+  --kpi-neon-none: #cbd5e1;
+  --kpi-neon-glow: 2px;
   --activity-create: #16a34a;
   --activity-update: #2563eb;
   --activity-delete: #dc2626;
@@ -197,6 +202,11 @@
   --kpi-marker-behind: #fbbf24;
   --kpi-marker-met: #6ec48f;
   --kpi-marker-none: #64748b;
+  --kpi-neon-met: #39ff14;
+  --kpi-neon-behind: #fff01f;
+  --kpi-neon-danger: #ff3860;
+  --kpi-neon-none: #64748b;
+  --kpi-neon-glow: 4px;
   --activity-create: #6ec48f;
   --activity-update: #7aa7e8;
   --activity-delete: #e07a62;

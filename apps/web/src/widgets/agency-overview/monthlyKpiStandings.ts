@@ -16,6 +16,9 @@ export interface KpiCounts {
 
 export interface KpiStandings extends KpiCounts {
   withoutKpi: Project[];
+  behindProjects: Project[];
+  dangerProjects: Project[];
+  unratedProjects: Project[];
 }
 
 export function monthlyKpiStandings(
@@ -24,15 +27,24 @@ export function monthlyKpiStandings(
   range: DateRange,
 ): KpiStandings {
   const byProject = new Map(figures.map((entry) => [entry.projectId, entry]));
-  const standings: KpiStandings = { met: 0, behind: 0, danger: 0, unrated: 0, withoutKpi: [] };
+  const standings: KpiStandings = { met: 0, behind: 0, danger: 0, unrated: 0, withoutKpi: [], behindProjects: [], dangerProjects: [], unratedProjects: [] };
   for (const project of projects) {
     if (project.kpiTracked === false) continue;
     const entry = byProject.get(project.id);
     const tone = projectTone(entry, range);
     if (tone === "met") standings.met += 1;
-    else if (tone === "none") standings.unrated += 1;
-    else if (tone === "behind") standings.behind += 1;
-    else standings.danger += 1;
+    else if (tone === "none") {
+      standings.unrated += 1;
+      standings.unratedProjects.push(project);
+    }
+    else if (tone === "behind") {
+      standings.behind += 1;
+      standings.behindProjects.push(project);
+    }
+    else {
+      standings.danger += 1;
+      standings.dangerProjects.push(project);
+    }
     if (enabledKpis(entry?.kpis).length === 0) standings.withoutKpi.push(project);
   }
   return standings;

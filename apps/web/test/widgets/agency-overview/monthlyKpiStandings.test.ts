@@ -35,6 +35,19 @@ describe("this month's KPI standings", () => {
     expect(standings.withoutKpi.map((project) => project.id)).toEqual(["c"]);
   });
 
+  it("keeps the projects that are far behind, in the order of the project list", () => {
+    const standings = monthlyKpiStandings(projects("a", "b", "c", "d"), [
+      figures("a", leads("62.0000"), { conversions: 10 }),
+      figures("b", leads("62.0000")),
+      figures("c", leads("62.0000"), { conversions: 12 }),
+      figures("d", null),
+    ], OCTOBER_SO_FAR);
+
+    expect(standings.dangerProjects.map((project) => project.id)).toEqual(["a", "c"]);
+    expect(standings.behindProjects).toEqual([]);
+    expect(standings.unratedProjects.map((project) => project.id)).toEqual(["d"]);
+  });
+
   it("prorates a monthly target to the days of the month so far", () => {
     const of = (conversions: number) =>
       monthlyKpiStandings(projects("a"), [figures("a", leads("62.0000"), { conversions })], OCTOBER_SO_FAR);

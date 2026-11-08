@@ -6,6 +6,7 @@ import { aLead, renderWithProviders, server } from "@test/shared/index.js";
 import { useCrmViews } from "@/features/lead-view-options/index.js";
 import { CrmLayout, CrmPage } from "@/pages/crm/index.js";
 import { useModuleMemory } from "@/shared/lib/index.js";
+import { toIso } from "@/shared/ui/index.js";
 
 const capabilities = { create: true, update: true, delete: true };
 
@@ -38,6 +39,8 @@ beforeEach(() => {
 });
 
 const setup = () => renderWithProviders(<Routes><Route path="/crm" element={<CrmLayout />}><Route index element={<CrmPage />} /></Route></Routes>, { route: "/crm?board=project-1" });
+
+const arrivedToday = () => `${toIso(new Date())}T12:00:00.000Z`;
 
 const shownNames = () => screen.queryAllByRole("button", { name: /^Открыть лид: / }).map((card) => card.getAttribute("aria-label")!.replace("Открыть лид: ", ""));
 
@@ -160,8 +163,8 @@ describe("remembering the view", () => {
 describe("the calendar", () => {
   it("shows only leads passing the search and opens them in the panel", async () => {
     server.use(mock.get("/api/crm/boards/:board/leads", () => HttpResponse.json([
-      aLead({ id: "a", name: "Анна", company: { id: "c1", name: "Ромашка", website: null }, createdAt: new Date().toISOString() }),
-      aLead({ id: "b", name: "Борис", company: { id: "c2", name: "Лютик", website: null }, createdAt: new Date().toISOString() }),
+      aLead({ id: "a", name: "Анна", company: { id: "c1", name: "Ромашка", website: null }, createdAt: arrivedToday() }),
+      aLead({ id: "b", name: "Борис", company: { id: "c2", name: "Лютик", website: null }, createdAt: arrivedToday() }),
     ])));
     setup();
     await screen.findByText("Анна");

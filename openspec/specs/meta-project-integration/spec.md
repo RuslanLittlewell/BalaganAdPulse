@@ -45,7 +45,7 @@ The system SHALL let an agency member whose role may manage integrations connect
 
 ### Requirement: Idempotent advertising import
 
-The server SHALL import campaigns, ad sets, ads and daily spend, impressions, reach, clicks, conversions and revenue into the connected project using all result pages. The initial and subsequent imports SHALL refresh the last 30 completed days in the account's timezone. Daily metrics SHALL be requested separately at each hierarchy level to preserve non-additive reach. Conversions SHALL use Meta's aggregate `lead` action, and revenue SHALL use aggregate `purchase` action values, with missing values zero and no summation of overlapping aliases. Imported data MUST retain external identifiers. Currency mismatch with the project SHALL prevent import and be explained without silently converting amounts. The import SHALL NOT read or copy creatives; those are fetched when an ad's preview is first opened.
+The server SHALL import campaigns, ad sets, ads and daily spend, impressions, reach, clicks, conversions, results and revenue into the connected project using all result pages. The initial and subsequent imports SHALL refresh the last 30 completed days in the account's timezone. Daily metrics SHALL be requested separately at each hierarchy level to preserve non-additive reach. Conversions SHALL use Meta's aggregate `lead` action, and revenue SHALL use aggregate `purchase` action values, with missing values zero and no summation of overlapping aliases. Results SHALL use Meta's `results` field — the figure Ads Manager shows as Results, counted towards the goal each ad set is optimised for — summing the default-attribution value of every indicator the row reports, with a missing field zero and a fractional value rounded to the nearest whole result. Imported data MUST retain external identifiers. Currency mismatch with the project SHALL prevent import and be explained without silently converting amounts. The import SHALL NOT read or copy creatives; those are fetched when an ad's preview is first opened.
 
 #### Scenario: Repeat import
 - **WHEN** the same account is synchronized twice
@@ -63,6 +63,14 @@ The server SHALL import campaigns, ad sets, ads and daily spend, impressions, re
 #### Scenario: Creatives stay out of the import
 - **WHEN** an account is synchronized
 - **THEN** no creative is read or copied, and the hierarchy and metrics are imported on their own
+
+#### Scenario: Results follow the optimisation goal
+- **WHEN** a campaign optimised for replies reports 56 started conversations as its results and 2 `lead` actions for a day
+- **THEN** that day is imported with 56 results and 2 conversions
+
+#### Scenario: A day with no results
+- **WHEN** a row carries no `results` field
+- **THEN** the day is imported with zero results
 
 ### Requirement: Manual refresh and visible status
 
@@ -108,14 +116,15 @@ An authorized member SHALL be able to disconnect one account, delete its saved c
 
 Next to a project's integration panels, a member who may manage integrations SHALL find an
 add control drawn with a dashed border. Choosing it SHALL open a window listing Meta,
-Google, Yandex, TikTok and GPT. Meta and Google SHALL be selectable; the others SHALL be shown as
-not yet available. Choosing Meta SHALL open the Meta connection form for a new connection;
-choosing Google SHALL start connecting a Google Ads account.
+Google, Search Console, Yandex, TikTok and GPT. Meta, Google and Search Console SHALL be
+selectable; the others SHALL be shown as not yet available. Choosing Meta SHALL open the Meta
+connection form for a new connection; choosing Google SHALL start connecting a Google Ads
+account; choosing Search Console SHALL start connecting a Search Console site.
 A member who may not manage integrations SHALL see no add control.
 
 #### Scenario: Choosing a provider
 - **WHEN** an authorized member activates the add control
-- **THEN** a window lists Meta, Google, Yandex, TikTok and GPT, and Meta and Google can be chosen
+- **THEN** a window lists Meta, Google, Search Console, Yandex, TikTok and GPT, and Meta, Google and Search Console can be chosen
 
 #### Scenario: Connecting Meta from the window
 - **WHEN** the member chooses Meta
@@ -125,23 +134,31 @@ A member who may not manage integrations SHALL see no add control.
 - **WHEN** the member chooses Google
 - **THEN** Google sign-in starts for a new connection on this project
 
+#### Scenario: Connecting Search Console from the window
+- **WHEN** the member chooses Search Console
+- **THEN** Google sign-in for Search Console starts, and after it the member chooses one of the sites it reaches
+
 #### Scenario: No add control without the permission
 - **WHEN** a member without the integration permission opens a project
 - **THEN** no add control is shown
 
 ### Requirement: Campaigns are switched by connection in tabs
 
-When a project has a connection, campaigns imported from an advertising account or a KPI naming
-an account, tabs SHALL appear above the campaign table, one per account, named by its provider and
-account, and sized to their names rather than the table's width. There SHALL be no tab combining the
-accounts. The first account's tab SHALL be chosen when the project opens for the first time, and
-afterwards the account the member last chose on that project SHALL be chosen, also after the member
-returns from a campaign, as long as it is still one of the project's accounts. With more than one
-account, the chosen tab SHALL switch the project's one summary above to the figures of the campaigns
-imported from its account and to its KPIs, and the campaign table to only its campaigns, with a
-totals row of those campaigns; no other summary SHALL be added. With a single account its one tab
-SHALL be shown, the summary SHALL show the project, and the table SHALL list every campaign with
-their totals. With no account, no tabs SHALL be shown.
+When a project has a connection, campaigns imported from an advertising account, a KPI naming
+an account, or a connected site, tabs SHALL appear above the campaign table: one per account,
+named by its provider and account, and then one per connected site, named SEO · and the site.
+Tabs SHALL be sized to their names rather than the table's width. There SHALL be no tab
+combining the accounts. The first tab SHALL be chosen when the project opens for the first
+time, and afterwards the tab the member last chose on that project SHALL be chosen, also after
+the member returns from a campaign, as long as it is still one of the project's tabs. With more
+than one account, the chosen account's tab SHALL switch the project's one summary above to the
+figures of the campaigns imported from its account and to its KPIs, and the campaign table to
+only its campaigns, with a totals row of those campaigns; no other summary SHALL be added. With
+a single account its one tab SHALL be shown, the summary SHALL show the project, and the table
+SHALL list every campaign with their totals. Site tabs SHALL NOT count as accounts for these
+rules. Choosing a site's tab SHALL switch the summary above to the site's search tiles and
+replace the KPI strip, the running-only switch and the campaign table with the site's SEO view.
+With no account and no site, no tabs SHALL be shown.
 
 #### Scenario: Two accounts
 - **WHEN** a member opens a project whose campaigns come from two Meta accounts
@@ -175,28 +192,37 @@ their totals. With no account, no tabs SHALL be shown.
 - **WHEN** a project has no connection, no imported campaigns and no KPI naming an account
 - **THEN** no tabs are shown
 
+#### Scenario: An account and a site
+- **WHEN** a project has one Meta account and the connected site site.ru
+- **THEN** tabs Meta · account and SEO · site.ru are shown, and the Meta tab's summary shows the project
+
+#### Scenario: Choosing the site
+- **WHEN** the member chooses SEO · site.ru
+- **THEN** the summary shows the site's search tiles, the campaign table gives way to the site's SEO view, and the tab is still chosen when the member comes back to the project
+
 ### Requirement: Providers are shown as tiles with their logos
 The window that adds an integration SHALL show each provider as a square tile holding the
 provider's logo above its name, laid out in a grid. Meta SHALL carry the Meta logo, Google the
-Google Ads logo, TikTok the TikTok logo; Yandex SHALL carry a Я mark and GPT a neutral icon
-until official marks are added. A tile's accessible name SHALL be the provider's name, the
-logo SHALL be hidden from assistive technology, and a provider not yet available SHALL keep
-its tile, disabled and marked Скоро. Logos SHALL be part of the application, so opening the
-window makes no request to another host.
+Google Ads logo, Search Console the Search Console logo, TikTok the TikTok logo; Yandex SHALL
+carry a Я mark and GPT a neutral icon until official marks are added. A tile's accessible name
+SHALL be the provider's name, the logo SHALL be hidden from assistive technology, and a provider
+not yet available SHALL keep its tile, disabled and marked Скоро. Logos SHALL be part of the
+application, so opening the window makes no request to another host.
 
 #### Scenario: Recognising a provider
 - **WHEN** an authorized member opens the window for adding an integration
-- **THEN** Meta, Google, Yandex, TikTok and GPT appear as square tiles, each with its logo above its name
+- **THEN** Meta, Google, Search Console, Yandex, TikTok and GPT appear as square tiles, each with its logo above its name
 
 #### Scenario: A provider not yet available
 - **WHEN** the window is open
 - **THEN** the TikTok tile shows its logo, says Скоро and cannot be chosen
 
 ### Requirement: Connection panels are titled by logo and product
-Each connection's panel SHALL be titled by its provider's logo followed by the advertising
-product's name: the Meta logo and Facebook Ads for a Meta connection, the Google Ads logo and
-Google Ads for a Google connection. The logo SHALL be hidden from assistive technology, so the
-panel and its heading are named by the product alone.
+Each connection's panel SHALL be titled by its provider's logo followed by the product's
+name: the Meta logo and Facebook Ads for a Meta connection, the Google Ads logo and
+Google Ads for a Google connection, the Search Console logo and Google Search Console for a
+site connection. The logo SHALL be hidden from assistive technology, so the panel and its
+heading are named by the product alone.
 
 #### Scenario: A Meta connection
 - **WHEN** a member who manages integrations opens a project with a Meta connection
@@ -205,3 +231,20 @@ panel and its heading are named by the product alone.
 #### Scenario: A Google connection
 - **WHEN** the project also has a Google connection
 - **THEN** that panel is titled by the Google Ads logo and Google Ads
+
+#### Scenario: A site connection
+- **WHEN** the project also has a connected site
+- **THEN** that panel is titled by the Search Console logo and Google Search Console
+
+### Requirement: The connections block is titled
+A project page's block of advertising connections SHALL open with a second-level heading,
+Интеграции, styled like the other section titles of the page. The heading SHALL be shown
+exactly when the block is: a member who may not manage integrations sees neither.
+
+#### Scenario: A member who manages integrations
+- **WHEN** a manager opens a project page
+- **THEN** the connections and the control to add one sit under the heading Интеграции
+
+#### Scenario: A guest
+- **WHEN** a guest opens a project page
+- **THEN** no Интеграции heading is shown

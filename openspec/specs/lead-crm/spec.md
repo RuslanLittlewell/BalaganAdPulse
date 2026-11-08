@@ -7,19 +7,23 @@ Track prospects, their contact details and acquisition sources through one sales
 ## Requirements
 
 ### Requirement: Lead identity contacts and acquisition source
-A lead SHALL have a required nonblank name and optional company, phone, email, website, Telegram, messenger, service, source, plain-text notes, deal amount and tags. Name and company SHALL be limited to 200 characters, phone to 50, email to 254, website to 2048, Telegram and messenger to 100, service and source to 200, and notes to 10000. Supplied email SHALL be syntactically valid and website SHALL use HTTP or HTTPS. Empty optional strings SHALL normalize to absence. Source SHALL be manually entered text. A lead SHALL be either created by a member or imported from a Meta integration; creating a lead by hand SHALL NOT require any integration. Absent source text SHALL display the imported origin for an imported lead and Не указан otherwise. Duplicate contacts SHALL be allowed, including between imported and hand-made leads.
+A lead SHALL have a required nonblank name and an optional contact (a person), organization, service, source, plain-text notes, deal amount and tags. Name SHALL be limited to 200 characters, service and source to 200, and notes to 10000. The contact and the organization SHALL belong to the client of the lead's board; a request naming a record of another client SHALL be refused with 400. The lead SHALL NOT hold its own company, phone, email, website, Telegram or messenger; a request naming one of them SHALL be refused with 400. A lead request MAY carry contact values (phone, email, Telegram, messenger) and an organization website: they SHALL be applied to the linked contact or organization under that record's rules, and when the lead has none, a contact or organization named after the lead SHALL be created, linked and given the value in the same transaction. Empty optional strings SHALL normalize to absence. Source SHALL be manually entered text. A lead SHALL be either created by a member or imported from a Meta integration; creating a lead by hand SHALL NOT require any integration. Absent source text SHALL display the imported origin for an imported lead and Не указан otherwise. Several leads SHALL be allowed to share one contact or organization.
 
 #### Scenario: Minimal lead
 - **WHEN** a member creates a lead with only a name
-- **THEN** it is saved with no invented contact or source values, no amount and no tags
+- **THEN** it is saved with no contact, no organization, no source values, no amount and no tags
 
 #### Scenario: Contact round trip
-- **WHEN** a member saves a lead's contact details, company, Telegram, messenger, service, source and notes and reopens it
-- **THEN** all supplied values are shown and remain editable by authorized members
+- **WHEN** a member links a lead to the contact Анна, sets Анна's phone through the lead, and reopens the lead
+- **THEN** the lead shows Анна with that phone, and Анна's record holds the phone
+
+#### Scenario: A phone on a lead without a contact
+- **WHEN** a member enters a phone for the lead Леонид, which has no contact
+- **THEN** a contact Леонид holding that phone is created and linked to the lead
 
 #### Scenario: Invalid input
-- **WHEN** a name is blank, a field exceeds its limit, or a supplied email or website is invalid
-- **THEN** the API returns 400 and the form retains entered values with validation feedback
+- **WHEN** a name is blank, a field exceeds its limit, a contact email or organization website is invalid, or a request names the old field `phone`
+- **THEN** the API returns 400 and nothing changes
 
 #### Scenario: Source of a hand-made lead left blank
 - **WHEN** a member creates a lead without source text
@@ -80,14 +84,14 @@ Each successful lead or column mutation by a member SHALL record its actor, boar
 - **THEN** the card appears without a manual reload and no audit event names a member as its creator
 
 ### Requirement: Imported leads show where they came from
-A lead that arrived through an integration SHALL offer, in its side panel, a Доп. информация tab holding everything the integration delivered, read-only: the channel Meta and the ad account identifier; the form identifier; the campaign, ad set and ad names recorded at import; the moment the prospect submitted the form; and every kept form answer in form order, with a notice when answers were omitted. When the lead is linked to an ad the member can reach, the tab SHALL offer that ad's creative preview. A lead created by a member SHALL offer no such tab.
+A lead that arrived through an integration SHALL offer, in its side panel, a Информация tab holding everything the integration delivered, read-only: the channel Meta and the ad account identifier; the form identifier; the campaign, ad set and ad names recorded at import; the moment the prospect submitted the form; and every kept form answer in form order, with a notice when answers were omitted. When the lead is linked to an ad the member can reach, the tab SHALL offer that ad's creative preview. A lead created by a member SHALL offer no such tab.
 
 The board card SHALL NOT name the Meta campaign an imported lead came from.
 
 The integration's data SHALL be visible to every member who can read the board and SHALL NOT be writable through the interface or the lead API; contacts, notes and stage of an imported lead SHALL remain editable under the existing permissions.
 
 #### Scenario: Opening an imported lead
-- **WHEN** a member opens a lead imported from Meta and chooses Доп. информация
+- **WHEN** a member opens a lead imported from Meta and chooses Информация
 - **THEN** the tab shows the account, form, campaign, ad set, ad, submission time and answers without editing controls for them
 
 #### Scenario: Viewing the creative
@@ -100,7 +104,7 @@ The integration's data SHALL be visible to every member who can read the board a
 
 #### Scenario: Manual lead
 - **WHEN** a member opens a lead they created by hand
-- **THEN** no Доп. информация tab is offered
+- **THEN** no Информация tab is offered
 
 #### Scenario: Editing an imported lead's contacts
 - **WHEN** an authorized member corrects the phone of an imported lead
@@ -134,10 +138,10 @@ The API SHALL report, for an inclusive `from`/`to` range of calendar days, how m
 - **THEN** the API responds 400
 
 ### Requirement: The dashboard project table offers CRM stage columns
-The dashboard's project table column chooser SHALL offer the columns Лид (Новый), Лид (Квалифицированный), Лид (Целевой) and Лид (КП) after the advertising figures. They SHALL be hidden until a member turns them on, and the member's choice SHALL be remembered with the table's other visible columns. Each cell SHALL show the period lead count of that project and stage for the dashboard's selected period, and 0 when there are none. Changing the period SHALL update the counts. The project page's campaign table and the campaign page's tables SHALL NOT offer these columns.
+The dashboard's project table column chooser SHALL offer the columns Лид (Новый), Квал. лид, Целевой лид and КП, counting the fixed stages `NEW`, `QUALIFIED`, `TARGET` and `PROPOSAL` in that order, after the advertising figures. They SHALL be hidden until a member turns them on, and the member's choice SHALL be remembered with the table's other visible columns. A choice saved while the columns were named Лид (Квалифицированный), Лид (Целевой) and Лид (КП) SHALL keep applying to Квал. лид, Целевой лид and КП. Each cell SHALL show the period lead count of that project and stage for the dashboard's selected period, and 0 when there are none. Changing the period SHALL update the counts.
 
 #### Scenario: Turning a stage column on
-- **WHEN** a member turns on Лид (Целевой) in the dashboard project table
+- **WHEN** a member turns on Целевой лид in the dashboard project table
 - **THEN** each project row shows how many of its leads that arrived in the selected period are now in Целевой
 
 #### Scenario: Hidden by default
@@ -145,12 +149,16 @@ The dashboard's project table column chooser SHALL offer the columns Лид (Н�
 - **THEN** the four CRM stage columns are offered in the column chooser but not shown
 
 #### Scenario: Remembered choice
-- **WHEN** a member turns on Лид (КП) and later returns to the dashboard
-- **THEN** the Лид (КП) column is still shown
+- **WHEN** a member turns on КП and later returns to the dashboard
+- **THEN** the КП column is still shown
+
+#### Scenario: A choice saved under the earlier names
+- **WHEN** a member turned on Лид (Целевой) before the columns were renamed and opens the dashboard afterwards
+- **THEN** the Целевой лид column is shown
 
 #### Scenario: Other tables
 - **WHEN** a member opens the column chooser of a project's campaign table
-- **THEN** no CRM stage columns are offered
+- **THEN** Квал. лид, Целевой лид and КП are offered and Лид (Новый) is not
 
 ### Requirement: Four fixed stages and the board's own columns, in either order
 
@@ -407,3 +415,69 @@ A lead created through + Новый or Создать SHALL raise the success al
 #### Scenario: A refused create
 - **WHEN** creating a lead is refused
 - **THEN** the error is shown and Лид создан is not
+
+### Requirement: Period lead counts per campaign, ad set and ad
+The API SHALL report, for one project's board and an inclusive `from`/`to` range of calendar days, how many of that project's leads arrived within the range and are currently in each fixed stage `NEW`, `QUALIFIED`, `TARGET` and `PROPOSAL`, grouped three ways: by the campaign the lead names, by the ad set of the ad the lead names, and by that ad. Arrival time, UTC calendar days and the exclusion of leads in custom columns SHALL follow the period lead counts per project. A lead that names no campaign SHALL count in no campaign. A lead that names no ad SHALL count in no ad set and no ad, and SHALL still count for the campaign it names. Only campaigns, ad sets and ads with at least one counted lead SHALL be listed. A board the member cannot reach SHALL answer 404, and so SHALL every request while the organization's CRM module is off. Responses SHALL carry ids and counts only, never lead contact data. A missing, malformed or reversed range SHALL return 400.
+
+#### Scenario: Counting by campaign, ad set and ad
+- **WHEN** in the range campaign Весна brought one lead through ad Видео 1 of ad set Москва that is now in Целевой, and one lead naming Весна but no ad that is still in Новый
+- **THEN** Весна counts one `TARGET` and one `NEW`, Москва and Видео 1 each count one `TARGET` and no `NEW`, and every other stage is zero
+
+#### Scenario: A lead created by hand
+- **WHEN** a member created a lead in the range on the board, named no campaign and moved it to КП
+- **THEN** no campaign, ad set or ad counts it
+
+#### Scenario: Leads the project counts leave out
+- **WHEN** a lead of campaign Весна sits in a custom column, or arrived the day after the range ends
+- **THEN** Весна does not count it
+
+#### Scenario: A Meta lead imported after the range
+- **WHEN** a lead of campaign Весна was submitted on the last day of the range and imported the next day
+- **THEN** Весна counts it
+
+#### Scenario: Another project's board
+- **WHEN** a member whose grant covers only project A requests the counts of project B's board
+- **THEN** the API responds 404
+
+#### Scenario: CRM module off
+- **WHEN** a member of an organization whose CRM module is off requests the counts
+- **THEN** the API responds 404
+
+#### Scenario: Invalid range
+- **WHEN** a request omits `from`, uses a malformed day or sets `from` after `to`
+- **THEN** the API responds 400
+
+### Requirement: The campaign tables offer CRM stage columns
+The column chooser of a project's campaign table and of a campaign's ad set table SHALL offer the columns Квал. лид, Целевой лид and КП, counting the fixed stages `QUALIFIED`, `TARGET` and `PROPOSAL`, after the table's advertising and result figures. They SHALL NOT offer a column for `NEW`. The columns SHALL be hidden until a member turns them on, and the member's choice SHALL be remembered with the table's other columns, for each advertising account apart as the rest of the table's layout is. Each campaign row SHALL show the period lead counts of that campaign, each ad set row those of the ad set and each ad row those of the ad, for the selected period, and 0 when there are none. The campaign table's totals row SHALL show the sum of the campaigns it lists. Changing the period SHALL update the counts. While the organization's CRM module is off, neither table SHALL offer these columns.
+
+#### Scenario: Turning a stage column on in the campaign table
+- **WHEN** a member turns on Квал. лид in a project's campaign table and campaign Весна has two leads that arrived in the selected period and are now in Квалифицированный
+- **THEN** Весна's row shows 2 under Квал. лид
+
+#### Scenario: Ad set and ad rows
+- **WHEN** a member turns on Целевой лид on campaign Весна's page, and ad Видео 1 of ad set Москва brought one lead in the selected period that is now in Целевой
+- **THEN** Москва's row shows 1 under Целевой лид, and so does Видео 1's row once Москва is expanded
+
+#### Scenario: The totals row
+- **WHEN** the campaign table lists two campaigns showing 2 and 3 under КП
+- **THEN** the totals row shows 5 under КП
+
+#### Scenario: A lead created by hand
+- **WHEN** a project's only lead in КП was created by hand on its board
+- **THEN** every campaign row and the totals row show 0 under КП
+
+#### Scenario: Hidden by default
+- **WHEN** a member who never changed a campaign table's columns opens it
+- **THEN** Квал. лид, Целевой лид and КП are offered in the column chooser but not shown, and no column for Новый is offered
+
+#### Scenario: CRM module off
+- **WHEN** a member of an organization whose CRM module is off opens a campaign table's column chooser
+- **THEN** no CRM stage column is offered
+
+### Requirement: Leads are created in a side panel
+
+The header's Добавить лид and every board column's add control SHALL open a side panel. The panel SHALL ask for the lead's name and offer the editable deal, contact, organization, description and board custom fields. A column add control SHALL preselect that column as the stage. A member SHALL be able to choose existing contact and organization records, or enter contact values that the lead API applies to a new record. Submitting valid values SHALL create one lead and open its record panel. A failed save SHALL keep the draft and show the reason. Closing the creation panel SHALL create nothing.
+
+#### Scenario: Adding from a column
+- **WHEN** a member starts a lead in Целевой, enters its name and amount, and submits the side panel
+- **THEN** the lead is created in Целевой with that amount and its record panel opens

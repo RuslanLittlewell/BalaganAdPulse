@@ -70,9 +70,12 @@ export { DUE_SOON_DAYS, dueSoon } from "./lib/due.js";
 export type { DueTask, DueWhen } from "./lib/due.js";
 export { inZone, localTask, occurrencesIn, viewerTimeZone } from "./lib/zone.js";
 export type { Occurrence } from "./lib/zone.js";
+export { MAX_TASK_DOCUMENT_BYTES, MAX_TASK_DOCUMENTS, documentRefusal, documentSize } from "./lib/documents.js";
+export type { DocumentRefusal } from "./lib/documents.js";
 export { MAX_TASK_IMAGE_BYTES, TASK_IMAGE_TYPES, imageRefusal } from "./lib/images.js";
 export type { ImageRefusal } from "./lib/images.js";
-export { taskCommentsApi } from "./api/api.js";
+export { taskCommentsApi, taskDocumentsApi } from "./api/api.js";
+export type { TaskDocument, UploadedTaskDocument } from "./api/api.js";
 export type { TaskComment, TaskCommentInput, TaskParticipant } from "./api/api.js";
 export {
   taskCommentsKey, useAddTaskComment, useDeleteTaskComment, useEditTaskComment, useTaskComments, useTaskParticipants,

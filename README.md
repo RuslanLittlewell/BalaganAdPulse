@@ -790,9 +790,12 @@ ports, fixed clocks and deterministic identifiers.
 | GET | `/tasks/:id` | Single task | 200 |
 | PATCH | `/tasks/:id` | Partial update | 200 |
 | POST | `/tasks/:id/move` | Where a drag landed: `{ column, position }` | 200 |
-| DELETE | `/tasks/:id` | Delete, with its images | 204 |
+| DELETE | `/tasks/:id` | Delete, with its images and documents | 204 |
 | POST | `/task-images` | Upload one image pasted or dropped into a description | 201 |
 | GET | `/task-images/:id` | The bytes, to whoever may read the task | 200 |
+| POST | `/task-documents` | Upload one PDF (multipart field `file`, at most 20 MB); attach it by listing its id in `documentIds` when creating or saving a task, up to 10 per task | 201 |
+| GET | `/task-documents/:id` | The PDF with its original file name, to whoever may read the task; an unattached upload only to its uploader | 200 |
+| DELETE | `/task-documents/:id` | Remove a document and its stored file | 204 |
 | GET | `/projects/:id/campaigns` | A project's campaigns, each with its figures | 200 |
 | GET | `/projects/:id/summary` | The project's figures, summed | 200 |
 | GET | `/projects/:id/daily` | The project's measured days | 200 |

@@ -3,6 +3,7 @@ import { AppError } from "#shared/domain/index.js";
 import type { TaskUseCases } from "#modules/tasks/application/task-use-cases.js";
 import type { TaskCommentUseCases } from "#modules/tasks/application/task-comment-use-cases.js";
 import type { TaskImageUseCases } from "#modules/tasks/application/task-image-use-cases.js";
+import type { TaskDocumentUseCases } from "#modules/tasks/application/task-document-use-cases.js";
 import {
   addTaskCommentSchema, createTaskSchema, moveTaskSchema, taskFilterSchema, updateTaskSchema,
 } from "./task-schemas.js";
@@ -85,6 +86,41 @@ export function createTaskImageRouter(
     res.setHeader("Content-Type", image.contentType);
     res.setHeader("Cache-Control", "private, max-age=3600");
     res.send(Buffer.from(image.body));
+  }));
+
+  router.delete("/:id", handle(async (req: Request<{ id: string }>, res) => {
+    await useCases.remove(actorOf(req), req.params.id);
+    res.status(204).end();
+  }));
+
+  return router;
+}
+
+function attachmentName(name: string): string {
+  const ascii = name.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_");
+  return `inline; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`;
+}
+
+export function createTaskDocumentRouter(
+  useCases: TaskDocumentUseCases,
+  upload: RequestHandler,
+): Router {
+  const router = Router();
+
+  router.post("/", upload, handle(async (req, res) => {
+    if (!req.file) throw new AppError("validation", "A PDF file is required");
+    const name = Buffer.from(req.file.originalname, "latin1").toString("utf8");
+    const { storageKey: _storageKey, ...document } = await useCases.upload(actorOf(req), { bytes: req.file.buffer, name });
+    res.status(201).json(document);
+  }));
+
+  router.get("/:id", handle(async (req: Request<{ id: string }>, res) => {
+    const document = await useCases.read(actorOf(req), req.params.id);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", attachmentName(document.name));
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    res.send(Buffer.from(document.body));
   }));
 
   router.delete("/:id", handle(async (req: Request<{ id: string }>, res) => {

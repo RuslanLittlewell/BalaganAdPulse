@@ -42,13 +42,13 @@ CRM covers `/api/crm`. Tasks covers `/api/tasks` and `/api/task-images`. Reports
 
 ### Requirement: The module set can be changed after creation
 
-The platform administrator SHALL be able to add and remove optional modules of an
-existing organization. A change SHALL apply to the organization's next request. Removing a
-module SHALL hide it without deleting its data; adding it back SHALL restore access to
-that data unchanged.
+The enabled optional modules of an organization SHALL derive from its tariff. The
+platform administrator SHALL change them by changing the tariff. A change SHALL apply to
+the organization's next request. Removing a module through a tariff change SHALL hide it
+without deleting its data; restoring it SHALL restore access to that data unchanged.
 
 #### Scenario: Remove then restore
-- **WHEN** Reports is removed from an organization and added again later
+- **WHEN** Reports is removed from an organization by a tariff change and added again later by another
 - **THEN** the organization's earlier reports are available again
 
 ### Requirement: The session names the enabled modules
@@ -59,12 +59,3 @@ that data unchanged.
 #### Scenario: Member session
 - **WHEN** a member of an organization with only Tasks optional calls `GET /api/auth/me`
 - **THEN** the modules are `DASHBOARD`, `PROJECTS` and `TASKS`
-
-### Requirement: Existing organizations keep every module
-
-Organizations that exist when this capability is introduced SHALL have CRM, Tasks and
-Reports enabled.
-
-#### Scenario: Balagan after migration
-- **WHEN** the migration has run against the production data
-- **THEN** Balagan's members see every module they saw before

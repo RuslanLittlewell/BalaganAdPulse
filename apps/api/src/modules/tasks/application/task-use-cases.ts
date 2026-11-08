@@ -10,6 +10,7 @@ import {
   type TaskPriority,
 } from "../domain/board.js";
 import { collectImageIds } from "../domain/description.js";
+import { assertRoomForDocuments } from "../domain/document.js";
 import {
   MINUTES_PER_DAY,
   UNSCHEDULED,
@@ -41,6 +42,7 @@ export interface CreateTaskInput {
   readonly skipWeekends?: boolean;
   readonly timeZone?: string;
   readonly checklist?: readonly { title: string; done?: boolean }[];
+  readonly documentIds?: readonly string[];
 }
 
 export interface MoveTaskInput {
@@ -53,6 +55,17 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
     if (!can(actor, "read", "task")) {
       throw new AppError("forbidden", "Tasks are the agency's internal work");
     }
+  };
+
+  const assertDocumentRoom = async (
+    actor: ActorContext,
+    taskId: string | null,
+    documentIds: readonly string[] | undefined,
+  ) => {
+    if (!documentIds || documentIds.length === 0) return;
+    const claimable = await dependencies.documents.unclaimedOf(actor.membershipId, documentIds);
+    const held = taskId === null ? 0 : await dependencies.documents.countForTask(taskId);
+    assertRoomForDocuments(held, claimable.length);
   };
 
   const assertCan = (actor: ActorContext, action: "create" | "update" | "delete") => {
@@ -208,6 +221,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
       const checklist = (input.checklist ?? []).map((item) => ({
         id: dependencies.ids.generate(), title: item.title.trim(), done: item.done ?? false,
       }));
+      await assertDocumentRoom(actor, null, input.documentIds);
       const created = await dependencies.unitOfWork.run(async (transaction) => {
         const task = await dependencies.tasks.create(transaction, {
           id: dependencies.ids.generate(),
@@ -228,12 +242,15 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
         const imageIds = await dependencies.images.claim(
           transaction, task.id, actor.membershipId, collectImageIds(task.description),
         );
+        const documents = await dependencies.documents.claim(
+          transaction, task.id, actor.membershipId, input.documentIds ?? [],
+        );
         await record(task, transaction, {
           action: "CREATE", entityType: "task", entityId: task.id,
           clientId: context.clientId, projectId: task.projectId,
           summary: `Created task “${task.title}”`,
         }, actor);
-        return { ...task, imageIds };
+        return { ...task, imageIds, documents };
       });
       dependencies.events.publish(taskCreated(created));
       dependencies.notices.named(created, created.participantIds, actor);
@@ -265,8 +282,9 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
         id: dependencies.ids.generate(), title: item.title.trim(), done: item.done ?? false,
       }));
 
+      await assertDocumentRoom(actor, id, input.documentIds);
       const updated = await dependencies.unitOfWork.run(async (transaction) => {
-        const { checklist: _given, ...fields } = input;
+        const { checklist: _given, documentIds: _attached, ...fields } = input;
         const changed = await dependencies.tasks.update(transaction, id, {
           ...fields,
           ...schedule,
@@ -280,12 +298,15 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
           : await dependencies.images.claim(
               transaction, id, actor.membershipId, collectImageIds(withChecklist.description),
             );
+        const documents = input.documentIds === undefined
+          ? withChecklist.documents
+          : await dependencies.documents.claim(transaction, id, actor.membershipId, input.documentIds);
         await record(task, transaction, {
           action: "UPDATE", entityType: "task", entityId: id,
           clientId: context.clientId, projectId: withChecklist.projectId,
           summary: `Updated task “${withChecklist.title}”`,
         }, actor);
-        return { ...withChecklist, imageIds };
+        return { ...withChecklist, imageIds, documents };
       });
       dependencies.events.publish(taskUpdated(updated));
       const newcomers = updated.participantIds.filter((id) => !task.participantIds.includes(id));
@@ -300,6 +321,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
       const context = await projectContext(actor, task.projectId);
 
       const images = await dependencies.images.listForTask(id);
+      const documents = await dependencies.documents.listForTask(id);
 
       await dependencies.unitOfWork.run(async (transaction) => {
         await dependencies.tasks.delete(transaction, id);
@@ -314,7 +336,10 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
         }, actor);
       });
 
-      await dependencies.imageStorage.remove(images.map((image) => image.storageKey));
+      await dependencies.imageStorage.remove([
+        ...images.map((image) => image.storageKey),
+        ...documents.map((document) => document.storageKey),
+      ]);
       dependencies.events.publish(taskDeleted(task));
     },
 

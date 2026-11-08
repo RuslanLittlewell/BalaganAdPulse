@@ -10,7 +10,7 @@ view is read-only navigation, not a place to drag work around.
 
 ### Requirement: CRM offers a board and a calendar
 
-The CRM screen SHALL offer two layouts of the selected board's leads, `Канбан` and `Календарь`, chosen under Раскладка in the view bar's Настройки. Exactly one SHALL be shown at a time, and the menu SHALL show which one is selected. The calendar SHALL show only leads that pass the view bar's search and filters, and SHALL open a lead in the side panel.
+The CRM screen SHALL offer three layouts of the selected board's leads, `Канбан`, `Календарь` and `Таблица`, chosen under Раскладка in the view bar's Настройки. Exactly one SHALL be shown at a time, and the menu SHALL show which one is selected. The calendar SHALL show only leads that pass the view bar's search and filters, and SHALL open a lead in the side panel.
 
 The chosen layout SHALL be remembered for that person in that browser and SHALL be the layout they return to, independently of which board is selected. A person who has never chosen SHALL see the board.
 

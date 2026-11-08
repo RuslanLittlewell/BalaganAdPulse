@@ -45,6 +45,7 @@ import {
   useMoveTask,
   useUpdateTask,
   type Task,
+  type TaskDocument,
   type TaskColumn,
   type TaskInput,
   type TaskRepeat,
@@ -58,6 +59,7 @@ import {
 import { useChecklistDraft } from "../model/useChecklistDraft.js";
 import { useTaskChange } from "../model/useTaskChange.js";
 import { TaskAttachments } from "./TaskAttachments.js";
+import { TaskDocuments } from "./TaskDocuments.js";
 import {
   TaskDescriptionEditor,
   type TaskDescriptionEditorHandle,
@@ -197,6 +199,15 @@ export function TaskFormDialog({
       ...new Set([...(task?.imageIds ?? []), ...collectImageIds(description)]),
     ],
     [task?.imageIds, description],
+  );
+  const [uploadedDocuments, setUploadedDocuments] = useState<readonly TaskDocument[]>([]);
+  const [removedDocuments, setRemovedDocuments] = useState<readonly string[]>([]);
+  const documents = useMemo(
+    () => [
+      ...(task?.documents ?? []).filter((document) => !removedDocuments.includes(document.id)),
+      ...uploadedDocuments.filter((document) => !removedDocuments.includes(document.id)),
+    ],
+    [task?.documents, uploadedDocuments, removedDocuments],
   );
   const { raise } = useAlerts();
   const editor = useRef<TaskDescriptionEditorHandle>(null);
@@ -368,6 +379,9 @@ export function TaskFormDialog({
         done: item.done,
       })),
       description,
+      ...(uploadedDocuments.length > 0
+        ? { documentIds: uploadedDocuments.filter((document) => !removedDocuments.includes(document.id)).map((document) => document.id) }
+        : {}),
       ...(task ? {} : creationColumn(values.column)),
       ...(movesTasks ? { participantIds: values.participantIds } : {}),
     };
@@ -581,6 +595,16 @@ export function TaskFormDialog({
                     imageIds={attachmentIds}
                     onRemoved={(imageId) => editor.current?.removeImage(imageId)}
                     onAttach={(imageId) => editor.current?.appendImage(imageId)}
+                  />
+                )}
+
+                {readOnly ? (
+                  documents.length > 0 ? <TaskDocuments documents={documents} /> : null
+                ) : (
+                  <TaskDocuments
+                    documents={documents}
+                    onUploaded={(document) => setUploadedDocuments((current) => [...current, document])}
+                    onRemoved={(documentId) => setRemovedDocuments((current) => [...current, documentId])}
                   />
                 )}
 

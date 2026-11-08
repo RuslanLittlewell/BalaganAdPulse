@@ -73,6 +73,7 @@ export interface ApiContainer {
   readonly summaryRouter: Router;
   readonly taskRouter: Router;
   readonly taskImageRouter: Router;
+  readonly taskDocumentRouter: Router;
   readonly notificationRouter: Router;
   readonly closeNotificationStreams: () => void;
   readonly dueSoonWorker: DueSoonWorker;
@@ -169,6 +170,7 @@ export function createContainer(): ApiContainer {
 
     taskRouter: tasks.taskRouter,
     taskImageRouter: tasks.taskImageRouter,
+    taskDocumentRouter: tasks.taskDocumentRouter,
 
     notificationRouter: notices.notificationRouter,
     closeNotificationStreams: notices.closeNotificationStreams,

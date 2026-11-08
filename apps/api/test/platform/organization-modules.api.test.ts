@@ -24,6 +24,7 @@ const GUARDED: ReadonlyArray<readonly [OptionalModule, string, (projectId: strin
   ["CRM", "GET", () => "/api/crm/boards"],
   ["TASKS", "GET", () => "/api/tasks"],
   ["TASKS", "POST", () => "/api/task-images"],
+  ["TASKS", "POST", () => "/api/task-documents"],
   ["REPORTS", "GET", () => "/api/reports"],
   ["REPORTS", "GET", (projectId) => `/api/projects/${projectId}/reports`],
 ];

@@ -1,5 +1,5 @@
-import { t } from "@/shared/config/index.js";
-import type { SeoMetric, SeoRating } from "@/entities/seo/index.js";
+import { ru, t, type MessageKey } from "@/shared/config/index.js";
+import type { SeoRating } from "@/entities/seo/index.js";
 
 const NBSP = " ";
 
@@ -19,10 +19,18 @@ export function milliseconds(value: number): string {
   return value >= 1000 ? `${decimal(value / 1000, 1)}${NBSP}${t("seo.unit.seconds")}` : `${Math.round(value)}${NBSP}${t("seo.unit.ms")}`;
 }
 
-export function metricValue(metric: SeoMetric, p75: number): string {
-  if (metric === "CLS") return decimal(p75, 2);
-  if (metric === "INP") return `${Math.round(p75)}${NBSP}${t("seo.unit.ms")}`;
-  return milliseconds(p75);
+const LAB_THRESHOLDS = {
+  lcpMs: [2500, 4000],
+  cls: [0.1, 0.25],
+  tbtMs: [200, 600],
+  fcpMs: [1800, 3000],
+  speedIndexMs: [3400, 5800],
+} as const;
+
+export function rateLab(metric: keyof typeof LAB_THRESHOLDS, value: number): SeoRating {
+  const [good, poor] = LAB_THRESHOLDS[metric];
+  if (value <= good) return "GOOD";
+  return value <= poor ? "NEEDS_IMPROVEMENT" : "POOR";
 }
 
 export const RATING_TEXT: Record<SeoRating, string> = {
@@ -31,12 +39,18 @@ export const RATING_TEXT: Record<SeoRating, string> = {
   POOR: "text-red-600 dark:text-red-400",
 };
 
-export const RATING_FILL: Record<SeoRating, string> = {
-  GOOD: "bg-emerald-500",
-  NEEDS_IMPROVEMENT: "bg-amber-500",
-  POOR: "bg-red-500",
-};
-
 export function shortDate(iso: string): string {
   return new Date(`${iso}T00:00:00Z`).toLocaleDateString("ru-RU", { day: "numeric", month: "long", timeZone: "UTC" });
+}
+
+export function channelName(channel: string): string {
+  const key = `seo.channel.${channel}`;
+  return key in ru ? t(key as MessageKey) : channel;
+}
+
+export function change(current: number, previous: number): { text: string; trend: "up" | "down" | "same" } | null {
+  if (previous === 0) return current > 0 ? { text: t("seo.traffic.new"), trend: "same" } : null;
+  const ratio = (current - previous) / previous;
+  const text = `${ratio > 0 ? "+" : ratio < 0 ? "−" : ""}${decimal(Math.abs(ratio) * 100, 1)}%`;
+  return { text, trend: ratio > 0 ? "up" : ratio < 0 ? "down" : "same" };
 }

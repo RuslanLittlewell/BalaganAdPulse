@@ -2,7 +2,7 @@ import { prisma } from "#shared/infrastructure/prisma.js";
 import { config } from "#shared/infrastructure/config.js";
 import { ProviderError } from "#modules/integrations/domain/integration.js";
 import { AesCredentialCipher } from "#modules/integrations/infrastructure/credential-cipher.js";
-import { GoogleOAuth, SEARCH_CONSOLE_SCOPE } from "#modules/integrations/infrastructure/google-oauth.js";
+import { ANALYTICS_SCOPE, GoogleOAuth, SEARCH_CONSOLE_SCOPE } from "#modules/integrations/infrastructure/google-oauth.js";
 import { PrismaGoogleAuthorizations } from "#modules/integrations/infrastructure/prisma-google-authorizations.js";
 import {
   createPageCheck,
@@ -11,15 +11,19 @@ import {
   createSeoRouter,
   createSeoWorker,
   createSiteUseCases,
+  createTrafficImport,
+  createTrafficUseCases,
   SeoProviderError,
   type SeoErrorCode,
 } from "#modules/seo/index.js";
+import { AnalyticsClient } from "#modules/seo/infrastructure/analytics-client.js";
 import { ChromeUxClient } from "#modules/seo/infrastructure/chrome-ux-client.js";
 import { FetchedOrigins } from "#modules/seo/infrastructure/fetched-origins.js";
 import { HtmlPageParser, XmlSitemapParser } from "#modules/seo/infrastructure/page-reader.js";
 import { PageSpeedClient } from "#modules/seo/infrastructure/page-speed-client.js";
 import { PrismaCheckJobs } from "#modules/seo/infrastructure/prisma-check-jobs.js";
 import { PrismaImportJobs } from "#modules/seo/infrastructure/prisma-import-jobs.js";
+import { PrismaTrafficJobs } from "#modules/seo/infrastructure/prisma-traffic-jobs.js";
 import { PrismaSeoReads } from "#modules/seo/infrastructure/prisma-seo-reads.js";
 import { PrismaSiteRepository } from "#modules/seo/infrastructure/prisma-site-repository.js";
 import { SafeFetcher } from "#modules/seo/infrastructure/safe-fetcher.js";
@@ -68,7 +72,13 @@ export function wireSeo(
   const oauth = config.googleAds ? new GoogleOAuth(config.googleAds) : null;
   const console = oauth
     ? new SearchConsoleClient({
-        consentUrl: (state) => oauth.authorizeUrl(state, SEARCH_CONSOLE_SCOPE),
+        consentUrl: (state) => oauth.authorizeUrl(state, `${SEARCH_CONSOLE_SCOPE} ${ANALYTICS_SCOPE}`),
+        accessToken: (refreshToken, signal) => translated(() => oauth.accessToken(refreshToken, signal)),
+      })
+    : null;
+  const analytics = oauth
+    ? new AnalyticsClient({
+        consentUrl: (state) => oauth.authorizeUrl(state, `${SEARCH_CONSOLE_SCOPE} ${ANALYTICS_SCOPE}`),
         accessToken: (refreshToken, signal) => translated(() => oauth.accessToken(refreshToken, signal)),
       })
     : null;
@@ -78,16 +88,20 @@ export function wireSeo(
   const crux = config.googleApiKey ? new ChromeUxClient(config.googleApiKey) : null;
   const importJobs = new PrismaImportJobs(prisma);
   const checkJobs = new PrismaCheckJobs(prisma);
-  const siteUseCases = createSiteUseCases({
+  const trafficJobs = new PrismaTrafficJobs(prisma);
+  const dependencies = {
     sites,
     signIns: new PrismaGoogleAuthorizations(prisma),
     cipher,
     console,
+    analytics,
     projects: projectRepository,
     clock,
     unitOfWork,
     audit,
-  });
+  };
+  const siteUseCases = createSiteUseCases(dependencies);
+  const trafficUseCases = createTrafficUseCases(dependencies);
   const reads = createReadUseCases({
     sites,
     projects: projectRepository,
@@ -95,7 +109,7 @@ export function wireSeo(
     vitalsConfigured: crux !== null,
   });
   return {
-    seoRouter: createSeoRouter(siteUseCases, reads),
+    seoRouter: createSeoRouter(siteUseCases, reads, trafficUseCases),
     seoWorker: createSeoWorker({
       clock,
       loops: [{
@@ -119,6 +133,11 @@ export function wireSeo(
         }),
         concurrency: CHECKS_AT_ONCE,
         timeoutMs: CHECK_TIMEOUT_MS,
+      }, {
+        jobs: trafficJobs,
+        run: createTrafficImport({ jobs: trafficJobs, cipher, analytics, clock }),
+        concurrency: 1,
+        timeoutMs: IMPORT_TIMEOUT_MS,
       }],
     }),
   };

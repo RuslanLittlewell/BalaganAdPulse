@@ -11,6 +11,13 @@ const site = z.object({
   checkStatus: z.enum(["QUEUED", "RUNNING", "SUCCESS", "ERROR"]),
   lastCheckAt: z.iso.datetime().nullable(),
   checkError: z.string().nullable(),
+  analytics: z.object({
+    propertyId: z.string(),
+    name: z.string(),
+    status: z.enum(["QUEUED", "RUNNING", "SUCCESS", "ERROR", "AUTH_REQUIRED"]),
+    lastSuccessAt: z.iso.datetime().nullable(),
+    lastError: z.string().nullable(),
+  }).nullable(),
 });
 
 export const seoConnectionDoc: RouteDoc = {
@@ -18,11 +25,15 @@ export const seoConnectionDoc: RouteDoc = {
   tagDescription: "Members who manage integrations connect a project to its sites in Google Search Console by signing in with Google. Everyone who reads the project reads the sites' search figures, Core Web Vitals and page checks. Credentials are never returned.",
   operations: [
     { method: "post", path: "/:id/seo/authorize", summary: "Start a Google sign-in for Search Console, for a new site or to renew one", body: z.object({ siteId: z.uuid().optional() }), bodyRequired: false, success: { status: 200, description: "The Google consent address to send the member to", schema: z.object({ url: z.url() }) }, errors: [400, 401, 403, 404] },
-    { method: "get", path: "/:id/seo/authorizations/:authorization/sites", summary: "List the verified Search Console sites a completed sign-in reaches and the project does not hold yet", success: { status: 200, description: "Sites to choose from; empty while renewing", schema: z.object({ renewing: z.boolean(), sites: z.array(z.object({ siteUrl: z.string(), label: z.string(), permissionLevel: z.string() })) }) }, errors: [400, 401, 403, 404] },
+    { method: "get", path: "/:id/seo/authorizations/:authorization/sites", summary: "List the verified Search Console sites a completed sign-in reaches and the project does not hold yet", success: { status: 200, description: "Sites and Google Analytics 4 properties to choose from; both empty while renewing, and no properties when the sign-in did not grant Analytics", schema: z.object({ renewing: z.boolean(), sites: z.array(z.object({ siteUrl: z.string(), label: z.string(), permissionLevel: z.string() })), properties: z.array(z.object({ propertyId: z.string(), name: z.string() })) }) }, errors: [400, 401, 403, 404] },
     { method: "get", path: "/:id/seo/sites", summary: "List the project's connected sites and the state of their imports and page checks", success: { status: 200, description: "Connected sites, oldest first", schema: z.array(site) }, errors: [401, 404] },
-    { method: "post", path: "/:id/seo/sites", summary: "Connect the chosen site, or renew the sign-in of the site it was started for; queue an import and a page check", body: z.object({ authorization: z.uuid(), siteUrl: z.string().min(1).max(2048).optional() }), success: { status: 201, description: "The connected site. 200 when an existing site was renewed", schema: site }, errors: [400, 401, 403, 404, 409] },
+    { method: "post", path: "/:id/seo/sites", summary: "Connect the chosen site, with a Google Analytics 4 property if one is chosen, or renew the sign-in of the site it was started for; queue an import and a page check", body: z.object({ authorization: z.uuid(), siteUrl: z.string().min(1).max(2048).optional(), propertyId: z.string().regex(/^\d{1,20}$/).optional() }), success: { status: 201, description: "The connected site. 200 when an existing site was renewed", schema: site }, errors: [400, 401, 403, 404, 409] },
     { method: "post", path: "/:id/seo/sites/:siteId/sync", summary: "Queue an import of search figures and Core Web Vitals, joining one already queued", success: { status: 202, description: "The site with its import state", schema: site }, errors: [401, 403, 404] },
     { method: "post", path: "/:id/seo/sites/:siteId/audit", summary: "Queue a page check, joining one already queued or running", success: { status: 202, description: "The site with its page check state", schema: site }, errors: [401, 403, 404] },
+    { method: "post", path: "/:id/seo/sites/:siteId/analytics/authorize", summary: "Start a Google sign-in that adds read access to Analytics to the site's credential", success: { status: 200, description: "The Google consent address to send the member to", schema: z.object({ url: z.url() }) }, errors: [401, 403, 404] },
+    { method: "get", path: "/:id/seo/analytics-authorizations/:authorization/properties", summary: "List the Google Analytics 4 properties a completed Analytics sign-in reaches", success: { status: 200, description: "The site the sign-in was started for and the properties to choose from", schema: z.object({ siteId: z.uuid().nullable(), properties: z.array(z.object({ propertyId: z.string(), name: z.string() })) }) }, errors: [400, 401, 403, 404] },
+    { method: "put", path: "/:id/seo/sites/:siteId/analytics", summary: "Link a Google Analytics 4 property to the site, replacing a linked one and its traffic data, and queue a traffic import", body: z.object({ authorization: z.uuid(), propertyId: z.string().regex(/^\d{1,20}$/) }), success: { status: 200, description: "The site with its linked property", schema: site }, errors: [400, 401, 403, 404] },
+    { method: "delete", path: "/:id/seo/sites/:siteId/analytics", summary: "Unlink the Analytics property and delete the site's traffic data, leaving Search Console untouched", success: { status: 200, description: "The site without a property", schema: site }, errors: [401, 403, 404] },
     { method: "delete", path: "/:id/seo/sites/:siteId", summary: "Disconnect a site and delete its credential and SEO data", success: { status: 204, description: "Disconnected" }, errors: [401, 403, 404] },
   ],
 };
@@ -49,6 +60,27 @@ export const seoReadDoc: RouteDoc = {
         kind: z.enum(["query", "page"]), from: day, to: day, partial: z.boolean(), totalClicks: z.int(),
         items: z.array(z.object({ key: z.string(), clicks: z.int(), impressions: z.int(), ctr: z.number().nullable(), position: z.number().nullable(), share: z.number().nullable() })),
       }) },
+      errors: [400, 401, 404],
+    },
+    {
+      method: "get", path: "/:id/seo/sites/:siteId/traffic", summary: "Read a site's sessions by channel, by source and medium, and by day for a period, with the previous period of the same length", query: range,
+      success: { status: 200, description: "connected is false when no Analytics property is linked", schema: z.union([
+        z.object({ connected: z.literal(false) }),
+        z.object({
+          connected: z.literal(true),
+          propertyName: z.string(),
+          status: z.enum(["QUEUED", "RUNNING", "SUCCESS", "ERROR", "AUTH_REQUIRED"]),
+          lastSuccessAt: z.iso.datetime().nullable(),
+          lastError: z.string().nullable(),
+          from: day,
+          to: day,
+          totalSessions: z.int(),
+          previousSessions: z.int(),
+          channels: z.array(z.object({ channel: z.string(), sessions: z.int(), share: z.number(), previous: z.int() })),
+          sources: z.array(z.object({ source: z.string(), medium: z.string(), sessions: z.int(), share: z.number() })),
+          days: z.array(z.object({ date: day, sessions: z.int() })),
+        }),
+      ]) },
       errors: [400, 401, 404],
     },
     {

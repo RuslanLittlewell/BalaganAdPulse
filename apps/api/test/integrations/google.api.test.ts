@@ -121,6 +121,17 @@ describe("the page Google sends the browser back to", () => {
     expect(res.headers.location).toMatch(new RegExp(`/projects/${projectId}\\?searchConsole=failed$`));
   });
 
+  it("sends a refused Analytics sign-in back under its own name", async () => {
+    const opened = await prisma.googleAuthorization.create({
+      data: { projectId, userId: "u", purpose: "SITE_ANALYTICS", expiresAt: new Date(Date.now() + 60_000) },
+    });
+
+    const res = await request(app).get(`/api/integrations/google/callback?state=${opened.id}&error=access_denied`);
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toMatch(new RegExp(`/projects/${projectId}\\?analytics=failed$`));
+  });
+
   it("does not leak the code into where it sends the browser", async () => {
     const res = await request(app).get("/api/integrations/google/callback?state=forged&code=secret-code");
     expect(res.headers.location).not.toContain("secret-code");

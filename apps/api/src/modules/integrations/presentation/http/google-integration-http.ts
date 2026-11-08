@@ -40,7 +40,7 @@ export function createGoogleCallbackRouter(service: GoogleService, appUrl: strin
     const outcome = state ? await service.complete({ state, code: code ?? null }) : { projectId: null, authorization: null, purpose: "ADS" };
     const base = appUrl ?? "";
     const target = outcome.projectId ? `${base}/projects/${outcome.projectId}` : `${base}/projects`;
-    const key = outcome.purpose === "SEARCH_CONSOLE" ? "searchConsole" : "google";
+    const key = outcome.purpose === "SEARCH_CONSOLE" ? "searchConsole" : outcome.purpose === "SITE_ANALYTICS" ? "analytics" : "google";
     const result = `${key}=${outcome.authorization ?? "failed"}`;
     res.redirect(302, `${target}?${result}`);
   });

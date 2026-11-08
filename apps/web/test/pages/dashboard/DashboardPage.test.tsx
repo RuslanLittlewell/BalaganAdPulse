@@ -530,4 +530,16 @@ describe("CRM stage columns in the dashboard project table", () => {
     expect(screen.getByRole("columnheader", { name: "Целевой лид" })).toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: "КП" })).toBeNull();
   });
+
+  it("puts the due tasks block third, after the KPI blocks and before the sources", async () => {
+    api();
+    renderWithProviders(<DashboardPage />);
+
+    const info = await screen.findByRole("region", { name: "Важная информация" });
+    const due = await screen.findByRole("region", { name: "Задачи на сегодня и ближайшие дни" });
+    const sources = (await screen.findByRole("heading", { name: "Источники" })).closest("section")!;
+    const follows = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(follows(info, due)).toBe(true);
+    expect(follows(due, sources)).toBe(true);
+  });
 });

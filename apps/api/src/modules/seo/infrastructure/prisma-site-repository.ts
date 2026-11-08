@@ -17,10 +17,19 @@ export class PrismaSiteRepository implements SiteRepository {
     return this.prisma.seoSite.findFirst({ where: { id, projectId } });
   }
 
-  async add(context: TransactionContext, site: NewSite, now: Date): Promise<SeoSite> {
+  async add(context: TransactionContext, { analytics, ...site }: NewSite, now: Date): Promise<SeoSite> {
     try {
       return await this.unitOfWork.clientFor(context).seoSite.create({ data: {
         ...site,
+        ...(analytics
+          ? {
+              analyticsPropertyId: analytics.propertyId,
+              analyticsName: analytics.name,
+              trafficStatus: "QUEUED",
+              trafficQueuedAt: now,
+              nextTrafficAt: nextMorning(now),
+            }
+          : {}),
         revision: randomUUID(),
         status: "QUEUED",
         queuedAt: now,
@@ -52,6 +61,63 @@ export class PrismaSiteRepository implements SiteRepository {
 
   async remove(context: TransactionContext, id: string): Promise<void> {
     await this.unitOfWork.clientFor(context).seoSite.deleteMany({ where: { id } });
+  }
+
+  async linkAnalytics(context: TransactionContext, id: string, link: { encryptedToken: string; propertyId: string; name: string }, now: Date): Promise<SeoSite> {
+    const client = this.unitOfWork.clientFor(context);
+    const current = await client.seoSite.findUnique({ where: { id }, select: { analyticsPropertyId: true } });
+    const same = current?.analyticsPropertyId === link.propertyId;
+    if (!same) await client.seoTrafficDay.deleteMany({ where: { siteId: id } });
+    return client.seoSite.update({ where: { id }, data: {
+      encryptedToken: link.encryptedToken,
+      revision: randomUUID(),
+      status: "QUEUED",
+      queuedAt: now,
+      retryCount: 0,
+      lastError: null,
+      leaseOwner: null,
+      leaseUntil: null,
+      analyticsPropertyId: link.propertyId,
+      analyticsName: link.name,
+      trafficStatus: "QUEUED",
+      ...(same ? {} : { trafficSuccessAt: null }),
+      trafficError: null,
+      trafficRetryCount: 0,
+      trafficQueuedAt: now,
+      nextTrafficAt: nextMorning(now),
+      trafficLeaseOwner: null,
+      trafficLeaseUntil: null,
+    } });
+  }
+
+  async unlinkAnalytics(context: TransactionContext, id: string): Promise<void> {
+    const client = this.unitOfWork.clientFor(context);
+    await client.seoTrafficDay.deleteMany({ where: { siteId: id } });
+    await client.seoSite.update({ where: { id }, data: {
+      revision: randomUUID(),
+      analyticsPropertyId: null,
+      analyticsName: null,
+      trafficStatus: "QUEUED",
+      trafficSuccessAt: null,
+      trafficError: null,
+      nextTrafficAt: null,
+      trafficQueuedAt: null,
+      trafficRetryCount: 0,
+      trafficLeaseOwner: null,
+      trafficLeaseUntil: null,
+    } });
+  }
+
+  async queueTraffic(id: string, now: Date): Promise<void> {
+    await this.prisma.seoSite.updateMany({
+      where: {
+        id,
+        analyticsPropertyId: { not: null },
+        trafficStatus: { notIn: ["QUEUED", "RUNNING"] },
+        OR: [{ trafficLeaseUntil: null }, { trafficLeaseUntil: { lte: now } }],
+      },
+      data: { trafficQueuedAt: now, trafficStatus: "QUEUED", trafficError: null, trafficRetryCount: 0 },
+    });
   }
 
   async queueImport(id: string, now: Date): Promise<void> {

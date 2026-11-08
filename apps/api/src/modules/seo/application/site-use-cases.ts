@@ -58,6 +58,16 @@ export function createSiteUseCases(d: SeoDependencies) {
   const reachedSites = async (searchConsole: SearchConsole, refreshToken: string) =>
     explained(async () => searchConsole.sites(await searchConsole.accessToken(refreshToken)));
 
+  const reachedProperties = async (refreshToken: string) => {
+    if (!d.analytics) return [];
+    try {
+      return await d.analytics.properties(await d.analytics.accessToken(refreshToken));
+    } catch (error) {
+      if (error instanceof SeoProviderError) return [];
+      throw error;
+    }
+  };
+
   const audited = (actor: ActorContext, project: { id: string; clientId: string }, summary: string) =>
     (context: Parameters<SeoDependencies["audit"]["append"]>[0]) =>
       d.audit.append(context, {
@@ -87,18 +97,20 @@ export function createSiteUseCases(d: SeoDependencies) {
       await managedProject(actor, projectId);
       const searchConsole = configured();
       const signIn = await ownedSignIn(actor, projectId, authorization);
-      if (signIn.integrationId) return { renewing: true, sites: [] };
-      const reached = await reachedSites(searchConsole, d.cipher.decrypt(signIn.encryptedRefreshToken, projectId));
+      if (signIn.integrationId) return { renewing: true, sites: [], properties: [] };
+      const refreshToken = d.cipher.decrypt(signIn.encryptedRefreshToken, projectId);
+      const reached = await reachedSites(searchConsole, refreshToken);
       const taken = new Set((await d.sites.list(projectId)).map((site) => site.siteUrl));
       return {
         renewing: false,
+        properties: await reachedProperties(refreshToken),
         sites: reached
           .filter((choice) => !taken.has(choice.siteUrl))
           .map((choice) => ({ siteUrl: choice.siteUrl, label: siteLabel(choice.siteUrl), permissionLevel: choice.permissionLevel })),
       };
     },
 
-    connect: async (actor: ActorContext, projectId: string, input: { authorization: string; siteUrl?: string }) => {
+    connect: async (actor: ActorContext, projectId: string, input: { authorization: string; siteUrl?: string; propertyId?: string }) => {
       const project = await managedProject(actor, projectId);
       const searchConsole = configured();
       const signIn = await ownedSignIn(actor, projectId, input.authorization);
@@ -113,11 +125,22 @@ export function createSiteUseCases(d: SeoDependencies) {
       if (!existing && (await d.sites.list(projectId)).some((site) => site.siteUrl === siteUrl)) {
         throw new AppError("conflict", "This site is already connected to the project");
       }
+      const property = !existing && input.propertyId
+        ? (await reachedProperties(d.cipher.decrypt(signIn.encryptedRefreshToken, projectId))).find((choice) => choice.propertyId === input.propertyId)
+        : undefined;
+      if (!existing && input.propertyId && !property) {
+        throw new AppError("validation", "The Google sign-in does not reach this property", [{ code: "PROPERTY" }]);
+      }
       const label = siteLabel(siteUrl);
       const saved = await d.unitOfWork.run(async (context) => {
         const row = existing
           ? await d.sites.renew(context, existing.id, signIn.encryptedRefreshToken, d.clock.now())
-          : await d.sites.add(context, { projectId, siteUrl, encryptedToken: signIn.encryptedRefreshToken }, d.clock.now());
+          : await d.sites.add(context, {
+              projectId,
+              siteUrl,
+              encryptedToken: signIn.encryptedRefreshToken,
+              ...(property ? { analytics: { propertyId: property.propertyId, name: property.name } } : {}),
+            }, d.clock.now());
         await audited(actor, project, existing ? `Renewed Search Console sign-in for ${label}` : `Connected Search Console site ${label}`)(context);
         return row;
       });
@@ -133,6 +156,7 @@ export function createSiteUseCases(d: SeoDependencies) {
     sync: async (actor: ActorContext, projectId: string, siteId: string) => {
       const { site } = await managedSite(actor, projectId, siteId);
       await d.sites.queueImport(site.id, d.clock.now());
+      await d.sites.queueTraffic(site.id, d.clock.now());
       return publicSite((await d.sites.read(projectId, siteId)) ?? site);
     },
 

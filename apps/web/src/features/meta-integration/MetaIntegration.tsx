@@ -22,7 +22,7 @@ import { useAuth, useModuleEnabled } from "@/features/auth/index.js";
 import { HINTS, useHint } from "@/features/hints/index.js";
 import { LeadsSetupInfo } from "./LeadsSetupInfo.js";
 import { GoogleConnectionCard, GoogleReturn, googleFailureOf, startGoogleSignIn } from "@/features/google-integration/index.js";
-import { SeoConnectionCard, SeoReturn, seoFailureOf, startSeoSignIn } from "@/features/seo-integration/index.js";
+import { AnalyticsReturn, SeoConnectionCard, SeoReturn, seoFailureOf, startSeoSignIn } from "@/features/seo-integration/index.js";
 import { useSeoSites } from "@/entities/seo/index.js";
 import { tariffRefusal } from "@/entities/tariff/index.js";
 
@@ -168,6 +168,7 @@ export function MetaIntegration({ projectId }: { projectId: string }) {
         )}
         <GoogleReturn projectId={projectId} />
         <SeoReturn projectId={projectId} />
+        <AnalyticsReturn projectId={projectId} />
         {googleFailure && (
           <section className="flex items-center gap-2 rounded-lg border border-border glass-card p-3">
             <p role="alert" className="text-xs text-destructive">{googleFailure}</p>

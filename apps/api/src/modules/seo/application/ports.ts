@@ -3,6 +3,7 @@ import type { AuditWriter } from "#modules/audit/index.js";
 import type { SeoSite, SiteChoice } from "../domain/seo-site.js";
 import type { SearchDay, SearchSnapshot, TopKind, TopRow } from "../domain/search.js";
 import type { Device, LabMeasurement, VitalReading, VitalsSnapshot, VitalWeek } from "../domain/vitals.js";
+import type { ChannelTotal, DayTotal, PropertyChoice, SourceTotal, TrafficSnapshot } from "../domain/traffic.js";
 import type { CheckedPage, PageFacts, ProblemKind } from "../domain/page-audit.js";
 
 export type UnreachableReason = "REFUSED_ADDRESS" | "TIMEOUT" | "NETWORK" | "TOO_MANY_REDIRECTS" | "BAD_ADDRESS";
@@ -42,7 +43,7 @@ export interface SignInRecord {
 }
 
 export interface SignIns {
-  open(data: { projectId: string; userId: string; integrationId: string | null; purpose: "SEARCH_CONSOLE" }, now: Date, expiresAt: Date): Promise<SignInRecord>;
+  open(data: { projectId: string; userId: string; integrationId: string | null; purpose: "SEARCH_CONSOLE" | "SITE_ANALYTICS" }, now: Date, expiresAt: Date): Promise<SignInRecord>;
   read(id: string, now: Date): Promise<SignInRecord | null>;
   close(id: string): Promise<void>;
 }
@@ -61,6 +62,13 @@ export interface SearchConsole {
   sitemaps(accessToken: string, siteUrl: string, signal?: AbortSignal): Promise<string[]>;
 }
 
+export interface Analytics {
+  consentUrl(state: string): string;
+  accessToken(refreshToken: string, signal?: AbortSignal): Promise<string>;
+  properties(accessToken: string, signal?: AbortSignal): Promise<PropertyChoice[]>;
+  sessions(accessToken: string, propertyId: string, from: string, to: string, signal?: AbortSignal): Promise<TrafficSnapshot["rows"]>;
+}
+
 export interface ChromeUxReport {
   current(origin: string, device: Device, signal?: AbortSignal): Promise<VitalReading[]>;
   history(origin: string, device: Device, signal?: AbortSignal): Promise<VitalWeek[]>;
@@ -74,6 +82,7 @@ export interface NewSite {
   readonly projectId: string;
   readonly siteUrl: string;
   readonly encryptedToken: string;
+  readonly analytics?: { readonly propertyId: string; readonly name: string };
 }
 
 export interface SiteRepository {
@@ -82,6 +91,9 @@ export interface SiteRepository {
   add(context: TransactionContext, site: NewSite, now: Date): Promise<SeoSite>;
   renew(context: TransactionContext, id: string, encryptedToken: string, now: Date): Promise<SeoSite>;
   remove(context: TransactionContext, id: string): Promise<void>;
+  linkAnalytics(context: TransactionContext, id: string, link: { encryptedToken: string; propertyId: string; name: string }, now: Date): Promise<SeoSite>;
+  unlinkAnalytics(context: TransactionContext, id: string): Promise<void>;
+  queueTraffic(id: string, now: Date): Promise<void>;
   queueImport(id: string, now: Date): Promise<void>;
   queueCheck(id: string, now: Date): Promise<void>;
 }
@@ -91,6 +103,14 @@ export interface ImportJobs {
   renew(job: SeoSite, now: Date): Promise<boolean>;
   saveVitals(job: SeoSite, origin: string, vitals: VitalsSnapshot, now: Date): Promise<boolean>;
   complete(job: SeoSite, snapshot: SearchSnapshot, now: Date): Promise<boolean>;
+  release(job: SeoSite, now: Date): Promise<void>;
+  fail(job: SeoSite, code: string, retryAfterMs: number, now: Date): Promise<void>;
+}
+
+export interface TrafficJobs {
+  claim(now: Date): Promise<SeoSite | null>;
+  renew(job: SeoSite, now: Date): Promise<boolean>;
+  complete(job: SeoSite, snapshot: TrafficSnapshot, now: Date): Promise<boolean>;
   release(job: SeoSite, now: Date): Promise<void>;
   fail(job: SeoSite, code: string, retryAfterMs: number, now: Date): Promise<void>;
 }
@@ -150,6 +170,9 @@ export interface SeoReads {
   vitals(siteId: string): Promise<VitalReading[]>;
   weeks(siteId: string, from: string, to: string): Promise<VitalWeek[]>;
   labs(siteId: string): Promise<StoredLab[]>;
+  trafficChannels(siteId: string, from: string, to: string): Promise<ChannelTotal[]>;
+  trafficSources(siteId: string, from: string, to: string, limit: number): Promise<SourceTotal[]>;
+  trafficDays(siteId: string, from: string, to: string): Promise<DayTotal[]>;
   audit(siteId: string): Promise<StoredAudit | null>;
   auditPages(siteId: string, kind: string | null): Promise<StoredAuditPage[]>;
   auditPage(siteId: string, pageId: string): Promise<StoredAuditPage | null>;
@@ -164,6 +187,7 @@ export interface SeoDependencies {
   signIns: SignIns;
   cipher: Cipher;
   console: SearchConsole | null;
+  analytics: Analytics | null;
   projects: ProjectReach;
   clock: { now(): Date };
   unitOfWork: UnitOfWork;

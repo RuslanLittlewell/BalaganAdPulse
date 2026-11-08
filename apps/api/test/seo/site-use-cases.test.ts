@@ -15,11 +15,14 @@ const site = (over: Partial<SeoSite> = {}): SeoSite => ({
   id: "s1", projectId: "p1", siteUrl: "sc-domain:site.ru", origin: null, encryptedToken: "enc(old)", revision: "v1",
   status: "AUTH_REQUIRED", lastSuccessAt: null, lastError: "TOKEN", nextDailyAt: NOW, queuedAt: null, retryCount: 0,
   leaseOwner: null, leaseUntil: null, vitalsReadAt: null, checkStatus: "SUCCESS", lastCheckAt: null, checkError: null,
-  nextCheckAt: NOW, checkQueuedAt: null, checkLeaseOwner: null, checkLeaseUntil: null, createdAt: NOW,
+  nextCheckAt: NOW, checkQueuedAt: null, checkLeaseOwner: null, checkLeaseUntil: null,
+  analyticsPropertyId: null, analyticsName: null, trafficStatus: "QUEUED", trafficSuccessAt: null, trafficError: null,
+  nextTrafficAt: null, trafficQueuedAt: null, trafficRetryCount: 0, trafficLeaseOwner: null, trafficLeaseUntil: null,
+  createdAt: NOW,
   ...over,
 });
 
-function fixture(options: { configured?: boolean; connected?: SeoSite[] } = {}) {
+function fixture(options: { configured?: boolean; connected?: SeoSite[]; properties?: { propertyId: string; name: string }[] | "refused" } = {}) {
   const connected = [...(options.connected ?? [])];
   const signIns = new Map<string, SignInRecord & { expiresAt: Date }>();
   let sequence = 0;
@@ -40,6 +43,9 @@ function fixture(options: { configured?: boolean; connected?: SeoSite[] } = {}) 
       connected.splice(connected.findIndex((row) => row.id === id), 1);
     }),
     queueImport: vi.fn(async () => {}),
+    queueTraffic: vi.fn(async () => {}),
+    linkAnalytics: vi.fn(async () => site()),
+    unlinkAnalytics: vi.fn(async () => {}),
     queueCheck: vi.fn(async () => {}),
   };
   const console = {
@@ -70,6 +76,15 @@ function fixture(options: { configured?: boolean; connected?: SeoSite[] } = {}) 
     },
     cipher: { encrypt: (token) => `enc(${token})`, decrypt: (value) => value.replace(/^enc\((.*)\)$/, "$1") },
     console: options.configured === false ? null : console,
+    analytics: options.properties === undefined ? null : {
+      consentUrl: vi.fn(),
+      accessToken: vi.fn(async (refresh: string) => `access(${refresh})`),
+      properties: vi.fn(async () => {
+        if (options.properties === "refused") throw new SeoProviderError("ACCESS");
+        return options.properties!;
+      }),
+      sessions: vi.fn(),
+    },
     projects: { findReachable: vi.fn(async (actor: ActorContext, id: string) => (id === "p1" && actor.orgId === "o1" ? project : null)) },
     clock: { now: () => NOW },
     unitOfWork: { run: async (work: (context: unknown) => unknown) => work({}) } as never,
@@ -118,7 +133,7 @@ describe("choosing a site", () => {
 
     const choices = await d.service.choices(admin, "p1", state);
 
-    expect(choices).toEqual({ renewing: false, sites: [{ siteUrl: "https://shop.ru/", label: "shop.ru", permissionLevel: "siteFullUser" }] });
+    expect(choices).toEqual({ renewing: false, sites: [{ siteUrl: "https://shop.ru/", label: "shop.ru", permissionLevel: "siteFullUser" }], properties: [] });
     expect(d.console.accessToken).toHaveBeenCalledWith("refresh");
   });
 
@@ -148,6 +163,48 @@ describe("choosing a site", () => {
     d.console.sites.mockRejectedValue(new SeoProviderError("PROVIDER", 0, "http 503"));
     const state = await d.signedIn();
     await expect(d.service.choices(admin, "p1", state)).rejects.toMatchObject({ category: "validation", details: [{ code: "PROVIDER" }] });
+  });
+});
+
+describe("choosing a property with the site", () => {
+  const properties = [{ propertyId: "111", name: "Acme / site.ru" }];
+
+  it("lists the Analytics properties the same sign-in reaches", async () => {
+    const d = fixture({ properties });
+    const state = await d.signedIn();
+    expect((await d.service.choices(admin, "p1", state)).properties).toEqual(properties);
+  });
+
+  it("lists no properties when Google refused Analytics access", async () => {
+    const d = fixture({ properties: "refused" });
+    const state = await d.signedIn();
+    const choices = await d.service.choices(admin, "p1", state);
+    expect(choices.properties).toEqual([]);
+    expect(choices.sites).toHaveLength(2);
+  });
+
+  it("connects the site and links the chosen property in one step", async () => {
+    const d = fixture({ properties });
+    const state = await d.signedIn();
+    await d.service.connect(admin, "p1", { authorization: state, siteUrl: "sc-domain:site.ru", propertyId: "111" });
+    expect(d.sites.add).toHaveBeenCalledWith({}, {
+      projectId: "p1", siteUrl: "sc-domain:site.ru", encryptedToken: "enc(refresh)", analytics: { propertyId: "111", name: "Acme / site.ru" },
+    }, NOW);
+  });
+
+  it("connects the site without a property when none is chosen", async () => {
+    const d = fixture({ properties });
+    const state = await d.signedIn();
+    await d.service.connect(admin, "p1", { authorization: state, siteUrl: "sc-domain:site.ru" });
+    expect(d.sites.add).toHaveBeenCalledWith({}, { projectId: "p1", siteUrl: "sc-domain:site.ru", encryptedToken: "enc(refresh)" }, NOW);
+  });
+
+  it("refuses a property the sign-in does not reach and saves nothing", async () => {
+    const d = fixture({ properties });
+    const state = await d.signedIn();
+    await expect(d.service.connect(admin, "p1", { authorization: state, siteUrl: "sc-domain:site.ru", propertyId: "999" }))
+      .rejects.toMatchObject({ details: [{ code: "PROPERTY" }] });
+    expect(d.sites.add).not.toHaveBeenCalled();
   });
 });
 
@@ -192,7 +249,7 @@ describe("connecting the chosen site", () => {
     const d = fixture({ connected: [site()] });
     const state = await d.signedIn(admin, "s1");
 
-    expect(await d.service.choices(admin, "p1", state)).toEqual({ renewing: true, sites: [] });
+    expect(await d.service.choices(admin, "p1", state)).toEqual({ renewing: true, sites: [], properties: [] });
     const { renewed, site: saved } = await d.service.connect(admin, "p1", { authorization: state });
 
     expect(renewed).toBe(true);

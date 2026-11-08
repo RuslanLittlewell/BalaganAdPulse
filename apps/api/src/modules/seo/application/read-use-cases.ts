@@ -2,6 +2,7 @@ import { AppError } from "#shared/domain/index.js";
 import type { ActorContext } from "#shared/application/index.js";
 import { isProblemKind, PROBLEM_KINDS, severityOf, type ProblemKind } from "../domain/page-audit.js";
 import { previousPeriod, totalsOf, type SearchDay, type SearchTotals, type TopKind } from "../domain/search.js";
+import { shareOf, SOURCES_SHOWN } from "../domain/traffic.js";
 import { DEVICES, METRICS, passes, rate, rateScore } from "../domain/vitals.js";
 import type { SeoDependencies, SeoReads, StoredAuditPage } from "./ports.js";
 import { readableSite } from "./site-use-cases.js";
@@ -111,6 +112,38 @@ export function createReadUseCases(d: Pick<SeoDependencies, "sites" | "projects"
             lab: lab ? { ...lab, rating: rateScore(lab.score) } : null,
           };
         }),
+      };
+    },
+
+    traffic: async (actor: ActorContext, projectId: string, siteId: string, range: DateRange) => {
+      const site = await readableSite(d, actor, projectId, siteId);
+      if (site.analyticsPropertyId === null) return { connected: false as const };
+      const before = previousPeriod(range.from, range.to);
+      const [channels, earlier, sources, days] = await Promise.all([
+        d.reads.trafficChannels(siteId, range.from, range.to),
+        d.reads.trafficChannels(siteId, before.from, before.to),
+        d.reads.trafficSources(siteId, range.from, range.to, SOURCES_SHOWN),
+        d.reads.trafficDays(siteId, range.from, range.to),
+      ]);
+      const total = channels.reduce((sum, channel) => sum + channel.sessions, 0);
+      const previousTotal = earlier.reduce((sum, channel) => sum + channel.sessions, 0);
+      const names = [...new Set([...channels, ...earlier].map((channel) => channel.channel))];
+      const sessionsOf = (rows: readonly { channel: string; sessions: number }[], name: string) => rows.find((row) => row.channel === name)?.sessions ?? 0;
+      return {
+        connected: true as const,
+        propertyName: site.analyticsName ?? site.analyticsPropertyId,
+        status: site.trafficStatus,
+        lastSuccessAt: site.trafficSuccessAt,
+        lastError: site.trafficError,
+        from: range.from,
+        to: range.to,
+        totalSessions: total,
+        previousSessions: previousTotal,
+        channels: names
+          .map((channel) => ({ channel, sessions: sessionsOf(channels, channel), share: shareOf(sessionsOf(channels, channel), total), previous: sessionsOf(earlier, channel) }))
+          .sort((a, b) => b.sessions - a.sessions || b.previous - a.previous || a.channel.localeCompare(b.channel)),
+        sources: sources.map((source) => ({ ...source, share: shareOf(source.sessions, total) })),
+        days,
       };
     },
 

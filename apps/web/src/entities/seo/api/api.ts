@@ -22,7 +22,52 @@ export interface SeoSite {
   checkStatus: SeoCheckStatus;
   lastCheckAt: string | null;
   checkError: string | null;
+  analytics: SeoAnalyticsLink | null;
 }
+
+export interface SeoAnalyticsLink {
+  propertyId: string;
+  name: string;
+  status: SeoImportStatus;
+  lastSuccessAt: string | null;
+  lastError: string | null;
+}
+
+export interface SeoPropertyChoice {
+  propertyId: string;
+  name: string;
+}
+
+export interface SeoTrafficChannel {
+  channel: string;
+  sessions: number;
+  share: number;
+  previous: number;
+}
+
+export interface SeoTrafficSource {
+  source: string;
+  medium: string;
+  sessions: number;
+  share: number;
+}
+
+export type SeoTraffic =
+  | { connected: false }
+  | {
+      connected: true;
+      propertyName: string;
+      status: SeoImportStatus;
+      lastSuccessAt: string | null;
+      lastError: string | null;
+      from: string;
+      to: string;
+      totalSessions: number;
+      previousSessions: number;
+      channels: SeoTrafficChannel[];
+      sources: SeoTrafficSource[];
+      days: { date: string; sessions: number }[];
+    };
 
 export interface SeoSiteChoice {
   siteUrl: string;
@@ -160,12 +205,21 @@ export const seoApi = {
   authorize: (projectId: string, siteId?: string) =>
     http.post<{ url: string }>(`${base(projectId)}/authorize`, siteId ? { siteId } : {}),
   choices: (projectId: string, authorization: string) =>
-    http.get<{ renewing: boolean; sites: SeoSiteChoice[] }>(`${base(projectId)}/authorizations/${authorization}/sites`),
-  connect: (projectId: string, body: { authorization: string; siteUrl?: string }) =>
+    http.get<{ renewing: boolean; sites: SeoSiteChoice[]; properties: SeoPropertyChoice[] }>(`${base(projectId)}/authorizations/${authorization}/sites`),
+  connect: (projectId: string, body: { authorization: string; siteUrl?: string; propertyId?: string }) =>
     http.post<SeoSite>(`${base(projectId)}/sites`, body),
   sync: (projectId: string, siteId: string) => http.post<SeoSite>(`${site(projectId, siteId)}/sync`, {}),
   check: (projectId: string, siteId: string) => http.post<SeoSite>(`${site(projectId, siteId)}/audit`, {}),
   disconnect: (projectId: string, siteId: string) => http.del(site(projectId, siteId)),
+  authorizeAnalytics: (projectId: string, siteId: string) =>
+    http.post<{ url: string }>(`${site(projectId, siteId)}/analytics/authorize`, {}),
+  properties: (projectId: string, authorization: string) =>
+    http.get<{ siteId: string | null; properties: SeoPropertyChoice[] }>(`${base(projectId)}/analytics-authorizations/${authorization}/properties`),
+  linkAnalytics: (projectId: string, siteId: string, body: { authorization: string; propertyId: string }) =>
+    http.put<SeoSite>(`${site(projectId, siteId)}/analytics`, body),
+  unlinkAnalytics: (projectId: string, siteId: string) => http.del(`${site(projectId, siteId)}/analytics`),
+  traffic: (projectId: string, siteId: string, range: SeoRange) =>
+    http.get<SeoTraffic>(`${site(projectId, siteId)}/traffic?${query({ ...range })}`),
   search: (projectId: string, siteId: string, range: SeoRange) =>
     http.get<SeoSearch>(`${site(projectId, siteId)}/search?${query({ ...range })}`),
   top: (projectId: string, siteId: string, kind: SeoTopKind, range: SeoRange, limit: number) =>

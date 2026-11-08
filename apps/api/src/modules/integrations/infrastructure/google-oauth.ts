@@ -6,6 +6,7 @@ const AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 export const ADS_SCOPE = "https://www.googleapis.com/auth/adwords";
 export const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
+export const ANALYTICS_SCOPE = "https://www.googleapis.com/auth/analytics.readonly";
 
 export interface GoogleOAuthSettings {
   clientId: string;

@@ -12,7 +12,9 @@ project sees it, the client's people included. Only members who manage integrati
 refresh, check or disconnect a site.
 
 The sign-in asks Google for read-only access to Search Console
-(`https://www.googleapis.com/auth/webmasters.readonly`) and nothing else. It follows the rules of
+(`https://www.googleapis.com/auth/webmasters.readonly`) and to Google Analytics
+(`https://www.googleapis.com/auth/analytics.readonly`), and nothing else. The Analytics access is
+optional for the member: Google lets them untick it, and the site connects without traffic sources. It follows the rules of
 the Google Ads sign-in:
 - it belongs to the connection that made it;
 - its refresh token is encrypted against the project with `INTEGRATION_ENCRYPTION_KEY`;
@@ -100,10 +102,35 @@ history anew.
 | `GOOGLE_API_KEY` | Optional. An API key for the Chrome UX Report API and the PageSpeed Insights API. Without it, search figures and page checks work, and the vitals and lab measurements say they are not configured |
 
 Set these up in the Google Cloud project that owns the OAuth client:
-1. Enable the Google Search Console API, the Chrome UX Report API and the PageSpeed Insights
-   API.
+1. Enable the Google Search Console API, the Chrome UX Report API, the PageSpeed Insights
+   API, the Google Analytics Data API and the Google Analytics Admin API.
 2. Add the scope `https://www.googleapis.com/auth/webmasters.readonly` to the OAuth consent
    screen. Google treats it as a sensitive scope. Until the consent screen is verified for it,
    only test users can sign in and their refresh tokens expire after seven days.
-3. Create an API key, restrict it to the Chrome UX Report API and the PageSpeed Insights API,
+3. To show traffic sources, also add the scope `https://www.googleapis.com/auth/analytics.readonly`
+   to the consent screen. It is a sensitive scope too, so it follows the same verification.
+4. Create an API key, restrict it to the Chrome UX Report API and the PageSpeed Insights API,
    and set it as `GOOGLE_API_KEY` in `/opt/adpulse/.env`.
+
+## Traffic sources
+
+A connected site can be linked to one Google Analytics 4 property. The first Google sign-in already
+asks for read-only access to Analytics, so the window that lists the sites also lists the GA4
+properties the account reaches. The member picks a site and, if they want traffic sources, a
+property. The choice is optional: the default is **Без Google Analytics**, and the property list
+is left out when Google did not grant Analytics access or the account has no property.
+
+A site connected without a property can be linked later from its settings or from the
+Источники трафика block with **Подключить Google Analytics**. That starts a new Google sign-in
+with the same two accesses, replaces the credential of that site alone, and then offers the
+property list. The same action runs when a site with a linked property needs to sign in again.
+
+The server loads sessions by channel group, source and medium for the last 90 days when the
+property is linked, then re-reads the last 3 days every morning. The block shows the channels
+with their share and change against the previous period, the top 100 sources and mediums, and
+sessions per day. Unlinking deletes the traffic data and leaves Search Console connected.
+
+The routes live under `/api/projects/:id/seo`: `authorizations/:authorization/sites` also answers
+`properties`, `POST sites` accepts an optional `propertyId`, `sites/:siteId/analytics/authorize`,
+`analytics-authorizations/:authorization/properties`, `PUT` and `DELETE sites/:siteId/analytics`,
+and `GET sites/:siteId/traffic`.

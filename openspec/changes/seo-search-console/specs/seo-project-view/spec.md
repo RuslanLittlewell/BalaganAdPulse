@@ -1,6 +1,6 @@
 ## Purpose
 
-Show a connected site's search performance, Core Web Vitals and page problems on the project page as charts and blocks, in the site's own tab next to the advertising accounts.
+Show a connected site's search performance, the home page lab measurement and page problems on the project page as charts and blocks, in the site's own tab next to the advertising accounts.
 
 ## ADDED Requirements
 
@@ -42,41 +42,38 @@ Below the summary, the view SHALL show charts by day for the period: clicks and 
 - **WHEN** the average position goes from 12.4 to 9.1
 - **THEN** the tile shows the change as an improvement
 
-### Requirement: Core Web Vitals are shown by device
+### Requirement: The home page lab measurement is shown by device
 
-The view SHALL show the site's Core Web Vitals in a block with a Телефон and Компьютер switch. Телефон SHALL be chosen first.
+The view SHALL show the lab measurement of the home page in a block titled Лабораторный замер главной страницы, with a Телефон and Компьютер switch. Телефон SHALL be chosen first. The block SHALL replace the field Core Web Vitals block and SHALL show numbers only, with no bars or charts:
+- the performance score;
+- LCP, CLS, TBT, FCP and Speed Index;
+- the time of the measurement.
 
-LCP, INP and CLS SHALL be shown prominently, and FCP and TTFB beside them. Each metric SHALL show four things:
-- its 75th percentile, in seconds or milliseconds, or without a unit for CLS;
-- its rating against Google's thresholds, as Хорошо, Требует улучшения or Плохо, and as a color;
-- a bar of the good, needs-improvement and poor shares;
-- its weekly 75th percentile across the chosen period as a small chart.
+Each figure SHALL be colored by its rating: good, needs improvement or poor. The score is rated good from 90, needs improvement from 50 and poor below 50. The other figures are rated by these limits:
 
-| Metric | Хорошо up to | Плохо above |
+| Figure | Хорошо up to | Плохо above |
 |---|---|---|
 | LCP | 2.5 s | 4 s |
-| INP | 200 ms | 500 ms |
 | CLS | 0.1 | 0.25 |
+| TBT | 200 ms | 600 ms |
 | FCP | 1.8 s | 3 s |
-| TTFB | 0.8 s | 1.8 s |
+| Speed Index | 3.4 s | 5.8 s |
 
-The block SHALL say whether the site passes Core Web Vitals on the chosen device: it passes when LCP, INP and CLS are all good. For a device with no field data, the block SHALL say that Google has too few visits. When the vitals are not configured, the block SHALL say so.
+#### Scenario: A measured home page
+- **WHEN** the phone measurement has a score of 45, an LCP of 4.1 s and a CLS of 0.2
+- **THEN** the block shows 45, 4,1 с and 0,20 beside their names, and the time of the measurement
 
-The home page's lab measurement for the chosen device SHALL be shown in the same block and labelled as a lab measurement, with its time:
-- the performance score, rated good from 90, needs improvement from 50 and poor below 50;
-- LCP, CLS, TBT, FCP and Speed Index.
+#### Scenario: The other device
+- **WHEN** the member switches to Компьютер
+- **THEN** the block shows the desktop measurement
 
-#### Scenario: A passing site
-- **WHEN** a site's phone LCP is 2.1 s, INP 150 ms and CLS 0.05
-- **THEN** the three show Хорошо, and the block says the site passes Core Web Vitals on phones
+#### Scenario: Waiting for the first measurement
+- **WHEN** a site was just connected and its import or page check is queued or running, and the chosen device has no measurement
+- **THEN** the block shows a loader instead of the numbers
 
-#### Scenario: A slow desktop
-- **WHEN** the member switches to Компьютер and its LCP is 4.6 s
-- **THEN** LCP shows Плохо and the block says the site does not pass on desktops
-
-#### Scenario: A small site
-- **WHEN** Google has no field data for the site
-- **THEN** the block says Google has too few visits and still shows the lab measurement
+#### Scenario: No measurement and nothing running
+- **WHEN** the chosen device has no measurement and no import or check is running
+- **THEN** the block says there is no measurement yet
 
 ### Requirement: Top queries and pages are shown as ranked lists
 

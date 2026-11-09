@@ -1,6 +1,6 @@
 export const NOTIFICATION_KINDS = [
   "KPI_MET", "PROJECT_CREATED", "TASK_ASSIGNED", "TASK_UPDATED", "DOCUMENT_ADDED", "TASK_DUE_SOON",
-  "TASK_MENTIONED",
+  "TASK_MENTIONED", "LEAD_MENTIONED",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -11,6 +11,7 @@ export interface NewNotification {
   readonly kind: NotificationKind;
   readonly projectId: string | null;
   readonly taskId: string | null;
+  readonly leadId?: string | null;
   readonly documentId: string | null;
   readonly actorId: string | null;
 }
@@ -29,6 +30,7 @@ export interface NotificationView {
     readonly dueTime: string | null;
     readonly timeZone: string;
   } | null;
+  readonly lead: { readonly id: string; readonly name: string; readonly boardKey: string } | null;
   readonly document: { readonly id: string; readonly title: string } | null;
   readonly actor: { readonly name: string } | null;
 }

@@ -42,7 +42,7 @@ function Group({ title, children }: { title: MessageKey; children: ReactNode }) 
   const [open, setOpen] = useState(true);
   const id = useId();
   return (
-    <section className="flex flex-col">
+    <section className="flex flex-col border-b border-border pb-2 last:border-b-0">
       <h3>
         <button
           type="button"

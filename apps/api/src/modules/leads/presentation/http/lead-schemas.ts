@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MAX_LEAD_NOTE_LENGTH } from '#modules/leads/domain/lead-note.js';
 import { COLUMN_NAME_LIMIT, LEAD_STAGES, TAG_LENGTH_LIMIT, TAG_LIMIT } from '#modules/leads/domain/lead.js';
 import { FIELD_NAME_LIMIT, LEAD_FIELD_TYPES, OPTION_COLORS, OPTION_LIMIT, OPTION_NAME_LIMIT } from '#modules/leads/domain/lead-field.js';
 const optionalText=(limit:number)=>z.string().trim().max(limit).nullable().optional();
@@ -41,3 +42,5 @@ export const updateFieldSchema=z.object({name:fieldName.optional(),options:field
 const calendarDay=z.string().regex(/^\d{4}-\d{2}-\d{2}$/,'Expected a YYYY-MM-DD date').transform(value=>new Date(`${value}T00:00:00.000Z`)).refine(date=>!Number.isNaN(date.getTime()),'Expected a real calendar date');
 export const stageCountsQuerySchema=z.object({from:calendarDay,to:calendarDay});
 export function normalize<T extends Record<string,unknown>>(input:T):T { return Object.fromEntries(Object.entries(input).map(([key,value])=>[key,value===''?null:value])) as T; }
+
+export const leadNoteSchema=z.object({body:z.string().trim().min(1,'A note needs text').max(MAX_LEAD_NOTE_LENGTH,'The note is too long')}).strict();

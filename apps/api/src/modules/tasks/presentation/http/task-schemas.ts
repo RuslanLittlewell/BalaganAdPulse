@@ -43,6 +43,7 @@ const documentIds = z.array(z.uuid()).max(MAX_DOCUMENTS_PER_TASK).optional();
 
 export const createTaskSchema = z.object({
   projectId: z.uuid("projectId must be a uuid").nullable().optional(),
+  leadId: z.uuid("leadId must be a uuid").nullable().optional(),
   title,
   description,
   column: z.enum(TASK_COLUMNS).optional(),
@@ -61,6 +62,7 @@ export const createTaskSchema = z.object({
 
 export const updateTaskSchema = z.object({
   projectId: z.uuid().nullable().optional(),
+  leadId: z.uuid().nullable().optional(),
   title: title.optional(),
   description,
   priority: z.enum(TASK_PRIORITIES).optional(),
@@ -79,6 +81,8 @@ export const updateTaskSchema = z.object({
 
 export const taskFilterSchema = z.object({
   projectId: z.uuid().optional(),
+  leadId: z.uuid().optional(),
+  scope: z.literal("crm").optional(),
   dueFrom: z.string().refine(isCalendarDay, "dueFrom must be a real YYYY-MM-DD calendar day").optional(),
   dueTo: z.string().refine(isCalendarDay, "dueTo must be a real YYYY-MM-DD calendar day").optional(),
 });

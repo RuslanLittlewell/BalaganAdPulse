@@ -18,8 +18,10 @@ import { LeadFieldsDialog } from "@/features/lead-field-management/index.js";
 import {
   CrmViewChips,
   CrmViewControls,
+  PeriodControl,
   pruneState,
   useViewState,
+  visibleLeads,
   type FilterContext,
   type Layout,
 } from "@/features/lead-view-options/index.js";
@@ -29,16 +31,17 @@ import {
   Button,
   EmptyState,
   FadeContent,
+  Tabs,
   useAlerts,
 } from "@/shared/ui/index.js";
 import { CrmBoard } from "@/widgets/crm-board/index.js";
-import { CrmCalendar } from "@/widgets/crm-calendar/index.js";
+import { CrmTasks } from "@/widgets/crm-tasks/index.js";
 import { CreativePreviewDialog } from "@/widgets/creative-preview/index.js";
 import { CreateLeadPanel, LeadSidePanel } from "@/widgets/lead-side-panel/index.js";
 import { CreateRecordPanel } from '@/widgets/record-panel/index.js';
 import { LeadTable } from "@/widgets/record-table/index.js";
 
-const LAYOUTS = ["board", "calendar", "table"] as const;
+const LAYOUTS = ["board", "table", "tasks"] as const;
 
 function isLayout(value: string | undefined): value is Layout {
   return LAYOUTS.includes(value as Layout);
@@ -97,6 +100,7 @@ export function CrmPage() {
     [storedView, fields, columns],
   );
   const choices = useBoardChoices(leads);
+  const shownCount = useMemo(() => visibleLeads(leads ?? [], view, fields ?? []).length, [leads, view, fields]);
   const context: FilterContext = useMemo(
     () => ({ fields: fields ?? [], columns: columns ?? FIXED_LEAD_COLUMNS, assignees: choices.assignees, tags: choices.tags }),
     [fields, columns, choices],
@@ -150,23 +154,38 @@ export function CrmPage() {
         <div className="flex min-w-0 items-center gap-2">
           <h1 className="truncate text-lg font-semibold">{t("crm.nav.leads")}</h1>
           {leads ? (
-            <span className="text-xs tabular-nums text-muted-foreground" aria-label={`${t("crm.view.leadCount")}: ${leads.length}`}>
-              {leads.length}
+            <span className="text-xs tabular-nums text-muted-foreground" aria-label={`${t("crm.view.leadCount")}: ${shownCount}`}>
+              {shownCount}
             </span>
           ) : null}
         </div>
 
+        <Tabs
+          items={[
+            { id: "board", label: t("crm.view.board") },
+            { id: "table", label: t("crm.view.table") },
+            { id: "tasks", label: t("crm.view.tasks") },
+          ]}
+          activeId={layout}
+          onSelect={(id) => {
+            if (!isLayout(id)) return;
+            setChosenLayout(id);
+            if (user) rememberCrmView(user.id, id);
+          }}
+          ariaLabel={t("crm.view.layout")}
+        />
+
         <span className="flex-1" />
+
+        {board ? <PeriodControl view={view} onChange={(filters) => change({ filters })} /> : null}
 
         {board ? (
           <CrmViewControls
             view={view}
             context={context}
-            layout={layout}
             canManageFields={capabilities?.create ?? false}
             onChange={change}
             onAddFilter={(filter) => { change({ filters: [...view.filters, filter] }); setFreshFilter(filter.id); }}
-            onLayout={(next) => { setChosenLayout(next); if (user) rememberCrmView(user.id, next); }}
             onBoardFields={() => setManagingFields(true)}
           />
         ) : null}
@@ -192,15 +211,8 @@ export function CrmPage() {
                   onCreatingChange={(stage) => { closeLead(); setCreatingRecord(null); setCreatingIn(stage); }}
                   onOpen={openLead}
                 />
-              ) : layout === "calendar" ? (
-                <CrmCalendar
-                  boardKey={board?.key}
-                  busy={isLoading || !user}
-                  view={view}
-                  fields={fields ?? []}
-                  selectedId={openLeadId}
-                  onOpen={openLead}
-                />
+              ) : layout === "tasks" ? (
+                <CrmTasks boardKey={board?.key} view={view} fields={fields ?? []} onOpenLead={openLead} />
               ) : (
                 <LeadTable leads={leads ?? []} columns={columns ?? FIXED_LEAD_COLUMNS} fields={fields ?? []} view={view} onOpen={openLead} onSort={(sort) => change({ sort })} />
               )

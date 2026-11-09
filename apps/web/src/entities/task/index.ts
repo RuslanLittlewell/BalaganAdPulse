@@ -13,6 +13,8 @@ export type {
   TaskColumn,
   TaskImage,
   TaskInput,
+  TaskLead,
+  TaskQuery,
   TaskMove,
   TaskPriority,
   TaskRepeat,
@@ -24,6 +26,8 @@ export {
   previewFor,
   resolveDrop,
   useCompleteTask,
+  useCrmTasks,
+  useLeadTasks,
   useCreateTask,
   useDeleteTask,
   useMoveTask,
@@ -48,6 +52,7 @@ export {
 export type { ParticipantChoice, ParticipantNamed } from "./lib/participants.js";
 export { NO_PROJECT_TASK, projectChoices, tasksOfProjects } from "./lib/projects.js";
 export type { ProjectChoice, ProjectNamed } from "./lib/projects.js";
+export { openTaskCount, tasksByDue } from "./lib/order.js";
 export { doneToggleFor, isDone } from "./lib/done.js";
 export { SHELF_AFTER_DAYS, isShelved } from "./lib/shelved.js";
 export type { DoneToggle } from "./lib/done.js";

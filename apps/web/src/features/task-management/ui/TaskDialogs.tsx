@@ -10,7 +10,14 @@ import { TaskPreviewDialog } from "./TaskPreviewDialog.js";
 
 export type OpenedTask =
   | { mode: "closed" }
-  | { mode: "create"; column?: TaskColumn; projectId?: string; participantIds?: string[] }
+  | {
+      mode: "create";
+      column?: TaskColumn;
+      projectId?: string;
+      participantIds?: string[];
+      lead?: { id: string; name: string; projectId: string };
+      leadChoice?: { boardKey?: string };
+    }
   | { mode: "open"; task: Task };
 
 export interface TaskDialogsProps {
@@ -37,6 +44,8 @@ export function TaskDialogs({ opened, onClose }: TaskDialogsProps) {
           column={opened.mode === "create" ? opened.column : undefined}
           projectId={opened.mode === "create" ? opened.projectId : undefined}
           participantIds={opened.mode === "create" ? opened.participantIds : undefined}
+          lead={opened.mode === "create" ? opened.lead : undefined}
+          leadChoice={opened.mode === "create" ? opened.leadChoice : undefined}
           onClose={onClose}
           onDelete={(task) => {
             onClose();

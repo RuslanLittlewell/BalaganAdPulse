@@ -137,8 +137,15 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
         const customValues=applyCustomValues(await d.fields.list(actor.orgId,board,context),{},input.customValues);
         const links=await linked(context,actor,clientId,{name:input.name,personId:null,companyId:null},input);
         touched=links.touched;
+        let personId=links.personId;
+        if (!personId) {
+          const person=await d.records.createPerson(context,actor,{name:input.name,companyId:links.companyId,id:d.ids.generate(),orgId:actor.orgId,clientId});
+          await recordAudit(context,actor,'crm-person',person,'CREATE',{after:person});
+          personId=person.id;
+          touched=true;
+        }
         const {contact:_contact,organization:_organization,...fields}=input;
-        const row=await d.leads.create(context,{...fields,...named,...assigned,customValues,personId:links.personId,companyId:links.companyId,id:d.ids.generate(),orgId:actor.orgId,projectId:board,stage,position:0});
+        const row=await d.leads.create(context,{...fields,...named,...assigned,customValues,personId,companyId:links.companyId,id:d.ids.generate(),orgId:actor.orgId,projectId:board,stage,position:0});
         await ordered(context,[{...row,position:-1},...rows.filter(l=>l.stage===stage)]);
         await audit(context,actor,row,'CREATE',{after:row}); return row;
       });

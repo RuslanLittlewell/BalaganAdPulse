@@ -33,11 +33,11 @@ it('links records of the board client and applies contact values to the shared p
   expect((await prisma.person.findUniqueOrThrow({ where: { id: person.id } })).email).toBe('anna@example.com');
 });
 
-it('creates a named contact and organization atomically when an unlinked lead gets values', async () => {
+it('names the lead\'s own person at creation and fills the contact and a new organization when the lead gets values', async () => {
   const lead = (await request(app).post(leads()).set(auth).send({ name: 'Leonid' }).expect(201)).body;
-  expect(lead).toMatchObject({ personId: null, companyId: null });
+  expect(lead).toMatchObject({ person: { name: 'Leonid', phone: null }, companyId: null });
   const patched = (await request(app).patch(`${leads()}/${lead.id}`).set(auth).send({ contact: { phone: '+375291112233' }, organization: { website: 'https://example.com' } }).expect(200)).body;
-  expect(patched).toMatchObject({ person: { name: 'Leonid', phone: '+375291112233' }, company: { name: 'Leonid', website: 'https://example.com' } });
+  expect(patched).toMatchObject({ personId: lead.personId, person: { name: 'Leonid', phone: '+375291112233' }, company: { name: 'Leonid', website: 'https://example.com' } });
   expect(await prisma.person.count()).toBe(1);
   expect(await prisma.company.count()).toBe(1);
   const activity = (await request(app).get(`${leads()}/${lead.id}/activity`).set(auth).expect(200)).body;
@@ -61,6 +61,16 @@ it('rejects records from another client and old contact fields without partial w
     await request(app).post(leads()).set(auth).send({ name: 'Old', [field]: 'value' }).expect(400);
     await request(app).patch(`${leads()}/${lead.id}`).set(auth).send({ [field]: 'value' }).expect(400);
   }
-  expect((await prisma.lead.findUniqueOrThrow({ where: { id: lead.id } })).personId).toBeNull();
+  expect((await prisma.lead.findUniqueOrThrow({ where: { id: lead.id } })).personId).toBe(lead.personId);
+  expect(await prisma.person.count()).toBe(2);
+});
+
+it('lists the person of a lead created with a name only among the people, and reuses a chosen contact', async () => {
+  const lead = (await request(app).post(leads()).set(auth).send({ name: 'Anna' }).expect(201)).body;
+  const listed = (await request(app).get(people()).set(auth).expect(200)).body;
+  expect(listed).toEqual([expect.objectContaining({ id: lead.personId, name: 'Anna' })]);
+
+  const second = (await request(app).post(leads()).set(auth).send({ name: 'Anna again', personId: lead.personId }).expect(201)).body;
+  expect(second.personId).toBe(lead.personId);
   expect(await prisma.person.count()).toBe(1);
 });

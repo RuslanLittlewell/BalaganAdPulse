@@ -27,7 +27,7 @@ describe("the fields of a lead", () => {
   it("starts with no amount and no tags", async () => {
     const created = await create({});
     expect(created.body).toMatchObject({
-      amount: null, service: null, person: null, company: null, tags: [],
+      amount: null, service: null, person: { name: "Леонид", phone: null }, company: null, tags: [],
     });
   });
 

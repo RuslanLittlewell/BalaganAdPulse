@@ -3,7 +3,7 @@ import { motion, useReducedMotion } from 'motion/react';
 
 const LAYERED = '[role="listbox"],[role="menu"],[role="dialog"],[role="alertdialog"]';
 
-export function SidePanel({ label, testId, onClose, children }: { label: string; testId?: string; onClose: () => void; children: ReactNode }) {
+export function SidePanel({ label, testId, wide = false, onClose, children }: { label: string; testId?: string; wide?: boolean; onClose: () => void; children: ReactNode }) {
   const reducedMotion = useReducedMotion();
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -21,7 +21,7 @@ export function SidePanel({ label, testId, onClose, children }: { label: string;
     animate={{ x: 0, opacity: 1 }}
     exit={{ x: reducedMotion ? 0 : '100%', opacity: reducedMotion ? 1 : 0 }}
     transition={{ duration: reducedMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] }}
-    className="fixed inset-0 z-40 flex min-h-0 flex-col overflow-hidden bg-background shadow-2xl md:absolute md:inset-y-0 md:right-0 md:left-auto md:w-[480px] md:max-w-full md:rounded-2xl md:border md:border-border">
+    className={`fixed inset-0 z-40 flex min-h-0 flex-col overflow-hidden bg-background shadow-2xl md:absolute md:inset-y-0 md:right-0 md:left-auto ${wide ? 'md:w-[720px]' : 'md:w-[480px]'} md:max-w-full md:rounded-2xl md:border md:border-border`}>
     {children}
   </motion.aside>;
 }

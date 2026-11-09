@@ -14,7 +14,7 @@ export type FieldRef = BuiltInField | CustomFieldRef | 'peopleCount' | 'leadCoun
 
 export type Operator =
   | "contains" | "notContains" | "isEmpty" | "isNotEmpty"
-  | "gte" | "lte" | "on" | "before" | "after"
+  | "gte" | "lte" | "on" | "before" | "after" | "between"
   | "anyOf" | "noneOf" | "checked" | "unchecked";
 
 export type FilterValue = string | string[] | null;
@@ -90,14 +90,23 @@ export const useCrmViews = create<CrmViewsState>()(
   ),
 );
 
+const isoDay = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+export function currentMonthPeriod(now: Date = new Date()): Filter {
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return { id: "filter-period-month", field: "arrival", operator: "between", value: [isoDay(first), isoDay(last)] };
+}
+
 export function useViewState(userId: string | undefined, boardKey: string | undefined) {
   const key = userId && boardKey ? viewKey(userId, boardKey) : null;
   const stored = useCrmViews((state) => (key ? state.views[key] : undefined));
   const update = useCrmViews((state) => state.update);
-  const view: ViewState = stored ? { ...DEFAULT_VIEW, ...stored } : DEFAULT_VIEW;
+  const view: ViewState = stored ? { ...DEFAULT_VIEW, ...stored } : { ...DEFAULT_VIEW, filters: [currentMonthPeriod()] };
   return {
     view,
-    change: (change: Partial<ViewState>) => { if (key) update(key, change); },
+    change: (change: Partial<ViewState>) => { if (key) update(key, { ...view, ...change }); },
   };
 }
 

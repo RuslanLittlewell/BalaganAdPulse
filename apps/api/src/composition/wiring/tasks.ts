@@ -15,6 +15,7 @@ import { PrismaTaskCommentRepository } from "#modules/tasks/infrastructure/prism
 import { PrismaTaskDocumentRepository } from "#modules/tasks/infrastructure/prisma-task-document-repository.js";
 import { PrismaTaskImageRepository, S3TaskImageStorage } from "#modules/tasks/infrastructure/prisma-task-image-repository.js";
 import {
+  PrismaTaskLeadReach,
   PrismaTaskMemberReach,
   PrismaTaskProjectReach,
   PrismaTaskRepository,
@@ -38,6 +39,7 @@ export function wireTasks(
     documents: new PrismaTaskDocumentRepository(prisma, unitOfWork),
     imageStorage: new S3TaskImageStorage(),
     projects,
+    leads: new PrismaTaskLeadReach(prisma),
     members: new PrismaTaskMemberReach(prisma),
     audit,
     events: {

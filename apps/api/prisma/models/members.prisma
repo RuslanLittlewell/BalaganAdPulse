@@ -54,6 +54,7 @@ model Organization {
   tasks        Task[]
   metaLeads    MetaLead[]
   leadFiles    LeadFile[]
+  leadNotes    LeadNote[]
   kpiMetric    KpiMetric?   @map("kpi_metric")
   kpiTarget    Decimal?     @map("kpi_target") @db.Decimal(18, 4)
   kpiUpdatedAt DateTime?    @map("kpi_updated_at")
@@ -89,6 +90,7 @@ model Membership {
   uploadedImages    TaskImage[]       @relation("TaskImageUploader")
   uploadedDocuments TaskDocument[]    @relation("TaskDocumentUploader")
   leadFiles         LeadFile[]        @relation("LeadFileUploader")
+  leadNotes         LeadNote[]        @relation("LeadNoteAuthor")
   reports           MonthlyReport[]   @relation("MonthlyReportCreator")
   authoredDocuments ProjectDocument[] @relation("ProjectDocumentAuthor")
   editedDocuments   ProjectDocument[] @relation("ProjectDocumentEditor")

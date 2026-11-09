@@ -16,6 +16,7 @@ const notificationSchema = z.object({
     dueTime: z.string().nullable(),
     timeZone: z.string(),
   }).nullable(),
+  lead: z.object({ id: z.uuid(), name: z.string(), boardKey: z.uuid() }).nullable(),
   document: z.object({ id: z.uuid(), title: z.string() }).nullable(),
   actor: z.object({ name: z.string() }).nullable(),
 });
@@ -28,7 +29,7 @@ const listSchema = z.object({
 export const notificationDoc: RouteDoc = {
   tag: "Notifications",
   tagDescription:
-    "Each member's own notifications: a project meeting its KPI for the month, a new project or project document, being named on a task, a change to a task one is on, a task's deadline less than a day away. They are listed newest first, read one by one or all at once, and arrive live on an event stream.",
+    "Each member's own notifications: a project meeting its KPI for the month, a new project or project document, being named on a task, a tag in a task comment or a lead note, a change to a task one is on, a task's deadline less than a day away. They are listed newest first, read one by one or all at once, and arrive live on an event stream.",
   operations: [
     {
       method: "get",

@@ -82,8 +82,8 @@ describe("filter operators", () => {
     const kinds = Object.fromEntries(fieldCatalogue(FIELDS).map((field) => [field.ref, operatorsFor(field.kind)]));
     expect(kinds.company).toEqual(["contains", "notContains", "isEmpty", "isNotEmpty"]);
     expect(kinds.amount).toEqual(["gte", "lte", "isEmpty", "isNotEmpty"]);
-    expect(kinds.arrival).toEqual(["on", "before", "after"]);
-    expect(kinds["custom:meeting"]).toEqual(["on", "before", "after", "isEmpty", "isNotEmpty"]);
+    expect(kinds.arrival).toEqual(["on", "before", "after", "between"]);
+    expect(kinds["custom:meeting"]).toEqual(["on", "before", "after", "between", "isEmpty", "isNotEmpty"]);
     expect(kinds.stage).toEqual(["anyOf", "noneOf"]);
     expect(kinds.assignee).toEqual(["anyOf", "noneOf", "isEmpty", "isNotEmpty"]);
     expect(kinds["custom:qualified"]).toEqual(["checked", "unchecked"]);
@@ -192,5 +192,52 @@ describe("remembering the view", () => {
     });
 
     expect(useCrmViews.getState().views).toEqual({});
+  });
+});
+
+describe("filtering by a period", () => {
+  const arrived = (name: string, createdAt: string) => aLead({ id: name, name, createdAt });
+  const LEADS = [
+    arrived("август", "2026-08-31T23:00:00.000Z"),
+    arrived("первое", "2026-10-01T00:30:00.000Z"),
+    arrived("середина", "2026-10-15T12:00:00.000Z"),
+    arrived("последнее", "2026-10-31T21:00:00.000Z"),
+    arrived("ноябрь", "2026-11-01T00:30:00.000Z"),
+  ];
+  const period = (value: string[] | null, extra: Partial<Filter> = {}): Filter =>
+    ({ id: "f", field: "arrival", operator: "between", value, ...extra });
+  const names = (filters: Filter[]) =>
+    visibleLeads(LEADS, { search: "", filters }, FIELDS).map((lead) => lead.name);
+
+  it("offers в период for the arrival day and for date fields", () => {
+    expect(operatorsFor("arrival")).toContain("between");
+    expect(operatorsFor("date")).toContain("between");
+    expect(operatorsFor("number")).not.toContain("between");
+  });
+
+  it("keeps the leads of October with both ends included", () => {
+    expect(names([period(["2026-10-01", "2026-10-31"])])).toEqual(["первое", "середина", "последнее"]);
+  });
+
+  it("combines with another condition", () => {
+    const first = aLead({ id: "x", name: "в КП", stage: "PROPOSAL", createdAt: "2026-10-05T10:00:00.000Z" });
+    const filters: Filter[] = [period(["2026-10-01", "2026-10-31"]), { id: "s", field: "stage", operator: "anyOf", value: ["PROPOSAL"] }];
+    expect(visibleLeads([first, ...LEADS], { search: "", filters }, FIELDS).map((lead) => lead.name)).toEqual(["в КП"]);
+  });
+
+  it("filters nothing while a day is missing or the period is reversed", () => {
+    expect(names([period(["2026-10-01", ""])])).toHaveLength(5);
+    expect(names([period(null)])).toHaveLength(5);
+    expect(names([period(["2026-10-31", "2026-10-01"])])).toHaveLength(5);
+  });
+
+  it("filters a custom date field the same way", () => {
+    const meetings = [
+      aLead({ id: "a", name: "встреча в октябре", customValues: { meeting: "2026-10-12" } }),
+      aLead({ id: "b", name: "встреча в декабре", customValues: { meeting: "2026-12-12" } }),
+      aLead({ id: "c", name: "без встречи" }),
+    ];
+    const filter: Filter = { id: "m", field: "custom:meeting", operator: "between", value: ["2026-10-01", "2026-10-31"] };
+    expect(visibleLeads(meetings, { search: "", filters: [filter] }, FIELDS).map((lead) => lead.name)).toEqual(["встреча в октябре"]);
   });
 });

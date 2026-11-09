@@ -113,12 +113,12 @@ describe("the panel's layout", () => {
     expect(screen.queryByLabelText("Сумма сделки")).toBeNull();
   });
 
-  it("offers Поля, Активность and Файлы for a hand-made lead", async () => {
+  it("offers Поля, Задачи, Заметки, Активность and Файлы for a hand-made lead", async () => {
     catalogue();
     setup();
 
     const tabs = await screen.findByRole("radiogroup", { name: "Разделы лида" });
-    expect(within(tabs).getAllByRole("radio").map((tab) => tab.textContent)).toEqual(["Поля", "Активность", "Файлы"]);
+    expect(within(tabs).getAllByRole("radio").map((tab) => tab.textContent)).toEqual(["Поля", "Задачи", "Заметки", "Активность", "Файлы"]);
   });
 
   it("keeps what the integration delivered in Информация", async () => {

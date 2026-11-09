@@ -7,6 +7,7 @@ import {
 import { AppError } from "#shared/domain/index.js";
 import type { LeadUseCases } from "#modules/leads/application/lead-use-cases.js";
 import type { LeadFileUseCases } from "#modules/leads/application/lead-file-use-cases.js";
+import type { LeadNoteUseCases } from "#modules/leads/application/lead-note-use-cases.js";
 import type { LeadFieldUseCases } from "#modules/leads/application/lead-field-use-cases.js";
 import type { CrmRecordUseCases } from "#modules/leads/application/crm-record-use-cases.js";
 import { leadFileUpload, uploadedName } from "./lead-file-upload.js";
@@ -23,19 +24,20 @@ import {
   createPersonSchema,
   updatePersonSchema,
   stageCountsQuerySchema,
+  leadNoteSchema,
   normalize,
 } from "./lead-schemas.js";
-export function createLeadRouter(leads: LeadUseCases, files: LeadFileUseCases, fields: LeadFieldUseCases, records: CrmRecordUseCases) {
+export function createLeadRouter(leads: LeadUseCases, files: LeadFileUseCases, fields: LeadFieldUseCases, records: CrmRecordUseCases, notes: LeadNoteUseCases) {
   const router = Router();
   const handle =
     (
       fn: (
-        req: Request<{ boardKey: string; id: string; fileId: string; clientId: string }>,
+        req: Request<{ boardKey: string; id: string; fileId: string; clientId: string; noteId: string }>,
         res: Response,
       ) => Promise<unknown>,
     ) =>
     (
-      req: Request<{ boardKey: string; id: string; fileId: string; clientId: string }>,
+      req: Request<{ boardKey: string; id: string; fileId: string; clientId: string; noteId: string }>,
       res: Response,
       next: NextFunction,
     ) => {
@@ -164,6 +166,29 @@ export function createLeadRouter(leads: LeadUseCases, files: LeadFileUseCases, f
             contentType: req.file.mimetype,
           }),
         );
+    }),
+  );
+  router.get(
+    "/boards/:boardKey/leads/:id/notes",
+    handle(async (req, res) => res.json(await notes.list(actor(req), req.params.boardKey, req.params.id))),
+  );
+  router.post(
+    "/boards/:boardKey/leads/:id/notes",
+    handle(async (req, res) => {
+      res.status(201).json(await notes.add(actor(req), req.params.boardKey, req.params.id, leadNoteSchema.parse(req.body)));
+    }),
+  );
+  router.patch(
+    "/boards/:boardKey/leads/:id/notes/:noteId",
+    handle(async (req, res) => {
+      res.json(await notes.edit(actor(req), req.params.boardKey, req.params.id, req.params.noteId, leadNoteSchema.parse(req.body)));
+    }),
+  );
+  router.delete(
+    "/boards/:boardKey/leads/:id/notes/:noteId",
+    handle(async (req, res) => {
+      await notes.remove(actor(req), req.params.boardKey, req.params.id, req.params.noteId);
+      res.status(204).end();
     }),
   );
   router.get(

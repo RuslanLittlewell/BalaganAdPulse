@@ -62,8 +62,8 @@ export function catalogueField(ref: FieldRef, fields: readonly LeadField[]): Cat
 const OPERATORS: Record<FieldKind, readonly Operator[]> = {
   text: ["contains", "notContains", "isEmpty", "isNotEmpty"],
   number: ["gte", "lte", "isEmpty", "isNotEmpty"],
-  arrival: ["on", "before", "after"],
-  date: ["on", "before", "after", "isEmpty", "isNotEmpty"],
+  arrival: ["on", "before", "after", "between"],
+  date: ["on", "before", "after", "between", "isEmpty", "isNotEmpty"],
   stage: ["anyOf", "noneOf"],
   member: ["anyOf", "noneOf", "isEmpty", "isNotEmpty"],
   choice: ["anyOf", "noneOf", "isEmpty", "isNotEmpty"],

@@ -21,16 +21,16 @@ afterEach(() => { vi.useRealTimers(); });
 describe("PeriodControl", () => {
   it("starts on the last thirty days with two date inputs", () => {
     renderWithProviders(<><PeriodControl /><Screen /></>);
-    expect(screen.getByLabelText("От")).toHaveValue("2026-07-19");
-    expect(screen.getByLabelText("До")).toHaveValue("2026-08-17");
+    expect(screen.getByLabelText("От")).toHaveValue("19-07-2026");
+    expect(screen.getByLabelText("До")).toHaveValue("17-08-2026");
     expect(screen.getByRole("status").textContent).toBe("2026-07-19..2026-08-17");
     expect(screen.queryByRole("button", { name: "30 дней" })).not.toBeInTheDocument();
   });
 
   it("restores a valid range from the address", () => {
     renderWithProviders(<><PeriodControl /><Screen /></>, { route: "/?from=2026-05-03&to=2026-06-04" });
-    expect(screen.getByLabelText("От")).toHaveValue("2026-05-03");
-    expect(screen.getByLabelText("До")).toHaveValue("2026-06-04");
+    expect(screen.getByLabelText("От")).toHaveValue("03-05-2026");
+    expect(screen.getByLabelText("До")).toHaveValue("04-06-2026");
     expect(screen.getByRole("status").textContent).toBe("2026-05-03..2026-06-04");
   });
 
@@ -88,8 +88,8 @@ describe("PeriodControl", () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderWithProviders(<><PeriodControl /><Screen /></>);
     await user.click(screen.getByRole("button", { name: "7 дней" }));
-    expect(screen.getByLabelText("От")).toHaveValue("2026-08-11");
-    expect(screen.getByLabelText("До")).toHaveValue("2026-08-17");
+    expect(screen.getByLabelText("От")).toHaveValue("11-08-2026");
+    expect(screen.getByLabelText("До")).toHaveValue("17-08-2026");
     expect(screen.getByRole("status").textContent).toBe("2026-08-11..2026-08-17");
     expect(screen.getByTestId("search")).toHaveTextContent("from=2026-08-11");
     expect(screen.getByTestId("search")).toHaveTextContent("to=2026-08-17");
@@ -104,8 +104,8 @@ describe("PeriodControl", () => {
 
     await user.click(screen.getByRole("button", { name: "Вчера" }));
 
-    expect(screen.getByLabelText("От")).toHaveValue("2026-08-16");
-    expect(screen.getByLabelText("До")).toHaveValue("2026-08-16");
+    expect(screen.getByLabelText("От")).toHaveValue("16-08-2026");
+    expect(screen.getByLabelText("До")).toHaveValue("16-08-2026");
     expect(screen.getByRole("status").textContent).toBe("2026-08-16..2026-08-16");
     expect(screen.getByRole("button", { name: "Вчера" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "7 дней" })).toHaveAttribute("aria-pressed", "false");

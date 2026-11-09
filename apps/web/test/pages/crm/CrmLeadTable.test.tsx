@@ -1,10 +1,11 @@
 import { http as mock, HttpResponse } from 'msw';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { aLead, renderWithProviders, server } from '@test/shared/index.js';
+import { aLead, freezeDate, renderWithProviders, server } from '@test/shared/index.js';
 import { CrmPage } from '@/pages/crm/index.js';
 import { useModuleMemory } from '@/shared/lib/index.js';
 import { useCrmViews } from '@/features/lead-view-options/index.js';
+freezeDate('2026-09-15T12:00:00');
 
 const leads = [
   aLead({ id: 'target', name: 'Целевой лид', stage: 'TARGET', position: 0, company: { id: 'c1', name: 'Ромашка', website: null } }),

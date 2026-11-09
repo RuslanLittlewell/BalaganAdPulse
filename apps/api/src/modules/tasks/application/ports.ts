@@ -24,9 +24,17 @@ export interface ChecklistItemRecord {
   readonly position: number;
 }
 
+export interface TaskLead {
+  readonly id: string;
+  readonly name: string;
+  readonly boardKey: string;
+}
+
 export interface TaskRecord {
   readonly id: string;
   readonly projectId: string | null;
+  readonly leadId: string | null;
+  readonly lead: TaskLead | null;
   readonly orgId: string;
   readonly title: string;
   readonly description: TaskDescription | null;
@@ -55,6 +63,7 @@ export interface TaskRecord {
 export interface NewTask {
   readonly id: string;
   readonly projectId: string | null;
+  readonly leadId: string | null;
   readonly orgId: string;
   readonly title: string;
   readonly description?: TaskDescription | null;
@@ -77,6 +86,7 @@ export interface NewTask {
 
 export interface TaskChange {
   readonly projectId?: string | null;
+  readonly leadId?: string | null;
   readonly title?: string;
   readonly description?: TaskDescription | null;
   readonly priority?: TaskPriority;
@@ -95,6 +105,8 @@ export interface TaskChange {
 
 export interface TaskFilter {
   readonly projectId?: string;
+  readonly leadId?: string;
+  readonly scope?: "crm";
   readonly dueFrom?: string;
   readonly dueTo?: string;
 }
@@ -118,6 +130,10 @@ export interface TaskRepository {
 
 export interface ProjectReach {
   contextFor(actor: ActorContext, projectId: string): Promise<{ clientId: string } | null>;
+}
+
+export interface LeadReach {
+  reachable(actor: ActorContext, leadId: string): Promise<{ id: string; projectId: string; name: string } | null>;
 }
 
 export interface NamedMember {
@@ -149,6 +165,7 @@ export interface TaskDependencies {
   readonly documents: TaskDocumentRepository;
   readonly imageStorage: TaskImageStorage;
   readonly projects: ProjectReach;
+  readonly leads: LeadReach;
   readonly members: MemberReach;
   readonly audit: AuditWriter;
   readonly events: TaskEventPublisher;

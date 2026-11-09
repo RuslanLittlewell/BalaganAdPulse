@@ -1,5 +1,5 @@
 export { createNotificationUseCases } from "./application/notification-use-cases.js";
-export type { NamedTask, NotificationUseCases, WatchedTask } from "./application/notification-use-cases.js";
+export type { NamedLead, NamedTask, NotificationUseCases, WatchedTask } from "./application/notification-use-cases.js";
 export { createDueSoonWorker, DUE_SOON_INTERVAL_MS } from "./application/due-soon-worker.js";
 export type { DueSoonWorker } from "./application/due-soon-worker.js";
 export { createNotificationHub } from "./application/notification-hub.js";

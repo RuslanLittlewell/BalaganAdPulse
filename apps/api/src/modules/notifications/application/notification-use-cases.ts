@@ -18,6 +18,11 @@ export interface NamedTask {
   readonly personal: boolean;
 }
 
+export interface NamedLead {
+  readonly id: string;
+  readonly projectId: string;
+}
+
 export interface WatchedTask extends NamedTask {
   readonly participantIds: readonly string[];
 }
@@ -103,6 +108,16 @@ export function createNotificationUseCases(d: NotificationDependencies) {
       const mentioned = othersThan(memberIds, actor.membershipId);
       if (mentioned.length === 0) return;
       await notify((await shownTo(mentioned, task)).map(aboutTask(task, "TASK_MENTIONED", actor.membershipId)));
+    },
+
+    async leadMentioned(lead: NamedLead, memberIds: readonly string[], actor: ActorContext): Promise<void> {
+      const mentioned = othersThan(memberIds, actor.membershipId);
+      if (mentioned.length === 0) return;
+      const recipients = (await d.recipients.activeMembers(mentioned)).map(({ id }) => id);
+      await notify(recipients.map((recipientId) => ({
+        recipientId, kind: "LEAD_MENTIONED", projectId: lead.projectId, taskId: null, leadId: lead.id,
+        documentId: null, actorId: actor.membershipId,
+      })));
     },
 
     async taskChanged(task: WatchedTask, actor: ActorContext, newcomers: readonly string[]): Promise<void> {

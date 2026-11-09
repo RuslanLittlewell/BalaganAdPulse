@@ -23,6 +23,8 @@ function headline(notification: AddressedNotification): string {
       return `${COPY.documentAdded[0]} ${named(notification.document?.title)} ${COPY.documentAdded[1]} ${project}`;
     case "TASK_MENTIONED":
       return `${COPY.taskMentioned} ${task}`;
+    case "LEAD_MENTIONED":
+      return `${COPY.leadMentioned} ${named(notification.lead?.name)}`;
     case "TASK_DUE_SOON":
       return `${COPY.dueSoon} ${task}`;
   }
@@ -32,6 +34,7 @@ export function notificationPath(notification: AddressedNotification): string | 
   if (notification.document && notification.project) {
     return `/projects/${encodeURIComponent(notification.project.id)}/documents/${encodeURIComponent(notification.document.id)}`;
   }
+  if (notification.lead) return `/crm?board=${encodeURIComponent(notification.lead.boardKey)}&lead=${encodeURIComponent(notification.lead.id)}&tab=notes`;
   if (notification.task) return `/tasks?task=${encodeURIComponent(notification.task.id)}`;
   if (notification.project) return `/projects/${encodeURIComponent(notification.project.id)}`;
   return null;

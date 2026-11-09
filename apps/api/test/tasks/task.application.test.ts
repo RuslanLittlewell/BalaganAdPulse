@@ -10,7 +10,7 @@ const guest: ActorContext = { ...admin, membershipId: "m3", role: "GUEST" };
 const customer: ActorContext = { ...admin, membershipId: "m4", role: "CLIENT" };
 
 const task = (partial: Partial<TaskRecord> = {}): TaskRecord => ({
-  id: "t1", projectId: "p1", orgId: "org1", title: "Write the brief", description: null,
+  id: "t1", projectId: "p1", leadId: null, lead: null, orgId: "org1", title: "Write the brief", description: null,
   column: "IDEA", priority: "MEDIUM", createdById: "m1",
   participantIds: [], visibleToClient: false, position: 0,
   dueDate: null, dueTime: null, endTime: null, repeatEvery: "NONE", isCall: false, checklist: [], imageIds: [],
@@ -104,6 +104,7 @@ function fixture(options: {
       contextFor: async (_actor, projectId) =>
         reachableProjects.includes(projectId) ? { clientId: "c1" } : null,
     },
+    leads: { reachable: async () => null },
     members: {
       isAssignable: async (_actor, membershipId) => assignable.includes(membershipId),
       describe: async (_actor, membershipIds) => membershipIds

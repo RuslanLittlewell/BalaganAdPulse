@@ -66,6 +66,7 @@ import {
 } from "./TaskDescriptionEditor.js";
 import { TaskChecklist } from "./TaskChecklist.js";
 import { TaskComments } from "./TaskComments.js";
+import { LeadPicker } from "./LeadPicker.js";
 import { TaskSchedule } from "./TaskSchedule.js";
 
 export interface TaskFormDialogProps {
@@ -73,12 +74,15 @@ export interface TaskFormDialogProps {
   column?: TaskColumn;
   projectId?: string;
   participantIds?: string[];
+  lead?: { id: string; name: string; projectId: string };
+  leadChoice?: { boardKey?: string };
   onClose: () => void;
   onDelete?: (task: Task) => void;
 }
 
 interface FormValues {
   projectId: string;
+  leadId: string;
   title: string;
   priority: Task["priority"];
   column: TaskColumn;
@@ -105,6 +109,7 @@ const messageOf = (error: unknown) =>
 
 const FORM_FIELDS = [
   "projectId",
+  "leadId",
   "title",
   "priority",
   "participantIds",
@@ -127,11 +132,13 @@ function FieldError({ message }: { message?: string }) {
 function Block({
   block,
   readOnly,
+  removable = true,
   onRemove,
   children,
 }: {
   block: TaskBlock;
   readOnly: boolean;
+  removable?: boolean;
   onRemove: () => void;
   children: ReactNode;
 }) {
@@ -144,7 +151,7 @@ function Block({
         <Label>
           {t(`tasks.block.${block}`)}
         </Label>
-        {readOnly ? null : (
+        {readOnly || !removable ? null : (
           <Button
             type="button"
             variant="ghost"
@@ -175,6 +182,8 @@ export function TaskFormDialog({
   column,
   projectId: givenProject,
   participantIds: givenParticipants,
+  lead: givenLead,
+  leadChoice,
   onClose,
   onDelete,
 }: TaskFormDialogProps) {
@@ -239,13 +248,14 @@ export function TaskFormDialog({
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     defaultValues: {
-      projectId: (task ? task.projectId : givenProject) ?? NO_PROJECT,
+      projectId: (task ? task.projectId : givenLead?.projectId ?? givenProject) ?? NO_PROJECT,
+      leadId: task?.leadId ?? givenLead?.id ?? "",
       title: task?.title ?? "",
       priority: task?.priority ?? "MEDIUM",
       column: task?.column ?? column ?? "IDEA",
       participantIds: task?.participantIds ?? givenParticipants ?? [],
       visibleToClient: task?.visibleToClient ?? false,
-      dueDate: task?.dueDate ?? null,
+      dueDate: task?.dueDate ?? (givenLead || leadChoice ? toIso(new Date()) : null),
       dueTime: task?.dueTime ?? null,
       endTime: task?.endTime ?? null,
       repeatEvery: task?.repeatEvery ?? "NONE",
@@ -264,7 +274,10 @@ export function TaskFormDialog({
   const formId = useId();
 
   const projectId = watch("projectId");
+  const leadId = watch("leadId");
   const participantIds = watch("participantIds");
+  const fixedLead = task?.lead ?? (task?.leadId ? { id: task.leadId, name: "" } : givenLead);
+  const leadMode = fixedLead !== undefined || leadChoice !== undefined;
 
   useEffect(() => {
     if (task || givenParticipants || !ownMembershipId || !movesTasks) return;
@@ -283,7 +296,7 @@ export function TaskFormDialog({
     movesTasks && chosenProject ? chosenProject.clientId : undefined,
     chosenProject?.id,
   );
-  const clientPeople = chosenProject
+  const clientPeople = chosenProject && !leadMode
     ? (projectPeople ?? []).filter((member) => isCustomerMember(member) && member.status === "ACTIVE")
     : [];
   const offeredPeople = [
@@ -319,6 +332,7 @@ export function TaskFormDialog({
     setOpened((held) => new Set([...held, block]));
 
   const hide = (block: TaskBlock) => {
+    if (block === "dates" && leadMode) return;
     setOpened(
       (held) => new Set([...held].filter((candidate) => candidate !== block)),
     );
@@ -332,12 +346,12 @@ export function TaskFormDialog({
     }
     if (block === "checklist") checklist.clear();
     if (block === "assign") {
-      setValue("projectId", NO_PROJECT);
+      if (!leadMode) setValue("projectId", NO_PROJECT);
       setValue("participantIds", []);
     }
   };
 
-  const sharesWithClient = mayShareWithClient && projectId !== NO_PROJECT;
+  const sharesWithClient = mayShareWithClient && projectId !== NO_PROJECT && !leadMode;
   const personalNote = customer && projectId === NO_PROJECT;
   const deleteTask = task && onDelete && (deletesTasks || task.personal) ? () => onDelete(task) : null;
   const saveLabel = task ? t("tasks.form.save") : t("tasks.form.create");
@@ -349,6 +363,10 @@ export function TaskFormDialog({
 
   const submission = useRef(false);
   const submitValues = handleSubmit(async (values) => {
+    if (leadChoice && values.leadId === "") {
+      setError("leadId", { message: t("tasks.form.leadRequired") });
+      return;
+    }
     if (
       values.dueDate !== null && values.dueTime !== null && values.endTime !== null
       && !endsAfterStart(values.dueTime, values.endTime)
@@ -366,6 +384,7 @@ export function TaskFormDialog({
     const repeatEvery = values.dueDate === null ? "NONE" : values.repeatEvery;
     const body: TaskInput = {
       projectId: values.projectId === NO_PROJECT ? null : values.projectId,
+      ...(!task && values.leadId !== "" ? { leadId: values.leadId } : {}),
       title: values.title,
       priority: values.priority,
       ...(mayShareWithClient && values.projectId !== NO_PROJECT
@@ -542,6 +561,26 @@ export function TaskFormDialog({
               })}
             />
 
+            {leadMode ? (
+              <div className="flex min-w-0 flex-col gap-1">
+                <Label htmlFor="task-lead">{t("tasks.form.lead")}</Label>
+                {fixedLead ? (
+                  <p className="text-sm" data-testid="task-lead-name">{fixedLead.name}</p>
+                ) : (
+                  <LeadPicker
+                    value={leadId}
+                    boardKey={leadChoice?.boardKey}
+                    onChange={(choice) => {
+                      setValue("leadId", choice.id, { shouldDirty: true });
+                      setValue("projectId", choice.projectId);
+                      clearErrors("leadId");
+                    }}
+                  />
+                )}
+                <FieldError message={errors.leadId?.message} />
+              </div>
+            ) : null}
+
             {narrow ? properties : null}
 
             <div className="grid grid-cols-1 gap-3 md:min-h-0 md:flex-1 md:grid-cols-[7fr_3fr] md:gap-0">
@@ -650,6 +689,7 @@ export function TaskFormDialog({
                       key={block}
                       block={block}
                       readOnly={readOnly}
+                      removable={!(block === "dates" && leadMode)}
                       onRemove={() => hide(block)}
                     >
                       {block === "dates" ? (
@@ -662,6 +702,7 @@ export function TaskFormDialog({
                           isCall={isCall}
                           today={toIso(new Date())}
                           onDueDateChange={(value) => {
+                            if (value === null && leadMode) return;
                             setValue("dueDate", value);
                             if (value !== null) return;
                             setValue("dueTime", null);
@@ -689,6 +730,7 @@ export function TaskFormDialog({
 
                       {block === "assign" ? (
                         <div className="flex flex-col gap-2">
+                          {leadMode ? null : (
                           <div className="flex min-w-0 flex-col gap-2">
                             <Label htmlFor="task-project">
                               {t("tasks.form.project")}
@@ -719,6 +761,7 @@ export function TaskFormDialog({
                             />
                             <FieldError message={errors.projectId?.message} />
                           </div>
+                          )}
 
                           {movesTasks ? (
                             <div className="flex min-w-0 flex-col gap-2">

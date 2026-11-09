@@ -18,6 +18,7 @@ import type { AddressedNotification, NewNotification, NotificationView } from ".
 const shown = {
   project: { select: { id: true, name: true } },
   task: { select: { id: true, title: true, projectId: true, dueDate: true, dueTime: true, timeZone: true } },
+  lead: { select: { id: true, name: true, projectId: true } },
   document: { select: { id: true, title: true } },
   actor: { select: { user: { select: { name: true } } } },
 } satisfies Prisma.NotificationInclude;
@@ -35,6 +36,7 @@ const viewOf = (row: StoredNotification, defaultTimeZone: string): NotificationV
   task: row.task
     ? { ...row.task, dueDate: dayOf(row.task.dueDate), timeZone: row.task.timeZone ?? defaultTimeZone }
     : null,
+  lead: row.lead ? { id: row.lead.id, name: row.lead.name, boardKey: row.lead.projectId } : null,
   document: row.document,
   actor: row.actor ? { name: row.actor.user.name } : null,
 });

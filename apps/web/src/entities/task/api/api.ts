@@ -41,9 +41,17 @@ export interface TaskDocument {
   bytes: number;
 }
 
+export interface TaskLead {
+  id: string;
+  name: string;
+  boardKey: string;
+}
+
 export interface Task {
   id: string;
   projectId: string | null;
+  leadId?: string | null;
+  lead?: TaskLead | null;
   orgId: string;
   title: string;
   description: unknown | null;
@@ -71,6 +79,7 @@ export interface Task {
 
 export interface TaskInput {
   projectId?: string | null;
+  leadId?: string | null;
   title?: string;
   description?: unknown | null;
   column?: TaskColumn;
@@ -105,10 +114,18 @@ function zoned(body: TaskInput): TaskInput {
   return scheduled ? { ...body, timeZone: viewerTimeZone() } : body;
 }
 
+export interface TaskQuery {
+  projectId?: string;
+  leadId?: string;
+  scope?: "crm";
+}
+
 export const tasksApi = {
-  list: async (projectId?: string, signal?: AbortSignal) => {
+  list: async (filter: TaskQuery = {}, signal?: AbortSignal) => {
     const query = new URLSearchParams();
-    if (projectId) query.set("projectId", projectId);
+    if (filter.projectId) query.set("projectId", filter.projectId);
+    if (filter.leadId) query.set("leadId", filter.leadId);
+    if (filter.scope) query.set("scope", filter.scope);
     const suffix = query.size === 0 ? "" : `?${query}`;
     return (await http.get<Task[]>(`/tasks${suffix}`, { signal })).map(localTask);
   },

@@ -46,7 +46,7 @@ describe("reading one's notifications", () => {
     expect(times).toEqual([...times].sort().reverse());
     expect(res.body.notifications[0]).toEqual({
       id: expect.any(String), kind: "KPI_MET", createdAt: expect.any(String), readAt: null,
-      project: { id: projectId, name: "Клиника" }, task: null, document: null, actor: null,
+      project: { id: projectId, name: "Клиника" }, task: null, lead: null, document: null, actor: null,
     });
   });
 

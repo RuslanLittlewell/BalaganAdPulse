@@ -1,26 +1,23 @@
 import { Search } from "lucide-react";
 import type { LeadField } from "@/entities/lead/index.js";
 import { t } from "@/shared/config/index.js";
-import { Button } from "@/shared/ui/index.js";
-import { DEFAULT_VIEW, type Filter, type ViewState } from "../model/viewState.js";
+import type { Filter, ViewState } from "../model/viewState.js";
 import { AddFilterButton, FilterChip, type FilterContext } from "./FilterControls.js";
-import { OptionsMenu, type Layout } from "./OptionsMenu.js";
+import { OptionsMenu } from "./OptionsMenu.js";
 import { SortButton, SortChip } from "./SortControls.js";
 
 export interface CrmViewControlsProps {
   view: ViewState;
   context: FilterContext;
-  layout?: Layout;
   columns?: boolean;
   canManageFields: boolean;
   onChange: (change: Partial<ViewState>) => void;
   onAddFilter: (filter: Filter) => void;
-  onLayout?: (layout: Layout) => void;
   onBoardFields?: () => void;
 }
 
 export function CrmViewControls({
-  view, context, layout, columns, canManageFields, onChange, onAddFilter, onLayout, onBoardFields,
+  view, context, columns, canManageFields, onChange, onAddFilter, onBoardFields,
 }: CrmViewControlsProps) {
   return (
     <div className="flex flex-wrap items-center gap-1">
@@ -41,11 +38,9 @@ export function CrmViewControls({
         view={view}
         fields={context.fields}
         catalogue={context.catalogue}
-        layout={layout}
         columns={columns}
         canManageFields={canManageFields}
         onChange={onChange}
-        onLayout={onLayout}
         onBoardFields={onBoardFields}
       />
     </div>
@@ -60,13 +55,15 @@ export interface CrmViewChipsProps {
   onChange: (change: Partial<ViewState>) => void;
 }
 
+const isHeaderPeriod = (filter: Filter) => filter.field === "arrival" && filter.operator === "between";
+
 export function CrmViewChips({ view, context, freshId, fields, onChange }: CrmViewChipsProps) {
   const active = view.filters.length > 0 || view.sort !== null || view.search.trim() !== "";
   if (!active) return null;
   return (
-    <div className="flex flex-wrap items-center gap-1.5" aria-label={t("crm.view.filter")} role="group">
+    <>
       {view.sort ? <SortChip sort={view.sort} fields={fields} catalogue={context.catalogue} onRemove={() => onChange({ sort: null })} /> : null}
-      {view.filters.map((filter) => (
+      {view.filters.filter((filter) => !isHeaderPeriod(filter)).map((filter) => (
         <FilterChip
           key={filter.id}
           filter={filter}
@@ -76,14 +73,6 @@ export function CrmViewChips({ view, context, freshId, fields, onChange }: CrmVi
           onRemove={() => onChange({ filters: view.filters.filter((item) => item.id !== filter.id) })}
         />
       ))}
-      <Button
-        type="button"
-        variant="ghost"
-        className="h-7 px-2 text-xs"
-        onClick={() => onChange({ filters: DEFAULT_VIEW.filters, sort: DEFAULT_VIEW.sort, search: DEFAULT_VIEW.search })}
-      >
-        {t("crm.view.reset")}
-      </Button>
-    </div>
+    </>
   );
 }

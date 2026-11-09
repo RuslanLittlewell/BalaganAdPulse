@@ -6,7 +6,12 @@ const lower = (value: string) => value.toLocaleLowerCase('ru');
 const empty = (value: FieldValue) => value === null || value === false || (Array.isArray(value) && value.length === 0);
 const fieldOf = <T>(schema: RecordSchema<T>, ref: FieldRef) => schema.fields.find((field) => field.ref === ref);
 const list = (value: FieldValue) => Array.isArray(value) ? value : typeof value === 'string' ? [value] : [];
-const incomplete = (filter: Filter) => needsValue(filter.operator) &&
+export function periodOf(value: Filter['value']): { from: string; to: string } | null {
+  if (!Array.isArray(value)) return null;
+  const [from = '', to = ''] = value;
+  return from !== '' && to !== '' && from <= to ? { from, to } : null;
+}
+const incomplete = (filter: Filter) => filter.operator === 'between' ? periodOf(filter.value) === null : needsValue(filter.operator) &&
   (filter.value === null || (Array.isArray(filter.value) ? filter.value.length === 0 : filter.value.trim() === ''));
 
 export function matchesRecord<T>(record: T, filter: Filter, schema: RecordSchema<T>): boolean {
@@ -26,6 +31,7 @@ export function matchesRecord<T>(record: T, filter: Filter, schema: RecordSchema
     case 'on': return day === filter.value;
     case 'before': return day !== null && day < String(filter.value);
     case 'after': return day !== null && day > String(filter.value);
+    case 'between': { const period = periodOf(filter.value)!; return day !== null && day >= period.from && day <= period.to; }
     case 'anyOf': return list(value).some((item) => list(filter.value).includes(item));
     case 'noneOf': return !list(value).some((item) => list(filter.value).includes(item));
   }

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { PlusIcon } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { TaskBoard } from "@/widgets/task-board/index.js";
 import { TaskFilters } from "@/widgets/task-filters/index.js";
 import { TaskCalendar } from "@/widgets/task-calendar/index.js";
@@ -14,12 +15,13 @@ import {
   isShelved,
   tasksOfParticipants,
   tasksOfProjects,
+  useCrmTasks,
   useTaskEvents,
   useTasks,
   type Task,
 } from "@/entities/task/index.js";
 
-const VIEWS = ["board", "calendar", "calls"] as const;
+const VIEWS = ["board", "calendar", "calls", "crm"] as const;
 
 const EMPTY: string[] = [];
 
@@ -33,14 +35,16 @@ function isView(value: string | undefined): value is View {
 
 export function TasksPage() {
   const { data: tasks, isLoading, isError } = useTasks();
-  const { opened, open, create, close } = useTaskAddress(tasks);
   useTaskEvents();
+  const navigate = useNavigate();
 
   const userId = useAuth().user?.id ?? "";
   const remembered = useModuleMemory((state) => state.taskViews[userId]);
   const rememberTaskView = useModuleMemory((state) => state.rememberTaskView);
   const [chosen, setChosen] = useState<View | null>(null);
   const view: View = chosen ?? (isView(remembered) ? remembered : "board");
+  const crm = useCrmTasks({ enabled: view === "crm" });
+  const { opened, open, create, close } = useTaskAddress(view === "crm" ? crm.data : tasks);
 
   const chosenPeople = useModuleMemory((state) => state.taskParticipants[userId]) ?? EMPTY;
   const rememberPeople = useModuleMemory((state) => state.rememberTaskParticipants);
@@ -49,8 +53,8 @@ export function TasksPage() {
 
   const now = useNow();
   const onShelf = useMemo(
-    () => (tasks ?? EMPTY_TASKS).filter((task) => !isShelved(task, now)),
-    [tasks, now],
+    () => ((view === "crm" ? crm.data : tasks) ?? EMPTY_TASKS).filter((task) => !isShelved(task, now)),
+    [view, crm.data, tasks, now],
   );
   const shown = useMemo(
     () => tasksOfProjects(tasksOfParticipants(onShelf, chosenPeople), chosenProjects),
@@ -77,6 +81,7 @@ export function TasksPage() {
             { id: "board", label: t("tasks.view.board") },
             { id: "calendar", label: t("tasks.view.calendar") },
             { id: "calls", label: t("tasks.view.calls") },
+            { id: "crm", label: t("tasks.view.crm") },
           ]}
           activeId={view}
           onSelect={(id) => {
@@ -91,7 +96,7 @@ export function TasksPage() {
         <div className="flex items-center gap-2 justify-self-end">
           <TelegramBotButton />
           <Can action="create" resource="task">
-            <Button onClick={() => create()} className="max-md:size-8 md:has-[>svg]:px-3">
+            <Button onClick={() => (view === "crm" ? create({ leadChoice: {} }) : create())} className="max-md:size-8 md:has-[>svg]:px-3">
               <PlusIcon aria-hidden className="md:hidden" />
               <span className="sr-only md:not-sr-only">{t("tasks.create")}</span>
             </Button>
@@ -110,6 +115,14 @@ export function TasksPage() {
               isError={isError}
               onOpen={open}
               onCreate={(column) => create({ column })}
+            />
+          ) : view === "crm" ? (
+            <TaskCalendar
+              tasks={shown}
+              isLoading={crm.isLoading}
+              isError={crm.isError}
+              onOpen={open}
+              onOpenLead={(lead) => navigate(`/crm?board=${lead.boardKey}&lead=${lead.id}`)}
             />
           ) : (
             <TaskCalendar

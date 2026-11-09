@@ -6,6 +6,7 @@ export {
   PERSON_VIEW,
   customIdOf,
   customRef,
+  currentMonthPeriod,
   useCrmViews,
   useViewState,
   useRecordViewState,
@@ -23,3 +24,5 @@ export { CrmViewChips, CrmViewControls } from "./ui/CrmViewBar.js";
 export type { CrmViewChipsProps, CrmViewControlsProps } from "./ui/CrmViewBar.js";
 export type { Choice, FilterContext } from "./ui/FilterControls.js";
 export type { Layout } from "./ui/OptionsMenu.js";
+export { PeriodControl } from "./ui/PeriodControl.js";
+export type { PeriodControlProps } from "./ui/PeriodControl.js";

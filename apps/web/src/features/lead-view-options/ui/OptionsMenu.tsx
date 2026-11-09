@@ -2,21 +2,19 @@ import { useId } from "react";
 import { ArrowDown, ArrowUp, Settings2 } from "lucide-react";
 import type { LeadField } from "@/entities/lead/index.js";
 import { t } from "@/shared/config/index.js";
-import { Button, Label, Popover, PopoverContent, PopoverTrigger, Switch, Tabs } from "@/shared/ui/index.js";
+import { Button, Label, Popover, PopoverContent, PopoverTrigger, Switch } from "@/shared/ui/index.js";
 import { fieldCatalogue, type CatalogueField } from "../lib/catalogue.js";
 import type { FieldRef, ViewState } from "../model/viewState.js";
 
-export type Layout = "board" | "calendar" | "table";
+export type Layout = "board" | "tasks" | "table";
 
 export interface OptionsMenuProps {
   view: ViewState;
   fields: readonly LeadField[];
   catalogue?: readonly CatalogueField[];
-  layout?: Layout;
   columns?: boolean;
   canManageFields: boolean;
   onChange: (change: Partial<ViewState>) => void;
-  onLayout?: (layout: Layout) => void;
   onBoardFields?: () => void;
 }
 
@@ -39,7 +37,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export function OptionsMenu({ view, fields, catalogue, layout, columns, canManageFields, onChange, onLayout, onBoardFields }: OptionsMenuProps) {
+export function OptionsMenu({ view, fields, catalogue, columns, canManageFields, onChange, onBoardFields }: OptionsMenuProps) {
   const cardable = (catalogue ?? fieldCatalogue(fields)).filter((field) => field.cardable);
   const shown = view.cardFields.filter((ref) => cardable.some((field) => field.ref === ref));
   const hidden = cardable.filter((field) => !shown.includes(field.ref));
@@ -61,19 +59,6 @@ export function OptionsMenu({ view, fields, catalogue, layout, columns, canManag
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="flex max-h-[min(48rem,90vh)] w-[min(38rem,calc(100vw-2rem))] flex-col gap-3 overflow-y-auto p-4" aria-label={t("crm.view.options")}>
-        {layout && onLayout ? <Section title={t("crm.view.layout")}>
-          <Tabs
-            items={[
-              { id: "board", label: t("crm.view.board") },
-              { id: "calendar", label: t("crm.view.calendar") },
-              { id: "table", label: t("crm.view.table") },
-            ]}
-            activeId={layout}
-            onSelect={(id) => onLayout(id as Layout)}
-            ariaLabel={t("crm.view.layout")}
-          />
-        </Section> : null}
-
         <Section title={t(columns ? "crm.record.columns" : "crm.view.cardFields")}>
           <div role="group" aria-label={t(columns ? "crm.record.columns" : "crm.view.cardFields")} className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
             <div className="flex min-w-0 flex-col gap-1">

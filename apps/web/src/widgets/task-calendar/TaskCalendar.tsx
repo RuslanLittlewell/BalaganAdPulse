@@ -27,6 +27,7 @@ import {
   useRescheduleTask,
   viewerTimeZone,
   type Task,
+  type TaskLead,
 } from "@/entities/task/index.js";
 import {
   useMembers,
@@ -74,6 +75,7 @@ export interface TaskCalendarProps {
   isError?: boolean;
   today?: string;
   onOpen?: (task: Task) => void;
+  onOpenLead?: (lead: TaskLead) => void;
 }
 
 const EVENT_HEIGHT = 76;
@@ -136,6 +138,7 @@ export function TaskCalendar({
   isError,
   today,
   onOpen,
+  onOpenLead,
 }: TaskCalendarProps) {
   const clock = useNow();
   const now = today ?? toIso(clock);
@@ -319,7 +322,6 @@ export function TaskCalendar({
                   }}
                 >
                   {String((hour + CALENDAR_START_HOUR) % HOURS_PER_DAY).padStart(2, "0")}
-                  <sup className="ml-0.5 text-2xs">00</sup>
                 </div>
               ))}
             </div>
@@ -369,6 +371,7 @@ export function TaskCalendar({
                         }
                         people={participantsOf(task, memberById)}
                         onOpen={onOpen ? openTask : undefined}
+                        onOpenLead={onOpenLead}
                         onDrop={rescheduleTask}
                         onToggleDone={changes(task) && !task.isCall ? toggleTask : undefined}
                       />
@@ -392,6 +395,7 @@ export function TaskCalendar({
                         }
                         people={participantsOf(task, memberById)}
                         onOpen={onOpen ? openTask : undefined}
+                        onOpenLead={onOpenLead}
                         onDrop={rescheduleTask}
                         onToggleDone={changes(task) ? toggleTask : undefined}
                       />
@@ -424,6 +428,7 @@ interface CalendarTaskEventProps {
   project?: Project;
   people: readonly Membership[];
   onOpen?: (task: Task) => void;
+  onOpenLead?: (lead: TaskLead) => void;
   onDrop: (task: Task, dueDate: string, dueTime: string) => void;
   onToggleDone?: (task: Task) => void;
 }
@@ -438,6 +443,7 @@ function CalendarTaskEvent({
   project,
   people,
   onOpen,
+  onOpenLead,
   onDrop,
   onToggleDone,
 }: CalendarTaskEventProps) {
@@ -748,12 +754,31 @@ function CalendarTaskEvent({
         </div>
 
         <footer className="mt-auto flex min-w-0 shrink-0 items-center justify-between gap-2 border-t border-border/50 pt-1">
+          {task.lead ? (
+            <span className="flex min-w-0 items-center gap-1" data-testid={`task-lead-${task.id}`}>
+              {onOpenLead ? (
+                <button
+                  type="button"
+                  className="truncate text-2xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                  aria-label={`${t("tasks.openLead")}: ${task.lead.name}`}
+                  onClick={(event) => { event.stopPropagation(); onOpenLead(task.lead!); }}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onKeyDown={(event) => event.stopPropagation()}
+                >
+                  {task.lead.name}
+                </button>
+              ) : (
+                <span className="truncate text-2xs text-muted-foreground">{task.lead.name}</span>
+              )}
+            </span>
+          ) : (
           <span className="flex min-w-0 items-center gap-1">
             {project ? <ProjectAvatar project={project} size="sm" /> : null}
             <span className="truncate text-2xs text-muted-foreground">
               {project?.name ?? t("tasks.noProject")}
             </span>
           </span>
+          )}
           <TaskParticipants task={task} people={people} />
         </footer>
         </>
@@ -771,7 +796,7 @@ function CalendarTaskEvent({
         <span className="flex max-w-51 flex-col gap-0.5 text-left">
           <span className="font-medium">{task.title}</span>
           <span>{timeRange(task) ?? t("tasks.form.noTime")}</span>
-          {project ? <span>{project.name}</span> : null}
+          {task.lead ? <span>{task.lead.name}</span> : project ? <span>{project.name}</span> : null}
           {people.length > 0 ? <span>{people.map((member) => member.name).join(", ")}</span> : null}
         </span>
       }

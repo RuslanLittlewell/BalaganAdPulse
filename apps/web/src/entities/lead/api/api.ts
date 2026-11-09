@@ -203,6 +203,17 @@ export interface LeadFile {
   createdAt: string;
 }
 
+export interface LeadNote {
+  id: string;
+  leadId: string;
+  author: { id: string; name: string } | null;
+  body: string;
+  createdAt: string;
+  editedAt: string | null;
+}
+
+export const MAX_LEAD_NOTE_LENGTH = 5000;
+
 export type LeadActivityField =
   | "name" | "amount" | "assignee" | "company" | "tags" | "service" | "phone"
   | "telegram" | "messenger" | "email" | "website" | "source" | "campaign" | "notes";
@@ -268,6 +279,14 @@ export const leadsApi = {
     body.append("file", file);
     return http.postForm<LeadFile>(`${board(boardKey)}/leads/${id}/files`, body);
   },
+  notes: (boardKey: string, id: string, signal?: AbortSignal) =>
+    http.get<LeadNote[]>(`${board(boardKey)}/leads/${id}/notes`, { signal }),
+  addNote: (boardKey: string, id: string, body: string) =>
+    http.post<LeadNote>(`${board(boardKey)}/leads/${id}/notes`, { body }),
+  editNote: (boardKey: string, id: string, noteId: string, body: string) =>
+    http.patch<LeadNote>(`${board(boardKey)}/leads/${id}/notes/${noteId}`, { body }),
+  removeNote: (boardKey: string, id: string, noteId: string) =>
+    http.del(`${board(boardKey)}/leads/${id}/notes/${noteId}`),
   downloadFile: (boardKey: string, id: string, fileId: string) =>
     http.getBlob(`${board(boardKey)}/leads/${id}/files/${fileId}`),
   removeFile: (boardKey: string, id: string, fileId: string) =>

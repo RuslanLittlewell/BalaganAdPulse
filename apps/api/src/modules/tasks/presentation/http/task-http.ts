@@ -26,6 +26,8 @@ export function createTaskRouter(useCases: TaskUseCases, comments: TaskCommentUs
     const only = (value: unknown) => (typeof value === "string" && value ? value : undefined);
     res.json(await useCases.list(actorOf(req), taskFilterSchema.parse({
       projectId: only(req.query.projectId),
+      leadId: only(req.query.leadId),
+      scope: only(req.query.scope),
       dueFrom: only(req.query.dueFrom),
       dueTo: only(req.query.dueTo),
     })));

@@ -6,6 +6,7 @@ import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-wor
 import type { TaskColumn } from "../domain/board.js";
 import { dateToDay, dayToDate } from "../domain/schedule.js";
 import type {
+  LeadReach,
   MemberReach,
   NamedMember,
   NewTask,
@@ -20,6 +21,7 @@ import { grantedProjects, reachableProjects } from "#shared/infrastructure/proje
 type ChecklistRow = { id: string; title: string; done: boolean; position: number };
 
 type RowWithImages = TaskRow & {
+  lead?: { id: string; name: string; projectId: string } | null;
   images?: { id: string }[];
   documents?: { id: string; name: string; bytes: number }[];
   checklist?: ChecklistRow[];
@@ -29,6 +31,8 @@ type RowWithImages = TaskRow & {
 function toDomain(row: RowWithImages, defaultTimeZone: string): TaskRecord {
   return {
     id: row.id, projectId: row.projectId, orgId: row.orgId, title: row.title,
+    leadId: row.leadId,
+    lead: row.lead ? { id: row.lead.id, name: row.lead.name, boardKey: row.lead.projectId } : null,
     description: row.description ?? null, column: row.column, priority: row.priority,
     createdById: row.createdById,
     participantIds: (row.participants ?? []).map((participant) => participant.membershipId),
@@ -47,6 +51,7 @@ function toDomain(row: RowWithImages, defaultTimeZone: string): TaskRecord {
 }
 
 const WITH_IMAGES = {
+  lead: { select: { id: true, name: true, projectId: true } },
   images: { select: { id: true }, orderBy: { createdAt: "asc" } },
   documents: { select: { id: true, name: true, bytes: true }, orderBy: { createdAt: "asc" } },
   checklist: {
@@ -90,6 +95,17 @@ const BOARD_ORDER: Prisma.TaskOrderByWithRelationInput[] = [
   { column: "asc" },
   { position: "asc" },
 ];
+
+export class PrismaTaskLeadReach implements LeadReach {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async reachable(actor: ActorContext, leadId: string) {
+    return this.prisma.lead.findFirst({
+      where: { id: leadId, orgId: actor.orgId, project: reachableProjects(actor) },
+      select: { id: true, projectId: true, name: true },
+    });
+  }
+}
 
 export class PrismaTaskRepository implements TaskRepository {
   constructor(
@@ -140,6 +156,7 @@ export class PrismaTaskRepository implements TaskRepository {
       where: {
         ...visibleTo(actor),
         ...(filter?.projectId ? { projectId: filter.projectId } : {}),
+        ...(filter?.leadId ? { leadId: filter.leadId } : filter?.scope === "crm" ? { leadId: { not: null } } : { leadId: null }),
         ...(filter?.dueFrom || filter?.dueTo
           ? {
               dueDate: {

@@ -9,6 +9,8 @@ import { addTaskCommentSchema, createTaskSchema, moveTaskSchema, updateTaskSchem
 const task = z.object({
   id: z.uuid(),
   projectId: z.uuid().nullable(),
+  leadId: z.uuid().nullable(),
+  lead: z.object({ id: z.uuid(), name: z.string(), boardKey: z.uuid() }).nullable(),
   orgId: z.uuid(),
   title: z.string(),
   description: z.unknown(),
@@ -91,9 +93,11 @@ export const taskDoc: RouteDoc = {
       method: "get",
       path: "/",
       summary: "List the tasks on the board",
-      description: "Narrowed to the projects this actor reaches, and further by project or a range of due days when named.",
+      description: "Narrowed to the projects this actor reaches, and further by project or a range of due days when named. Tasks that belong to a lead are left out unless scope=crm lists all of them or leadId names one lead.",
       query: z.object({
         projectId: z.uuid().optional(),
+        leadId: z.uuid().optional(),
+        scope: z.literal("crm").optional(),
         dueFrom: z.iso.date().optional(),
         dueTo: z.iso.date().optional(),
       }),

@@ -112,6 +112,7 @@ describe("the notification stream of the API", () => {
         id: expect.any(String), kind: "TASK_ASSIGNED", createdAt: expect.any(String), readAt: null,
         project: { id: projectId, name: "Клиника" },
         task: { id: task.body.id, title: "Позвонить клиенту", projectId, dueDate: null, dueTime: null, timeZone: "Europe/Minsk" },
+        lead: null,
         document: null,
         actor: { name: "Анна" },
       },

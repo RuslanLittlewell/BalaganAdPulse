@@ -8,6 +8,9 @@ export const leadActivityKey = (boardKey: string, leadId?: string) =>
 export const leadFilesKey = (boardKey: string, leadId?: string) =>
   (leadId ? ["crm", "lead-files", boardKey, leadId] : ["crm", "lead-files", boardKey]) as readonly string[];
 
+export const leadNotesKey = (boardKey: string, leadId?: string) =>
+  (leadId ? ["crm", "lead-notes", boardKey, leadId] : ["crm", "lead-notes", boardKey]) as readonly string[];
+
 export const BOARDS_KEY = ["crm", "boards"] as const;
 
 export const leadsKey = (boardKey: string) => ["crm", "leads", boardKey] as const;
@@ -168,6 +171,38 @@ export function useLeadFiles(boardKey: string, leadId: string | undefined) {
     queryKey: leadFilesKey(boardKey, leadId ?? ""),
     queryFn: ({ signal }) => leadsApi.files(boardKey, leadId!, signal),
     enabled: Boolean(leadId),
+  });
+}
+
+export function useLeadNotes(boardKey: string, leadId: string | undefined) {
+  return useQuery({
+    queryKey: leadNotesKey(boardKey, leadId ?? ""),
+    queryFn: ({ signal }) => leadsApi.notes(boardKey, leadId!, signal),
+    enabled: Boolean(leadId),
+  });
+}
+
+export function useAddLeadNote(boardKey: string, leadId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: string) => leadsApi.addNote(boardKey, leadId, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: leadNotesKey(boardKey, leadId) }),
+  });
+}
+
+export function useEditLeadNote(boardKey: string, leadId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: string }) => leadsApi.editNote(boardKey, leadId, id, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: leadNotesKey(boardKey, leadId) }),
+  });
+}
+
+export function useRemoveLeadNote(boardKey: string, leadId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => leadsApi.removeNote(boardKey, leadId, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: leadNotesKey(boardKey, leadId) }),
   });
 }
 

@@ -20,8 +20,24 @@ export interface UseTasksOptions {
 export function useTasks({ projectId, enabled = true }: UseTasksOptions = {}) {
   return useQuery({
     queryKey: [...TASKS_KEY, projectId ?? null],
-    queryFn: ({ signal }) => tasksApi.list(projectId, signal),
+    queryFn: ({ signal }) => tasksApi.list({ projectId }, signal),
     enabled,
+  });
+}
+
+export function useCrmTasks({ projectId, enabled = true }: UseTasksOptions = {}) {
+  return useQuery({
+    queryKey: [...TASKS_KEY, projectId ?? null, "crm"],
+    queryFn: ({ signal }) => tasksApi.list({ projectId, scope: "crm" }, signal),
+    enabled,
+  });
+}
+
+export function useLeadTasks(leadId: string | undefined) {
+  return useQuery({
+    queryKey: [...TASKS_KEY, null, "lead", leadId ?? null],
+    queryFn: ({ signal }) => tasksApi.list({ leadId }, signal),
+    enabled: leadId !== undefined,
   });
 }
 
@@ -155,15 +171,24 @@ export function useMoveTask() {
 
 export interface TaskListFilter {
   readonly projectId: string | null;
+  readonly scope?: "crm" | "lead";
+  readonly leadId?: string;
 }
 
 function matchesFilter(filter: TaskListFilter, task: Task): boolean {
-  return filter.projectId === null || task.projectId === filter.projectId;
+  if (filter.projectId !== null && task.projectId !== filter.projectId) return false;
+  if (filter.scope === "lead") return task.leadId === filter.leadId;
+  if (filter.scope === "crm") return task.leadId != null;
+  return task.leadId == null;
 }
 
 export function filterOfKey(key: readonly unknown[]): TaskListFilter {
-  const [, projectId] = key;
-  return { projectId: typeof projectId === "string" ? projectId : null };
+  const [, projectId, scope, leadId] = key;
+  return {
+    projectId: typeof projectId === "string" ? projectId : null,
+    ...(scope === "crm" || scope === "lead" ? { scope } : {}),
+    ...(typeof leadId === "string" ? { leadId } : {}),
+  };
 }
 
 export function applyTaskEvent(

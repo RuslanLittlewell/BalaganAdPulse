@@ -2,8 +2,9 @@ import { http as mock, HttpResponse, delay } from "msw";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
-import { renderWithProviders, server } from "@test/shared/index.js";
+import { freezeDate, renderWithProviders, server } from "@test/shared/index.js";
 import { CrmLayout, CrmPage } from "@/pages/crm/index.js";
+freezeDate('2026-09-15T12:00:00');
 
 const capabilities = { create: true, update: true, delete: true };
 

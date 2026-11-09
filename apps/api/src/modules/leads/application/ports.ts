@@ -1,5 +1,6 @@
 import type { ActorContext, TransactionContext } from '#shared/application/index.js';
 import type { StoredLeadFile, LeadFileRecord } from '../domain/lead-file.js';
+import type { LeadNoteRecord } from '../domain/lead-note.js';
 import type { LeadHistoryEvent } from '../domain/lead-activity.js';
 import type { LeadFieldRecord, LeadFieldType, FieldOption, OptionColor } from '../domain/lead-field.js';
 import type { CompanyFields, CompanyRecord, PersonFields, PersonRecord, RelatedLead } from '../domain/crm-record.js';
@@ -61,5 +62,12 @@ export interface LeadFileStorage {
   get(key: string): Promise<{body: Uint8Array}>;
   remove(keys: readonly string[]): Promise<void>;
 }
-export type LeadEventResource = 'leads' | 'columns' | 'fields' | 'activity' | 'files' | 'records' | 'counts';
+export interface LeadNoteRepository {
+  list(leadId: string): Promise<LeadNoteRecord[]>;
+  find(leadId: string, id: string): Promise<LeadNoteRecord | null>;
+  create(input: {id: string; orgId: string; leadId: string; authorId: string; body: string}): Promise<LeadNoteRecord>;
+  edit(id: string, changes: {body: string; editedAt: Date}): Promise<LeadNoteRecord>;
+  delete(id: string): Promise<void>;
+}
+export type LeadEventResource = 'leads' | 'notes' | 'columns' | 'fields' | 'activity' | 'files' | 'records' | 'counts';
 export interface LeadEvent { kind: 'crm.changed'; orgId: string; board: string; resources?: readonly LeadEventResource[]; leadId?: string }

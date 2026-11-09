@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/index.js";
+import { periodOf } from "../lib/applyRecords.js";
 import { catalogueField, fieldCatalogue, needsValue, operatorsFor, type CatalogueField, type FieldKind } from "../lib/catalogue.js";
 import type { Filter, FilterValue, Operator } from "../model/viewState.js";
 
@@ -63,6 +64,10 @@ export function filterLabel(filter: Filter, context: FilterContext): string {
   if (!field) return "";
   const head = `${field.label}: ${operatorLabel(field.kind, filter.operator)}`;
   if (!needsValue(filter.operator) || filter.value === null) return head;
+  if (filter.operator === "between") {
+    const period = periodOf(filter.value);
+    return period ? `${head} ${dayLabel(period.from)} – ${dayLabel(period.to)}` : head;
+  }
   if (Array.isArray(filter.value)) {
     const names = choicesOf(field, context).filter((choice) => (filter.value as string[]).includes(choice.id)).map((choice) => choice.label);
     return names.length > 0 ? `${head} ${names.join(", ")}` : head;
@@ -76,6 +81,23 @@ function ValueEditor({ field, filter, context, onChange }: {
 }) {
   if (!needsValue(filter.operator)) return null;
   const id = `filter-value-${filter.id}`;
+  if (filter.operator === "between") {
+    const [from = "", to = ""] = Array.isArray(filter.value) ? filter.value : [];
+    const reversed = from !== "" && to !== "" && from > to;
+    return (
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1">
+          <Label htmlFor={`${id}-from`}>{t("crm.view.from")}</Label>
+          <Input id={`${id}-from`} className="h-8" type="date" value={from} onChange={(event) => onChange([event.target.value, to])} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor={`${id}-to`}>{t("crm.view.to")}</Label>
+          <Input id={`${id}-to`} className="h-8" type="date" value={to} aria-invalid={reversed || undefined} onChange={(event) => onChange([from, event.target.value])} />
+        </div>
+        {reversed ? <p role="alert" className="text-xs text-destructive">{t("crm.view.periodReversed")}</p> : null}
+      </div>
+    );
+  }
   if (LIST_KINDS.includes(field.kind)) {
     const chosen = Array.isArray(filter.value) ? filter.value : [];
     const choices = choicesOf(field, context);
@@ -113,6 +135,12 @@ function ValueEditor({ field, filter, context, onChange }: {
   );
 }
 
+function valueAfter(before: Operator, operator: Operator, previous: FilterValue): FilterValue {
+  if (!needsValue(operator)) return null;
+  if (operator === "between") return before === "between" ? previous : typeof previous === "string" && previous !== "" ? [previous, ""] : null;
+  return before === "between" ? null : previous;
+}
+
 export function FilterEditor({ filter, context, onChange }: { filter: Filter; context: FilterContext; onChange: (filter: Filter) => void }) {
   const field = context.catalogue?.find((entry) => entry.ref === filter.field) ?? catalogueField(filter.field, context.fields);
   if (!field) return null;
@@ -123,7 +151,7 @@ export function FilterEditor({ filter, context, onChange }: { filter: Filter; co
         <Label htmlFor={operatorId}>{t("crm.view.chooseOperator")}</Label>
         <Select
           value={filter.operator}
-          onValueChange={(operator) => onChange({ ...filter, operator: operator as Operator, value: needsValue(operator as Operator) ? filter.value : null })}
+          onValueChange={(operator) => onChange({ ...filter, operator: operator as Operator, value: valueAfter(filter.operator, operator as Operator, filter.value) })}
         >
           <SelectTrigger id={operatorId} className="h-8 w-full"><SelectValue /></SelectTrigger>
           <SelectContent>

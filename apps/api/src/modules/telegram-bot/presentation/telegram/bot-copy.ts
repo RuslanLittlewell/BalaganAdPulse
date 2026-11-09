@@ -105,6 +105,7 @@ export const BOT_COPY = {
     projectCreated: "Новый проект",
     taskAssigned: "Вас назначили участником задачи",
     taskMentioned: "Вас упомянули в комментарии к задаче",
+    leadMentioned: "Вас упомянули в заметке к лиду",
     taskUpdated: ["Задача", "изменена"],
     documentAdded: ["Новый документ", "в проекте"],
     dueSoon: "Подходит срок задачи",

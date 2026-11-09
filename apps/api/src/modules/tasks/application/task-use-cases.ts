@@ -29,6 +29,7 @@ import { taskCreated, taskDeleted, taskMoved, taskUpdated } from "./task-events.
 
 export interface CreateTaskInput {
   readonly projectId?: string | null;
+  readonly leadId?: string | null;
   readonly title: string;
   readonly description?: TaskDescription | null;
   readonly column?: TaskColumn;
@@ -101,6 +102,29 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
     const context = await dependencies.projects.contextFor(actor, projectId);
     if (!context) throw new AppError("not-found", "Project not found");
     return context;
+  };
+
+  const leadContext = async (actor: ActorContext, leadId: string | null | undefined, projectId: string | null) => {
+    if (!leadId) return null;
+    if (!can(actor, "read", "lead")) throw new AppError("not-found", "Lead not found");
+    const lead = await dependencies.leads.reachable(actor, leadId);
+    if (!lead) throw new AppError("not-found", "Lead not found");
+    if (projectId !== null && projectId !== lead.projectId) {
+      throw new AppError("validation", "A task of a lead belongs to the lead's project");
+    }
+    return lead;
+  };
+
+  const assertLeadStays = (task: TaskRecord, input: TaskChange) => {
+    if (input.leadId !== undefined && input.leadId !== task.leadId) {
+      throw new AppError("validation", "A task keeps the lead it was created for");
+    }
+    if (task.leadId != null && input.dueDate === null) {
+      throw new AppError("validation", "A task of a lead keeps its day");
+    }
+    if (task.leadId !== null && input.projectId !== undefined && input.projectId !== task.projectId) {
+      throw new AppError("validation", "A task of a lead stays in the lead's project");
+    }
   };
 
   const assertMayShare = (visibleToClient: boolean, projectId: string | null) => {
@@ -205,10 +229,12 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
       assertCan(actor, "create");
       assertTitle(input.title);
       assertColumn(input.column);
-      const projectId = input.projectId ?? null;
+      const lead = await leadContext(actor, input.leadId, input.projectId ?? null);
+      if (lead && !input.dueDate) throw new AppError("validation", "A task of a lead needs a day");
+      const projectId = lead ? lead.projectId : input.projectId ?? null;
       const context = await projectContext(actor, projectId);
       const personal = isCustomer(actor.role) && projectId === null;
-      const visibleToClient = isCustomer(actor.role) && !personal;
+      const visibleToClient = lead === null && isCustomer(actor.role) && !personal;
       assertMayShare(visibleToClient, projectId);
       const participantIds = input.participantIds ?? [];
       assertCustomerNamesNobody(actor, participantIds);
@@ -226,6 +252,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
         const task = await dependencies.tasks.create(transaction, {
           id: dependencies.ids.generate(),
           projectId,
+          leadId: lead?.id ?? null,
           orgId: actor.orgId,
           title: input.title.trim(),
           description: input.description ?? null,
@@ -260,7 +287,11 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
     update: async (actor: ActorContext, id: string, input: TaskChange): Promise<TaskRecord> => {
       const task = await reach(actor, id);
       assertMayChange(actor, task, "update");
+      assertLeadStays(task, input);
       assertMaySetVisibility(actor, input.visibleToClient);
+      if (task.leadId !== null && input.visibleToClient === true) {
+        throw new AppError("validation", "A task of a lead is not shared with the client");
+      }
       assertCustomerNamesNobody(actor, input.participantIds ?? []);
       assertTitle(input.title);
       const projectId = input.projectId === undefined ? task.projectId : input.projectId;
@@ -284,7 +315,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
 
       await assertDocumentRoom(actor, id, input.documentIds);
       const updated = await dependencies.unitOfWork.run(async (transaction) => {
-        const { checklist: _given, documentIds: _attached, ...fields } = input;
+        const { checklist: _given, documentIds: _attached, leadId: _lead, ...fields } = input;
         const changed = await dependencies.tasks.update(transaction, id, {
           ...fields,
           ...schedule,

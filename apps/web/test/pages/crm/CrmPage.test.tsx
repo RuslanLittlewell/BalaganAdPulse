@@ -2,8 +2,9 @@ import { http as mock, HttpResponse } from 'msw';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
-import { renderWithProviders, server } from '@test/shared/index.js';
+import { freezeDate, renderWithProviders, server } from '@test/shared/index.js';
 import { CrmLayout, CrmPage } from '@/pages/crm/index.js';
+freezeDate('2026-09-15T12:00:00');
 
 const capabilities = {create:true,update:true,delete:true};
 const lead = {id:'lead-1',orgId:'org-1',projectId:'project-1',project:{id:'project-1',clientId:'client-1',name:'Сайт'},name:'Анна',tags:['Срочно'],companyId:'c1',personId:'p1',company:{id:'c1',name:'Acme',website:'https://example.com'},person:{id:'p1',name:'Анна',phone:'+48123456789',email:'anna@example.com',telegram:'@anna',messenger:null},source:'Рекомендация',notes:'Демо',stage:'NEW',position:0,amount:null,service:null,customValues:{},campaignId:null,adId:null,assigneeId:null,assignee:null,origin:'MANUAL',ad:null,metaSource:null,createdAt:'2026-09-05T00:00:00.000Z',updatedAt:'2026-09-05T00:00:00.000Z'};

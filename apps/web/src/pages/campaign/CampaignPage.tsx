@@ -23,6 +23,7 @@ import {
   useActiveCampaignId,
   useActiveProjectId,
   useProjects,
+  type Project,
 } from "@/entities/project/index.js";
 import { tilesOf, useSummaryTiles, type SummaryAccount, type SummaryTile } from "@/entities/summary-tiles/index.js";
 import { PeriodControl, usePeriod } from "@/features/period/index.js";
@@ -66,7 +67,7 @@ function useAdsOfOpenSets(openIds: ReadonlySet<string>, range: DateRange) {
   );
 }
 
-export function CampaignPage() {
+export function CampaignPage({ project }: { project?: Project } = {}) {
   const campaignId = useActiveCampaignId();
   const projectId = useActiveProjectId();
   const navigate = useNavigate();
@@ -79,7 +80,7 @@ export function CampaignPage() {
   const adSets = useAdSets(campaignId, range);
   const countsLeads = useModuleEnabled("CRM");
   const stageCounts = useBoardStageCounts(projectId ?? undefined, range, { enabled: countsLeads });
-  const projects = useProjects();
+  const projects = useProjects(undefined, { enabled: project === undefined });
   const projectTiles = useSummaryTiles(
     projectId ? { kind: "project", id: projectId } : undefined,
   );
@@ -98,7 +99,7 @@ export function CampaignPage() {
     return <EmptyState title={t("campaign.notFound.title")} />;
 
   const currency =
-    projects.data?.find((candidate) => candidate.id === projectId)
+    (project ?? projects.data?.find((candidate) => candidate.id === projectId))
       ?.budgetCurrency ?? null;
 
   const offeredTypes = campaign.data?.resultTypes ?? [];

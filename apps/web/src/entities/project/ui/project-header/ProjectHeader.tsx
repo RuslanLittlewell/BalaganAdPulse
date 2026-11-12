@@ -1,4 +1,4 @@
-import { MaximizeIcon } from "lucide-react";
+import { MaximizeIcon, Share2Icon } from "lucide-react";
 import { t } from "@/shared/config/index.js";
 import {
   Button, Switch, ToolbarDivider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
@@ -12,10 +12,11 @@ export interface ProjectHeaderProps {
   onKpiTrackedChange?: (tracked: boolean) => void;
   kpiTrackedPending?: boolean;
   onPreview?: () => void;
+  onShare?: () => void;
 }
 
 export function ProjectHeader({
-  project, clientName, onKpiTrackedChange, kpiTrackedPending = false, onPreview,
+  project, clientName, onKpiTrackedChange, kpiTrackedPending = false, onPreview, onShare,
 }: ProjectHeaderProps) {
   return (
     <header className="flex min-h-13 items-center gap-2 border-b border-border pb-3">
@@ -25,23 +26,41 @@ export function ProjectHeader({
         <p className="truncate text-sm text-muted-foreground">{clientName}</p>
       </div>
       <div className="ml-auto flex shrink-0 items-center gap-2">
-        {onPreview ? (
+        {onShare || onPreview ? (
           <>
             <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={t("preview.enter")}
-                    onClick={onPreview}
-                  >
-                    <MaximizeIcon aria-hidden />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t("preview.enter")}</TooltipContent>
-              </Tooltip>
+              {onShare ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={t("share.open")}
+                      onClick={onShare}
+                    >
+                      <Share2Icon aria-hidden />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t("share.open")}</TooltipContent>
+                </Tooltip>
+              ) : null}
+              {onPreview ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={t("preview.enter")}
+                      onClick={onPreview}
+                    >
+                      <MaximizeIcon aria-hidden />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t("preview.enter")}</TooltipContent>
+                </Tooltip>
+              ) : null}
             </TooltipProvider>
             <ToolbarDivider />
           </>

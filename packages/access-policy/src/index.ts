@@ -20,6 +20,7 @@ export const RESOURCES = [
   "project-summary",
   "project-document",
   "report",
+  "share-link",
 ] as const;
 export type Resource = (typeof RESOURCES)[number];
 
@@ -67,6 +68,7 @@ const MATRIX: Readonly<Record<Resource, ResourcePolicy>> = {
   campaign: { read: EVERYONE, create: STAFF, update: STAFF, delete: STAFF },
   task: { read: EVERYONE, create: STAFF_AND_CUSTOMERS, update: STAFF, delete: STAFF },
   audit: { read: EVERYONE, create: NOBODY, update: NOBODY, delete: NOBODY },
+  "share-link": { read: ADMINS, create: ADMINS, update: ADMINS, delete: ADMINS },
 };
 
 export function can(actor: Actor, action: Action, resource: Resource): boolean {

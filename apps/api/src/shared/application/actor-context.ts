@@ -5,4 +5,5 @@ export interface ActorContext {
   readonly membershipId: string;
   readonly orgId: string;
   readonly role: Role;
+  readonly sharedProjectId?: string;
 }

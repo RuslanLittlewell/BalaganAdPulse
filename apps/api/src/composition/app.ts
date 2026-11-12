@@ -7,6 +7,7 @@ import { protectiveHeaders } from "#shared/presentation/protective-headers.js";
 import { projectDocumentBody } from "#modules/project-documents/index.js";
 import { createContainer, type ApiContainer } from "./create-container.js";
 import { createRoutes, mountPath } from "./create-routes.js";
+import type { SharedReadLimits } from "./shared-routes.js";
 import { landingFor } from "./landing.js";
 import { config } from "#shared/infrastructure/config.js";
 
@@ -18,6 +19,7 @@ export interface AppOptions {
   landingDistPath?: string;
   landingHost?: string | null;
   container?: ApiContainer;
+  sharedReads?: SharedReadLimits;
 }
 
 export function createApp(options: AppOptions = {}) {
@@ -36,10 +38,14 @@ export function createApp(options: AppOptions = {}) {
   const landingDistPath = options.landingDistPath ?? DEFAULT_LANDING_DIST;
   if (landingHost && existsSync(landingDistPath)) app.use(landingFor(landingHost, landingDistPath));
 
-  app.use(createRoutes(options.container ?? createContainer()));
+  app.use(createRoutes(options.container ?? createContainer(), { sharedReads: options.sharedReads }));
 
   const webDistPath = options.webDistPath ?? DEFAULT_WEB_DIST;
   if (existsSync(webDistPath)) {
+    app.use("/share", (_req, res, next) => {
+      res.setHeader("X-Robots-Tag", "noindex, nofollow");
+      next();
+    });
     app.use(express.static(webDistPath));
     app.get("/*splat", (_req, res) => {
       res.sendFile(path.join(webDistPath, "index.html"));

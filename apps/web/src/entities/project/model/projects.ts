@@ -59,11 +59,11 @@ export type ProjectsResult = {
   | { readonly data: undefined; readonly isPending: false; readonly isSuccess: false; readonly isError: true }
 );
 
-export function useProjects(clientId?: string): ProjectsResult {
+export function useProjects(clientId?: string, { enabled = true }: { enabled?: boolean } = {}): ProjectsResult {
   const projects = useProjectsStore((state) => state.projects);
   const status = useProjectsStore((state) => state.status);
 
-  useEffect(() => { void loadProjects(); }, []);
+  useEffect(() => { if (enabled) void loadProjects(); }, [enabled]);
 
   const common = { isFetching: status === "loading", refetch: refreshProjects } as const;
 

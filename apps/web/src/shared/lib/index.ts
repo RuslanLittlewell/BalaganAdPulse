@@ -11,6 +11,7 @@ export * from "./validation.js";
 export * from "./field-problems.js";
 export * from "./image.js";
 export * from "./routes.js";
+export * from "./shareScope.js";
 export * from "./board-collision.js";
 export * from "./navCollapse.js";
 export * from "./realtime.js";

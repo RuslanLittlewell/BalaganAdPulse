@@ -176,6 +176,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+const signedOut = () => Promise.reject(new Error("A shared view has no session"));
+
+export function SharedAuthProvider({ modules, children }: { modules: ModuleKey[]; children: ReactNode }) {
+  const value = useMemo<AuthValue>(() => ({
+    user: null,
+    organization: null,
+    role: null,
+    membershipId: null,
+    clientIds: [],
+    platformAdmin: false,
+    modules,
+    tariff: null,
+    sessionError: false,
+    retrySession: () => {},
+    login: signedOut,
+    register: signedOut,
+    resetPassword: signedOut,
+    logout: signedOut,
+    updateProfile: signedOut,
+    loadProfile: signedOut,
+    saveAvatar: signedOut,
+  }), [modules]);
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
 export function useAuth(): AuthValue {
   const value = useContext(AuthContext);
   if (!value) throw new Error("useAuth must be used inside AuthProvider");

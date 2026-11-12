@@ -1,3 +1,4 @@
+import type { ModuleKey } from "@adpulse/access-policy";
 import { http } from "@/shared/lib/index.js";
 import type { Currency } from "@/shared/lib/index.js";
 
@@ -20,6 +21,28 @@ export interface ProjectInput {
   memberIds?: string[];
   kpiTracked?: boolean;
 }
+
+export interface SharedProject {
+  project: Project;
+  modules: ModuleKey[];
+}
+
+export interface ShareLink {
+  token: string;
+  createdAt: string;
+}
+
+const shareLinkPath = (projectId: string) => `/projects/${encodeURIComponent(projectId)}/share-link`;
+
+export const shareLinkApi = {
+  read: (projectId: string, signal?: AbortSignal) => http.get<ShareLink | null>(shareLinkPath(projectId), { signal }),
+  issue: (projectId: string, renew: boolean) => http.put<ShareLink>(shareLinkPath(projectId), { renew }),
+  remove: (projectId: string) => http.del(shareLinkPath(projectId)),
+};
+
+export const sharedProjectApi = {
+  open: (signal?: AbortSignal) => http.get<SharedProject>("", { signal }),
+};
 
 export const projectsApi = {
   list: (clientId?: string) =>

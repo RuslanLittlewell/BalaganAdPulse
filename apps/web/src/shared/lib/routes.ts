@@ -1,3 +1,5 @@
+import { sharedToken } from "./shareScope.js";
+
 export const ROUTES = {
   dashboard: "/",
   projects: "/projects",
@@ -8,7 +10,14 @@ export const ROUTES = {
   organizations: "/organizations",
 } as const;
 
+export function sharePath(token: string, campaignId?: string): string {
+  const base = `/share/${encodeURIComponent(token)}`;
+  return campaignId ? `${base}/campaigns/${campaignId}` : base;
+}
+
 export function projectPath(clientId: string, campaignId?: string): string {
+  const shared = sharedToken();
+  if (shared !== null) return sharePath(shared, campaignId);
   const base = `${ROUTES.projects}/${clientId}`;
   return campaignId ? `${base}/campaigns/${campaignId}` : base;
 }

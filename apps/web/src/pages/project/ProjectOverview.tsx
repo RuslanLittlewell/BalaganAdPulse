@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { MetaIntegration, useIntegrations } from "@/features/meta-integration/index.js";
 import { EmptyState, Skeleton, Switch, Tabs, useAlerts } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
-import { cn, projectPath } from "@/shared/lib/index.js";
+import { cn, projectPath, useShareScope } from "@/shared/lib/index.js";
 import { useSourceMemory, type Project } from "@/entities/project/index.js";
 import {
   channelLabel, isRunning, statusLabel, orderedResultTypes, resultTypeFiguresOf,
@@ -69,7 +69,8 @@ export function ProjectOverview({ project, previewing }: { project: Project; pre
   const tasks = useTasks({ projectId, enabled: projectId != null && tracksTasks });
   const raisesTasks = useCan("create", "task");
   const { user } = useAuth();
-  const members = useMembers();
+  const shared = useShareScope();
+  const members = useMembers({ enabled: shared === null });
   const editsProjectKpi = useCan("update", "kpi");
   const arrangesSummary = useCan("update", "project-summary");
   const { raise } = useAlerts();

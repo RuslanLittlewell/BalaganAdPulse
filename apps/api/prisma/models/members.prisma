@@ -83,17 +83,18 @@ model Membership {
   projectGroups     ProjectGroup[]
   projectPlacements ProjectPlacement[]
 
-  assignedTasks     Task[]            @relation("TaskAssignee")
-  assignedLeads     Lead[]            @relation("LeadAssignee")
-  createdTasks      Task[]            @relation("TaskCreator")
+  assignedTasks     Task[]             @relation("TaskAssignee")
+  assignedLeads     Lead[]             @relation("LeadAssignee")
+  createdTasks      Task[]             @relation("TaskCreator")
   taskParticipation TaskParticipant[]
-  uploadedImages    TaskImage[]       @relation("TaskImageUploader")
-  uploadedDocuments TaskDocument[]    @relation("TaskDocumentUploader")
-  leadFiles         LeadFile[]        @relation("LeadFileUploader")
-  leadNotes         LeadNote[]        @relation("LeadNoteAuthor")
-  reports           MonthlyReport[]   @relation("MonthlyReportCreator")
-  authoredDocuments ProjectDocument[] @relation("ProjectDocumentAuthor")
-  editedDocuments   ProjectDocument[] @relation("ProjectDocumentEditor")
+  uploadedImages    TaskImage[]        @relation("TaskImageUploader")
+  uploadedDocuments TaskDocument[]     @relation("TaskDocumentUploader")
+  leadFiles         LeadFile[]         @relation("LeadFileUploader")
+  leadNotes         LeadNote[]         @relation("LeadNoteAuthor")
+  reports           MonthlyReport[]    @relation("MonthlyReportCreator")
+  authoredDocuments ProjectDocument[]  @relation("ProjectDocumentAuthor")
+  issuedShareLinks  ProjectShareLink[] @relation("ProjectShareLinkCreator")
+  editedDocuments   ProjectDocument[]  @relation("ProjectDocumentEditor")
 
   notifications       Notification[] @relation("NotificationRecipient")
   causedNotifications Notification[] @relation("NotificationActor")

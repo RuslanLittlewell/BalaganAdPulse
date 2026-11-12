@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { EmptyState, Tabs, useAlerts } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
@@ -5,6 +6,7 @@ import { projectDocumentsPath, projectPath } from "@/shared/lib/index.js";
 import { useClients } from "@/entities/client/index.js";
 import { ProjectHeader, useActiveProjectId, useProjects, useUpdateProject } from "@/entities/project/index.js";
 import { usePreviewMode } from "@/features/preview-mode/index.js";
+import { ShareDialog } from "@/features/project-share/index.js";
 import { useCan } from "@/features/permissions/index.js";
 import { useAuth } from "@/features/auth/index.js";
 import { ProjectDocuments } from "@/widgets/project-documents/index.js";
@@ -23,6 +25,8 @@ export function ProjectPage() {
   const updateProject = useUpdateProject();
   const { raise } = useAlerts();
   const readsDocuments = useCan("read", "project-document");
+  const shares = useCan("update", "share-link");
+  const [sharing, setSharing] = useState(false);
   const { documentId } = useParams<{ documentId?: string }>();
   const inDocuments = readsDocuments && /\/documents(\/|$)/.test(location.pathname);
 
@@ -45,8 +49,10 @@ export function ProjectPage() {
               )
             : undefined}
           onPreview={enterPreview}
+          onShare={shares ? () => setSharing(true) : undefined}
         />
       )}
+      {shares ? <ShareDialog key={project.id} projectId={project.id} open={sharing} onClose={() => setSharing(false)} /> : null}
       {readsDocuments && !previewing ? (
         <div className="border-b border-border pb-3">
           <Tabs

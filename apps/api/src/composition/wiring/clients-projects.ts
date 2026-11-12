@@ -59,6 +59,7 @@ export function wireClientsAndProjects(
     clientReach,
     clientRepository,
     projectRepository,
+    projects,
     clientRouter: createClientRouter(clients),
     projectRouter: createProjectRouter(projects),
     projectLayoutRouter: createProjectLayoutRouter(projectLayout),

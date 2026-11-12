@@ -1,12 +1,14 @@
 import { Router } from "express";
 import { AppError } from "#shared/domain/index.js";
 import type { ApiContainer } from "./create-container.js";
+import { createSharedRouter, type SharedReadLimits } from "./shared-routes.js";
 
 export const ROUTE_MOUNTS = [
   { id: "docs", path: "/api" },
   { id: "open-auth", path: "/api/auth" },
   { id: "google-callback", path: "/api/integrations/google" },
   { id: "registration-resolver", path: "/api/registration" },
+  { id: "shared", path: "/api/shared/:token" },
   { id: "authentication", path: "/api" },
   { id: "session", path: "/api/auth/me" },
   { id: "platform", path: "/api/platform" },
@@ -32,6 +34,7 @@ export const ROUTE_MOUNTS = [
   { id: "report-index", path: "/api/reports" },
   { id: "integrations", path: "/api/projects" },
   { id: "seo", path: "/api/projects" },
+  { id: "share-links", path: "/api/projects" },
   { id: "projects", path: "/api/projects" },
   { id: "project-layout", path: "/api/project-layout" },
   { id: "project-groups", path: "/api/project-groups" },
@@ -61,13 +64,18 @@ export function mountPath(id: RouteMountId): string {
   return mount.path;
 }
 
-export function createRoutes(container: ApiContainer): Router {
+export interface RouteOptions {
+  readonly sharedReads?: SharedReadLimits;
+}
+
+export function createRoutes(container: ApiContainer, options: RouteOptions = {}): Router {
   const router = Router();
   const handlers = [
     container.documentationRouter,
     container.authRouter,
     container.googleCallbackRouter,
     container.registrationResolverRouter,
+    createSharedRouter(container, options.sharedReads),
     container.authentication,
     container.sessionRouter,
     container.platformRouter,
@@ -93,6 +101,7 @@ export function createRoutes(container: ApiContainer): Router {
     container.reportIndexRouter,
     container.integrationRouter,
     container.seoRouter,
+    container.shareLinkRouter,
     container.projectRouter,
     container.projectLayoutRouter,
     container.projectGroupRouter,

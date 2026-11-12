@@ -7,6 +7,7 @@ import {
   mergeComponents,
   type OpenApiDocument,
   type RouteDoc,
+  type RouteGroupDoc,
 } from "#shared/presentation/openapi.js";
 import { authDoc, identityComponents, userDoc } from "#modules/identity/presentation/http/identity-openapi.js";
 import { memberComponents, memberDoc, sessionDoc } from "#modules/members/presentation/http/member-openapi.js";
@@ -26,6 +27,7 @@ import {
 } from "#modules/campaigns/presentation/http/campaign-openapi.js";
 import { taskComponents, taskDoc, taskDocumentDoc, taskImageDoc } from "#modules/tasks/presentation/http/task-openapi.js";
 import { mountPath } from "./create-routes.js";
+import { sharedReadDoc } from "./shared-openapi.js";
 import { leadDoc, leadComponents } from '#modules/leads/presentation/http/lead-openapi.js';
 import { kpiDoc } from '#modules/kpi/index.js';
 import { summaryTileDoc } from "#modules/summary-tiles/index.js";
@@ -37,6 +39,7 @@ import { onboardingComponents, onboardingDoc } from "#modules/onboarding/index.j
 import { notificationDoc } from "#modules/notifications/index.js";
 import { telegramDoc } from "#modules/telegram-bot/index.js";
 import { seoAuditDoc, seoConnectionDoc, seoReadDoc } from "#modules/seo/index.js";
+import { shareLinkDoc } from "#modules/share-links/index.js";
 
 const require = createRequire(import.meta.url);
 
@@ -72,6 +75,48 @@ const documentationDoc: RouteDoc = {
 };
 
 export function apiDocument(): OpenApiDocument {
+  const groups: RouteGroupDoc[] = [
+    { mount: mountPath("docs"), ...documentationDoc },
+    { mount: mountPath("open-auth"), ...authDoc },
+    { mount: mountPath("registration-resolver"), ...registrationResolverDoc },
+    { mount: mountPath("session"), ...sessionDoc },
+    { mount: mountPath("platform"), ...platformDoc },
+    { mount: mountPath("support"), ...supportDoc },
+    { mount: mountPath("onboarding"), ...onboardingDoc },
+    { mount: mountPath("user"), ...userDoc },
+    { mount: mountPath("invites"), ...inviteDoc },
+    { mount: mountPath("members"), ...memberDoc },
+    { mount: mountPath("audit"), ...auditDoc },
+    { mount: mountPath("project-metrics"), ...projectMetricDoc },
+    { mount: mountPath("reports"), ...reportDoc },
+    { mount: mountPath("report-index"), ...reportIndexDoc },
+    { mount: mountPath("integrations"), ...integrationDoc },
+    { mount: mountPath("integrations"), ...googleIntegrationDoc },
+    { mount: mountPath("seo"), ...seoConnectionDoc },
+    { mount: mountPath("seo"), ...seoReadDoc },
+    { mount: mountPath("seo"), ...seoAuditDoc },
+    { mount: mountPath("share-links"), ...shareLinkDoc },
+    { mount: mountPath("google-callback"), ...googleCallbackDoc },
+    { mount: mountPath("ad-previews"), ...adPreviewDoc },
+    { mount: mountPath("projects"), ...projectDoc },
+    { mount: mountPath("project-layout"), ...projectLayoutDoc },
+    { mount: mountPath("project-groups"), ...projectGroupDoc },
+    { mount: mountPath("client-accounts"), ...clientAccountDoc },
+    { mount: mountPath("clients"), ...clientDoc },
+    { mount: mountPath("campaigns"), ...campaignDoc },
+    { mount: mountPath("ad-sets"), ...adSetDoc },
+    { mount: mountPath("ad-creatives"), ...adCreativeDoc },
+    { mount: mountPath("summary"), ...summaryDoc },
+    { mount: mountPath("tasks"), ...taskDoc },
+    { mount: mountPath("leads"), ...leadDoc },
+    { mount: mountPath("task-images"), ...taskImageDoc },
+    { mount: mountPath("task-documents"), ...taskDocumentDoc },
+    { mount: mountPath("kpi"), ...kpiDoc },
+    { mount: mountPath("summary-tiles"), ...summaryTileDoc },
+    { mount: mountPath("project-documents"), ...projectDocumentDoc },
+    { mount: mountPath("notifications"), ...notificationDoc },
+    { mount: mountPath("telegram"), ...telegramDoc },
+  ];
   return buildOpenApiDocument({
     info: {
       title: "AdPulse API",
@@ -79,55 +124,15 @@ export function apiDocument(): OpenApiDocument {
       description: [
         "The media buyer's dashboard behind adpulse.",
         "",
-        "Every endpoint but registering, logging in, refreshing, logging out and resolving a",
-        "registration code needs a session: either the `adpulse_access` cookie the login",
-        "endpoints set, or the same token as a bearer header.",
+        "Every endpoint but registering, logging in, refreshing, logging out, resolving a",
+        "registration code and the reads under a project's share link needs a session: either",
+        "the `adpulse_access` cookie the login endpoints set, or the same token as a bearer header.",
         "",
         "A record the actor may not reach answers 404 rather than 403, so a response never",
         "confirms that it exists.",
       ].join("\n"),
     },
-    groups: [
-      { mount: mountPath("docs"), ...documentationDoc },
-      { mount: mountPath("open-auth"), ...authDoc },
-      { mount: mountPath("registration-resolver"), ...registrationResolverDoc },
-      { mount: mountPath("session"), ...sessionDoc },
-      { mount: mountPath("platform"), ...platformDoc },
-      { mount: mountPath("support"), ...supportDoc },
-      { mount: mountPath("onboarding"), ...onboardingDoc },
-      { mount: mountPath("user"), ...userDoc },
-      { mount: mountPath("invites"), ...inviteDoc },
-      { mount: mountPath("members"), ...memberDoc },
-      { mount: mountPath("audit"), ...auditDoc },
-      { mount: mountPath("project-metrics"), ...projectMetricDoc },
-      { mount: mountPath("reports"), ...reportDoc },
-      { mount: mountPath("report-index"), ...reportIndexDoc },
-      { mount: mountPath("integrations"), ...integrationDoc },
-      { mount: mountPath("integrations"), ...googleIntegrationDoc },
-      { mount: mountPath("seo"), ...seoConnectionDoc },
-      { mount: mountPath("seo"), ...seoReadDoc },
-      { mount: mountPath("seo"), ...seoAuditDoc },
-      { mount: mountPath("google-callback"), ...googleCallbackDoc },
-      { mount: mountPath("ad-previews"), ...adPreviewDoc },
-      { mount: mountPath("projects"), ...projectDoc },
-      { mount: mountPath("project-layout"), ...projectLayoutDoc },
-      { mount: mountPath("project-groups"), ...projectGroupDoc },
-      { mount: mountPath("client-accounts"), ...clientAccountDoc },
-      { mount: mountPath("clients"), ...clientDoc },
-      { mount: mountPath("campaigns"), ...campaignDoc },
-      { mount: mountPath("ad-sets"), ...adSetDoc },
-      { mount: mountPath("ad-creatives"), ...adCreativeDoc },
-      { mount: mountPath("summary"), ...summaryDoc },
-      { mount: mountPath("tasks"), ...taskDoc },
-      { mount: mountPath("leads"), ...leadDoc },
-      { mount: mountPath("task-images"), ...taskImageDoc },
-      { mount: mountPath("task-documents"), ...taskDocumentDoc },
-      { mount: mountPath("kpi"), ...kpiDoc },
-      { mount: mountPath("summary-tiles"), ...summaryTileDoc },
-      { mount: mountPath("project-documents"), ...projectDocumentDoc },
-      { mount: mountPath("notifications"), ...notificationDoc },
-      { mount: mountPath("telegram"), ...telegramDoc },
-    ],
+    groups: [...groups, sharedReadDoc(groups)],
     components: mergeComponents(
       identityComponents,
       leadComponents,

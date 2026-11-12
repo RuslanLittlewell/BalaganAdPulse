@@ -48,11 +48,11 @@ export function resetStaff(): void {
   useStaffStore.setState({ members: undefined, status: "idle" });
 }
 
-export function useMembers() {
+export function useMembers({ enabled = true }: { enabled?: boolean } = {}) {
   const members = useStaffStore((state) => state.members);
   const status = useStaffStore((state) => state.status);
 
-  useEffect(() => { void loadStaff(); }, []);
+  useEffect(() => { if (enabled) void loadStaff(); }, [enabled]);
 
   return {
     data: members,

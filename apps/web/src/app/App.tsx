@@ -13,6 +13,7 @@ import { TasksPage } from "@/pages/tasks/index.js";
 import { CrmLayout, CrmPage, CrmRecordsPage } from "@/pages/crm/index.js";
 import { OrganizationsPage } from "@/pages/organizations/index.js";
 import { SuspendedPage } from "@/pages/suspended/index.js";
+import { SharePage } from "@/pages/share/index.js";
 import { AuthProvider, RequireAuth, SessionHeartbeat, useAuth } from "@/features/auth/index.js";
 import { NavCollapseProvider } from "@/features/nav-collapse/index.js";
 import { ProjectsSync } from "@/entities/project/index.js";
@@ -100,6 +101,27 @@ function Dashboard() {
   );
 }
 
+function SharedLink() {
+  const { token = "" } = useParams<{ token: string }>();
+  return <SharePage key={token} token={token} />;
+}
+
+function SignedInApp() {
+  return (
+    <AuthProvider>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<Navigate to="/login" replace />} />
+        <Route path="/registration/:code" element={<RegistrationPage />} />
+        <Route path="/regustration/:code" element={<MisspeltRegistration />} />
+        <Route path="/password-reset" element={<RequestResetPage />} />
+        <Route path="/password-reset/:token" element={<ResetPasswordPage />} />
+        <Route path="/*" element={<Dashboard />} />
+      </Routes>
+    </AuthProvider>
+  );
+}
+
 function MisspeltRegistration() {
   const { code = "" } = useParams<{ code: string }>();
   const { search } = useLocation();
@@ -111,17 +133,10 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AlertsProvider>
-        <AuthProvider>
           <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<Navigate to="/login" replace />} />
-            <Route path="/registration/:code" element={<RegistrationPage />} />
-            <Route path="/regustration/:code" element={<MisspeltRegistration />} />
-            <Route path="/password-reset" element={<RequestResetPage />} />
-            <Route path="/password-reset/:token" element={<ResetPasswordPage />} />
-            <Route path="/*" element={<Dashboard />} />
+            <Route path="/share/:token/*" element={<SharedLink />} />
+            <Route path="/*" element={<SignedInApp />} />
           </Routes>
-        </AuthProvider>
         </AlertsProvider>
       </BrowserRouter>
     </QueryClientProvider>

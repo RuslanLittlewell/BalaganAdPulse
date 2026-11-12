@@ -1,4 +1,5 @@
 import { ensureFreshToken, forceRefresh } from "./auth/session.js";
+import { sharedToken } from "./shareScope.js";
 
 export class ApiError extends Error {
   status: number;
@@ -18,9 +19,10 @@ interface ErrorEnvelope {
 
 async function send(path: string, init: RequestInit | undefined, _token: string | null) {
   const isForm = init?.body instanceof FormData;
-  return fetch(`/api${path}`, {
+  const shared = sharedToken();
+  return fetch(`/api${shared === null ? "" : `/shared/${encodeURIComponent(shared)}`}${path}`, {
     ...init,
-    credentials: "include",
+    credentials: shared === null ? "include" : "omit",
     headers: {
       ...(!isForm ? { "Content-Type": "application/json" } : {}),
       ...init?.headers,
@@ -38,7 +40,7 @@ async function request<T>(
   init?: RequestInit,
   options?: RequestOptions,
 ): Promise<T> {
-  const authenticated = options?.authenticated ?? true;
+  const authenticated = sharedToken() === null && (options?.authenticated ?? true);
   const requestInit = { ...init, signal: options?.signal };
   const token = authenticated ? await ensureFreshToken() : null;
   let res = await send(path, requestInit, token);
@@ -67,7 +69,7 @@ async function request<T>(
 }
 
 async function requestBlob(path: string, options?: RequestOptions): Promise<Blob> {
-  const token = await ensureFreshToken();
+  const token = sharedToken() === null ? await ensureFreshToken() : null;
   const init = { signal: options?.signal };
   let res = await send(path, init, token);
   if (res.status === 401 && token !== null) {

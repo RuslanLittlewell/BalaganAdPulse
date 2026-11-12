@@ -1,5 +1,5 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { projectsApi, type ProjectInput } from "./api.js";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { projectsApi, shareLinkApi, sharedProjectApi, type ProjectInput } from "./api.js";
 import { refreshProjects } from "../model/projects.js";
 
 export function useCreateProject() {
@@ -35,5 +35,39 @@ export function useSaveProjectAvatar() {
     mutationFn: ({ id, png, avatarPath }: { id: string; png: Blob; avatarPath: string }) =>
       projectsApi.saveAvatar(id, png, avatarPath),
     onSuccess: () => refreshProjects(),
+  });
+}
+
+export function useSharedProject() {
+  return useQuery({
+    queryKey: ["shared-project"],
+    queryFn: ({ signal }) => sharedProjectApi.open(signal),
+    retry: false,
+  });
+}
+
+export const shareLinkKey = (projectId: string) => ["share-link", projectId] as const;
+
+export function useShareLink(projectId: string, { enabled = true }: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: shareLinkKey(projectId),
+    queryFn: ({ signal }) => shareLinkApi.read(projectId, signal),
+    enabled,
+  });
+}
+
+export function useIssueShareLink(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (renew: boolean) => shareLinkApi.issue(projectId, renew),
+    onSuccess: (link) => qc.setQueryData(shareLinkKey(projectId), link),
+  });
+}
+
+export function useRemoveShareLink(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => shareLinkApi.remove(projectId),
+    onSuccess: () => qc.setQueryData(shareLinkKey(projectId), null),
   });
 }

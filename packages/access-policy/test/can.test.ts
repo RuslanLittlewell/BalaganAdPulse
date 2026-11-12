@@ -149,6 +149,12 @@ describe("can", () => {
         expectRow(action, "report", ["ADMIN", "MANAGER"]);
       }
     });
+
+    it("leave a project's share link to admins alone", () => {
+      for (const action of ACTIONS) {
+        expectRow(action, "share-link", ["ADMIN"]);
+      }
+    });
   });
 
   describe("the task board", () => {

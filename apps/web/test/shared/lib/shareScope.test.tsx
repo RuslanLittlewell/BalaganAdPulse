@@ -39,10 +39,17 @@ describe("requests under a share link", () => {
   });
 
   it("fetch files under the link's address too", async () => {
-    server.use(mock.get(`/api/shared/${TOKEN}/ad-creatives/c1/file`, () => new HttpResponse("png", { headers: { "Content-Type": "image/png" } })));
+    let served = false;
+    server.use(mock.get(`/api/shared/${TOKEN}/ad-creatives/c1/file`, () => {
+      served = true;
+      return HttpResponse.arrayBuffer(new ArrayBuffer(8), { headers: { "Content-Type": "image/png" } });
+    }));
     enterShareScope(TOKEN);
 
-    expect(await (await http.getBlob("/ad-creatives/c1/file")).text()).toBe("png");
+    const file = await http.getBlob("/ad-creatives/c1/file");
+
+    expect(served).toBe(true);
+    expect(file.size).toBe(8);
   });
 
   it("neither renew a session nor end it when the link answers 401", async () => {

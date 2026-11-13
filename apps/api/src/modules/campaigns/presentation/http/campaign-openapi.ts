@@ -93,6 +93,7 @@ const campaignReference = z.object({
   id: z.uuid(),
   name: z.string(),
   channel: z.enum(CHANNELS),
+  status: z.enum(DELIVERY_STATUSES),
 });
 
 const currencyPerformance = z.object({ currency: z.string().nullable(), performance });

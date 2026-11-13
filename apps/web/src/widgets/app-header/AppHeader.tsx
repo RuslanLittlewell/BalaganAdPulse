@@ -28,8 +28,8 @@ import {
 function useFirstPeopleHint(contactsOpen: boolean) {
   const { user, role } = useAuth();
   const isAdmin = role === "ADMIN";
-  const clients = useClients();
-  const staff = useMembers();
+  const clients = useClients({ enabled: role !== "PARTNER" });
+  const staff = useMembers({ enabled: role !== "PARTNER" });
   const empty =
     isAdmin &&
     clients.isSuccess &&
@@ -85,7 +85,7 @@ export function AppHeader() {
           <div className="flex items-center gap-2">
             <NotificationCenter />
             <ToolbarDivider />
-            <Tooltip>
+            {role !== "PARTNER" ? <Tooltip>
               <Hint
                 open={firstPeople.open}
                 text={t("hint.contacts.firstPeople")}
@@ -103,7 +103,7 @@ export function AppHeader() {
                 </TooltipTrigger>
               </Hint>
               <TooltipContent>{t("contacts.title")}</TooltipContent>
-            </Tooltip>
+            </Tooltip> : null}
             <Can action="read" resource="audit">
               <ToolbarDivider />
               <Tooltip>
@@ -139,7 +139,7 @@ export function AppHeader() {
               </>
             )}
             <ToolbarDivider />
-            <OnlineUsers />
+            {role !== "PARTNER" ? <OnlineUsers /> : null}
             <UserMenu
               onSettings={() => setSettingsOpen(true)}
               avatarVersion={avatarVersion}

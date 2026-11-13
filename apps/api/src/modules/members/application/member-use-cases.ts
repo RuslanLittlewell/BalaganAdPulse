@@ -106,8 +106,9 @@ export function createMemberUseCases(
     },
 
     avatar: async (actor: ActorContext, id: string): Promise<Uint8Array> => {
+      if (actor.role === "PARTNER" && id !== actor.membershipId) throw new AppError("not-found", "Member not found");
       const member = await reachable(actor, id);
-      if (!(await seesPictureOf(actor, member))) throw new AppError("not-found", "Member not found");
+      if (actor.role !== "PARTNER" && !(await seesPictureOf(actor, member))) throw new AppError("not-found", "Member not found");
       const bytes = await dependencies.avatars.readAvatar(member.userId);
       if (!bytes) throw new AppError("not-found", "Member has no picture");
       return bytes;
@@ -128,6 +129,9 @@ export function createMemberUseCases(
         throw new AppError("conflict", "You cannot remove your own membership");
       }
       const member = await reachable(actor, id);
+      if (isCustomer(actor.role) && !(await peopleOfReachedClients(actor)).some((person) => person.id === member.id)) {
+        throw new AppError("not-found", "Member not found");
+      }
       await assertNotTheLastAdmin(member, { status: "SUSPENDED" });
       await dependencies.unitOfWork.run((context) =>
         dependencies.directory.remove(context, id),
@@ -168,6 +172,7 @@ export function createMemberUseCases(
     },
 
     isEntitled: async (actor: ActorContext, module: OptionalModule): Promise<boolean> => {
+      if (actor.role === "PARTNER" && module !== "CRM") return false;
       const organization = await dependencies.organizations.findById(actor.orgId);
       return organization ? tariffModules(organization.tariff).includes(module) : false;
     },
@@ -179,7 +184,7 @@ export function createMemberUseCases(
       if (platformAdmin) {
         return {
           session: {
-            user, platformAdmin, organization: null, role: null, membershipId: null, clientIds: [], modules: [], tariff: null,
+            user, platformAdmin, organization: null, role: null, membershipId: null, clientIds: [], modules: [], tariff: null, partner: null,
           },
           actor: null,
         };
@@ -192,7 +197,7 @@ export function createMemberUseCases(
       if (organization.status === "SUSPENDED") {
         return {
           session: {
-            user, platformAdmin, organization, role: actor.role, membershipId: actor.membershipId, clientIds: [], modules: [], tariff: null,
+            user, platformAdmin, organization, role: actor.role, membershipId: actor.membershipId, clientIds: [], modules: [], tariff: null, partner: null,
           },
           actor: null,
         };
@@ -201,8 +206,9 @@ export function createMemberUseCases(
       return {
         session: {
           user, platformAdmin, organization, role: actor.role, membershipId: actor.membershipId, clientIds,
-          modules: enabledModules(tariffModules(tariff)),
-          tariff: await dependencies.tariffs.describe(actor.orgId),
+          modules: enabledModules(tariffModules(tariff)).filter(module => actor.role !== "PARTNER" || module === "PROJECTS" || module === "CRM"),
+          partner: actor.partner ? { campaignId: actor.partner.campaignId, projectId: actor.partner.projectId } : null,
+          tariff: actor.role === "PARTNER" ? null : await dependencies.tariffs.describe(actor.orgId),
         },
         actor,
       };

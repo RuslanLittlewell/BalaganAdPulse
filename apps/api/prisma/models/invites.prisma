@@ -2,6 +2,7 @@ enum RegistrationType {
   CLIENT
   EMPLOYEE
   CLIENT_STAFF
+  PARTNER
 
   @@map("registration_type")
 }
@@ -13,6 +14,7 @@ model Invite {
   registrationType RegistrationType @default(EMPLOYEE) @map("registration_type")
   role             Role?
   clientId         String?          @map("client_id")
+  campaignId       String?          @map("campaign_id")
   email            String?
   expiresAt        DateTime?        @map("expires_at")
   revokedAt        DateTime?        @map("revoked_at")
@@ -24,10 +26,12 @@ model Invite {
   usedBy           User?            @relation(fields: [usedById], references: [id], onDelete: SetNull)
   createdBy        Membership?      @relation("InviteCreator", fields: [createdById], references: [id], onDelete: SetNull)
   client           Client?          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  campaign         Campaign?        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   projects         InviteProject[]
 
   @@index([orgId, createdAt(sort: Desc)])
   @@index([clientId])
+  @@index([campaignId])
   @@map("invite")
 }
 

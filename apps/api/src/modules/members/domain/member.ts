@@ -14,6 +14,13 @@ export interface MemberRecord {
   readonly role: Role;
   readonly status: MembershipStatus;
   readonly createdAt: Date;
+  readonly campaign: PartnerCampaign | null;
+}
+
+export interface PartnerCampaign {
+  readonly id: string;
+  readonly name: string;
+  readonly projectId: string;
 }
 
 export interface MemberChange {

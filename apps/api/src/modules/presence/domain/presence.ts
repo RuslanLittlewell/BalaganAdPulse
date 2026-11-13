@@ -22,6 +22,7 @@ export function discloses(
   person: Pick<PresencePerson, "orgId" | "role" | "clientIds">,
 ): boolean {
   if (viewer.orgId !== person.orgId) return false;
+  if (viewer.role === "PARTNER") return false;
   if (!isCustomer(viewer.role) || !isCustomer(person.role)) return true;
   return person.clientIds.some((clientId) => viewer.clientIds.includes(clientId));
 }

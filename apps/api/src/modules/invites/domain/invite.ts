@@ -1,6 +1,6 @@
 import type { Role } from "@adpulse/access-policy";
 
-export type RegistrationType = "CLIENT" | "EMPLOYEE" | "CLIENT_STAFF";
+export type RegistrationType = "CLIENT" | "EMPLOYEE" | "CLIENT_STAFF" | "PARTNER";
 
 export interface Invite {
   readonly id: string;
@@ -10,6 +10,7 @@ export interface Invite {
   readonly role: Role | null;
   readonly projectIds: readonly string[];
   readonly clientId: string | null;
+  readonly campaignId: string | null;
   readonly email: string | null;
   readonly expiresAt: Date | null;
   readonly revokedAt: Date | null;

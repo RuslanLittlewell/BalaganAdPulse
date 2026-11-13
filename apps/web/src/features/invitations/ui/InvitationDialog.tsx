@@ -10,6 +10,8 @@ import {
 import { ProjectAvatar, useProjects, type Project } from "@/entities/project/index.js";
 import { t } from "@/shared/config/index.js";
 import { InvitationList } from "./InvitationList.js";
+import { PartnerTarget } from "./PartnerTarget.js";
+import { useCan } from "@/features/permissions/index.js";
 import { cn } from "@/shared/lib/index.js";
 import {
   Button,
@@ -27,6 +29,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Tabs,
 } from "@/shared/ui/index.js";
 import { registrationLink } from "../lib/link.js";
 import { tariffRefusal } from "@/entities/tariff/index.js";
@@ -38,6 +41,8 @@ export interface InvitationDialogProps {
   onClose: () => void;
 }
 
+type Joining = "STAFF" | "PARTNER";
+
 export function InvitationDialog({ registrationType, clientId, open, onClose }: InvitationDialogProps) {
   const projects = useProjects();
   const create = useCreateInvitation();
@@ -45,16 +50,26 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
   const [projectIds, setProjectIds] = useState<string[]>([]);
   const [failure, setFailure] = useState<string | null>(null);
   const [created, setCreated] = useState<Invitation | null>(null);
+  const [joining, setJoining] = useState<Joining>("STAFF");
+  const [partnerProjectId, setPartnerProjectId] = useState("");
+  const [campaignId, setCampaignId] = useState("");
+  const invitesPartners = useCan("create", "partner");
 
   const isEmployee = registrationType === "EMPLOYEE";
   const offersProjects = isEmployee && role !== "ADMIN";
   const needsProjects = isEmployee && role === "GUEST";
   const isJoining = registrationType === "CLIENT_STAFF";
+  const offersPartner = isJoining && invitesPartners;
+  const isPartner = offersPartner && joining === "PARTNER";
+  const clientProjects = (projects.data ?? []).filter((project) => project.clientId === clientId);
+  const chosenProject = partnerProjectId || (clientProjects.length === 1 ? clientProjects[0]!.id : "");
   const title = isEmployee
     ? t("invites.createEmployee")
-    : isJoining
-      ? t("contacts.people.invite")
-      : t("invites.createClient");
+    : isPartner
+      ? t("invites.createPartner")
+      : isJoining
+        ? t("contacts.people.invite")
+        : t("invites.createClient");
 
   function toggleProject(id: string) {
     setProjectIds((current) =>
@@ -65,7 +80,15 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
     setProjectIds([]);
     setFailure(null);
     setCreated(null);
+    setJoining("STAFF");
+    setPartnerProjectId("");
+    setCampaignId("");
     onClose();
+  }
+
+  function chooseProject(id: string) {
+    setPartnerProjectId(id);
+    setCampaignId("");
   }
 
   async function submit() {
@@ -73,14 +96,20 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
       setFailure(t("invites.projects.required"));
       return;
     }
+    if (isPartner && !campaignId) {
+      setFailure(t("invites.partner.campaignRequired"));
+      return;
+    }
     setFailure(null);
     try {
       setCreated(await create.mutateAsync(
         isEmployee
           ? { registrationType: "EMPLOYEE", role, projectIds: offersProjects ? projectIds : [] }
-          : isJoining
-            ? { registrationType: "CLIENT_STAFF", clientId: clientId as string }
-            : { registrationType: "CLIENT" },
+          : isPartner
+            ? { registrationType: "PARTNER", campaignId }
+            : isJoining
+              ? { registrationType: "CLIENT_STAFF", clientId: clientId as string }
+              : { registrationType: "CLIENT" },
       ));
     } catch (error) {
       setFailure(tariffRefusal(error) ?? t("invites.failed"));
@@ -133,7 +162,33 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
                 )}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">{t("invites.clientHint")}</p>
+              <div className="flex flex-col gap-3">
+                {offersPartner ? (
+                  <Tabs
+                    items={[
+                      { id: "STAFF", label: t("invites.joining.staff") },
+                      { id: "PARTNER", label: t("invites.joining.partner") },
+                    ]}
+                    activeId={joining}
+                    onSelect={(id) => {
+                      setJoining(id as Joining);
+                      setFailure(null);
+                    }}
+                    ariaLabel={t("invites.joining")}
+                  />
+                ) : null}
+                {isPartner ? (
+                  <PartnerTarget
+                    projects={clientProjects}
+                    projectId={chosenProject}
+                    campaignId={campaignId}
+                    onProjectChange={chooseProject}
+                    onCampaignChange={setCampaignId}
+                  />
+                ) : (
+                  <p className="text-sm text-muted-foreground">{t("invites.clientHint")}</p>
+                )}
+              </div>
             )}
 
             {failure && <p role="alert" className="text-sm text-destructive">{failure}</p>}

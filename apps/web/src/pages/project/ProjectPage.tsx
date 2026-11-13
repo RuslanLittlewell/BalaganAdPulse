@@ -18,8 +18,8 @@ export function ProjectPage() {
   const location = useLocation();
   const { previewing, enter: enterPreview } = usePreviewMode();
   const projects = useProjects();
-  const { user } = useAuth();
-  const clients = useClients();
+  const { user, role } = useAuth();
+  const clients = useClients({ enabled: role !== "PARTNER" });
   const editsProjectKpi = useCan("update", "kpi");
   const editsProject = useCan("update", "project");
   const updateProject = useUpdateProject();
@@ -40,6 +40,7 @@ export function ProjectPage() {
       {previewing ? null : (
         <ProjectHeader
           project={project}
+          showKpi={role !== "PARTNER"}
           clientName={clientName}
           kpiTrackedPending={updateProject.isPending}
           onKpiTrackedChange={editsProject && editsProjectKpi

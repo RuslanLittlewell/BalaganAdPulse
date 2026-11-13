@@ -9,6 +9,7 @@ import { PrismaInviteRepository } from "#modules/invites/infrastructure/prisma-i
 import { PrismaInvitationOrganizations } from "#modules/invites/infrastructure/prisma-invitation-organizations.js";
 import { PrismaInvitationProjectReach } from "#modules/invites/infrastructure/prisma-invitation-project-reach.js";
 import { PrismaInvitationProjectAccess, PrismaMembershipEnrolment } from "#modules/members/index.js";
+import { PrismaInvitationCampaignReach } from "#modules/invites/infrastructure/prisma-invitation-campaign-reach.js";
 import type { ClientsAndProjects } from "./clients-projects.js";
 import type { Kernel } from "./kernel.js";
 
@@ -23,6 +24,7 @@ export function wireInvites(
     projects: new PrismaInvitationProjectReach(prisma),
     organizations: new PrismaInvitationOrganizations(prisma),
     clients: clientReach,
+    campaigns: new PrismaInvitationCampaignReach(prisma),
     projectAccess: new PrismaInvitationProjectAccess(unitOfWork),
     clientDirectory: {
       create: async (context, input) => {

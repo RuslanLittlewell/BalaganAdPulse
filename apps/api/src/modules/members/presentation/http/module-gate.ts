@@ -15,6 +15,10 @@ export function createModuleGate(entitlements: ModuleEntitlements) {
         next(new AppError("unauthorized", "Authentication required"));
         return;
       }
+      if (actor.role === "PARTNER" && module !== "CRM") {
+        next(new AppError("forbidden", "This module is not available to partners"));
+        return;
+      }
       entitlements
         .isEntitled(actor, module)
         .then((entitled) => next(entitled ? undefined : new AppError("not-found", "Endpoint not found")))

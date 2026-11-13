@@ -110,3 +110,25 @@ describe("delivering CRM changes", () => {
     expect(send).toHaveBeenCalledTimes(1);
   });
 });
+
+it('delivers a partner only events about leads it currently sees', async () => {
+  const registry = createConnectionRegistry();
+  const send = vi.fn();
+  registry.add({principal:principal('partner-user'),send});
+  let campaign = 'north';
+  const partner = actor({userId:'partner-user',role:'PARTNER',partner:{campaignId:campaign,projectId:'project-1'}});
+  const delivery = createLeadEventDelivery({
+    registry,
+    members:{resolveActor:async()=>({...partner,partner:{...partner.partner!,campaignId:campaign}})},
+    boards:{reaches:async(_actor,board)=>board==='project-1',leadOnBoard:async(actor,_board,id)=>actor.partner?.campaignId===id?{id}:null},
+  });
+  await delivery.deliver({...changed('project-1'),leadId:'south'});
+  expect(send).not.toHaveBeenCalled();
+  await delivery.deliver({...changed('project-1'),leadId:'north'});
+  expect(send).toHaveBeenCalledTimes(1);
+  campaign='south';
+  await delivery.deliver({...changed('project-1'),leadId:'north'});
+  expect(send).toHaveBeenCalledTimes(1);
+  await delivery.deliver(changed('project-1'));
+  expect(send).toHaveBeenCalledTimes(2);
+});

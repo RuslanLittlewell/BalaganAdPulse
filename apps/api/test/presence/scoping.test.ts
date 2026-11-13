@@ -45,3 +45,9 @@ describe("who may know that somebody is online", () => {
     expect(discloses(customer, person({ role: "CLIENT", clientIds: ["c2"] }))).toBe(false);
   });
 });
+
+it('does not disclose organization members to a partner', () => {
+  for (const role of ['ADMIN','MANAGER','GUEST','CLIENT','CLIENT_ADMIN','PARTNER'] as const) {
+    expect(discloses(viewer({role:'PARTNER'}),person({role}))).toBe(false);
+  }
+});

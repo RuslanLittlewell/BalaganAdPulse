@@ -12,11 +12,12 @@ export interface LeadRepository {
   lock(context: TransactionContext, actor: ActorContext, board: string): Promise<void>;
   clientOf(board: string): Promise<string>;
   campaignInProject(campaignId: string, projectId: string): Promise<boolean>;
-  assigneeReachesBoard(orgId: string, membershipId: string, board: string): Promise<boolean>;
+  assignees(actor: ActorContext, board: string): Promise<Array<{id:string;name:string;image:string|null;status:'ACTIVE'}>>;
+  assigneeReachesBoard(actor: ActorContext, membershipId: string, board: string): Promise<boolean>;
   create(context: TransactionContext, input: LeadFields & {id: string; orgId: string; projectId: string; stage: string; position: number}): Promise<LeadRecord>;
   update(context: TransactionContext, id: string, input: Partial<LeadFields> & {stage?: string; position?: number}): Promise<LeadRecord>;
   delete(context: TransactionContext, id: string): Promise<string[]>;
-  leadOnBoard(orgId: string, board: string, id: string): Promise<{id: string; projectId: string; clientId: string} | null>;
+  leadOnBoard(actor: ActorContext, board: string, id: string): Promise<{id: string; projectId: string; clientId: string} | null>;
   history(orgId: string, leadId: string): Promise<{events: LeadHistoryEvent[]; importedAt: Date | null}>;
   campaignNames(ids: readonly string[]): Promise<Map<string, string>>;
   columns(actor: ActorContext, board: string, context?: TransactionContext): Promise<LeadColumnRecord[]>;

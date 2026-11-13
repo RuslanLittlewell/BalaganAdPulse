@@ -42,7 +42,7 @@ function Unselected() {
 }
 
 function ProjectsHome() {
-  const { user } = useAuth();
+  const { user, role, partner } = useAuth();
   const place = useModuleMemory((state) =>
     user ? state.projectPlaces[user.id] : undefined,
   );
@@ -61,6 +61,7 @@ function ProjectsHome() {
   }, [user, place, settled, reachable, forget]);
 
   if (!user) return null;
+  if (role === "PARTNER" && partner) return <Navigate to={`/projects/${partner.projectId}`} replace />;
   if (place && projects.isError) return <Unselected />;
   if (place && !settled) return null;
   if (place && reachable) return <Navigate to={place} replace />;
@@ -68,6 +69,7 @@ function ProjectsHome() {
 }
 
 export function ProjectsPage() {
+  const { role } = useAuth();
   useRememberProjectPlace();
   const [collapsed, setCollapsed] = useState(readProjectListCollapsed);
   const location = useLocation();
@@ -78,6 +80,12 @@ export function ProjectsPage() {
     setCollapsed(!collapsed);
   };
 
+  if (role === "PARTNER") return <Routes>
+    <Route path="/" element={<ProjectsHome />} />
+    <Route path=":projectId" element={<ProjectPage />} />
+    <Route path=":projectId/campaigns/:campaignId" element={<CampaignPage />} />
+    <Route path="*" element={<Navigate to="/projects" replace />} />
+  </Routes>;
   return (
     <div
       className={cn(

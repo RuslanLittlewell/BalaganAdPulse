@@ -16,6 +16,7 @@ function toDomain(row: ClientRow): ClientRecord {
 const ORGANIZATION_WIDE: readonly ActorContext["role"][] = ["ADMIN", "MANAGER"];
 
 function reachFilter(actor: ActorContext): Prisma.ClientWhereInput {
+  if (actor.role === "PARTNER") return { orgId: actor.orgId, id: { in: [] } };
   if (ORGANIZATION_WIDE.includes(actor.role)) return { orgId: actor.orgId };
   return {
     orgId: actor.orgId,

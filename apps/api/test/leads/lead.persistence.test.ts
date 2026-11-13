@@ -14,7 +14,7 @@ const repository = new PrismaLeadRepository(prisma, new PrismaUnitOfWork(prisma)
 it('defines the four fixed stages in presentation order', () => {
   expect(LEAD_STAGES).toEqual(['NEW','QUALIFIED','TARGET','PROPOSAL']);
 });
-it.each(ROLES)('resolves %s project boards and verbs independently of task access', async role => {
+it.each(ROLES.filter(role => role !== 'PARTNER'))('resolves %s project boards and verbs independently of task access', async role => {
   const member = await signInAs(role, {role});
   const {clientId, projectId} = await seedProject(member.user.id);
   const second = await prisma.project.create({data:{clientId, name:'Второй', position:1}});

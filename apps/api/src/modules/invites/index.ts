@@ -4,6 +4,7 @@ export type {
   InvitationCodeGenerator,
   InvitationOrganizations,
   InvitationProjectAccess,
+  InvitationCampaignReach,
   InvitationProjectReach,
   InviteDependencies,
   InviteRepository,

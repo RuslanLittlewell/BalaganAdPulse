@@ -66,6 +66,7 @@ export interface AuthSession {
   organization: OrganizationSummary | null;
   role: Role | null;
   membershipId: string | null;
+  partner: { campaignId: string; projectId: string } | null;
   clientIds: string[];
   modules: ModuleKey[];
   tariff: TariffSummary | null;

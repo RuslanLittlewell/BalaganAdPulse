@@ -16,6 +16,7 @@ function toDomain(row: InviteRow): Invite {
     registrationType: row.registrationType,
     role: row.role,
     clientId: row.clientId,
+    campaignId: row.campaignId,
     projectIds: row.projects.map(({ projectId }) => projectId),
     email: row.email,
     expiresAt: row.expiresAt,

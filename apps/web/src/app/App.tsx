@@ -33,19 +33,20 @@ const queryClient = createQueryClient();
 
 function OrganizationArea() {
   const location = useLocation();
-  const { modules } = useAuth();
+  const { modules, role, partner } = useAuth();
+  const home = role === "PARTNER" && partner ? `${ROUTES.projects}/${partner.projectId}` : ROUTES.dashboard;
   const { previewing } = usePreviewMode();
   const entitled = (module: ModuleKey, page: ReactNode) =>
-    modules.includes(module) ? page : <Navigate to={ROUTES.dashboard} replace />;
+    modules.includes(module) ? page : <Navigate to={home} replace />;
   return (
     <NavCollapseProvider>
-      <StaffSync />
+      {role !== "PARTNER" ? <StaffSync /> : null}
       <ProjectsSync />
       <SessionHeartbeat />
-      <OnboardingLayer />
+      {role !== "PARTNER" ? <OnboardingLayer /> : null}
       <AppShell sidebar={<MainNav />} header={<AppHeader />} moduleKey={moduleKeyFromPathname(location.pathname)} preview={previewing && previewedProjectId(location.pathname) !== null}>
         <Routes location={location}>
-          <Route path={ROUTES.dashboard} element={<DashboardPage />} />
+          <Route path={ROUTES.dashboard} element={entitled("DASHBOARD", <DashboardPage />)} />
           <Route path={`${ROUTES.projects}/*`} element={<ProjectsPage />} />
           <Route path={ROUTES.tasks} element={entitled("TASKS", <TasksPage />)} />
           <Route path={ROUTES.crm} element={entitled("CRM", <CrmLayout />)}>
@@ -54,9 +55,9 @@ function OrganizationArea() {
             <Route path="people" element={<CrmRecordsPage kind="people" />} />
           </Route>
           <Route path={`${ROUTES.reports}/*`} element={entitled("REPORTS", <ReportsPage />)} />
-          <Route path={ROUTES.archive} element={<ArchivePage />} />
+          <Route path={ROUTES.archive} element={role === "PARTNER" ? <Navigate to={home} replace /> : <ArchivePage />} />
           <Route path="/clients/*" element={<Navigate to={ROUTES.projects} replace />} />
-          <Route path="/team" element={<Navigate to={ROUTES.dashboard} replace />} />
+          <Route path="/team" element={<Navigate to={home} replace />} />
         </Routes>
       </AppShell>
     </NavCollapseProvider>

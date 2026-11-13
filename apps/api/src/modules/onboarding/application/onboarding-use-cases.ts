@@ -14,6 +14,7 @@ export interface OnboardingView {
 export function createOnboardingUseCases(dependencies: OnboardingDependencies) {
   return {
     describe: async (actor: ActorContext): Promise<OnboardingView> => {
+      if (actor.role === "PARTNER") throw new AppError("forbidden", "Onboarding is not available to partners");
       const [snapshot, telegram] = await Promise.all([
         dependencies.reader.read(actor),
         dependencies.telegram.status(actor),

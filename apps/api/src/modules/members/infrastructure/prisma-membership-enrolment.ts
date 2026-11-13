@@ -8,7 +8,7 @@ export class PrismaMembershipEnrolment {
 
   async enrol(
     context: TransactionContext,
-    value: { userId: string; orgId: string; role: Role },
+    value: { userId: string; orgId: string; role: Role; campaignId?: string },
   ): Promise<string> {
     const client = this.unitOfWork.clientFor<Prisma.TransactionClient>(context);
     const membership = await client.membership.create({ data: value, select: { id: true } });

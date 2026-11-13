@@ -18,6 +18,7 @@ export async function explained<T>(work: () => Promise<T>): Promise<T> {
 export async function readableProject(d: Pick<SeoDependencies, "projects">, actor: ActorContext, projectId: string) {
   const project = await d.projects.findReachable(actor, projectId);
   if (!project) throw new AppError("not-found", "Project not found");
+  if (actor.role === "PARTNER") throw new AppError("forbidden", "Your role may not read SEO sites");
   return project;
 }
 

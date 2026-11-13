@@ -21,7 +21,7 @@ function RecordsContent<T extends Named>({ kind, clientId, records, schema, capa
   editableFields: readonly FieldRef[];
   onEdit: (record: T, field: FieldRef, value: string | null) => Promise<unknown>;
 }) {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const [params, setParams] = useSearchParams();
   const { view: stored, change } = useRecordViewState(user?.id, kind, clientId);
   const view = useMemo(() => pruneRecordState(stored, schema), [stored, schema]);
@@ -59,7 +59,7 @@ function RecordsContent<T extends Named>({ kind, clientId, records, schema, capa
     <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border pb-2"><h1 className="mr-auto text-lg font-semibold">{title}</h1>
       <CrmViewControls view={view} context={context} columns canManageFields={false} onChange={change}
         onAddFilter={(filter) => { change({ filters: [...view.filters, filter] }); setFreshFilter(filter.id); }} />
-      {capabilities.create ? <Button type="button" className="h-8 gap-1" onClick={() => { close(); setAdding(true); }}><Plus className="size-3" />{t('crm.record.add')}</Button> : null}
+      {capabilities.create && role !== 'PARTNER' ? <Button type="button" className="h-8 gap-1" onClick={() => { close(); setAdding(true); }}><Plus className="size-3" />{t('crm.record.add')}</Button> : null}
     </header>
     <CrmViewChips view={view} context={context} freshId={freshFilter} fields={[]} onChange={change} />
     <div className="relative flex min-h-0 flex-1 overflow-clip">

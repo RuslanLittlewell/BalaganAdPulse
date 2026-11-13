@@ -115,8 +115,8 @@ export function createGoogleUseCases(d: GoogleDependencies) {
     },
 
     accounts: async (actor: ActorContext, projectId: string, authorizationId: string) => {
-      const google = configured();
       await reachableProject(d.projects, actor, projectId);
+      const google = configured();
       const authorization = await owned(actor, projectId, authorizationId);
       if (authorization.integrationId) return { renewing: true, accounts: [] };
       const refreshToken = d.cipher.decrypt(authorization.encryptedRefreshToken, projectId);

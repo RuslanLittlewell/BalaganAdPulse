@@ -3,7 +3,7 @@ import { ROLES } from "@adpulse/access-policy";
 import { arrayOf, ref, type ComponentDocs, type RouteDoc } from "#shared/presentation/openapi.js";
 import { createInviteSchema, listInvitesQuerySchema } from "./invite-schemas.js";
 
-const REGISTRATION_TYPES = ["CLIENT", "EMPLOYEE", "CLIENT_STAFF"] as const;
+const REGISTRATION_TYPES = ["CLIENT", "EMPLOYEE", "CLIENT_STAFF", "PARTNER"] as const;
 
 const invite = z.object({
   id: z.uuid(),
@@ -13,6 +13,7 @@ const invite = z.object({
   role: z.enum(ROLES).nullable(),
   projectIds: z.array(z.uuid()),
   clientId: z.uuid().nullable(),
+  campaignId: z.uuid().nullable(),
   email: z.email().nullable(),
   expiresAt: z.iso.datetime().nullable(),
   revokedAt: z.iso.datetime().nullable(),

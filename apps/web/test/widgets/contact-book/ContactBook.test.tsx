@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { aClient, renderWithProviders, server } from "@test/shared/index.js";
 import { ContactBook } from "@/widgets/contact-book/ContactBook.js";
+import { InvitationDialog } from "@/features/invitations/index.js";
 
 const acme = aClient({
   fullName: "Иван Петров",
@@ -596,7 +597,7 @@ describe("choosing which directory to show", () => {
       }));
       renderWithProviders(<ContactBook open onClose={() => {}} />);
 
-      await user.click(await screen.findByRole("button", { name: "Пригласить в компанию" }));
+      await user.click(await screen.findByRole("button", { name: "Добавить" }));
       expect(await screen.findByRole("dialog", { name: "Пригласить в компанию" }))
         .toBeInTheDocument();
 
@@ -614,7 +615,7 @@ describe("choosing which directory to show", () => {
 
       await screen.findByText("Иван Петров");
       expect(screen.queryByRole("button", { name: "Пригласить клиента" })).toBeNull();
-      expect(screen.getAllByRole("button", { name: "Пригласить в компанию" })).toHaveLength(1);
+      expect(screen.getAllByRole("button", { name: "Добавить" })).toHaveLength(1);
     });
 
     it("offers an ordinary customer no invite control at all", async () => {
@@ -623,8 +624,158 @@ describe("choosing which directory to show", () => {
       renderWithProviders(<ContactBook open onClose={() => {}} />);
 
       await screen.findByText("Иван Петров");
-      expect(screen.queryByRole("button", { name: "Пригласить в компанию" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Добавить" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Пригласить клиента" })).toBeNull();
+    });
+
+    describe("adding a partner", () => {
+      const campaigns = [
+        { id: "c-north", name: "Север — окна ПВХ", channel: "META", status: "ACTIVE" },
+        { id: "c-south", name: "Юг — двери", channel: "META", status: "LEARNING" },
+        { id: "c-old", name: "Старая акция", channel: "META", status: "PAUSED" },
+      ];
+      let body: Record<string, unknown> | null;
+      beforeEach(() => {
+        body = null;
+        withDirectory();
+        asPrincipal();
+        server.use(
+          http.get("/api/projects", () => HttpResponse.json([
+            { id: "project-1", clientId: "1", name: "Gealan", budgetCurrency: "BYN", image: null, avatarPath: null, position: 0, createdAt: "2026-09-01T00:00:00.000Z" },
+            { id: "project-2", clientId: "1", name: "Gealan Юг", budgetCurrency: "BYN", image: null, avatarPath: null, position: 1, createdAt: "2026-09-01T00:00:00.000Z" },
+            { id: "project-3", clientId: "2", name: "Чужой проект", budgetCurrency: "BYN", image: null, avatarPath: null, position: 0, createdAt: "2026-09-01T00:00:00.000Z" },
+          ])),
+          http.get("/api/projects/project-2/campaigns/names", () => HttpResponse.json(campaigns)),
+          http.post("/api/invites", async ({ request }) => {
+            body = await request.json() as Record<string, unknown>;
+            return HttpResponse.json(
+              { ...employeeInvite, id: "invite-partner", registrationType: "PARTNER", role: null, registrationUrl: "/registration/PARTNER1" },
+              { status: 201 },
+            );
+          }),
+        );
+      });
+
+      const openPartnerForm = async (user: ReturnType<typeof userEvent.setup>) => {
+        renderWithProviders(<ContactBook open onClose={() => {}} />);
+        await user.click(await screen.findByRole("button", { name: "Добавить" }));
+        const dialog = await screen.findByRole("dialog", { name: "Пригласить в компанию" });
+        expect(within(dialog).getAllByRole("radio").map((radio) => radio.textContent)).toEqual(["Сотрудник", "Партнёр"]);
+        await user.click(within(dialog).getByRole("radio", { name: "Партнёр" }));
+        return screen.findByRole("dialog", { name: "Пригласить партнёра" });
+      };
+
+      it("binds the invitation to a campaign of a chosen project of the company", async () => {
+        const user = userEvent.setup();
+        const dialog = await openPartnerForm(user);
+        expect(within(dialog).getByRole("combobox", { name: "Кампания" })).toBeDisabled();
+
+        await user.click(within(dialog).getByRole("combobox", { name: "Проект" }));
+        expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["Gealan", "Gealan Юг"]);
+        await user.click(screen.getByRole("option", { name: "Gealan Юг" }));
+
+        await user.click(within(dialog).getByRole("combobox", { name: "Кампания" }));
+        await user.click(await screen.findByRole("option", { name: "Юг — двери" }));
+        await user.click(within(dialog).getByRole("button", { name: "Создать приглашение" }));
+
+        await waitFor(() => expect(body).toEqual({ registrationType: "PARTNER", campaignId: "c-south" }));
+        expect(await screen.findByText(/\/registration\/PARTNER1$/)).toBeInTheDocument();
+      });
+
+      it("offers running campaigns first, each marked, and the rest once the toggle is off", async () => {
+        const user = userEvent.setup();
+        const dialog = await openPartnerForm(user);
+        await user.click(within(dialog).getByRole("combobox", { name: "Проект" }));
+        await user.click(screen.getByRole("option", { name: "Gealan Юг" }));
+        const toggle = within(dialog).getByRole("switch", { name: "Активные кампании" });
+        expect(toggle).toBeChecked();
+
+        await user.click(within(dialog).getByRole("combobox", { name: "Кампания" }));
+        expect((await screen.findAllByRole("option")).map((option) => option.textContent)).toEqual(["Север — окна ПВХ", "Юг — двери"]);
+        await user.keyboard("{Escape}");
+
+        await user.click(toggle);
+        await user.click(within(dialog).getByRole("combobox", { name: "Кампания" }));
+        const options = await screen.findAllByRole("option");
+        expect(options.map((option) => option.textContent)).toEqual(["Север — окна ПВХ", "Юг — двери", "Старая акция"]);
+        expect(options.map((option) => option.querySelector("[data-running]")?.getAttribute("data-running"))).toEqual(["true", "true", "false"]);
+      });
+
+      it("drops a stopped campaign from the choice when the toggle is turned back on", async () => {
+        const user = userEvent.setup();
+        const dialog = await openPartnerForm(user);
+        await user.click(within(dialog).getByRole("combobox", { name: "Проект" }));
+        await user.click(screen.getByRole("option", { name: "Gealan Юг" }));
+        await user.click(within(dialog).getByRole("switch", { name: "Активные кампании" }));
+        await user.click(within(dialog).getByRole("combobox", { name: "Кампания" }));
+        await user.click(await screen.findByRole("option", { name: "Старая акция" }));
+
+        await user.click(within(dialog).getByRole("switch", { name: "Активные кампании" }));
+        await user.click(within(dialog).getByRole("button", { name: "Создать приглашение" }));
+
+        expect(await within(dialog).findByRole("alert")).toHaveTextContent("Выберите кампанию");
+        expect(body).toBeNull();
+      });
+
+      it("asks for a campaign before creating anything", async () => {
+        const user = userEvent.setup();
+        const dialog = await openPartnerForm(user);
+        await user.click(within(dialog).getByRole("button", { name: "Создать приглашение" }));
+
+        expect(await within(dialog).findByRole("alert")).toHaveTextContent("Выберите кампанию");
+        expect(body).toBeNull();
+      });
+
+      it("offers no partner choice when the reader may not invite partners", async () => {
+        const user = userEvent.setup();
+        server.use(http.get("/api/auth/me", () => HttpResponse.json({
+          user: { id: "u1", name: "Иван", email: "ivan@acme.by", image: null },
+          organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
+          role: "CLIENT",
+          clientIds: ["1"],
+        })));
+        renderWithProviders(<InvitationDialog registrationType="CLIENT_STAFF" clientId="1" open onClose={() => {}} />);
+
+        const dialog = await screen.findByRole("dialog", { name: "Пригласить в компанию" });
+        await waitFor(() => expect(within(dialog).queryByRole("radio")).toBeNull());
+      });
+    });
+
+    describe("partners among the company's people", () => {
+      beforeEach(() => {
+        withDirectory();
+        asPrincipal();
+        server.use(http.get("/api/members", () => HttpResponse.json([
+          { ...member, id: "m-1", name: "Иван Петров", role: "CLIENT_ADMIN", campaign: null },
+          { ...member, id: "m-3", name: "Дилер Север", role: "PARTNER",
+            campaign: { id: "c-north", name: "Север — окна ПВХ", projectId: "project-1" } },
+        ])));
+      });
+
+      it("shows the campaign a partner works with", async () => {
+        renderWithProviders(<ContactBook open onClose={() => {}} />);
+
+        const row = await screen.findByTestId("company-person-m-3");
+        expect(within(row).getByText("Партнёр · Север — окна ПВХ")).toBeInTheDocument();
+        expect(within(screen.getByTestId("company-person-m-1")).queryByRole("button")).toBeNull();
+      });
+
+      it("removes a partner after confirmation", async () => {
+        const user = userEvent.setup();
+        let removed: string | null = null;
+        server.use(http.delete("/api/members/:id", ({ params }) => {
+          removed = params.id as string;
+          return new HttpResponse(null, { status: 204 });
+        }));
+        renderWithProviders(<ContactBook open onClose={() => {}} />);
+
+        await user.click(await screen.findByRole("button", { name: "Удалить партнёра Дилер Север" }));
+        const confirm = await screen.findByRole("alertdialog");
+        expect(confirm).toHaveTextContent("Удалить партнёра «Дилер Север»?");
+        await user.click(within(confirm).getByRole("button", { name: "Удалить" }));
+
+        await waitFor(() => expect(removed).toBe("m-3"));
+      });
     });
 
   it("leaves the agency's own contact book as it was", async () => {
@@ -636,7 +787,7 @@ describe("choosing which directory to show", () => {
     });
   });
 
-  it("offers a customer no employees pane", async () => {
+  it("offers a customer its own people as Сотрудники and nothing else", async () => {
     withDirectory();
     server.use(http.get("/api/auth/me", () => HttpResponse.json({
       user: { id: "u1", name: "Иван", email: "ivan@acme.by", image: null },
@@ -647,7 +798,7 @@ describe("choosing which directory to show", () => {
     renderWithProviders(<ContactBook open onClose={() => {}} />);
 
     await screen.findByRole("heading", { name: "Контактная книга" });
-    expect(screen.queryByRole("radio", { name: "Сотрудники" })).toBeNull();
+    expect((await screen.findAllByRole("radio")).map((radio) => radio.textContent)).toEqual(["Сотрудники"]);
   });
 
   it("still offers it to the agency", async () => {
@@ -667,7 +818,7 @@ describe("choosing which directory to show", () => {
     await userEvent.click(await screen.findByRole("button", { name: /Acme/ }));
 
     expect(screen.queryByText("Люди клиента")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Пригласить в компанию" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Добавить" })).toBeNull();
     expect(screen.queryByText("Совсем Другой")).toBeNull();
   });
 

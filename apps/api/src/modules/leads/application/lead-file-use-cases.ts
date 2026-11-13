@@ -18,7 +18,7 @@ export function createLeadFileUseCases(d: {
 }) {
   async function leadOf(actor: ActorContext, board: string, leadId: string) {
     if (!await d.leads.reaches(actor, board) || !can(actor, 'read', 'lead')) throw new AppError('not-found', 'Lead not found');
-    const lead = await d.leads.leadOnBoard(actor.orgId, board, leadId);
+    const lead = await d.leads.leadOnBoard(actor, board, leadId);
     if (!lead) throw new AppError('not-found', 'Lead not found');
     return lead;
   }

@@ -5,6 +5,7 @@ import type { Ad, AdSet, Campaign, Channel, KpiTarget, ProjectKpi } from "../dom
 import type {
   AdRepository, AdSetRepository, CampaignRepository, CreativeRepository, CreativeStorage, ProjectReach, ReachableProject,
 } from "../application/ports.js";
+import { reachableCampaigns } from '#shared/infrastructure/partner-reach.js';
 import { reachableProjects } from "#shared/infrastructure/project-reach.js";
 
 type StoredKpi = { kpiMetric: string | null; kpiTarget: { toFixed(digits: number): string } | null; kpiResultType: string | null };
@@ -56,26 +57,26 @@ export class PrismaCampaignRepository implements CampaignRepository {
 
   async findReachable(actor: ActorContext, id: string): Promise<Campaign | null> {
     const row = await this.prisma.campaign.findFirst({
-      where: { id, project: reachableProjects(actor) },
+      where: { AND: [{ id }, reachableCampaigns(actor)] },
     });
-    return row && toCampaign(row);
+    return row && { ...toCampaign(row), ...(actor.role === "PARTNER" ? { kpi: null } : {}) };
   }
 
   async listReachableByProject(actor: ActorContext, projectId: string): Promise<Campaign[]> {
     const rows = await this.prisma.campaign.findMany({
-      where: { projectId, project: reachableProjects(actor) },
+      where: { projectId, ...reachableCampaigns(actor) },
       orderBy: { position: "asc" },
     });
-    return rows.map(toCampaign);
+    return rows.map(row => ({ ...toCampaign(row), ...(actor.role === "PARTNER" ? { kpi: null } : {}) }));
   }
 
   async listReachable(actor: ActorContext): Promise<Campaign[]> {
     const rows = await this.prisma.campaign.findMany({
-      where: { project: reachableProjects(actor) },
+      where: reachableCampaigns(actor),
       include: { project: { select: { budgetCurrency: true } } },
       orderBy: [{ projectId: "asc" }, { position: "asc" }],
     });
-    return rows.map(toCampaign);
+    return rows.map(row => ({ ...toCampaign(row), ...(actor.role === "PARTNER" ? { kpi: null } : {}) }));
   }
 }
 
@@ -115,7 +116,7 @@ export class PrismaCreativeRepository implements CreativeRepository {
     part: "file" | "poster",
   ): Promise<{ key: string; contentType: string } | null> {
     const row = await this.prisma.adCreative.findFirst({
-      where: { id, ad: { adSet: { campaign: { project: reachableProjects(actor) } } } },
+      where: { id, ad: { adSet: { campaign: reachableCampaigns(actor) } } },
     });
     if (!row) return null;
     const key = part === "file" ? row.fileKey : row.posterKey;
@@ -154,6 +155,6 @@ export class PrismaProjectReach implements ProjectReach {
       },
       orderBy: { position: "asc" },
     });
-    return projects.map((project) => ({ id: project.id, kpis: project.kpiTracked ? project.kpis.flatMap((kpi) => projectKpiOf(kpi) ?? []) : [] }));
+    return projects.map((project) => ({ id: project.id, kpis: actor.role !== "PARTNER" && project.kpiTracked ? project.kpis.flatMap((kpi) => projectKpiOf(kpi) ?? []) : [] }));
   }
 }

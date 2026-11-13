@@ -66,6 +66,7 @@ describe("the platform administrator's session", () => {
       organization: null,
       role: null,
       membershipId: null,
+      partner: null,
       clientIds: [],
       modules: [],
       tariff: null,

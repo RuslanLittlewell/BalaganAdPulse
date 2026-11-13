@@ -13,6 +13,7 @@ import {
   type Lead,
   type LeadAd,
 } from "@/entities/lead/index.js";
+import { useCan } from "@/features/permissions/index.js";
 import { useAuth } from "@/features/auth/index.js";
 import { LeadFieldsDialog } from "@/features/lead-field-management/index.js";
 import {
@@ -71,14 +72,16 @@ export function CrmPage() {
   const [managingFields, setManagingFields] = useState(false);
   const [freshFilter, setFreshFilter] = useState<string | null>(null);
 
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const managesBoard = useCan("create", "lead-board");
   const remembered = useModuleMemory((state) => (user ? state.boards[user.id] : undefined));
   const rememberBoard = useModuleMemory((state) => state.rememberBoard);
   const forgetBoard = useModuleMemory((state) => state.forgetBoard);
   const rememberedLayout = useModuleMemory((state) => (user ? state.crmViews[user.id] : undefined));
   const rememberCrmView = useModuleMemory((state) => state.rememberCrmView);
   const [chosenLayout, setChosenLayout] = useState<Layout | null>(null);
-  const layout: Layout = chosenLayout ?? (isLayout(rememberedLayout) ? rememberedLayout : "board");
+  const selectedLayout: Layout = chosenLayout ?? (isLayout(rememberedLayout) ? rememberedLayout : "board");
+  const layout = role === "PARTNER" && selectedLayout === "tasks" ? "board" : selectedLayout;
 
   const chosen = params.get("board");
   const restorable = !chosen && remembered ? boards?.find((candidate) => candidate.key === remembered) : undefined;
@@ -164,7 +167,7 @@ export function CrmPage() {
           items={[
             { id: "board", label: t("crm.view.board") },
             { id: "table", label: t("crm.view.table") },
-            { id: "tasks", label: t("crm.view.tasks") },
+            ...(role !== "PARTNER" ? [{ id: "tasks", label: t("crm.view.tasks") }] : []),
           ]}
           activeId={layout}
           onSelect={(id) => {
@@ -183,7 +186,7 @@ export function CrmPage() {
           <CrmViewControls
             view={view}
             context={context}
-            canManageFields={capabilities?.create ?? false}
+            canManageFields={managesBoard && (capabilities?.create ?? false)}
             onChange={change}
             onAddFilter={(filter) => { change({ filters: [...view.filters, filter] }); setFreshFilter(filter.id); }}
             onBoardFields={() => setManagingFields(true)}
@@ -228,7 +231,7 @@ export function CrmPage() {
             setCreatingRecord(null);
             if (openLeadId) void updateLead.mutateAsync({ id: openLeadId, body: kind === 'people' ? { personId: id } : { companyId: id } }).catch(() => raise(t('crm.form.saveFailed')));
           }} />
-            : board && capabilities && openLeadId ? <LeadSidePanel key={`lead-${board.key}`} boardKey={board.key} leadId={openLeadId} capabilities={capabilities} onClose={closeLead} onPreviewCreative={setPreviewing} onCreateRecord={capabilities.create ? setCreatingRecord : undefined} />
+            : board && capabilities && openLeadId ? <LeadSidePanel key={`lead-${board.key}`} boardKey={board.key} leadId={openLeadId} capabilities={capabilities} onClose={closeLead} onPreviewCreative={setPreviewing} onCreateRecord={capabilities.create && role !== "PARTNER" ? setCreatingRecord : undefined} />
             : board && capabilities?.create && creatingIn ? <CreateLeadPanel key={`new-${board.key}`} boardKey={board.key} clientId={board.clientId} initialStage={creatingIn} fields={fields ?? []} onCreated={(lead) => { setCreatingIn(null); openLead(lead); }} onClose={() => setCreatingIn(null)} /> : null}
         </AnimatePresence>
       </div>

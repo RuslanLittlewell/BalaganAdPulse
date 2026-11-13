@@ -11,6 +11,7 @@ export interface NewInvite {
   readonly role: Role | null;
   readonly projectIds?: readonly string[];
   readonly clientId?: string | null;
+  readonly campaignId?: string | null;
   readonly email: string | null;
   readonly expiresAt: Date | null;
   readonly createdById: string | null;
@@ -40,8 +41,12 @@ export class InvitationCodeConflictError extends Error {
 export interface MembershipEnrolment {
   enrol(
     context: TransactionContext,
-    value: { userId: string; orgId: string; role: Role },
+    value: { userId: string; orgId: string; role: Role; campaignId?: string },
   ): Promise<string>;
+}
+
+export interface InvitationCampaignReach {
+  reachable(actor: ActorContext, campaignId: string): Promise<{ clientId: string } | null>;
 }
 
 export interface InvitationClientReach {
@@ -101,6 +106,7 @@ export interface InviteDependencies {
   readonly projects: InvitationProjectReach;
   readonly organizations: InvitationOrganizations;
   readonly clients: InvitationClientReach;
+  readonly campaigns: InvitationCampaignReach;
   readonly projectAccess: InvitationProjectAccess;
   readonly clientDirectory: ClientDirectory;
   readonly projectDirectory: ProjectDirectory;

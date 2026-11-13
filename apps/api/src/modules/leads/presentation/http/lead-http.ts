@@ -75,6 +75,7 @@ export function createLeadRouter(leads: LeadUseCases, files: LeadFileUseCases, f
       ),
     ),
   );
+  router.get('/boards/:boardKey/assignees', handle(async (req, res) => res.json(await leads.assignees(actor(req), req.params.boardKey))));
   router.get(
     "/boards/:boardKey/leads",
     handle(async (req, res) =>

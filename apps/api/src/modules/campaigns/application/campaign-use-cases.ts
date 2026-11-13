@@ -2,7 +2,7 @@ import { can } from "@adpulse/access-policy";
 import { AppError } from "#shared/domain/index.js";
 import type { ActorContext } from "#shared/application/index.js";
 import {
-  isOrderedRange, type Ad, type AdSet, type Campaign, type Channel, type CreativeFile, type DateRange, type KpiAccount, type ProjectKpi,
+  isOrderedRange, type Ad, type AdSet, type Campaign, type Channel, type CreativeFile, type DateRange, type DeliveryStatus, type KpiAccount, type ProjectKpi,
 } from "../domain/hierarchy.js";
 import { performanceOf, sumByDay, type MeasuredDay, type Performance } from "../domain/metrics.js";
 import {
@@ -59,6 +59,7 @@ export interface CampaignReference {
   readonly id: string;
   readonly name: string;
   readonly channel: Channel;
+  readonly status: DeliveryStatus;
 }
 
 export type CampaignView = Campaign & { readonly performance: TypedPerformance; readonly resultTypes: ResultType[] };
@@ -199,7 +200,7 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
         throw new AppError("not-found", "Project not found");
       }
       const campaigns = await dependencies.campaigns.listReachableByProject(actor, projectId);
-      return campaigns.map(({ id, name, channel }) => ({ id, name, channel }));
+      return campaigns.map(({ id, name, channel, status }) => ({ id, name, channel, status }));
     },
 
     listAdSets: async (

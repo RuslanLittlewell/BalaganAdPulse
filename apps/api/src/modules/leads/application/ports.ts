@@ -4,7 +4,6 @@ import type { LeadNoteRecord } from '../domain/lead-note.js';
 import type { LeadHistoryEvent } from '../domain/lead-activity.js';
 import type { LeadFieldRecord, LeadFieldType, FieldOption, OptionColor } from '../domain/lead-field.js';
 import type { CompanyFields, CompanyRecord, PersonFields, PersonRecord, RelatedLead } from '../domain/crm-record.js';
-import type { ConversionEventFields, ConversionEventRecord, ReachedEvent } from '../domain/conversion-event.js';
 import type { ArrivalWindow, BoardStageCounts, LeadBoard, LeadColumnRecord, LeadFields, LeadRecord, LeadStage, ProjectStageCounts } from '../domain/lead.js';
 export interface LeadRepository {
   boards(actor: ActorContext): Promise<LeadBoard[]>;
@@ -17,7 +16,6 @@ export interface LeadRepository {
   create(context: TransactionContext, input: LeadFields & {id: string; orgId: string; projectId: string; stage: string; position: number}): Promise<LeadRecord>;
   update(context: TransactionContext, id: string, input: Partial<LeadFields> & {stage?: string; position?: number}): Promise<LeadRecord>;
   delete(context: TransactionContext, id: string): Promise<string[]>;
-  recordStageChange(context: TransactionContext, change: {orgId: string; projectId: string; leadId: string; from: string | null; to: string}): Promise<void>;
   leadOnBoard(orgId: string, board: string, id: string): Promise<{id: string; projectId: string; clientId: string} | null>;
   history(orgId: string, leadId: string): Promise<{events: LeadHistoryEvent[]; importedAt: Date | null}>;
   campaignNames(ids: readonly string[]): Promise<Map<string, string>>;
@@ -73,13 +71,3 @@ export interface LeadNoteRepository {
 }
 export type LeadEventResource = 'leads' | 'notes' | 'columns' | 'fields' | 'activity' | 'files' | 'records' | 'counts';
 export interface LeadEvent { kind: 'crm.changed'; orgId: string; board: string; resources?: readonly LeadEventResource[]; leadId?: string }
-export interface ConversionEventRepository {
-  list(projectId: string, context?: TransactionContext): Promise<ConversionEventRecord[]>;
-  create(context: TransactionContext, input: ConversionEventFields & {id: string; orgId: string; projectId: string}): Promise<ConversionEventRecord>;
-  update(context: TransactionContext, id: string, input: ConversionEventFields): Promise<ConversionEventRecord>;
-  delete(context: TransactionContext, id: string): Promise<void>;
-}
-export interface ConversionReach {
-  reachedByChanges(context: TransactionContext, changeIds: readonly string[]): Promise<ReachedEvent[]>;
-  reachedSince(context: TransactionContext, projectId: string, since: Date): Promise<ReachedEvent[]>;
-}

@@ -10,7 +10,6 @@ import type { LeadFileUseCases } from "#modules/leads/application/lead-file-use-
 import type { LeadNoteUseCases } from "#modules/leads/application/lead-note-use-cases.js";
 import type { LeadFieldUseCases } from "#modules/leads/application/lead-field-use-cases.js";
 import type { CrmRecordUseCases } from "#modules/leads/application/crm-record-use-cases.js";
-import type { ConversionEventUseCases } from "#modules/leads/application/conversion-event-use-cases.js";
 import { leadFileUpload, uploadedName } from "./lead-file-upload.js";
 import {
   createLeadSchema,
@@ -26,11 +25,9 @@ import {
   updatePersonSchema,
   stageCountsQuerySchema,
   leadNoteSchema,
-  createConversionEventSchema,
-  updateConversionEventSchema,
   normalize,
 } from "./lead-schemas.js";
-export function createLeadRouter(leads: LeadUseCases, files: LeadFileUseCases, fields: LeadFieldUseCases, records: CrmRecordUseCases, notes: LeadNoteUseCases, events: ConversionEventUseCases) {
+export function createLeadRouter(leads: LeadUseCases, files: LeadFileUseCases, fields: LeadFieldUseCases, records: CrmRecordUseCases, notes: LeadNoteUseCases) {
   const router = Router();
   const handle =
     (
@@ -169,27 +166,6 @@ export function createLeadRouter(leads: LeadUseCases, files: LeadFileUseCases, f
             contentType: req.file.mimetype,
           }),
         );
-    }),
-  );
-  router.get(
-    "/boards/:boardKey/conversion-events",
-    handle(async (req, res) => res.json(await events.list(actor(req), req.params.boardKey))),
-  );
-  router.post(
-    "/boards/:boardKey/conversion-events",
-    handle(async (req, res) => {
-      res.status(201).json(await events.create(actor(req), req.params.boardKey, createConversionEventSchema.parse(req.body)));
-    }),
-  );
-  router.patch(
-    "/boards/:boardKey/conversion-events/:id",
-    handle(async (req, res) => res.json(await events.update(actor(req), req.params.boardKey, req.params.id, updateConversionEventSchema.parse(req.body)))),
-  );
-  router.delete(
-    "/boards/:boardKey/conversion-events/:id",
-    handle(async (req, res) => {
-      await events.remove(actor(req), req.params.boardKey, req.params.id);
-      res.status(204).end();
     }),
   );
   router.get(

@@ -106,13 +106,8 @@ export class PrismaLeadRepository implements LeadRepository {
   async updateColumn(context: TransactionContext, id: string, input: Parameters<LeadRepository['updateColumn']>[2]) {
     return toColumnRecord(await this.uow.clientFor<Prisma.TransactionClient>(context).leadColumn.update({where:{id},data:input,include:columnInclude}));
   }
-  async recordStageChange(context: TransactionContext, {from, to, ...change}: Parameters<LeadRepository['recordStageChange']>[1]) {
-    await this.uow.clientFor<Prisma.TransactionClient>(context).leadStageChange.create({data:{...change, fromStage:from, toStage:to}});
-  }
   async deleteColumn(context: TransactionContext, id: string) {
-    const tx = this.uow.clientFor<Prisma.TransactionClient>(context);
-    const {projectId} = await tx.leadColumn.delete({where:{id}});
-    await tx.$executeRaw`UPDATE "crm_conversion_event" SET "stages" = array_remove("stages", ${id}), "updated_at" = CURRENT_TIMESTAMP WHERE "project_id" = ${projectId} AND ${id} = ANY("stages")`;
+    await this.uow.clientFor<Prisma.TransactionClient>(context).leadColumn.delete({where:{id}});
   }
   async projectStageCounts(actor: ActorContext, window: ArrivalWindow) {
     const groups = await this.prisma.lead.groupBy({

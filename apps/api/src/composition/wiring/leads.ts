@@ -1,6 +1,5 @@
 import { prisma } from "#shared/infrastructure/prisma.js";
 import {
-  createConversionEventUseCases,
   createCrmRecordUseCases,
   createLeadFieldUseCases,
   createLeadFileUseCases,
@@ -16,7 +15,6 @@ import { PrismaLeadFieldRepository } from "#modules/leads/infrastructure/prisma-
 import { PrismaCrmRecordRepository } from "#modules/leads/infrastructure/prisma-crm-record-repository.js";
 import { PrismaLeadIntakeRepository } from "#modules/leads/infrastructure/prisma-lead-intake-repository.js";
 import { PrismaLeadRepository } from "#modules/leads/infrastructure/prisma-lead-repository.js";
-import { PrismaConversionEventRepository } from "#modules/leads/infrastructure/prisma-conversion-event-repository.js";
 import { createLeadEventDelivery } from "#modules/realtime/index.js";
 import { runDetached, type Kernel } from "./kernel.js";
 import type { MembersAndPresence } from "./members-presence.js";
@@ -45,8 +43,6 @@ export function wireLeads(
     publish,
   });
   const notes = createLeadNoteUseCases({ leads: leadRepository, notes: new PrismaLeadNoteRepository(prisma), ids, clock, publish });
-  const conversionEventRepository = new PrismaConversionEventRepository(prisma, unitOfWork);
-  const events = createConversionEventUseCases({ leads: leadRepository, events: conversionEventRepository, audit, ids, unitOfWork });
   return {
     leadIntake: createLeadIntake({
       intake: new PrismaLeadIntakeRepository(unitOfWork),
@@ -54,8 +50,7 @@ export function wireLeads(
       unitOfWork,
       publish,
     }),
-    conversionReach: conversionEventRepository,
-    leadRouter: createLeadRouter(leads, files, fields, records, notes, events),
+    leadRouter: createLeadRouter(leads, files, fields, records, notes),
   };
 }
 

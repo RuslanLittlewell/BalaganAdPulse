@@ -1207,28 +1207,6 @@ Projects can connect a Meta account by entering Account ID and a token in the we
 interface. See [Meta integration](docs/meta-integration.md) for manual refresh,
 daily imports and the required server encryption key.
 
-## Meta Conversions API
-
-A project with a Meta connection can send its CRM stages back to Meta, so campaigns learn from
-qualified leads and sales instead of form submissions. Only leads imported from Meta lead forms
-are sent.
-
-1. In the client's Events Manager, open the dataset (pixel) the ads use, then Settings, then
-   Conversions API, and choose «Создать маркер доступа». The token can only send events to that
-   dataset and has no access to the ad account.
-2. In AdPulse, open the project, find the Conversions API card under «Интеграции», choose
-   «Подключить» and enter the dataset ID and the token. The server checks both with Meta and
-   stores the token encrypted with the same key as the Meta connection.
-3. Add the events, such as «Квал», «Замер» and «Продажа», and tick the board stages that count as
-   each. Tick «С суммой» for a sale, and the lead's amount goes with it.
-4. For a first check, enter the test event code from the Test Events tab of Events Manager. Events
-   then appear only there and do not train the ads. Clear the code once they look right.
-
-A lead reaches an event the first time it enters one of the event's stages, and each lead sends
-each event once. The server sends events within a few minutes. Connecting a dataset also sends
-the events of the previous seven days, since Meta accepts nothing older. The card's log shows the
-latest events and, for each one Meta refused, Meta's reason.
-
 ## Google Ads accounts
 
 Projects can connect a Google Ads account by signing in with Google in the web

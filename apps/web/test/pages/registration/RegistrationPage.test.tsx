@@ -1,4 +1,7 @@
+import { t } from "@/shared/config/index.js";
 import { http as mock, HttpResponse } from "msw";
+import { expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
 import { screen } from "@testing-library/react";
 import { Route, Routes } from "react-router-dom";
 import { renderWithProviders, server } from "@test/shared/index.js";
@@ -11,7 +14,7 @@ function open(code = "ABCDEFGH") {
   );
 }
 
-const resolves = (registrationType: "CLIENT" | "EMPLOYEE" | "CLIENT_STAFF") =>
+const resolves = (registrationType: "CLIENT" | "EMPLOYEE" | "CLIENT_STAFF" | "PARTNER") =>
   server.use(mock.get("/api/registration/:code", () => HttpResponse.json({ registrationType, email: null })));
 
 describe("RegistrationPage", () => {
@@ -67,4 +70,38 @@ describe("RegistrationPage", () => {
     await screen.findByRole("heading", { name: "Регистрация сотрудника" });
     expect(seen).toEqual(["QWERTYUI"]);
   });
+});
+
+
+it("shows the joining form for a partner invitation", async () => {
+  resolves("PARTNER");
+  open();
+  expect(await screen.findByRole("heading", {name: t("registration.partner.title")})).toBeInTheDocument();
+  expect(screen.getByLabelText(t("auth.name.label"))).toBeInTheDocument();
+});
+
+it.each([null, 'dealer@example.com'])('creates a partner account through the registration link (bound email: %s)', async email => {
+  const user = userEvent.setup();
+  let sent: Record<string, unknown> | undefined;
+  server.use(
+    mock.get('/api/registration/:code', () => HttpResponse.json({registrationType:'PARTNER',email})),
+    mock.post('/api/auth/register', async ({request}) => {
+      sent = await request.json() as Record<string, unknown>;
+      return HttpResponse.json({accessToken:'access',refreshToken:'refresh'},{status:201});
+    }),
+  );
+  renderWithProviders(<Routes>
+    <Route path="/registration/:code" element={<RegistrationPage />} />
+    <Route path="/login" element={<h1>Sign in</h1>} />
+  </Routes>,{route:'/registration/ABCDEFGH',signedIn:false});
+  await screen.findByRole('heading',{name:t('registration.partner.title')});
+  await user.type(screen.getByLabelText(t('auth.name.label')),'Dealer');
+  if (email === null) await user.type(screen.getByLabelText(t('auth.email.label')),'dealer@example.com');
+  await user.type(screen.getByLabelText(t('auth.password.label')),'hunter2hunter2');
+  await user.type(screen.getByLabelText(t('registration.password.confirm')),'hunter2hunter2');
+  await user.click(screen.getByRole('button',{name:t('registration.submit')}));
+  await screen.findByRole('heading',{name:'Sign in'});
+  expect(sent).toMatchObject({name:'Dealer',email:'dealer@example.com',inviteCode:'ABCDEFGH',password:'hunter2hunter2'});
+  expect(sent).not.toHaveProperty('client');
+  expect(sent).not.toHaveProperty('project');
 });

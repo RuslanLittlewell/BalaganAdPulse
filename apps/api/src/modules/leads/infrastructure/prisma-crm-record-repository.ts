@@ -1,22 +1,23 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { ActorContext, TransactionContext } from '#shared/application/index.js';
 import type { PrismaUnitOfWork } from '#shared/infrastructure/prisma-unit-of-work.js';
+import { visibleLeads, visibleRecords } from '#shared/infrastructure/partner-reach.js';
 import { reachableProjects } from '#shared/infrastructure/project-reach.js';
 import type { CrmRecordRepository } from '../application/ports.js';
 import { FIXED_STAGE_COLORS, LEAD_STAGE_NAMES } from '../domain/lead.js';
 import { type CompanyFields, type CompanyRecord, type PersonFields, type PersonRecord, type RelatedLead } from '../domain/crm-record.js';
 
-const reachableLeads = (actor: ActorContext): Prisma.LeadWhereInput => ({ project: reachableProjects(actor) });
+const reachableLeads = (actor: ActorContext): Prisma.LeadWhereInput => visibleLeads(actor);
 
 const companySelect = (actor: ActorContext) => ({
   id: true, orgId: true, clientId: true, name: true, website: true, phone: true, notes: true, createdAt: true, updatedAt: true,
-  _count: { select: { people: true, leads: { where: reachableLeads(actor) } } },
+  _count: { select: { people: { where: visibleRecords(actor) }, leads: { where: reachableLeads(actor) } } },
 }) satisfies Prisma.CompanySelect;
 
 const personSelect = (actor: ActorContext) => ({
   id: true, orgId: true, clientId: true, name: true, phone: true, email: true, telegram: true, messenger: true,
   companyId: true, notes: true, createdAt: true, updatedAt: true,
-  company: { select: { id: true, name: true } },
+  company: { select: { id: true, name: true, leads: { where: visibleLeads(actor), select: { id: true }, take: 1 } } },
   _count: { select: { leads: { where: reachableLeads(actor) } } },
 }) satisfies Prisma.PersonSelect;
 
@@ -24,7 +25,7 @@ type CompanyRow = Prisma.CompanyGetPayload<{ select: ReturnType<typeof companySe
 type PersonRow = Prisma.PersonGetPayload<{ select: ReturnType<typeof personSelect> }>;
 
 const toCompany = ({ _count, ...row }: CompanyRow): CompanyRecord => ({ ...row, peopleCount: _count.people, leadCount: _count.leads });
-const toPerson = ({ _count, ...row }: PersonRow): PersonRecord => ({ ...row, leadCount: _count.leads });
+const toPerson = ({ _count, company, ...row }: PersonRow, partner = false): PersonRecord => ({ ...row, companyId: partner && !company?.leads.length ? null : row.companyId, company: company && (!partner || company.leads.length > 0) ? {id:company.id,name:company.name} : null, leadCount: _count.leads });
 
 const empty = (value: string | null | undefined) => (value === undefined ? undefined : value === null || value.trim() === '' ? null : value.trim());
 
@@ -69,23 +70,23 @@ export class PrismaCrmRecordRepository implements CrmRecordRepository {
   }
 
   async companies(actor: ActorContext, clientId: string) {
-    const rows = await this.prisma.company.findMany({ where: { orgId: actor.orgId, clientId }, select: companySelect(actor), orderBy: [{ name: 'asc' }, { id: 'asc' }] });
+    const rows = await this.prisma.company.findMany({ where: { orgId: actor.orgId, clientId, ...visibleRecords(actor) }, select: companySelect(actor), orderBy: [{ name: 'asc' }, { id: 'asc' }] });
     return rows.map(toCompany);
   }
 
   async people(actor: ActorContext, clientId: string) {
-    const rows = await this.prisma.person.findMany({ where: { orgId: actor.orgId, clientId }, select: personSelect(actor), orderBy: [{ name: 'asc' }, { id: 'asc' }] });
-    return rows.map(toPerson);
+    const rows = await this.prisma.person.findMany({ where: { orgId: actor.orgId, clientId, ...visibleRecords(actor) }, select: personSelect(actor), orderBy: [{ name: 'asc' }, { id: 'asc' }] });
+    return rows.map(row => toPerson(row, actor.role === 'PARTNER'));
   }
 
   async company(actor: ActorContext, clientId: string, id: string, context?: TransactionContext) {
-    const row = await this.client(context).company.findFirst({ where: { id, orgId: actor.orgId, clientId }, select: companySelect(actor) });
+    const row = await this.client(context).company.findFirst({ where: { id, orgId: actor.orgId, clientId, ...visibleRecords(actor) }, select: companySelect(actor) });
     return row && toCompany(row);
   }
 
   async person(actor: ActorContext, clientId: string, id: string, context?: TransactionContext) {
-    const row = await this.client(context).person.findFirst({ where: { id, orgId: actor.orgId, clientId }, select: personSelect(actor) });
-    return row && toPerson(row);
+    const row = await this.client(context).person.findFirst({ where: { id, orgId: actor.orgId, clientId, ...visibleRecords(actor) }, select: personSelect(actor) });
+    return row && toPerson(row, actor.role === 'PARTNER');
   }
 
   async createCompany(context: TransactionContext, actor: ActorContext, input: { id: string; orgId: string; clientId: string } & CompanyFields) {
@@ -97,7 +98,7 @@ export class PrismaCrmRecordRepository implements CrmRecordRepository {
   async createPerson(context: TransactionContext, actor: ActorContext, input: { id: string; orgId: string; clientId: string } & PersonFields) {
     const { id, orgId, clientId, ...fields } = input;
     const row = await this.client(context).person.create({ data: { id, orgId, clientId, name: fields.name.trim(), ...personData(fields) } as Prisma.PersonUncheckedCreateInput, select: personSelect(actor) });
-    return toPerson(row);
+    return toPerson(row, actor.role === 'PARTNER');
   }
 
   async updateCompany(context: TransactionContext, actor: ActorContext, id: string, input: Partial<CompanyFields>) {
@@ -105,7 +106,8 @@ export class PrismaCrmRecordRepository implements CrmRecordRepository {
   }
 
   async updatePerson(context: TransactionContext, actor: ActorContext, id: string, input: Partial<PersonFields>) {
-    return toPerson(await this.client(context).person.update({ where: { id }, data: personData(input), select: personSelect(actor) }));
+    const row = await this.client(context).person.update({ where: { id }, data: personData(input), select: personSelect(actor) });
+    return toPerson(row, actor.role === 'PARTNER');
   }
 
   async deleteCompany(context: TransactionContext, id: string) {
@@ -141,7 +143,7 @@ export class PrismaCrmRecordRepository implements CrmRecordRepository {
   }
 
   async companyPeople(actor: ActorContext, companyId: string) {
-    const rows = await this.prisma.person.findMany({ where: { orgId: actor.orgId, companyId }, select: personSelect(actor), orderBy: [{ name: 'asc' }, { id: 'asc' }] });
-    return rows.map(toPerson);
+    const rows = await this.prisma.person.findMany({ where: { orgId: actor.orgId, companyId, ...visibleRecords(actor) }, select: personSelect(actor), orderBy: [{ name: 'asc' }, { id: 'asc' }] });
+    return rows.map(row => toPerson(row, actor.role === 'PARTNER'));
   }
 }

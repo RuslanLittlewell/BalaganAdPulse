@@ -51,7 +51,7 @@ export function ContactBook({ open, onClose, initialDirectory }: ContactBookProp
 
         <Tabs
           items={[
-            { id: "CLIENT", label: t("contacts.directory.clients") },
+            { id: "CLIENT", label: isAgency ? t("contacts.directory.clients") : t("contacts.directory.employees") },
             ...(isAgency
               ? [{ id: "EMPLOYEE", label: t("contacts.directory.employees") }]
               : []),

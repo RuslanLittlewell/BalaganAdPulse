@@ -955,7 +955,7 @@ were marked as welcomed with the list hidden.
 
 A user is an identity — a name, an email, and optionally a phone and a Telegram handle
 they keep current themselves in profile settings. What they may do comes from their
-**membership** in the organization, which carries exactly one role — `ADMIN`, `MANAGER`, `GUEST` or `CLIENT`.
+**membership** in the organization, which carries exactly one role — `ADMIN`, `MANAGER`, `GUEST`, `CLIENT`, `CLIENT_ADMIN` or `PARTNER`.
 The membership is read from the database on every request rather than sealed into the
 access token, so a suspension or a demotion takes effect on the very next call instead of
 when the token expires. A user with no membership, or a suspended one, is refused with
@@ -981,7 +981,39 @@ customer role added later is treated as one everywhere at once — in what it se
 board, in what a task it raises is marked with, and in its exclusion from the agency's
 own staff listing.
 
-All four roles may read audit history, but the same grants constrain which events they see.
+Agency and client roles may read audit history, but the same grants constrain which events they see.
+
+### Project partners
+
+A partner is a person who works with one campaign of a project, such as a dealer whose leads come
+from that campaign. In a client's cabinet, the contact book lists the company's people under
+**Сотрудники**. The **Добавить** button opens a dialog with the choice **Сотрудник** or
+**Партнёр**. The first invites somebody to the company as before. The second asks for one of the
+client's projects and then for one of its campaigns, and creates a registration link. Running
+campaigns carry a green mark and the rest a red one; the «Активные кампании» switch, on by
+default, hides the ones that are not running. The
+agency's `ADMIN` and the client's `CLIENT_ADMIN` may invite partners; the API takes
+`{ "registrationType": "PARTNER", "campaignId": "..." }` on `POST /api/invites`.
+
+The link may be bound to an email and may expire. The joining form asks for a name, a password
+and its confirmation, an avatar, and an email when the link names none. Redemption creates a
+`PARTNER` membership bound to the campaign in the same transaction as the account. Several
+people may be bound to the same campaign. Partners and open invitations count toward the
+organization's user limit.
+
+A partner signs in to the campaign's project and has only Projects and, when the tariff includes
+it, CRM in the menu. Project figures, daily metrics, campaigns, ad sets and ads are limited to
+the partner's campaign. The CRM board and stage counts include only leads of that campaign,
+including imported Meta leads. Partners create, edit and move these leads and add notes and
+files; every lead they create names their campaign, and they assign leads only to partners of
+the same campaign. Contacts and companies are limited to those linked to their leads. Partners
+cannot delete leads or contacts, change board columns or fields, or reach tasks, reports,
+documents, KPIs, advertising connections, share links or the activity log.
+
+Partners appear among the company's people with the role «Партнёр» and their campaign's name.
+The `ADMIN` and the client's `CLIENT_ADMIN` remove a partner from that list, which ends the
+membership. Deleting the campaign ends the memberships and invitations bound to it; the project's
+leads remain. Agency and client access remains unchanged.
 
 ### Registration
 

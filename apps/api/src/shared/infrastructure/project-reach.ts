@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import type { ActorContext } from "#shared/application/index.js";
 
 export function grantedProjects(actor: ActorContext): Prisma.ProjectWhereInput {
+  if (actor.role === "PARTNER") return { OR: [{ id: actor.partner?.projectId ?? "" }] };
   if (actor.sharedProjectId !== undefined) return { OR: [{ id: actor.sharedProjectId }] };
   return {
     OR: [

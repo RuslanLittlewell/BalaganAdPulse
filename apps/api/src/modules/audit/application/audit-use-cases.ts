@@ -1,3 +1,5 @@
+import { can } from "@adpulse/access-policy";
+import { AppError } from "#shared/domain/index.js";
 import type { ActorContext, TransactionContext } from "#shared/application/index.js";
 import type { AuditEventInput, AuditWriter } from "./audit-writer.js";
 import type { AuditActor, AuditDependencies, AuditFilters, AuditPage } from "./ports.js";
@@ -43,6 +45,7 @@ export interface ListAuditInput extends AuditFilters {
 export function createAuditReader<TEvent>(dependencies: AuditDependencies<TEvent>) {
   return {
     list: async (actor: ActorContext, input: ListAuditInput): Promise<AuditPage<TEvent>> => {
+      if (!can(actor, "read", "audit")) throw new AppError("forbidden", "Your role may not read audit events");
       const { limit, cursor, ...filters } = input;
       return dependencies.events.list({
         scope: await dependencies.reach.scopeFor(actor),
@@ -53,6 +56,7 @@ export function createAuditReader<TEvent>(dependencies: AuditDependencies<TEvent
     },
 
     actors: async (actor: ActorContext): Promise<AuditActor[]> => {
+      if (!can(actor, "read", "audit")) throw new AppError("forbidden", "Your role may not read audit actors");
       const actors = await dependencies.events.actors(await dependencies.reach.scopeFor(actor));
       return [...actors].sort((left, right) => left.name.localeCompare(right.name, "ru"));
     },

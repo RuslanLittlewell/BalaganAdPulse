@@ -1,4 +1,4 @@
-export const ROLES = ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"] as const;
+export const ROLES = ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN", "PARTNER"] as const;
 export type Role = (typeof ROLES)[number];
 
 export const ACTIONS = ["read", "create", "update", "delete"] as const;
@@ -21,6 +21,8 @@ export const RESOURCES = [
   "project-document",
   "report",
   "share-link",
+  "lead-board",
+  "partner",
 ] as const;
 export type Resource = (typeof RESOURCES)[number];
 
@@ -38,6 +40,8 @@ export function isCustomer(role: Role): boolean {
 }
 
 const EVERYONE: readonly Role[] = ROLES;
+const MEMBERS: readonly Role[] = ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"];
+const WORKING_LEADS: readonly Role[] = ["ADMIN", "MANAGER", "CLIENT", "CLIENT_ADMIN", "PARTNER"];
 const STAFF: readonly Role[] = ["ADMIN", "MANAGER"];
 const STAFF_AND_GUEST: readonly Role[] = ["ADMIN", "MANAGER", "GUEST"];
 const STAFF_AND_CUSTOMERS: readonly Role[] = ["ADMIN", "MANAGER", ...CUSTOMERS];
@@ -48,7 +52,9 @@ const NOBODY: readonly Role[] = [];
 type ResourcePolicy = Readonly<Record<Action, readonly Role[]>>;
 
 const MATRIX: Readonly<Record<Resource, ResourcePolicy>> = {
-  lead: { read: EVERYONE, create: STAFF_AND_CUSTOMERS, update: STAFF_AND_CUSTOMERS, delete: STAFF_AND_CUSTOMERS },
+  lead: { read: EVERYONE, create: WORKING_LEADS, update: WORKING_LEADS, delete: STAFF_AND_CUSTOMERS },
+  "lead-board": { read: EVERYONE, create: STAFF_AND_CUSTOMERS, update: STAFF_AND_CUSTOMERS, delete: STAFF_AND_CUSTOMERS },
+  partner: { read: ADMINS_AND_PRINCIPAL, create: ADMINS_AND_PRINCIPAL, update: ADMINS_AND_PRINCIPAL, delete: ADMINS_AND_PRINCIPAL },
   organization: { read: EVERYONE, create: NOBODY, update: ADMINS, delete: NOBODY },
   member: { read: ADMINS_AND_PRINCIPAL, create: ADMINS, update: ADMINS, delete: ADMINS_AND_PRINCIPAL },
   invite: {
@@ -57,17 +63,17 @@ const MATRIX: Readonly<Record<Resource, ResourcePolicy>> = {
     update: ADMINS,
     delete: ADMINS_AND_PRINCIPAL,
   },
-  client: { read: EVERYONE, create: STAFF, update: STAFF, delete: ADMINS },
+  client: { read: MEMBERS, create: STAFF, update: STAFF, delete: ADMINS },
   "client-account": { read: ADMINS, create: ADMINS, update: ADMINS, delete: NOBODY },
   project: { read: EVERYONE, create: STAFF_AND_CUSTOMERS, update: STAFF_AND_CUSTOMERS, delete: ADMINS },
   "project-summary": { read: EVERYONE, create: NOBODY, update: STAFF, delete: NOBODY },
   "project-document": { read: STAFF_AND_GUEST, create: STAFF, update: STAFF, delete: STAFF },
   integration: { read: STAFF, create: STAFF, update: STAFF, delete: STAFF },
-  kpi: { read: EVERYONE, create: STAFF, update: STAFF, delete: STAFF },
-  report: { read: EVERYONE, create: STAFF, update: STAFF, delete: STAFF },
+  kpi: { read: MEMBERS, create: STAFF, update: STAFF, delete: STAFF },
+  report: { read: MEMBERS, create: STAFF, update: STAFF, delete: STAFF },
   campaign: { read: EVERYONE, create: STAFF, update: STAFF, delete: STAFF },
-  task: { read: EVERYONE, create: STAFF_AND_CUSTOMERS, update: STAFF, delete: STAFF },
-  audit: { read: EVERYONE, create: NOBODY, update: NOBODY, delete: NOBODY },
+  task: { read: MEMBERS, create: STAFF_AND_CUSTOMERS, update: STAFF, delete: STAFF },
+  audit: { read: MEMBERS, create: NOBODY, update: NOBODY, delete: NOBODY },
   "share-link": { read: ADMINS, create: ADMINS, update: ADMINS, delete: ADMINS },
 };
 

@@ -25,6 +25,7 @@ export interface CreateInviteInput {
   readonly role?: Role | null;
   readonly projectIds?: readonly string[];
   readonly clientId?: string;
+  readonly campaignId?: string;
   readonly email?: string | null;
   readonly expiresInDays?: number;
 }
@@ -63,7 +64,19 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
     create: async (actor: ActorContext, input: CreateInviteInput): Promise<InviteView> => {
       assertCan(actor, "create");
       const projectIds = [...new Set(input.projectIds ?? [])];
-      if (input.registrationType === "CLIENT_STAFF") {
+      let clientId = input.clientId ?? null;
+      if (input.registrationType === "PARTNER") {
+        if (!can(actor, "create", "partner")) throw new AppError("forbidden", "Your role may not invite partners");
+        if (input.role !== undefined && input.role !== null || projectIds.length > 0 || input.clientId) {
+          throw new AppError("validation", "A partner invitation carries no role, projects or client");
+        }
+        if (!input.campaignId) throw new AppError("validation", "A partner invitation must name a campaign");
+        const campaign = await dependencies.campaigns.reachable(actor, input.campaignId);
+        if (!campaign) throw new AppError("not-found", "Campaign not found");
+        clientId = campaign.clientId;
+      } else if (input.campaignId) {
+        throw new AppError("validation", "Only a partner invitation names a campaign");
+      } else if (input.registrationType === "CLIENT_STAFF") {
         if (input.role !== undefined && input.role !== null || projectIds.length > 0) {
           throw new AppError(
             "validation", "An invitation to join a client carries no role or projects",
@@ -82,7 +95,7 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
           throw new AppError("validation", "Client invitations cannot include role or projects");
         }
       } else {
-        if (!input.role || input.role === "CLIENT") {
+        if (!input.role || input.role === "CLIENT" || input.role === "PARTNER") {
           throw new AppError("validation", "Employee invitation role is invalid");
         }
         if (input.role === "ADMIN" && actor.role !== "ADMIN") {
@@ -116,7 +129,8 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
               registrationType: input.registrationType,
               role: input.registrationType === "EMPLOYEE" ? input.role! : null,
               projectIds: input.registrationType === "EMPLOYEE" ? projectIds : [],
-              clientId: input.clientId ?? null,
+              clientId,
+              campaignId: input.registrationType === "PARTNER" ? input.campaignId! : null,
               email: input.email ?? null,
               expiresAt: input.expiresInDays
                 ? new Date(now.getTime() + input.expiresInDays * MS_PER_DAY)
@@ -196,6 +210,19 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
         return;
       }
 
+      if (invite.registrationType === "PARTNER") {
+        if (details) {
+          throw new AppError("validation", "Joining as a partner carries no contact or project of its own");
+        }
+        if (!invite.campaignId) throw new AppError("forbidden", INVALID_INVITE);
+        await dependencies.memberships.enrol(context, {
+          userId, orgId: invite.orgId, role: "PARTNER", campaignId: invite.campaignId,
+        });
+        const spent = await dependencies.invites.claim(context, invite.id, userId, now);
+        if (!spent) throw new AppError("forbidden", INVALID_INVITE);
+        return;
+      }
+
       if (invite.registrationType === "CLIENT") {
         if (!details) {
           throw new AppError("validation", "Client registration needs a contact and a project");
@@ -220,7 +247,7 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
       if (details) {
         throw new AppError("validation", "An employee registration carries no client details");
       }
-      if (!invite.role || invite.role === "CLIENT") {
+      if (!invite.role || invite.role === "CLIENT" || invite.role === "PARTNER") {
         throw new AppError("forbidden", INVALID_INVITE);
       }
       const membershipId = await dependencies.memberships.enrol(context, {

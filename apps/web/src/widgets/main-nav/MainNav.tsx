@@ -89,7 +89,7 @@ function ModuleLink({ module, collapsed }: ModuleLinkProps) {
 
 export function MainNav() {
   const { collapsed } = useNavCollapse();
-  const { role, modules } = useAuth();
+  const { role, modules, partner } = useAuth();
   const [helpOpen, setHelpOpen] = useState(false);
   const firstSteps = useFirstSteps();
   const showFirstSteps = useFirstStepsDialog((state) => state.show);
@@ -98,7 +98,7 @@ export function MainNav() {
     <>
       <Sidebar
         help={{ label: t("help.open"), collapsed, onOpen: () => setHelpOpen(true) }}
-        firstSteps={firstSteps.visible ? {
+        firstSteps={role !== "PARTNER" && firstSteps.visible ? {
           label: t("onboarding.steps"),
           progress: `${firstSteps.done} ${t("onboarding.of")} ${firstSteps.total}`,
           collapsed,
@@ -123,10 +123,11 @@ export function MainNav() {
           <nav className={sidebarNavClassName(collapsed)} aria-label={t("nav.sections")}>
             {MODULES.filter(
               (entry) =>
+                (role !== "PARTNER" || entry.to === ROUTES.projects || entry.to === ROUTES.crm) &&
                 (!entry.agencyOnly || role !== "CLIENT") &&
                 (!entry.module || modules.includes(entry.module)),
             ).map((module) => (
-              <ModuleLink key={module.to} module={module} collapsed={collapsed} />
+              <ModuleLink key={module.to} module={role === "PARTNER" && partner && module.to === ROUTES.projects ? { ...module, to: `${ROUTES.projects}/${partner.projectId}` } : module} collapsed={collapsed} />
             ))}
           </nav>
         </WarmTooltipGroup>

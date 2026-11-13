@@ -3,7 +3,7 @@ import { http } from "@/shared/lib/index.js";
 
 export type InvitationStatus = "PENDING" | "USED" | "REVOKED" | "EXPIRED";
 
-export type RegistrationType = "CLIENT" | "EMPLOYEE" | "CLIENT_STAFF";
+export type RegistrationType = "CLIENT" | "EMPLOYEE" | "CLIENT_STAFF" | "PARTNER";
 
 export const EMPLOYEE_ROLES = ["ADMIN", "MANAGER", "GUEST"] as const;
 
@@ -36,7 +36,8 @@ export type CreateInvitationInput =
       role: EmployeeRole;
       projectIds: string[];
     } & CommonInvitationInput)
-  | ({ registrationType: "CLIENT_STAFF"; clientId: string } & CommonInvitationInput);
+  | ({ registrationType: "CLIENT_STAFF"; clientId: string } & CommonInvitationInput)
+  | ({ registrationType: "PARTNER"; campaignId: string } & CommonInvitationInput);
 
 export const invitationsApi = {
   list: (registrationType?: RegistrationType) =>

@@ -4,6 +4,7 @@ enum Role {
   GUEST
   CLIENT
   CLIENT_ADMIN
+  PARTNER
 
   @@map("role")
 }
@@ -73,6 +74,8 @@ model Membership {
   dashboardTiles     SummaryTile[]    @default([CONVERSIONS]) @map("dashboard_tiles")
   welcomedAt         DateTime?        @map("welcomed_at")
   onboardingHiddenAt DateTime?        @map("onboarding_hidden_at")
+  campaignId         String?          @map("campaign_id")
+  campaign           Campaign?        @relation("PartnerCampaign", fields: [campaignId], references: [id], onDelete: Cascade)
   user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   org                Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
   invites            Invite[]         @relation("InviteCreator")
@@ -106,6 +109,7 @@ model Membership {
 
   @@unique([userId, orgId])
   @@index([orgId, role])
+  @@index([campaignId])
   @@map("membership")
 }
 

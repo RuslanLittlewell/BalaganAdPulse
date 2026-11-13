@@ -8,7 +8,7 @@ import { EmployeeRegistrationForm } from "./EmployeeRegistrationForm.js";
 import { JoinClientForm } from "./JoinClientForm.js";
 
 interface Resolved {
-  registrationType: "CLIENT" | "EMPLOYEE" | "CLIENT_STAFF";
+  registrationType: "CLIENT" | "EMPLOYEE" | "CLIENT_STAFF" | "PARTNER";
   email: string | null;
 }
 
@@ -35,14 +35,16 @@ export function RegistrationPage() {
   const wide = type === "CLIENT";
   const title = type === "CLIENT"
     ? t("registration.client.title")
-    : type === "CLIENT_STAFF"
+    : type === "PARTNER"
+      ? t("registration.partner.title")
+      : type === "CLIENT_STAFF"
       ? t("registration.join.title")
       : t("registration.employee.title");
 
   return (
     <CenteredPanel title={title} wide={wide}>
       {type === "CLIENT" ? <ClientRegistrationForm code={code} knownEmail={email} /> : null}
-      {type === "CLIENT_STAFF" ? <JoinClientForm code={code} knownEmail={email} /> : null}
+      {type === "CLIENT_STAFF" || type === "PARTNER" ? <JoinClientForm code={code} knownEmail={email} /> : null}
       {type === "EMPLOYEE" ? <EmployeeRegistrationForm code={code} knownEmail={email} /> : null}
     </CenteredPanel>
   );

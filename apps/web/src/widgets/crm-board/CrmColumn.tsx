@@ -1,3 +1,4 @@
+import { useCan } from "@/features/permissions/index.js";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useDroppable } from "@dnd-kit/core";
 import { Plus } from "lucide-react";
@@ -46,7 +47,8 @@ export function CrmColumn({
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   const title = leadColumnLabel(column);
   const sum = amountSum(leads);
-  const manages = Boolean(boardKey && capabilities && column.kind === "CUSTOM" && (capabilities.update || capabilities.delete));
+  const managesBoard = useCan("update", "lead-board");
+  const manages = managesBoard && Boolean(boardKey && capabilities && column.kind === "CUSTOM" && (capabilities.update || capabilities.delete));
 
   return (
     <section

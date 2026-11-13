@@ -18,6 +18,7 @@ const namedProjects = (input: LayoutInput): readonly string[] => [
 
 export function createProjectLayoutUseCases(dependencies: ProjectLayoutDependencies) {
   const seen = async (actor: ActorContext) => {
+    if (actor.role === "PARTNER") throw new AppError("forbidden", "Your role may not arrange projects");
     const [reachable, stored] = await Promise.all([
       dependencies.projects.reachableIds(actor),
       dependencies.layouts.read(actor.membershipId),
@@ -67,6 +68,7 @@ export function createProjectLayoutUseCases(dependencies: ProjectLayoutDependenc
     },
 
     deleteGroup: async (actor: ActorContext, groupId: string): Promise<void> => {
+      if (actor.role === "PARTNER") throw new AppError("forbidden", "Your role may not arrange projects");
       const stored = await dependencies.layouts.read(actor.membershipId);
       if (!stored.groups.some((group) => group.id === groupId)) {
         throw new AppError("not-found", "Group not found");

@@ -13,10 +13,11 @@ export interface ProjectHeaderProps {
   kpiTrackedPending?: boolean;
   onPreview?: () => void;
   onShare?: () => void;
+  showKpi?: boolean;
 }
 
 export function ProjectHeader({
-  project, clientName, onKpiTrackedChange, kpiTrackedPending = false, onPreview, onShare,
+  project, clientName, onKpiTrackedChange, kpiTrackedPending = false, onPreview, onShare, showKpi = true,
 }: ProjectHeaderProps) {
   return (
     <header className="flex min-h-13 items-center gap-2 border-b border-border pb-3">
@@ -65,7 +66,7 @@ export function ProjectHeader({
             <ToolbarDivider />
           </>
         ) : null}
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+        {showKpi ? <label className="flex items-center gap-2 text-sm text-muted-foreground">
           <Switch
             checked={project.kpiTracked !== false}
             disabled={onKpiTrackedChange === undefined || kpiTrackedPending}
@@ -73,7 +74,7 @@ export function ProjectHeader({
             onCheckedChange={onKpiTrackedChange}
           />
           {t("project.kpiTracked")}
-        </label>
+        </label> : null}
       </div>
     </header>
   );

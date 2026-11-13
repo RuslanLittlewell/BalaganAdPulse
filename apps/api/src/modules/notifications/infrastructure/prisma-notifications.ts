@@ -2,6 +2,8 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { can, isCustomer, tariffsWithModule } from "@adpulse/access-policy";
 import { performanceOf, sumByType, type KpiAccount, type MetricRepository, type ResultType } from "#modules/campaigns/index.js";
 import { isKpiMetric, MANUAL_KPI, type IsoDateRange, type KpiFigures, type KpiInput } from "#modules/kpi/index.js";
+import { visibleLeads } from "#shared/infrastructure/partner-reach.js";
+import { partnerForMembership } from "#shared/infrastructure/partner-scope.js";
 import { reachableProjects, grantedProjects } from "#shared/infrastructure/project-reach.js";
 import type { ActorContext } from "#shared/application/index.js";
 import type {
@@ -73,6 +75,11 @@ export class PrismaNotificationRepository implements NotificationRepository {
     });
     if (!member || member.status !== "ACTIVE" || member.org.status !== "ACTIVE") return { id: { in: [] } };
     const actor: ActorContext = { membershipId: member.id, userId: member.userId, orgId: member.orgId, role: member.role };
+    if (actor.role === "PARTNER") {
+      const partner = await partnerForMembership(this.prisma, member.id, member.orgId);
+      if (!partner) return { id: { in: [] } };
+      return { recipientId, taskId: null, documentId: null, lead: visibleLeads({ ...actor, partner }) };
+    }
     const project = reachableProjects(actor);
     const task: Prisma.TaskWhereInput = {
       orgId: actor.orgId,

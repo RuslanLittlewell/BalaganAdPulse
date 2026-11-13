@@ -120,6 +120,7 @@ export function aSession(overrides: Partial<AuthSession> = {}): AuthSession {
     organization: { id: "org-1", name: "AdPulse", slug: "adpulse", status: "ACTIVE" },
     role: "ADMIN",
     membershipId: "member-1",
+    partner: null,
     clientIds: [],
     modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"],
     tariff: anEnterpriseTariff(),

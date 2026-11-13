@@ -56,6 +56,7 @@ export function createCrmRecordUseCases(d: CrmRecordDependencies) {
   }
 
   async function checkCompany(context: TransactionContext, actor: ActorContext, clientId: string, companyId: string | null | undefined) {
+    if (actor.role==='PARTNER' && companyId && !await d.records.company(actor,clientId,companyId,context)) throw new AppError('not-found','Organization not found');
     if (companyId && !await d.records.companyInClient(actor.orgId, clientId, companyId, context)) {
       throw new AppError('validation', 'That organization belongs to another client');
     }
@@ -82,6 +83,7 @@ export function createCrmRecordUseCases(d: CrmRecordDependencies) {
       return { ...person, leads: await d.records.relatedLeads(actor, { personId: id }) };
     },
     createCompany(actor: ActorContext, clientId: string, input: CompanyFields) {
+      if (actor.role === 'PARTNER') throw new AppError('forbidden', 'Create a partner organization with a lead');
       return mutation(actor, clientId, 'create', async (context) => {
         const company = await d.records.createCompany(context, actor, { ...input, id: d.ids.generate(), orgId: actor.orgId, clientId });
         await audit(context, actor, 'crm-company', company, 'CREATE', { after: company });
@@ -89,6 +91,7 @@ export function createCrmRecordUseCases(d: CrmRecordDependencies) {
       });
     },
     createPerson(actor: ActorContext, clientId: string, input: PersonFields) {
+      if (actor.role === 'PARTNER') throw new AppError('forbidden', 'Create a partner contact with a lead');
       return mutation(actor, clientId, 'create', async (context) => {
         await checkCompany(context, actor, clientId, input.companyId);
         const person = await d.records.createPerson(context, actor, { ...input, id: d.ids.generate(), orgId: actor.orgId, clientId });

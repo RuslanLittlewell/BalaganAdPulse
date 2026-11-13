@@ -56,7 +56,9 @@ export function ProjectOverview({ project, previewing }: { project: Project; pre
   const campaigns = useProjectCampaigns(projectId, range);
   const countsLeads = useModuleEnabled("CRM");
   const stageCounts = useBoardStageCounts(projectId ?? undefined, range, { enabled: countsLeads });
-  const projectKpis = useProjectKpis(projectId);
+  const shared = useShareScope();
+  const readsKpi = useCan("read", "kpi") || shared !== null;
+  const projectKpis = useProjectKpis(readsKpi ? projectId : undefined);
   const tiles = useSummaryTiles(
     projectId ? { kind: "project", id: projectId } : undefined,
   );
@@ -68,9 +70,8 @@ export function ProjectOverview({ project, previewing }: { project: Project; pre
   const tracksTasks = useModuleEnabled("TASKS");
   const tasks = useTasks({ projectId, enabled: projectId != null && tracksTasks });
   const raisesTasks = useCan("create", "task");
-  const { user } = useAuth();
-  const shared = useShareScope();
-  const members = useMembers({ enabled: shared === null });
+  const { user, role } = useAuth();
+  const members = useMembers({ enabled: shared === null && role !== "PARTNER" });
   const editsProjectKpi = useCan("update", "kpi");
   const arrangesSummary = useCan("update", "project-summary");
   const { raise } = useAlerts();
@@ -79,7 +80,7 @@ export function ProjectOverview({ project, previewing }: { project: Project; pre
     projectId ?? "",
     managesIntegrations && projectId != null,
   );
-  const seoSites = useSeoSites(projectId);
+  const seoSites = useSeoSites(role === "PARTNER" ? undefined : projectId);
   const source = useSourceMemory((state) => (projectId ? state.sources[projectId] : undefined)) ?? null;
   const rememberSource = useSourceMemory((state) => state.rememberSource);
   const [runningOnly, setRunningOnly] = useState(true);
@@ -189,7 +190,7 @@ export function ProjectOverview({ project, previewing }: { project: Project; pre
 
   return (
     <>
-          {previewing ? null : <MetaIntegration key={project.id} projectId={project.id} />}
+          {previewing || !managesIntegrations ? null : <MetaIntegration key={project.id} projectId={project.id} />}
 
           <div className={cn("flex flex-wrap items-center justify-between gap-2", !previewing && "border-t pt-2")}>
             <h2 className="text-sm font-semibold text-foreground">
@@ -214,12 +215,12 @@ export function ProjectOverview({ project, previewing }: { project: Project; pre
             range={range}
             performance={chosenAccount ? campaigns.data && accountTotals(chosenAccount) : summary.data}
             currency={project.budgetCurrency}
-            kpi={{
+            kpi={readsKpi ? {
               scope: { kind: "project", id: project.id },
               canEdit: editsProjectKpi && !previewing,
               part: chosenAccount ? { kind: "account", account: chosenAccount } : { kind: "all", account: onlyAccount },
               projectFigures: summary.data ?? EMPTY_PERFORMANCE,
-            }}
+            } : undefined}
           />
           )}
 

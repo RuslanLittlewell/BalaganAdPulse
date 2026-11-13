@@ -14,6 +14,7 @@ export interface Membership {
   role: Role;
   status: MembershipStatus;
   createdAt: string;
+  campaign: { id: string; name: string; projectId: string } | null;
 }
 
 export interface UpdateMemberInput {

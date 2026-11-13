@@ -3,7 +3,7 @@ import { http as mock, HttpResponse } from "msw";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { clearTokens, writeTokens } from "@/shared/lib/index.js";
-import { aClient, aProject, makeAccessToken, server } from "@test/shared/index.js";
+import { aClient, aProject, aSession, makeAccessToken, server } from "@test/shared/index.js";
 import { App } from "@/app/App.js";
 
 function renderAppAt(path: string) {
@@ -112,5 +112,19 @@ describe("App", () => {
 
     expect(screen.getByRole("heading", { name: "Летний запуск" })).toBeInTheDocument();
     expect(screen.queryByText("Проект не найден")).not.toBeInTheDocument();
+  });
+});
+
+
+describe("partner landing", () => {
+  it.each(["/", "/tasks", "/reports", "/archive", "/projects"])("opens the partner project from %s", async path => {
+    writeTokens({accessToken:makeAccessToken(),refreshToken:"r"});
+    server.use(
+      mock.get("/api/auth/me",()=>HttpResponse.json(aSession({role:"PARTNER",partner:{campaignId:"c1",projectId:"p1"},modules:["PROJECTS","CRM"],tariff:null}))),
+      mock.get("/api/projects",()=>HttpResponse.json([aProject({id:"p1",name:"Gealan"})])),
+    );
+    renderAppAt(path);
+    await waitFor(()=>expect(window.location.pathname).toBe("/projects/p1"));
+    expect(await screen.findByRole("heading",{name:"Gealan"})).toBeInTheDocument();
   });
 });

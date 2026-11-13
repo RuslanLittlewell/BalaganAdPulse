@@ -113,6 +113,7 @@ export interface CampaignReference {
   id: string;
   name: string;
   channel: Channel;
+  status: DeliveryStatus;
 }
 
 

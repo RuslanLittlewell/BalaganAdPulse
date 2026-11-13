@@ -33,9 +33,10 @@ export function createSummaryTileUseCases(d: SummaryTileDependencies) {
 
   return {
     async read(actor: ActorContext, owner: SummaryOwner): Promise<ChosenTiles> {
+      if (actor.role === "PARTNER" && owner.kind === "dashboard") throw new AppError("forbidden", "The dashboard is not available to partners");
       if (owner.kind === "dashboard") return { tiles: await d.tiles.readDashboard(actor.membershipId) };
       const project = await projectOf(actor, owner.id);
-      return readProject(project.id);
+      return actor.role === "PARTNER" ? { tiles: await d.tiles.readProject(project.id), accounts: [] } : readProject(project.id);
     },
 
     async choose(
@@ -45,6 +46,7 @@ export function createSummaryTileUseCases(d: SummaryTileDependencies) {
       account: SummaryAccount | null = null,
     ): Promise<ChosenTiles> {
       const chosen = [...tiles];
+      if (actor.role === "PARTNER" && owner.kind === "dashboard") throw new AppError("forbidden", "The dashboard is not available to partners");
       if (owner.kind === "dashboard") {
         if (account) throw new AppError("validation", "The dashboard's tiles belong to no account");
         await d.unitOfWork.run((context) => d.tiles.writeDashboard(context, actor.membershipId, chosen));
@@ -69,7 +71,7 @@ export function createSummaryTileUseCases(d: SummaryTileDependencies) {
             : { before, after: chosen },
         }, actor);
       });
-      return readProject(project.id);
+      return actor.role === "PARTNER" ? { tiles: await d.tiles.readProject(project.id), accounts: [] } : readProject(project.id);
     },
   };
 }

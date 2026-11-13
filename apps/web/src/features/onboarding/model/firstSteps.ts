@@ -18,8 +18,8 @@ export const remainingSteps = (onboarding: Onboarding | undefined) =>
   onboarding == null || onboarding.hidden ? 0 : onboarding.steps.filter((step) => !step.done).length;
 
 export function useFirstSteps() {
-  const { organization, platformAdmin } = useAuth();
-  const onboarding = useOnboarding(organization != null && !platformAdmin);
+  const { organization, platformAdmin, role } = useAuth();
+  const onboarding = useOnboarding(organization != null && !platformAdmin && role !== "PARTNER");
   const data = onboarding.data;
   const total = data?.steps.length ?? 0;
   const done = data?.steps.filter((step) => step.done).length ?? 0;

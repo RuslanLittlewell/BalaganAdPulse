@@ -1,8 +1,10 @@
+import { useLeadAssignees } from './useLeadAssignees.js';
+import { useCampaignReferences } from '@/entities/campaign/index.js';
+import { useAuth } from '@/features/auth/index.js';
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { useCompanies, usePeople } from '@/entities/crm-record/index.js';
 import { FIXED_LEAD_COLUMNS, leadColumnLabel, useCreateLead, useLeadColumns, useLeads, type CustomValue, type Lead, type LeadField, type LeadInput } from '@/entities/lead/index.js';
-import { useClientMembers } from '@/entities/membership/index.js';
 import { ChoiceEditor, ChoicesEditor, customValueProblem, DateEditor, isAmount, isWebAddress, LeadTags, NONE, normalizedAmount } from '@/features/lead-management/index.js';
 import { t } from '@/shared/config/index.js';
 import { ApiError } from '@/shared/lib/index.js';
@@ -28,11 +30,16 @@ export function CreateLeadPanel({ boardKey, clientId, initialStage, fields, onCr
   onCreated: (lead: Lead) => void; onClose: () => void;
 }) {
   const create = useCreateLead(boardKey);
+  const { role } = useAuth();
+  const partner = role === "PARTNER";
+  const campaigns = useCampaignReferences(partner ? boardKey : undefined);
+  const [campaignId, setCampaignId] = useState('');
+  const chosenCampaign = campaignId || (campaigns.data?.length === 1 ? campaigns.data[0]!.id : "");
   const { raise } = useAlerts();
   const { data: columns } = useLeadColumns(boardKey);
   const { data: people } = usePeople(clientId);
   const { data: companies } = useCompanies(clientId);
-  const { data: members } = useClientMembers(clientId);
+  const { data: members } = useLeadAssignees(clientId, boardKey);
   const { data: leads } = useLeads(boardKey);
   const suggestions = useMemo(() => [...new Set((leads ?? []).flatMap((lead) => lead.tags))].sort((a, b) => a.localeCompare(b, 'ru')), [leads]);
   const [draft, setDraft] = useState<Draft>(() => blank(initialStage));
@@ -67,6 +74,7 @@ export function CreateLeadPanel({ boardKey, clientId, initialStage, fields, onCr
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (create.isPending) return;
+    if (partner && !chosenCampaign) { setProblem(t('partners.campaignRequired')); return; }
     const name = draft.name.trim();
     if (!name || name.length > 200) { setProblem(t('crm.form.nameRequired')); return; }
     if (!isAmount(draft.amount)) { setProblem(t('crm.card.amountInvalid')); return; }
@@ -87,6 +95,7 @@ export function CreateLeadPanel({ boardKey, clientId, initialStage, fields, onCr
       return [id, field?.type === 'NUMBER' && typeof entered === 'string' ? normalizedAmount(entered) : entered];
     }));
     const body: LeadInput = {
+      ...(partner ? { campaignId: chosenCampaign } : {}),
       name, stage: draft.stage, amount: value(normalizedAmount(draft.amount)), assigneeId: draft.assigneeId || null,
       tags, service: value(draft.service), source: value(draft.source), notes: value(draft.notes), personId: draft.personId || null, companyId: draft.companyId || null,
       ...(value(draft.phone) || email || value(draft.telegram) || value(draft.messenger) ? { contact: { phone: value(draft.phone), email, telegram: value(draft.telegram), messenger: value(draft.messenger) } } : {}),
@@ -121,6 +130,7 @@ export function CreateLeadPanel({ boardKey, clientId, initialStage, fields, onCr
             </Select>
           </PickerField>
           <Field label={t('crm.card.tags')}><LeadTags value={tags} suggestions={suggestions} onChange={setTags} /></Field>
+          {partner ? <PickerField label={t('crm.card.campaign')} id={idOf('campaign')}><SearchableSelect id={idOf('campaign')} value={chosenCampaign || NONE} onValueChange={(id) => setCampaignId(id === NONE ? '' : id)} ariaLabel={t('crm.card.campaign')} options={(campaigns.data ?? []).map(c => ({value:c.id,label:c.name}))} searchLabel={t('select.search')} emptyLabel={t('select.search.empty')} /></PickerField> : null}
           {textField('service', t('crm.card.service'))}{textField('source', t('crm.form.source'))}
         </Group>
         <Group title={t('crm.panel.group.contacts')}>

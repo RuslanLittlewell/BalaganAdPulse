@@ -13,12 +13,16 @@ import { createBoardMutation } from './board-mutation.js';
 export type LeadInput = Omit<LeadFields,'customValues'> & {customValues?: Readonly<Record<string, unknown>>; contact?: ContactPatch; organization?: OrganizationPatch};
 export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFieldRepository,'list'>; records:LeadRecordLinks; storage:Pick<LeadFileStorage,'remove'>; audit:AuditWriter; ids:IdGenerator; unitOfWork:UnitOfWork; publish:(event:LeadEvent)=>void}) {
   const {authorize,mutation}=createBoardMutation(d);
-  const columnMutation=createBoardMutation(d,['columns','leads','activity','counts']).mutation;
+  const columnMutation=createBoardMutation(d,['columns','leads','activity','counts'],'lead-board').mutation;
   async function recordAudit(context:TransactionContext,actor:ActorContext,kind:'crm-person'|'crm-company',record:{id:string;clientId:string},action:'CREATE'|'UPDATE',changes:unknown) {
     await d.audit.append(context,{action,entityType:kind,entityId:record.id,clientId:record.clientId,projectId:null,summary:`${action} ${kind==='crm-person'?'person':'company'}`,changes:JSON.parse(JSON.stringify(changes))},actor);
   }
   async function linked(context:TransactionContext,actor:ActorContext,clientId:string,lead:{name:string;personId:string|null;companyId:string|null},input:Partial<LeadInput>) {
     let {personId,companyId}=lead;
+    if (actor.role==='PARTNER') {
+      if (input.personId && !await d.records.person(actor,clientId,input.personId,context)) throw new AppError('not-found','Person not found');
+      if (input.companyId && !await d.records.company(actor,clientId,input.companyId,context)) throw new AppError('not-found','Organization not found');
+    }
     if (input.personId!==undefined) {
       if (input.personId&&!await d.records.personInClient(actor.orgId,clientId,input.personId,context)) throw new AppError('validation','That contact belongs to another client');
       personId=input.personId;
@@ -57,7 +61,12 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
   async function announce(actor:ActorContext,clientId:string,board:string) {
     for (const other of await d.records.projectsOf(clientId)) if (other!==board) d.publish({kind:'crm.changed',orgId:actor.orgId,board:other,resources:['leads','records']});
   }
-  async function attribution(board:string, before:Pick<LeadRecord,'campaignId'|'origin'>, input:Pick<LeadFields,'campaignId'>) {
+  async function attribution(actor:ActorContext, board:string, before:Pick<LeadRecord,'campaignId'|'origin'>, input:Pick<LeadFields,'campaignId'>) {
+    if (actor.role==='PARTNER') {
+      const requested = input.campaignId === undefined ? before.campaignId : input.campaignId;
+      if (requested && requested!==actor.partner?.campaignId) throw new AppError('forbidden','A partner lead stays on the partner\'s campaign');
+      if (!requested) input = {campaignId:actor.partner?.campaignId ?? null};
+    }
     if (before.origin==='META') {
       if (input.campaignId!==undefined&&input.campaignId!==before.campaignId) throw new AppError('validation','An imported lead keeps the campaign it came from');
       return {campaignId:before.campaignId};
@@ -69,8 +78,9 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
     return {campaignId};
   }
   async function assignment(actor:ActorContext,board:string,before:Pick<LeadRecord,'assigneeId'>,input:Pick<LeadFields,'assigneeId'>) {
+    if (actor.role==='PARTNER' && input.assigneeId===undefined) return {assigneeId:before.assigneeId};
     const assigneeId=input.assigneeId===undefined?before.assigneeId:input.assigneeId;
-    if (assigneeId&&!await d.leads.assigneeReachesBoard(actor.orgId,assigneeId,board)) {
+    if (assigneeId&&!await d.leads.assigneeReachesBoard(actor,assigneeId,board)) {
       throw new AppError('validation','The assignee is not an active member of this project');
     }
     return {assigneeId};
@@ -115,11 +125,16 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
     await d.audit.append(context,{action,entityType:'lead-column',entityId:column.id,clientId:column.clientId,projectId:column.projectId,summary:`${action} lead column`,changes:JSON.parse(JSON.stringify(changes))},actor);
   }
   return {
+    async assignees(actor:ActorContext,board:string) {
+      await authorize(actor,board,'read');
+      if (actor.role!=='PARTNER') throw new AppError('forbidden','This list is for partner assignees');
+      return d.leads.assignees(actor,board);
+    },
     async boards(actor:ActorContext) { return (await d.leads.boards(actor)).map(b=>({...b,capabilities:{create:can(actor,'create','lead'),update:can(actor,'update','lead'),delete:can(actor,'delete','lead')}})); },
     async list(actor:ActorContext,board:string) { await authorize(actor,board,'read'); return d.leads.list(actor,board); },
     async activity(actor:ActorContext,board:string,id:string) {
       await authorize(actor,board,'read');
-      if (!await d.leads.leadOnBoard(actor.orgId,board,id)) throw new AppError('not-found','Lead not found');
+      if (!await d.leads.leadOnBoard(actor,board,id)) throw new AppError('not-found','Lead not found');
       const {events,importedAt}=await d.leads.history(actor.orgId,id);
       const [columns,campaigns,fields]=await Promise.all([d.leads.columns(actor,board),d.leads.campaignNames(campaignIdsIn(events)),d.fields.list(actor.orgId,board)]);
       return buildActivity(id,events,{columns:new Map(columns.map(column=>[column.id,column.name])),campaigns,fields},importedAt);
@@ -132,7 +147,7 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
         clientId=await d.leads.clientOf(board);
         const stage=input.stage ?? 'NEW';
         await placement(context,actor,board,stage);
-        const named=await attribution(board,{campaignId:null,origin:'MANUAL'},input);
+        const named=await attribution(actor,board,{campaignId:null,origin:'MANUAL'},input);
         const assigned=await assignment(actor,board,{assigneeId:null},input);
         const customValues=applyCustomValues(await d.fields.list(actor.orgId,board,context),{},input.customValues);
         const links=await linked(context,actor,clientId,{name:input.name,personId:null,companyId:null},input);
@@ -158,7 +173,7 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
       const updated=await mutation(actor,board,'update',async(context,rows)=>{
         clientId=await d.leads.clientOf(board);
         const before=find(rows,id);
-        const named=await attribution(board,before,input);
+        const named=await attribution(actor,board,before,input);
         const assigned=await assignment(actor,board,before,input);
         const {customValues:patch,contact:_contact,organization:_organization,...rest}=input;
         const custom=patch===undefined?{}:{customValues:applyCustomValues(await d.fields.list(actor.orgId,board,context),before.customValues,patch)};

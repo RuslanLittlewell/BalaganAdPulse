@@ -5,6 +5,7 @@ import type { Connection, ConnectionRegistry } from "./connection-registry.js";
 import type { DeliveryActorResolution } from "./task-event-delivery.js";
 
 export interface DeliveryBoardReach {
+  leadOnBoard?(actor: ActorContext, board: string, id: string): Promise<{ id: string } | null>;
   reaches(actor: ActorContext, board: string): Promise<boolean>;
 }
 
@@ -24,7 +25,9 @@ export function createLeadEventDelivery(dependencies: LeadEventDeliveryDependenc
     }
     if (actor.orgId !== event.orgId) return false;
     if (!can(actor, "read", "lead")) return false;
-    return dependencies.boards.reaches(actor, event.board);
+    if (!await dependencies.boards.reaches(actor, event.board)) return false;
+    if (actor.role === 'PARTNER' && event.leadId) return !!await dependencies.boards.leadOnBoard?.(actor, event.board, event.leadId);
+    return true;
   };
 
   return {

@@ -91,6 +91,7 @@ export function createKpiUseCases(d: {
 
   return {
     async read(actor: ActorContext, level: KpiLevel) {
+      if (!can(actor, "read", "kpi")) throw new AppError("forbidden", "Your role may not read KPIs");
       return d.kpis.read(await ownerOf(actor, level));
     },
     set(actor: ActorContext, level: KpiLevel, input: KpiInput) {
@@ -100,6 +101,7 @@ export function createKpiUseCases(d: {
       await change(actor, level, null);
     },
     async listProject(actor: ActorContext, projectId: string) {
+      if (!can(actor, "read", "kpi")) throw new AppError("forbidden", "Your role may not read KPIs");
       await reachableProject(actor, projectId);
       return d.projectKpis.list(projectId);
     },

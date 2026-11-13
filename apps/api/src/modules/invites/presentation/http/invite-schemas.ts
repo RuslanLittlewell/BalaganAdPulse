@@ -14,6 +14,7 @@ export const createInviteSchema = z.discriminatedUnion("registrationType", [
     clientId: z.uuid(),
     ...common,
   }).strict(),
+  z.object({ registrationType: z.literal("PARTNER"), campaignId: z.uuid(), ...common }).strict(),
   z.object({
     registrationType: z.literal("EMPLOYEE"),
     role: z.enum(["ADMIN", "MANAGER", "GUEST"]),
@@ -23,7 +24,7 @@ export const createInviteSchema = z.discriminatedUnion("registrationType", [
 ]);
 
 export const listInvitesQuerySchema = z.object({
-  registrationType: z.enum(["CLIENT", "EMPLOYEE", "CLIENT_STAFF"]).optional(),
+  registrationType: z.enum(["CLIENT", "EMPLOYEE", "CLIENT_STAFF", "PARTNER"]).optional(),
 });
 
 export const resolveInviteParamsSchema = z.object({

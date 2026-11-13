@@ -49,6 +49,7 @@ export function createClientUseCases(dependencies: ClientDependencies) {
     },
 
     list: async (actor: ActorContext): Promise<ClientRecord[]> => {
+      if (!can(actor, "read", "client")) throw new AppError("forbidden", "Your role may not read clients");
       const clients = await dependencies.clients.listReachable(actor);
       return Promise.all(clients.map(withPicture));
     },

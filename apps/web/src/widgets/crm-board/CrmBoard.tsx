@@ -1,3 +1,4 @@
+import { useCan } from "@/features/permissions/index.js";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -56,6 +57,7 @@ export function CrmBoard({
   const move = useMoveLead(boardKey ?? "");
   const [moveError, setMoveError] = useState<string | null>(null);
   const draggable = capabilities?.update ?? false;
+  const managesBoard = useCan("create", "lead-board");
 
   const shown = useMemo(() => visibleLeads(leads ?? [], view, fields), [leads, view, fields]);
   const compare = useMemo(() => (view.sort ? compareBy(view.sort, fields) : null), [view.sort, fields]);
@@ -160,7 +162,7 @@ export function CrmBoard({
           />
         ))}
 
-        {boardKey && capabilities?.create && loadedColumns ? (
+        {boardKey && managesBoard && capabilities?.create && loadedColumns ? (
           <div className="shrink-0 px-2 py-2"><AddLeadColumn boardKey={boardKey} columns={columns} /></div>
         ) : null}
       </div>

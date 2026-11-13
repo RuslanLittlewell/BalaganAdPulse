@@ -20,6 +20,7 @@ const WELCOME_TEXT: Readonly<Record<Role, MessageKey>> = {
   GUEST: "onboarding.welcome.GUEST",
   CLIENT: "onboarding.welcome.CLIENT",
   CLIENT_ADMIN: "onboarding.welcome.CLIENT",
+  PARTNER: "onboarding.welcome.PARTNER",
 };
 
 export function WelcomeDialog() {

@@ -50,6 +50,8 @@ model Campaign {
   kpiTarget            Decimal?              @map("kpi_target") @db.Decimal(18, 4)
   kpiUpdatedAt         DateTime?             @map("kpi_updated_at")
   kpiResultType        String?               @map("kpi_result_type")
+  partners             Membership[]          @relation("PartnerCampaign")
+  partnerInvites       Invite[]
 
   @@unique([channel, externalId])
   @@index([projectId, position])

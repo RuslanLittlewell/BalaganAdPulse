@@ -75,7 +75,7 @@ describe("what a card shows without being opened", () => {
     position: 0, kpiTracked: true, createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z" };
   const member = { id: "member-1", userId: "u1", name: "Пётр", email: "p@acme.com",
     image: null, phone: null, telegram: null, role: "MANAGER" as const, status: "ACTIVE" as const,
-    createdAt: "2026-09-01T00:00:00.000Z" };
+    createdAt: "2026-09-01T00:00:00.000Z", campaign: null };
 
   it("shows a paperclip and a count when the task carries files", () => {
     renderWithProviders(

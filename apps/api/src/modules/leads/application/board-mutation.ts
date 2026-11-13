@@ -1,4 +1,4 @@
-import { can, type Action } from '@adpulse/access-policy';
+import { can, type Action, type Resource } from '@adpulse/access-policy';
 import { AppError } from '#shared/domain/index.js';
 import type { ActorContext, TransactionContext, UnitOfWork } from '#shared/application/index.js';
 import type { LeadRecord } from '../domain/lead.js';
@@ -10,10 +10,10 @@ export interface BoardMutationDependencies {
   publish: (event: LeadEvent) => void;
 }
 
-export function createBoardMutation(d: BoardMutationDependencies, resources: LeadEvent['resources'] = ['leads', 'activity', 'records', 'counts']) {
+export function createBoardMutation(d: BoardMutationDependencies, resources: LeadEvent['resources'] = ['leads', 'activity', 'records', 'counts'], guarded: Resource = 'lead') {
   async function authorize(actor: ActorContext, board: string, action: Action) {
     if (!await d.leads.reaches(actor, board)) throw new AppError('not-found', 'Board not found');
-    if (!can(actor, action, 'lead')) throw new AppError('forbidden', 'Action not permitted');
+    if (!can(actor, action, guarded)) throw new AppError('forbidden', 'Action not permitted');
   }
   async function mutation<T>(actor: ActorContext, board: string, action: Action, work: (context: TransactionContext, rows: LeadRecord[]) => Promise<T>, leadId?: string) {
     await authorize(actor, board, action);

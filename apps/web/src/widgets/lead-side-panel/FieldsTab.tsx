@@ -1,3 +1,6 @@
+import { useLeadAssignees } from './useLeadAssignees.js';
+import { useCampaignReferences } from '@/entities/campaign/index.js';
+import { useAuth } from '@/features/auth/index.js';
 import { useId, useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, ExternalLink, Mail, Phone, Plus } from "lucide-react";
 import { useCompanies, usePeople } from "@/entities/crm-record/index.js";
@@ -11,7 +14,7 @@ import {
   type LeadField,
   type LeadInput,
 } from "@/entities/lead/index.js";
-import { MemberAvatar, useClientMembers } from "@/entities/membership/index.js";
+import { MemberAvatar } from "@/entities/membership/index.js";
 import {
   ChoiceEditor,
   ChoicesEditor,
@@ -174,7 +177,7 @@ function AmountRow({ lead, editable, save }: { lead: Lead; editable: boolean; sa
 
 function AssigneeRow({ lead, editable, save }: { lead: Lead; editable: boolean; save: Save }) {
   const labelId = useId();
-  const { data: members } = useClientMembers(lead.project.clientId);
+  const { data: members } = useLeadAssignees(lead.project.clientId, lead.projectId);
   const assignees = members?.filter((member) => member.status === "ACTIVE") ?? [];
   const missing = lead.assignee && !assignees.some((member) => member.id === lead.assigneeId) ? lead.assignee : null;
   return (
@@ -295,12 +298,23 @@ function CustomRow({ field, lead, editable, save }: { field: LeadField; lead: Le
   );
 }
 
+function PartnerCampaignRow({lead, editable, save}: {lead:Lead;editable:boolean;save:Save}) {
+  const {role} = useAuth();
+  const {data:campaigns} = useCampaignReferences(role === 'PARTNER' ? lead.projectId : undefined);
+  const labelId = useId();
+  if (role !== 'PARTNER') return null;
+  return <Row label={t('crm.card.campaign')} labelId={labelId} field="campaign">
+    <SearchableSelect ariaLabel={t('crm.card.campaign')} value={lead.campaignId ?? NONE} disabled={!editable || lead.origin === 'META'} onValueChange={campaignId => void save({campaignId})} options={(campaigns ?? []).map(c => ({value:c.id,label:c.name}))} searchLabel={t('select.search')} emptyLabel={t('select.search.empty')} />
+  </Row>;
+}
+
 export function FieldsTab({ boardKey, lead, editable, save, onCreateRecord }: FieldsTabProps) {
   const { data: fields } = useLeadFields(boardKey);
   const shared = { lead, editable, save };
   return (
     <div className="flex flex-col gap-3">
       <Group title="crm.panel.group.deal">
+        <PartnerCampaignRow {...shared} />
         <AmountRow {...shared} />
         <AssigneeRow {...shared} />
         <TagsRow boardKey={boardKey} {...shared} />

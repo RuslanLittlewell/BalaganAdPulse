@@ -4,6 +4,7 @@ import type { PrismaUnitOfWork } from '#shared/infrastructure/prisma-unit-of-wor
 import type { LeadRepository } from '../application/ports.js';
 import { emptyStageCounts, foldBoardStageCounts, placementOf, type ArrivalWindow, type LeadAnswer, type LeadColumnRecord, type LeadRecord, type ProjectStageCounts } from '../domain/lead.js';
 import { customValuesOf, isOptionColor } from '../domain/lead-field.js';
+import { visibleLeads } from '#shared/infrastructure/partner-reach.js';
 import { reachableProjects } from '#shared/infrastructure/project-reach.js';
 
 const leadInclude = {
@@ -51,12 +52,19 @@ export class PrismaLeadRepository implements LeadRepository {
   async campaignInProject(campaignId: string, projectId: string) {
     return (await this.prisma.campaign.count({where:{id:campaignId, projectId}})) > 0;
   }
-  async assigneeReachesBoard(orgId: string, membershipId: string, board: string) {
+  async assignees(actor: ActorContext, board: string) {
+    const rows = await this.prisma.membership.findMany({
+      where: { orgId: actor.orgId, status: 'ACTIVE', role: 'PARTNER', campaignId: actor.partner?.campaignId ?? '', campaign: { projectId: board } },
+      select: { id: true, user: { select: { name: true, image: true } } }, orderBy: { createdAt: 'asc' },
+    });
+    return rows.map(({id, user}) => ({id, ...user, status:'ACTIVE' as const}));
+  }
+  async assigneeReachesBoard(actor: ActorContext, membershipId: string, board: string) {
     const access = {OR:[{projectId:board},{projectId:null, client:{projects:{some:{id:board}}}}]};
-    return (await this.prisma.membership.count({where:{id:membershipId,orgId,status:'ACTIVE',access:{some:access}}})) > 0;
+    return (await this.prisma.membership.count({where:{id:membershipId,orgId:actor.orgId,status:'ACTIVE',...(actor.role==='PARTNER' ? {role:'PARTNER',campaignId:actor.partner?.campaignId ?? ''} : {OR:[{access:{some:access}},{role:'PARTNER',campaign:{projectId:board}}]})}})) > 0;
   }
   async list(actor: ActorContext, board: string, context?: TransactionContext) {
-    const rows = await (context ? this.uow.clientFor<Prisma.TransactionClient>(context) : this.prisma).lead.findMany({where:{orgId:actor.orgId, projectId:board},include:leadInclude,orderBy:[{stage:{sort:'asc',nulls:'last'}},{column:{position:'asc'}},{position:'asc'},{id:'asc'}]});
+    const rows = await (context ? this.uow.clientFor<Prisma.TransactionClient>(context) : this.prisma).lead.findMany({where:{...visibleLeads(actor), projectId:board},include:leadInclude,orderBy:[{stage:{sort:'asc',nulls:'last'}},{column:{position:'asc'}},{position:'asc'},{id:'asc'}]});
     return rows.map(toLeadRecord);
   }
   async lock(context: TransactionContext, actor: ActorContext, board: string) {
@@ -92,8 +100,8 @@ export class PrismaLeadRepository implements LeadRepository {
     const campaigns = await this.prisma.campaign.findMany({where:{id:{in:[...ids]}}, select:{id:true, name:true}});
     return new Map(campaigns.map(campaign => [campaign.id, campaign.name]));
   }
-  async leadOnBoard(orgId: string, board: string, id: string) {
-    const lead = await this.prisma.lead.findFirst({where:{id, orgId, projectId:board}, select:{id:true, projectId:true, project:{select:{clientId:true}}}});
+  async leadOnBoard(actor: ActorContext, board: string, id: string) {
+    const lead = await this.prisma.lead.findFirst({where:{id, ...visibleLeads(actor), projectId:board}, select:{id:true, projectId:true, project:{select:{clientId:true}}}});
     return lead && {id:lead.id, projectId:lead.projectId, clientId:lead.project.clientId};
   }
   async columns(actor: ActorContext, board: string, context?: TransactionContext) {
@@ -112,7 +120,7 @@ export class PrismaLeadRepository implements LeadRepository {
   async projectStageCounts(actor: ActorContext, window: ArrivalWindow) {
     const groups = await this.prisma.lead.groupBy({
       by:['projectId','stage'],
-      where:{orgId:actor.orgId, stage:{not:null}, project:reachableProjects(actor), AND:[arrivedIn(window)]},
+      where:{...visibleLeads(actor), stage:{not:null}, AND:[arrivedIn(window)]},
       _count:{_all:true},
     });
     const projects = new Map<string, ProjectStageCounts>();
@@ -127,7 +135,7 @@ export class PrismaLeadRepository implements LeadRepository {
   async boardStageCounts(actor: ActorContext, board: string, window: ArrivalWindow) {
     const groups = await this.prisma.lead.groupBy({
       by:['campaignId','adId','stage'],
-      where:{orgId:actor.orgId, projectId:board, stage:{not:null}, AND:[arrivedIn(window)]},
+      where:{...visibleLeads(actor), projectId:board, stage:{not:null}, AND:[arrivedIn(window)]},
       _count:{_all:true},
     });
     const counted = groups.flatMap(({campaignId, adId, stage, _count}) => stage ? [{campaignId, adId, stage, count:_count._all}] : []);

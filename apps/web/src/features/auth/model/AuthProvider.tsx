@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ApiError, hasSession, writeTokens } from "@/shared/lib/index.js";
 import { endSession, onSessionExpired, onTokenRenewed } from "@/shared/lib/index.js";
 import { authApi, type LoginBody, type RegisterBody, type UpdateProfileBody, type UserProfile } from "../api.js";
-import type { OrganizationSummary } from "../api.js";
+import type { AuthSession, OrganizationSummary } from "../api.js";
 import type { ModuleKey, Role } from "@adpulse/access-policy";
 import type { TariffSummary } from "@/entities/tariff/index.js";
 
@@ -22,6 +22,7 @@ interface AuthValue {
   organization: OrganizationSummary | null;
   role: Role | null;
   membershipId: string | null;
+  partner: AuthSession["partner"];
   clientIds: string[];
   platformAdmin: boolean;
   modules: ModuleKey[];
@@ -50,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [organization, setOrganization] = useState<OrganizationSummary | null>(null);
   const [role, setRole] = useState<Role | null>(null);
   const [membershipId, setMembershipId] = useState<string | null>(null);
+  const [partner, setPartner] = useState<AuthSession["partner"]>(null);
   const [clientIds, setClientIds] = useState<string[]>([]);
   const [platformAdmin, setPlatformAdmin] = useState(false);
   const [modules, setModules] = useState<ModuleKey[]>([]);
@@ -84,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setOrganization(session.organization);
     setRole(session.role);
     setMembershipId(session.membershipId ?? null);
+    setPartner(session.partner ?? null);
     setClientIds(session.clientIds);
     setPlatformAdmin(session.platformAdmin);
     setModules(session.modules);
@@ -97,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setOrganization(null);
     setRole(null);
     setMembershipId(null);
+    setPartner(null);
     setClientIds([]);
     setPlatformAdmin(false);
     setModules([]);
@@ -121,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     organization,
     role,
     membershipId,
+    partner,
     clientIds,
     platformAdmin,
     modules,
@@ -171,7 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     loadProfile: authApi.profile,
     saveAvatar: async (png, avatarPath) => { await authApi.saveAvatar(png, avatarPath); },
-  }), [user, organization, role, membershipId, clientIds, platformAdmin, modules, tariff, sessionError, loadSession, invalidateSession, queryClient]);
+  }), [user, organization, role, membershipId, partner, clientIds, platformAdmin, modules, tariff, sessionError, loadSession, invalidateSession, queryClient]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
@@ -184,6 +189,7 @@ export function SharedAuthProvider({ modules, children }: { modules: ModuleKey[]
     organization: null,
     role: null,
     membershipId: null,
+    partner: null,
     clientIds: [],
     platformAdmin: false,
     modules,

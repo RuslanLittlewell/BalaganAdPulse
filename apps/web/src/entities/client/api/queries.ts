@@ -4,8 +4,8 @@ import { clientsApi, type Client, type ClientCredentials, type ClientInput } fro
 const CLIENTS_KEY = ["clients"] as const;
 const accountKey = (clientId: string) => [...CLIENTS_KEY, clientId, "account"] as const;
 
-export function useClients() {
-  return useQuery({ queryKey: CLIENTS_KEY, queryFn: ({ signal }) => clientsApi.list(signal) });
+export function useClients({ enabled = true } = {}) {
+  return useQuery({ enabled, queryKey: CLIENTS_KEY, queryFn: ({ signal }) => clientsApi.list(signal) });
 }
 
 export function useCreateClient() {

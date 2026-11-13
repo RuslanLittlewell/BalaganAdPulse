@@ -36,7 +36,7 @@ describe("can", () => {
     });
 
     it("is readable by every role, since each one is shown the organization", () => {
-      expectRow("read", "organization", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"]);
+      expectRow("read", "organization", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN", "PARTNER"]);
     });
 
     it("is never created or deleted through the matrix", () => {
@@ -80,7 +80,7 @@ describe("can", () => {
 
   describe("projects", () => {
     it("are readable by every role", () => {
-      expectRow("read", "project", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"]);
+      expectRow("read", "project", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN", "PARTNER"]);
     });
 
     it("are created and edited by staff and by a customer, never by a guest", () => {
@@ -96,7 +96,7 @@ describe("can", () => {
     });
 
     it("show everyone the summary that admins and managers choose for them", () => {
-      expectRow("read", "project-summary", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"]);
+      expectRow("read", "project-summary", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN", "PARTNER"]);
       expectRow("update", "project-summary", ["ADMIN", "MANAGER"]);
       expectRow("create", "project-summary", []);
       expectRow("delete", "project-summary", []);
@@ -109,7 +109,7 @@ describe("can", () => {
 
   describe("the campaign hierarchy", () => {
     it("lets admins and managers write it, and everyone else only read", () => {
-      expectRow("read", "campaign", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"]);
+      expectRow("read", "campaign", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN", "PARTNER"]);
       expectRow("create", "campaign", ["ADMIN", "MANAGER"]);
       expectRow("update", "campaign", ["ADMIN", "MANAGER"]);
       expectRow("delete", "campaign", ["ADMIN", "MANAGER"]);
@@ -201,7 +201,7 @@ describe("can", () => {
         for (const action of ["create", "update", "delete"] as const) {
           if (resource === "task" && action === "create") continue;
           if (resource === "project" && action !== "delete") continue;
-          if (resource === "lead") {
+          if (resource === "lead" || resource === "lead-board") {
             expect(can(actor("CLIENT"), action, resource)).toBe(true);
             continue;
           }
@@ -241,7 +241,7 @@ describe("the customer's principal", () => {
 
   it("reads everything an ordinary customer reads", () => {
     for (const resource of RESOURCES) {
-      if (resource === "invite" || resource === "member") continue;
+      if (resource === "invite" || resource === "member" || resource === "partner") continue;
       expect(
         can(actor("CLIENT_ADMIN"), "read", resource),
         `CLIENT_ADMIN read ${resource}`,
@@ -301,5 +301,47 @@ describe("isCustomer", () => {
 
     expect([...customers, ...staff].sort()).toEqual([...ROLES].sort());
     expect(customers).toEqual(["CLIENT", "CLIENT_ADMIN"]);
+  });
+});
+
+describe("a partner's person", () => {
+  it("is a role of its own and no customer", () => {
+    expect(ROLES).toContain("PARTNER");
+    expect(isCustomer("PARTNER")).toBe(false);
+  });
+
+  it("reads the project, its summary and its campaigns, and works leads without deleting them", () => {
+    for (const resource of ["project", "project-summary", "campaign", "lead", "lead-board", "organization"] as const) {
+      expect(can(actor("PARTNER"), "read", resource), `read ${resource}`).toBe(true);
+    }
+    expect(can(actor("PARTNER"), "create", "lead")).toBe(true);
+    expect(can(actor("PARTNER"), "update", "lead")).toBe(true);
+    expect(can(actor("PARTNER"), "delete", "lead")).toBe(false);
+  });
+
+  it("reads nothing else and changes nothing beyond leads", () => {
+    const readable = new Set(["project", "project-summary", "campaign", "lead", "lead-board", "organization"]);
+    for (const resource of RESOURCES) {
+      expect(can(actor("PARTNER"), "read", resource), `read ${resource}`).toBe(readable.has(resource));
+      for (const action of ["create", "update", "delete"] as const) {
+        const allowed = resource === "lead" && action !== "delete";
+        expect(can(actor("PARTNER"), action, resource), `${action} ${resource}`).toBe(allowed);
+      }
+    }
+  });
+});
+
+describe("the board's columns and fields", () => {
+  it("are read by everyone and reshaped by staff and customers, never by a guest or a partner", () => {
+    expectRow("read", "lead-board", ["ADMIN", "MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN", "PARTNER"]);
+    for (const action of ["create", "update", "delete"] as const) {
+      expectRow(action, "lead-board", ["ADMIN", "MANAGER", "CLIENT", "CLIENT_ADMIN"]);
+    }
+  });
+});
+
+describe("partners of a project", () => {
+  it("are managed by an admin or the client's principal alone", () => {
+    for (const action of ACTIONS) expectRow(action, "partner", ["ADMIN", "CLIENT_ADMIN"]);
   });
 });

@@ -147,6 +147,7 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
         const {contact:_contact,organization:_organization,...fields}=input;
         const row=await d.leads.create(context,{...fields,...named,...assigned,customValues,personId,companyId:links.companyId,id:d.ids.generate(),orgId:actor.orgId,projectId:board,stage,position:0});
         await ordered(context,[{...row,position:-1},...rows.filter(l=>l.stage===stage)]);
+        await d.leads.recordStageChange(context,{orgId:actor.orgId,projectId:board,leadId:row.id,from:null,to:stage});
         await audit(context,actor,row,'CREATE',{after:row}); return row;
       });
       if (touched) await announce(actor,clientId,board);
@@ -183,7 +184,10 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
         target.splice(Math.min(input.position,target.length),0,{...before,stage:input.stage,position:-1});
         await d.leads.update(context,id,{stage:input.stage});
         await ordered(context,target);
-        if(before.stage!==input.stage) await ordered(context,rows.filter(l=>l.stage===before.stage&&l.id!==id));
+        if(before.stage!==input.stage) {
+          await ordered(context,rows.filter(l=>l.stage===before.stage&&l.id!==id));
+          await d.leads.recordStageChange(context,{orgId:actor.orgId,projectId:board,leadId:id,from:before.stage,to:input.stage});
+        }
         const result=await d.leads.list(actor,board,context);
         await audit(context,actor,find(result,id),'UPDATE',{before:{stage:before.stage,position:before.position},after:input});
         return result;
@@ -237,7 +241,10 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
         const column=customColumn(columns,id);
         const moving=rows.filter(lead=>lead.stage===id);
         let position=rows.filter(lead=>lead.stage==='NEW').length;
-        for (const lead of moving) await d.leads.update(context,lead.id,{stage:'NEW',position:position++});
+        for (const lead of moving) {
+          await d.leads.update(context,lead.id,{stage:'NEW',position:position++});
+          await d.leads.recordStageChange(context,{orgId:actor.orgId,projectId:board,leadId:lead.id,from:id,to:'NEW'});
+        }
         await d.leads.deleteColumn(context,id);
         await orderedColumns(context,columns.filter(candidate=>candidate.id!==id&&candidate.afterStage===column.afterStage));
         await auditColumn(context,actor,column,'DELETE',{before:column,movedLeadIds:moving.map(lead=>lead.id)});

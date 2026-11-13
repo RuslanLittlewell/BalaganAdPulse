@@ -29,6 +29,7 @@ import { taskComponents, taskDoc, taskDocumentDoc, taskImageDoc } from "#modules
 import { mountPath } from "./create-routes.js";
 import { sharedReadDoc } from "./shared-openapi.js";
 import { leadDoc, leadComponents } from '#modules/leads/presentation/http/lead-openapi.js';
+import { conversionsDoc } from "#modules/conversions/index.js";
 import { kpiDoc } from '#modules/kpi/index.js';
 import { summaryTileDoc } from "#modules/summary-tiles/index.js";
 import { projectDocumentComponents, projectDocumentDoc } from "#modules/project-documents/index.js";
@@ -92,6 +93,7 @@ export function apiDocument(): OpenApiDocument {
     { mount: mountPath("report-index"), ...reportIndexDoc },
     { mount: mountPath("integrations"), ...integrationDoc },
     { mount: mountPath("integrations"), ...googleIntegrationDoc },
+    { mount: mountPath("conversions"), ...conversionsDoc },
     { mount: mountPath("seo"), ...seoConnectionDoc },
     { mount: mountPath("seo"), ...seoReadDoc },
     { mount: mountPath("seo"), ...seoAuditDoc },

@@ -13,9 +13,11 @@ import type { PresenceRegistry } from "#modules/presence/index.js";
 import type { Connection, ConnectionRegistry } from "#modules/realtime/index.js";
 import type { DueSoonWorker } from "#modules/notifications/index.js";
 import type { ShareLinkUseCases } from "#modules/share-links/index.js";
+import type { ConversionWorker } from "#modules/conversions/index.js";
 import { apiDocument, createDocumentationRouter } from "./openapi.js";
 import { wireCampaignsAndIntegrations } from "./wiring/campaigns-integrations.js";
 import { wireClientAccounts } from "./wiring/client-accounts.js";
+import { wireConversions } from "./wiring/conversions.js";
 import { wireClientsAndProjects } from "./wiring/clients-projects.js";
 import { wireIdentity } from "./wiring/identity.js";
 import { wireInvites } from "./wiring/invites.js";
@@ -36,6 +38,8 @@ import { wireTelegramBot, wireTelegramNotifications, type TelegramPoller } from 
 
 export interface ApiContainer {
   readonly integrationRouter: Router;
+  readonly conversionsRouter: Router;
+  readonly conversionWorker: ConversionWorker;
   readonly seoRouter: Router;
   readonly shareLinkRouter: Router;
   readonly shareLinks: ShareLinkUseCases;
@@ -121,6 +125,7 @@ export function createContainer(): ApiContainer {
   const summaries = wireSummaryTiles(kernel, { projectRepository: catalog.projectRepository });
   const seo = wireSeo(kernel, { projectRepository: catalog.projectRepository });
   const sharing = wireShareLinks(kernel, catalog, people.members);
+  const conversions = wireConversions(kernel, catalog, leads);
   const notebook = wireProjectDocuments(kernel, { projectRepository: catalog.projectRepository }, notices);
   const platform = wirePlatform(kernel);
   const support = wireSupport(kernel);
@@ -166,6 +171,8 @@ export function createContainer(): ApiContainer {
     projectMetricRouter: advertising.projectMetricRouter,
     summaryRouter: advertising.summaryRouter,
     integrationRouter: advertising.integrationRouter,
+    conversionsRouter: conversions.conversionsRouter,
+    conversionWorker: conversions.conversionWorker,
     seoRouter: seo.seoRouter,
     seoWorker: seo.seoWorker,
     shareLinkRouter: sharing.shareLinkRouter,

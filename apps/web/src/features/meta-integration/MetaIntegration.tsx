@@ -25,6 +25,7 @@ import { GoogleConnectionCard, GoogleReturn, googleFailureOf, startGoogleSignIn 
 import { AnalyticsReturn, SeoConnectionCard, SeoReturn, seoFailureOf, startSeoSignIn } from "@/features/seo-integration/index.js";
 import { useSeoSites } from "@/entities/seo/index.js";
 import { tariffRefusal } from "@/entities/tariff/index.js";
+import { ConversionsApiCard } from "@/features/conversions-api/index.js";
 
 export interface Connection {
   id: string;
@@ -146,6 +147,7 @@ export function MetaIntegration({ projectId }: { projectId: string }) {
   const [adding, setAdding] = useState(false);
   const [googleFailure, setGoogleFailure] = useState<string | null>(null);
   const square = useSquareByHeight<HTMLDivElement>();
+  const sendsConversions = (connections.data ?? []).some((connection) => connection.provider === "META");
   useRefreshOnImport(projectId, connections.data);
   const { role } = useAuth();
   const firstAccount = useHint(
@@ -180,6 +182,7 @@ export function MetaIntegration({ projectId }: { projectId: string }) {
         {(connections.data ?? []).map((connection) => connection.provider === "GOOGLE"
           ? <GoogleConnectionCard key={connection.id} projectId={projectId} connection={connection} />
           : <MetaConnectionCard key={connection.id} projectId={projectId} connection={connection} />)}
+        {sendsConversions && <ConversionsApiCard projectId={projectId} />}
         {(sites.data ?? []).map((site) => <SeoConnectionCard key={site.id} projectId={projectId} site={site} />)}
         <Hint
           open={firstAccount.open && !choosing && !adding}

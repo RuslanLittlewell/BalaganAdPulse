@@ -23,6 +23,7 @@ const realtime = attachRealtime({
 
 container.importWorker.start();
 container.leadPollWorker.start();
+container.conversionWorker.start();
 container.seoWorker.start();
 container.dueSoonWorker.start();
 container.telegramPoller.start();
@@ -40,6 +41,7 @@ const shutdown = createShutdown({
     await Promise.all([
       container.importWorker.stop(),
       container.leadPollWorker.stop(),
+      container.conversionWorker.stop(),
       container.seoWorker.stop(),
       container.dueSoonWorker.stop(),
       container.telegramPoller.stop(),

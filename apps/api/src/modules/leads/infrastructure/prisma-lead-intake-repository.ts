@@ -69,6 +69,7 @@ export class PrismaLeadIntakeRepository implements LeadIntakeRepository {
       } },
     } });
     await tx.metaLead.update({ where: { orgId_externalId: { orgId: input.orgId, externalId: input.externalId } }, data: { leadId: input.id } });
+    await tx.leadStageChange.create({ data: { orgId: input.orgId, projectId: input.projectId, leadId: input.id, fromStage: null, toStage: 'NEW' } });
   }
   async linkAttribution(context: TransactionContext, projectId: string) {
     const tx = this.tx(context);

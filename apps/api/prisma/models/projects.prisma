@@ -42,6 +42,10 @@ model Project {
   accountSummaries     ProjectAccountSummary[]
   seoSites             SeoSite[]
   shareLink            ProjectShareLink?
+  stageChanges         LeadStageChange[]
+  conversionEvents     CrmConversionEvent[]
+  metaDataset          MetaDataset?
+  conversionSends      MetaConversionSend[]
 
   @@index([clientId, position])
   @@map("project")

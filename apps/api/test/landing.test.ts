@@ -19,6 +19,13 @@ describe("the landing host", () => {
     expect(res.text).not.toContain('<div id="root"></div>');
   });
 
+  it("lets the page send leads to the application origin and to no other host", async () => {
+    const policy = (await onLanding("/")).headers["content-security-policy"];
+
+    expect(policy).toMatch(/connect-src 'self' https?:\/\/[^\s;]+(;|$)/);
+    expect(policy).not.toMatch(/connect-src[^;]*\*/);
+  });
+
   it("serves the privacy policy with or without the trailing slash", async () => {
     expect((await onLanding("/privacy/")).text).toContain("landing-privacy-fixture");
     const bare = await onLanding("/privacy");

@@ -103,6 +103,7 @@ const structuredData = JSON.stringify({
       <slot />
     </main>
     <Footer />
+    <script is:inline async src={`${SITE.appUrl}/api/intake/script.js`} data-key={SITE.leadKey}></script>
     <script>
       import { onCLS, onFCP, onINP, onLCP, onTTFB, type MetricWithAttribution } from "web-vitals/attribution";
       import { revealOnScroll } from "../scripts/reveal";

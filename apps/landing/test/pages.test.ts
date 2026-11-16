@@ -16,6 +16,10 @@ describe("the home page Google reads", () => {
   const html = page("index.html");
   const text = textOf(html);
 
+  it("loads the lead intake script with the project key", () => {
+    expect(html).toMatch(/<script[^>]*src="https:\/\/app\.balagan\.pro\/api\/intake\/script\.js"[^>]*data-key="bk_[A-Za-z0-9_-]{32}"/);
+  });
+
   it("names the app as the consent screen does, in its title and heading", () => {
     expect(html).toMatch(/<title>BalaganBI[^<]*<\/title>/);
     expect(textOf(html.match(/<h1[\s\S]*?<\/h1>/)![0]).trim()).toMatch(/^BalaganBI:/);

@@ -1,10 +1,11 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import type { KeyboardEvent } from "react";
 import { SearchIcon } from "lucide-react";
 import { t } from "@/shared/config/index.js";
 
 export function matchesSearch(label: string, query: string): boolean {
-  const needle = query.trim().toLocaleLowerCase("ru");
-  return needle === "" || label.toLocaleLowerCase("ru").includes(needle);
+  const needle = query.trim().toLocaleLowerCase(getIntlLocale());
+  return needle === "" || label.toLocaleLowerCase(getIntlLocale()).includes(needle);
 }
 
 function keepTyping(event: KeyboardEvent<HTMLInputElement>) {

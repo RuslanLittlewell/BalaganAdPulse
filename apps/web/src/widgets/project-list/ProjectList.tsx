@@ -1,3 +1,4 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronDownIcon, PlusIcon, SearchIcon } from "lucide-react";
@@ -84,7 +85,7 @@ function ListEnd() {
 
 const SEARCH_DELAY_MS = 300;
 
-const normalised = (text: string) => text.trim().toLocaleLowerCase("ru");
+const normalised = (text: string) => text.trim().toLocaleLowerCase(getIntlLocale());
 
 function useProjectTones(): (projectId: string) => ProjectTone {
   const { range } = usePeriod();

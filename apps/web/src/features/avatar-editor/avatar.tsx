@@ -1,3 +1,4 @@
+import { t } from "@/shared/config/index.js";
 import Avatar from "avataaars";
 import { AVATAR_PX } from "@/shared/lib/index.js";
 import React17 from "react17";
@@ -50,7 +51,7 @@ function avatarSvg(options: AvatarOptions) {
 
 export function AvatarPreview({ options }: { options: AvatarOptions }) {
   const source = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(avatarSvg(options))}`;
-  return <img src={source} alt="Предпросмотр аватара" />;
+  return <img src={source} alt={t("avatar.preview")} />;
 }
 
 export async function avatarPng(options: AvatarOptions): Promise<Blob> {
@@ -65,7 +66,7 @@ export async function avatarPng(options: AvatarOptions): Promise<Blob> {
     canvas.height = AVATAR_PX;
     canvas.getContext("2d")?.drawImage(image, 0, 0, AVATAR_PX, AVATAR_PX);
     return await new Promise<Blob>((resolve, reject) =>
-      canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Не удалось создать PNG")), "image/png"),
+      canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error(t("image.pngFailed"))), "image/png"),
     );
   } finally {
     URL.revokeObjectURL(source);

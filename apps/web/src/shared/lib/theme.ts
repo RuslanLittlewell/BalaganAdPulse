@@ -43,3 +43,7 @@ export function useTheme(): Theme {
   return useSyncExternalStore(onThemeChange, currentTheme, () => "light");
 }
 
+export function usePreferredTheme(): Theme {
+  return useSyncExternalStore(onThemeChange, getPreferredTheme, () => "light");
+}
+

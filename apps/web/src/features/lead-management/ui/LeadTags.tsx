@@ -1,3 +1,4 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import { useId, useState, type KeyboardEvent } from "react";
 import { Plus, X } from "lucide-react";
 import { t } from "@/shared/config/index.js";
@@ -18,8 +19,8 @@ export function LeadTags({ value, onChange, suggestions, disabled = false }: Lea
   const listId = useId();
   const taken = new Set(value.map((tag) => tag.toLowerCase()));
   const offered = suggestions.filter((tag) => !taken.has(tag.toLowerCase()));
-  const needle = draft.trim().toLocaleLowerCase("ru");
-  const matching = offered.filter((tag) => needle === "" || tag.toLocaleLowerCase("ru").includes(needle)).slice(0, 8);
+  const needle = draft.trim().toLocaleLowerCase(getIntlLocale());
+  const matching = offered.filter((tag) => needle === "" || tag.toLocaleLowerCase(getIntlLocale()).includes(needle)).slice(0, 8);
 
   function add(entered = draft) {
     const tag = entered.trim();

@@ -1,3 +1,4 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import { useState } from "react";
 
 export type SortValue = string | number | null | undefined;
@@ -14,7 +15,7 @@ const isEmpty = (value: SortValue): value is null | undefined =>
 
 function compareValues(a: NonNullable<SortValue>, b: NonNullable<SortValue>): number {
   if (typeof a === "number" && typeof b === "number") return a - b;
-  return String(a).localeCompare(String(b), "ru", { sensitivity: "base", numeric: true });
+  return String(a).localeCompare(String(b), getIntlLocale(), { sensitivity: "base", numeric: true });
 }
 
 export function sortRows<Row>(

@@ -1,3 +1,4 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Plus } from "lucide-react";
@@ -57,8 +58,8 @@ function useBoardChoices(leads: readonly Lead[] | undefined) {
       for (const tag of lead.tags) tags.add(tag);
     }
     return {
-      assignees: [...assignees].map(([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label, "ru")),
-      tags: [...tags].sort((a, b) => a.localeCompare(b, "ru")),
+      assignees: [...assignees].map(([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label, getIntlLocale())),
+      tags: [...tags].sort((a, b) => a.localeCompare(b, getIntlLocale())),
     };
   }, [leads]);
 }

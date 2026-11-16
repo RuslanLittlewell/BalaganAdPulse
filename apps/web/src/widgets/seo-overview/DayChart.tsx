@@ -1,3 +1,4 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import { useId, useState, type PointerEvent } from "react";
 import { areaPath, formatDay, linePath } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
@@ -87,7 +88,7 @@ export function DayChart({ title, dates, series }: { title: string; dates: reado
               style={{ left: `clamp(0px, calc(${left}% - 100px), max(0px, calc(100% - 200px)))` }}
             >
               <p className="mb-2 font-semibold">
-                {new Date(`${dates[active]}T00:00:00Z`).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}
+                {new Date(`${dates[active]}T00:00:00Z`).toLocaleDateString(getIntlLocale(), { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}
               </p>
               <dl className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-1 tabular-nums">
                 {series.map((line) => (

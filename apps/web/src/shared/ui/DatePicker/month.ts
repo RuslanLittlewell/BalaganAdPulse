@@ -1,5 +1,6 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 export function dayLabel(iso: string): string {
-  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("ru-RU", {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString(getIntlLocale(), {
     day: "2-digit",
     month: "long",
     year: "numeric",

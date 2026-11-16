@@ -1,18 +1,16 @@
-import { useState } from "react";
 import { Moon, Sun } from "lucide";
 import { MorphIcon } from "morphicons/react";
-import { getPreferredTheme, setTheme, type Theme } from "@/shared/lib/index.js";
+import { setTheme, usePreferredTheme } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
 import { Button } from "../Button/Button.js";
 
 export function ThemeToggle() {
-  const [theme, updateTheme] = useState<Theme>(getPreferredTheme);
+  const theme = usePreferredTheme();
   const nextTheme = theme === "light" ? "dark" : "light";
   const label = nextTheme === "dark" ? t("theme.toDark") : t("theme.toLight");
 
   function toggleTheme() {
     setTheme(nextTheme);
-    updateTheme(nextTheme);
   }
 
   return (

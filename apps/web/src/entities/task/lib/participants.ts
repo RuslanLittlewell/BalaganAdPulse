@@ -1,3 +1,4 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import type { Task } from "../api/api.js";
 
 export const NO_PARTICIPANTS = "__nobody__";
@@ -35,7 +36,7 @@ export function participantChoices<TMember extends ParticipantNamed>(
     const member = byId.get(id);
     return { id, name: member?.name ?? id, member };
   });
-  people.sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  people.sort((a, b) => a.name.localeCompare(b.name, getIntlLocale()));
 
   return nobody
     ? [...people, { id: NO_PARTICIPANTS, name: NO_PARTICIPANTS, member: undefined }]

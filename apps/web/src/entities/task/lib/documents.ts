@@ -1,3 +1,4 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import { t } from "@/shared/config/index.js";
 
 export const MAX_TASK_DOCUMENT_BYTES = 20 * 1024 * 1024;
@@ -15,5 +16,5 @@ export function documentRefusal(file: Pick<File, "type" | "size" | "name">): Doc
 export function documentSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} ${t("crm.files.bytes")}`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} ${t("crm.files.kb")}`;
-  return `${(bytes / (1024 * 1024)).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} ${t("crm.files.mb")}`;
+  return `${(bytes / (1024 * 1024)).toLocaleString(getIntlLocale(), { maximumFractionDigits: 1 })} ${t("crm.files.mb")}`;
 }

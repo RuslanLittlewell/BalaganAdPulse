@@ -1,3 +1,4 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import { useRef, useState } from "react";
 import { Download, Paperclip, Trash2 } from "lucide-react";
 import { leadsApi, useAttachLeadFile, useLeadFiles, useRemoveLeadFile, type LeadFile } from "@/entities/lead/index.js";
@@ -14,7 +15,7 @@ export interface LeadFilesTabProps {
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} ${t("crm.files.bytes")}`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} ${t("crm.files.kb")}`;
-  return `${(bytes / (1024 * 1024)).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} ${t("crm.files.mb")}`;
+  return `${(bytes / (1024 * 1024)).toLocaleString(getIntlLocale(), { maximumFractionDigits: 1 })} ${t("crm.files.mb")}`;
 }
 
 const messageOf = (error: unknown, fallback: string) =>

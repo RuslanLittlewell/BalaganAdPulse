@@ -29,22 +29,30 @@ describe("the Telegram bot in the profile", () => {
     }));
     renderWithProviders(<ProfileSettingsDialog open onClose={() => {}} onAvatarSaved={() => {}} />);
 
+    await userEvent.click(screen.getByRole("radio", { name: "Общее" }));
     await waitFor(() => expect(asked).toBe(true));
     expect(screen.queryByRole("region", { name: "Telegram-бот" })).not.toBeInTheDocument();
   });
 
-  it("is shown in the profile dialog when available", async () => {
+  it("is shown on General and hidden on Account when available", async () => {
     serveStatus(status());
     renderWithProviders(<ProfileSettingsDialog open onClose={() => {}} onAvatarSaved={() => {}} />);
 
+    expect(screen.queryByRole("region", { name: "Telegram-бот" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("radio", { name: "Общее" }));
+
     expect(await section()).toHaveTextContent("Создавайте задачи голосом");
+    await userEvent.click(screen.getByRole("radio", { name: "Аккаунт" }));
+    expect(screen.queryByRole("region", { name: "Telegram-бот" })).not.toBeInTheDocument();
   });
 
   it("gives a link to the bot and turns to linked once the member presses Start", async () => {
     const setStatus = serveStatus(status());
     server.use(http.post("/api/telegram/link", () =>
       HttpResponse.json({ url: LINK, expiresAt: "2026-10-19T12:15:00.000Z" }, { status: 201 })));
-    renderWithProviders(<TelegramBotSection />);
+    const onClose = vi.fn();
+    renderWithProviders(<ProfileSettingsDialog open onClose={onClose} onAvatarSaved={() => {}} />);
+    await userEvent.click(screen.getByRole("radio", { name: "Общее" }));
 
     await userEvent.click(await screen.findByRole("button", { name: "Подключить" }));
 
@@ -52,12 +60,16 @@ describe("the Telegram bot in the profile", () => {
     expect(open).toHaveAttribute("href", LINK);
     expect(open).toHaveAttribute("target", "_blank");
     expect(await section()).toHaveTextContent("Ссылка действует 15 минут");
+    expect(onClose).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("radio", { name: "Аккаунт" }));
+    expect(screen.queryByRole("link", { name: "Открыть Telegram" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("radio", { name: "Общее" }));
+    expect(await screen.findByRole("link", { name: "Открыть Telegram" })).toHaveAttribute("href", LINK);
 
     setStatus(status({ linked: true, username: "anna_t", linkedAt: "2026-10-19T12:01:00.000Z" }));
 
     await waitFor(() => expect(screen.getByRole("region", { name: "Telegram-бот" })).toHaveAttribute("data-linked", "true"), { timeout: 5000 });
-    expect(await section()).toHaveTextContent("Подключён @anna_t");
-    expect(await section()).toHaveTextContent("Кнопка «📊 Сводка» в боте покажет цифры дашборда или проекта");
+    expect(await section()).toHaveTextContent("@anna_t");
     expect(screen.queryByRole("link", { name: "Открыть Telegram" })).not.toBeInTheDocument();
   });
 

@@ -1,3 +1,4 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ProjectAvatar, useProjects } from "@/entities/project/index.js";
 import { projectPath } from "@/shared/lib/index.js";
@@ -17,7 +18,7 @@ export function PreviewBar({ projectId }: PreviewBarProps) {
   const siblings = current
     ? (projects ?? [])
       .filter((project) => project.clientId === current.clientId)
-      .sort((a, b) => a.name.localeCompare(b.name, "ru"))
+      .sort((a, b) => a.name.localeCompare(b.name, getIntlLocale()))
     : [];
 
   return (

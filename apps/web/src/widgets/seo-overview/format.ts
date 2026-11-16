@@ -1,10 +1,11 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import { ru, t, type MessageKey } from "@/shared/config/index.js";
 import type { SeoRating } from "@/entities/seo/index.js";
 
 const NBSP = " ";
 
 export function decimal(value: number, digits: number): string {
-  return value.toLocaleString("ru-RU", { minimumFractionDigits: digits, maximumFractionDigits: digits }).replace(/\s/g, NBSP);
+  return value.toLocaleString(getIntlLocale(), { minimumFractionDigits: digits, maximumFractionDigits: digits }).replace(/\s/g, NBSP);
 }
 
 export function percent(fraction: number | null): string {
@@ -40,7 +41,7 @@ export const RATING_TEXT: Record<SeoRating, string> = {
 };
 
 export function shortDate(iso: string): string {
-  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("ru-RU", { day: "numeric", month: "long", timeZone: "UTC" });
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString(getIntlLocale(), { day: "numeric", month: "long", timeZone: "UTC" });
 }
 
 export function channelName(channel: string): string {

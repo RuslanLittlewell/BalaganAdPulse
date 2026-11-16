@@ -1,3 +1,4 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import { useLeadAssignees } from './useLeadAssignees.js';
 import { useCampaignReferences } from '@/entities/campaign/index.js';
 import { useAuth } from '@/features/auth/index.js';
@@ -208,7 +209,7 @@ function TagsRow({ boardKey, lead, editable, save }: { boardKey: string; lead: L
   const labelId = useId();
   const { data: boardLeads } = useLeads(boardKey);
   const suggestions = useMemo(
-    () => [...new Set((boardLeads ?? []).flatMap((entry) => entry.tags))].sort((a, b) => a.localeCompare(b, "ru")),
+    () => [...new Set((boardLeads ?? []).flatMap((entry) => entry.tags))].sort((a, b) => a.localeCompare(b, getIntlLocale())),
     [boardLeads],
   );
   return (

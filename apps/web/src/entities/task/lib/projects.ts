@@ -1,3 +1,4 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import type { Task } from "../api/api.js";
 
 export const NO_PROJECT_TASK = "__no_project__";
@@ -35,7 +36,7 @@ export function projectChoices<TProject extends ProjectNamed>(
     const project = byId.get(id);
     return { id, name: project?.name ?? id, project };
   });
-  named.sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  named.sort((a, b) => a.name.localeCompare(b.name, getIntlLocale()));
 
   return projectless
     ? [...named, { id: NO_PROJECT_TASK, name: NO_PROJECT_TASK, project: undefined }]

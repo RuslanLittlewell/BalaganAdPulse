@@ -1,5 +1,6 @@
 import { format } from "date-fns";
-import { ru } from "date-fns/locale";
+import { enUS, ru } from "date-fns/locale";
+import { getLocale } from "@/shared/config/locale.js";
 import { t } from "@/shared/config/index.js";
 import type { AuditEvent } from "../api/api.js";
 
@@ -36,11 +37,11 @@ const KPI_SUBJECTS: Record<string, string> = {
 
 function monthOf(month: string): string {
   const [year, number] = month.split("-").map(Number) as [number, number];
-  return format(new Date(year, number - 1, 1), "LLLL yyyy", { locale: ru });
+  return format(new Date(year, number - 1, 1), "LLLL yyyy", { locale: getLocale() === "en" ? enUS : ru });
 }
 
 function dayOf(day: string): string {
-  return format(new Date(`${day}T00:00:00`), "d MMM", { locale: ru });
+  return format(new Date(`${day}T00:00:00`), "d MMM", { locale: getLocale() === "en" ? enUS : ru });
 }
 
 const quoted = (name: string) => `«${name}»`;

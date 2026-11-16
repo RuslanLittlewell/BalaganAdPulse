@@ -1,0 +1,15 @@
+---
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<span aria-hidden="true" class:list={["balagan-logo block aspect-[6331/2183] bg-current", className]}></span>
+
+<style>
+  .balagan-logo {
+    mask: url("/balagan-logo.svg") center / contain no-repeat;
+  }
+</style>

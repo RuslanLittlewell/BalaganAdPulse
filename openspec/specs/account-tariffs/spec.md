@@ -35,16 +35,6 @@ organization's project integrations.
 - **WHEN** an organization is on `AGENCY`
 - **THEN** its limits are 15 projects, 15 clients and 5 users with CRM, Tasks and Reports
 
-### Requirement: A new organization starts on a 14-day trial
-
-An organization created through `POST /api/platform/organizations` SHALL start on `TRIAL`
-with `trialEndsAt` set 14 days after creation, unless the request names another tariff.
-Assigning a tariff other than `TRIAL` SHALL clear `trialEndsAt`.
-
-#### Scenario: Default tariff
-- **WHEN** the platform administrator creates an organization without a tariff
-- **THEN** it is on `TRIAL` and `trialEndsAt` is 14 days away
-
 ### Requirement: Creating a record over a limit is refused
 
 Creating a project, a client, an invitation, a member or an ad account that would exceed
@@ -105,3 +95,19 @@ Every organization that exists when this capability is introduced SHALL have tar
 #### Scenario: Balagan after migration
 - **WHEN** the migration has run against the production data
 - **THEN** every existing organization is on `ENTERPRISE` and its members see everything they saw before
+
+### Requirement: A new organization starts on a one-month trial
+
+An organization created through `POST /api/platform/organizations` SHALL start on `TRIAL`
+with `trialEndsAt` set one calendar month after creation, at the same time of day, unless the
+request names another tariff. A trial started on a day the next month does not have SHALL end on
+that month's last day.
+Assigning a tariff other than `TRIAL` SHALL clear `trialEndsAt`.
+
+#### Scenario: Default tariff
+- **WHEN** the platform administrator creates an organization without a tariff
+- **THEN** it is on `TRIAL` and `trialEndsAt` is one month away
+
+#### Scenario: A trial started at the end of a month
+- **WHEN** an organization starts its trial on 31 January
+- **THEN** the trial ends on the last day of February, at the same time of day

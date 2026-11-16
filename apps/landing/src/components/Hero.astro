@@ -1,41 +1,91 @@
 ---
+import ArrowRight from "@lucide/astro/icons/arrow-right";
 import BalaganSignature from "./BalaganSignature.astro";
 import DashboardDemo from "./DashboardDemo.astro";
+import SectionTag from "./SectionTag.astro";
+import TrialButton from "./TrialButton.astro";
 import { SITE } from "../site";
 ---
 
-<section class="relative isolate overflow-hidden pt-28 pb-16 lg:pt-32">
+<section class="relative isolate flex min-h-svh flex-col overflow-hidden pt-28 pb-20 lg:pt-32">
   <div aria-hidden="true" class="hero-backdrop pointer-events-none absolute inset-0 -z-10 bg-background">
     <div data-rays class="absolute inset-0"></div>
   </div>
-  <div class="site-container flex min-h-[calc(100vh-11rem)] flex-col items-center justify-center gap-10 lg:gap-14">
+  <div class="site-container flex flex-col items-center gap-8 text-center">
     <BalaganSignature />
-    <div class="grid w-full items-center gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-12">
-      <div class="hero-copy flex flex-col gap-5">
-        <h1 class="text-3xl leading-[1.1] font-bold tracking-tight text-balance sm:text-4xl xl:text-5xl">
-          <span class="brand-gradient block">{SITE.name}:</span>
-          вся реклама клиентов в одном месте
-        </h1>
-        <p class="max-w-xl text-base leading-7 text-muted-foreground">
-          {SITE.name} - сервис рекламного агентства Balagan для медиабайеров и клиентов агентства. Он собирает
-          статистику рекламных кампаний из подключённых кабинетов в одном месте: расходы, показы, клики, конверсии
-          и выполнение KPI по каждому проекту клиента.
-        </p>
-        <p class="max-w-xl text-sm leading-6 text-muted-foreground">
-          Каждое утро данные обновляются сами и сверяются с KPI: зелёный - по плану, жёлтый - стоит присмотреться,
-          красный - нужна помощь.
-        </p>
+
+    <div class="hero-copy flex flex-col items-center gap-6">
+      <SectionTag>
+        Meta и Google Ads, данные обновляются каждое утро
+        <a href="/#integrations" class="inline-flex items-center gap-1 font-semibold text-foreground transition-colors hover:text-primary">
+          Как подключить
+          <ArrowRight class="size-3" aria-hidden="true" />
+        </a>
+      </SectionTag>
+
+      <h1 class="hero-title max-w-3xl text-4xl leading-[1.05] font-semibold text-balance sm:text-5xl lg:text-6xl">
+        <span class="brand-gradient">{SITE.name}:</span>
+        вся реклама клиентов в одном месте
+      </h1>
+
+      <p class="max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
+        {SITE.name} - сервис рекламного агентства Balagan для медиабайеров и клиентов агентства. Он собирает
+        статистику рекламных кампаний из подключённых кабинетов в одном месте: расходы, показы, клики, конверсии
+        и выполнение KPI по каждому проекту клиента.
+      </p>
+
+      <div class="flex flex-col items-center gap-3">
+        <div class="flex flex-wrap items-center justify-center gap-3">
+          <TrialButton />
+          <a
+            href={SITE.appUrl}
+            class="inline-flex h-12 items-center rounded-xl border border-border px-6 text-base font-medium transition-colors hover:bg-foreground/5"
+          >
+            Войти
+          </a>
+        </div>
+        <p class="text-xs text-muted-foreground">Месяц бесплатно, с CRM, задачами и отчётами</p>
       </div>
-      <div class="hero-demo">
-        <DashboardDemo delay={700} />
-      </div>
+    </div>
+
+    <div class="hero-demo relative mt-6 w-full text-left">
+      <div aria-hidden="true" class="hero-glow pointer-events-none absolute"></div>
+      <DashboardDemo delay={900} />
     </div>
   </div>
 </section>
 
 <style>
   .hero-backdrop {
-    mask-image: linear-gradient(to bottom, black 75%, transparent);
+    mask-image: linear-gradient(to bottom, black 70%, transparent);
+  }
+
+  .hero-title {
+    letter-spacing: -0.035em;
+    background-image: linear-gradient(
+      to bottom,
+      var(--foreground),
+      var(--foreground) 55%,
+      color-mix(in srgb, var(--foreground) 60%, transparent)
+    );
+    background-clip: text;
+    color: transparent;
+  }
+
+  .hero-glow {
+    left: 50%;
+    top: -18%;
+    z-index: -1;
+    width: 96%;
+    height: 75%;
+    transform: translateX(-50%);
+    border-radius: 9999px;
+    background: radial-gradient(
+      ellipse at center,
+      color-mix(in srgb, var(--primary) 60%, transparent),
+      transparent 70%
+    );
+    filter: blur(56px);
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -44,14 +94,14 @@ import { SITE } from "../site";
     }
 
     .hero-demo {
-      animation: hero-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 1.3s both;
+      animation: hero-rise 1s cubic-bezier(0.22, 1, 0.36, 1) 1.35s both;
     }
   }
 
   @keyframes hero-rise {
     from {
       opacity: 0;
-      transform: translateY(24px);
+      transform: translateY(28px);
     }
     to {
       opacity: 1;

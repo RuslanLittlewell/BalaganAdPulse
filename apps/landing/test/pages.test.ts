@@ -76,16 +76,22 @@ describe("the home page Google reads", () => {
     expect(html).toMatch(/role="tablist"[^>]*hidden/);
   });
 
-  it("presents every module in its own tab with a description and an imitation", () => {
+  it("lists every module with a description, its points and an imitation, without any script", () => {
     for (const module of ["dashboard", "projects", "tasks", "crm", "reports", "team"]) {
-      const tab = html.match(new RegExp(`<button[^>]*role="tab"[^>]*id="module-tab-${module}"[^>]*>`))?.[0] ?? "";
-      expect(tab).toContain(`aria-controls="module-${module}"`);
-      const start = html.search(new RegExp(`<section[^>]*id="module-${module}"`));
-      const panel = html.slice(start, html.indexOf("</section>", html.indexOf("</figure>", start)));
-      expect(panel).toMatch(/role="tabpanel"/);
-      expect(panel).toContain("<figure");
-      expect(panel).toMatch(/<ul[\s\S]*<li/);
+      const start = html.search(new RegExp(`<article[^>]*id="module-${module}"`));
+      expect(start).toBeGreaterThan(-1);
+      const article = html.slice(start, html.indexOf("</article>", start));
+      expect(article).toMatch(/<h3[^>]*id="module-title-/);
+      expect(article).toContain("<figure");
+      expect(article).toMatch(/<ul[\s\S]*<li/);
     }
+    expect(html).not.toMatch(/id="module-tab-/);
+  });
+
+  it("offers the module names to jump between only once the deck runs", () => {
+    expect(html).toMatch(/<div[^>]*data-deck-nav[^>]*hidden/);
+    const steps = [...html.matchAll(/<button[^>]*data-deck-step="(\d)"[^>]*aria-controls="module-([a-z]+)"/g)];
+    expect(steps.map((step) => step[2])).toEqual(["dashboard", "projects", "tasks", "crm", "reports", "team"]);
   });
 
   it("presents the modules without sending anyone into the app", () => {
@@ -95,18 +101,65 @@ describe("the home page Google reads", () => {
 
   it("shows a finished dashboard to a reader without scripts, every project in its KPI zone", () => {
     const demo = html.slice(html.indexOf("<figure data-demo"), html.indexOf("</figure>"));
-    const zones = [...demo.matchAll(/data-zone="(met|behind|danger)"/g)].map((match) => match[1]);
-    expect(new Set(zones)).toEqual(new Set(["met", "behind", "danger"]));
+    const zones = [...demo.matchAll(/data-zone="(met|behind|danger|none)"/g)].map((match) => match[1]);
+    expect(new Set(zones)).toEqual(new Set(["met", "behind", "danger", "none"]));
     const met = zones.filter((zone) => zone === "met").length;
     expect(textOf(demo)).toContain(`${met} из ${zones.length}`);
     expect(demo).not.toContain("data-pending");
     expect(textOf(demo)).toContain("Обновлено сегодня в 08:00");
   });
 
+  it("offers a free trial and signing in right under the heading", () => {
+    const opening = html.slice(html.indexOf("<h1"), html.indexOf("<figure data-demo"));
+    expect(linksOf(opening)).toEqual(expect.arrayContaining(["/#contact", "https://app.balagan.pro"]));
+    expect(textOf(opening)).toContain("Попробовать бесплатно");
+    expect(opening).toMatch(/<a[^>]*href="\/#contact"[^>]*data-contact-topic="Пробный период"/);
+  });
+
+  it("lets a visitor ask for a trial in the contact form", () => {
+    const form = html.slice(html.indexOf("<form data-contact"), html.indexOf("</form>"));
+    expect(form).toMatch(/<option>Пробный период<\/option>/);
+    expect(html).not.toMatch(/href="[^"]*(signup|register)/);
+  });
+
+  it("totals the month in the dashboard imitation from the projects it lists", () => {
+    const demo = html.slice(html.indexOf("<figure data-demo"), html.indexOf("</figure>", html.indexOf("<figure data-demo")));
+    const tile = (metric: string) => Number(demo.match(new RegExp(`data-total="${metric}"[\\s\\S]*?data-count="(\\d+)"`))?.[1]);
+    const rows = [...demo.matchAll(/<li[^>]*data-row[\s\S]*?<\/li>/g)].map((match) =>
+      [...match[0].matchAll(/data-count="(\d+)"/g)].map((count) => Number(count[1])));
+
+    expect(textOf(demo)).toMatch(/Расход[\s\S]*Показы[\s\S]*Клики[\s\S]*Лиды/);
+    expect(tile("spend")).toBe(rows.reduce((sum, row) => sum + row[0], 0));
+    expect(tile("leads")).toBe(rows.reduce((sum, row) => sum + row[1], 0));
+  });
+
+  it("offers the trial again where it explains connecting accounts", () => {
+    const section = html.slice(html.indexOf('id="integrations"'), html.indexOf('id="english"'));
+    expect(section).toMatch(/<a[^>]*href="\/#contact"[^>]*data-contact-topic="Пробный период"[^>]*>[\s\S]*?Попробовать бесплатно/);
+  });
+
+  it("names the integrations BalaganBI has and the ones coming", () => {
+    const section = html.slice(html.indexOf('id="integrations"'), html.indexOf('id="english"'));
+    const connections = textOf(section.slice(section.indexOf('aria-label="Подключения"'), section.indexOf("</ul>", section.indexOf('aria-label="Подключения"'))));
+    for (const name of ["Meta Ads", "Google Ads", "Search Console", "Telegram"]) {
+      expect(connections).toMatch(new RegExp(`${name}(?! · скоро)`));
+    }
+    for (const name of ["Яндекс Директ", "TikTok Ads"]) {
+      expect(connections).toContain(`${name} · скоро`);
+    }
+  });
+
   it("lets a visitor write to the agency even without scripts", () => {
     expect(html).not.toMatch(/<form[^>]*action="mailto:/);
     expect(html).toMatch(/<noscript>[\s\S]*href="mailto:balagan\.ads@gmail\.com"/);
     expect(html).toMatch(/<button[^>]*type="submit"[^>]*disabled/);
+  });
+
+  it("lets a visitor choose the colour scheme from the header, before first paint", () => {
+    const header = html.slice(html.indexOf("<header"), html.indexOf("</header>"));
+    expect(header.indexOf("data-theme-toggle")).toBeGreaterThan(-1);
+    expect(header.indexOf("data-theme-toggle")).toBeLessThan(header.indexOf('aria-label="BalaganBI"'));
+    expect(html.slice(0, html.indexOf("</head>"))).toContain('localStorage.getItem("theme")');
   });
 
   it("is in Russian with an English section", () => {

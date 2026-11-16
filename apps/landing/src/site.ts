@@ -6,6 +6,8 @@ export const SITE = {
   policyDate: "7 ноября 2026 г.",
 } as const;
 
+export const TRIAL_TOPIC = "Пробный период";
+
 export const SECTIONS = [
   { href: "/#features", label: "Возможности" },
   { href: "/#modules", label: "Модули" },

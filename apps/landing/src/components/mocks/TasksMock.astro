@@ -1,53 +1,133 @@
 ---
+import CalendarClock from "@lucide/astro/icons/calendar-clock";
+import ListFilter from "@lucide/astro/icons/list-filter";
 import Mic from "@lucide/astro/icons/mic";
-import MockWindow from "./MockWindow.astro";
+import Plus from "@lucide/astro/icons/plus";
+import AppScreen from "../app/AppScreen.astro";
 
-const columns = [
-  { title: "Идея", cards: [{ text: "Новый креатив для осени", tag: "" }] },
-  { title: "В работе", cards: [{ text: "Запустить ретаргетинг", tag: "" }, { text: "Собрать отчёт клиенту", tag: "" }] },
-  { title: "На проверке", cards: [{ text: "Тексты для лид-формы", tag: "" }], moving: { text: "Обновить аудитории", tag: "" } },
-  { title: "Готово", cards: [{ text: "Созвон с клиентом", tag: "Созвон" }] },
+type Priority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+interface Card {
+  title: string;
+  priority: Priority;
+  due?: string;
+  people: string[];
+  moving?: boolean;
+}
+
+const BAR: Record<Priority, string> = {
+  LOW: "bg-border",
+  MEDIUM: "bg-sky-400",
+  HIGH: "bg-amber-400",
+  URGENT: "bg-red-500",
+};
+const PRIORITY: Record<Priority, string> = { LOW: "Низкий", MEDIUM: "Средний", HIGH: "Высокий", URGENT: "Срочный" };
+
+const columns: { title: string; accent: string; cards: Card[] }[] = [
+  { title: "Идея", accent: "bg-slate-400", cards: [
+    { title: "Новый креатив для осени", priority: "LOW", people: ["#e8703a"] },
+    { title: "Тест видео в Reels", priority: "MEDIUM", people: ["#4a8fe7"] },
+  ] },
+  { title: "В очереди", accent: "bg-indigo-400", cards: [
+    { title: "Лендинг для акции", priority: "MEDIUM", due: "22.09", people: ["#46b58a"] },
+    { title: "Подключить Google Ads", priority: "HIGH", due: "20.09", people: ["#e8703a", "#4a8fe7"] },
+  ] },
+  { title: "В работе", accent: "bg-sky-500", cards: [
+    { title: "Запустить ретаргетинг", priority: "HIGH", due: "18.09", people: ["#4a8fe7", "#46b58a"] },
+    { title: "Собрать отчёт клиенту", priority: "MEDIUM", due: "30.09", people: ["#b968d9"] },
+    { title: "Созвон с клиентом", priority: "URGENT", due: "Сегодня 15:00", people: ["#e8703a"] },
+  ] },
+  { title: "На исправление", accent: "bg-amber-500", cards: [
+    { title: "Тексты объявлений", priority: "HIGH", due: "19.09", people: ["#46b58a"] },
+  ] },
+  { title: "На проверке", accent: "bg-violet-500", cards: [
+    { title: "Обновить аудитории", priority: "MEDIUM", due: "21.09", people: ["#4a8fe7", "#46b58a"], moving: true },
+    { title: "Тексты для лид-формы", priority: "LOW", people: ["#b968d9"] },
+  ] },
+  { title: "Готово", accent: "bg-emerald-500", cards: [
+    { title: "Бриф на сентябрь", priority: "MEDIUM", people: ["#e8703a"] },
+    { title: "Пиксель на сайте", priority: "HIGH", people: ["#4a8fe7"] },
+  ] },
+  { title: "Архив", accent: "bg-zinc-400", cards: [
+    { title: "Отчёт за август", priority: "LOW", people: ["#b968d9"] },
+  ] },
 ];
 ---
 
-<MockWindow caption="Задачи · команда агентства" label="Задачи">
-  <div class="grid grid-cols-4 gap-2.5">
-    {columns.map((column, columnIndex) => (
-      <div class="flex min-w-0 flex-col gap-2 rounded-2xl bg-muted/60 p-2">
-        <p class="truncate px-1 text-[10px] font-semibold text-muted-foreground">{column.title}</p>
-        {column.moving && (
-          <div class="mock-move relative z-10 rounded-xl border border-primary/50 bg-card p-2 shadow-lg" style="--d: 0.6s">
-            <p class="mock-blur truncate text-[11px] font-medium">{column.moving.text}</p>
-            <div class="mt-2 flex gap-1">
-              <span class="size-4 rounded-full" style="background: #4a8fe7"></span>
-              <span class="size-4 rounded-full" style="background: #46b58a"></span>
-            </div>
-          </div>
-        )}
-        {column.cards.map((card, index) => (
-          <div class="mock-rise rounded-xl border border-border bg-card p-2" style={`--d: ${columnIndex * 0.08 + index * 0.06}s`}>
-            <p class="mock-blur truncate text-[11px] font-medium">{card.text}</p>
-            <div class="mt-2 flex items-center gap-1">
-              <span class="size-4 rounded-full" style="background: #e8703a"></span>
-              {card.tag && <span class="ml-auto rounded-full bg-primary/15 px-1.5 text-[9px] font-semibold text-primary">{card.tag}</span>}
-            </div>
-          </div>
-        ))}
+<AppScreen active="tasks" path="/tasks" caption="Задачи в BalaganBI: доска команды с семью этапами">
+  <div class="flex h-full flex-col gap-4">
+    <div class="flex items-center justify-between gap-4">
+      <div class="flex items-center gap-4">
+        <p class="text-xl font-semibold">Задачи</p>
+        <span class="flex items-center gap-0.5 rounded-lg bg-muted p-0.5 text-xs">
+          <span class="rounded-md bg-card px-3 py-1 font-semibold shadow-sm">Канбан</span>
+          <span class="px-3 py-1 text-muted-foreground">Календарь</span>
+          <span class="px-3 py-1 text-muted-foreground">Созвоны</span>
+        </span>
       </div>
-    ))}
+      <span class="flex items-center gap-2 text-xs">
+        <span class="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-muted-foreground">
+          <ListFilter class="size-3.5" aria-hidden="true" />
+          Проект: все
+        </span>
+        <span class="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-muted-foreground">Участники: 4</span>
+        <span class="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 font-semibold text-primary-foreground">
+          <Plus class="size-3.5" aria-hidden="true" />
+          Новая задача
+        </span>
+      </span>
+    </div>
+
+    <div class="grid min-h-0 flex-1 grid-cols-7 gap-2.5">
+      {columns.map((column, columnIndex) => (
+        <div class="flex min-w-0 flex-col rounded-xl border border-border bg-muted/30">
+          <p class="flex items-center gap-2 border-b border-border/70 px-2.5 py-2 text-xs font-semibold">
+            <span class:list={["size-2 shrink-0 rounded-full", column.accent]}></span>
+            <span class="min-w-0 flex-1 truncate">{column.title}</span>
+            <span class="rounded-full bg-background px-1.5 text-[10px] text-muted-foreground ring-1 ring-border">{column.cards.length}</span>
+          </p>
+          <div class="flex flex-col gap-2 p-2">
+            {column.cards.map((card, index) => (
+              <div
+                class:list={[
+                  "relative overflow-hidden rounded-xl border bg-card py-2 pr-2 pl-3.5 shadow-sm",
+                  card.moving ? "mock-move z-10 border-primary/50 shadow-lg" : "mock-rise border-border",
+                ]}
+                style={`--d: ${card.moving ? 0.7 : columnIndex * 0.06 + index * 0.05}s`}
+              >
+                <span class:list={["absolute inset-y-0 left-0 w-1", BAR[card.priority]]}></span>
+                <p class="flex items-start justify-between gap-1.5">
+                  <span class="line-clamp-2 text-xs leading-snug font-medium">{card.title}</span>
+                  <span class="shrink-0 rounded-md bg-muted px-1 text-[9px] text-muted-foreground">{PRIORITY[card.priority]}</span>
+                </p>
+                {card.due && (
+                  <p class="mt-1.5 inline-flex items-center gap-1 rounded-md bg-muted px-1 py-0.5 text-[10px] text-muted-foreground">
+                    <CalendarClock class="size-2.5" aria-hidden="true" />
+                    {card.due}
+                  </p>
+                )}
+                <p class="mt-2 flex items-center justify-between border-t border-border/60 pt-1.5">
+                  <span class="mock-blur truncate text-[10px] text-muted-foreground">Летний запуск</span>
+                  <span class="flex -space-x-1.5">
+                    {card.people.map((color) => (
+                      <span class="size-4 rounded-full border-2 border-card" style={`background: ${color}`}></span>
+                    ))}
+                  </span>
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div class="mock-pop flex items-center gap-2.5 self-start rounded-xl border border-border bg-card px-3 py-2 shadow-lg" style="--d: 1.6s">
+      <span class="grid size-7 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
+        <Mic class="size-3.5" aria-hidden="true" />
+      </span>
+      <p class="text-xs">
+        <span class="font-semibold">Telegram-бот:</span>
+        <span class="text-muted-foreground">задача из голосового сообщения создана в «Идея»</span>
+      </p>
+    </div>
   </div>
-  <div class="mock-pop mt-3 flex items-center gap-2.5 rounded-2xl border border-border p-3" style="--d: 1.6s">
-    <span class="grid size-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
-      <Mic class="size-4" aria-hidden="true" />
-    </span>
-    <p class="min-w-0 text-xs">
-      <span class="font-semibold">Telegram-бот:</span>
-      <span class="text-muted-foreground">задача из голосового сообщения создана</span>
-    </p>
-  </div>
-  <Fragment slot="footer">
-    <span class="mock-chip">канбан</span>
-    <span class="mock-chip">календарь</span>
-    <span class="mock-chip">созвоны</span>
-  </Fragment>
-</MockWindow>
+</AppScreen>

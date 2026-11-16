@@ -115,7 +115,7 @@ export interface TariffPlan {
   readonly modules: readonly OptionalModule[];
 }
 
-export const TRIAL_DAYS = 14;
+export const TRIAL_MONTHS = 1;
 export const DEFAULT_TARIFF: Tariff = "TRIAL";
 
 const ALL_OPTIONAL: readonly OptionalModule[] = OPTIONAL_MODULES;
@@ -144,7 +144,10 @@ export function tariffsWithModule(module: OptionalModule): Tariff[] {
 }
 
 export function trialEndsAtFrom(start: Date): Date {
-  return new Date(start.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+  const end = new Date(start);
+  end.setUTCMonth(end.getUTCMonth() + TRIAL_MONTHS);
+  if (end.getUTCDate() !== start.getUTCDate()) end.setUTCDate(0);
+  return end;
 }
 
 export function isTrialExpired(organization: { tariff: Tariff; trialEndsAt: Date | null }, now: Date): boolean {

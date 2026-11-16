@@ -1,0 +1,25 @@
+---
+import ArrowRight from "@lucide/astro/icons/arrow-right";
+import { TRIAL_TOPIC } from "../site";
+---
+
+<a
+  href="/#contact"
+  data-contact-topic={TRIAL_TOPIC}
+  class="trial-button inline-flex h-12 items-center gap-2 rounded-xl px-7 text-base font-semibold text-background transition-transform hover:scale-[1.03] active:scale-[0.97]"
+>
+  Попробовать бесплатно
+  <ArrowRight class="size-4" aria-hidden="true" />
+</a>
+
+<style>
+  .trial-button {
+    background-image: linear-gradient(
+      to bottom,
+      var(--foreground),
+      color-mix(in srgb, var(--foreground) 95%, transparent) 50%,
+      color-mix(in srgb, var(--foreground) 70%, transparent)
+    );
+    box-shadow: 0 10px 30px -10px color-mix(in srgb, var(--foreground) 45%, transparent);
+  }
+</style>

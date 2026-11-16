@@ -24,8 +24,6 @@
   --muted: #E8F5F1;
   --muted-foreground: #536D66;
   --border: #DCE7E3;
-  --wave-horizon: #FFFFFF;
-  --wave-color: #0F766E;
   --brand-from: #0F766E;
   --brand-to: #2FB39C;
   --nav-glass: rgba(255, 255, 255, 0.45);
@@ -35,10 +33,15 @@
   --kpi-behind: #f59e0b;
   --kpi-danger: #dc2626;
   --kpi-none: #cbd5e1;
+  --kpi-neon-met: #00e060;
+  --kpi-neon-behind: #ffc800;
+  --kpi-neon-danger: #ff2e63;
+  --kpi-neon-none: #cbd5e1;
+  --kpi-neon-glow: 2px;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     color-scheme: dark;
     --background: #131b2d;
     --foreground: #eee9df;
@@ -48,8 +51,6 @@
     --muted: #2c3b4d;
     --muted-foreground: #c9c1b1;
     --border: #35465c;
-    --wave-horizon: #c4a074;
-    --wave-color: #c4a074;
     --brand-from: #c4a074;
     --brand-to: #eee9df;
     --nav-glass: rgba(26, 36, 56, 0.55);
@@ -59,7 +60,38 @@
     --kpi-behind: #fbbf24;
     --kpi-danger: #f87171;
     --kpi-none: #64748b;
+    --kpi-neon-met: #39ff14;
+    --kpi-neon-behind: #fff01f;
+    --kpi-neon-danger: #ff3860;
+    --kpi-neon-none: #64748b;
+    --kpi-neon-glow: 4px;
   }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #131b2d;
+  --foreground: #eee9df;
+  --card: #1a2438;
+  --primary: #c4a074;
+  --primary-foreground: #131b2d;
+  --muted: #2c3b4d;
+  --muted-foreground: #c9c1b1;
+  --border: #35465c;
+  --brand-from: #c4a074;
+  --brand-to: #eee9df;
+  --nav-glass: rgba(26, 36, 56, 0.55);
+  --nav-edge: rgba(255, 255, 255, 0.08);
+  --nav-shadow: rgba(0, 0, 0, 0.35);
+  --kpi-met: #6ec48f;
+  --kpi-behind: #fbbf24;
+  --kpi-danger: #f87171;
+  --kpi-none: #64748b;
+  --kpi-neon-met: #39ff14;
+  --kpi-neon-behind: #fff01f;
+  --kpi-neon-danger: #ff3860;
+  --kpi-neon-none: #64748b;
+  --kpi-neon-glow: 4px;
 }
 
 html {
@@ -108,6 +140,22 @@ body {
   background-image: linear-gradient(to right, var(--brand-from), var(--brand-to));
   background-clip: text;
   color: transparent;
+}
+
+@utility screen-section {
+  padding-block: 6rem;
+}
+
+@utility hatched {
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--foreground) 5%, transparent) 0 1px,
+    transparent 1px 10px
+  );
+}
+
+html:has(.screen-section) {
+  scroll-padding-top: 0;
 }
 
 @utility tile {

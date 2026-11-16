@@ -43,13 +43,22 @@ describe("the tariff catalogue", () => {
 describe("the trial", () => {
   const start = new Date("2026-11-01T10:00:00Z");
 
-  it("ends fourteen days after it starts", () => {
-    expect(trialEndsAtFrom(start)).toEqual(new Date("2026-11-15T10:00:00Z"));
+  it("ends a calendar month after it starts, at the same time of day", () => {
+    expect(trialEndsAtFrom(start)).toEqual(new Date("2026-12-01T10:00:00Z"));
+  });
+
+  it("ends on the last day of a shorter month", () => {
+    expect(trialEndsAtFrom(new Date("2027-01-31T10:00:00Z"))).toEqual(new Date("2027-02-28T10:00:00Z"));
+    expect(trialEndsAtFrom(new Date("2028-01-31T10:00:00Z"))).toEqual(new Date("2028-02-29T10:00:00Z"));
+  });
+
+  it("crosses into the next year", () => {
+    expect(trialEndsAtFrom(new Date("2026-12-15T10:00:00Z"))).toEqual(new Date("2027-01-15T10:00:00Z"));
   });
 
   it("is expired from its end on, and only on the trial tariff", () => {
     const trialEndsAt = trialEndsAtFrom(start);
-    expect(isTrialExpired({ tariff: "TRIAL", trialEndsAt }, new Date("2026-11-15T09:59:59Z"))).toBe(false);
+    expect(isTrialExpired({ tariff: "TRIAL", trialEndsAt }, new Date("2026-12-01T09:59:59Z"))).toBe(false);
     expect(isTrialExpired({ tariff: "TRIAL", trialEndsAt }, trialEndsAt)).toBe(true);
     expect(isTrialExpired({ tariff: "BUSINESS", trialEndsAt }, new Date("2027-01-01T00:00:00Z"))).toBe(false);
     expect(isTrialExpired({ tariff: "TRIAL", trialEndsAt: null }, new Date("2027-01-01T00:00:00Z"))).toBe(false);

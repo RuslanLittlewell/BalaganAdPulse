@@ -200,7 +200,7 @@ export const ru = {
   "tariff.name.AGENCY": "Agency", "tariff.name.AGENCY_PRO": "Agency Pro", "tariff.name.ENTERPRISE": "Enterprise",
   "tariff.price.TRIAL": "Бесплатно", "tariff.price.SOLO": "$19", "tariff.price.BUSINESS": "$49",
   "tariff.price.AGENCY": "$99", "tariff.price.AGENCY_PRO": "$199", "tariff.price.ENTERPRISE": "$799",
-  "tariff.audience.TRIAL": "14 дней с возможностями Agency",
+  "tariff.audience.TRIAL": "Месяц с возможностями Agency",
   "tariff.audience.SOLO": "Фрилансер. До 5 проектов, 1 пользователь",
   "tariff.audience.BUSINESS": "Малый бизнес. 1 компания, до 3 рекламных кабинетов, CRM лидов, 3 пользователя",
   "tariff.audience.AGENCY": "Агентство, 5–15 клиентов. 15 проектов, 5 пользователей, CRM, задачи, отчёты, KPI, поддержка",

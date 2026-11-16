@@ -1,0 +1,55 @@
+---
+import ContactRound from "@lucide/astro/icons/contact-round";
+import FileChartColumn from "@lucide/astro/icons/file-chart-column";
+import FolderKanban from "@lucide/astro/icons/folder-kanban";
+import LayoutDashboard from "@lucide/astro/icons/layout-dashboard";
+import ListTodo from "@lucide/astro/icons/list-todo";
+import UsersRound from "@lucide/astro/icons/users-round";
+
+export type AppModule = "dashboard" | "projects" | "tasks" | "crm" | "reports" | "team";
+
+interface Props {
+  active: AppModule;
+  class?: string;
+}
+
+const { active, class: className } = Astro.props;
+
+const navigation: { key: AppModule; icon: typeof LayoutDashboard; label: string }[] = [
+  { key: "dashboard", icon: LayoutDashboard, label: "Дашборд" },
+  { key: "projects", icon: FolderKanban, label: "Проекты" },
+  { key: "tasks", icon: ListTodo, label: "Задачи" },
+  { key: "crm", icon: ContactRound, label: "CRM" },
+  { key: "reports", icon: FileChartColumn, label: "Отчёты" },
+  { key: "team", icon: UsersRound, label: "Команда" },
+];
+---
+
+<aside class:list={["w-44 shrink-0 flex-col gap-1 border-r border-border p-3", className]} aria-label="Навигация приложения">
+  <span class="mb-3 flex items-center gap-2 px-2 pt-1 text-sm font-semibold">
+    <span aria-hidden="true" class="grid size-6 place-items-center rounded-md bg-primary text-[11px] font-bold text-primary-foreground">B</span>
+    BalaganBI
+  </span>
+  {navigation.map(({ key, icon: Icon, label }) => (
+    <span
+      class:list={[
+        "flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-xs",
+        key === active ? "bg-primary/10 font-semibold text-primary" : "text-muted-foreground",
+      ]}
+    >
+      <Icon class="size-3.5" aria-hidden="true" />
+      {label}
+    </span>
+  ))}
+  <span class="mt-auto flex items-center gap-2 rounded-lg border border-border px-2 py-1.5 text-[11px]">
+    <span aria-hidden="true" class="size-5 shrink-0 rounded-full" style="background: #4a8fe7"></span>
+    <span class="app-blur truncate">Анна Белова</span>
+  </span>
+</aside>
+
+<style>
+  .app-blur {
+    filter: blur(3.5px);
+    user-select: none;
+  }
+</style>

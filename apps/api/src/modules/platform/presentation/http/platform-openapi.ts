@@ -47,7 +47,7 @@ export const platformDoc: RouteDoc = {
       method: "post",
       path: "/organizations",
       summary: "Add an organization",
-      description: "The tariff defaults to TRIAL, which lasts 14 days. The tariff decides the modules and limits. An admin invitation is issued for the given email, and its registration link returned.",
+      description: "The tariff defaults to TRIAL, which lasts one calendar month. The tariff decides the modules and limits. An admin invitation is issued for the given email, and its registration link returned.",
       body: createOrganizationSchema,
       success: { status: 201, description: "The organization and its first administrator's registration link", schema: ref("CreatedOrganization") },
       errors: [400, 401, 403, 409],

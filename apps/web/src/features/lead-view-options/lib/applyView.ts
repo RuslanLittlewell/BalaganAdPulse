@@ -1,5 +1,5 @@
 import type { Lead, LeadColumn, LeadField } from '@/entities/lead/index.js';
-import type { Filter, Sort, ViewState } from '../model/viewState.js';
+import type { Filter, ScopedView, Sort, ViewState } from '../model/viewState.js';
 import { compareRecords, matchesRecord, pruneRecordState, visibleRecords } from './applyRecords.js';
 import { leadSchema } from './recordSchema.js';
 
@@ -11,8 +11,12 @@ export function matchesSearch(lead: Lead, search: string): boolean {
   return visibleRecords([lead], { search, filters: [] }, leadSchema([])).length > 0;
 }
 
-export function visibleLeads(leads: readonly Lead[], view: Pick<ViewState, 'search' | 'filters'>, fields: readonly LeadField[]): Lead[] {
-  return visibleRecords(leads, view, leadSchema(fields));
+export function inCampaign(leads: readonly Lead[], campaignId: string | null | undefined): readonly Lead[] {
+  return campaignId ? leads.filter((lead) => lead.campaignId === campaignId) : leads;
+}
+
+export function visibleLeads(leads: readonly Lead[], view: Pick<ScopedView, 'search' | 'filters' | 'campaignId'>, fields: readonly LeadField[]): Lead[] {
+  return visibleRecords(inCampaign(leads, view.campaignId), view, leadSchema(fields));
 }
 
 export function compareBy(sort: Sort, fields: readonly LeadField[]): ((a: Lead, b: Lead) => number) | null {

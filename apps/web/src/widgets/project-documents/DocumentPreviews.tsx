@@ -1,9 +1,10 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import { t } from "@/shared/config/index.js";
 import type { DocumentSummary } from "@/entities/project-document/index.js";
 import { formatAgo } from "./formatAgo.js";
 
 const dayOf = (iso: string) =>
-  new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" });
+  new Date(iso).toLocaleDateString(getIntlLocale(), { day: "numeric", month: "short", year: "numeric" });
 
 function Thumbnail({ document }: { document: DocumentSummary }) {
   return (

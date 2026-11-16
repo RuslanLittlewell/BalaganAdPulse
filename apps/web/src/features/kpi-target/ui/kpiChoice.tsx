@@ -1,3 +1,4 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import {
   isKpiMetric, KPI_METRICS, MANUAL_KPI, TYPED_KPI_METRICS, type KpiInput, type KpiMetric,
 } from "@/entities/kpi/index.js";
@@ -26,7 +27,7 @@ function measuredOptions(resultTypes: readonly ResultType[]): { choice: Choice; 
     ...resultTypes.flatMap((type) => TYPED_KPI_METRICS.map((metric) => ({
       choice: typedChoice(metric, type), title: measuredTitle(metric, type),
     }))),
-  ].sort((a, b) => a.title.localeCompare(b.title, "ru"));
+  ].sort((a, b) => a.title.localeCompare(b.title, getIntlLocale()));
 }
 
 export function MeasuredChoices({ resultTypes }: { resultTypes: readonly ResultType[] }) {

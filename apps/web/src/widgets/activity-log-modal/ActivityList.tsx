@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { format, formatDistanceToNow } from "date-fns";
-import { ru } from "date-fns/locale";
+import { enUS, ru } from "date-fns/locale";
+import { getLocale } from "@/shared/config/locale.js";
 import {
   PRESENCE_ACTIONS,
   describeAuditEvent,
@@ -53,7 +54,7 @@ function EventTime({ at }: { at: string }) {
     <time
       className="shrink-0 text-xs tabular-nums text-muted-foreground"
       dateTime={at}
-      title={formatDistanceToNow(new Date(at), { addSuffix: true, locale: ru })}
+      title={formatDistanceToNow(new Date(at), { addSuffix: true, locale: getLocale() === "en" ? enUS : ru })}
     >
       {format(new Date(at), "HH:mm")}
     </time>

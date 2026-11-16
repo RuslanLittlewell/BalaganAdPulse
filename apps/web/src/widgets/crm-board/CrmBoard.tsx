@@ -27,7 +27,7 @@ import {
   type LeadField,
 } from "@/entities/lead/index.js";
 import { AddLeadColumn } from "@/features/lead-column-management/index.js";
-import { compareBy, visibleLeads, type ViewState } from "@/features/lead-view-options/index.js";
+import { compareBy, visibleLeads, type ScopedView } from "@/features/lead-view-options/index.js";
 import { t } from "@/shared/config/index.js";
 import { boardCollisionDetection, droppedBelow, landingOf, useDragPreview } from "@/shared/lib/index.js";
 import { EmptyState, Loader } from "@/shared/ui/index.js";
@@ -39,7 +39,7 @@ export interface CrmBoardProps {
   boardKey?: string;
   busy?: boolean;
   capabilities?: BoardCapabilities;
-  view: ViewState;
+  view: ScopedView;
   fields: readonly LeadField[];
   selectedId?: string | null;
   creatingIn: string | null;

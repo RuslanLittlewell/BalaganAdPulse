@@ -1,9 +1,10 @@
+import { getIntlLocale, getLocale } from "@/shared/config/locale.js";
 const MISSING = "—";
 
 const NBSP = " ";
 
 const grouped = (value: number, digits: number) =>
-  value.toLocaleString("ru-RU", { minimumFractionDigits: digits, maximumFractionDigits: digits })
+  value.toLocaleString(getIntlLocale(), { minimumFractionDigits: digits, maximumFractionDigits: digits })
     .replace(/\s/g, NBSP);
 
 const present = (value: number | null): value is number =>
@@ -17,7 +18,7 @@ export function currencySign(currency: Currency): string | null {
   if (currency == null) return null;
   if (KNOWN_SIGNS[currency] != null) return KNOWN_SIGNS[currency];
   try {
-    return new Intl.NumberFormat("ru-RU", { style: "currency", currency, currencyDisplay: "narrowSymbol" })
+    return new Intl.NumberFormat(getIntlLocale(), { style: "currency", currency, currencyDisplay: "narrowSymbol" })
       .formatToParts(0)
       .find((part) => part.type === "currency")?.value ?? currency;
   } catch {
@@ -40,6 +41,9 @@ export function formatCount(value: number | null): string {
 
 export function formatCompactCount(value: number | null): string {
   if (!present(value)) return MISSING;
+  if (getLocale() === "en") {
+    return new Intl.NumberFormat(getIntlLocale(), { notation: "compact", maximumFractionDigits: 2 }).format(value);
+  }
   const magnitude = Math.abs(value);
   if (magnitude >= 1_000_000) return `${grouped(value / 1_000_000, 2)}${NBSP}млн`;
   if (magnitude >= 10_000) return `${grouped(value / 1000, 1)}${NBSP}тыс.`;
@@ -56,7 +60,7 @@ export function formatRatio(value: number | null, currency: Currency = "RUB"): s
 
 export function formatNumber(value: number | null): string {
   return present(value)
-    ? value.toLocaleString("ru-RU", { maximumFractionDigits: 4 }).replace(/\s/g, NBSP)
+    ? value.toLocaleString(getIntlLocale(), { maximumFractionDigits: 4 }).replace(/\s/g, NBSP)
     : MISSING;
 }
 

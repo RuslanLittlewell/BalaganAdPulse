@@ -4,6 +4,7 @@ import { Button } from "../ui/button.js";
 import { Input } from "../ui/input.js";
 import { Label } from "../ui/label.js";
 import { DatePicker } from "../DatePicker/DatePicker.js";
+import { t } from "@/shared/config/index.js";
 
 const ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
 const DMY = /^(\d{2})-(\d{2})-(\d{4})$/;
@@ -48,7 +49,7 @@ export function DateRangeFields({ idPrefix, values, pickerValues, error, inline 
               id={`${idPrefix}-${side}`}
               value={shown(values[side])}
               onChange={(event) => onChange(side, stored(event.target.value))}
-              placeholder="ДД-ММ-ГГГГ"
+              placeholder={t("period.placeholder")}
               inputMode="numeric"
               autoComplete="off"
               aria-invalid={error ? true : undefined}

@@ -1,14 +1,15 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import { formatPercent, formatRatio, type Currency } from "@/shared/lib/index.js";
 
 export function monthTitle(month: string): string {
-  const title = new Date(`${month}-01T00:00:00Z`).toLocaleDateString("ru-RU", {
+  const title = new Date(`${month}-01T00:00:00Z`).toLocaleDateString(getIntlLocale(), {
     month: "long", year: "numeric", timeZone: "UTC",
   }).replace(/\s*г\.$/, "");
   return title.charAt(0).toUpperCase() + title.slice(1);
 }
 
 export function monthShort(month: string): string {
-  return new Date(`${month}-01T00:00:00Z`).toLocaleDateString("ru-RU", { month: "short", timeZone: "UTC" })
+  return new Date(`${month}-01T00:00:00Z`).toLocaleDateString(getIntlLocale(), { month: "short", timeZone: "UTC" })
     .replace(".", "");
 }
 

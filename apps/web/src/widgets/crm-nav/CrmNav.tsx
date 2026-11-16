@@ -1,11 +1,15 @@
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Building2, Target, Users } from 'lucide-react';
+import { isRunning, useCampaignReferences } from '@/entities/campaign/index.js';
 import { useCompanies, usePeople } from '@/entities/crm-record/index.js';
 import { useLeadBoards, useLeads } from '@/entities/lead/index.js';
 import { useAuth } from '@/features/auth/index.js';
+import { useCampaignCrm } from '@/features/profile-settings/index.js';
 import { t } from '@/shared/config/index.js';
 import { useModuleMemory } from '@/shared/lib/index.js';
 import { Label, SearchableSelect } from '@/shared/ui/index.js';
+
+const ALL_CAMPAIGNS = 'all';
 
 export function CrmNav() {
   const { data: boards } = useLeadBoards();
@@ -16,15 +20,28 @@ export function CrmNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const board = boards?.find((entry) => entry.key === params.get('board')) ?? boards?.find((entry) => entry.key === remembered) ?? boards?.[0];
+  const byCampaign = useCampaignCrm(user?.id);
+  const { data: references } = useCampaignReferences(byCampaign ? board?.key : undefined);
+  const campaigns = references?.filter((entry) => isRunning(entry.status));
+  const campaignId = byCampaign && campaigns?.some((entry) => entry.id === params.get('campaign')) ? params.get('campaign') : null;
   const { data: leads } = useLeads(board?.key);
+  const leadCount = campaignId ? leads?.filter((lead) => lead.campaignId === campaignId).length : leads?.length;
   const { data: companies } = useCompanies(board?.clientId);
   const { data: people } = usePeople(board?.clientId);
   const suffix = board ? `?board=${encodeURIComponent(board.key)}` : '';
   const sections = [
-    { path: '/crm', label: t('crm.nav.leads'), count: leads?.length, icon: Target },
+    { path: '/crm', label: t('crm.nav.leads'), count: leadCount, icon: Target },
     { path: '/crm/companies', label: t('crm.nav.companies'), count: companies?.length, icon: Building2 },
     { path: '/crm/people', label: t('crm.nav.people'), count: people?.length, icon: Users },
   ];
+
+  function chooseCampaign(value: string) {
+    const next = new URLSearchParams(params);
+    if (value === ALL_CAMPAIGNS) next.delete('campaign');
+    else next.set('campaign', value);
+    next.delete('lead');
+    navigate(`${location.pathname}?${next.toString()}`);
+  }
 
   function choose(key: string) {
     if (user) rememberBoard(user.id, key);
@@ -47,8 +64,19 @@ export function CrmNav() {
         emptyLabel={t('select.search.empty')}
       />
     </div> : board ? <span className="truncate px-2 text-sm font-semibold">{board.label}</span> : null}
+    {byCampaign && board ? <div><Label htmlFor="crm-campaign" className="sr-only">{t('crm.campaign')}</Label>
+      <SearchableSelect
+        id="crm-campaign"
+        className="h-8"
+        value={campaignId ?? ALL_CAMPAIGNS}
+        onValueChange={chooseCampaign}
+        options={[{ value: ALL_CAMPAIGNS, label: t('crm.campaign.all') }, ...(campaigns ?? []).map((campaign) => ({ value: campaign.id, label: campaign.name }))]}
+        searchLabel={t('crm.campaign.search')}
+        emptyLabel={t('select.search.empty')}
+      />
+    </div> : null}
     <div className="flex gap-1 md:flex-col">
-      {sections.map((section) => <Link key={section.path} to={`${section.path}${suffix}`} aria-current={location.pathname === section.path ? 'page' : undefined}
+      {sections.map((section) => <Link key={section.path} to={`${section.path}${suffix}${section.path === '/crm' && campaignId ? `&campaign=${encodeURIComponent(campaignId)}` : ''}`} aria-current={location.pathname === section.path ? 'page' : undefined}
         className="flex min-w-0 flex-1 items-center justify-between gap-1 rounded-md px-2 py-1.5 text-sm hover:bg-muted aria-[current=page]:bg-muted aria-[current=page]:font-semibold md:flex-none">
         <span className="flex min-w-0 items-center gap-2"><section.icon aria-hidden className="size-4 shrink-0 text-muted-foreground" /><span className="truncate">{section.label}</span></span><span className="text-xs tabular-nums text-muted-foreground">{section.count ?? '–'}</span>
       </Link>)}

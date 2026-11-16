@@ -62,6 +62,7 @@ describe("AppHeader", () => {
     await userEvent.click(await screen.findByRole("button", { name: /Buyer/i }));
     await userEvent.click(screen.getByRole("menuitem", { name: "Настройки" }));
     expect(screen.getByRole("dialog", { name: "Настройки профиля" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Аккаунт" })).toBeChecked();
     expect(screen.getByLabelText("Имя")).toHaveValue("Buyer");
     expect(screen.getByRole("button", { name: "Изменить аватар" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Изменить аватар" }));

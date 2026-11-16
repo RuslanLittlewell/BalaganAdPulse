@@ -1,3 +1,4 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import type { LeadMetaSource } from "@/entities/lead/index.js";
 import { t } from "@/shared/config/index.js";
 import { formatDateTime } from "@/shared/lib/index.js";
@@ -9,18 +10,18 @@ export interface LeadSourceSectionProps {
 }
 
 const META_FIELD_LABELS: Record<string, string> = {
-  full_name: "Имя",
-  first_name: "Имя",
-  last_name: "Фамилия",
-  phone_number: "Телефон",
-  work_phone_number: "Рабочий телефон",
-  email: "Email",
-  work_email: "Рабочий email",
-  company_name: "Компания",
-  job_title: "Должность",
-  city: "Город",
-  country: "Страна",
-  date_of_birth: "Дата рождения",
+  full_name: t("auth.name.label"),
+  first_name: t("auth.name.label"),
+  last_name: t("crm.source.lastName"),
+  phone_number: t("contacts.phone"),
+  work_phone_number: t("crm.source.workPhone"),
+  email: t("auth.email.label"),
+  work_email: t("crm.source.workEmail"),
+  company_name: t("crm.source.company"),
+  job_title: t("crm.source.jobTitle"),
+  city: t("crm.source.city"),
+  country: t("crm.source.country"),
+  date_of_birth: t("crm.source.birthDate"),
 };
 
 export function formatMetaFieldLabel(question: string): string {
@@ -29,7 +30,7 @@ export function formatMetaFieldLabel(question: string): string {
   if (known) return known;
 
   const readable = question.trim().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
-  return readable ? readable.charAt(0).toLocaleUpperCase("ru-RU") + readable.slice(1) : "Поле";
+  return readable ? readable.charAt(0).toLocaleUpperCase(getIntlLocale()) + readable.slice(1) : t("crm.source.field");
 }
 
 export function LeadSourceSection({ source, onPreview }: LeadSourceSectionProps) {

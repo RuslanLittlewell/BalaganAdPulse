@@ -1,3 +1,4 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import { useMemo, useState } from "react";
 import { useAuditActors, type AuditEventFilters } from "@/entities/audit-event/index.js";
 import { useProjects } from "@/entities/project/index.js";
@@ -52,7 +53,7 @@ function FilterSelect({ label, allLabel, options, value, onChange }: {
   );
 }
 
-const byName = (left: Option, right: Option) => left.name.localeCompare(right.name, "ru");
+const byName = (left: Option, right: Option) => left.name.localeCompare(right.name, getIntlLocale());
 
 function ActivitySections() {
   const [section, setSection] = useState<Section>("projects");

@@ -51,7 +51,7 @@ const submittedAt = z.string().transform((value) => new Date(value.replace(/([+-
 const metaLead = z.object({ id, created_time: submittedAt, ad_id: id, form_id: id, field_data: z.array(z.object({ name: z.string().min(1).max(200), values: z.array(z.string().max(10_000)) })).max(1_000) });
 
 type ErrorCode = "TOKEN" | "ACCESS" | "PROVIDER" | "INVALID_DATA";
-type Classify = (status: number, error: { code?: number; is_transient?: boolean } | undefined) => ErrorCode;
+type Classify = (status: number, error: { code?: number; is_transient?: boolean; message?: string } | undefined) => ErrorCode;
 const throttled = (status: number, error: { code?: number; is_transient?: boolean } | undefined) => {
   const code = error?.code ?? 0;
   return status === 429 || status >= 500 || error?.is_transient === true || [4, 17, 32, 613].includes(code) || (code >= 80000 && code < 80100);
@@ -62,6 +62,7 @@ const leadError: Classify = (status, error) => {
   const code = error?.code ?? 0;
   if ([190, 102].includes(code)) return "TOKEN";
   if (code === 10 || (code >= 200 && code <= 299)) return "ACCESS";
+  if (code === 100 && /permission/i.test(error?.message ?? "")) return "ACCESS";
   return throttled(status, error) ? "PROVIDER" : "INVALID_DATA";
 };
 const THUMBNAIL = { thumbnail_width: "1080", thumbnail_height: "1080" };

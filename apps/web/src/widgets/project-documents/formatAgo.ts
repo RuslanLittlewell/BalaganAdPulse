@@ -1,4 +1,5 @@
-const AGO = new Intl.RelativeTimeFormat("ru", { numeric: "auto" });
+import { getIntlLocale } from "@/shared/config/locale.js";
+const AGO = new Intl.RelativeTimeFormat(getIntlLocale(), { numeric: "auto" });
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -11,5 +12,5 @@ export function formatAgo(iso: string, now = Date.now()): string {
   if (elapsed < HOUR) return AGO.format(-Math.floor(elapsed / MINUTE), "minute");
   if (elapsed < DAY) return AGO.format(-Math.floor(elapsed / HOUR), "hour");
   if (elapsed <= WEEK) return AGO.format(-Math.floor(elapsed / DAY), "day");
-  return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+  return new Date(iso).toLocaleDateString(getIntlLocale(), { day: "numeric", month: "long", year: "numeric" });
 }

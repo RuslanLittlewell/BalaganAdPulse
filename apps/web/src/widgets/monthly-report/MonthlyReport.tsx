@@ -1,3 +1,4 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { PencilIcon } from "lucide-react";
@@ -141,7 +142,7 @@ function StaffBar({ report }: { report: Report }) {
       {report.computedAt ? (
         <span className="text-xs text-muted-foreground">
           {t("report.computedAt")}{" "}
-          {new Date(report.computedAt).toLocaleString("ru-RU", {
+          {new Date(report.computedAt).toLocaleString(getIntlLocale(), {
             dateStyle: "short",
             timeStyle: "short",
           })}

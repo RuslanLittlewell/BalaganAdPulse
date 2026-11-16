@@ -1,3 +1,4 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import { useId, useState, type PointerEvent } from "react";
 import { areaPath, formatCount, formatCurrency, formatDay, linePath } from "@/shared/lib/index.js";
 import type { Currency } from "@/shared/lib/index.js";
@@ -109,7 +110,7 @@ export function DailyChart({
               style={{ left: `clamp(0px, calc(${activePosition}% - 100px), max(0px, calc(100% - 200px)))` }}
             >
               <p className="mb-2 font-semibold">
-                {new Date(`${activeDay.date}T00:00:00Z`).toLocaleDateString("ru-RU", {
+                {new Date(`${activeDay.date}T00:00:00Z`).toLocaleDateString(getIntlLocale(), {
                   day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
                 })}
               </p>

@@ -1,3 +1,4 @@
+import { t } from "@/shared/config/index.js";
 export const AVATAR_PX = 128;
 
 export async function toSquarePng(file: Blob, size = AVATAR_PX): Promise<Blob> {
@@ -12,7 +13,7 @@ export async function toSquarePng(file: Blob, size = AVATAR_PX): Promise<Blob> {
     canvas.width = size;
     canvas.height = size;
     const context = canvas.getContext("2d");
-    if (!context) throw new Error("Не удалось подготовить изображение");
+    if (!context) throw new Error(t("image.prepareFailed"));
     context.drawImage(
       image,
       (image.naturalWidth - side) / 2,
@@ -27,7 +28,7 @@ export async function toSquarePng(file: Blob, size = AVATAR_PX): Promise<Blob> {
 
     return await new Promise<Blob>((resolve, reject) =>
       canvas.toBlob(
-        (blob) => (blob ? resolve(blob) : reject(new Error("Не удалось создать PNG"))),
+        (blob) => (blob ? resolve(blob) : reject(new Error(t("image.pngFailed")))),
         "image/png",
       ),
     );

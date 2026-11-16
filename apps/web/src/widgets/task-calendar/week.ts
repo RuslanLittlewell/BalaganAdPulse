@@ -1,3 +1,4 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const HOURS_PER_DAY = 24;
 export const MINUTES_PER_HOUR = 60;
@@ -35,7 +36,7 @@ export function isSameWeek(a: string, b: string): boolean {
 }
 
 function part(iso: string, options: Intl.DateTimeFormatOptions): string {
-  return asDate(iso).toLocaleDateString("ru-RU", { timeZone: "UTC", ...options });
+  return asDate(iso).toLocaleDateString(getIntlLocale(), { timeZone: "UTC", ...options });
 }
 
 export function dayNumber(iso: string): string {

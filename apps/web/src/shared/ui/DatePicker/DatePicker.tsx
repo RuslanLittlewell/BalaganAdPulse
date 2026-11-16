@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { ru } from "react-day-picker/locale";
+import { enUS, ru } from "react-day-picker/locale";
+import { getLocale } from "@/shared/config/locale.js";
 import { Calendar } from "../ui/calendar.js";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover.js";
 import { dayLabel, fromIso, toIso } from "./month.js";
@@ -35,7 +36,7 @@ export function DatePicker({
         <Calendar
           mode="single"
           required
-          locale={ru}
+          locale={getLocale() === "en" ? enUS : ru}
           autoFocus
           defaultMonth={selected}
           selected={selected}

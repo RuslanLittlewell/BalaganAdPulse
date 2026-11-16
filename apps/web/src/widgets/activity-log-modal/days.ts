@@ -1,5 +1,6 @@
 import { format, isSameDay, isSameYear, subDays } from "date-fns";
-import { ru } from "date-fns/locale";
+import { enUS, ru } from "date-fns/locale";
+import { getLocale } from "@/shared/config/locale.js";
 import { t } from "@/shared/config/index.js";
 
 export interface DayGroup<T> {
@@ -11,7 +12,7 @@ export interface DayGroup<T> {
 export function dayLabel(day: Date, now: Date): string {
   if (isSameDay(day, now)) return t("activity.today");
   if (isSameDay(day, subDays(now, 1))) return t("activity.yesterday");
-  return format(day, isSameYear(day, now) ? "d MMMM" : "d MMMM yyyy", { locale: ru });
+  return format(day, isSameYear(day, now) ? "d MMMM" : "d MMMM yyyy", { locale: getLocale() === "en" ? enUS : ru });
 }
 
 export function groupByDay<T extends { readonly createdAt: string }>(events: readonly T[], now: Date): DayGroup<T>[] {

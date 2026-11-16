@@ -1,3 +1,4 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import type { Task } from "../api/api.js";
 
 export interface Taggable {
@@ -50,7 +51,7 @@ export function matchingMembers<TMember extends { readonly name: string }>(
   const wanted = typed.trim().toLowerCase();
   return members
     .filter((member) => member.name.toLowerCase().includes(wanted))
-    .sort((a, b) => a.name.localeCompare(b.name, "ru"));
+    .sort((a, b) => a.name.localeCompare(b.name, getIntlLocale()));
 }
 
 export function insertMention(

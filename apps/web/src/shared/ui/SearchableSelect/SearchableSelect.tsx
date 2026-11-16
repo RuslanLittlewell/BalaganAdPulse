@@ -1,3 +1,4 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { SearchIcon } from "lucide-react";
 import { cn } from "@/shared/lib/index.js";
@@ -23,7 +24,7 @@ export interface SearchableSelectProps {
   disabled?: boolean;
 }
 
-const normalised = (text: string) => text.trim().toLocaleLowerCase("ru");
+const normalised = (text: string) => text.trim().toLocaleLowerCase(getIntlLocale());
 
 export function SearchableSelect({
   value,

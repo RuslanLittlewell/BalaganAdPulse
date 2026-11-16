@@ -1,5 +1,6 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 export function formatDay(iso: string): string {
-  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("ru-RU", {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString(getIntlLocale(), {
     day: "2-digit",
     month: "short",
     timeZone: "UTC",
@@ -24,7 +25,7 @@ export function todayIso(): string {
 }
 
 export function formatDateTime(isoDateTime: string): string {
-  return new Date(isoDateTime).toLocaleString("ru-RU", {
+  return new Date(isoDateTime).toLocaleString(getIntlLocale(), {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -34,7 +35,7 @@ export function formatDateTime(isoDateTime: string): string {
 }
 
 export function formatCalendarDate(isoDateTime: string): string {
-  return new Date(isoDateTime).toLocaleDateString("ru-RU", {
+  return new Date(isoDateTime).toLocaleDateString(getIntlLocale(), {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",

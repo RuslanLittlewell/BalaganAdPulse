@@ -2,7 +2,8 @@ import { useId, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BellIcon } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { ru } from "date-fns/locale";
+import { enUS, ru } from "date-fns/locale";
+import { getLocale } from "@/shared/config/locale.js";
 import {
   useNotifications,
   useNotificationStream,
@@ -111,7 +112,7 @@ export function NotificationCenter() {
                         {[
                           notificationDeadline(notification),
                           notification.actor?.name,
-                          formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true, locale: ru }),
+                          formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true, locale: getLocale() === "en" ? enUS : ru }),
                         ].filter(Boolean).join(" · ")}
                       </span>
                     </span>

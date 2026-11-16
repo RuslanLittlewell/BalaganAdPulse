@@ -1,3 +1,4 @@
+import { getIntlLocale } from "@/shared/config/locale.js";
 import { t, type MessageKey } from "@/shared/config/index.js";
 import type { Currency } from "@/shared/lib/index.js";
 import { formatMoney, monthTitle, type Report } from "@/entities/report/index.js";
@@ -23,7 +24,7 @@ export interface ReportDeck {
   slides: Slide[];
 }
 
-const plural = new Intl.PluralRules("ru-RU");
+const plural = new Intl.PluralRules(getIntlLocale());
 
 function counted(count: number, stem: "lead" | "contact"): string {
   const form = plural.select(count);
@@ -38,7 +39,7 @@ function contactsLine(report: Report): string | null {
 }
 
 const shortMonth = (month: string) =>
-  new Date(`${month}-01T00:00:00Z`).toLocaleDateString("ru-RU", { month: "long", timeZone: "UTC" });
+  new Date(`${month}-01T00:00:00Z`).toLocaleDateString(getIntlLocale(), { month: "long", timeZone: "UTC" });
 
 const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 

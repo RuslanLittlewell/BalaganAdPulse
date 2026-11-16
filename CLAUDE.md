@@ -13,10 +13,10 @@ the stack, layout and commands.
   exceptions are machine-read directives (`/// <reference …>`, pragmas) and files
   vendored from elsewhere (`apps/web/src/shared/ui/ui/`, `apps/api/prisma/migrations/`),
   which are kept as they arrived.
-- **English in the codebase, Russian in the interface** — code, docs, commit
-  messages and API error messages are English. Everything a user reads in the web
-  app is Russian and lives in `apps/web/src/shared/config/ru.ts`; reach it through
-  `t("key")` rather than writing copy inline.
+- **English in the codebase, localized interface** — code, docs, commit messages
+  and API error messages are English. Web interface copy lives in the typed
+  Russian and English dictionaries in `apps/web/src/shared/config/ru.ts` and
+  `en.ts`; reach it through `t("key")` rather than writing copy inline.
 - **English prose follows unslop.** Write the README, CONTRIBUTING, OpenSpec artifacts,
   commit messages and PR descriptions by the rules of the `unslop-prose` skill
   ([source](https://github.com/cursor/plugins/blob/main/pstack/skills/unslop/SKILL.md)):

@@ -87,6 +87,15 @@ describe("reading an ad's leads", () => {
     await expect(new GraphProvider("v22.0", fetcher).leads("123", polled, new Date(), "secret")).rejects.toMatchObject({ code: "INVALID_DATA" });
   });
 
+  it("treats code 100 naming a missing permission as an access refusal", async () => {
+    const message = "(#100) Requires pages_manage_ads or leads_retrieval permission to manage the object";
+    const fetcher = vi.fn().mockResolvedValue(json({ error: { code: 100, message, type: "OAuthException" } }, 400));
+
+    const failure = await new GraphProvider("v22.0", fetcher).leads("123", polled, new Date(), "secret").catch((error: unknown) => error);
+
+    expect(failure).toMatchObject({ code: "ACCESS" });
+  });
+
   it.each([
     [190, 400, "TOKEN"], [102, 400, "TOKEN"],
     [10, 403, "ACCESS"], [200, 403, "ACCESS"], [283, 403, "ACCESS"], [299, 403, "ACCESS"],

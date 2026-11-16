@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import express, { type RequestHandler, type Response } from "express";
 
-export function landingFor(host: string, root: string): RequestHandler {
+export function landingFor(host: string, root: string, appOrigin: string): RequestHandler {
   const pages = new Map<string, string>();
   const directories = new Set<string>();
   const collect = (directory: string) => {
@@ -39,7 +39,7 @@ export function landingFor(host: string, root: string): RequestHandler {
         "style-src-attr 'unsafe-inline'",
         "img-src 'self' data:",
         "font-src 'self'",
-        "connect-src 'self'",
+        `connect-src 'self' ${appOrigin}`,
         "form-action 'self'",
         "upgrade-insecure-requests",
         documentPolicy,

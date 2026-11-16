@@ -22,6 +22,10 @@ export interface AppOptions {
   sharedReads?: SharedReadLimits;
 }
 
+function appOriginOf(appUrl: string | null): string {
+  return appUrl ? new URL(appUrl).origin : "";
+}
+
 export function createApp(options: AppOptions = {}) {
   const app = express();
 
@@ -36,7 +40,7 @@ export function createApp(options: AppOptions = {}) {
 
   const landingHost = options.landingHost === undefined ? config.landingHost : options.landingHost;
   const landingDistPath = options.landingDistPath ?? DEFAULT_LANDING_DIST;
-  if (landingHost && existsSync(landingDistPath)) app.use(landingFor(landingHost, landingDistPath));
+  if (landingHost && existsSync(landingDistPath)) app.use(landingFor(landingHost, landingDistPath, appOriginOf(config.appUrl)));
 
   app.use(createRoutes(options.container ?? createContainer(), { sharedReads: options.sharedReads }));
 

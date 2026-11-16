@@ -11,15 +11,22 @@ import { Label, SearchableSelect } from '@/shared/ui/index.js';
 
 const ALL_CAMPAIGNS = 'all';
 
-export function CrmNav() {
+export function useSelectedBoard() {
   const { data: boards } = useLeadBoards();
   const { user } = useAuth();
   const remembered = useModuleMemory((state) => user ? state.boards[user.id] : undefined);
+  const [params] = useSearchParams();
+  const board = boards?.find((entry) => entry.key === params.get('board')) ?? boards?.find((entry) => entry.key === remembered) ?? boards?.[0];
+  return { boards, board };
+}
+
+export function CrmNav() {
+  const { user } = useAuth();
   const rememberBoard = useModuleMemory((state) => state.rememberBoard);
   const [params] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const board = boards?.find((entry) => entry.key === params.get('board')) ?? boards?.find((entry) => entry.key === remembered) ?? boards?.[0];
+  const { boards, board } = useSelectedBoard();
   const byCampaign = useCampaignCrm(user?.id);
   const { data: references } = useCampaignReferences(byCampaign ? board?.key : undefined);
   const campaigns = references?.filter((entry) => isRunning(entry.status));

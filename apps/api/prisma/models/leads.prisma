@@ -22,6 +22,7 @@ enum LeadFieldType {
 enum LeadOrigin {
   MANUAL
   META
+  WEBSITE
 
   @@map("lead_origin")
 }
@@ -86,6 +87,7 @@ model Lead {
   ad            Ad?             @relation(fields: [adId], references: [id], onDelete: SetNull)
   origin        LeadOrigin      @default(MANUAL)
   metaSource    LeadMetaSource?
+  webSource     LeadWebSource?
   metaKey       MetaLead?
   files         LeadFile[]
   leadNotes     LeadNote[]
@@ -142,6 +144,22 @@ model LeadMetaSource {
   answersOmitted     Boolean  @default(false) @map("answers_omitted")
 
   @@map("lead_meta_source")
+}
+
+model LeadWebSource {
+  leadId      String   @id @map("lead_id")
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  utmSource   String?  @map("utm_source") @db.VarChar(300)
+  utmMedium   String?  @map("utm_medium") @db.VarChar(300)
+  utmCampaign String?  @map("utm_campaign") @db.VarChar(300)
+  utmContent  String?  @map("utm_content") @db.VarChar(300)
+  utmTerm     String?  @map("utm_term") @db.VarChar(300)
+  pageUrl     String?  @map("page_url") @db.VarChar(2048)
+  referrer    String?  @db.VarChar(2048)
+  submittedAt DateTime @map("submitted_at")
+  answers     Json     @default("[]")
+
+  @@map("lead_web_source")
 }
 
 model MetaLead {

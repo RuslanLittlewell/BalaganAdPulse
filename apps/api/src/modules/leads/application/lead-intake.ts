@@ -1,5 +1,6 @@
 import type { IdGenerator, TransactionContext, UnitOfWork } from '#shared/application/index.js';
 import type { LeadMetaSource } from '../domain/lead.js';
+import type { WebsiteLead } from '../domain/website-intake.js';
 import type { LeadEvent } from './ports.js';
 
 export interface IncomingLead {
@@ -18,6 +19,12 @@ export interface ImportedLeadInput extends IncomingLead, LeadTarget {
   campaignId: string | null;
   adId: string | null;
 }
+export interface WebsiteLeadInput extends LeadTarget {
+  id: string;
+  lead: WebsiteLead;
+  submittedAt: Date;
+  campaignId: string | null;
+}
 export interface LeadIntakeRepository {
   lockBoard(context: TransactionContext, orgId: string, board: string): Promise<void>;
   claim(context: TransactionContext, orgId: string, externalId: string): Promise<boolean>;
@@ -25,6 +32,8 @@ export interface LeadIntakeRepository {
   attribution(context: TransactionContext, projectId: string, source: LeadMetaSource): Promise<{ campaignId: string | null; adId: string | null }>;
   createImported(context: TransactionContext, input: ImportedLeadInput): Promise<void>;
   linkAttribution(context: TransactionContext, projectId: string): Promise<LeadTarget[]>;
+  campaignByTag(context: TransactionContext, projectId: string, tag: string): Promise<string | null>;
+  createWebsite(context: TransactionContext, input: WebsiteLeadInput): Promise<void>;
 }
 
 export function createLeadIntake(d: { intake: LeadIntakeRepository; ids: IdGenerator; unitOfWork: UnitOfWork; publish: (event: LeadEvent) => void }) {
@@ -46,6 +55,15 @@ export function createLeadIntake(d: { intake: LeadIntakeRepository; ids: IdGener
         await d.intake.createImported(context, { ...lead, ...attribution, orgId, projectId, id: d.ids.generate(), position: position++ });
       }
       return { created: claimed.length };
+    },
+    async deliverWebsite(context: TransactionContext, target: LeadTarget & { lead: WebsiteLead; submittedAt: Date }): Promise<{ created: boolean }> {
+      const { orgId, projectId, lead } = target;
+      await d.intake.lockBoard(context, orgId, projectId);
+      if (!await d.intake.claim(context, orgId, `site:${projectId}:${lead.externalId}`)) return { created: false };
+      await d.intake.shiftNew(context, orgId, projectId, 1);
+      const campaignId = lead.utmCampaign ? await d.intake.campaignByTag(context, projectId, lead.utmCampaign) : null;
+      await d.intake.createWebsite(context, { orgId, projectId, id: d.ids.generate(), lead, submittedAt: target.submittedAt, campaignId });
+      return { created: true };
     },
     announce,
     async link(projectId: string): Promise<void> {

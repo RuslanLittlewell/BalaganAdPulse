@@ -65,6 +65,7 @@ export function aLead(overrides: Partial<Lead> = {}): Lead {
     project: { id: "project-1", clientId: "client-1", name: "Летний запуск" },
     assignee: null,
     metaSource: null,
+    webSource: null,
     stage: "NEW",
     position: 0,
     createdAt: "2026-09-01T00:00:00.000Z",

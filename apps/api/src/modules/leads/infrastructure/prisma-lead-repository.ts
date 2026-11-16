@@ -12,24 +12,28 @@ const leadInclude = {
   project:{select:{id:true,clientId:true,name:true}},
   assignee:{select:{id:true,user:{select:{name:true,image:true}}}},
   metaSource:true,
+  webSource:true,
   person:{select:{id:true,name:true,phone:true,email:true,telegram:true,messenger:true}},
   company:{select:{id:true,name:true,website:true}},
 } satisfies Prisma.LeadInclude;
 type LeadRow = Prisma.LeadGetPayload<{include:typeof leadInclude}>;
 const columnInclude = {project:{select:{clientId:true}}} satisfies Prisma.LeadColumnInclude;
 const arrivedIn = ({start, end}: ArrivalWindow): Prisma.LeadWhereInput => ({
-  OR:[{metaSource:{is:{submittedAt:{gte:start, lt:end}}}}, {metaSource:{is:null}, createdAt:{gte:start, lt:end}}],
+  OR:[{metaSource:{is:{submittedAt:{gte:start, lt:end}}}}, {webSource:{is:{submittedAt:{gte:start, lt:end}}}}, {metaSource:{is:null}, webSource:{is:null}, createdAt:{gte:start, lt:end}}],
 });
 type ColumnRow = Prisma.LeadColumnGetPayload<{include:typeof columnInclude}>;
 const toColumnRecord = ({project, color, ...column}: ColumnRow): LeadColumnRecord => ({...column, color:isOptionColor(color) ? color : 'gray', clientId:project.clientId});
 
-function toLeadRecord({metaSource, columnId, assignee, amount, customValues, ...lead}: LeadRow): LeadRecord {
+function toLeadRecord({metaSource, webSource, columnId, assignee, amount, customValues, ...lead}: LeadRow): LeadRecord {
   return {...lead, customValues:customValuesOf(customValues), amount:amount === null ? null : amount.toFixed(4), assignee:assignee&&{id:assignee.id,name:assignee.user.name,image:assignee.user.image}, stage: lead.stage ?? columnId ?? 'NEW', metaSource: metaSource && {
     accountId:metaSource.accountId, formId:metaSource.formId,
     campaign:{externalId:metaSource.campaignExternalId, name:metaSource.campaignName},
     adSet:{externalId:metaSource.adSetExternalId, name:metaSource.adSetName},
     ad:{externalId:metaSource.adExternalId, name:metaSource.adName},
     submittedAt:metaSource.submittedAt, answers:metaSource.answers as unknown as LeadAnswer[], answersOmitted:metaSource.answersOmitted,
+  }, webSource: webSource && {
+    utmSource:webSource.utmSource, utmMedium:webSource.utmMedium, utmCampaign:webSource.utmCampaign, utmContent:webSource.utmContent, utmTerm:webSource.utmTerm,
+    pageUrl:webSource.pageUrl, referrer:webSource.referrer, submittedAt:webSource.submittedAt, answers:webSource.answers as unknown as LeadAnswer[],
   }};
 }
 

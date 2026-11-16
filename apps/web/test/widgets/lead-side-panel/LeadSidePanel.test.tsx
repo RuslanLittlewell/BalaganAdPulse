@@ -133,6 +133,34 @@ describe("the panel's layout", () => {
     expect(within(source).queryByRole("textbox")).toBeNull();
   });
 
+  it("shows the tags, page and answers of a website lead in Информация, leaving out what was not sent", async () => {
+    catalogue(theLead({
+      origin: "WEBSITE",
+      webSource: {
+        utmSource: "facebook", utmMedium: null, utmCampaign: "spring", utmContent: null, utmTerm: null,
+        pageUrl: "https://shop.example.com/offer", referrer: null, submittedAt: "2026-03-10T09:00:00.000Z",
+        answers: [{ question: "Комментарий", values: ["Нужен замер"] }],
+      },
+    }));
+    setup();
+
+    await userEvent.click(await screen.findByRole("radio", { name: "Информация" }));
+    const source = await screen.findByRole("region", { name: "Источник: сайт" });
+    for (const text of ["facebook", "spring", "https://shop.example.com/offer", "Комментарий", "Нужен замер"]) {
+      expect(within(source).getByText(text)).toBeInTheDocument();
+    }
+    expect(within(source).queryByText("utm_medium")).toBeNull();
+    expect(within(source).queryByText("Откуда пришёл")).toBeNull();
+  });
+
+  it("offers no Информация for a hand-made lead", async () => {
+    catalogue();
+    setup();
+
+    await screen.findByRole("radiogroup", { name: "Разделы лида" });
+    expect(screen.queryByRole("radio", { name: "Информация" })).toBeNull();
+  });
+
   it("renders nothing for a lead that is not on the board", async () => {
     catalogue();
     setup({ leadId: "elsewhere" });

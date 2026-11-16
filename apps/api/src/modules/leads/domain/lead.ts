@@ -75,7 +75,7 @@ export function boardColumns(custom: readonly LeadColumnRecord[]): BoardColumn[]
     ]),
   ];
 }
-export const LEAD_ORIGINS = ['MANUAL', 'META'] as const;
+export const LEAD_ORIGINS = ['MANUAL', 'META', 'WEBSITE'] as const;
 export type LeadOrigin = typeof LEAD_ORIGINS[number];
 export const TAG_LIMIT = 10;
 export const TAG_LENGTH_LIMIT = 30;
@@ -104,6 +104,17 @@ export interface LeadMetaSource {
   answers: LeadAnswer[];
   answersOmitted: boolean;
 }
+export interface LeadWebSource {
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  utmContent: string | null;
+  utmTerm: string | null;
+  pageUrl: string | null;
+  referrer: string | null;
+  submittedAt: Date;
+  answers: LeadAnswer[];
+}
 export interface LeadAd { id: string; name: string; externalId: string | null }
 export interface LeadProject { id: string; clientId: string; name: string }
 export interface LeadAssignee { id: string; name: string; image: string | null }
@@ -126,6 +137,7 @@ export interface LeadRecord extends LeadFields {
   project: LeadProject;
   assignee: LeadAssignee | null;
   metaSource: LeadMetaSource | null;
+  webSource: LeadWebSource | null;
   stage: string;
   position: number;
   createdAt: Date;

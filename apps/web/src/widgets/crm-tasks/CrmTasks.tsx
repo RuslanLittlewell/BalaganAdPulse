@@ -4,14 +4,14 @@ import { Button } from "@/shared/ui/index.js";
 import { t } from "@/shared/config/index.js";
 import { useCan } from "@/features/permissions/index.js";
 import { TaskDialogs, useTaskAddress } from "@/features/task-management/index.js";
-import { DEFAULT_VIEW, visibleLeads, type ViewState } from "@/features/lead-view-options/index.js";
+import { DEFAULT_VIEW, visibleLeads, type ScopedView } from "@/features/lead-view-options/index.js";
 import { TaskCalendar } from "@/widgets/task-calendar/index.js";
 import { useLeads, type Lead, type LeadField } from "@/entities/lead/index.js";
 import { useCrmTasks, useTaskEvents, type TaskLead } from "@/entities/task/index.js";
 
 export interface CrmTasksProps {
   boardKey: string | undefined;
-  view?: ViewState;
+  view?: ScopedView;
   fields: readonly LeadField[];
   onOpenLead: (lead: Lead) => void;
 }

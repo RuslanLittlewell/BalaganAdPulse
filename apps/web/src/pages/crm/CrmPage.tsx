@@ -16,10 +16,13 @@ import {
 } from "@/entities/lead/index.js";
 import { useCan } from "@/features/permissions/index.js";
 import { useAuth } from "@/features/auth/index.js";
+import { isRunning, useCampaignReferences } from "@/entities/campaign/index.js";
+import { useCampaignCrm } from "@/features/profile-settings/index.js";
 import { LeadFieldsDialog } from "@/features/lead-field-management/index.js";
 import {
   CrmViewChips,
   CrmViewControls,
+  inCampaign,
   PeriodControl,
   pruneState,
   useViewState,
@@ -90,6 +93,10 @@ export function CrmPage() {
     ? boards?.find((candidate) => candidate.key === chosen)
     : restorable ?? (user ? boards?.[0] : undefined);
   const openLeadId = params.get("lead");
+  const byCampaign = useCampaignCrm(user?.id);
+  const { data: references } = useCampaignReferences(byCampaign ? board?.key : undefined);
+  const requested = params.get("campaign");
+  const campaignId = byCampaign && references?.some((entry) => entry.id === requested && isRunning(entry.status)) ? requested : null;
 
   useCrmEvents(board?.key, {}, board?.clientId);
   const updateLead = useUpdateLead(board?.key ?? '');
@@ -99,11 +106,13 @@ export function CrmPage() {
   const { data: fields } = useLeadFields(board?.key);
   const { data: columns } = useLeadColumns(board?.key);
   const { view: storedView, change } = useViewState(user?.id, board?.key);
-  const view = useMemo(
+  const prunedView = useMemo(
     () => (fields && columns ? pruneState(storedView, fields, columns) : storedView),
     [storedView, fields, columns],
   );
-  const choices = useBoardChoices(leads);
+  const view = useMemo(() => ({ ...prunedView, campaignId }), [prunedView, campaignId]);
+  const scopedLeads = useMemo(() => inCampaign(leads ?? [], campaignId), [leads, campaignId]);
+  const choices = useBoardChoices(scopedLeads);
   const shownCount = useMemo(() => visibleLeads(leads ?? [], view, fields ?? []).length, [leads, view, fields]);
   const context: FilterContext = useMemo(
     () => ({ fields: fields ?? [], columns: columns ?? FIXED_LEAD_COLUMNS, assignees: choices.assignees, tags: choices.tags }),
@@ -218,7 +227,7 @@ export function CrmPage() {
               ) : layout === "tasks" ? (
                 <CrmTasks boardKey={board?.key} view={view} fields={fields ?? []} onOpenLead={openLead} />
               ) : (
-                <LeadTable leads={leads ?? []} columns={columns ?? FIXED_LEAD_COLUMNS} fields={fields ?? []} view={view} onOpen={openLead} onSort={(sort) => change({ sort })} />
+                <LeadTable leads={scopedLeads} columns={columns ?? FIXED_LEAD_COLUMNS} fields={fields ?? []} view={view} onOpen={openLead} onSort={(sort) => change({ sort })} />
               )
             ) : (
               <EmptyState title={t("crm.boardUnavailable")} />

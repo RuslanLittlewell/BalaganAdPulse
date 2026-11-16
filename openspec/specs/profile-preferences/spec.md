@@ -39,11 +39,11 @@ The interface SHALL offer Russian and English, default to Russian and retain the
 
 ### Requirement: Members can retain a campaign CRM preference
 
-General SHALL contain an off-by-default switch labelled CRM by campaign. Saving it SHALL retain a boolean preference for that member in the current browser. The switch SHALL NOT change current CRM routes, permissions or data. General SHALL NOT display the language reload or planned feature explanatory block.
+General SHALL contain an off-by-default switch labelled CRM by campaign. Saving it SHALL retain a boolean preference for that member in the current browser. Turning it on SHALL add a campaign select to the CRM menu column. The switch SHALL NOT change CRM routes, permissions or data. General SHALL NOT display the language reload or planned feature explanatory block.
 
 #### Scenario: Enabling the planned feature
 - **WHEN** a member enables the campaign CRM switch and saves General settings
-- **THEN** reopening settings shows the switch on without enabling new CRM behavior
+- **THEN** reopening settings shows the switch on and the CRM shows the campaign select
 
 #### Scenario: A different member
 - **WHEN** another member opens settings in the same browser

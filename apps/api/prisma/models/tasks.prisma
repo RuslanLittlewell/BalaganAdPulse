@@ -1,5 +1,6 @@
 enum TaskColumn {
   IDEA
+  QUEUED
   ARCHIVED
   IN_PROGRESS
   NEEDS_FIX
@@ -51,6 +52,7 @@ model Task {
   timeZone        String?      @map("time_zone")
   dueSoonFor      DateTime?    @map("due_soon_for")
   archivedAt      DateTime?    @map("archived_at")
+  doneAt          DateTime?    @map("done_at")
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
 
@@ -71,6 +73,7 @@ model Task {
   @@index([leadId])
   @@index([orgId, visibleToClient])
   @@index([orgId, dueDate])
+  @@index([doneAt])
   @@map("task")
 }
 

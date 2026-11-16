@@ -9,9 +9,9 @@ import {
 } from "../../src/modules/tasks/domain/board.js";
 
 describe("the board's columns", () => {
-  it("are the six, in the order they are drawn", () => {
+  it("are the seven, in the order the database sorts them", () => {
     expect(TASK_COLUMNS).toEqual([
-      "IDEA", "ARCHIVED", "IN_PROGRESS", "NEEDS_FIX", "IN_REVIEW", "DONE",
+      "IDEA", "QUEUED", "ARCHIVED", "IN_PROGRESS", "NEEDS_FIX", "IN_REVIEW", "DONE",
     ]);
   });
 

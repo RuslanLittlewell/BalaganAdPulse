@@ -1,5 +1,6 @@
 export const TASK_COLUMNS = [
   "IDEA",
+  "QUEUED",
   "ARCHIVED",
   "IN_PROGRESS",
   "NEEDS_FIX",
@@ -10,6 +11,8 @@ export const TASK_COLUMNS = [
 export type TaskColumn = (typeof TASK_COLUMNS)[number];
 
 export const DEFAULT_TASK_COLUMN: TaskColumn = "IDEA";
+
+export const DONE_ARCHIVE_AFTER_MS = 24 * 60 * 60 * 1000;
 
 export const TASK_PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"] as const;
 

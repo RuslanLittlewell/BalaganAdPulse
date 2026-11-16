@@ -1,7 +1,7 @@
 import type React from "react";
-import type { CSSProperties, Ref } from "react";
+import type { CSSProperties, Ref, SyntheticEvent } from "react";
 import type { DraggableAttributes, DraggableSyntheticListeners } from "@dnd-kit/core";
-import { CalendarClock, GripVertical, ListChecks, Paperclip, Phone, Repeat } from "lucide-react";
+import { Archive, CalendarClock, GripVertical, ListChecks, Paperclip, Phone, Repeat } from "lucide-react";
 import { timeRange, type Task } from "@/entities/task/index.js";
 import type { Membership } from "@/entities/membership/index.js";
 import { ProjectAvatar, type Project } from "@/entities/project/index.js";
@@ -27,6 +27,11 @@ export interface TaskCardViewProps {
   ref?: Ref<HTMLElement>;
   onOpen?: (task: Task) => void;
   onToggleDone?: (task: Task) => void;
+  onApprove?: (task: Task) => void;
+}
+
+function keepToItself(event: SyntheticEvent) {
+  event.stopPropagation();
 }
 
 const PRIORITY_TONE: Record<Task["priority"], string> = {
@@ -49,7 +54,7 @@ const PRIORITY_BAR: Record<Task["priority"], string> = {
 };
 
 export function TaskCardView({
-  task, project, people = [], drag, placeholder = false, showColumn = false, className, style, ref, onOpen, onToggleDone,
+  task, project, people = [], drag, placeholder = false, showColumn = false, className, style, ref, onOpen, onToggleDone, onApprove,
 }: TaskCardViewProps) {
   const attachments = task.imageIds.length;
   const ticked = task.checklist.filter((item) => item.done).length;
@@ -192,7 +197,28 @@ export function TaskCardView({
           </span>
         </span>
 
-        <TaskParticipants task={task} people={people} />
+        <span className="flex shrink-0 items-center gap-1">
+          {onApprove && task.column === "DONE" ? (
+            <button
+              type="button"
+              data-testid={`task-approve-${task.id}`}
+              aria-label={`${t("tasks.approve")}: ${task.title}`}
+              title={t("tasks.approve")}
+              className={cn(
+                "rounded-md p-1 text-muted-foreground transition-colors",
+                "hover:bg-muted hover:text-foreground",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              )}
+              onClick={(event) => { event.stopPropagation(); onApprove(task); }}
+              onKeyDown={keepToItself}
+              onPointerDown={keepToItself}
+              onMouseDown={keepToItself}
+            >
+              <Archive aria-hidden className="size-3" />
+            </button>
+          ) : null}
+          <TaskParticipants task={task} people={people} />
+        </span>
       </footer>
     </article>
   );

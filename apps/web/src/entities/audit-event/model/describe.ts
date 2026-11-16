@@ -9,7 +9,7 @@ export interface EventDescription {
   readonly detail: string | null;
 }
 
-const TASK_COLUMNS = ["IDEA", "ARCHIVED", "IN_PROGRESS", "NEEDS_FIX", "IN_REVIEW", "DONE"] as const;
+const TASK_COLUMNS = ["IDEA", "QUEUED", "ARCHIVED", "IN_PROGRESS", "NEEDS_FIX", "IN_REVIEW", "DONE"] as const;
 
 type TaskColumn = (typeof TASK_COLUMNS)[number];
 

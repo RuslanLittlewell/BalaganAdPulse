@@ -2,6 +2,7 @@ import { config } from "#shared/infrastructure/config.js";
 import { prisma } from "#shared/infrastructure/prisma.js";
 import { createTaskEventDelivery } from "#modules/realtime/index.js";
 import {
+  createDoneArchiveWorker,
   createTaskCommentUseCases,
   createTaskDocumentRouter,
   createTaskDocumentUseCases,
@@ -52,6 +53,7 @@ export function wireTasks(
   const taskUseCases = createTaskUseCases(dependencies);
   return {
     taskUseCases,
+    doneArchiveWorker: createDoneArchiveWorker({ archive: () => taskUseCases.archiveDone(clock.now()) }),
     taskRouter: createTaskRouter(taskUseCases, createTaskCommentUseCases({
       tasks: dependencies.tasks,
       comments: new PrismaTaskCommentRepository(prisma),

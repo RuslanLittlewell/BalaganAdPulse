@@ -25,6 +25,7 @@ container.importWorker.start();
 container.leadPollWorker.start();
 container.seoWorker.start();
 container.dueSoonWorker.start();
+container.doneArchiveWorker.start();
 container.telegramPoller.start();
 
 const presenceSweep = setInterval(() => { container.sweepPresence(); }, PRESENCE_SWEEP_MS);
@@ -42,6 +43,7 @@ const shutdown = createShutdown({
       container.leadPollWorker.stop(),
       container.seoWorker.stop(),
       container.dueSoonWorker.stop(),
+      container.doneArchiveWorker.stop(),
       container.telegramPoller.stop(),
     ]);
     await prisma.$disconnect();

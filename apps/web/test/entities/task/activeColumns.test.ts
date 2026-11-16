@@ -2,7 +2,7 @@ import { ACTIVE_TASK_COLUMNS, TASK_COLUMNS, isActiveColumn } from "@/entities/ta
 
 describe("the stages work is in flight at", () => {
   it("is every stage except done and archived", () => {
-    expect(ACTIVE_TASK_COLUMNS).toEqual(["IDEA", "IN_PROGRESS", "NEEDS_FIX", "IN_REVIEW"]);
+    expect(ACTIVE_TASK_COLUMNS).toEqual(["IDEA", "QUEUED", "IN_PROGRESS", "NEEDS_FIX", "IN_REVIEW"]);
   });
 
   it("covers every column the board draws, between it and the terminal two", () => {

@@ -1,4 +1,6 @@
 export { createTaskUseCases } from "./application/task-use-cases.js";
+export { createDoneArchiveWorker } from "./application/done-archive-worker.js";
+export type { DoneArchiveWorker } from "./application/done-archive-worker.js";
 export type { CreateTaskInput, MoveTaskInput, TaskUseCases } from "./application/task-use-cases.js";
 export type {
   MemberReach,

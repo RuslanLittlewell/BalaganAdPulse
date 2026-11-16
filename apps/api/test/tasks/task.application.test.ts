@@ -66,6 +66,8 @@ function fixture(options: {
       },
       delete: async (_tx, id) => { tasks.delete(id); },
       untickChecklist: async () => undefined,
+      doneSince: async () => [],
+      archiveIfDoneSince: async () => false,
       countInColumn: async (_orgId, column) =>
         [...tasks.values()].filter((t) => t.column === column).length,
       columnIds: async (_orgId, column) =>

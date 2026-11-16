@@ -324,11 +324,17 @@ are kept apart in the third. The chosen view is remembered for that person in th
 browser, so they return to the one they left; someone else signing in on the same browser
 gets their own.
 
-The board is a Kanban of work under a project. Six fixed columns, drawn left to right:
-**Идея, В работе, На исправление, На проверке, Готово, Архив**. Cards are dragged between
+The board is a Kanban of work under a project. Seven fixed columns, drawn left to right:
+**Идея, В очереди, В работе, На исправление, На проверке, Готово, Архив**. Cards are dragged between
 columns and reordered within one; the move is applied to the board before the server
 answers and rolled back if it is refused. Both affected columns are renumbered densely
 inside one transaction, so a position is never duplicated or left with a gap.
+
+**Done tasks archive themselves.** A task that has stayed in Готово for 24 hours is moved to
+the top of Архив by a worker in the API that runs every five minutes; open boards receive the
+move like any other. An admin does not have to wait: a card in Готово carries a **В архив**
+control for admins, which makes the same move at once. Reopening a task and finishing it again
+starts the 24 hours anew.
 
 **A task is closed from its card.** Every card — on the board, in the calendar and in a
 project's work in flight — carries a **Готово** checkbox for whoever may change tasks, ticked

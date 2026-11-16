@@ -125,6 +125,7 @@ export class PrismaTaskRepository implements TaskRepository {
       data: {
         ...task,
         archivedAt: task.column === "ARCHIVED" ? new Date() : null,
+        doneAt: task.column === "DONE" ? new Date() : null,
         dueDate: input.dueDate ? dayToDate(input.dueDate) : null,
         description: input.description === null || input.description === undefined
           ? undefined
@@ -246,6 +247,32 @@ export class PrismaTaskRepository implements TaskRepository {
         where: { id: { in: [...ids] }, archivedAt: { not: null } }, data: { archivedAt: null },
       });
     }
+    if (column === "DONE") {
+      await client.task.updateMany({
+        where: { id: { in: [...ids] }, doneAt: null }, data: { doneAt: new Date() },
+      });
+    } else {
+      await client.task.updateMany({
+        where: { id: { in: [...ids] }, doneAt: { not: null } }, data: { doneAt: null },
+      });
+    }
+  }
+
+  async doneSince(before: Date): Promise<TaskRecord[]> {
+    const rows = await this.prisma.task.findMany({
+      where: { column: "DONE", doneAt: { lte: before } },
+      orderBy: { doneAt: "asc" },
+      include: WITH_IMAGES,
+    });
+    return rows.map((row) => toDomain(row, this.defaultTimeZone));
+  }
+
+  async archiveIfDoneSince(context: TransactionContext, id: string, before: Date): Promise<boolean> {
+    const { count } = await this.client(context).task.updateMany({
+      where: { id, column: "DONE", doneAt: { lte: before } },
+      data: { column: "ARCHIVED" },
+    });
+    return count === 1;
   }
 
   async updateChecklist(

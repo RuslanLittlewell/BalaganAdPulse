@@ -126,6 +126,8 @@ export interface TaskRepository {
     items: readonly { id: string; title: string; done: boolean }[],
   ): Promise<TaskRecord>;
   untickChecklist(context: TransactionContext, taskId: string): Promise<void>;
+  doneSince(before: Date): Promise<TaskRecord[]>;
+  archiveIfDoneSince(context: TransactionContext, id: string, before: Date): Promise<boolean>;
 }
 
 export interface ProjectReach {

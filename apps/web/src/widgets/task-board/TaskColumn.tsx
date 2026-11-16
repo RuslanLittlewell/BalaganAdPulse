@@ -17,11 +17,13 @@ export interface TaskColumnProps {
   members?: Map<string, Membership>;
   onOpen?: (task: Task) => void;
   onToggleDone?: (task: Task) => void;
+  onApprove?: (task: Task) => void;
   onCreate?: (column: Column) => void;
 }
 
 const ACCENT: Record<Column, string> = {
   IDEA: "bg-slate-400",
+  QUEUED: "bg-indigo-400",
   ARCHIVED: "bg-zinc-400",
   IN_PROGRESS: "bg-sky-500",
   NEEDS_FIX: "bg-amber-500",
@@ -30,7 +32,7 @@ const ACCENT: Record<Column, string> = {
 };
 
 export function TaskColumnPanel({
-  column, tasks, movable, draggingId, projects, members, onOpen, onToggleDone, onCreate,
+  column, tasks, movable, draggingId, projects, members, onOpen, onToggleDone, onApprove, onCreate,
 }: TaskColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column });
 
@@ -83,6 +85,7 @@ export function TaskColumnPanel({
               people={participantsOf(task, members)}
               onOpen={onOpen}
               onToggleDone={movable(task) ? onToggleDone : undefined}
+              onApprove={onApprove}
             />
           ))}
 

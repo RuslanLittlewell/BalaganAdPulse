@@ -26,6 +26,7 @@ import {
 } from "@/entities/task/index.js";
 import { useMembers } from "@/entities/membership/index.js";
 import { useProjects } from "@/entities/project/index.js";
+import { useAuth } from "@/features/auth/index.js";
 import { useCan } from "@/features/permissions/index.js";
 import { useDoneToggle, useTaskChange } from "@/features/task-management/index.js";
 import { t } from "@/shared/config/index.js";
@@ -48,6 +49,7 @@ export function TaskBoard({ tasks, allTasks, isLoading, isError, onOpen, onCreat
   const move = useMoveTask();
   const changes = useTaskChange();
   const creatable = useCan("create", "task");
+  const approves = useAuth().role === "ADMIN";
   const { data: projects } = useProjects();
   const { data: members } = useMembers();
   const [moveError, setMoveError] = useState<string | null>(null);
@@ -80,6 +82,13 @@ export function TaskBoard({ tasks, allTasks, isLoading, isError, onOpen, onCreat
 
   const dragging = board.find((task) => task.id === draggingId) ?? null;
   const toggleTask = (task: Task) => { setMoveError(null); toggleDone(task); };
+  const approveTask = (task: Task) => {
+    setMoveError(null);
+    move.mutate(
+      { id: task.id, body: { column: "ARCHIVED", position: 0 } },
+      { onError: () => setMoveError(t("tasks.moveFailed")) },
+    );
+  };
 
   if (isLoading) return <Loader />;
   if (isError) return <EmptyState title={t("tasks.loadFailed")} />;
@@ -139,6 +148,7 @@ export function TaskBoard({ tasks, allTasks, isLoading, isError, onOpen, onCreat
             members={memberById}
             onOpen={onOpen}
             onToggleDone={toggleTask}
+            onApprove={approves ? approveTask : undefined}
             onCreate={creatable && onCreate ? onCreate : undefined}
           />
         ))}

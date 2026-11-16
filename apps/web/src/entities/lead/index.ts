@@ -41,6 +41,7 @@ export type {
   ProjectStageCounts,
   StageCounts,
   LeadMetaSource,
+  LeadWebSource,
   LeadOrigin,
   LeadInput,
   LeadProject,

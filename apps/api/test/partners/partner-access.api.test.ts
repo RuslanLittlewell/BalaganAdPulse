@@ -130,7 +130,7 @@ describe('partner reach', () => {
       return (layer.handle?.stack ?? []).flatMap(inner => inner.route?.methods.get ? [`${mount.path}/${inner.route.path}`.replace(/\/{2,}/g, '/').replace(/(.)\/$/, '$1')] : []);
     }))];
     expect(patterns.length).toBeGreaterThan(80);
-    const safe = /^(\/api\/telegram|\/api\/support\/contacts|\/api\/auth\/me|\/api\/user\/profile|\/api\/notifications(?:\/unread-count)?|\/api\/projects(?:\/[^/]+(?:\/avatar|\/summary|\/daily|\/campaigns(?:\/names)?|\/summary-tiles)?)?|\/api\/campaigns\/[^/]+(?:\/daily|\/ad-sets)?|\/api\/ad-sets\/[^/]+\/ads|\/api\/ad-creatives\/[^/]+\/(?:file|poster)|\/api\/ads\/[^/]+\/(?:preview|creatives)|\/api\/summary(?:\/projects|\/daily|\/channels)?|\/api\/crm(?:\/.*)?)$/;
+    const safe = /^(\/api\/intake\/script\.js|\/api\/telegram|\/api\/support\/contacts|\/api\/auth\/me|\/api\/user\/profile|\/api\/notifications(?:\/unread-count)?|\/api\/projects(?:\/[^/]+(?:\/avatar|\/summary|\/daily|\/campaigns(?:\/names)?|\/summary-tiles)?)?|\/api\/campaigns\/[^/]+(?:\/daily|\/ad-sets)?|\/api\/ad-sets\/[^/]+\/ads|\/api\/ad-creatives\/[^/]+\/(?:file|poster)|\/api\/ads\/[^/]+\/(?:preview|creatives)|\/api\/summary(?:\/projects|\/daily|\/channels)?|\/api\/crm(?:\/.*)?)$/;
     for (const pattern of patterns) {
       const path = pattern.replace(/:projectId|:boardKey/g, projectId).replace(/:clientId/g, clientId)
         .replace(/:id/g, pattern.includes('/campaigns') ? ownCampaign : pattern.includes('/people') ? ownPerson : pattern.includes('/companies') ? ownCompany : pattern.includes('/leads') ? ownLead : projectId)

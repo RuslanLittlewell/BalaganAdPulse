@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { GaugeIcon, HistoryIcon, UserPlusIcon } from "lucide-react";
 import { UserMenu, useAuth } from "@/features/auth/index.js";
 import { HINTS, useHint } from "@/features/hints/index.js";
@@ -10,6 +10,7 @@ import { TariffDialog, TrialBanner } from "@/features/tariff-status/index.js";
 import { Can } from "@/features/permissions/index.js";
 import { ContactBook, type ContactDirectory } from "@/widgets/contact-book/index.js";
 import { CONTACTS_PARAM, PROFILE_PARAM } from "@/features/onboarding/index.js";
+import { WebsiteLeadsButton } from "@/widgets/crm-nav/index.js";
 import { OnlineUsers } from "@/widgets/online-users/index.js";
 import { ActivityLogModal } from "@/widgets/activity-log-modal/index.js";
 import { NotificationCenter } from "@/widgets/notification-center/index.js";
@@ -69,6 +70,7 @@ export function AppHeader() {
   const [activityOpen, setActivityOpen] = useState(false);
   const [tariffOpen, setTariffOpen] = useState(false);
   const { role, tariff } = useAuth();
+  const inCrm = /^\/crm(\/|$)/.test(useLocation().pathname);
   const [avatarVersion, setAvatarVersion] = useState(0);
   const firstPeople = useFirstPeopleHint(contactsOpen);
   const openContacts = useCallback((directory: ContactDirectory) => {
@@ -80,6 +82,7 @@ export function AppHeader() {
   return (
     <>
       <header className="flex min-h-13 w-full items-center justify-end gap-2 border-b border-border px-4">
+        {inCrm ? <div className="mr-auto"><WebsiteLeadsButton /></div> : null}
         <TrialBanner />
         <TooltipProvider delayDuration={200}>
           <div className="flex items-center gap-2">

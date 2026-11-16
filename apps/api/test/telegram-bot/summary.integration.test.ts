@@ -19,7 +19,7 @@ const kernel = createKernel();
 const notices = wireNotifications(kernel);
 const catalog = wireClientsAndProjects(kernel, notices);
 const people = wireMembersAndPresence(kernel, catalog);
-const leads = wireLeads(kernel, people);
+const leads = wireLeads(kernel, people, catalog);
 const advertising = wireCampaignsAndIntegrations(kernel, {
   projectRepository: catalog.projectRepository,
   leadIntake: leads.leadIntake,

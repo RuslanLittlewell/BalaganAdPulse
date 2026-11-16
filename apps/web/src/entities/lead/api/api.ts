@@ -101,7 +101,7 @@ export interface LeadBoard {
   capabilities: BoardCapabilities;
 }
 
-export type LeadOrigin = "MANUAL" | "META";
+export type LeadOrigin = "MANUAL" | "META" | "WEBSITE";
 
 export interface LeadAnswer {
   question: string;
@@ -122,6 +122,18 @@ export interface LeadMetaSource {
   submittedAt: string;
   answers: LeadAnswer[];
   answersOmitted: boolean;
+}
+
+export interface LeadWebSource {
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  utmContent: string | null;
+  utmTerm: string | null;
+  pageUrl: string | null;
+  referrer: string | null;
+  submittedAt: string;
+  answers: LeadAnswer[];
 }
 
 export interface LeadAd {
@@ -165,6 +177,7 @@ export interface Lead {
   project: LeadProject;
   assignee: LeadAssignee | null;
   metaSource: LeadMetaSource | null;
+  webSource: LeadWebSource | null;
   stage: string;
   position: number;
   createdAt: string;

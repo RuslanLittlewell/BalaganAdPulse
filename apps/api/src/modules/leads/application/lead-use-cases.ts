@@ -117,7 +117,7 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
     }
   }
   async function audit(context:TransactionContext,actor:ActorContext,row:LeadRecord,action:'CREATE'|'UPDATE'|'DELETE',changes:unknown) {
-    const withoutSource=(value:unknown)=>value&&typeof value==='object'&&'metaSource' in value?{...value,metaSource:undefined,ad:undefined}:value;
+    const withoutSource=(value:unknown)=>value&&typeof value==='object'&&'metaSource' in value?{...value,metaSource:undefined,webSource:undefined,ad:undefined}:value;
     const trimmed=Object.fromEntries(Object.entries(changes as Record<string,unknown>).map(([key,value])=>[key,withoutSource(value)]));
     await d.audit.append(context,{action,entityType:'lead',entityId:row.id,clientId:row.project.clientId,projectId:row.projectId,summary:`${action} lead`,changes:JSON.parse(JSON.stringify(trimmed))},actor);
   }

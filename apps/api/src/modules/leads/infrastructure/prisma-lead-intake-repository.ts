@@ -1,9 +1,10 @@
 import type { Prisma } from '@prisma/client';
 import type { TransactionContext } from '#shared/application/index.js';
 import type { PrismaUnitOfWork } from '#shared/infrastructure/prisma-unit-of-work.js';
-import type { ImportedLeadInput, LeadIntakeRepository } from '../application/lead-intake.js';
+import type { ImportedLeadInput, LeadIntakeRepository, WebsiteLeadInput } from '../application/lead-intake.js';
 import type { LeadMetaSource } from '../domain/lead.js';
 import { phoneDigitsOf } from '../domain/crm-record.js';
+import { leadNameOf, sameCampaignName } from '../domain/website-intake.js';
 
 export class PrismaLeadIntakeRepository implements LeadIntakeRepository {
   constructor(private readonly uow: PrismaUnitOfWork<Prisma.TransactionClient>) {}
@@ -34,7 +35,7 @@ export class PrismaLeadIntakeRepository implements LeadIntakeRepository {
     if (found) return found.id;
     return (await tx.company.create({ data: { orgId, clientId, name: title }, select: { id: true } })).id;
   }
-  private async contact(context: TransactionContext, input: ImportedLeadInput, clientId: string, companyId: string | null) {
+  private async contact(context: TransactionContext, input: { orgId: string; name: string; email: string | null; phone: string | null }, clientId: string, companyId: string | null) {
     const tx = this.tx(context);
     const email = input.email?.trim() || null;
     const digits = phoneDigitsOf(input.phone);
@@ -69,6 +70,31 @@ export class PrismaLeadIntakeRepository implements LeadIntakeRepository {
       } },
     } });
     await tx.metaLead.update({ where: { orgId_externalId: { orgId: input.orgId, externalId: input.externalId } }, data: { leadId: input.id } });
+  }
+  async campaignByTag(context: TransactionContext, projectId: string, tag: string) {
+    const tx = this.tx(context);
+    const byId = await tx.campaign.findFirst({ where: { projectId, externalId: tag.trim() }, select: { id: true } });
+    if (byId) return byId.id;
+    const named = await tx.campaign.findMany({ where: { projectId, name: { equals: tag.trim(), mode: 'insensitive' } }, select: { id: true, name: true } });
+    const matches = named.filter((campaign) => sameCampaignName(campaign.name, tag));
+    return matches.length === 1 ? matches[0].id : null;
+  }
+  async createWebsite(context: TransactionContext, input: WebsiteLeadInput) {
+    const tx = this.tx(context);
+    const { lead } = input;
+    const { clientId } = await tx.project.findUniqueOrThrow({ where: { id: input.projectId }, select: { clientId: true } });
+    const name = leadNameOf(lead);
+    const companyId = await this.organization(context, input.orgId, clientId, lead.company);
+    const personId = await this.contact(context, { orgId: input.orgId, name, email: lead.email, phone: lead.phone }, clientId, companyId);
+    await tx.lead.create({ data: {
+      id: input.id, orgId: input.orgId, projectId: input.projectId, campaignId: input.campaignId,
+      origin: 'WEBSITE', stage: 'NEW', position: 0, name, personId, companyId,
+      webSource: { create: {
+        utmSource: lead.utmSource, utmMedium: lead.utmMedium, utmCampaign: lead.utmCampaign, utmContent: lead.utmContent, utmTerm: lead.utmTerm,
+        pageUrl: lead.pageUrl, referrer: lead.referrer, submittedAt: input.submittedAt, answers: lead.answers as unknown as Prisma.InputJsonValue,
+      } },
+    } });
+    await tx.metaLead.update({ where: { orgId_externalId: { orgId: input.orgId, externalId: `site:${input.projectId}:${lead.externalId}` } }, data: { leadId: input.id } });
   }
   async linkAttribution(context: TransactionContext, projectId: string) {
     const tx = this.tx(context);

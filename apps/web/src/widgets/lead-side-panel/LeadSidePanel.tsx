@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLeads, type BoardCapabilities, type LeadAd } from "@/entities/lead/index.js";
-import { LeadActivityTab, LeadFilesTab, LeadNotesTab, LeadSourceSection } from "@/features/lead-management/index.js";
+import { LeadActivityTab, LeadFilesTab, LeadNotesTab, LeadSourceSection, WebsiteSourceSection } from "@/features/lead-management/index.js";
 import { openTaskCount, useLeadTasks, useTaskEvents } from "@/entities/task/index.js";
 import { isCustomer } from "@adpulse/access-policy";
 import { useAuth } from "@/features/auth/index.js";
@@ -61,7 +61,7 @@ function PanelBody({ boardKey, lead, capabilities, tab, onTab, onClose, onPrevie
   const readsTasks = useCan("read", "task") && role !== null && !isCustomer(role);
   const tasks = useLeadTasks(readsTasks ? lead.id : undefined);
   useTaskEvents();
-  const shown: Tab = (tab === "info" && !lead.metaSource) || (tab === "tasks" && !readsTasks) ? "fields" : tab;
+  const shown: Tab = (tab === "info" && !lead.metaSource && !lead.webSource) || (tab === "tasks" && !readsTasks) ? "fields" : tab;
   const open = openTaskCount(tasks.data ?? []);
 
   return (
@@ -75,7 +75,7 @@ function PanelBody({ boardKey, lead, capabilities, tab, onTab, onClose, onPrevie
             { id: "notes", label: t("crm.card.notes") },
             { id: "activity", label: t("crm.card.activity") },
             { id: "files", label: t("crm.card.files") },
-            ...(lead.metaSource ? [{ id: "info", label: t("crm.card.info") }] : []),
+            ...(lead.metaSource || lead.webSource ? [{ id: "info", label: t("crm.card.info") }] : []),
           ]}
           activeId={shown}
           onSelect={(id) => onTab(id as Tab)}
@@ -98,6 +98,8 @@ function PanelBody({ boardKey, lead, capabilities, tab, onTab, onClose, onPrevie
             source={lead.metaSource}
             onPreview={lead.ad && onPreviewCreative ? () => onPreviewCreative(lead.ad!) : undefined}
           />
+        ) : lead.webSource ? (
+          <WebsiteSourceSection source={lead.webSource} />
         ) : null}
       </div>
     </SidePanel>

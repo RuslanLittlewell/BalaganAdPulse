@@ -39,6 +39,7 @@ import { onboardingComponents, onboardingDoc } from "#modules/onboarding/index.j
 import { notificationDoc } from "#modules/notifications/index.js";
 import { telegramDoc } from "#modules/telegram-bot/index.js";
 import { seoAuditDoc, seoConnectionDoc, seoReadDoc } from "#modules/seo/index.js";
+import { websiteIntakeDoc, websiteKeyDoc } from "#modules/leads/presentation/http/website-intake-openapi.js";
 import { shareLinkDoc } from "#modules/share-links/index.js";
 
 const require = createRequire(import.meta.url);
@@ -96,6 +97,8 @@ export function apiDocument(): OpenApiDocument {
     { mount: mountPath("seo"), ...seoReadDoc },
     { mount: mountPath("seo"), ...seoAuditDoc },
     { mount: mountPath("share-links"), ...shareLinkDoc },
+    { mount: mountPath("website-keys"), ...websiteKeyDoc },
+    { mount: mountPath("website-intake"), ...websiteIntakeDoc },
     { mount: mountPath("google-callback"), ...googleCallbackDoc },
     { mount: mountPath("ad-previews"), ...adPreviewDoc },
     { mount: mountPath("projects"), ...projectDoc },

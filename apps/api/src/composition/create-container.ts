@@ -39,6 +39,8 @@ export interface ApiContainer {
   readonly integrationRouter: Router;
   readonly seoRouter: Router;
   readonly shareLinkRouter: Router;
+  readonly websiteKeyRouter: Router;
+  readonly websiteIntakeRouter: Router;
   readonly shareLinks: ShareLinkUseCases;
   readonly seoWorker: ReturnType<typeof createSeoWorker>;
   readonly googleCallbackRouter: Router;
@@ -102,7 +104,7 @@ export function createContainer(): ApiContainer {
   const cabinets = wireClientAccounts(kernel, catalog);
   const people = wireMembersAndPresence(kernel, catalog);
   const identity = wireIdentity(kernel, { redeem: invites.redeem, signedOut: people.leave });
-  const leads = wireLeads(kernel, people);
+  const leads = wireLeads(kernel, people, catalog);
   const advertising = wireCampaignsAndIntegrations(kernel, {
     projectRepository: catalog.projectRepository,
     leadIntake: leads.leadIntake,
@@ -171,6 +173,8 @@ export function createContainer(): ApiContainer {
     seoRouter: seo.seoRouter,
     seoWorker: seo.seoWorker,
     shareLinkRouter: sharing.shareLinkRouter,
+    websiteKeyRouter: leads.websiteKeyRouter,
+    websiteIntakeRouter: leads.websiteIntakeRouter,
     shareLinks: sharing.shareLinks,
     googleCallbackRouter: advertising.googleCallbackRouter,
     adPreviewRouter: advertising.adPreviewRouter,

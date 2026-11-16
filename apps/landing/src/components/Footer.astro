@@ -47,6 +47,14 @@ const topics = [TRIAL_TOPIC, "Вопрос о сервисе", "Подключе
         </select>
       </label>
       <label class="flex flex-col gap-2 text-sm font-semibold">
+        Email
+        <input type="email" name="email" required autocomplete="email" placeholder="name@company.com" class="rounded-lg border border-border bg-card px-3 py-2.5 font-normal" />
+      </label>
+      <label class="flex flex-col gap-2 text-sm font-semibold">
+        Телефон
+        <input type="tel" name="phone" autocomplete="tel" placeholder="+375 29 123-45-67" class="rounded-lg border border-border bg-card px-3 py-2.5 font-normal" />
+      </label>
+      <label class="flex flex-col gap-2 text-sm font-semibold">
         Сообщение
         <textarea name="body" rows="5" placeholder="Расскажите, что случилось или что хотелось бы видеть" class="resize-y rounded-lg border border-border bg-card px-3 py-2.5 font-normal"></textarea>
       </label>
@@ -78,7 +86,8 @@ const topics = [TRIAL_TOPIC, "Вопрос о сервисе", "Подключе
       event.preventDefault();
       const data = new FormData(form);
       const subject = encodeURIComponent(`${SITE.name}: ${data.get("subject") ?? ""}`);
-      const body = encodeURIComponent(String(data.get("body") ?? ""));
+      const contacts = [`Email: ${data.get("email") ?? ""}`, data.get("phone") ? `Телефон: ${data.get("phone")}` : ""].filter(Boolean).join("\n");
+      const body = encodeURIComponent(`${String(data.get("body") ?? "")}\n\n${contacts}`);
       window.location.href = `mailto:${SITE.contact}?subject=${subject}&body=${body}`;
     });
     form.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled = false;

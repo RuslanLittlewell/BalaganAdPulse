@@ -78,6 +78,14 @@ describe("the website script", () => {
     expect(JSON.parse(fetch.mock.calls[0][1].body)).not.toHaveProperty("utm_campaign");
   });
 
+  it("names a field by its label without the options of a wrapped select", async () => {
+    const page = openPage(`<form id="f"><label>Тема<select name="subject"><option>Пробный период</option><option>Вопрос</option></select></label><input name="email" type="email" value="a@example.com"></form>`);
+
+    page.submit(page.window.document.getElementById("f")!);
+
+    expect(page.sent()[0]).toMatchObject({ email: "a@example.com", fields: [{ question: "Тема", value: "Пробный период" }] });
+  });
+
   it("sends nothing for a form without a phone or email", async () => {
     const page = openPage(`<form id="f"><input name="q" value="windows"></form>`);
 

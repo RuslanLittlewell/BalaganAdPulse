@@ -78,7 +78,12 @@ export const WEBSITE_INTAKE_SCRIPT = `(function () {
   }
 
   function labelOf(input) {
-    var label = input.labels && input.labels[0] && input.labels[0].textContent;
+    var label = "";
+    if (input.labels && input.labels[0]) {
+      var copy = input.labels[0].cloneNode(true);
+      Array.prototype.forEach.call(copy.querySelectorAll("input,select,textarea"), function (control) { control.remove(); });
+      label = copy.textContent.replace(/\\s+/g, " ");
+    }
     return (label || input.getAttribute("placeholder") || input.name || "").trim().slice(0, 200);
   }
 

@@ -3,6 +3,7 @@ import { AppError } from "#shared/domain/index.js";
 import type { ActorContext } from "#shared/application/index.js";
 import {
   DEFAULT_TASK_COLUMN,
+  DONE_ARCHIVE_AFTER_MS,
   isTaskColumn,
   placeInColumn,
   reorderAfterRemoval,
@@ -429,6 +430,22 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
       dependencies.events.publish(taskMoved(movedTask));
       if (task.column !== movedTask.column) dependencies.notices.changed(movedTask, actor, []);
       return movedTask;
+    },
+
+    archiveDone: async (now: Date): Promise<void> => {
+      const before = new Date(now.getTime() - DONE_ARCHIVE_AFTER_MS);
+      for (const task of await dependencies.tasks.doneSince(before)) {
+        const archived = await dependencies.unitOfWork.run(async (transaction) => {
+          if (!(await dependencies.tasks.archiveIfDoneSince(transaction, task.id, before))) return false;
+          const done = reorderAfterRemoval(await dependencies.tasks.columnIds(task.orgId, "DONE"), task.id);
+          await dependencies.tasks.applyOrder(transaction, "DONE", done);
+          const archive = placeInColumn(await dependencies.tasks.columnIds(task.orgId, "ARCHIVED"), task.id, 0);
+          await dependencies.tasks.applyOrder(transaction, "ARCHIVED", archive);
+          return true;
+        });
+        if (!archived) continue;
+        dependencies.events.publish(taskMoved({ ...task, column: "ARCHIVED", position: 0, archivedAt: now }));
+      }
     },
   };
 }

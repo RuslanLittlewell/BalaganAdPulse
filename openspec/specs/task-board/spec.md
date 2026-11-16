@@ -7,25 +7,6 @@ and which stage it has reached.
 
 ## Requirements
 
-### Requirement: The board has six fixed columns
-
-A task SHALL sit in exactly one of six columns: `IDEA`, `ARCHIVED`, `IN_PROGRESS`,
-`NEEDS_FIX`, `IN_REVIEW`, `DONE`. The set is fixed — members SHALL NOT add, rename or remove
-columns. The board SHALL present them in that order, left to right. A task created without a
-named column SHALL land in `IDEA`.
-
-#### Scenario: Default column
-- **WHEN** a member creates a task without naming a column
-- **THEN** the task is stored in `IDEA` and appears in the first column of the board
-
-#### Scenario: Unknown column rejected
-- **WHEN** a request names a column outside the six
-- **THEN** the API responds 400 and the task is unchanged
-
-#### Scenario: Empty column is still shown
-- **WHEN** the board is opened and no task sits in `NEEDS_FIX`
-- **THEN** the `NEEDS_FIX` column is still drawn, empty, in its place in the order
-
 ### Requirement: Tasks are ordered within their column
 
 Tasks SHALL carry an explicit position within their column and SHALL be returned in
@@ -628,13 +609,13 @@ client.
 ### Requirement: Work in flight is visible beside a project's figures
 
 A project SHALL show the tasks under it that are still in flight — those in the `IDEA`,
-`IN_PROGRESS`, `NEEDS_FIX` and `IN_REVIEW` stages. Tasks that are done or archived SHALL
+`QUEUED`, `IN_PROGRESS`, `NEEDS_FIX` and `IN_REVIEW` stages. Tasks that are done or archived SHALL
 be left out: the list answers "what is being worked on", not "what has ever existed".
 
 #### Scenario: A project with work at several stages
 
 - **WHEN** a member opens a project whose tasks span every stage
-- **THEN** the tasks in the four in-flight stages are listed, and the done and archived
+- **THEN** the tasks in the five in-flight stages are listed, and the done and archived
   ones are not
 
 #### Scenario: A project with nothing in flight
@@ -839,7 +820,7 @@ refused change SHALL restore it and tell the member it did not happen.
 
 The task form's header SHALL offer, next to the priority, an Этап select to a member permitted to
 change the task. A client opening a task they may not change SHALL see the select showing its
-stage, disabled. A client raising a task SHALL be offered none. It SHALL list the six stages in the board's order and SHALL show
+stage, disabled. A client raising a task SHALL be offered none. It SHALL list the seven stages in the board's order and SHALL show
 the task's current stage; for a new task it SHALL show the stage the task will be created in — the
 column the form was opened from, or `IDEA`.
 
@@ -858,7 +839,7 @@ member the move did not happen.
 #### Scenario: Every stage is offered
 
 - **WHEN** a manager opens the Этап select
-- **THEN** it lists Идея, В работе, На исправление, На проверке, Готово and Архив, in the board's
+- **THEN** it lists Идея, В очереди, В работе, На исправление, На проверке, Готово and Архив, in the board's
   order
 
 #### Scenario: Moving a task from its form
@@ -1564,3 +1545,26 @@ project is seen by them alone.
 #### Scenario: A choice in a task the client may not change
 - **WHEN** a client presses the project or the repeat field of a task on a project
 - **THEN** no list of choices opens and the task is unchanged
+
+### Requirement: The board has seven fixed columns
+
+A task SHALL sit in exactly one of seven columns: `IDEA`, `QUEUED`, `IN_PROGRESS`,
+`NEEDS_FIX`, `IN_REVIEW`, `DONE`, `ARCHIVED`. The set is fixed — members SHALL NOT add, rename or remove
+columns. The board SHALL present them in that order, left to right. A task created without a
+named column SHALL land in `IDEA`.
+
+#### Scenario: Default column
+- **WHEN** a member creates a task without naming a column
+- **THEN** the task is stored in `IDEA` and appears in the first column of the board
+
+#### Scenario: Unknown column rejected
+- **WHEN** a request names a column outside the seven
+- **THEN** the API responds 400 and the task is unchanged
+
+#### Scenario: Empty column is still shown
+- **WHEN** the board is opened and no task sits in `NEEDS_FIX`
+- **THEN** the `NEEDS_FIX` column is still drawn, empty, in its place in the order
+
+#### Scenario: The queue follows the ideas
+- **WHEN** the board is opened
+- **THEN** the В очереди column is drawn second, between Идея and В работе

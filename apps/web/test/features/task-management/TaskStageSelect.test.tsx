@@ -42,7 +42,7 @@ describe("the stage in the task form", () => {
 
     const options = await screen.findAllByRole("option");
     expect(options.map((option) => option.textContent))
-      .toEqual(["Идея", "В работе", "На исправление", "На проверке", "Готово", "Архив"]);
+      .toEqual(["Идея", "В очереди", "В работе", "На исправление", "На проверке", "Готово", "Архив"]);
   });
 
   it("moves the task to the top of the chosen stage before saving the rest", async () => {

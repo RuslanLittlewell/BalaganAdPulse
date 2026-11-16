@@ -3,6 +3,7 @@ import { localTask, viewerTimeZone } from "../lib/zone.js";
 
 export const TASK_COLUMNS = [
   "IDEA",
+  "QUEUED",
   "IN_PROGRESS",
   "NEEDS_FIX",
   "IN_REVIEW",

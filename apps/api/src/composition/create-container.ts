@@ -12,6 +12,7 @@ import type { createSeoWorker } from "#modules/seo/index.js";
 import type { PresenceRegistry } from "#modules/presence/index.js";
 import type { Connection, ConnectionRegistry } from "#modules/realtime/index.js";
 import type { DueSoonWorker } from "#modules/notifications/index.js";
+import type { DoneArchiveWorker } from "#modules/tasks/index.js";
 import type { ShareLinkUseCases } from "#modules/share-links/index.js";
 import { apiDocument, createDocumentationRouter } from "./openapi.js";
 import { wireCampaignsAndIntegrations } from "./wiring/campaigns-integrations.js";
@@ -81,6 +82,7 @@ export interface ApiContainer {
   readonly notificationRouter: Router;
   readonly closeNotificationStreams: () => void;
   readonly dueSoonWorker: DueSoonWorker;
+  readonly doneArchiveWorker: DoneArchiveWorker;
   readonly telegramRouter: Router;
   readonly telegramPoller: TelegramPoller;
   readonly connections: ConnectionRegistry;
@@ -178,6 +180,7 @@ export function createContainer(): ApiContainer {
     taskRouter: tasks.taskRouter,
     taskImageRouter: tasks.taskImageRouter,
     taskDocumentRouter: tasks.taskDocumentRouter,
+    doneArchiveWorker: tasks.doneArchiveWorker,
 
     notificationRouter: notices.notificationRouter,
     closeNotificationStreams: notices.closeNotificationStreams,

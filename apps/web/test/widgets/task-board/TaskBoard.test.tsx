@@ -12,10 +12,10 @@ function setup() {
   );
 }
 
-const COLUMNS = ["Идея", "В работе", "На исправление", "На проверке", "Готово", "Архив"];
+const COLUMNS = ["Идея", "В очереди", "В работе", "На исправление", "На проверке", "Готово", "Архив"];
 
 describe("TaskBoard", () => {
-  it("draws the six columns in the order the product asked for", async () => {
+  it("draws the seven columns in the order the product asked for", async () => {
     server.use(mock.get("/api/tasks", () => HttpResponse.json([])));
     setup();
 

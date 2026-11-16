@@ -1,0 +1,550 @@
+---
+import Clapperboard from "@lucide/astro/icons/clapperboard";
+import FolderKanban from "@lucide/astro/icons/folder-kanban";
+import Globe from "@lucide/astro/icons/globe";
+import Megaphone from "@lucide/astro/icons/megaphone";
+import Search from "@lucide/astro/icons/search";
+import Send from "@lucide/astro/icons/send";
+import Target from "@lucide/astro/icons/target";
+import { chartPaths, leadsWord } from "../scripts/chart";
+import Panel from "./Panel.astro";
+import SectionTag from "./SectionTag.astro";
+import TrialButton from "./TrialButton.astro";
+
+const sources = [
+  { name: "Meta Ads", icon: Megaphone, x: 46, y: 34 },
+  { name: "Google Ads", icon: Search, x: 160, y: 30 },
+  { name: "Search Console", icon: Globe, x: 58, y: 122 },
+];
+
+const L1 = "M117,67 C196,67 210,100 262,100";
+const L2 = "M117,73 C186,73 206,120 262,120";
+const R1 = "M378,100 C412,100 418,86 450,86";
+const R2 = "M378,120 C412,120 418,134 450,134";
+const flows = [L1, L2, R1, R2];
+const FIRST_REPORT = 128;
+
+const tools = [
+  { name: "Meta Ads", icon: Megaphone, status: "connected", x: 50, y: 30 },
+  { name: "Google Ads", icon: Search, status: "connected", x: 50, y: 80 },
+  { name: "Search Console", icon: Globe, status: "connected", x: 50, y: 130 },
+  { name: "Telegram", icon: Send, status: "connected", x: 250, y: 30 },
+  { name: "Яндекс Директ", icon: Target, status: "soon", x: 250, y: 80 },
+  { name: "TikTok Ads", icon: Clapperboard, status: "soon", x: 250, y: 130 },
+] as const;
+const HUB = { x: 150, y: 80 };
+const toolPath = (tool: (typeof tools)[number]) => {
+  const side = tool.x < HUB.x ? -1 : 1;
+  return `M${HUB.x + side * 17},${HUB.y} H${HUB.x + side * 42} V${tool.y} H${tool.x - side * 15}`;
+};
+const connected = tools.filter((tool) => tool.status === "connected");
+const planned = tools.filter((tool) => tool.status === "soon");
+
+const values = [8, 11, 9, 12, 14, 13, 15, 12, 16, 18, 17, 15, 19, 21, 20, 18, 22, 24, 23, 21, 25, 27, 26, 24, 28, 30, 29, 27, 31, 33];
+const days = values.map((_, index) => `${index + 1} сент.`);
+const CHART_WIDTH = 300;
+const CHART_HEIGHT = 130;
+const chart = chartPaths(values, CHART_WIDTH, CHART_HEIGHT, 14);
+const last = chart.points[chart.points.length - 1];
+const lastValue = values[values.length - 1];
+const tipX = Math.min(CHART_WIDTH - 44, Math.max(44, last[0]));
+const tipY = last[1] < 34 ? last[1] + 22 : last[1] - 12;
+---
+
+<div data-integrations class="ib flex flex-col">
+  <div data-reveal class="ib-head">
+    <SectionTag>Подключения</SectionTag>
+    <h2 class="ib-h2">
+      <span>Кабинеты клиентов</span>
+      <span><span class="ib-muted">подключаются</span> за минуту</span>
+    </h2>
+    <p class="max-w-2xl text-lg text-muted-foreground">
+      Каждый проект подключает свои кабинеты сам. К одному проекту можно подключить несколько кабинетов, у каждого - своя вкладка с кампаниями.
+    </p>
+    <div class="mt-2 flex flex-col items-center gap-3">
+      <TrialButton />
+      <p class="text-xs text-muted-foreground">Месяц бесплатно, с CRM, задачами и отчётами</p>
+    </div>
+  </div>
+
+  <div class="ib-bento">
+    <Panel class="ib-wide" flush cardClass="gap-3.5">
+        <svg class="ib-diagram" viewBox="0 0 640 178" role="img" aria-label="Данные из кабинетов проекта проходят через Balagan и собираются в отчёты">
+          <defs>
+            <radialGradient id="ib-flow-glow" cx="320" cy="110" r="190" gradientUnits="userSpaceOnUse">
+              <stop offset="0" stop-color="var(--primary)" stop-opacity=".22" />
+              <stop offset="1" stop-color="var(--primary)" stop-opacity="0" />
+            </radialGradient>
+          </defs>
+          <rect width="640" height="178" fill="url(#ib-flow-glow)" />
+
+          {sources.map((source) => (
+            <line x1={source.x} y1={source.y} x2="104" y2="70" class="ib-dotted" />
+          ))}
+          <g transform="translate(91,57)">
+            <rect width="26" height="26" rx="5" class="ib-node" />
+            <g class="ib-ink"><FolderKanban x="6" y="6" size={14} stroke-width={1.6} /></g>
+          </g>
+          {sources.map(({ name, icon: Icon, x, y }) => (
+            <g>
+              <rect x={x - 11} y={y - 11} width="22" height="22" rx="5" class="ib-node" />
+              <g class="ib-ink"><Icon x={x - 6} y={y - 6} size={12} stroke-width={1.6} /></g>
+              <text x={x} y={y + 21} text-anchor="middle" class="ib-label">{name}</text>
+            </g>
+          ))}
+
+          {flows.map((flow, index) => (
+            <path d={flow} class:list={["ib-flow", index % 2 === 1 && "ib-dash"]} />
+          ))}
+          <g data-ib-flow>
+            {flows.map((flow, index) => (
+              <circle r="2.4" class="ib-pkt">
+                <animateMotion dur={`${2.2 + (index % 2) * 0.6}s`} begin="indefinite" repeatCount="indefinite" path={flow} />
+              </circle>
+            ))}
+          </g>
+
+          <g transform="translate(262,88)">
+            <rect x="-4" y="-4" width="124" height="52" rx="8" class="ib-halo" />
+            <rect width="116" height="44" rx="6" class="ib-node ib-lift" />
+            <rect x="12" y="12" width="20" height="20" rx="5" class="ib-brand" />
+            <text x="22" y="26" text-anchor="middle" class="ib-brand-letter">B</text>
+            <text x="40" y="26" class="ib-chip-name">BALAGAN</text>
+            <path d="M100 18l4 4-4 4" fill="none" class="ib-chevron" />
+          </g>
+
+          <g>
+            {[2, 1, 0].map((depth) => (
+              <g transform={`translate(${450 + depth * 12},${40 - depth * 10})`} opacity={1 - depth * 0.25}>
+                <g data-ib-sheet={depth === 0 ? "" : undefined} class="ib-sheet">
+                  <rect width="138" height="102" rx="3" class="ib-paper" />
+                  {depth === 0 && (
+                    <>
+                      <text x="10" y="16" class="ib-mono" data-ib-report={FIRST_REPORT}>ОТЧЁТ №{FIRST_REPORT}</text>
+                      <rect x="10" y="24" width="64" height="5" rx="1" class="ib-ink-fill" opacity=".75" />
+                      <rect x="10" y="33" width="92" height="3" rx="1" class="ib-rule" />
+                      <rect x="10" y="39" width="80" height="3" rx="1" class="ib-rule" />
+                      {[18, 26, 14, 30, 22, 34].map((height, bar) => (
+                        <rect x={12 + bar * 13} y={92 - height} width="8" height={height} class="ib-bar" opacity={0.35 + bar * 0.11} />
+                      ))}
+                      <path d="M92 64h34M92 72h28M92 80h32" class="ib-rule-line" />
+                    </>
+                  )}
+                </g>
+              </g>
+            ))}
+          </g>
+        </svg>
+        <div class="ib-wide-copy">
+          <div>
+            <h3 class="text-[0.9375rem] font-semibold">Кабинеты в проекте</h3>
+            <p class="mt-1 max-w-[44ch] text-sm leading-[1.55] text-muted-foreground">Meta Ads, Google Ads и Search Console подключаются к проекту клиента, по несколько кабинетов на проект.</p>
+          </div>
+          <div>
+            <h3 class="text-[0.9375rem] font-semibold">Отчёты собираются сами</h3>
+            <p class="mt-1 max-w-[44ch] text-sm leading-[1.55] text-muted-foreground">Каждое утро данные из кабинетов попадают в дашборд, в проект и в отчёт за месяц.</p>
+          </div>
+        </div>
+    </Panel>
+
+    <Panel cardClass="gap-3.5">
+        <svg class="ib-diagram" viewBox="0 0 300 170" role="group" aria-label="Подключения BalaganBI">
+          {tools.map((tool) => (
+            <path d={toolPath(tool)} data-ib-path={tool.name} class:list={["ib-flow", tool.status === "soon" && "ib-flow-soon"]} />
+          ))}
+          <g transform={`translate(${HUB.x - 17},${HUB.y - 17})`}>
+            <rect width="34" height="34" rx="7" class="ib-node ib-lift" />
+            <rect x="7" y="7" width="20" height="20" rx="5" class="ib-brand" />
+            <text x="17" y="21" text-anchor="middle" class="ib-brand-letter">B</text>
+          </g>
+          {tools.map(({ name, icon: Icon, status, x, y }) => (
+            <g data-ib-tool={status} data-ib-name={name} tabindex="0" role="img" aria-label={status === "soon" ? `${name}, скоро` : name} class:list={["ib-tool", status === "soon" && "ib-soon"]}>
+              <rect x={x - 15} y={y - 15} width="30" height="30" rx="6" class="ib-node" />
+              <g class="ib-ink"><Icon x={x - 7} y={y - 7} size={14} stroke-width={1.5} /></g>
+              <text x={x} y={y + 25} text-anchor="middle" class="ib-label">{name}</text>
+            </g>
+          ))}
+          <text x={HUB.x} y={HUB.y + 36} text-anchor="middle" class="ib-mono ib-status" data-ib-status>{connected.length} подключено · {planned.length} скоро</text>
+        </svg>
+        <div class="mt-auto flex flex-col gap-3">
+          <div>
+            <h3 class="text-[0.9375rem] font-semibold">Все подключения в одном месте</h3>
+            <p class="mt-1 max-w-[44ch] text-sm leading-[1.55] text-muted-foreground">Рекламные кабинеты, сайт в Search Console и Telegram-бот работают с одними данными проекта.</p>
+          </div>
+          <ul class="flex flex-wrap gap-1.5" aria-label="Подключения">
+            {connected.map((tool) => (
+              <li class="ib-chip"><span aria-hidden="true" class="ib-chip-dot"></span>{tool.name}</li>
+            ))}
+            {planned.map((tool) => (
+              <li class="ib-chip ib-chip-soon">{tool.name} <span class="text-muted-foreground">· скоро</span></li>
+            ))}
+          </ul>
+        </div>
+    </Panel>
+
+    <Panel cardClass="gap-3.5">
+        <svg
+          data-ib-chart
+          data-points={JSON.stringify(chart.points)}
+          data-values={JSON.stringify(values)}
+          data-days={JSON.stringify(days)}
+          data-width={CHART_WIDTH}
+          class="ib-diagram ib-chart"
+          viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT + 6}`}
+          role="img"
+          aria-label={`Лиды за 30 дней: от ${values[0]} в первый день до ${lastValue} в последний`}
+        >
+          <defs>
+            <linearGradient id="ib-chart-area" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="var(--primary)" stop-opacity=".22" />
+              <stop offset="1" stop-color="var(--primary)" stop-opacity="0" />
+            </linearGradient>
+          </defs>
+          {[0.25, 0.5, 0.75].map((share) => (
+            <line x1="14" x2={CHART_WIDTH - 14} y1={CHART_HEIGHT * share} y2={CHART_HEIGHT * share} class="ib-grid" />
+          ))}
+          <path d={chart.area} fill="url(#ib-chart-area)" />
+          <path d={chart.line} pathLength="1" class="ib-line" />
+          <text x="14" y="12" class="ib-mono">ОБНОВЛЕНО СЕГОДНЯ В 08:00</text>
+          <line data-ib-guide x1={last[0]} x2={last[0]} y1="8" y2={CHART_HEIGHT - 14} class="ib-guide" />
+          <circle cx={last[0]} cy={last[1]} r="7" class="ib-pulse" />
+          <circle data-ib-marker cx={last[0]} cy={last[1]} r="3.2" class="ib-marker" />
+          <g data-ib-tip transform={`translate(${tipX},${tipY})`}>
+            <rect x="-42" y="-11" width="84" height="15" rx="2" class="ib-tip" />
+            <text data-ib-tip-text x="0" y="-1" text-anchor="middle" class="ib-tip-text">{days[days.length - 1]} · {lastValue} {leadsWord(lastValue)}</text>
+          </g>
+        </svg>
+        <div class="mt-auto">
+          <h3 class="text-[0.9375rem] font-semibold">Свежие данные каждое утро</h3>
+          <p class="mt-1 max-w-[44ch] text-sm leading-[1.55] text-muted-foreground">Статистика за последние 30 дней обновляется сама каждое утро, а по кнопке - когда нужно.</p>
+        </div>
+    </Panel>
+  </div>
+</div>
+
+<style>
+  .ib {
+    --ib-line: var(--border);
+    --ib-line-strong: color-mix(in srgb, var(--foreground) 24%, transparent);
+    --ib-faint: color-mix(in srgb, var(--muted-foreground) 70%, transparent);
+    container-type: inline-size;
+  }
+
+  .ib-head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: clamp(2rem, 4.5cqw, 3.5rem);
+    text-align: center;
+  }
+
+  .ib-h2 {
+    font-size: clamp(2rem, 4.4cqw, 3.25rem);
+    font-weight: 600;
+    line-height: 1.06;
+    letter-spacing: -0.03em;
+  }
+
+  .ib-h2 > span {
+    display: block;
+  }
+
+  .ib-muted {
+    color: var(--ib-faint);
+  }
+
+  .ib-bento {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: clamp(1.5rem, 3cqw, 2.25rem);
+  }
+
+  @container (min-width: 720px) {
+    .ib-bento {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .ib-wide {
+      grid-column: 1 / -1;
+    }
+  }
+
+  .ib-wide-copy {
+    display: grid;
+    gap: 1rem;
+    padding: 0 1.375rem 1.25rem;
+  }
+
+  @container (min-width: 560px) {
+    .ib-wide-copy {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .ib-wide-copy > div:last-child {
+      justify-self: end;
+    }
+  }
+
+  .ib-diagram {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+
+  .ib-node {
+    fill: var(--card);
+    stroke: var(--ib-line-strong);
+    transition: stroke 0.3s;
+  }
+
+  .ib-lift {
+    filter: drop-shadow(0 6px 10px rgb(0 0 0 / 0.12));
+  }
+
+  .ib-ink {
+    color: var(--foreground);
+  }
+
+  .ib-ink-fill,
+  .ib-bar {
+    fill: var(--foreground);
+  }
+
+  .ib-label {
+    font-size: 7px;
+    fill: var(--muted-foreground);
+  }
+
+  .ib-mono {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 7px;
+    fill: var(--ib-faint);
+  }
+
+  .ib-dotted {
+    stroke: var(--ib-line-strong);
+    stroke-dasharray: 2 3;
+  }
+
+  .ib-flow {
+    fill: none;
+    stroke: var(--ib-line-strong);
+    stroke-width: 1.2;
+    transition: stroke 0.3s;
+  }
+
+  .ib-flow[data-on] {
+    stroke: var(--primary);
+  }
+
+  .ib-flow-soon {
+    stroke-dasharray: 2 3;
+    opacity: 0.6;
+  }
+
+  .ib-pkt {
+    fill: var(--primary);
+    opacity: 0;
+  }
+
+  [data-moving] .ib-pkt {
+    opacity: 1;
+  }
+
+  [data-moving] .ib-dash {
+    stroke-dasharray: 3 4;
+    animation: ib-dash 1.2s linear infinite;
+  }
+
+  .ib-halo {
+    fill: none;
+    stroke: var(--ib-line);
+  }
+
+  [data-moving] .ib-halo,
+  [data-moving] .ib-pulse {
+    animation: ib-pulse 2s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .ib-brand {
+    fill: var(--primary);
+  }
+
+  .ib-brand-letter {
+    font-size: 11px;
+    font-weight: 700;
+    fill: var(--primary-foreground);
+  }
+
+  .ib-chip-name {
+    font-size: 8.5px;
+    font-weight: 600;
+    letter-spacing: 1.4px;
+    fill: var(--foreground);
+  }
+
+  .ib-chevron {
+    stroke: var(--muted-foreground);
+    stroke-width: 1.3;
+  }
+
+  .ib-paper {
+    fill: var(--card);
+    stroke: var(--ib-line-strong);
+  }
+
+  .ib-rule {
+    fill: var(--ib-line-strong);
+  }
+
+  .ib-rule-line {
+    stroke: var(--ib-line-strong);
+    stroke-width: 2.5;
+  }
+
+  .ib-sheet-new {
+    animation: ib-sheet-in 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  .ib-tool {
+    cursor: pointer;
+    outline: none;
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .ib-tool[data-on] {
+    transform: translateY(-2px);
+  }
+
+  .ib-tool[data-on] .ib-node,
+  .ib-tool:focus-visible .ib-node {
+    stroke: var(--primary);
+  }
+
+  .ib-soon {
+    opacity: 0.55;
+  }
+
+  .ib-soon .ib-node {
+    stroke-dasharray: 3 3;
+  }
+
+  .ib-status {
+    font-size: 6.5px;
+  }
+
+  .ib-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border: 1px solid var(--ib-line);
+    border-radius: 9999px;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .ib-chip-dot {
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 9999px;
+    background: var(--kpi-met);
+  }
+
+  .ib-chip-soon {
+    border-style: dashed;
+    color: var(--muted-foreground);
+  }
+
+  .ib-chart {
+    cursor: crosshair;
+    touch-action: pan-y;
+  }
+
+  .ib-grid {
+    stroke: var(--ib-line);
+  }
+
+  .ib-line {
+    fill: none;
+    stroke: var(--primary);
+    stroke-width: 1.5;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 1.8s cubic-bezier(0.4, 0.1, 0.2, 1);
+  }
+
+  [data-in="false"] .ib-line {
+    stroke-dashoffset: 1;
+  }
+
+  .ib-guide {
+    stroke: var(--foreground);
+    stroke-opacity: 0;
+  }
+
+  .ib-guide[data-on] {
+    stroke-opacity: 0.35;
+  }
+
+  .ib-pulse {
+    fill: var(--primary);
+    fill-opacity: 0.22;
+  }
+
+  .ib-marker {
+    fill: var(--card);
+    stroke: var(--primary);
+    stroke-width: 1.5;
+  }
+
+  .ib-tip {
+    fill: var(--foreground);
+  }
+
+  .ib-tip-text {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 7.5px;
+    fill: var(--background);
+  }
+
+  @keyframes ib-dash {
+    to {
+      stroke-dashoffset: -14;
+    }
+  }
+
+  @keyframes ib-pulse {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.45;
+      transform: scale(1.35);
+    }
+  }
+
+  @keyframes ib-sheet-in {
+    from {
+      opacity: 0;
+      transform: translate(14px, -10px) rotate(4deg);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+</style>
+
+<script>
+  import { mountIntegrations } from "../scripts/integrations";
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-integrations]")) mountIntegrations(root);
+</script>

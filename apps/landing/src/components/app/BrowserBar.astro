@@ -1,0 +1,17 @@
+---
+interface Props {
+  path?: string;
+}
+
+const { path = "" } = Astro.props;
+---
+
+<div class="flex shrink-0 items-center gap-2 border-b border-border bg-muted/30 px-4 py-2.5">
+  <span aria-hidden="true" class="flex gap-1.5">
+    <span class="size-2.5 rounded-full bg-foreground/15"></span>
+    <span class="size-2.5 rounded-full bg-foreground/15"></span>
+    <span class="size-2.5 rounded-full bg-foreground/15"></span>
+  </span>
+  <span class="mx-auto truncate rounded-md bg-background/70 px-3 py-0.5 font-mono text-[10px] text-muted-foreground">app.balagan.pro{path}</span>
+  <span aria-hidden="true" class="w-[2.625rem]"></span>
+</div>

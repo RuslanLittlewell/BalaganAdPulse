@@ -1,0 +1,269 @@
+---
+import CrmMock from "./mocks/CrmMock.astro";
+import ProjectsMock from "./mocks/ProjectsMock.astro";
+import ReportsMock from "./mocks/ReportsMock.astro";
+import SummaryMock from "./mocks/SummaryMock.astro";
+import TasksMock from "./mocks/TasksMock.astro";
+import TeamMock from "./mocks/TeamMock.astro";
+import SectionHead from "./SectionHead.astro";
+import SectionTag from "./SectionTag.astro";
+
+const modules = [
+  {
+    id: "dashboard",
+    title: "Дашборд",
+    mock: SummaryMock,
+    headline: ["Все проекты на одном экране.", "Видно, где нужна помощь."],
+    lead: "Сводка по агентству за выбранный период: расходы, лиды и выполнение KPI по каждому проекту.",
+    steps: [
+      { title: "Кабинеты собираются сами", text: "Статистика Meta и Google Ads обновляется каждое утро." },
+      { title: "KPI окрашивает проекты", text: "Зелёный, жёлтый или красный по выполнению плана за месяц." },
+      { title: "Важное рядом с цифрами", text: "Проекты без KPI и задачи на ближайшие дни на том же экране." },
+    ],
+  },
+  {
+    id: "projects",
+    title: "Проекты",
+    mock: ProjectsMock,
+    headline: ["Один проект.", "Все кабинеты клиента."],
+    lead: "Кампании, KPI, креативы и документы клиента в одном месте, по вкладке на каждый кабинет.",
+    steps: [
+      { title: "Подключите кабинеты", text: "Meta по токену, Google Ads входом через Google, сколько нужно в одном проекте." },
+      { title: "Задайте KPI", text: "По метрике кабинета или вручную, на месяц." },
+      { title: "Следите за кампаниями", text: "Таблица кампаний с цветом выполнения KPI и креативами объявлений." },
+    ],
+  },
+  {
+    id: "tasks",
+    title: "Задачи",
+    mock: TasksMock,
+    headline: ["Одна доска.", "От идеи до готового."],
+    lead: "Работа команды на доске и в календаре, созвоны отдельным видом.",
+    steps: [
+      { title: "Идея или очередь", text: "Задача создаётся на доске, в календаре или голосом в Telegram-боте." },
+      { title: "В работе и на проверке", text: "У карточки участники, сроки, чек-лист и вложения." },
+      { title: "Готово и архив", text: "Администратор принимает работу, а через сутки задача уходит в архив сама." },
+    ],
+  },
+  {
+    id: "crm",
+    title: "CRM",
+    mock: CrmMock,
+    headline: ["Каждый лид.", "До коммерческого предложения."],
+    lead: "Лиды клиента по стадиям: новый, квалифицированный, целевой, КП.",
+    steps: [
+      { title: "Лид приходит сам", text: "Заявки из лид-форм Meta появляются в CRM в течение 15 минут." },
+      { title: "Двигайте по стадиям", text: "Доска, таблица и календарь лидов с ответами формы и файлами." },
+      { title: "Считайте сделки", text: "Каждая стадия показывает число лидов и сумму сделок." },
+    ],
+  },
+  {
+    id: "reports",
+    title: "Отчёты",
+    mock: ReportsMock,
+    headline: ["Отчёт за месяц.", "Не стыдно отправить клиенту."],
+    lead: "Итоги месяца по расходам и результатам проекта в одном документе.",
+    steps: [
+      { title: "Цифры уже на месте", text: "Расходы, лиды и цена лида собираются из кабинетов проекта." },
+      { title: "Лучшие объявления", text: "Креативы месяца с их результатами." },
+      { title: "PDF одной кнопкой", text: "Отчёт выгружается и уходит клиенту." },
+    ],
+  },
+  {
+    id: "team",
+    title: "Команда и доступ",
+    mock: TeamMock,
+    headline: ["Каждый видит своё.", "Всё записано."],
+    lead: "Роли, доступ к клиентам и проектам, приглашения и журнал действий.",
+    steps: [
+      { title: "Пригласите по ссылке", text: "Сотрудников агентства и людей клиента." },
+      { title: "Откройте нужное", text: "Доступ к отдельным клиентам и проектам, роли администратора, менеджера, гостя и клиента." },
+      { title: "Смотрите журнал", text: "Кто что изменил и кто сейчас в сети." },
+    ],
+  },
+];
+
+const steps = modules.length + 0.5;
+---
+
+<section id="modules" data-module-deck class="module-deck relative" style={`--deck-steps: ${steps}`}>
+  <div class="deck-stage">
+    <div data-deck-frame class="deck-frame site-container flex flex-col gap-16 py-24 lg:gap-24">
+      <div data-deck-intro class="deck-intro">
+        <SectionHead eyebrow="Модули" title="Всё, чем живёт агентство, в одном приложении">
+          <p class="max-w-xl text-lg text-muted-foreground">
+            Шесть модулей и одни данные: кабинет, подключённый в проекте, сразу виден в дашборде и отчётах.
+          </p>
+        </SectionHead>
+      </div>
+
+      {modules.map(({ id, title, headline, lead, steps, mock: Mock }) => (
+        <article
+          id={`module-${id}`}
+          aria-labelledby={`module-title-${id}`}
+          data-deck-module
+          class="deck-module grid items-center gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-14"
+        >
+          <div data-deck-copy class="deck-copy flex max-w-xl flex-col">
+            <h3 id={`module-title-${id}`} class="flex">
+              <SectionTag>{title}</SectionTag>
+            </h3>
+            <p class="mt-5 text-4xl leading-[1.05] font-bold tracking-[-0.035em] text-balance xl:text-5xl">
+              {headline.map((line) => <span class="block">{line}</span>)}
+            </p>
+            <p class="mt-6 max-w-lg text-lg leading-8 text-muted-foreground">{lead}</p>
+            <ul class="mt-8 flex flex-col border-t border-border/70">
+              {steps.map((step) => (
+                <li class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 border-b border-border/70 py-4">
+                  <span aria-hidden="true" class="mt-2.5 size-1.5 rounded-full bg-primary"></span>
+                  <span class="flex flex-col gap-1">
+                    <span class="text-lg font-semibold">{step.title}</span>
+                    <span class="text-base leading-6 text-muted-foreground">{step.text}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div data-deck-panel class="deck-panel relative isolate">
+            <div aria-hidden="true" class="deck-glow pointer-events-none absolute"></div>
+            <Mock />
+          </div>
+        </article>
+      ))}
+    </div>
+
+    <div data-deck-nav hidden class="deck-nav site-container">
+      {modules.map(({ id, title }, index) => (
+        <button type="button" data-deck-step={index} aria-controls={`module-${id}`} class="deck-step">
+          <span aria-hidden="true" class="deck-track"><span data-deck-fill class="deck-fill"></span></span>
+          {title}
+        </button>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .module-deck[data-deck] {
+    height: calc(var(--deck-steps) * 90svh + 100svh);
+  }
+
+  [data-deck] .deck-stage {
+    position: sticky;
+    top: 0;
+    display: flex;
+    height: 100svh;
+    flex-direction: column;
+    overflow: hidden;
+    padding-top: 6rem;
+    padding-bottom: 2rem;
+  }
+
+  [data-deck] .deck-frame {
+    display: grid;
+    min-height: 0;
+    flex: 1;
+    padding-block: 0;
+  }
+
+  [data-deck] .deck-frame > * {
+    grid-area: 1 / 1;
+  }
+
+  [data-deck] .deck-intro {
+    z-index: 1;
+    align-self: center;
+    width: 38%;
+  }
+
+  [data-deck] .deck-module {
+    pointer-events: none;
+  }
+
+  [data-deck] .deck-copy,
+  [data-deck] .deck-intro {
+    will-change: opacity, transform;
+  }
+
+  [data-deck] .deck-panel {
+    width: 122%;
+    transform-origin: left center;
+    will-change: opacity, transform;
+  }
+
+  .deck-glow {
+    left: 50%;
+    top: -16%;
+    z-index: -1;
+    width: 92%;
+    height: 72%;
+    transform: translateX(-50%);
+    border-radius: 9999px;
+    background: radial-gradient(
+      ellipse at center,
+      color-mix(in srgb, var(--primary) 55%, transparent),
+      color-mix(in srgb, var(--foreground) 12%, transparent) 45%,
+      transparent 70%
+    );
+    filter: blur(56px);
+  }
+
+  .deck-nav {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+
+  .deck-nav[hidden] {
+    display: none;
+  }
+
+  .deck-step {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    padding-block: 0.25rem;
+    text-align: left;
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: color 160ms ease;
+  }
+
+  .deck-step[aria-current] {
+    color: var(--foreground);
+  }
+
+  .deck-step:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 4px;
+    border-radius: 2px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .deck-step:hover {
+      color: var(--foreground);
+    }
+  }
+
+  .deck-track {
+    display: block;
+    height: 2px;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--foreground) 12%, transparent);
+  }
+
+  .deck-fill {
+    display: block;
+    height: 100%;
+    background: var(--foreground);
+    transform: scaleX(0);
+    transform-origin: left center;
+  }
+</style>
+
+<script>
+  import { mountDeck } from "../scripts/deck";
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-module-deck]")) mountDeck(root);
+</script>

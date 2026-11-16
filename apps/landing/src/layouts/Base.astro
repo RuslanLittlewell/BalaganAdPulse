@@ -69,6 +69,12 @@ const structuredData = JSON.stringify({
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
+    <script is:inline>
+      try {
+        var theme = localStorage.getItem("theme");
+        if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+      } catch (error) {}
+    </script>
     <meta name="description" content={description} />
     <meta name="robots" content={noindex ? "noindex, follow" : "index, follow, max-image-preview:large"} />
     {!noindex && <link rel="canonical" href={canonical} />}
@@ -91,18 +97,14 @@ const structuredData = JSON.stringify({
     <meta name="twitter:image:alt" content="BalaganBI — аналитика Meta и Google Ads, проекты и контроль KPI" />
     {!noindex && <script type="application/ld+json" set:html={structuredData} />}
   </head>
-  <body class="min-h-screen bg-background text-foreground antialiased">
-    <div data-waves aria-hidden="true" class="pointer-events-none fixed inset-0"></div>
-    <div class="relative">
-      <Header />
-      <main>
-        <slot />
-      </main>
-      <Footer />
-    </div>
+  <body class="hatched min-h-screen bg-background text-foreground antialiased">
+    <Header />
+    <main>
+      <slot />
+    </main>
+    <Footer />
     <script>
       import { onCLS, onFCP, onINP, onLCP, onTTFB, type MetricWithAttribution } from "web-vitals/attribution";
-      import { mountWaves } from "../scripts/waves";
       import { revealOnScroll } from "../scripts/reveal";
 
       const logWebVital = (metric: MetricWithAttribution) => {
@@ -116,22 +118,6 @@ const structuredData = JSON.stringify({
       onTTFB(logWebVital);
 
       revealOnScroll();
-      const backdrop = document.querySelector<HTMLElement>("[data-waves]");
-      if (backdrop) {
-        let mounted = false;
-        const mount = () => {
-          if (mounted) return;
-          mounted = true;
-          window.removeEventListener("scroll", mount);
-          mountWaves(backdrop);
-        };
-        if (document.querySelector("[data-rays]")) {
-          window.addEventListener("scroll", mount, { passive: true });
-          window.setTimeout(mount, 7500);
-        } else {
-          mount();
-        }
-      }
     </script>
   </body>
 </html>

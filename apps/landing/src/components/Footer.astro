@@ -1,7 +1,8 @@
 ---
-import { SECTIONS, SITE } from "../site";
+import { SECTIONS, SITE, TRIAL_TOPIC } from "../site";
+import Logo from "./Logo.astro";
 
-const topics = ["Вопрос о сервисе", "Подключение кабинета", "Доступ и данные", "Другое"];
+const topics = [TRIAL_TOPIC, "Вопрос о сервисе", "Подключение кабинета", "Доступ и данные", "Другое"];
 ---
 
 <footer class="site-container pt-8 pb-10">
@@ -9,7 +10,7 @@ const topics = ["Вопрос о сервисе", "Подключение каб
   <div class="grid gap-12 lg:grid-cols-2 lg:gap-16">
     <div class="flex flex-col gap-6">
       <a href="/" aria-label="BalaganBI" class="inline-block">
-        <img src="/balagan-logo.svg" alt="" width="93" height="32" class="block h-8 w-auto" />
+        <Logo class="h-8 text-foreground" />
       </a>
       <p class="max-w-sm text-muted-foreground">
         {SITE.name} собирает рекламные кабинеты клиентов агентства Balagan в одном месте и показывает, как каждый проект идёт к своему KPI.
@@ -36,9 +37,9 @@ const topics = ["Вопрос о сервисе", "Подключение каб
       </div>
     </div>
 
-    <form data-contact class="tile flex flex-col gap-4 p-3 sm:p-8" action="/#contact" method="get" id="contact">
-      <h2 class="text-2xl font-bold tracking-tight">Нужна помощь?</h2>
-      <p class="text-sm text-muted-foreground">Вопрос, идея или что-то не работает? Напишите нам.</p>
+    <form data-contact class="tile flex scroll-mt-24 flex-col gap-4 p-3 sm:p-8" action="/#contact" method="get" id="contact">
+      <h2 class="text-2xl font-bold tracking-tight">Напишите нам</h2>
+      <p class="text-sm text-muted-foreground">Пробный период на месяц, вопрос или идея: ответим и подключим.</p>
       <label class="flex flex-col gap-2 text-sm font-semibold">
         Тема
         <select name="subject" class="rounded-lg border border-border bg-card px-3 py-2.5 font-normal">
@@ -81,5 +82,12 @@ const topics = ["Вопрос о сервисе", "Подключение каб
       window.location.href = `mailto:${SITE.contact}?subject=${subject}&body=${body}`;
     });
     form.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled = false;
+  }
+
+  for (const link of document.querySelectorAll<HTMLAnchorElement>("a[data-contact-topic]")) {
+    link.addEventListener("click", () => {
+      const topic = document.querySelector<HTMLSelectElement>('form[data-contact] select[name="subject"]');
+      if (topic) topic.value = link.dataset.contactTopic ?? topic.value;
+    });
   }
 </script>

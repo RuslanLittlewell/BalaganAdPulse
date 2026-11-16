@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
+import { trialEndsAtFrom } from "@adpulse/access-policy";
 import { createApp } from "../../src/composition/app.js";
 import { prisma } from "../../src/shared/infrastructure/prisma.js";
 import { resetIdentityRateLimits } from "../../src/modules/identity/presentation/http/identity-http.js";
@@ -211,9 +212,9 @@ describe("adding an organization", () => {
     expect(res.body.organization.modules).toEqual(["DASHBOARD", "PROJECTS"]);
   });
 
-  it("starts on a 14-day trial with every module when no tariff is named", async () => {
+  it("starts on a one-month trial with every module when no tariff is named", async () => {
     const { auth } = await signInAsPlatformAdmin();
-    const before = Date.now();
+    const before = new Date();
     const res = await addOrganization(auth, { tariff: undefined });
 
     expect(res.body.organization).toMatchObject({
@@ -221,9 +222,9 @@ describe("adding an organization", () => {
       modules: ["DASHBOARD", "PROJECTS", "CRM", "TASKS", "REPORTS"],
     });
     const endsAt = new Date(res.body.organization.trialEndsAt).getTime();
-    const fourteenDays = 14 * 24 * 60 * 60 * 1000;
-    expect(endsAt - before).toBeGreaterThanOrEqual(fourteenDays);
-    expect(endsAt - before).toBeLessThan(fourteenDays + 60_000);
+    const monthAhead = trialEndsAtFrom(before).getTime();
+    expect(endsAt).toBeGreaterThanOrEqual(monthAhead);
+    expect(endsAt).toBeLessThan(monthAhead + 60_000);
   });
 
   it("gives a second organization of the same name a distinct slug", async () => {

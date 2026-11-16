@@ -1,44 +1,111 @@
 ---
-import MockWindow from "./MockWindow.astro";
+import CalendarDays from "@lucide/astro/icons/calendar-days";
+import ChevronRight from "@lucide/astro/icons/chevron-right";
+import RefreshCw from "@lucide/astro/icons/refresh-cw";
+import AppScreen from "../app/AppScreen.astro";
 
-const campaigns = [
-  { name: "Лиды · Instagram", status: "Активна", zone: "met", kpi: 108 },
-  { name: "Ретаргетинг · сайт", status: "Обучение", zone: "behind", kpi: 81 },
-  { name: "Охват · Reels", status: "Активна", zone: "met", kpi: 95 },
-  { name: "Лиды · лид-форма", status: "Пауза", zone: "none", kpi: 0 },
+const tabs = ["Сводка", "Meta · act_1048", "Google Ads · 222-333", "Креативы", "Документы", "Контакты"];
+const tiles = [
+  { label: "Расход", value: "1 240 $", hint: "CPM 3,9 $" },
+  { label: "Лиды", value: "86", hint: "CPL 14,4 $" },
+  { label: "Клики", value: "4 180", hint: "CTR 1,31%" },
+  { label: "Показы", value: "318 900", hint: "Частота 1,8" },
 ];
-const colorOf = (zone: string) => `var(--kpi-${zone === "none" ? "none" : zone})`;
+const campaigns = [
+  { name: "Лиды · Instagram Stories", status: "Активна", spend: "412 $", clicks: "1 380", leads: 31, cpl: "13,3 $", zone: "met", kpi: 118 },
+  { name: "Лиды · лид-форма Facebook", status: "Активна", spend: "286 $", clicks: "904", leads: 22, cpl: "13,0 $", zone: "met", kpi: 110 },
+  { name: "Ретаргетинг · сайт", status: "Обучение", spend: "198 $", clicks: "611", leads: 11, cpl: "18,0 $", zone: "behind", kpi: 81 },
+  { name: "Охват · Reels", status: "Активна", spend: "154 $", clicks: "702", leads: 9, cpl: "17,1 $", zone: "behind", kpi: 78 },
+  { name: "Look-alike · покупатели", status: "Активна", spend: "121 $", clicks: "389", leads: 8, cpl: "15,1 $", zone: "met", kpi: 96 },
+  { name: "Конверсии · каталог", status: "Пауза", spend: "69 $", clicks: "194", leads: 5, cpl: "13,8 $", zone: "danger", kpi: 54 },
+  { name: "Тест креативов · осень", status: "Черновик", spend: "0 $", clicks: "0", leads: 0, cpl: "—", zone: "none", kpi: 0 },
+];
+const statusTone: Record<string, string> = {
+  Активна: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+  Обучение: "bg-sky-500/15 text-sky-700 dark:text-sky-300",
+  Пауза: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+  Черновик: "bg-muted text-muted-foreground",
+};
+const colorOf = (zone: string) => `var(--kpi-${zone})`;
+const COLUMNS = "grid-cols-[minmax(0,1fr)_6rem_5rem_5rem_4rem_5rem_9rem]";
 ---
 
-<MockWindow caption="Летний запуск · кампании" label="Проекты">
-  <div class="flex flex-wrap gap-1.5 text-[11px] font-semibold">
-    <span class="rounded-full bg-foreground px-3 py-1 text-background">Meta · <span class="mock-blur">act_1048</span></span>
-    <span class="rounded-full border border-border px-3 py-1 text-muted-foreground">Google · <span class="mock-blur">222-333</span></span>
-  </div>
-  <div class="mock-rise mt-3 rounded-2xl border border-border p-3" style="--d: 0.1s">
-    <div class="flex items-baseline justify-between gap-2">
-      <p class="text-[11px] font-semibold">KPI проекта: лиды</p>
-      <p class="text-xs font-semibold tabular-nums">86 из 80 · 108%</p>
-    </div>
-    <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-      <div class="mock-grow-x h-full w-full rounded-full" style="background: var(--kpi-met); --d: 0.3s"></div>
-    </div>
-  </div>
-  <ul class="mt-3 overflow-hidden rounded-2xl border border-border">
-    {campaigns.map((campaign, index) => (
-      <li class="mock-rise grid grid-cols-[minmax(0,1fr)_auto_4.5rem] items-center gap-3 border-b border-border/60 px-3 py-2 text-xs last:border-b-0" style={`--d: ${0.25 + index * 0.12}s`}>
-        <span class="flex min-w-0 items-center gap-2">
-          <span class="h-5 w-1 shrink-0 rounded-full" style={`background: ${colorOf(campaign.zone)}`}></span>
-          <span class="mock-blur truncate font-medium">{campaign.name}</span>
+<AppScreen active="projects" path="/projects/letnij-zapusk" caption="Проект в BalaganBI: кабинеты, KPI и кампании">
+  <div class="flex h-full flex-col gap-4">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <p class="flex items-center gap-1 text-xs text-muted-foreground">
+          Проекты <ChevronRight class="size-3" aria-hidden="true" /> <span class="mock-blur">Кофейня «Зерно»</span>
+        </p>
+        <p class="mt-1 text-xl font-semibold">Летний запуск</p>
+      </div>
+      <span class="flex items-center gap-2 text-xs">
+        <span class="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-muted-foreground">
+          <CalendarDays class="size-3.5" aria-hidden="true" />
+          01 сент. – 30 сент.
         </span>
-        <span class="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{campaign.status}</span>
-        <span class="text-right text-[11px] font-semibold tabular-nums">{campaign.zone === "none" ? "-" : `${campaign.kpi}%`}</span>
-      </li>
-    ))}
-  </ul>
-  <Fragment slot="footer">
-    <span class="mock-chip">креативы</span>
-    <span class="mock-chip">документы</span>
-    <span class="mock-chip">контакты</span>
-  </Fragment>
-</MockWindow>
+        <span class="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 font-semibold text-primary-foreground">
+          <RefreshCw class="size-3.5" aria-hidden="true" />
+          Обновить
+        </span>
+      </span>
+    </div>
+
+    <div class="flex gap-1 border-b border-border text-sm">
+      {tabs.map((tab, index) => (
+        <span class:list={["-mb-px border-b-2 px-3 py-2", index === 1 ? "border-primary font-semibold text-foreground" : "border-transparent text-muted-foreground"]}>{tab}</span>
+      ))}
+    </div>
+
+    <div class="grid grid-cols-[minmax(0,1.3fr)_repeat(4,minmax(0,1fr))] gap-2">
+      <div class="mock-rise rounded-lg border border-border p-3" style="--d: 0.05s">
+        <div class="flex items-baseline justify-between gap-2">
+          <p class="text-xs font-medium text-muted-foreground">KPI проекта: лиды</p>
+          <p class="text-xs font-semibold" style="color: var(--kpi-met)">108%</p>
+        </div>
+        <p class="mt-1 text-2xl font-semibold tabular-nums">86 <span class="text-base font-normal text-muted-foreground">из 80</span></p>
+        <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+          <div class="mock-grow-x h-full w-full rounded-full" style="background: var(--kpi-met); --d: 0.3s"></div>
+        </div>
+      </div>
+      {tiles.map((tile, index) => (
+        <div class="mock-rise rounded-lg border border-border bg-card/60 p-3" style={`--d: ${0.1 + index * 0.06}s`}>
+          <p class="text-xs font-medium text-muted-foreground">{tile.label}</p>
+          <p class="mt-1 text-2xl font-semibold tabular-nums">{tile.value}</p>
+          <p class="mt-0.5 text-xs text-muted-foreground">{tile.hint}</p>
+        </div>
+      ))}
+    </div>
+
+    <div class="min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
+      <div class:list={["grid items-center gap-3 border-b border-border bg-muted/30 px-4 py-2.5 text-xs font-semibold text-muted-foreground", COLUMNS]}>
+        <span>Кампания</span>
+        <span>Статус</span>
+        <span class="text-right">Расход</span>
+        <span class="text-right">Клики</span>
+        <span class="text-right">Лиды</span>
+        <span class="text-right">CPL</span>
+        <span>Выполнение KPI</span>
+      </div>
+      {campaigns.map((campaign, index) => (
+        <div class:list={["mock-rise grid items-center gap-3 border-b border-border/60 px-4 py-2.5 text-sm", COLUMNS]} style={`--d: ${0.3 + index * 0.07}s`}>
+          <span class="flex min-w-0 items-center gap-2.5">
+            <span class="h-6 w-1 shrink-0 rounded-full" style={`background: ${colorOf(campaign.zone)}`}></span>
+            <span class="truncate font-medium">{campaign.name}</span>
+          </span>
+          <span><span class:list={["rounded-full px-2 py-0.5 text-xs", statusTone[campaign.status]]}>{campaign.status}</span></span>
+          <span class="text-right tabular-nums">{campaign.spend}</span>
+          <span class="text-right tabular-nums">{campaign.clicks}</span>
+          <span class="text-right tabular-nums">{campaign.leads}</span>
+          <span class="text-right tabular-nums text-muted-foreground">{campaign.cpl}</span>
+          <span class="flex items-center gap-2">
+            <span class="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+              <span class="mock-grow-x block h-full rounded-full" style={`width: ${Math.min(campaign.kpi, 100)}%; background: ${colorOf(campaign.zone)}; --d: ${0.5 + index * 0.07}s`}></span>
+            </span>
+            <span class="w-9 text-right text-xs font-semibold tabular-nums">{campaign.zone === "none" ? "—" : `${campaign.kpi}%`}</span>
+          </span>
+        </div>
+      ))}
+    </div>
+  </div>
+</AppScreen>

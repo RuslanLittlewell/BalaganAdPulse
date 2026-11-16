@@ -1182,7 +1182,7 @@ the navigation while its endpoints answer 404. The tariffs live in
 Users count active members plus pending invitations. Creating a record over a limit
 answers 403 with `details: [{ code: "TARIFF_LIMIT", resource, limit }]`. A lower tariff
 never deletes or locks what the organization already holds, so a removed module's data
-returns with it. A new organization starts on `TRIAL` for 14 days. When the trial ends,
+returns with it. A new organization starts on `TRIAL` for one calendar month. When the trial ends,
 every write by its members answers 403 with `details: [{ code: "TRIAL_ENDED" }]` and reads
 keep working, until the platform administrator assigns another tariff. Payment happens
 outside the system.
@@ -1275,7 +1275,13 @@ second, with a 15-second and 2 MB limit per page and a 45-minute limit per check
 The public site of BalaganBI lives in [apps/landing](apps/landing): Astro with Tailwind,
 rendered at build time into static HTML, so its text is in the document as served — Google's
 OAuth review reads it there. It wears the web app's palette, light or dark after the visitor's
-system, and the same animated waves.
+system, with the light rays and the signature in its opening and a plain background below.
+
+Each section of the home page fills at least one screen and sits on the page without a box around
+it. On screens 1024px wide and wider, the modules section is a scroll-driven deck: the screen holds
+still while the module imitations come forward one at a time in 3D, with a row of module names to
+jump between them. On narrower screens, for reduced motion and without scripts, the same modules
+are listed one after another.
 
 | Page | Path |
 |---|---|

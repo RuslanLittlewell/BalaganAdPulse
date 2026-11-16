@@ -1,4 +1,6 @@
 ---
+import SectionTag from "./SectionTag.astro";
+
 interface Props {
   eyebrow: string;
   title: string;
@@ -10,7 +12,7 @@ const centered = align === "center";
 ---
 
 <div data-reveal class:list={["flex max-w-3xl flex-col gap-4", centered && "mx-auto items-center text-center"]}>
-  <p class="text-sm font-semibold tracking-wider text-primary uppercase">{eyebrow}</p>
+  <SectionTag>{eyebrow}</SectionTag>
   <h2 class="text-2xl leading-tight font-bold tracking-tight text-balance sm:text-3xl lg:text-4xl">{title}</h2>
   <slot />
 </div>

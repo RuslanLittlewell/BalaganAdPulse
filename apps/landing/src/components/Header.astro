@@ -1,14 +1,27 @@
 ---
 import Menu from "@lucide/astro/icons/menu";
+import Moon from "@lucide/astro/icons/moon";
+import Sun from "@lucide/astro/icons/sun";
 import X from "@lucide/astro/icons/x";
+import Logo from "./Logo.astro";
 import { SECTIONS, SITE } from "../site";
 ---
 
 <header data-site-header class="fixed top-3 left-1/2 z-40 w-[calc(100vw-1.5rem)] -translate-x-1/2 md:top-4 md:w-max">
   <nav aria-label="Основная навигация">
     <div class="glass-nav flex items-center gap-1 px-2 py-1.5">
+      <button
+        data-theme-toggle
+        type="button"
+        aria-label="Переключить цветовую схему"
+        hidden
+        class="group grid size-9 shrink-0 cursor-pointer place-items-center rounded-full text-foreground/70 transition-colors hover:bg-foreground/5 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        <Sun class="hidden size-4 group-data-[scheme=dark]:block" aria-hidden="true" />
+        <Moon class="size-4 group-data-[scheme=dark]:hidden" aria-hidden="true" />
+      </button>
       <a href="/" class="shrink-0 px-3" aria-label="BalaganBI">
-        <img src="/balagan-logo.svg" alt="" width="58" height="20" class="block h-5 w-auto" />
+        <Logo class="h-5 text-foreground" />
       </a>
       <span aria-hidden="true" class="hidden h-5 w-px bg-foreground/15 md:block"></span>
       <ul class="hidden items-center gap-1 md:flex">
@@ -62,6 +75,26 @@ import { SECTIONS, SITE } from "../site";
 </header>
 
 <script>
+  const dark = window.matchMedia("(prefers-color-scheme: dark)");
+  const current = () => document.documentElement.dataset.theme ?? (dark.matches ? "dark" : "light");
+  for (const toggle of document.querySelectorAll<HTMLButtonElement>("[data-theme-toggle]")) {
+    const paint = () => {
+      toggle.dataset.scheme = current();
+      toggle.setAttribute("aria-label", current() === "dark" ? "Включить светлую схему" : "Включить тёмную схему");
+    };
+    toggle.hidden = false;
+    paint();
+    toggle.addEventListener("click", () => {
+      const next = current() === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = next;
+      try {
+        localStorage.setItem("theme", next);
+      } catch (error) {}
+      paint();
+    });
+    dark.addEventListener("change", paint);
+  }
+
   for (const header of document.querySelectorAll<HTMLElement>("[data-site-header]")) {
     const toggle = header.querySelector<HTMLButtonElement>("[data-menu-toggle]");
     const menu = header.querySelector<HTMLElement>("#mobile-navigation");

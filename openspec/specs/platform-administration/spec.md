@@ -83,7 +83,7 @@ success the registration link SHALL be shown for copying.
 
 #### Scenario: Default trial
 - **WHEN** the platform administrator adds "Acme" without a tariff
-- **THEN** Acme is on `TRIAL` with `trialEndsAt` 14 days ahead
+- **THEN** Acme is on `TRIAL` with `trialEndsAt` one month ahead
 
 #### Scenario: First administrator registers
 - **WHEN** the invited person opens the registration link and completes registration

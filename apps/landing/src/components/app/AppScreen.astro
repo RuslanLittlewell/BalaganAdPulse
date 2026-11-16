@@ -1,0 +1,54 @@
+---
+import AppSidebar, { type AppModule } from "./AppSidebar.astro";
+import BrowserBar from "./BrowserBar.astro";
+
+interface Props {
+  active: AppModule;
+  path: string;
+  caption: string;
+}
+
+const { active, path, caption } = Astro.props;
+---
+
+<figure data-app-screen class="app-screen relative aspect-[16/10] overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+  <figcaption class="sr-only">{caption}</figcaption>
+  <div data-app-canvas class="app-canvas @container absolute inset-0 flex flex-col">
+    <BrowserBar path={path} />
+    <div class="flex min-h-0 flex-1">
+      <AppSidebar active={active} class="flex" />
+      <div class="min-w-0 flex-1 overflow-hidden p-6">
+        <slot />
+      </div>
+    </div>
+  </div>
+</figure>
+
+<style>
+  .app-canvas[data-scaled] {
+    right: auto;
+    bottom: auto;
+    width: 1280px;
+    height: 800px;
+    transform-origin: top left;
+  }
+</style>
+
+<script>
+  const CANVAS_WIDTH = 1280;
+
+  const scaleOf = (screen: HTMLElement) => {
+    const canvas = screen.querySelector<HTMLElement>("[data-app-canvas]");
+    if (!canvas) return;
+    canvas.setAttribute("data-scaled", "");
+    canvas.style.transform = `scale(${screen.clientWidth / CANVAS_WIDTH})`;
+  };
+
+  const screens = [...document.querySelectorAll<HTMLElement>("[data-app-screen]")];
+  if ("ResizeObserver" in window) {
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) scaleOf(entry.target as HTMLElement);
+    });
+    for (const screen of screens) observer.observe(screen);
+  }
+</script>

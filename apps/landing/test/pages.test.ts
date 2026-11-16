@@ -120,6 +120,13 @@ describe("the home page Google reads", () => {
     expect(opening).toMatch(/<a[^>]*href="\/#contact"[^>]*data-contact-topic="Пробный период"/);
   });
 
+  it("asks the contact form for a required email and an optional phone", () => {
+    const form = html.slice(html.indexOf("<form data-contact"), html.indexOf("</form>"));
+    expect(form).toMatch(/<input[^>]*type="email"[^>]*name="email"[^>]*required/);
+    expect(form).toMatch(/<input[^>]*type="tel"[^>]*name="phone"/);
+    expect(form).not.toMatch(/<input[^>]*name="phone"[^>]*required/);
+  });
+
   it("lets a visitor ask for a trial in the contact form", () => {
     const form = html.slice(html.indexOf("<form data-contact"), html.indexOf("</form>"));
     expect(form).toMatch(/<option>Пробный период<\/option>/);

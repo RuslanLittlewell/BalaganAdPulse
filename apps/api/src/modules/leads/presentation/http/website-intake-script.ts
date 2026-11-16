@@ -88,7 +88,7 @@ export const WEBSITE_INTAKE_SCRIPT = `(function () {
   }
 
   function matches(input, pattern) {
-    return pattern.test([input.name, input.id, input.getAttribute("placeholder"), input.getAttribute("autocomplete")].join(" "));
+    return input.tagName === "INPUT" && pattern.test([input.name, input.id, input.getAttribute("autocomplete")].join(" "));
   }
 
   function read(form) {
@@ -108,10 +108,10 @@ export const WEBSITE_INTAKE_SCRIPT = `(function () {
         data[input.name] = value;
         return;
       }
-      if (type === "tel" || matches(input, /phone|tel|тел|whatsapp/i)) {
+      if (input.tagName === "INPUT" && type === "tel" || matches(input, /phone|tel|тел|whatsapp/i)) {
         data.phone = data.phone || value;
         contact = true;
-      } else if (type === "email" || matches(input, /e-?mail|почт/i)) {
+      } else if (input.tagName === "INPUT" && type === "email" || matches(input, /e-?mail|почт/i)) {
         data.email = data.email || value;
         contact = true;
       } else if (matches(input, /compan|organi[sz]ation|компан|организац/i)) {

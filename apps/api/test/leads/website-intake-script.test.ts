@@ -86,6 +86,14 @@ describe("the website script", () => {
     expect(page.sent()[0]).toMatchObject({ email: "a@example.com", fields: [{ question: "Тема", value: "Пробный период" }] });
   });
 
+  it("keeps a message whose placeholder happens to contain a contact word", async () => {
+    const page = openPage(`<form id="f"><input name="email" type="email" value="a@example.com"><input name="phone" type="tel" value="+375291234567"><textarea name="body" placeholder="Что хотелось бы видеть">Хочу попробовать</textarea></form>`);
+
+    page.submit(page.window.document.getElementById("f")!);
+
+    expect(page.sent()[0]).toMatchObject({ email: "a@example.com", phone: "+375291234567", fields: [{ question: "Что хотелось бы видеть", value: "Хочу попробовать" }] });
+  });
+
   it("sends nothing for a form without a phone or email", async () => {
     const page = openPage(`<form id="f"><input name="q" value="windows"></form>`);
 

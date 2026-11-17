@@ -9,6 +9,7 @@ import { ReportsPage } from "@/pages/reports/index.js";
 import { LoginPage } from "@/pages/login/index.js";
 import { RegistrationPage } from "@/pages/registration/index.js";
 import { TrialConfirmPage, TrialPage } from "@/pages/trial/index.js";
+import { TrialEndedToast } from "@/features/tariff-status/index.js";
 import { RequestResetPage, ResetPasswordPage } from "@/pages/password-reset/index.js";
 import { TasksPage } from "@/pages/tasks/index.js";
 import { CrmLayout, CrmPage, CrmRecordsPage } from "@/pages/crm/index.js";
@@ -137,6 +138,7 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AlertsProvider>
+          <TrialEndedToast />
           <Routes>
             <Route path="/share/:token/*" element={<SharedLink />} />
             <Route path="/*" element={<SignedInApp />} />

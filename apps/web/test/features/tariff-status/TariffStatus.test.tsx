@@ -45,6 +45,34 @@ describe("the trial banner", () => {
     expect(notice).toHaveAttribute("data-trial", "ended");
   });
 
+  it("says data no longer updates from integrations once the trial has ended", async () => {
+    signedInWith(aSession({
+      tariff: anEnterpriseTariff({
+        tariff: "TRIAL", trialEndsAt: new Date(Date.now() - DAY).toISOString(), trialExpired: true,
+      }),
+    }));
+    renderWithProviders(<AppHeader />);
+
+    expect(await screen.findByText(/больше не обновляются из интеграций/)).toHaveAttribute("data-trial", "ended");
+  });
+
+  it("sits right after the header's left area on a page outside CRM, as it does in CRM", async () => {
+    signedInWith(aSession({
+      tariff: anEnterpriseTariff({
+        tariff: "TRIAL", trialEndsAt: new Date(Date.now() + 6 * DAY - 60_000).toISOString(),
+      }),
+    }));
+    server.use(mock.get("/api/crm/boards", () => HttpResponse.json([])));
+    for (const route of ["/projects", "/crm"]) {
+      const { container, unmount } = renderWithProviders(<AppHeader />, { route });
+      const banner = await screen.findByText(/Дней до окончания/);
+      const header = container.querySelector("header")!;
+
+      expect(header.children[1]).toBe(banner);
+      unmount();
+    }
+  });
+
   it("stays hidden on a paid tariff", async () => {
     signedInWith(aSession({ tariff: agency }));
     renderWithProviders(<AppHeader />);

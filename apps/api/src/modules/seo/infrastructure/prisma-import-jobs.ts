@@ -5,6 +5,7 @@ import type { ImportJobs } from "../application/ports.js";
 import type { SeoSite } from "../domain/seo-site.js";
 import { shiftDate, TOP_DAYS, type SearchSnapshot } from "../domain/search.js";
 import type { VitalsSnapshot } from "../domain/vitals.js";
+import { inLiveOrganization } from "#shared/infrastructure/live-organization.js";
 
 const LEASE_MS = 180_000;
 const RETRY_DELAYS = [60_000, 300_000, 900_000];
@@ -23,6 +24,7 @@ export class PrismaImportJobs implements ImportJobs {
 
   async claim(now: Date): Promise<SeoSite | null> {
     const available: Prisma.SeoSiteWhereInput = {
+      ...inLiveOrganization(now),
       AND: [
         { OR: [{ leaseUntil: null }, { leaseUntil: { lte: now } }] },
         { OR: [{ queuedAt: { lte: now } }, { queuedAt: null, nextDailyAt: { lte: now } }, { status: "RUNNING", leaseUntil: { lte: now } }] },

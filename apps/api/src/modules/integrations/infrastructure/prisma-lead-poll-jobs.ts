@@ -5,6 +5,7 @@ import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-wor
 import { LEAD_ACCESS_RETRY_MS, LEAD_POLL_INTERVAL_MS, type LeadPollJobs, type LeadPollOutcome } from "../application/lead-poll-jobs.js";
 import type { LeadPollJob, ProviderError } from "../domain/integration.js";
 import type { PolledAd } from "../domain/snapshot.js";
+import { inLiveOrganization } from "#shared/infrastructure/live-organization.js";
 
 const leaseUntil = (now: Date) => new Date(now.getTime() + 180_000);
 const owned = (job: LeadPollJob, now: Date): Prisma.ProjectIntegrationWhereInput => ({
@@ -17,6 +18,7 @@ export class PrismaLeadPollJobs implements LeadPollJobs {
 
   async claim(now: Date): Promise<LeadPollJob | null> {
     const available: Prisma.ProjectIntegrationWhereInput = {
+      ...inLiveOrganization(now),
       provider: "META",
       status: { not: "AUTH_REQUIRED" },
       leadsEnabled: true,

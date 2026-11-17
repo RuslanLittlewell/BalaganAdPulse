@@ -5,6 +5,7 @@ import type { TrafficJobs } from "../application/ports.js";
 import type { SeoSite } from "../domain/seo-site.js";
 import { shiftDate } from "../domain/search.js";
 import { TRAFFIC_DAYS, type TrafficSnapshot } from "../domain/traffic.js";
+import { inLiveOrganization } from "#shared/infrastructure/live-organization.js";
 
 const LEASE_MS = 180_000;
 const RETRY_DELAYS = [60_000, 300_000, 900_000];
@@ -25,6 +26,7 @@ export class PrismaTrafficJobs implements TrafficJobs {
 
   async claim(now: Date): Promise<SeoSite | null> {
     const available: Prisma.SeoSiteWhereInput = {
+      ...inLiveOrganization(now),
       analyticsPropertyId: { not: null },
       AND: [
         { OR: [{ trafficLeaseUntil: null }, { trafficLeaseUntil: { lte: now } }] },

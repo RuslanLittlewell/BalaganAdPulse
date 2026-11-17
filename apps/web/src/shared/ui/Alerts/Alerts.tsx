@@ -6,14 +6,20 @@ import SwipeToast from "../SwipeToast/SwipeToast.js";
 
 export type AlertTone = "error" | "success";
 
+export interface RaiseOptions {
+  key?: string;
+  hushErrorsMs?: number;
+}
+
 export interface AlertsValue {
-  raise: (message: string, tone?: AlertTone) => void;
+  raise: (message: string, tone?: AlertTone, options?: RaiseOptions) => void;
 }
 
 interface RaisedAlert {
   id: number;
   message: string;
   tone: AlertTone;
+  key?: string;
 }
 
 const AlertsContext = createContext<AlertsValue | null>(null);
@@ -34,11 +40,23 @@ export function useAlerts(): AlertsValue {
 export function AlertsProvider({ children }: { children: ReactNode }) {
   const [alerts, setAlerts] = useState<RaisedAlert[]>([]);
   const nextId = useRef(0);
+  const shown = useRef<RaisedAlert[]>([]);
+  const hushedUntil = useRef(0);
 
-  const raise = useCallback((message: string, tone: AlertTone = "error") => {
+  const raise = useCallback((message: string, tone: AlertTone = "error", options: RaiseOptions = {}) => {
+    const { key, hushErrorsMs } = options;
+    if (hushErrorsMs) hushedUntil.current = Date.now() + hushErrorsMs;
+    else if (tone === "error" && Date.now() < hushedUntil.current) return;
+    if (key !== undefined && shown.current.some((held) => held.key === key)) return;
     nextId.current += 1;
-    const id = nextId.current;
-    setAlerts((current) => [...current, { id, message, tone }]);
+    const alert: RaisedAlert = { id: nextId.current, message, tone, key };
+    shown.current = [...shown.current, alert];
+    setAlerts(shown.current);
+  }, []);
+
+  const dismiss = useCallback((id: number) => {
+    shown.current = shown.current.filter((held) => held.id !== id);
+    setAlerts(shown.current);
   }, []);
 
   const value = useMemo(() => ({ raise }), [raise]);
@@ -61,7 +79,7 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
                 duration={DISMISS_AFTER_MS}
                 closeButton
                 closeLabel={t("alert.dismiss")}
-                onClose={() => setAlerts((current) => current.filter((held) => held.id !== alert.id))}
+                onClose={() => dismiss(alert.id)}
               />
             </div>
           ))}

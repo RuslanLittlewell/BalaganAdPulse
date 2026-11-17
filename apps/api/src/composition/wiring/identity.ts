@@ -36,5 +36,6 @@ export function wireIdentity(
     userRouter,
     authentication: createAuthentication(identity),
     authenticate: (accessToken: string) => identity.authenticate(accessToken),
+    openAccount: identity.openAccount,
   };
 }

@@ -35,5 +35,8 @@ export function wirePlatform({ unitOfWork, clock, ids }: Kernel) {
     clock,
     unitOfWork,
   });
-  return { platformRouter: createPlatformRouter(platform) };
+  return {
+    platformRouter: createPlatformRouter(platform),
+    openTrialOrganization: platform.openTrialOrganization,
+  };
 }

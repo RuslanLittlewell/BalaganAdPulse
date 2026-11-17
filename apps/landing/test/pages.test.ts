@@ -115,9 +115,9 @@ describe("the home page Google reads", () => {
 
   it("offers a free trial and signing in right under the heading", () => {
     const opening = html.slice(html.indexOf("<h1"), html.indexOf("<figure data-demo"));
-    expect(linksOf(opening)).toEqual(expect.arrayContaining(["/#contact", "https://app.balagan.pro"]));
+    expect(linksOf(opening)).toEqual(expect.arrayContaining(["https://app.balagan.pro/trial", "https://app.balagan.pro"]));
     expect(textOf(opening)).toContain("Попробовать бесплатно");
-    expect(opening).toMatch(/<a[^>]*href="\/#contact"[^>]*data-contact-topic="Пробный период"/);
+    expect(opening).toMatch(/<a[^>]*href="https:\/\/app\.balagan\.pro\/trial"[^>]*>[\s\S]*?Попробовать бесплатно/);
   });
 
   it("asks the contact form for a required email and an optional phone", () => {
@@ -146,7 +146,7 @@ describe("the home page Google reads", () => {
 
   it("offers the trial again where it explains connecting accounts", () => {
     const section = html.slice(html.indexOf('id="integrations"'), html.indexOf('id="english"'));
-    expect(section).toMatch(/<a[^>]*href="\/#contact"[^>]*data-contact-topic="Пробный период"[^>]*>[\s\S]*?Попробовать бесплатно/);
+    expect(section).toMatch(/<a[^>]*href="https:\/\/app\.balagan\.pro\/trial"[^>]*>[\s\S]*?Попробовать бесплатно/);
   });
 
   it("names the integrations BalaganBI has and the ones coming", () => {

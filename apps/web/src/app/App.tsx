@@ -8,6 +8,7 @@ import { ProjectsPage } from "@/pages/projects/index.js";
 import { ReportsPage } from "@/pages/reports/index.js";
 import { LoginPage } from "@/pages/login/index.js";
 import { RegistrationPage } from "@/pages/registration/index.js";
+import { TrialConfirmPage, TrialPage } from "@/pages/trial/index.js";
 import { RequestResetPage, ResetPasswordPage } from "@/pages/password-reset/index.js";
 import { TasksPage } from "@/pages/tasks/index.js";
 import { CrmLayout, CrmPage, CrmRecordsPage } from "@/pages/crm/index.js";
@@ -115,6 +116,8 @@ function SignedInApp() {
         <Route path="/signup" element={<Navigate to="/login" replace />} />
         <Route path="/registration/:code" element={<RegistrationPage />} />
         <Route path="/regustration/:code" element={<MisspeltRegistration />} />
+        <Route path="/trial" element={<TrialPage />} />
+        <Route path="/trial/confirm/:token" element={<TrialConfirmPage />} />
         <Route path="/password-reset" element={<RequestResetPage />} />
         <Route path="/password-reset/:token" element={<ResetPasswordPage />} />
         <Route path="/*" element={<Dashboard />} />

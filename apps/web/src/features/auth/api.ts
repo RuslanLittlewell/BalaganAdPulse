@@ -98,3 +98,16 @@ export const passwordResetApi = {
   check: (token: string) =>
     http.get<void>(`/auth/password-reset/${encodeURIComponent(token)}`, UNAUTHENTICATED),
 };
+
+export interface TrialSignupBody {
+  organizationName: string;
+  name: string;
+  email: string;
+  password: string;
+}
+
+export const trialApi = {
+  request: (body: TrialSignupBody) => http.post<void>("/trial-signups", body, UNAUTHENTICATED),
+  confirm: (token: string) =>
+    http.post<TokenPair>(`/trial-signups/${encodeURIComponent(token)}/confirm`, {}, UNAUTHENTICATED),
+};

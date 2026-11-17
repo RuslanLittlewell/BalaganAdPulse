@@ -86,6 +86,14 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
       });
     },
 
+    openAccount: async (
+      context: TransactionContext,
+      input: { name: string; email: string; passwordHash: string },
+    ) => {
+      const user = await dependencies.users.create(context, input);
+      return { userId: user.id, tokens: await issueTokenPair(context, user) };
+    },
+
     login: async (input: LoginIdentityInput) => {
       const user = (await dependencies.users.findByLogin(input.login))
         ?? (await dependencies.users.findByEmail(input.login));

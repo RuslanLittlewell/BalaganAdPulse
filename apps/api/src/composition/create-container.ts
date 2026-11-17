@@ -32,6 +32,7 @@ import { wireSummaryTiles } from "./wiring/summary-tiles.js";
 import { wireSeo } from "./wiring/seo.js";
 import { wireShareLinks } from "./wiring/share-links.js";
 import { wireProjectDocuments } from "./wiring/project-documents.js";
+import { wireTrialSignups } from "./wiring/trial-signups.js";
 import { wireTasks } from "./wiring/tasks.js";
 import { wireTelegramBot, wireTelegramNotifications, type TelegramPoller } from "./wiring/telegram-bot.js";
 
@@ -65,6 +66,7 @@ export interface ApiContainer {
   readonly userRouter: Router;
   readonly inviteRouter: Router;
   readonly registrationResolverRouter: Router;
+  readonly trialSignupRouter: Router;
   readonly memberRouter: Router;
   readonly auditRouter: Router;
   readonly projectMetricRouter: Router;
@@ -127,6 +129,10 @@ export function createContainer(): ApiContainer {
   const sharing = wireShareLinks(kernel, catalog, people.members);
   const notebook = wireProjectDocuments(kernel, { projectRepository: catalog.projectRepository }, notices);
   const platform = wirePlatform(kernel);
+  const trials = wireTrialSignups(kernel, {
+    openAccount: identity.openAccount,
+    openTrialOrganization: platform.openTrialOrganization,
+  });
   const support = wireSupport(kernel);
   const onboarding = wireOnboarding(kernel, { telegram: telegram.telegramLinks });
 
@@ -157,6 +163,7 @@ export function createContainer(): ApiContainer {
 
     inviteRouter: invites.inviteRouter,
     registrationResolverRouter: invites.registrationResolverRouter,
+    trialSignupRouter: trials.trialSignupRouter,
 
     clientRouter: catalog.clientRouter,
     clientAccountRouter: cabinets.clientAccountRouter,

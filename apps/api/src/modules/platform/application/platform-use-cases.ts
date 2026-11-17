@@ -6,6 +6,7 @@ import {
   type Tariff,
 } from "@adpulse/access-policy";
 import { AppError } from "#shared/domain/index.js";
+import type { TransactionContext } from "#shared/application/index.js";
 import type { SessionPrincipal } from "#modules/identity/index.js";
 import { InvitationCodeConflictError } from "#modules/invites/index.js";
 import {
@@ -56,6 +57,15 @@ export function createPlatformUseCases(dependencies: PlatformDependencies) {
     return record;
   };
 
+  const open = async (context: TransactionContext, name: string, tariff: Tariff): Promise<string> => {
+    const base = slugBase(name);
+    const slug = uniqueSlug(base, await dependencies.organizations.slugsStartingWith(base));
+    const id = dependencies.ids.generate();
+    const trialEndsAt = tariff === "TRIAL" ? trialEndsAtFrom(dependencies.clock.now()) : null;
+    await dependencies.organizations.create(context, { id, name, slug, tariff, trialEndsAt });
+    return id;
+  };
+
   return {
     assertPlatformAdmin: async (principal: SessionPrincipal): Promise<void> => {
       if (!(await dependencies.administrators.isPlatformAdmin(principal.id))) {
@@ -63,22 +73,22 @@ export function createPlatformUseCases(dependencies: PlatformDependencies) {
       }
     },
 
+    openTrialOrganization: (context: TransactionContext, name: string): Promise<string> =>
+      open(context, name, "TRIAL"),
+
     list: async () => (await dependencies.organizations.list()).map(view),
 
     create: async (input: CreateOrganizationInput) => {
       if (await dependencies.accounts.isRegistered(input.adminEmail)) {
         throw new AppError("conflict", "This email is already registered");
       }
-      const base = slugBase(input.name);
-      const slug = uniqueSlug(base, await dependencies.organizations.slugsStartingWith(base));
-      const id = dependencies.ids.generate();
       const tariff = input.tariff ?? DEFAULT_TARIFF;
-      const trialEndsAt = tariff === "TRIAL" ? trialEndsAtFrom(dependencies.clock.now()) : null;
       for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt += 1) {
         try {
-          const { code } = await dependencies.unitOfWork.run(async (context) => {
-            await dependencies.organizations.create(context, { id, name: input.name, slug, tariff, trialEndsAt });
-            return dependencies.invitations.issue(context, { orgId: id, email: input.adminEmail });
+          const { id, code } = await dependencies.unitOfWork.run(async (context) => {
+            const orgId = await open(context, input.name, tariff);
+            const invitation = await dependencies.invitations.issue(context, { orgId, email: input.adminEmail });
+            return { id: orgId, code: invitation.code };
           });
           return { organization: view(await existing(id)), registrationUrl: registrationUrlFor(code) };
         } catch (error) {

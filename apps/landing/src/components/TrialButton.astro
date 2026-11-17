@@ -1,11 +1,10 @@
 ---
 import ArrowRight from "@lucide/astro/icons/arrow-right";
-import { TRIAL_TOPIC } from "../site";
+import { SITE } from "../site";
 ---
 
 <a
-  href="/#contact"
-  data-contact-topic={TRIAL_TOPIC}
+  href={`${SITE.appUrl}/trial`}
   class="trial-button inline-flex h-12 items-center gap-2 rounded-xl px-7 text-base font-semibold text-background transition-transform hover:scale-[1.03] active:scale-[0.97]"
 >
   Попробовать бесплатно

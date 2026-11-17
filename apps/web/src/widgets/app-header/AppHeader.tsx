@@ -82,7 +82,7 @@ export function AppHeader() {
   return (
     <>
       <header className="flex min-h-13 w-full items-center justify-end gap-2 border-b border-border px-4">
-        {inCrm ? <div className="mr-auto"><WebsiteLeadsButton /></div> : null}
+        <div className="mr-auto">{inCrm ? <WebsiteLeadsButton /> : null}</div>
         <TrialBanner />
         <TooltipProvider delayDuration={200}>
           <div className="flex items-center gap-2">

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import type { CheckJobs, CheckResult } from "../application/ports.js";
 import type { SeoSite } from "../domain/seo-site.js";
+import { inLiveOrganization } from "#shared/infrastructure/live-organization.js";
 
 const LEASE_MS = 180_000;
 const WEEK_MS = 7 * 86_400_000;
@@ -16,6 +17,7 @@ export class PrismaCheckJobs implements CheckJobs {
 
   async claim(now: Date): Promise<SeoSite | null> {
     const available: Prisma.SeoSiteWhereInput = {
+      ...inLiveOrganization(now),
       AND: [
         { OR: [{ checkLeaseUntil: null }, { checkLeaseUntil: { lte: now } }] },
         { OR: [{ checkQueuedAt: { lte: now } }, { checkQueuedAt: null, nextCheckAt: { lte: now } }, { checkStatus: "RUNNING", checkLeaseUntil: { lte: now } }] },

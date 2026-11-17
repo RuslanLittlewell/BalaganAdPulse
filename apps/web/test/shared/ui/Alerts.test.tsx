@@ -79,6 +79,42 @@ describe("the alert surface", () => {
     await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
   });
 
+  it("keeps one alert for a key while it is on screen", async () => {
+    function Keyed() {
+      const { raise } = useAlerts();
+      return <button type="button" onClick={() => raise("Один раз", "error", { key: "once" })}>ключ</button>;
+    }
+    render(<AlertsProvider><Keyed /></AlertsProvider>);
+
+    await userEvent.click(screen.getByRole("button", { name: "ключ" }));
+    await userEvent.click(screen.getByRole("button", { name: "ключ" }));
+
+    expect(await screen.findAllByRole("alert")).toHaveLength(1);
+  });
+
+  it("drops an error raised right after an alert that hushes errors, but not a success", async () => {
+    function Hushing() {
+      const { raise } = useAlerts();
+      return (
+        <>
+          <button type="button" onClick={() => raise("Главное", "error", { key: "main", hushErrorsMs: 60_000 })}>тишина</button>
+          <button type="button" onClick={() => raise("Следом")}>следом</button>
+          <button type="button" onClick={() => raise("Сохранено", "success")}>сохранено</button>
+        </>
+      );
+    }
+    render(<AlertsProvider><Hushing /></AlertsProvider>);
+
+    await userEvent.click(screen.getByRole("button", { name: "тишина" }));
+    await userEvent.click(screen.getByRole("button", { name: "следом" }));
+    await userEvent.click(screen.getByRole("button", { name: "сохранено" }));
+
+    expect(await screen.findAllByRole("alert")).toHaveLength(1);
+    expect(screen.getByText("Главное")).toBeInTheDocument();
+    expect(screen.queryByText("Следом")).not.toBeInTheDocument();
+    expect(screen.getByText("Сохранено")).toBeInTheDocument();
+  });
+
   it("refuses to be used without its provider", () => {
     const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
     expect(() => render(<Raiser />)).toThrow(/AlertsProvider/);

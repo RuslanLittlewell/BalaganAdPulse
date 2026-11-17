@@ -4,6 +4,7 @@ import type { ImportJobs } from "../application/import-jobs.js";
 import { ProviderError, type Integration } from "../domain/integration.js";
 import type { ImportedMetric, ImportedResult, Snapshot } from "../domain/snapshot.js";
 import { nextMorning } from "../application/schedule.js";
+import { inLiveOrganization } from "#shared/infrastructure/live-organization.js";
 
 const leaseUntil = (now: Date) => new Date(now.getTime() + 180_000);
 const owned = (job: Integration, now: Date) => ({ id: job.id, revision: job.revision, leaseOwner: job.leaseOwner, leaseUntil: { gt: now } });
@@ -15,6 +16,7 @@ export class PrismaImportJobs implements ImportJobs {
 
   async claim(now: Date): Promise<Integration | null> {
     const available: Prisma.ProjectIntegrationWhereInput = {
+      ...inLiveOrganization(now),
       status: { not: "AUTH_REQUIRED" },
       AND: [
         { OR: [{ leaseUntil: null }, { leaseUntil: { lte: now } }] },

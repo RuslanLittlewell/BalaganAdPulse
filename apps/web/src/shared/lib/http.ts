@@ -1,5 +1,6 @@
 import { ensureFreshToken, forceRefresh } from "./auth/session.js";
 import { sharedToken } from "./shareScope.js";
+import { refusesEndedTrial, reportTrialEnded } from "./trialEnded.js";
 
 export class ApiError extends Error {
   status: number;
@@ -60,6 +61,7 @@ async function request<T>(
       if (Array.isArray(body.error?.details)) details = body.error.details;
     } catch {
     }
+    if (refusesEndedTrial(res.status, details)) reportTrialEnded();
     throw new ApiError(message, res.status, details);
   }
 

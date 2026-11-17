@@ -532,7 +532,7 @@ export const en = {
   "tariff.change": "Contact the platform administrator to change your plan.",
   "tariff.trial.until": "until",
   "tariff.trial.daysLeft": "Trial. Days remaining:",
-  "tariff.trial.ended": "Your trial has ended. Data is read-only until the platform administrator assigns a plan.",
+  "tariff.trial.ended": "Your trial has ended. Data is read-only and no longer updates from integrations until the platform administrator assigns a plan.",
   "tariff.refusal.limit": "Plan limit reached",
   "tariff.refusal.upgrade": "Upgrade your plan to add more.",
   "tariff.refusal.trialEnded": "Your trial has ended. Changes are unavailable.",

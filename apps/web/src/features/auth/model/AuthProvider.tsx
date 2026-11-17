@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiError, hasSession, writeTokens } from "@/shared/lib/index.js";
 import { endSession, onSessionExpired, onTokenRenewed } from "@/shared/lib/index.js";
-import { authApi, type LoginBody, type RegisterBody, type UpdateProfileBody, type UserProfile } from "../api.js";
+import { authApi, trialApi, type LoginBody, type RegisterBody, type UpdateProfileBody, type UserProfile } from "../api.js";
 import type { AuthSession, OrganizationSummary } from "../api.js";
 import type { ModuleKey, Role } from "@adpulse/access-policy";
 import type { TariffSummary } from "@/entities/tariff/index.js";
@@ -32,6 +32,7 @@ interface AuthValue {
   login: (body: LoginBody) => Promise<void>;
   register: (body: RegisterBody) => Promise<void>;
   resetPassword: (token: string, password: string) => Promise<void>;
+  confirmTrial: (token: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (body: UpdateProfileBody) => Promise<void>;
   loadProfile: () => Promise<UserProfile>;
@@ -159,6 +160,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.clear();
       await loadSession();
     },
+    confirmTrial: async (token) => {
+      invalidateSession();
+      const current = generation.current;
+      const tokens = await trialApi.confirm(token);
+      if (current !== generation.current) return;
+      writeTokens(tokens);
+      queryClient.clear();
+      await loadSession();
+    },
     logout: async () => {
       invalidateSession();
       if (hasSession()) {
@@ -199,6 +209,7 @@ export function SharedAuthProvider({ modules, children }: { modules: ModuleKey[]
     login: signedOut,
     register: signedOut,
     resetPassword: signedOut,
+    confirmTrial: signedOut,
     logout: signedOut,
     updateProfile: signedOut,
     loadProfile: signedOut,

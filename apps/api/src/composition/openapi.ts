@@ -33,6 +33,7 @@ import { kpiDoc } from '#modules/kpi/index.js';
 import { summaryTileDoc } from "#modules/summary-tiles/index.js";
 import { projectDocumentComponents, projectDocumentDoc } from "#modules/project-documents/index.js";
 import { reportDoc, reportIndexDoc } from '#modules/reports/index.js';
+import { trialSignupDoc } from "#modules/trial-signups/index.js";
 import { platformComponents, platformDoc } from "#modules/platform/index.js";
 import { supportComponents, supportDoc } from "#modules/support/index.js";
 import { onboardingComponents, onboardingDoc } from "#modules/onboarding/index.js";
@@ -80,6 +81,7 @@ export function apiDocument(): OpenApiDocument {
     { mount: mountPath("docs"), ...documentationDoc },
     { mount: mountPath("open-auth"), ...authDoc },
     { mount: mountPath("registration-resolver"), ...registrationResolverDoc },
+    { mount: mountPath("trial-signups"), ...trialSignupDoc },
     { mount: mountPath("session"), ...sessionDoc },
     { mount: mountPath("platform"), ...platformDoc },
     { mount: mountPath("support"), ...supportDoc },

@@ -7,6 +7,7 @@ const expectedMounts = [
   "/api/auth",
   "/api/integrations/google",
   "/api/registration",
+  "/api/trial-signups",
   "/api/intake",
   "/api/shared/:token",
   "/api",

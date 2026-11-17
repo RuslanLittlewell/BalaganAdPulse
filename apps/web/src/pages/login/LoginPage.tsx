@@ -66,6 +66,12 @@ export function LoginPage() {
             </span>
           ) : t("auth.login.submit")}
         </Button>
+        <Link
+          to="/trial"
+          className="self-center text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          {t("auth.trial")}
+        </Link>
       </form>
     </CenteredPanel>
   );

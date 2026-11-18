@@ -7,7 +7,7 @@ A media buyer wants to show a client how a project performs, but the only way to
 - A project can have one share link, `https://app.balagan.pro/share/<token>`. Anyone who opens it sees the project's metrics without signing in.
 - The shared page shows what preview shows: the period controls, the summary tiles, a tab for every ad account and SEO site of the project, the running-only switch, the campaign KPI blocks and the campaign table, with the CRM stage columns when the organization has CRM. A visitor switches tabs, changes the period and opens a campaign with its ad sets, ads and creatives.
 - The shared page changes nothing. It has no navigation, no tasks, no project switcher and no control that edits tiles, KPIs or SEO checks.
-- The project header gets a «Поделиться» button beside «Превью». Only an ADMIN creates the link, copies it, replaces it with a new one, which stops the old one, and switches it off.
+- The project header gets a «Поделиться» button beside «Превью». An ADMIN or a MANAGER, for a project they reach, creates the link, copies it, replaces it with a new one, which stops the old one, and switches it off.
 - The link belongs to the project, not to an integration. An account connected later appears on it, and removing or reconnecting an integration leaves it working.
 - The API answers the shared page's reads under `/api/shared/:token` without a session. It serves a fixed list of GET requests, only for the shared project, and limits how often one address may call it.
 - The shared page cannot be embedded in another site, and search engines are told not to index it.

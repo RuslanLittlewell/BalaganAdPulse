@@ -149,9 +149,9 @@ describe("sharing from the project header", () => {
     writeTokens({ accessToken: makeAccessToken(), refreshToken: "r" });
   });
 
-  it("offers an admin «Поделиться» beside «Превью», which opens the dialog", async () => {
+  it.each(["ADMIN", "MANAGER"])("offers a %s «Поделиться» beside «Превью», which opens the dialog", async (role) => {
     const user = userEvent.setup();
-    serveProject("ADMIN");
+    serveProject(role);
     serveLink(FIRST);
     renderAppAt("/projects/p1");
 
@@ -162,7 +162,7 @@ describe("sharing from the project header", () => {
     expect(await screen.findByText(addressOf(FIRST))).toBeInTheDocument();
   });
 
-  it.each(["MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"])("offers a %s no sharing", async (role) => {
+  it.each(["GUEST", "CLIENT", "CLIENT_ADMIN"])("offers a %s no sharing", async (role) => {
     serveProject(role);
     renderAppAt("/projects/p1");
 

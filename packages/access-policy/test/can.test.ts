@@ -152,7 +152,7 @@ describe("can", () => {
 
     it("leave a project's share link to admins alone", () => {
       for (const action of ACTIONS) {
-        expectRow(action, "share-link", ["ADMIN"]);
+        expectRow(action, "share-link", ["ADMIN", "MANAGER"]);
       }
     });
   });

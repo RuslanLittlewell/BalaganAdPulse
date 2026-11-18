@@ -33,7 +33,7 @@ Management endpoints live in a new `share-links` module, mounted with the projec
 - `PUT /api/projects/:id/share-link` with `{ renew: boolean }` creates the link (201), returns the existing one, or replaces its token when `renew` is true. Each creation, replacement and removal writes one audit event on the project, which never carries the token, since guests and clients read the trail.
 - `DELETE /api/projects/:id/share-link` switches it off.
 
-They check `share-link` in the permission matrix, which only ADMIN passes, and the project's reach, so a project of another organization answers 404.
+They check `share-link` in the permission matrix, which ADMIN and MANAGER pass, and the project's reach, so a project of another organization, or one a manager has no access grant for, answers 404.
 
 ### A public mount with an allowlist, not public copies of each endpoint
 

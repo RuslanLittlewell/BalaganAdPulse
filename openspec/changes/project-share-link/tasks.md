@@ -1,6 +1,6 @@
 ## 1. Permission and data model
 
-- [x] 1.1 Add the `share-link` resource to the matrix in `packages/access-policy`, with every action for ADMIN and none for MANAGER, GUEST, CLIENT and CLIENT_ADMIN
+- [x] 1.1 Add the `share-link` resource to the matrix in `packages/access-policy`, with every action for ADMIN and MANAGER and none for GUEST, CLIENT and CLIENT_ADMIN
 - [x] 1.2 Tests for the `share-link` rows of the matrix
 - [x] 1.3 Add the `ProjectShareLink` model with its back-relation on `Project` to `apps/api/prisma/models/projects.prisma`, generate the `project_share_link` migration and apply it to the dev and test databases
 - [x] 1.4 Run `npm test` and `npm run test:web`
@@ -10,7 +10,7 @@
 - [x] 2.1 Add the `share-links` module: domain, repository port, Prisma repository and use cases to read, issue (create, return the existing one, or renew) and remove a link, checking `share-link` permissions and project reach
 - [x] 2.2 Add `GET`, `PUT` and `DELETE /api/projects/:id/share-link` with Zod schemas, wire the module in `composition/wiring` and mount the router with the project routes
 - [x] 2.3 Add the OpenAPI entries for the three operations
-- [x] 2.4 Tests: creating, reading again, a second create returning the same token, renewing to a new token, removing, MANAGER, GUEST, CLIENT and CLIENT_ADMIN refused with 403, a project of another organization answering 404, cascade on project deletion; run `npm test`
+- [x] 2.4 Tests: creating, reading again, a second create returning the same token, renewing to a new token, removing, GUEST, CLIENT and CLIENT_ADMIN refused with 403, a MANAGER allowed for a project they reach and answered 404 for one they do not, a project of another organization answering 404, cascade on project deletion; run `npm test`
 
 ## 3. API: reads through a link
 
@@ -42,7 +42,7 @@
 - [x] 6.2 Add the `project-share` feature with the share dialog: create, show the address, copy with a confirmation, replace and switch off, each asking to confirm inside the dialog
 - [x] 6.3 Add the `onShare` prop and the «Поделиться» button beside «Превью» to `ProjectHeader`, and open the dialog from `ProjectPage` when `useCan("update", "share-link")` allows it and the page is not in preview
 - [x] 6.4 Add the dialog's Russian copy to `ru.ts`
-- [x] 6.5 Tests: the button only for ADMIN, not for MANAGER or GUEST, not in preview; creating, copying, replacing and switching off with their confirmations; run `npm run test:web`
+- [x] 6.5 Tests: the button for ADMIN and MANAGER, not for GUEST, CLIENT or CLIENT_ADMIN, not in preview; creating, copying, replacing and switching off with their confirmations; run `npm run test:web`
 
 ## 7. Check and close
 

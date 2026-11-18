@@ -75,7 +75,7 @@ const MATRIX: Readonly<Record<Resource, ResourcePolicy>> = {
   campaign: { read: EVERYONE, create: STAFF, update: STAFF, delete: STAFF },
   task: { read: MEMBERS, create: STAFF_AND_CUSTOMERS, update: STAFF, delete: STAFF },
   audit: { read: MEMBERS, create: NOBODY, update: NOBODY, delete: NOBODY },
-  "share-link": { read: ADMINS, create: ADMINS, update: ADMINS, delete: ADMINS },
+  "share-link": { read: STAFF, create: STAFF, update: STAFF, delete: STAFF },
   "lead-intake-key": { read: STAFF, create: STAFF, update: STAFF, delete: STAFF },
 };
 

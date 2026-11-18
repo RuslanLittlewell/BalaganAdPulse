@@ -92,9 +92,29 @@ describe("a project's share link", () => {
     expect((await issue({ extra: true })).status).toBe(400);
   });
 
-  it("is refused to every role but an admin, even when they reach the project", async () => {
+  it("is managed by a manager who reaches the project", async () => {
+    const manager = await memberWith("MANAGER");
+
+    const created = await issue({}, manager);
+    expect(created.status).toBe(201);
+    expect((await request(app).get(linkOf()).set(manager)).body.token).toBe(created.body.token);
+    expect((await issue({ renew: true }, manager)).body.token).not.toBe(created.body.token);
+    expect((await request(app).delete(linkOf()).set(manager)).status).toBe(204);
+  });
+
+  it("answers a manager without access to the project 404", async () => {
     await issue();
-    for (const role of ["MANAGER", "GUEST", "CLIENT", "CLIENT_ADMIN"] as const) {
+    const manager = (await signInAs("Manager", { role: "MANAGER" })).auth;
+
+    expect((await request(app).get(linkOf()).set(manager)).status).toBe(404);
+    expect((await issue({}, manager)).status).toBe(404);
+    expect((await request(app).delete(linkOf()).set(manager)).status).toBe(404);
+    expect(await prisma.projectShareLink.count()).toBe(1);
+  });
+
+  it("is refused to every role but an admin or a manager, even when they reach the project", async () => {
+    await issue();
+    for (const role of ["GUEST", "CLIENT", "CLIENT_ADMIN"] as const) {
       const auth = await memberWith(role);
 
       expect((await request(app).get(linkOf()).set(auth)).status, `${role} read`).toBe(403);

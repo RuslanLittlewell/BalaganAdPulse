@@ -8,7 +8,7 @@ Lets a member hand someone outside the organization one address that opens a pro
 
 A project SHALL have no share link or exactly one. The link SHALL be the address
 `/share/<token>` on the application's own domain, where the token is random, unguessable and
-used by no other link. An ADMIN, and nobody else, SHALL create the link,
+used by no other link. An ADMIN, or a MANAGER who reaches the project, and nobody else, SHALL create the link,
 read it again at any time, replace it with a new one and switch it off. Replacing SHALL give the
 link a new token and stop the old address at once. Switching off SHALL stop the address and
 leave the project without a link.
@@ -35,7 +35,7 @@ leave the project without a link.
 
 ### Requirement: The project header offers sharing
 
-The project header SHALL offer a «Поделиться» button beside «Превью» to an ADMIN only. It SHALL open a dialog that creates the link when the project has none,
+The project header SHALL offer a «Поделиться» button beside «Превью» to an ADMIN or a MANAGER who reaches the project, and to nobody else. It SHALL open a dialog that creates the link when the project has none,
 and otherwise shows the address with a copy control, a control that replaces the link and a
 control that switches it off. Replacing and switching off SHALL each ask for confirmation in the
 dialog, saying that the current address will stop working. The button SHALL be absent in preview.
@@ -48,8 +48,12 @@ dialog, saying that the current address will stop working. The button SHALL be a
 - **WHEN** an admin chooses to replace the link
 - **THEN** the dialog asks to confirm, and the link changes only after the confirmation
 
+#### Scenario: A manager shares
+- **WHEN** a MANAGER who reaches a project opens it
+- **THEN** the project header shows «Превью» and «Поделиться» as it does for an admin, and the dialog works the same
+
 #### Scenario: Roles without sharing
-- **WHEN** a MANAGER, GUEST, CLIENT or CLIENT_ADMIN opens a project
+- **WHEN** a GUEST, CLIENT or CLIENT_ADMIN opens a project
 - **THEN** the project header has no «Поделиться» button
 
 ### Requirement: The link opens the project's metrics without signing in

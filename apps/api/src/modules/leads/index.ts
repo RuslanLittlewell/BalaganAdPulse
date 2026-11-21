@@ -8,4 +8,5 @@ export type { IncomingLead, LeadDelivery, LeadIntake, LeadTarget } from './appli
 export { createLeadRouter } from './presentation/http/lead-http.js';
 export { leadContactSchemas } from './presentation/http/lead-schemas.js';
 export type { LeadAnswer, LeadMetaSource } from './domain/lead.js';
+export { LEAD_STAGES, LEAD_STAGE_NAMES, isLeadStage } from './domain/lead.js';
 export type { LeadEvent } from './application/ports.js';

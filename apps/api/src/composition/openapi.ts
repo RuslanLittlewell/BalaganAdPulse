@@ -34,6 +34,7 @@ import { summaryTileDoc } from "#modules/summary-tiles/index.js";
 import { projectDocumentComponents, projectDocumentDoc } from "#modules/project-documents/index.js";
 import { reportDoc, reportIndexDoc } from '#modules/reports/index.js';
 import { trialSignupDoc } from "#modules/trial-signups/index.js";
+import { bitrix24Doc, bitrix24WebhookDoc } from "#modules/bitrix24/index.js";
 import { platformComponents, platformDoc } from "#modules/platform/index.js";
 import { supportComponents, supportDoc } from "#modules/support/index.js";
 import { onboardingComponents, onboardingDoc } from "#modules/onboarding/index.js";
@@ -102,6 +103,8 @@ export function apiDocument(): OpenApiDocument {
     { mount: mountPath("website-keys"), ...websiteKeyDoc },
     { mount: mountPath("website-intake"), ...websiteIntakeDoc },
     { mount: mountPath("google-callback"), ...googleCallbackDoc },
+    { mount: mountPath("bitrix24-webhook"), ...bitrix24WebhookDoc },
+    { mount: mountPath("bitrix24"), ...bitrix24Doc },
     { mount: mountPath("ad-previews"), ...adPreviewDoc },
     { mount: mountPath("projects"), ...projectDoc },
     { mount: mountPath("project-layout"), ...projectLayoutDoc },

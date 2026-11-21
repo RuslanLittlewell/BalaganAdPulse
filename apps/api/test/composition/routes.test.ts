@@ -6,6 +6,7 @@ const expectedMounts = [
   "/api",
   "/api/auth",
   "/api/integrations/google",
+  "/api/integrations/bitrix24",
   "/api/registration",
   "/api/trial-signups",
   "/api/intake",
@@ -25,6 +26,7 @@ const expectedMounts = [
   "/api/tasks",
   "/api/task-images",
   "/api/task-documents",
+  "/api/bitrix24",
   "/api/user",
   "/api/invites",
   "/api/members",
@@ -55,6 +57,7 @@ const expectedMounts = [
   "/api",
   "/api/notifications",
   "/api/telegram",
+  "/api/bitrix24",
   "/api",
 ];
 

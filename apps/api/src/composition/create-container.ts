@@ -33,6 +33,8 @@ import { wireSeo } from "./wiring/seo.js";
 import { wireShareLinks } from "./wiring/share-links.js";
 import { wireProjectDocuments } from "./wiring/project-documents.js";
 import { wireTrialSignups } from "./wiring/trial-signups.js";
+import { wireBitrix24 } from "./wiring/bitrix24.js";
+import type { Bitrix24Worker } from "#modules/bitrix24/index.js";
 import { wireTasks } from "./wiring/tasks.js";
 import { wireTelegramBot, wireTelegramNotifications, type TelegramPoller } from "./wiring/telegram-bot.js";
 
@@ -47,6 +49,9 @@ export interface ApiContainer {
   readonly googleCallbackRouter: Router;
   readonly importWorker: ReturnType<typeof createImportWorker>;
   readonly leadPollWorker: ReturnType<typeof createLeadPollWorker>;
+  readonly bitrix24Worker: Bitrix24Worker;
+  readonly bitrix24Router: Router;
+  readonly bitrix24WebhookRouter: Router;
   readonly kpiRouter: Router;
   readonly summaryTileRouter: Router;
   readonly projectDocumentRouter: Router;
@@ -111,6 +116,7 @@ export function createContainer(): ApiContainer {
     projectRepository: catalog.projectRepository,
     leadIntake: leads.leadIntake,
   }, notices);
+  const bitrix24 = wireBitrix24(kernel, leads);
   const tasks = wireTasks(kernel, people, notices);
   const telegram = wireTelegramBot(kernel, {
     tasks: tasks.taskUseCases,
@@ -187,6 +193,10 @@ export function createContainer(): ApiContainer {
     adPreviewRouter: advertising.adPreviewRouter,
     importWorker: advertising.importWorker,
     leadPollWorker: advertising.leadPollWorker,
+
+    bitrix24Worker: bitrix24.bitrix24Worker,
+    bitrix24Router: bitrix24.bitrix24Router,
+    bitrix24WebhookRouter: bitrix24.bitrix24WebhookRouter,
 
     taskRouter: tasks.taskRouter,
     taskImageRouter: tasks.taskImageRouter,

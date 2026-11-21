@@ -1,0 +1,98 @@
+model Bitrix24Connection {
+  id               String   @id @default(uuid())
+  orgId            String   @unique @map("org_id")
+  org              Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  portalHost       String   @map("portal_host")
+  sealedWebhook    String   @map("sealed_webhook")
+  tokenHash        String   @map("token_hash")
+  webhookKey       String   @unique @map("webhook_key")
+  status           String   @default("ACTIVE")
+  enabled          Boolean  @default(true)
+  inboundProjectId String?  @map("inbound_project_id")
+  connectedAt      DateTime @default(now()) @map("connected_at")
+  lastSyncAt       DateTime? @map("last_sync_at")
+  lastError        String?  @map("last_error")
+  leaseOwner       String?  @map("lease_owner")
+  leaseUntil       DateTime? @map("lease_until")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  stageLinks       Bitrix24StageLink[]
+  links            Bitrix24Link[]
+  inbox            Bitrix24Inbox[]
+  problems         Bitrix24Problem[]
+  runs             Bitrix24Run[]
+
+  @@map("bitrix24_connection")
+}
+
+model Bitrix24StageLink {
+  id           String   @id @default(uuid())
+  connectionId String   @map("connection_id")
+  connection   Bitrix24Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  stageKey     String   @map("stage_key")
+  statusId     String   @map("status_id")
+
+  @@unique([connectionId, stageKey])
+  @@unique([connectionId, statusId])
+  @@map("bitrix24_stage_link")
+}
+
+model Bitrix24Link {
+  id               String   @id @default(uuid())
+  connectionId     String   @map("connection_id")
+  connection       Bitrix24Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  kind             String
+  localId          String   @map("local_id")
+  remoteId         String   @map("remote_id")
+  remoteModifiedAt DateTime? @map("remote_modified_at")
+  localSyncedAt    DateTime @map("local_synced_at")
+  dropped          Boolean  @default(false)
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@unique([connectionId, kind, localId])
+  @@unique([connectionId, kind, remoteId])
+  @@map("bitrix24_link")
+}
+
+model Bitrix24Inbox {
+  id           String   @id @default(uuid())
+  connectionId String   @map("connection_id")
+  connection   Bitrix24Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  kind         String
+  remoteId     String   @map("remote_id")
+  receivedAt   DateTime @default(now()) @map("received_at")
+
+  @@unique([connectionId, kind, remoteId])
+  @@index([connectionId, receivedAt])
+  @@map("bitrix24_inbox")
+}
+
+model Bitrix24Problem {
+  id           String   @id @default(uuid())
+  connectionId String   @map("connection_id")
+  connection   Bitrix24Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  kind         String
+  key          String
+  reason       String
+  failedFor    DateTime? @map("failed_for")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@unique([connectionId, kind, key])
+  @@map("bitrix24_problem")
+}
+
+model Bitrix24Run {
+  id           String   @id @default(uuid())
+  connectionId String   @map("connection_id")
+  connection   Bitrix24Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  direction    String
+  state        String   @default("RUNNING")
+  created      Int      @default(0)
+  failed       Int      @default(0)
+  cursor       Json     @default("{}")
+  startedAt    DateTime @default(now()) @map("started_at")
+  finishedAt   DateTime? @map("finished_at")
+
+  @@index([connectionId, startedAt])
+  @@map("bitrix24_run")
+}

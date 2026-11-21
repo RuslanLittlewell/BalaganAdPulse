@@ -4,7 +4,7 @@ import { issueShareLinkSchema, shareLinkSchema } from "./share-link-schemas.js";
 export const shareLinkDoc: RouteDoc = {
   tag: "Share links",
   tagDescription:
-    "The one address per project that opens its metrics to anyone, read only and without a session. Only admins see, issue, replace and remove it; replacing gives it a new token and stops the old address at once.",
+    "The one address per project that opens its metrics to anyone, read only and without a session. Admins and managers who reach the project see, issue, replace and remove it; replacing gives it a new token and stops the old address at once.",
   operations: [
     {
       method: "get",

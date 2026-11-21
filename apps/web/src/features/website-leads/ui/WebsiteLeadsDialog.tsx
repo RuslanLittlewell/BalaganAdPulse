@@ -22,6 +22,11 @@ export interface WebsiteLeadsDialogProps {
   onClose: () => void;
 }
 
+export interface WebsiteLeadsPanelProps {
+  projectId: string;
+  active?: boolean;
+}
+
 function Snippet({ value, label }: { value: string; label: string }) {
   return (
     <div className="flex items-start gap-2 rounded-md border border-border bg-muted/40 p-2">
@@ -32,7 +37,21 @@ function Snippet({ value, label }: { value: string; label: string }) {
 }
 
 export function WebsiteLeadsDialog({ projectId, open, onClose }: WebsiteLeadsDialogProps) {
-  const key = useWebsiteKey(projectId, { enabled: open });
+  return (
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent className="max-h-[90vh] w-[min(640px,calc(100vw-2rem))] max-w-none overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{t("website.title")}</DialogTitle>
+          <DialogDescription>{t("website.description")}</DialogDescription>
+        </DialogHeader>
+        {open ? <WebsiteLeadsPanel key={projectId} projectId={projectId} /> : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function WebsiteLeadsPanel({ projectId, active = true }: WebsiteLeadsPanelProps) {
+  const key = useWebsiteKey(projectId, { enabled: active });
   const change = useWebsiteKeyChange(projectId);
   const [asking, setAsking] = useState<Asking | null>(null);
   const [failed, setFailed] = useState(false);
@@ -47,13 +66,6 @@ export function WebsiteLeadsDialog({ projectId, open, onClose }: WebsiteLeadsDia
   useEffect(() => {
     setSites(current ? current.allowedSites.join("\n") : "");
   }, [current]);
-
-  function close() {
-    setAsking(null);
-    setFailed(false);
-    setInvalid(false);
-    onClose();
-  }
 
   async function run(action: () => Promise<unknown>) {
     setFailed(false);
@@ -82,82 +94,75 @@ export function WebsiteLeadsDialog({ projectId, open, onClose }: WebsiteLeadsDia
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!next) close(); }}>
-      <DialogContent className="max-h-[90vh] w-[min(640px,calc(100vw-2rem))] max-w-none overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{t("website.title")}</DialogTitle>
-          <DialogDescription>{t("website.description")}</DialogDescription>
-        </DialogHeader>
+    <div className="flex flex-col gap-4">
+      {key.isPending ? (
+        <Loader label={t("state.loading")} />
+      ) : key.isError ? (
+        <p role="alert" className="text-sm text-destructive">{t("website.loadFailed")}</p>
+      ) : current ? (
+        <div className="flex flex-col gap-5">
+          <section className="flex flex-col gap-2">
+            <h3 className="text-sm font-semibold">{t("website.script")}</h3>
+            <Snippet value={tag} label={t("website.copy")} />
+            <p className="text-xs text-muted-foreground">{t("website.script.hint")}</p>
+          </section>
 
-        {key.isPending ? (
-          <Loader label={t("state.loading")} />
-        ) : key.isError ? (
-          <p role="alert" className="text-sm text-destructive">{t("website.loadFailed")}</p>
-        ) : current ? (
-          <div className="flex flex-col gap-5">
-            <section className="flex flex-col gap-2">
-              <h3 className="text-sm font-semibold">{t("website.script")}</h3>
-              <Snippet value={tag} label={t("website.copy")} />
-              <p className="text-xs text-muted-foreground">{t("website.script.hint")}</p>
-            </section>
+          <section className="flex flex-col gap-2">
+            <h3 className="text-sm font-semibold">{t("website.manual")}</h3>
+            <p className="text-xs text-muted-foreground">{t("website.manual.hint")}</p>
+            <Snippet value={MANUAL_EXAMPLE} label={t("website.manual.copy")} />
+          </section>
 
-            <section className="flex flex-col gap-2">
-              <h3 className="text-sm font-semibold">{t("website.manual")}</h3>
-              <p className="text-xs text-muted-foreground">{t("website.manual.hint")}</p>
-              <Snippet value={MANUAL_EXAMPLE} label={t("website.manual.copy")} />
-            </section>
+          <section className="flex flex-col gap-2">
+            <Label htmlFor="website-sites" className="text-sm font-semibold">{t("website.sites")}</Label>
+            <textarea
+              id="website-sites"
+              value={sites}
+              rows={3}
+              spellCheck={false}
+              placeholder="example.com"
+              onChange={(event) => setSites(event.target.value)}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <p className="text-xs text-muted-foreground">{t("website.sites.hint")}</p>
+            {invalid ? <p role="alert" className="text-sm text-destructive">{t("website.sites.invalid")}</p> : null}
+            <div className="flex justify-end">
+              <Button type="button" variant="outline" disabled={pending} onClick={() => void saveSites()}>{t("website.sites.save")}</Button>
+            </div>
+          </section>
 
-            <section className="flex flex-col gap-2">
-              <Label htmlFor="website-sites" className="text-sm font-semibold">{t("website.sites")}</Label>
-              <textarea
-                id="website-sites"
-                value={sites}
-                rows={3}
-                spellCheck={false}
-                placeholder="example.com"
-                onChange={(event) => setSites(event.target.value)}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-              <p className="text-xs text-muted-foreground">{t("website.sites.hint")}</p>
-              {invalid ? <p role="alert" className="text-sm text-destructive">{t("website.sites.invalid")}</p> : null}
-              <div className="flex justify-end">
-                <Button type="button" variant="outline" disabled={pending} onClick={() => void saveSites()}>{t("website.sites.save")}</Button>
+          <section className="flex flex-col gap-2">
+            <h3 className="text-sm font-semibold">{t("website.utm")}</h3>
+            <Snippet value={UTM_TAGS} label={t("website.utm.copy")} />
+            <p className="text-xs text-muted-foreground">{t("website.utm.hint")}</p>
+          </section>
+
+          {asking ? (
+            <div role="group" aria-label={t(`website.${asking}`)} className="flex flex-col gap-2 rounded-md border border-destructive/40 p-3">
+              <p className="text-sm">{t(`website.${asking}.warning`)}</p>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setAsking(null)}>{t("action.cancel")}</Button>
+                <Button type="button" variant="destructive" disabled={pending} onClick={() => void confirm(asking)}>
+                  {t(`website.${asking}.confirm`)}
+                </Button>
               </div>
-            </section>
+            </div>
+          ) : (
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setAsking("replace")}>{t("website.replace")}</Button>
+              <Button type="button" variant="outline" onClick={() => setAsking("remove")}>{t("website.remove")}</Button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="flex justify-end">
+          <Button type="button" disabled={pending} onClick={() => void run(() => change.create.mutateAsync())}>
+            {t("website.create")}
+          </Button>
+        </div>
+      )}
 
-            <section className="flex flex-col gap-2">
-              <h3 className="text-sm font-semibold">{t("website.utm")}</h3>
-              <Snippet value={UTM_TAGS} label={t("website.utm.copy")} />
-              <p className="text-xs text-muted-foreground">{t("website.utm.hint")}</p>
-            </section>
-
-            {asking ? (
-              <div role="group" aria-label={t(`website.${asking}`)} className="flex flex-col gap-2 rounded-md border border-destructive/40 p-3">
-                <p className="text-sm">{t(`website.${asking}.warning`)}</p>
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setAsking(null)}>{t("action.cancel")}</Button>
-                  <Button type="button" variant="destructive" disabled={pending} onClick={() => void confirm(asking)}>
-                    {t(`website.${asking}.confirm`)}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-wrap justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setAsking("replace")}>{t("website.replace")}</Button>
-                <Button type="button" variant="outline" onClick={() => setAsking("remove")}>{t("website.remove")}</Button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex justify-end">
-            <Button type="button" disabled={pending} onClick={() => void run(() => change.create.mutateAsync())}>
-              {t("website.create")}
-            </Button>
-          </div>
-        )}
-
-        {failed ? <p role="alert" className="text-sm text-destructive">{t("website.failed")}</p> : null}
-      </DialogContent>
-    </Dialog>
+      {failed ? <p role="alert" className="text-sm text-destructive">{t("website.failed")}</p> : null}
+    </div>
   );
 }

@@ -150,9 +150,15 @@ describe("can", () => {
       }
     });
 
-    it("leave a project's share link to admins alone", () => {
+    it("leave a project's share link to admins and managers", () => {
       for (const action of ACTIONS) {
         expectRow(action, "share-link", ["ADMIN", "MANAGER"]);
+      }
+    });
+
+    it("leave the Bitrix24 connection to admins alone", () => {
+      for (const action of ACTIONS) {
+        expectRow(action, "bitrix24-connection", ["ADMIN"]);
       }
     });
   });

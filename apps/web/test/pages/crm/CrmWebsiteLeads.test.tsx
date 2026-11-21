@@ -1,5 +1,5 @@
 import { http as mock, HttpResponse } from "msw";
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
 import { renderWithProviders, server } from "@test/shared/index.js";
@@ -31,14 +31,18 @@ const setup = (route = "/crm") => renderWithProviders(
   { route },
 );
 
-describe("the website leads button in the application header", () => {
-  it("opens the key dialog of the board's project for a manager", async () => {
+describe("the integrations button in the application header", () => {
+  it("opens the web integration of the board's project for a manager, without tabs", async () => {
     serve("MANAGER");
     setup();
 
-    await userEvent.click(await screen.findByRole("button", { name: "Web интеграция" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Интеграции +" }));
 
-    expect(await screen.findByRole("button", { name: "Создать ключ" })).toBeInTheDocument();
+    const dialog = await screen.findByRole("dialog", { name: "Интеграции" });
+    expect(await within(dialog).findByRole("button", { name: "Создать ключ" })).toBeInTheDocument();
+    expect(within(dialog).queryByRole("radiogroup", { name: "Интеграции" })).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Битрикс24")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Web интеграция" })).not.toBeInTheDocument();
   });
 
   it("is offered only in the CRM", async () => {
@@ -46,7 +50,7 @@ describe("the website leads button in the application header", () => {
     setup("/tasks");
 
     await screen.findByText("Задачи");
-    expect(screen.queryByRole("button", { name: "Web интеграция" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Интеграции +" })).not.toBeInTheDocument();
   });
 
   it("is not offered to a customer", async () => {
@@ -54,6 +58,6 @@ describe("the website leads button in the application header", () => {
     setup();
 
     await screen.findByRole("heading", { name: "Лиды" });
-    expect(screen.queryByRole("button", { name: "Web интеграция" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Интеграции +" })).not.toBeInTheDocument();
   });
 });

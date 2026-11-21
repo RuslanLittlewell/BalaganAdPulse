@@ -7,6 +7,7 @@ export const ROUTE_MOUNTS = [
   { id: "docs", path: "/api" },
   { id: "open-auth", path: "/api/auth" },
   { id: "google-callback", path: "/api/integrations/google" },
+  { id: "bitrix24-webhook", path: "/api/integrations/bitrix24" },
   { id: "registration-resolver", path: "/api/registration" },
   { id: "trial-signups", path: "/api/trial-signups" },
   { id: "website-intake", path: "/api/intake" },
@@ -26,6 +27,7 @@ export const ROUTE_MOUNTS = [
   { id: "tasks-module", path: "/api/tasks" },
   { id: "task-images-module", path: "/api/task-images" },
   { id: "task-documents-module", path: "/api/task-documents" },
+  { id: "bitrix24-module", path: "/api/bitrix24" },
   { id: "user", path: "/api/user" },
   { id: "invites", path: "/api/invites" },
   { id: "members", path: "/api/members" },
@@ -56,6 +58,7 @@ export const ROUTE_MOUNTS = [
   { id: "summary-tiles", path: "/api" },
   { id: "notifications", path: "/api/notifications" },
   { id: "telegram", path: "/api/telegram" },
+  { id: "bitrix24", path: "/api/bitrix24" },
   { id: "api-not-found", path: "/api" },
 ] as const;
 
@@ -77,6 +80,7 @@ export function createRoutes(container: ApiContainer, options: RouteOptions = {}
     container.documentationRouter,
     container.authRouter,
     container.googleCallbackRouter,
+    container.bitrix24WebhookRouter,
     container.registrationResolverRouter,
     container.trialSignupRouter,
     container.websiteIntakeRouter,
@@ -96,6 +100,7 @@ export function createRoutes(container: ApiContainer, options: RouteOptions = {}
     container.requireModule("TASKS"),
     container.requireModule("TASKS"),
     container.requireModule("TASKS"),
+    container.requireModule("CRM"),
     container.userRouter,
     container.inviteRouter,
     container.memberRouter,
@@ -126,6 +131,7 @@ export function createRoutes(container: ApiContainer, options: RouteOptions = {}
     container.summaryTileRouter,
     container.notificationRouter,
     container.telegramRouter,
+    container.bitrix24Router,
     (_request: unknown, _response: unknown, next: (error: Error) => void) =>
       next(new AppError("not-found", "Endpoint not found")),
   ];

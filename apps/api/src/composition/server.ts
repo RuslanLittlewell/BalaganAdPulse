@@ -23,6 +23,7 @@ const realtime = attachRealtime({
 
 container.importWorker.start();
 container.leadPollWorker.start();
+container.bitrix24Worker.start();
 container.seoWorker.start();
 container.dueSoonWorker.start();
 container.doneArchiveWorker.start();
@@ -41,6 +42,7 @@ const shutdown = createShutdown({
     await Promise.all([
       container.importWorker.stop(),
       container.leadPollWorker.stop(),
+      container.bitrix24Worker.stop(),
       container.seoWorker.stop(),
       container.dueSoonWorker.stop(),
       container.doneArchiveWorker.stop(),

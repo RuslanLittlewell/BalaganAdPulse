@@ -17,6 +17,7 @@ export function assertTestDatabase(url: string | undefined = process.env.DATABAS
 
 export async function resetDb(): Promise<void> {
   assertTestDatabase();
+  await prisma.bitrix24Connection.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.lead.deleteMany();
   await prisma.leadColumn.deleteMany();

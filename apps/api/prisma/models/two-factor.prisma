@@ -1,0 +1,46 @@
+model TwoFactor {
+  userId        String    @id @map("user_id")
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sealedSecret  String?   @map("sealed_secret")
+  sealedPending String?   @map("sealed_pending")
+  enabledAt     DateTime? @map("enabled_at")
+  lastStep      Int?      @map("last_step")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@map("two_factor")
+}
+
+model TwoFactorBackupCode {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String    @unique @map("code_hash")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("two_factor_backup_code")
+}
+
+model TrustedAddress {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  address     String   @db.VarChar(64)
+  confirmedAt DateTime @default(now()) @map("confirmed_at")
+  lastUsedAt  DateTime @default(now()) @map("last_used_at")
+
+  @@unique([userId, address])
+  @@map("trusted_address")
+}
+
+model TwoFactorChallenge {
+  tokenHash String   @id @map("token_hash")
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("two_factor_challenge")
+}

@@ -114,7 +114,18 @@ describe("every response", () => {
       "x-content-type-options": "nosniff",
       "x-frame-options": "DENY",
       "referrer-policy": "strict-origin-when-cross-origin",
-      "content-security-policy": "frame-ancestors 'none'; object-src 'none'; base-uri 'self'",
     });
+    const policy = String(res.headers["content-security-policy"]).split("; ");
+    expect(policy).toEqual(expect.arrayContaining([
+      "default-src 'self'",
+      "script-src 'self'",
+      "frame-src https://www.facebook.com https://*.facebook.com",
+      "form-action 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "frame-ancestors 'none'",
+    ]));
+    expect(policy.find((rule) => rule.startsWith("script-src"))).not.toMatch(/unsafe-inline|unsafe-eval/);
+    expect(res.headers["x-powered-by"]).toBeUndefined();
   });
 });

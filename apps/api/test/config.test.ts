@@ -178,4 +178,12 @@ describe("loadConfig", () => {
       expect(loadConfig({ JWT_SECRET: "s", LANDING_HOST: "" }).landingHost).toBeNull();
     });
   });
+
+  it("withdraws the API documentation in production unless asked for", () => {
+    const secret = "a".repeat(40);
+    expect(loadConfig({ JWT_SECRET: secret }).documentation).toBe(true);
+    expect(loadConfig({ JWT_SECRET: secret, API_DOCS: "off" }).documentation).toBe(false);
+    expect(loadConfig({ JWT_SECRET: secret, NODE_ENV: "production", APP_URL: "https://app.example" }).documentation).toBe(false);
+    expect(loadConfig({ JWT_SECRET: secret, NODE_ENV: "production", APP_URL: "https://app.example", API_DOCS: "on" }).documentation).toBe(true);
+  });
 });

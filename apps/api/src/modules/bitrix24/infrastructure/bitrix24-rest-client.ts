@@ -1,5 +1,6 @@
 import { Bitrix24Error, type Bitrix24ErrorKind } from "../domain/bitrix24-error.js";
 import type { Bitrix24Api } from "../application/ports.js";
+import { RefusedAddressError, type Post } from "./pinned-post.js";
 
 type Raw = Record<string, unknown>;
 
@@ -19,10 +20,9 @@ export function classifyBitrix24Error(code: string, description: string, status:
 }
 
 export interface RestClientOptions {
+  post: Post;
   minIntervalMs?: number;
   timeoutMs?: number;
-  fetch?: typeof fetch;
-  isPublicHost?: (host: string) => Promise<boolean>;
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -30,7 +30,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export class Bitrix24RestClient implements Bitrix24Api {
   private last = 0;
 
-  constructor(private readonly base: string, private readonly options: RestClientOptions = {}) {}
+  constructor(private readonly base: string, private readonly options: RestClientOptions) {}
 
   async call<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T> {
     return (await this.request(method, params)).result as T;
@@ -53,32 +53,25 @@ export class Bitrix24RestClient implements Bitrix24Api {
   private async request(method: string, params?: Record<string, unknown>): Promise<Raw> {
     await this.pace();
     const url = new URL(`${this.base}${method}.json`);
-    if (this.options.isPublicHost && !(await this.options.isPublicHost(url.hostname))) {
-      throw new Bitrix24Error("REFUSED", "The portal address is not public");
-    }
-    let response: Response;
+    let response: { status: number; body: string };
     try {
-      response = await (this.options.fetch ?? fetch)(url, {
-        method: "POST",
-        headers: { "content-type": "application/json", accept: "application/json" },
-        body: JSON.stringify(params ?? {}),
-        redirect: "error",
-        signal: AbortSignal.timeout(this.options.timeoutMs ?? 20_000),
-      });
-    } catch {
+      response = await this.options.post(url, JSON.stringify(params ?? {}), this.options.timeoutMs ?? 20_000);
+    } catch (error) {
+      if (error instanceof RefusedAddressError) throw new Bitrix24Error("REFUSED", "The portal address is not public");
       throw new Bitrix24Error("TRANSIENT", "The portal did not answer");
     }
     let body: Raw | null = null;
     try {
-      const parsed: unknown = await response.json();
+      const parsed: unknown = JSON.parse(response.body);
       body = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Raw : null;
     } catch {
       body = null;
     }
+    const ok = response.status >= 200 && response.status < 300;
     if (body && body.error !== undefined && body.error !== null) {
       throw classifyBitrix24Error(String(body.error), String(body.error_description ?? ""), response.status);
     }
-    if (!response.ok) throw classifyBitrix24Error("", "", response.status);
+    if (!ok) throw classifyBitrix24Error("", "", response.status);
     if (!body) throw new Bitrix24Error("TRANSIENT", "The portal answered without JSON");
     return body;
   }

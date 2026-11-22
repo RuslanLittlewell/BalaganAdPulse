@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiError, hasSession, writeTokens } from "@/shared/lib/index.js";
 import { endSession, onSessionExpired, onTokenRenewed } from "@/shared/lib/index.js";
-import { authApi, trialApi, type LoginBody, type RegisterBody, type UpdateProfileBody, type UserProfile } from "../api.js";
+import { authApi, isChallenge, trialApi, type LoginBody, type RegisterBody, type UpdateProfileBody, type UserProfile } from "../api.js";
 import type { AuthSession, OrganizationSummary } from "../api.js";
 import type { ModuleKey, Role } from "@adpulse/access-policy";
 import type { TariffSummary } from "@/entities/tariff/index.js";
@@ -29,15 +29,18 @@ interface AuthValue {
   tariff: TariffSummary | null;
   sessionError: boolean;
   retrySession: () => void;
-  login: (body: LoginBody) => Promise<void>;
+  login: (body: LoginBody) => Promise<SignInOutcome>;
+  completeTwoFactor: (challenge: string, code: string) => Promise<void>;
   register: (body: RegisterBody) => Promise<void>;
-  resetPassword: (token: string, password: string) => Promise<void>;
+  resetPassword: (token: string, password: string) => Promise<SignInOutcome>;
   confirmTrial: (token: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (body: UpdateProfileBody) => Promise<void>;
   loadProfile: () => Promise<UserProfile>;
   saveAvatar: (png: Blob, avatarPath: string) => Promise<void>;
 }
+
+export type SignInOutcome = { readonly challenge: string } | null;
 
 const AuthContext = createContext<AuthValue | null>(null);
 
@@ -136,7 +139,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login: async (body) => {
       invalidateSession();
       const current = generation.current;
-      const tokens = await authApi.login(body);
+      const answer = await authApi.login(body);
+      if (isChallenge(answer)) return { challenge: answer.twoFactor.challenge };
+      if (current !== generation.current) return null;
+      writeTokens(answer);
+      queryClient.clear();
+      await loadSession();
+      return null;
+    },
+    completeTwoFactor: async (challenge, code) => {
+      invalidateSession();
+      const current = generation.current;
+      const tokens = await authApi.completeTwoFactor(challenge, code);
       if (current !== generation.current) return;
       writeTokens(tokens);
       queryClient.clear();
@@ -154,11 +168,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     resetPassword: async (token, password) => {
       invalidateSession();
       const current = generation.current;
-      const tokens = await authApi.resetPassword(token, password);
-      if (current !== generation.current) return;
-      writeTokens(tokens);
+      const answer = await authApi.resetPassword(token, password);
+      if (isChallenge(answer)) return { challenge: answer.twoFactor.challenge };
+      if (current !== generation.current) return null;
+      writeTokens(answer);
       queryClient.clear();
       await loadSession();
+      return null;
     },
     confirmTrial: async (token) => {
       invalidateSession();
@@ -207,6 +223,7 @@ export function SharedAuthProvider({ modules, children }: { modules: ModuleKey[]
     sessionError: false,
     retrySession: () => {},
     login: signedOut,
+    completeTwoFactor: signedOut,
     register: signedOut,
     resetPassword: signedOut,
     confirmTrial: signedOut,

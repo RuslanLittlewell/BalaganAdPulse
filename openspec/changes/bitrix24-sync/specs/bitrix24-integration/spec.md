@@ -6,7 +6,7 @@ Keep an organization's CRM records and their Bitrix24 counterparts equal in both
 
 ### Requirement: An administrator connects one Bitrix24 portal
 
-An organization with the CRM module SHALL be able to hold at most one Bitrix24 connection, managed by an ADMIN only. Connecting SHALL take the portal's inbound webhook address and the application token of its outbound webhook. The system SHALL refuse an address that is not an https address of a public host, SHALL check the address by calling the portal before saving it, and SHALL refuse one the portal rejects. The webhook address and the application token SHALL be stored so that they cannot be read back, and the API SHALL never return them. The administrator SHALL be able to switch the connection off, which stops syncing and keeps the links between records, and to remove it, which stops syncing and forgets the links and the secrets.
+An organization with the CRM module SHALL be able to hold at most one Bitrix24 connection, managed by an ADMIN only. Connecting SHALL take the portal's inbound webhook address and the application token of its outbound webhook. The system SHALL refuse an address that is not an https address of a public host on the default port, SHALL connect to the portal only at a public network address, checked on the address each connection actually uses, SHALL check the address by calling the portal before saving it, and SHALL refuse one the portal rejects. The webhook address and the application token SHALL be stored so that they cannot be read back, and the API SHALL never return them. The administrator SHALL be able to switch the connection off, which stops syncing and keeps the links between records, and to remove it, which stops syncing and forgets the links and the secrets.
 
 #### Scenario: Connecting
 - **WHEN** an admin sends a working webhook address and a token
@@ -17,8 +17,12 @@ An organization with the CRM module SHALL be able to hold at most one Bitrix24 c
 - **THEN** the API responds 400 and stores nothing
 
 #### Scenario: An address that is not public
-- **WHEN** an admin sends an `http` address, or one that points at a private network
+- **WHEN** an admin sends an `http` address, an address with a port, or one that points at a private network
 - **THEN** the API responds 400 and no request is made to it
+
+#### Scenario: A host that moves to a private network
+- **WHEN** a portal host resolves to a public address when it is saved and to a private one later
+- **THEN** the worker's requests to it are refused before they connect
 
 #### Scenario: Roles
 - **WHEN** a manager, a guest or a client asks for the connection or changes it
@@ -38,7 +42,7 @@ An organization with the CRM module SHALL be able to hold at most one Bitrix24 c
 
 ### Requirement: Bitrix24 reaches AdPulse through a public webhook
 
-The system SHALL expose one public address per connection for the portal's outbound webhook. The address SHALL carry a random key that names the connection and cannot be guessed. The system SHALL accept an event only when the application token in it equals the stored one, SHALL answer 202 as soon as the event is stored, and SHALL answer an unknown key or a wrong token with the same 404. The address SHALL be limited in rate. Events for a switched-off or removed connection SHALL be ignored.
+The system SHALL expose one public address per connection for the portal's outbound webhook. The address SHALL carry a random key that names the connection and cannot be guessed. The system SHALL accept an event only when the application token in it equals the stored one, SHALL answer 202 as soon as the event is stored, and SHALL answer an unknown key or a wrong token with the same 404. The address SHALL be limited in rate, and one network address SHALL get 429 for the rest of a minute after 30 refused events in it. Events for a switched-off or removed connection SHALL be ignored.
 
 #### Scenario: A valid event
 - **WHEN** the portal sends a lead update with the right key and token
@@ -51,6 +55,10 @@ The system SHALL expose one public address per connection for the portal's outbo
 #### Scenario: An unknown key
 - **WHEN** an event arrives at a key that names no connection
 - **THEN** the API responds the same 404
+
+#### Scenario: Guessing keys
+- **WHEN** one network address sends events to 31 unknown keys within a minute
+- **THEN** the 31st and later answers are 429
 
 #### Scenario: Too many events
 - **WHEN** one address receives events faster than its limit
@@ -90,7 +98,7 @@ The administrator SHALL map each fixed stage and each board column to one Bitrix
 
 ### Requirement: Contacts and companies sync in both directions
 
-People and companies SHALL sync with Bitrix24 contacts and companies, with their name, phone, email and website, and SHALL stay attached to the lead they were attached to on either side. A contact or company created in Bitrix24 SHALL belong to the client of the inbound project, or to the client of the lead it is attached to.
+People and companies SHALL sync with Bitrix24 contacts and companies, with their name, phone, email and website, and SHALL stay attached to the lead they were attached to on either side. A website from Bitrix24 that is not an `http` or `https` address SHALL be dropped, as the API drops it from a member. A contact or company created in Bitrix24 SHALL belong to the client of the inbound project, or to the client of the lead it is attached to.
 
 #### Scenario: A contact on a lead
 - **WHEN** a member adds a person to a linked lead

@@ -30,6 +30,7 @@ import { PlatformNav } from "@/widgets/platform-nav/index.js";
 import { AlertsProvider, Loader, EmptyState } from "@/shared/ui/index.js";
 import { createQueryClient, moduleKeyFromPathname, ROUTES } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
+import { TwoFactorSetupScreen, useTwoFactorStatus } from "@/features/two-factor/index.js";
 
 const queryClient = createQueryClient();
 
@@ -93,6 +94,19 @@ function SignedIn() {
   }
   if (platformAdmin) return <PlatformArea />;
   if (organization?.status === "SUSPENDED") return <SuspendedPage />;
+  return <EnrolledOrganizationArea />;
+}
+
+function EnrolledOrganizationArea() {
+  const status = useTwoFactorStatus();
+  if (status.isPending) {
+    return (
+      <div className="grid h-screen place-items-center bg-background">
+        <Loader label={t("state.loading")} />
+      </div>
+    );
+  }
+  if (status.data?.required && !status.data.enabled) return <TwoFactorSetupScreen />;
   return <OrganizationArea />;
 }
 

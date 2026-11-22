@@ -28,3 +28,8 @@
 
 - [x] 5.1 Run `npm test` and the web and landing suites
 - [ ] 5.2 Walk the flow in a browser with mail logged to the server: request, link, confirmation, first screen as `ADMIN`
+
+## 6. Audit fixes
+
+- [x] 6.1 Drop the typed names from the confirmation email and limit requests per email address
+- [x] 6.2 Test the email text and the per-address limit

@@ -3,7 +3,7 @@ import { AppError } from "#shared/domain/index.js";
 import { avatarUpload } from "#shared/presentation/avatar-upload.js";
 import { assertAvatarPath, assertAvatarPng } from "#shared/presentation/avatar.js";
 import { createRateLimit } from "#shared/presentation/rate-limit.js";
-import type { IdentityUseCases } from "#modules/identity/application/identity-use-cases.js";
+import type { IdentityUseCases, SignInResult } from "#modules/identity/application/identity-use-cases.js";
 import {
   loginSchema, passwordResetRequestSchema, passwordResetSchema, refreshSchema, registerSchema, updateProfileSchema,
 } from "./identity-schemas.js";
@@ -19,6 +19,15 @@ function userId(req: Request): string {
 function handle(action: (req: Request, res: Response) => Promise<void>) {
   return (req: Request, res: Response, next: NextFunction) => { action(req, res).catch(next); };
 }
+function answer(res: Response, result: SignInResult): void {
+  if (result.kind === "challenge") {
+    res.json({ twoFactor: { challenge: result.challenge, expiresAt: result.expiresAt.toISOString() } });
+    return;
+  }
+  setAuthCookies(res, result.tokens);
+  res.json(result.tokens);
+}
+
 export interface IdentityHttpHooks {
   readonly signedOut?: (userId: string) => void;
 }
@@ -40,8 +49,7 @@ export function createIdentityHttpRouters(
     setAuthCookies(res, tokens); res.status(201).json(tokens);
   }));
   authRouter.post("/login", credentialLimit, handle(async (req, res) => {
-    const tokens = await useCases.login(loginSchema.parse(req.body));
-    setAuthCookies(res, tokens); res.json(tokens);
+    answer(res, await useCases.login(loginSchema.parse(req.body), req.ip ?? "unknown"));
   }));
   authRouter.post("/password-reset", credentialLimit, handle(async (req, res) => {
     await useCases.requestPasswordReset(passwordResetRequestSchema.parse(req.body).email);
@@ -53,8 +61,7 @@ export function createIdentityHttpRouters(
   }));
   authRouter.post("/password-reset/:token", credentialLimit, handle(async (req, res) => {
     const { password } = passwordResetSchema.parse(req.body);
-    const tokens = await useCases.resetPassword(String(req.params.token), password);
-    setAuthCookies(res, tokens); res.json(tokens);
+    answer(res, await useCases.resetPassword(String(req.params.token), password, req.ip ?? "unknown"));
   }));
   authRouter.post("/refresh", sessionLimit, handle(async (req, res) => {
     const refreshToken = readCookie(req, REFRESH_COOKIE) ?? refreshSchema.parse(req.body).refreshToken;

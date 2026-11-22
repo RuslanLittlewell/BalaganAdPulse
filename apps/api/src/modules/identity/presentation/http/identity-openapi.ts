@@ -22,8 +22,14 @@ const profile = z.object({
   telegram: z.string().nullable(),
 });
 
+const signIn = z.union([
+  tokenPair,
+  z.object({ twoFactor: z.object({ challenge: z.string(), expiresAt: z.string() }) }),
+]);
+
 export const identityComponents: ComponentDocs = {
   TokenPair: tokenPair,
+  SignIn: signIn,
   AccessToken: accessToken,
   ProfileSession: accessToken.extend({ refreshToken: z.string().optional() }),
   Profile: profile,
@@ -47,11 +53,11 @@ export const authDoc: RouteDoc = {
       method: "post",
       path: "/login",
       summary: "Exchange credentials for a session",
-      description: "Takes an email, or the login of an account the agency issued. The value is matched against logins first, then against emails.",
+      description: "Takes an email, or the login of an account the agency issued. The value is matched against logins first, then against emails. An account with two-factor sign-in on an unconfirmed address gets a challenge instead of a session, to finish at `POST /api/auth/two-factor`.",
       open: true,
       body: loginSchema,
-      success: { status: 200, description: "The session, also set as cookies", schema: ref("TokenPair") },
-      errors: [400, 401, 429],
+      success: { status: 200, description: "The session, also set as cookies, or a two-factor challenge", schema: ref("SignIn") },
+      errors: [400, 401, 403, 429],
     },
     {
       method: "post",
@@ -75,10 +81,10 @@ export const authDoc: RouteDoc = {
       method: "post",
       path: "/password-reset/:token",
       summary: "Set a new password with a reset link",
-      description: "Replaces the password, ends every other session and signs in.",
+      description: "Replaces the password, ends every other session and signs in, or returns a two-factor challenge on an unconfirmed address.",
       open: true,
       body: passwordResetSchema,
-      success: { status: 200, description: "The new session, also set as cookies", schema: ref("TokenPair") },
+      success: { status: 200, description: "The new session, also set as cookies, or a two-factor challenge", schema: ref("SignIn") },
       errors: [400, 404, 429],
     },
     {

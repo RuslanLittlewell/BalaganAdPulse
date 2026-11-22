@@ -18,6 +18,7 @@ import {
   useAlerts,
 } from "@/shared/ui/index.js";
 import { Can } from "@/features/permissions/index.js";
+import { ResetMemberTwoFactor, TwoFactorRequirementSwitch } from "@/features/two-factor/index.js";
 
 export function EmployeeDirectory() {
   const members = useMembers();
@@ -42,58 +43,68 @@ export function EmployeeDirectory() {
   }
 
   return (
-    <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-3 sm:grid-cols-[minmax(14rem,22%)_minmax(0,1fr)] sm:grid-rows-[minmax(0,1fr)]">
-      <div data-testid="employee-list" className="grid min-h-0 min-w-0 content-start gap-1 overflow-y-auto">
-        {list.map((member) => (
-          <ListItem
-            key={member.id}
-            selected={member.id === selected?.id}
-            leading={<MemberAvatar member={member} size="sm" />}
-            onClick={() => setSelectedId(member.id)}
-          >
-            {member.name}
-          </ListItem>
-        ))}
-      </div>
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <Can action="update" resource="organization">
+        <TwoFactorRequirementSwitch />
+      </Can>
+      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-3 sm:grid-cols-[minmax(14rem,22%)_minmax(0,1fr)] sm:grid-rows-[minmax(0,1fr)]">
+        <div data-testid="employee-list" className="grid min-h-0 min-w-0 content-start gap-1 overflow-y-auto">
+          {list.map((member) => (
+            <ListItem
+              key={member.id}
+              selected={member.id === selected?.id}
+              leading={<MemberAvatar member={member} size="sm" />}
+              onClick={() => setSelectedId(member.id)}
+            >
+              {member.name}
+            </ListItem>
+          ))}
+        </div>
 
-      <div
-        data-testid="employee-panel"
-        className="flex min-h-0 min-w-0 flex-col overflow-y-auto sm:border-l sm:border-border sm:pl-3"
-      >
-        {selected == null && (
-          <div className="grid flex-1 place-items-center">
-            <EmptyState title={t("contacts.employees.empty")} />
-          </div>
-        )}
-        {selected && (
-          <Can action="delete" resource="member">
-            <div className="flex justify-end">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
-                aria-label={t("contacts.employees.remove")}
-                onClick={() => setRemoving(selected)}
-              >
-                <Trash2 />
-              </Button>
+        <div
+          data-testid="employee-panel"
+          className="flex min-h-0 min-w-0 flex-col overflow-y-auto sm:border-l sm:border-border sm:pl-3"
+        >
+          {selected == null && (
+            <div className="grid flex-1 place-items-center">
+              <EmptyState title={t("contacts.employees.empty")} />
             </div>
-          </Can>
-        )}
-        {selected && <EmployeeDetails member={selected} />}
-        {selected && <EmployeeAccess membershipId={selected.id} />}
-      </div>
+          )}
+          {selected && (
+            <Can action="delete" resource="member">
+              <div className="flex justify-end">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+                  aria-label={t("contacts.employees.remove")}
+                  onClick={() => setRemoving(selected)}
+                >
+                  <Trash2 />
+                </Button>
+              </div>
+            </Can>
+          )}
+          {selected && <EmployeeDetails member={selected} />}
+          {selected && <EmployeeAccess membershipId={selected.id} />}
+          {selected && (
+            <Can action="update" resource="member">
+              <ResetMemberTwoFactor membershipId={selected.id} name={selected.name} />
+            </Can>
+          )}
+        </div>
 
-      {removing != null && (
-        <ConfirmDialog
-          open
-          title={`${t("contacts.employees.remove")} «${removing.name}»?`}
-          description={t("contacts.employees.remove.body")}
-          pending={remove.isPending}
-          onConfirm={() => confirmRemove(removing)}
-          onClose={() => setRemoving(undefined)}
-        />
-      )}
+        {removing != null && (
+          <ConfirmDialog
+            open
+            title={`${t("contacts.employees.remove")} «${removing.name}»?`}
+            description={t("contacts.employees.remove.body")}
+            pending={remove.isPending}
+            onConfirm={() => confirmRemove(removing)}
+            onClose={() => setRemoving(undefined)}
+          />
+        )}
+      </div>
     </div>
   );
 }

@@ -12,14 +12,14 @@ const principal = { userId: "u1" } as SessionPrincipal;
 
 let open: Array<{ close: () => Promise<void> }> = [];
 
-async function harness() {
+async function harness(appOrigin: string | null = null) {
   const registry = createConnectionRegistry();
   const server: Server = createServer();
   const authenticate = vi.fn(async (token: string) => {
     if (token !== VALID) throw new AppError("unauthorized", "Authentication required");
     return principal;
   });
-  const realtime = attachRealtime({ server, registry, authenticate });
+  const realtime = attachRealtime({ server, registry, authenticate, appOrigin });
   await new Promise<void>((resolve) => server.listen(0, resolve));
   const port = (server.address() as AddressInfo).port;
   const handle = {
@@ -33,9 +33,10 @@ async function harness() {
   return { registry, authenticate, port, realtime };
 }
 
-function connect(port: number, token?: string) {
+function connect(port: number, token?: string, origin?: string) {
   const socket = new WebSocket(`ws://127.0.0.1:${port}${REALTIME_PATH}`, {
     headers: token === undefined ? {} : { cookie: `adpulse_access=${token}` },
+    ...(origin ? { origin } : {}),
   });
   const settled = new Promise<{ refused?: number; message?: unknown }>((resolve) => {
     socket.on("message", (data) => resolve({ message: JSON.parse(String(data)) }));
@@ -48,6 +49,35 @@ function connect(port: number, token?: string) {
 afterEach(async () => {
   for (const handle of open) await handle.close();
   open = [];
+});
+
+describe("the realtime origin and message size", () => {
+  it("refuses a page on another origin even with a valid cookie", async () => {
+    const { port, registry, authenticate } = await harness("https://app.example");
+    const { settled } = connect(port, VALID, "https://evil.example");
+
+    expect(await settled).toEqual({ refused: 403 });
+    expect(authenticate).not.toHaveBeenCalled();
+    expect(registry.size()).toBe(0);
+  });
+
+  it("accepts the app's own origin and the request's own host", async () => {
+    const { port } = await harness("https://app.example");
+
+    expect(await connect(port, VALID, "https://app.example").settled).toEqual({ message: { kind: "ready" } });
+    expect(await connect(port, VALID, `http://127.0.0.1:${port}`).settled).toEqual({ message: { kind: "ready" } });
+  });
+
+  it("closes a connection that sends an oversized message", async () => {
+    const { port } = await harness();
+    const { socket, settled } = connect(port, VALID);
+    await settled;
+    const closed = new Promise<number>((resolve) => socket.on("close", (code) => resolve(code)));
+
+    socket.send("x".repeat(1024 * 1024));
+
+    expect(await closed).toBe(1009);
+  });
 });
 
 describe("the realtime handshake", () => {

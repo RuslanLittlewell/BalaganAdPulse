@@ -52,6 +52,7 @@ export const defaultHandlers = [
   http.get("/api/reports", () => HttpResponse.json([])),
   http.get("/api/invites", () => HttpResponse.json([])),
   http.get("/api/members", () => HttpResponse.json([])),
+  http.get("/api/two-factor", () => HttpResponse.json({ enabled: false, required: false, backupCodesLeft: 0 })),
   http.get("/api/crm/project-stage-counts", () => HttpResponse.json([])),
   http.get("/api/crm/boards/:board/stage-counts", () => HttpResponse.json({ campaigns: [], adSets: [], ads: [] })),
   http.get("/api/crm/boards/:board/fields", () => HttpResponse.json([])),

@@ -35,6 +35,7 @@ import { projectDocumentComponents, projectDocumentDoc } from "#modules/project-
 import { reportDoc, reportIndexDoc } from '#modules/reports/index.js';
 import { trialSignupDoc } from "#modules/trial-signups/index.js";
 import { bitrix24Doc, bitrix24WebhookDoc } from "#modules/bitrix24/index.js";
+import { organizationTwoFactorDoc, platformTwoFactorDoc, twoFactorDoc, twoFactorSignInDoc } from "#modules/two-factor/index.js";
 import { platformComponents, platformDoc } from "#modules/platform/index.js";
 import { supportComponents, supportDoc } from "#modules/support/index.js";
 import { onboardingComponents, onboardingDoc } from "#modules/onboarding/index.js";
@@ -43,6 +44,9 @@ import { telegramDoc } from "#modules/telegram-bot/index.js";
 import { seoAuditDoc, seoConnectionDoc, seoReadDoc } from "#modules/seo/index.js";
 import { websiteIntakeDoc, websiteKeyDoc } from "#modules/leads/presentation/http/website-intake-openapi.js";
 import { shareLinkDoc } from "#modules/share-links/index.js";
+import { createHash } from "node:crypto";
+import { config } from "#shared/infrastructure/config.js";
+import { contentSecurityPolicy } from "#shared/presentation/protective-headers.js";
 
 const require = createRequire(import.meta.url);
 
@@ -81,6 +85,10 @@ export function apiDocument(): OpenApiDocument {
   const groups: RouteGroupDoc[] = [
     { mount: mountPath("docs"), ...documentationDoc },
     { mount: mountPath("open-auth"), ...authDoc },
+    { mount: mountPath("two-factor-sign-in"), ...twoFactorSignInDoc },
+    { mount: mountPath("two-factor"), ...twoFactorDoc },
+    { mount: mountPath("platform-two-factor"), ...platformTwoFactorDoc },
+    { mount: mountPath("organization-two-factor"), ...organizationTwoFactorDoc },
     { mount: mountPath("registration-resolver"), ...registrationResolverDoc },
     { mount: mountPath("trial-signups"), ...trialSignupDoc },
     { mount: mountPath("session"), ...sessionDoc },
@@ -163,6 +171,19 @@ export function apiDocument(): OpenApiDocument {
 const swaggerUiAssets = () =>
   path.dirname(require.resolve("swagger-ui-dist/package.json"));
 
+const PAGE_SCRIPT = `
+      window.ui = SwaggerUIBundle({
+        url: "/api${DOCUMENT_PATH}",
+        dom_id: "#swagger-ui",
+        withCredentials: true,
+        persistAuthorization: true,
+        docExpansion: "list",
+        defaultModelsExpandDepth: 0,
+      });
+    `;
+
+const PAGE_SCRIPT_SOURCE = ` 'sha256-${createHash("sha256").update(PAGE_SCRIPT).digest("base64")}'`;
+
 const page = (title: string) => `<!doctype html>
 <html lang="en">
   <head>
@@ -175,16 +196,7 @@ const page = (title: string) => `<!doctype html>
   <body>
     <div id="swagger-ui"></div>
     <script src="/api${DOCS_PATH}/swagger-ui-bundle.js"></script>
-    <script>
-      window.ui = SwaggerUIBundle({
-        url: "/api${DOCUMENT_PATH}",
-        dom_id: "#swagger-ui",
-        withCredentials: true,
-        persistAuthorization: true,
-        docExpansion: "list",
-        defaultModelsExpandDepth: 0,
-      });
-    </script>
+    <script>${PAGE_SCRIPT}</script>
   </body>
 </html>
 `;
@@ -196,6 +208,7 @@ export function createDocumentationRouter(document: OpenApiDocument): Router {
     response.json(document);
   });
   router.get(DOCS_PATH, (_request, response) => {
+    response.setHeader("Content-Security-Policy", contentSecurityPolicy(config.appUrl, PAGE_SCRIPT_SOURCE));
     response.type("html").send(html);
   });
   router.use(DOCS_PATH, express.static(swaggerUiAssets(), { index: false }));

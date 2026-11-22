@@ -84,6 +84,16 @@ function fixture(options: { mail?: boolean } = {}) {
         return reset !== undefined;
       },
     },
+    locks: {
+      reserve: async () => ({ allowed: true, failures: 1 }),
+      lock: async () => ({ failures: 0, round: 1, lockedUntil: null, resetRequired: false }),
+      release: async () => {},
+      clear: async () => {},
+    },
+    secondFactor: {
+      needed: async () => false,
+      open: async () => ({ challenge: "c", expiresAt: new Date() }),
+    },
     resetLinks: {
       available: options.mail ?? true,
       deliver: (recipient, token) => { delivered.push({ ...recipient, token }); },
@@ -109,7 +119,7 @@ describe("identity application use cases", () => {
 
   it("logs in without revealing whether email or password was wrong", async () => {
     const { useCases } = fixture();
-    await expect(useCases.login({ login: "missing@acme.com", password: "wrong" }))
+    await expect(useCases.login({ login: "missing@acme.com", password: "wrong" }, "203.0.113.1"))
       .rejects.toMatchObject({ category: "unauthorized", message: "Invalid login or password" });
   });
 
@@ -119,9 +129,9 @@ describe("identity application use cases", () => {
     users.set("u-member", { ...account, id: "u-member", name: "Member", email: "klinika-4821@balagan.pro", login: null, passwordHash: "hash:member123" });
     users.set("u-client", { ...account, id: "u-client", name: "Клиника", email: null, login: "klinika-4821@balagan.pro", passwordHash: "hash:client123" });
 
-    await expect(useCases.login({ login: "klinika-4821@balagan.pro", password: "client123" }))
-      .resolves.toMatchObject({ accessToken: "access:u-client:Клиника" });
-    await expect(useCases.login({ login: "klinika-4821@balagan.pro", password: "member123" }))
+    await expect(useCases.login({ login: "klinika-4821@balagan.pro", password: "client123" }, "203.0.113.1"))
+      .resolves.toMatchObject({ kind: "session", tokens: { accessToken: "access:u-client:Клиника" } });
+    await expect(useCases.login({ login: "klinika-4821@balagan.pro", password: "member123" }, "203.0.113.1"))
       .rejects.toMatchObject({ category: "unauthorized" });
   });
 
@@ -225,21 +235,23 @@ describe("password recovery", () => {
     await expect(useCases.checkPasswordReset("reset-1")).rejects.toMatchObject({
       category: "not-found", message: "This password reset link is invalid or has expired",
     });
-    await expect(useCases.resetPassword("reset-1", "changed123")).rejects.toMatchObject({ category: "not-found" });
+    await expect(useCases.resetPassword("reset-1", "changed123", "203.0.113.1")).rejects.toMatchObject({ category: "not-found" });
   });
 
   it("sets the new password, ends every session and signs in, once", async () => {
     const { users, sessions, useCases } = fixture();
     await registered(useCases);
-    await useCases.login({ login: "buyer@acme.com", password: "secret123" });
+    await useCases.login({ login: "buyer@acme.com", password: "secret123" }, "203.0.113.1");
     expect(sessions.size).toBe(2);
     await useCases.requestPasswordReset("buyer@acme.com");
 
-    const signedIn = await useCases.resetPassword("reset-1", "changed123");
+    const result = await useCases.resetPassword("reset-1", "changed123", "203.0.113.1");
+    if (result.kind !== "session") throw new Error("expected a session");
+    const signedIn = result.tokens;
 
     expect(users.get("u1")?.passwordHash).toBe("hash:changed123");
     expect([...sessions.keys()]).toEqual([`digest:${signedIn.refreshToken}`]);
     expect(signedIn.accessToken).toBe("access:u1:Buyer");
-    await expect(useCases.resetPassword("reset-1", "another123")).rejects.toMatchObject({ category: "not-found" });
+    await expect(useCases.resetPassword("reset-1", "another123", "203.0.113.1")).rejects.toMatchObject({ category: "not-found" });
   });
 });

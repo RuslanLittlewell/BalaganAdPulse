@@ -8,6 +8,7 @@ import {
   createSyncEngine,
 } from "#modules/bitrix24/index.js";
 import { Bitrix24RestClient } from "#modules/bitrix24/infrastructure/bitrix24-rest-client.js";
+import { createPinnedPost } from "#modules/bitrix24/infrastructure/pinned-post.js";
 import type { Bitrix24ApiFactory } from "#modules/bitrix24/index.js";
 import { Bitrix24Secrets } from "#modules/bitrix24/infrastructure/bitrix24-secrets.js";
 import { PrismaConnectionRepository } from "#modules/bitrix24/infrastructure/prisma-connection-repository.js";
@@ -20,7 +21,8 @@ import type { Kernel } from "./kernel.js";
 export function wireBitrix24({ clock }: Kernel, { leadIntake }: Pick<Leads, "leadIntake">) {
   const addresses = new SafeFetcher("AdPulse Bitrix24");
   const isPublicHost = createPublicHostCheck((address) => addresses.isReserved(address));
-  const apis: Bitrix24ApiFactory = { open: (base) => new Bitrix24RestClient(base, { isPublicHost }) };
+  const post = createPinnedPost((address) => addresses.isReserved(address));
+  const apis: Bitrix24ApiFactory = { open: (base) => new Bitrix24RestClient(base, { post }) };
   const connections = new PrismaConnectionRepository(prisma);
   const secrets = new Bitrix24Secrets(process.env.INTEGRATION_ENCRYPTION_KEY);
   const store = new PrismaSyncStore(prisma);

@@ -5,6 +5,7 @@ import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-wor
 import { ACCESS_EXISTS } from "../application/client-account-use-cases.js";
 import { LoginTakenError, type ClientAccountRepository, type IssuedPassword } from "../application/ports.js";
 import type { ClientAccountRecord } from "../domain/client-account.js";
+import { signInLockKey } from "#modules/identity/index.js";
 
 const isUniqueViolation = (error: unknown): boolean =>
   error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
@@ -67,6 +68,7 @@ export class PrismaClientAccountRepository implements ClientAccountRepository {
 
   async setPassword(context: TransactionContext, userId: string, password: IssuedPassword): Promise<void> {
     await this.client(context).user.update({ where: { id: userId }, data: password });
+    await this.client(context).signInLock.deleteMany({ where: { key: signInLockKey(userId) } });
   }
 
   async endSessions(context: TransactionContext, userId: string): Promise<void> {

@@ -721,7 +721,8 @@ reading and for trying requests against the running server, and `GET /api/openap
 is the same description as an OpenAPI 3.1 document. Both answer without a session. Request
 bodies and query parameters in it are converted from the Zod schemas the endpoints
 validate with, and a test compares the description against the routers Express actually
-mounts, so neither can drift from the other. `API_DOCS=off` withdraws both.
+mounts, so neither can drift from the other. Both are served outside production. In
+production they are withdrawn unless `API_DOCS=on`, and `API_DOCS=off` withdraws them everywhere.
 
 ### API architecture
 

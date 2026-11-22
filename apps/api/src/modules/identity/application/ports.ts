@@ -7,6 +7,7 @@ import type {
   IdentityUser,
   SessionPrincipal,
 } from "../domain/identity-user.js";
+import type { SignInLockState } from "../domain/sign-in-lock.js";
 
 export interface UserRepository {
   findByEmail(email: string): Promise<IdentityUser | null>;
@@ -89,6 +90,22 @@ export interface PasswordResetRepository {
   consume(context: TransactionContext, tokenHash: string): Promise<boolean>;
 }
 
+export type SignInAttempt =
+  | { readonly allowed: true; readonly failures: number }
+  | { readonly allowed: false; readonly state: SignInLockState | null };
+
+export interface SignInLockRepository {
+  reserve(key: string, now: Date, failuresPerRound: number): Promise<SignInAttempt>;
+  lock(key: string, now: Date): Promise<SignInLockState>;
+  release(key: string): Promise<void>;
+  clear(key: string, context?: TransactionContext): Promise<void>;
+}
+
+export interface SecondFactorGate {
+  needed(userId: string, address: string): Promise<boolean>;
+  open(userId: string): Promise<{ challenge: string; expiresAt: Date }>;
+}
+
 export interface ResetLinkDelivery {
   readonly available: boolean;
   deliver(recipient: { email: string; name: string }, token: string): void;
@@ -106,6 +123,8 @@ export interface IdentityDependencies {
   readonly tokens: TokenPort;
   readonly sessions: RefreshSessionRepository;
   readonly resets: PasswordResetRepository;
+  readonly locks: SignInLockRepository;
+  readonly secondFactor: SecondFactorGate;
   readonly resetLinks: ResetLinkDelivery;
   readonly profiles: ProfileStorage;
   readonly clock: Clock;

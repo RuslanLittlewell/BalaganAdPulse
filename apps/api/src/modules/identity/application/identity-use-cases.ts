@@ -1,6 +1,15 @@
 import { AppError } from "#shared/domain/index.js";
 import type { TransactionContext } from "#shared/application/index.js";
 import { principalOf } from "../domain/identity-user.js";
+import {
+  FAILURES_PER_ROUND,
+  PASSWORD_RESET_REQUIRED,
+  SIGN_IN_LOCKED,
+  lockDurationMs,
+  signInLockKey,
+  unknownLoginKey,
+  type SignInLockState,
+} from "../domain/sign-in-lock.js";
 import type { ClientRegistration, IdentityDependencies } from "./ports.js";
 
 export interface RegisterIdentityInput {
@@ -26,7 +35,26 @@ export interface UpdateIdentityProfileInput {
   readonly newPassword?: string;
 }
 
+export type SignInResult =
+  | { readonly kind: "session"; readonly tokens: { accessToken: string; refreshToken: string } }
+  | { readonly kind: "challenge"; readonly challenge: string; readonly expiresAt: Date };
+
+export const INVALID_SECOND_FACTOR = "The code is not valid";
+
+export const SIGN_IN_LOCKED_MESSAGE = "Too many failed sign-in attempts; sign-in is locked for a while";
+export const PASSWORD_RESET_REQUIRED_MESSAGE = "Too many failed sign-in attempts; reset the password to sign in";
+
 export function createIdentityUseCases(dependencies: IdentityDependencies) {
+  const refuseLocked = (state: SignInLockState | null, now: Date): never => {
+    if (state?.resetRequired) {
+      throw new AppError("forbidden", PASSWORD_RESET_REQUIRED_MESSAGE, [{ code: PASSWORD_RESET_REQUIRED }]);
+    }
+    const until = state?.lockedUntil && state.lockedUntil > now
+      ? state.lockedUntil
+      : new Date(now.getTime() + lockDurationMs(state?.round ?? 0));
+    throw new AppError("forbidden", SIGN_IN_LOCKED_MESSAGE, [{ code: SIGN_IN_LOCKED, until: until.toISOString() }]);
+  };
+
   const issueTokenPair = async (
     context: TransactionContext,
     user: Parameters<typeof principalOf>[0],
@@ -94,18 +122,53 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
       return { userId: user.id, tokens: await issueTokenPair(context, user) };
     },
 
-    login: async (input: LoginIdentityInput) => {
+    login: async (input: LoginIdentityInput, address: string): Promise<SignInResult> => {
       const user = (await dependencies.users.findByLogin(input.login))
         ?? (await dependencies.users.findByEmail(input.login));
+      const key = user ? signInLockKey(user.id) : unknownLoginKey(input.login);
+      const now = dependencies.clock.now();
+      const attempt = await dependencies.locks.reserve(key, now, FAILURES_PER_ROUND);
+      if (!attempt.allowed) refuseLocked(attempt.state, now);
       const matches = await dependencies.passwords.verify(
         input.password,
         user?.passwordHash ?? dependencies.passwords.dummyHash,
       );
-      if (!user || !matches)
+      if (!user || !matches) {
+        if (attempt.allowed && attempt.failures >= FAILURES_PER_ROUND) {
+          refuseLocked(await dependencies.locks.lock(key, now), now);
+        }
         throw new AppError("unauthorized", "Invalid login or password");
-      return dependencies.unitOfWork.run((context) =>
-        issueTokenPair(context, user),
-      );
+      }
+      if (await dependencies.secondFactor.needed(user.id, address)) {
+        await dependencies.locks.release(key);
+        return { kind: "challenge", ...(await dependencies.secondFactor.open(user.id)) };
+      }
+      await dependencies.locks.clear(key);
+      return {
+        kind: "session",
+        tokens: await dependencies.unitOfWork.run((context) => issueTokenPair(context, user)),
+      };
+    },
+
+    completeSecondFactor: async (userId: string, verify: () => Promise<boolean>) => {
+      const key = signInLockKey(userId);
+      const now = dependencies.clock.now();
+      const attempt = await dependencies.locks.reserve(key, now, FAILURES_PER_ROUND);
+      if (!attempt.allowed) refuseLocked(attempt.state, now);
+      if (!(await verify())) {
+        if (attempt.allowed && attempt.failures >= FAILURES_PER_ROUND) {
+          refuseLocked(await dependencies.locks.lock(key, now), now);
+        }
+        throw new AppError("unauthorized", INVALID_SECOND_FACTOR, [{ code: "INVALID_CODE" }]);
+      }
+      await dependencies.locks.clear(key);
+      const user = await dependencies.users.findById(userId);
+      if (!user) throw new AppError("unauthorized", "Authentication required");
+      return dependencies.unitOfWork.run((context) => issueTokenPair(context, user));
+    },
+
+    endSessions: async (userId: string) => {
+      await dependencies.unitOfWork.run((context) => dependencies.sessions.revokeAll(context, userId));
     },
 
     requestPasswordReset: async (email: string) => {
@@ -132,10 +195,10 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
       await usableReset(token);
     },
 
-    resetPassword: async (token: string, password: string) => {
+    resetPassword: async (token: string, password: string, address: string): Promise<SignInResult> => {
       const reset = await usableReset(token);
       const passwordHash = await dependencies.passwords.hash(password);
-      return dependencies.unitOfWork.run(async (context) => {
+      const user = await dependencies.unitOfWork.run(async (context) => {
         if (!(await dependencies.resets.consume(context, reset.tokenHash))) {
           throw new AppError(
             "not-found",
@@ -148,8 +211,16 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
           passwordHash,
         );
         await dependencies.sessions.revokeAll(context, user.id);
-        return issueTokenPair(context, user);
+        await dependencies.locks.clear(signInLockKey(user.id), context);
+        return user;
       });
+      if (await dependencies.secondFactor.needed(user.id, address)) {
+        return { kind: "challenge", ...(await dependencies.secondFactor.open(user.id)) };
+      }
+      return {
+        kind: "session",
+        tokens: await dependencies.unitOfWork.run((context) => issueTokenPair(context, user)),
+      };
     },
 
     refresh: async (refreshToken: string) => {
@@ -225,6 +296,7 @@ export function createIdentityUseCases(dependencies: IdentityDependencies) {
         });
         if (passwordHash) {
           await dependencies.sessions.revokeAll(context, userId);
+          await dependencies.locks.clear(signInLockKey(userId), context);
           return issueTokenPair(context, updated);
         }
         return {

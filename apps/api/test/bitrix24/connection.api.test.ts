@@ -58,6 +58,7 @@ describe("connecting a portal", () => {
     ["an http address", "http://acme.bitrix24.ru/rest/1/abc123def/"],
     ["an IP address", "https://10.0.0.5/rest/1/abc123def/"],
     ["an address that is not a REST webhook", "https://acme.bitrix24.ru/crm/lead/"],
+    ["an address with a port", "https://acme.bitrix24.ru:8443/rest/1/abc123def/"],
   ])("refuses %s without calling it", async (_label, webhookUrl) => {
     expect((await connect({ webhookUrl })).status).toBe(400);
     expect(portal.calls).toEqual([]);
@@ -209,6 +210,18 @@ describe("the webhook", () => {
     expect(unknown.status).toBe(404);
     expect(wrong.body).toEqual(unknown.body);
     expect(await prisma.bitrix24Inbox.count()).toBe(0);
+  });
+
+  it("answers 429 to an address after 30 refused events in a minute", async () => {
+    await connect();
+    const statuses: number[] = [];
+    for (let index = 0; index < 31; index++) {
+      statuses.push((await send(`guess-${index}`, leadEvent()).set("X-Forwarded-For", "198.51.100.7")).status);
+    }
+
+    expect(statuses.slice(0, 30).every((status) => status === 404)).toBe(true);
+    expect(statuses[30]).toBe(429);
+    expect((await send(await keyOf(), leadEvent()).set("X-Forwarded-For", "198.51.100.8")).status).toBe(202);
   });
 
   it("ignores events while the connection is switched off", async () => {

@@ -26,17 +26,26 @@ describe("a trial request without mail", () => {
 });
 
 describe("the trial confirmation email", () => {
-  it("is in Russian, names the organization and escapes it in the markup", () => {
-    const message = trialLinkMessage(
-      { email: "olga@acme.com", name: "Olga", organizationName: "A<b>&Co" },
-      "https://app.example/trial/confirm/abc",
+  it("is in Russian and carries the link and its lifetime", () => {
+    const message = trialLinkMessage("olga@acme.com", "https://app.example/trial/confirm/abc");
+
+    expect(message.to).toBe("olga@acme.com");
+    expect(message.subject).toBe("Подтверждение регистрации в Balagan BI");
+    expect(message.text).toContain("https://app.example/trial/confirm/abc");
+    expect(message.text).toContain("24 часа");
+    expect(message.html).toContain('href="https://app.example/trial/confirm/abc"');
+  });
+
+  it("repeats nothing the visitor typed", () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    new TrialLinkMailer({ send }, "https://app.example").deliver(
+      { email: "olga@acme.com", name: "Ваш аккаунт заблокирован, зайдите на evil.example", organizationName: "Срочно: evil.example" },
+      "tok",
     );
 
-    expect(message.subject).toBe("Подтверждение регистрации в Balagan BI");
-    expect(message.text).toContain("«A<b>&Co»");
-    expect(message.text).toContain("https://app.example/trial/confirm/abc");
-    expect(message.html).toContain("A&lt;b&gt;&amp;Co");
-    expect(message.html).not.toContain("<b>");
+    const message = send.mock.calls[0][0];
+    expect(message.text).not.toContain("evil.example");
+    expect(message.html).not.toContain("evil.example");
   });
 
   it("builds the link on the app address", () => {

@@ -54,10 +54,44 @@ export function createBitrix24Router(bitrix: Bitrix24UseCases): Router {
   return router;
 }
 
-const webhookLimit = createRateLimit({ windowMs: 60_000, limit: 600, keyOf: (req) => String(req.params.key ?? "unknown") });
+const MINUTE = 60_000;
+const REFUSALS_PER_MINUTE = 30;
+const MAX_TRACKED_ADDRESSES = 10_000;
+
+const webhookLimit = createRateLimit({ windowMs: MINUTE, limit: 600, keyOf: (req) => String(req.params.key ?? "unknown") });
+
+function createRefusalLimit(limit: number, windowMs: number) {
+  const windows = new Map<string, { count: number; resetAt: number }>();
+  return {
+    blocked(key: string): number | null {
+      const window = windows.get(key);
+      const now = Date.now();
+      return window && window.resetAt > now && window.count >= limit ? Math.ceil((window.resetAt - now) / 1000) : null;
+    },
+    record(key: string): void {
+      const now = Date.now();
+      const window = windows.get(key);
+      if (window && window.resetAt > now) {
+        window.count += 1;
+        return;
+      }
+      if (windows.size >= MAX_TRACKED_ADDRESSES) {
+        for (const [tracked, entry] of windows) if (entry.resetAt <= now) windows.delete(tracked);
+        if (windows.size >= MAX_TRACKED_ADDRESSES) windows.delete(windows.keys().next().value!);
+      }
+      windows.set(key, { count: 1, resetAt: now + windowMs });
+    },
+    reset(): void {
+      windows.clear();
+    },
+  };
+}
+
+const refusals = createRefusalLimit(REFUSALS_PER_MINUTE, MINUTE);
 
 export function resetBitrix24WebhookLimit(): void {
   webhookLimit.reset();
+  refusals.reset();
 }
 
 export function createBitrix24WebhookRouter(bitrix: Bitrix24UseCases): Router {
@@ -67,7 +101,19 @@ export function createBitrix24WebhookRouter(bitrix: Bitrix24UseCases): Router {
     webhookLimit,
     express.urlencoded({ extended: true, limit: "64kb" }),
     handle(async (req: Request<{ key: string }>, res) => {
-      await bitrix.receive(req.params.key, req.body);
+      const address = req.ip ?? "unknown";
+      const retryAfter = refusals.blocked(address);
+      if (retryAfter !== null) {
+        res.setHeader("Retry-After", String(retryAfter));
+        res.status(429).json({ error: { message: "Too many requests, try again later" } });
+        return;
+      }
+      try {
+        await bitrix.receive(req.params.key, req.body);
+      } catch (error) {
+        if (error instanceof AppError && error.category === "not-found") refusals.record(address);
+        throw error;
+      }
       res.status(202).send();
     }),
   );

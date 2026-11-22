@@ -50,7 +50,7 @@ describe("profile preferences", () => {
     setup();
     const account = screen.getByRole("radio", { name: "Аккаунт" });
     expect(account).toBeChecked();
-    expect(screen.getAllByRole("radio").map((item) => item.textContent)).toEqual(["Аккаунт", "Общее"]);
+    expect(screen.getAllByRole("radio").map((item) => item.textContent)).toEqual(["Аккаунт", "Общее", "Безопасность"]);
     await waitFor(() => expect(screen.getByLabelText("Имя")).toHaveValue("Buyer"));
     await userEvent.clear(screen.getByLabelText("Имя"));
     await userEvent.type(screen.getByLabelText("Имя"), "New name");

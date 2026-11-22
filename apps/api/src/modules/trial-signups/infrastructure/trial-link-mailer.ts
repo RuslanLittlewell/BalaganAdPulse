@@ -8,27 +8,22 @@ const escapeHtml = (value: string) => value
   .replaceAll("\"", "&quot;")
   .replaceAll("'", "&#39;");
 
-export function trialLinkMessage(
-  recipient: { email: string; name: string; organizationName: string },
-  link: string,
-): MailMessage {
-  const name = escapeHtml(recipient.name);
-  const organization = escapeHtml(recipient.organizationName);
+export function trialLinkMessage(email: string, link: string): MailMessage {
   return {
-    to: recipient.email,
+    to: email,
     subject: "Подтверждение регистрации в Balagan BI",
     text: [
-      `Здравствуйте, ${recipient.name}!`,
+      "Здравствуйте!",
       "",
-      `Чтобы создать организацию «${recipient.organizationName}» и начать пробный период, перейдите по ссылке:`,
+      "Чтобы создать организацию в Balagan BI и начать пробный период, перейдите по ссылке:",
       link,
       "",
       "Ссылка действует 24 часа и сработает один раз.",
       "Если вы не регистрировались в Balagan BI, просто проигнорируйте это письмо: ничего не будет создано.",
     ].join("\n"),
     html: [
-      `<p>Здравствуйте, ${name}!</p>`,
-      `<p>Чтобы создать организацию «${organization}» и начать пробный период, перейдите по ссылке:</p>`,
+      "<p>Здравствуйте!</p>",
+      "<p>Чтобы создать организацию в Balagan BI и начать пробный период, перейдите по ссылке:</p>",
       `<p><a href="${escapeHtml(link)}">Подтвердить регистрацию</a></p>`,
       "<p>Ссылка действует 24 часа и сработает один раз.</p>",
       "<p>Если вы не регистрировались в Balagan BI, просто проигнорируйте это письмо: ничего не будет создано.</p>",
@@ -49,7 +44,7 @@ export class TrialLinkMailer implements TrialLinkDelivery {
   deliver(recipient: { email: string; name: string; organizationName: string }, token: string): void {
     if (!this.transport || !this.appUrl) return;
     const link = `${this.appUrl}/trial/confirm/${token}`;
-    this.transport.send(trialLinkMessage(recipient, link)).catch((error: unknown) => {
+    this.transport.send(trialLinkMessage(recipient.email, link)).catch((error: unknown) => {
       console.error("Failed to send a trial confirmation email:", error);
     });
   }

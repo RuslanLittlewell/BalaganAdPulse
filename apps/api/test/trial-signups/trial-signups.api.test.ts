@@ -51,7 +51,8 @@ describe("POST /api/trial-signups", () => {
     await vi.waitFor(() => expect(sent).toHaveLength(1));
     expect(sent[0].to).toBe(signup.email);
     expect(sent[0].text).toMatch(/^http:\/\/localhost:5173\/trial\/confirm\/[0-9a-f]{64}$/m);
-    expect(sent[0].text).toContain("Acme Ads");
+    expect(sent[0].text).not.toContain("Acme Ads");
+    expect(sent[0].text).not.toContain("Olga");
     expect(sent[0].text).toContain("24 часа");
     expect(await prisma.organization.count()).toBe(orgs);
     expect(await prisma.user.count({ where: { email: signup.email } })).toBe(0);
@@ -82,6 +83,16 @@ describe("POST /api/trial-signups", () => {
   ])("refuses %s -> 400", async (_label, body) => {
     expect((await ask(body)).status).toBe(400);
     expect(await prisma.trialSignup.count()).toBe(0);
+  });
+
+  it("accepts at most three requests for one email in an hour, from any address", async () => {
+    const statuses: number[] = [];
+    for (let index = 0; index < 4; index++) {
+      statuses.push((await request(app).post(SIGNUPS).set("X-Forwarded-For", `198.51.100.${index}`).send(signup)).status);
+    }
+
+    expect(statuses).toEqual([202, 202, 202, 429]);
+    await vi.waitFor(() => expect(sent).toHaveLength(3));
   });
 
   it("limits the rate of requests -> 429", async () => {

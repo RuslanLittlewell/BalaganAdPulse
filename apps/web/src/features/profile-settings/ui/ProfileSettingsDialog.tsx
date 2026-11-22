@@ -30,6 +30,7 @@ import {
 import { AvatarEditorDialog } from "@/features/avatar-editor/index.js";
 import { TelegramBotSection } from "@/features/telegram-bot/index.js";
 import { readCampaignCrm, saveCampaignCrm } from "../model/preferences.js";
+import { TwoFactorSettings } from "@/features/two-factor/index.js";
 
 interface Props {
   open: boolean;
@@ -147,12 +148,14 @@ export function ProfileSettingsDialog({ open, onClose, onAvatarSaved }: Props) {
             items={[
               { id: "account", label: t("profile.account") },
               { id: "general", label: t("profile.general") },
+              { id: "security", label: t("profile.security") },
             ]}
             activeId={tab}
             onSelect={setTab}
             ariaLabel={t("profile.tabs")}
             className="w-full"
           />
+          {tab === "security" ? <TwoFactorSettings /> : null}
           <div hidden={tab !== "general"}>
             <form
               className="flex flex-col gap-5"

@@ -11,7 +11,7 @@ import {
 } from "@/shared/ui/index.js";
 import { ApiError } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
-import { passwordResetApi, useAuth } from "@/features/auth/index.js";
+import { TwoFactorStep, passwordResetApi, useAuth } from "@/features/auth/index.js";
 
 const MIN_PASSWORD = 8;
 
@@ -26,6 +26,7 @@ export function ResetPasswordPage() {
   const { raise } = useAlerts();
   const navigate = useNavigate();
   const [spent, setSpent] = useState(false);
+  const [challenge, setChallenge] = useState<string | null>(null);
   const link = useQuery({
     queryKey: ["password-reset", token],
     queryFn: () => passwordResetApi.check(token).then(() => true),
@@ -42,13 +43,29 @@ export function ResetPasswordPage() {
 
   const submit = handleSubmit(async ({ password }) => {
     try {
-      await resetPassword(token, password);
+      const outcome = await resetPassword(token, password);
+      if (outcome) {
+        setChallenge(outcome.challenge);
+        return;
+      }
       navigate("/", { replace: true });
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) setSpent(true);
       else raise(t("state.error.title"));
     }
   });
+
+  if (challenge) {
+    return (
+      <CenteredPanel title={t("twoFactor.step.title")}>
+        <TwoFactorStep
+          challenge={challenge}
+          onDone={() => navigate("/", { replace: true })}
+          onRestart={() => navigate("/login", { replace: true })}
+        />
+      </CenteredPanel>
+    );
+  }
 
   if (link.isPending) {
     return (

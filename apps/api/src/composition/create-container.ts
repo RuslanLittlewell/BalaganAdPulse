@@ -34,6 +34,8 @@ import { wireShareLinks } from "./wiring/share-links.js";
 import { wireProjectDocuments } from "./wiring/project-documents.js";
 import { wireTrialSignups } from "./wiring/trial-signups.js";
 import { wireBitrix24 } from "./wiring/bitrix24.js";
+import { wireTwoFactor } from "./wiring/two-factor.js";
+import type { SessionIssuer } from "#modules/two-factor/index.js";
 import type { Bitrix24Worker } from "#modules/bitrix24/index.js";
 import { wireTasks } from "./wiring/tasks.js";
 import { wireTelegramBot, wireTelegramNotifications, type TelegramPoller } from "./wiring/telegram-bot.js";
@@ -52,6 +54,11 @@ export interface ApiContainer {
   readonly bitrix24Worker: Bitrix24Worker;
   readonly bitrix24Router: Router;
   readonly bitrix24WebhookRouter: Router;
+  readonly twoFactorRouter: Router;
+  readonly twoFactorSignInRouter: Router;
+  readonly organizationTwoFactorRouter: Router;
+  readonly platformTwoFactorRouter: Router;
+  readonly twoFactorGate: RequestHandler;
   readonly kpiRouter: Router;
   readonly summaryTileRouter: Router;
   readonly projectDocumentRouter: Router;
@@ -110,7 +117,13 @@ export function createContainer(): ApiContainer {
   const invites = wireInvites(kernel, catalog);
   const cabinets = wireClientAccounts(kernel, catalog);
   const people = wireMembersAndPresence(kernel, catalog);
-  const identity = wireIdentity(kernel, { redeem: invites.redeem, signedOut: people.leave });
+  let issuer: SessionIssuer | null = null;
+  const twoFactor = wireTwoFactor(kernel, {
+    completeSecondFactor: (userId, verify) => issuer!.completeSecondFactor(userId, verify),
+    endSessions: (userId) => issuer!.endSessions(userId),
+  });
+  const identity = wireIdentity(kernel, { redeem: invites.redeem, signedOut: people.leave, secondFactor: twoFactor.gate });
+  issuer = identity.sessions;
   const leads = wireLeads(kernel, people, catalog);
   const advertising = wireCampaignsAndIntegrations(kernel, {
     projectRepository: catalog.projectRepository,
@@ -197,6 +210,12 @@ export function createContainer(): ApiContainer {
     bitrix24Worker: bitrix24.bitrix24Worker,
     bitrix24Router: bitrix24.bitrix24Router,
     bitrix24WebhookRouter: bitrix24.bitrix24WebhookRouter,
+
+    twoFactorRouter: twoFactor.twoFactorRouter,
+    twoFactorSignInRouter: twoFactor.twoFactorSignInRouter,
+    organizationTwoFactorRouter: twoFactor.organizationTwoFactorRouter,
+    platformTwoFactorRouter: twoFactor.platformTwoFactorRouter,
+    twoFactorGate: twoFactor.twoFactorGate,
 
     taskRouter: tasks.taskRouter,
     taskImageRouter: tasks.taskImageRouter,

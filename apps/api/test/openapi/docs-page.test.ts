@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
 import request from "supertest";
 import { createApp } from "../../src/composition/app.js";
 
@@ -34,6 +35,14 @@ describe("GET /api/docs", () => {
     const script = await request(app).get("/api/docs/swagger-ui-bundle.js");
     expect(script.status).toBe(200);
     expect(script.text.length).toBeGreaterThan(1000);
+  });
+
+  it("allows only its own inline script by hash", async () => {
+    const response = await request(app).get("/api/docs");
+    const script = /<script>([\s\S]*?)<\/script>/.exec(response.text)![1];
+    const hash = createHash("sha256").update(script).digest("base64");
+    const scriptRule = String(response.headers["content-security-policy"]).split("; ").find((rule) => rule.startsWith("script-src"));
+    expect(scriptRule).toBe(`script-src 'self' 'sha256-${hash}'`);
   });
 
   it("needs no session", async () => {

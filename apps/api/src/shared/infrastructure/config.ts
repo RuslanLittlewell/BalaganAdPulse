@@ -152,7 +152,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
 
   return {
     jwtSecret,
-    documentation: env.API_DOCS !== "off",
+    documentation: env.API_DOCS === "on" || (!production && env.API_DOCS !== "off"),
     production,
     appUrl,
     landingHost: env.LANDING_HOST === undefined ? DEFAULT_LANDING_HOST : env.LANDING_HOST.trim().toLowerCase() || null,

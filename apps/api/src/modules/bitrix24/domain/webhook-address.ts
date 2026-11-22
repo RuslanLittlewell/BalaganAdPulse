@@ -11,7 +11,7 @@ export function parseWebhookAddress(raw: string): WebhookAddress | null {
   const text = raw.trim();
   if (!URL.canParse(text)) return null;
   const url = new URL(text);
-  if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) return null;
+  if (url.protocol !== "https:" || url.port !== "" || url.username || url.password || url.search || url.hash) return null;
   const host = url.hostname.toLowerCase();
   if (net.isIP(host) !== 0 || !host.includes(".") || host === "localhost" || host.endsWith(".local")) return null;
   if (!PATH.test(url.pathname)) return null;

@@ -15,6 +15,10 @@ model User {
   passwordReset   PasswordReset?
   memberships     Membership[]
   invitesUsed     Invite[]
+  twoFactor       TwoFactor?
+  backupCodes     TwoFactorBackupCode[]
+  trustedAddresses TrustedAddress[]
+  twoFactorChallenges TwoFactorChallenge[]
 
   @@map("app_user")
 }
@@ -40,4 +44,16 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_token")
+}
+
+model SignInLock {
+  key           String    @id
+  failures      Int       @default(0)
+  round         Int       @default(0)
+  lockedUntil   DateTime? @map("locked_until")
+  resetRequired Boolean   @default(false) @map("reset_required")
+  updatedAt     DateTime  @default(now()) @map("updated_at")
+
+  @@index([updatedAt])
+  @@map("sign_in_lock")
 }

@@ -65,3 +65,7 @@ export type { DropzoneProps } from "./Dropzone/Dropzone.js";
 export { AddTile } from "./AddTile/AddTile.js";
 export type { AddTileProps } from "./AddTile/AddTile.js";
 export * from "./DateRangeFields/DateRangeFields.js";
+export { default as CodeSlots } from "./CodeSlots/CodeSlots.js";
+export type { CodeSlotsProps, CodeSlotsStatus } from "./CodeSlots/CodeSlots.js";
+export { OneTimeCode } from "./CodeSlots/OneTimeCode.js";
+export type { OneTimeCodeProps } from "./CodeSlots/OneTimeCode.js";

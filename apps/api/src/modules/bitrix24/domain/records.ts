@@ -42,6 +42,14 @@ const firstValue = (value: unknown): string | null => {
   return first ? text(first.VALUE) : null;
 };
 
+const webAddress = (value: string | null): string | null => {
+  if (!value) return null;
+  const candidate = /^[a-z][a-z0-9+.-]*:/i.test(value) ? value : `https://${value}`;
+  if (!URL.canParse(candidate)) return null;
+  const { protocol } = new URL(candidate);
+  return protocol === "http:" || protocol === "https:" ? value : null;
+};
+
 const id = (value: unknown): string | null => {
   const result = text(value);
   return result && result !== "0" ? result : null;
@@ -147,7 +155,7 @@ export function parseRemoteCompany(raw: Raw): RemoteCompany {
     id: String(raw.ID),
     title: text(raw.TITLE) ?? "Без названия",
     phone: firstValue(raw.PHONE),
-    website: firstValue(raw.WEB),
+    website: webAddress(firstValue(raw.WEB)),
     createdAt: date(raw.DATE_CREATE),
     modifiedAt: date(raw.DATE_MODIFY),
   };

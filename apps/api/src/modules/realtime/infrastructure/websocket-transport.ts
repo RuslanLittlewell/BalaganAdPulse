@@ -3,9 +3,11 @@ import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer } from "ws";
 import { ACCESS_COOKIE } from "#modules/identity/index.js";
 import type { SessionPrincipal } from "#modules/identity/index.js";
+import { isForeignOrigin } from "#shared/application/index.js";
 import type { Connection, ConnectionRegistry, RealtimeEvent } from "../application/connection-registry.js";
 
 export const REALTIME_PATH = "/api/realtime";
+export const MAX_MESSAGE_BYTES = 16 * 1024;
 
 const GOING_AWAY = 1001;
 
@@ -14,6 +16,7 @@ export interface RealtimeTransportDependencies {
   readonly registry: ConnectionRegistry;
   readonly authenticate: (accessToken: string) => Promise<SessionPrincipal>;
   readonly greet?: (connection: Connection) => void;
+  readonly appOrigin?: string | null;
 }
 
 function readCookie(header: string | undefined, name: string): string | undefined {
@@ -26,10 +29,10 @@ function readCookie(header: string | undefined, name: string): string | undefine
 }
 
 export function attachRealtime(dependencies: RealtimeTransportDependencies) {
-  const sockets = new WebSocketServer({ noServer: true });
+  const sockets = new WebSocketServer({ noServer: true, maxPayload: MAX_MESSAGE_BYTES });
 
-  const refuse = (socket: Duplex) => {
-    socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
+  const refuse = (socket: Duplex, status = "401 Unauthorized") => {
+    socket.write(`HTTP/1.1 ${status}\r\nConnection: close\r\n\r\n`);
     socket.destroy();
   };
 
@@ -37,6 +40,11 @@ export function attachRealtime(dependencies: RealtimeTransportDependencies) {
     const { pathname } = new URL(request.url ?? "/", "http://localhost");
     if (pathname !== REALTIME_PATH) {
       socket.destroy();
+      return;
+    }
+
+    if (isForeignOrigin(request.headers.origin, request.headers.host, dependencies.appOrigin ?? null)) {
+      refuse(socket, "403 Forbidden");
       return;
     }
 

@@ -47,6 +47,7 @@ model Organization {
   tariff       Tariff       @default(TRIAL)
   trialEndsAt  DateTime?    @map("trial_ends_at")
   status       OrgStatus    @default(ACTIVE)
+  requireTwoFactor Boolean  @default(false) @map("require_two_factor")
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
   members      Membership[]

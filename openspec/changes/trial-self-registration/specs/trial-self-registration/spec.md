@@ -22,7 +22,7 @@ The web app SHALL serve `/trial` to visitors without a session. The page SHALL a
 
 ### Requirement: A signup request is accepted without revealing accounts
 
-`POST /api/trial-signups` SHALL take an organization name, a name, an email and a password of at least 8 characters, and SHALL answer 202 whether or not an account already uses the email. When no account uses the email, it SHALL mail that address a confirmation link. When an account does, it SHALL send no confirmation link. It SHALL create no organization and no account. A malformed body SHALL answer 400. The request SHALL be limited in rate like signing in.
+`POST /api/trial-signups` SHALL take an organization name, a name, an email and a password of at least 8 characters, and SHALL answer 202 whether or not an account already uses the email. When no account uses the email, it SHALL mail that address a confirmation link. When an account does, it SHALL send no confirmation link. It SHALL create no organization and no account. A malformed body SHALL answer 400. The request SHALL be limited in rate like signing in, and at most three requests for one email address SHALL be accepted in an hour; further ones SHALL answer 429 whether or not an account uses the address.
 
 The page SHALL then say that a link has been sent to the address and offer a way back to sign-in.
 
@@ -37,6 +37,10 @@ The page SHALL then say that a link has been sent to the address and offer a way
 #### Scenario: Invalid body
 - **WHEN** the request has an empty organization name, a malformed email or a password shorter than 8 characters
 - **THEN** the API responds 400 and stores nothing
+
+#### Scenario: One address asked for too often
+- **WHEN** four requests for the same email arrive within an hour from different network addresses
+- **THEN** the fourth answers 429 and no fourth email is sent
 
 #### Scenario: Too many requests
 - **WHEN** one client sends signup requests faster than the sign-in limit allows
@@ -86,11 +90,11 @@ If an account has taken the email since the link was sent, the redemption SHALL 
 
 ### Requirement: The confirmation email is sent over SMTP
 
-The confirmation email SHALL be sent over the same SMTP account as the password reset email. It SHALL be in Russian, name the organization, carry the link built on the configured address of the app, say that it works for 24 hours, and say that it can be ignored by someone who did not ask for it. Failing to send SHALL be logged and SHALL NOT change the answer the visitor gets. Without mail configured, outside production the link SHALL be written to the server log; in production the request SHALL answer 503 and the page SHALL say that signup is unavailable and to contact an administrator.
+The confirmation email SHALL be sent over the same SMTP account as the password reset email. It SHALL be in Russian, SHALL NOT repeat the names typed into the form, so it cannot carry someone else's text to a stranger, SHALL carry the link built on the configured address of the app, say that it works for 24 hours, and say that it can be ignored by someone who did not ask for it. Failing to send SHALL be logged and SHALL NOT change the answer the visitor gets. Without mail configured, outside production the link SHALL be written to the server log; in production the request SHALL answer 503 and the page SHALL say that signup is unavailable and to contact an administrator.
 
 #### Scenario: The email
 - **WHEN** a confirmation email is sent
-- **THEN** it is in Russian, names the organization, carries the link and says it works for 24 hours
+- **THEN** it is in Russian, carries the link, says it works for 24 hours, and contains neither the typed organization name nor the typed name
 
 #### Scenario: Mail is not configured in production
 - **WHEN** a visitor sends a request while the production server has no mail configured

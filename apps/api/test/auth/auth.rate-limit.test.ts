@@ -7,6 +7,7 @@ import { resetIdentityRateLimits } from "../../src/modules/identity/presentation
 
 const app = createApp();
 const credentials = { login: "buyer@acme.com", password: "hunter2hunter2" };
+const attempt = (index: number) => ({ login: `buyer${index}@acme.com`, password: "hunter2hunter2" });
 
 beforeEach(async () => {
   await resetDb();
@@ -19,7 +20,7 @@ describe("Auth rate limiting", () => {
     const address = "203.0.113.1";
     for (let i = 0; i < 10; i++) {
       const res = await request(app).post("/api/auth/login")
-        .set("X-Forwarded-For", address).send(credentials);
+        .set("X-Forwarded-For", address).send(attempt(i));
       expect(res.status).toBe(401);
     }
     const res = await request(app).post("/api/auth/login")
@@ -32,7 +33,7 @@ describe("Auth rate limiting", () => {
   it("counts a forwarded address rather than the proxy's", async () => {
     for (let i = 0; i < 10; i++) {
       await request(app).post("/api/auth/login")
-        .set("X-Forwarded-For", "203.0.113.9").send(credentials);
+        .set("X-Forwarded-For", "203.0.113.9").send(attempt(i));
     }
     const blocked = await request(app).post("/api/auth/login")
       .set("X-Forwarded-For", "203.0.113.9").send(credentials);
@@ -46,7 +47,7 @@ describe("Auth rate limiting", () => {
   it("ignores a forged chain longer than one hop", async () => {
     for (let i = 0; i < 10; i++) {
       await request(app).post("/api/auth/login")
-        .set("X-Forwarded-For", `10.0.0.${i}, 203.0.113.20`).send(credentials);
+        .set("X-Forwarded-For", `10.0.0.${i}, 203.0.113.20`).send(attempt(i));
     }
     const res = await request(app).post("/api/auth/login")
       .set("X-Forwarded-For", "10.0.0.99, 203.0.113.20").send(credentials);

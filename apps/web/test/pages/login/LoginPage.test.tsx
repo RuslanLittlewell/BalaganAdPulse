@@ -180,4 +180,33 @@ describe("LoginPage", () => {
 
     expect(await screen.findByText("Что-то пошло не так")).toBeInTheDocument();
   });
+
+  it("says until when sign-in is locked and offers to reset the password", async () => {
+    const until = new Date(2026, 10, 21, 14, 35).toISOString();
+    server.use(http.post("/api/auth/login", () => HttpResponse.json(
+      { error: { message: "locked", details: [{ code: "SIGN_IN_LOCKED", until }] } }, { status: 403 },
+    )));
+    renderPage();
+    await userEvent.type(screen.getByLabelText("Email или логин"), "buyer@acme.com");
+    await userEvent.type(screen.getByLabelText("Пароль"), "wrong-password");
+    await userEvent.click(screen.getByRole("button", { name: "Войти" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Слишком много неверных попыток. Вход по паролю откроется в 14:35.");
+    expect(within(alert).getByRole("link", { name: "Восстановить пароль" })).toHaveAttribute("href", "/password-reset");
+  });
+
+  it("says only a reset opens sign-in once one is required", async () => {
+    server.use(http.post("/api/auth/login", () => HttpResponse.json(
+      { error: { message: "reset", details: [{ code: "PASSWORD_RESET_REQUIRED" }] } }, { status: 403 },
+    )));
+    renderPage();
+    await userEvent.type(screen.getByLabelText("Email или логин"), "buyer@acme.com");
+    await userEvent.type(screen.getByLabelText("Пароль"), "wrong-password");
+    await userEvent.click(screen.getByRole("button", { name: "Войти" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Восстановите пароль, чтобы войти.");
+    expect(within(alert).getByRole("link", { name: "Восстановить пароль" })).toBeInTheDocument();
+  });
 });

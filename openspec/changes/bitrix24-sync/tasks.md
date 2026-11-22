@@ -47,3 +47,10 @@
 
 - [x] 8.1 Run `npm test` and the web suite
 - [ ] 8.2 Walk the flow against a test portal: connect, create a lead on each side, move it, comment, add a task, and see each arrive
+
+## 9. Audit fixes
+
+- [x] 9.1 Connect to the portal through a lookup that refuses private addresses on the connection itself, and refuse addresses with a port
+- [x] 9.2 Limit refused webhook events per network address
+- [x] 9.3 Drop a Bitrix24 website that is not an http or https address
+- [x] 9.4 Test the pinned lookup, the port refusal, the refusal limit and the website check

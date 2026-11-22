@@ -37,7 +37,7 @@ export async function resetDb(): Promise<void> {
   await prisma.organization.deleteMany({ where: { id: { not: original.id } } });
   await prisma.organization.update({ where: { id: original.id }, data: {
     kpiMetric: null, kpiTarget: null, kpiUpdatedAt: null,
-    tariff: "ENTERPRISE", trialEndsAt: null, status: "ACTIVE",
+    tariff: "ENTERPRISE", trialEndsAt: null, status: "ACTIVE", requireTwoFactor: false,
   } });
 }
 

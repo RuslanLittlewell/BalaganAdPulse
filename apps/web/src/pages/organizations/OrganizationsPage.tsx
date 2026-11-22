@@ -1,4 +1,5 @@
 import { AddOrganization } from "@/features/organization-admin/index.js";
+import { PlatformTwoFactorReset } from "@/features/two-factor/index.js";
 import { OrganizationTable } from "@/widgets/organization-table/index.js";
 import { t } from "@/shared/config/index.js";
 
@@ -7,7 +8,10 @@ export function OrganizationsPage() {
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold text-foreground">{t("nav.organizations")}</h1>
-        <AddOrganization />
+        <div className="flex flex-wrap gap-2">
+          <PlatformTwoFactorReset />
+          <AddOrganization />
+        </div>
       </div>
       <OrganizationTable />
     </section>

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { LoaderCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -8,7 +9,7 @@ import { useAlerts } from "@/shared/ui/index.js";
 import { isEmail } from "@/shared/lib/index.js";
 import { ApiError } from "@/shared/lib/index.js";
 import { t } from "@/shared/config/index.js";
-import { useAuth } from "@/features/auth/index.js";
+import { TwoFactorStep, lockMessage, useAuth } from "@/features/auth/index.js";
 import { BalaganSignature } from "./BalaganSignature.js";
 
 export function LoginPage() {
@@ -20,17 +21,38 @@ export function LoginPage() {
 
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<{ login: string; password: string }>({ defaultValues: { login: "", password: "" } });
   const typed = watch("login").trim();
+  const [locked, setLocked] = useState<string | null>(null);
+  const [challenge, setChallenge] = useState<string | null>(null);
   const submit = handleSubmit(async ({ login: signIn, password }) => {
+    setLocked(null);
     try {
-      await login({ login: signIn.trim(), password });
+      const outcome = await login({ login: signIn.trim(), password });
+      if (outcome) {
+        setChallenge(outcome.challenge);
+        return;
+      }
       navigate(from, { replace: true });
     } catch (error) {
-      raise(error instanceof ApiError ? error.message : t("state.error.title"));
+      const lock = lockMessage(error);
+      if (lock) setLocked(lock);
+      else raise(error instanceof ApiError ? error.message : t("state.error.title"));
     }
   }, (validationErrors) => {
     const message = validationErrors.login?.message ?? validationErrors.password?.message;
     if (message) raise(message);
   });
+
+  if (challenge) {
+    return (
+      <CenteredPanel title={t("twoFactor.step.title")} above={<BalaganSignature />}>
+        <TwoFactorStep
+          challenge={challenge}
+          onDone={() => navigate(from, { replace: true })}
+          onRestart={() => setChallenge(null)}
+        />
+      </CenteredPanel>
+    );
+  }
 
   return (
     <CenteredPanel title={t("auth.login.title")} above={<BalaganSignature />}>
@@ -58,6 +80,18 @@ export function LoginPage() {
             {t("auth.forgot")}
           </Link>
         </div>
+        {locked ? (
+          <div role="alert" className="flex flex-col gap-1 text-sm text-destructive">
+            <p>{locked}</p>
+            <Link
+              to="/password-reset"
+              state={{ email: isEmail(typed) ? typed : "" }}
+              className="self-start text-foreground underline underline-offset-4"
+            >
+              {t("auth.locked.recover")}
+            </Link>
+          </div>
+        ) : null}
         <Button type="submit" className="h-9" disabled={isSubmitting} aria-busy={isSubmitting} aria-label={t("auth.login.submit")}>
           {isSubmitting ? (
             <span role="status">

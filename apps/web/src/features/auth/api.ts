@@ -74,12 +74,24 @@ export interface AuthSession {
 
 const UNAUTHENTICATED = { authenticated: false };
 
+export interface TwoFactorChallenge {
+  twoFactor: { challenge: string; expiresAt: string };
+}
+
+export type SignInAnswer = TokenPair | TwoFactorChallenge;
+
+export function isChallenge(answer: SignInAnswer): answer is TwoFactorChallenge {
+  return "twoFactor" in answer;
+}
+
 export const authApi = {
-  login: (body: LoginBody) => http.post<TokenPair>("/auth/login", body, UNAUTHENTICATED),
+  login: (body: LoginBody) => http.post<SignInAnswer>("/auth/login", body, UNAUTHENTICATED),
+  completeTwoFactor: (challenge: string, code: string) =>
+    http.post<TokenPair>("/auth/two-factor", { challenge, code }, UNAUTHENTICATED),
   register: (body: RegisterBody) => http.post<TokenPair>("/auth/register", body, UNAUTHENTICATED),
   logout: () => http.post<void>("/auth/logout", {}, UNAUTHENTICATED),
   resetPassword: (token: string, password: string) =>
-    http.post<TokenPair>(`/auth/password-reset/${encodeURIComponent(token)}`, { password }, UNAUTHENTICATED),
+    http.post<SignInAnswer>(`/auth/password-reset/${encodeURIComponent(token)}`, { password }, UNAUTHENTICATED),
   session: (signal?: AbortSignal) => http.get<AuthSession>("/auth/me", { signal }),
   profile: () => http.get<UserProfile>("/user/profile"),
   saveAvatar: (png: Blob, avatarPath: string) => {

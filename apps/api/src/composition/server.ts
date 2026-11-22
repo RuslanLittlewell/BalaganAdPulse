@@ -2,6 +2,7 @@ import "dotenv/config";
 import { createApp } from "./app.js";
 import { createContainer } from "./create-container.js";
 import { prisma } from "#shared/infrastructure/prisma.js";
+import { config } from "#shared/infrastructure/config.js";
 import { attachRealtime } from "#modules/realtime/infrastructure/websocket-transport.js";
 import { PRESENCE_SWEEP_MS } from "#modules/presence/index.js";
 import { createShutdown } from "./shutdown.js";
@@ -19,6 +20,7 @@ const realtime = attachRealtime({
   registry: container.connections,
   authenticate: container.authenticate,
   greet: container.greetPresence,
+  appOrigin: config.appUrl ? new URL(config.appUrl).origin : null,
 });
 
 container.importWorker.start();

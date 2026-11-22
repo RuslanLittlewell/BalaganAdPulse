@@ -6,3 +6,6 @@ export * from "./ui/user-menu/UserMenu.js";
 export * from "./ui/user-avatar/UserAvatar.js";
 export { SESSION_HEARTBEAT_MS, SessionHeartbeat } from "./model/SessionHeartbeat.js";
 export type { SessionHeartbeatProps } from "./model/SessionHeartbeat.js";
+export { TwoFactorStep } from "./ui/two-factor-step/TwoFactorStep.js";
+export type { TwoFactorStepProps } from "./ui/two-factor-step/TwoFactorStep.js";
+export { codeOf, lockMessage } from "./lib/signInErrors.js";

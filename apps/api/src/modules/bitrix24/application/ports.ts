@@ -56,6 +56,7 @@ export interface RunRecord {
   direction: RunDirection;
   state: "RUNNING" | "DONE" | "FAILED";
   created: number;
+  linked: number;
   failed: number;
   cursor: Record<string, unknown>;
   startedAt: Date;
@@ -200,8 +201,12 @@ export interface SyncStore {
   inbox(connectionId: string, limit: number): Promise<Array<{ id: string; kind: SyncKind; remoteId: string }>>;
   removeInbox(id: string): Promise<void>;
   changed(connection: { id: string; orgId: string; connectedAt: Date }, kind: SyncKind, options: { limit: number; unlinkedOnly: boolean; includeOld: boolean }): Promise<LocalChange[]>;
-  advanceRun(runId: string, change: { created?: number; failed?: number; cursor?: Record<string, unknown>; state?: "DONE" | "FAILED" }): Promise<void>;
+  advanceRun(runId: string, change: { created?: number; linked?: number; failed?: number; cursor?: Record<string, unknown>; state?: "DONE" | "FAILED" }): Promise<void>;
   runningRun(connectionId: string): Promise<RunRecord | null>;
+
+  unlinkedPeople(connectionId: string, clientId: string, keys: { phone: string | null; email: string | null }): Promise<LocalPerson[]>;
+  unlinkedCompanies(connectionId: string, clientId: string): Promise<LocalCompany[]>;
+  unlinkedLeads(connectionId: string, projectId: string, nameKey: string): Promise<LocalLead[]>;
 
   lead(id: string): Promise<LocalLead | null>;
   person(id: string): Promise<LocalPerson | null>;

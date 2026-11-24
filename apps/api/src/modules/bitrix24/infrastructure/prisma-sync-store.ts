@@ -107,11 +107,12 @@ export class PrismaSyncStore implements SyncStore {
     return rows;
   }
 
-  async advanceRun(runId: string, change: { created?: number; failed?: number; cursor?: Record<string, unknown>; state?: "DONE" | "FAILED" }) {
+  async advanceRun(runId: string, change: { created?: number; linked?: number; failed?: number; cursor?: Record<string, unknown>; state?: "DONE" | "FAILED" }) {
     await this.prisma.bitrix24Run.update({
       where: { id: runId },
       data: {
         ...(change.created ? { created: { increment: change.created } } : {}),
+        ...(change.linked ? { linked: { increment: change.linked } } : {}),
         ...(change.failed ? { failed: { increment: change.failed } } : {}),
         ...(change.cursor ? { cursor: change.cursor as Prisma.InputJsonValue } : {}),
         ...(change.state ? { state: change.state, finishedAt: new Date() } : {}),
@@ -122,6 +123,43 @@ export class PrismaSyncStore implements SyncStore {
   async runningRun(connectionId: string): Promise<RunRecord | null> {
     const row = await this.prisma.bitrix24Run.findFirst({ where: { connectionId, state: "RUNNING" }, orderBy: { startedAt: "asc" } });
     return row && toRun(row);
+  }
+
+  async unlinkedPeople(connectionId: string, clientId: string, keys: { phone: string | null; email: string | null }) {
+    if (keys.phone === null && keys.email === null) return [];
+    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT r.id FROM crm_person r
+      WHERE r.client_id = ${clientId}
+        AND NOT EXISTS (SELECT 1 FROM bitrix24_link k WHERE k.connection_id = ${connectionId} AND k.kind = 'PERSON' AND k.local_id = r.id)
+        AND ((${keys.phone}::text IS NOT NULL AND r.phone_digits = ${keys.phone})
+          OR (${keys.email}::text IS NOT NULL AND lower(btrim(r.email)) = ${keys.email}))
+      ORDER BY r.created_at ASC, r.id ASC
+      LIMIT 20`;
+    const people = await Promise.all(rows.map((row) => this.person(row.id)));
+    return people.filter((person): person is NonNullable<typeof person> => person !== null);
+  }
+
+  async unlinkedCompanies(connectionId: string, clientId: string) {
+    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT r.id FROM crm_company r
+      WHERE r.client_id = ${clientId}
+        AND NOT EXISTS (SELECT 1 FROM bitrix24_link k WHERE k.connection_id = ${connectionId} AND k.kind = 'COMPANY' AND k.local_id = r.id)
+      ORDER BY r.created_at ASC, r.id ASC
+      LIMIT 1000`;
+    const companies = await Promise.all(rows.map((row) => this.company(row.id)));
+    return companies.filter((company): company is NonNullable<typeof company> => company !== null);
+  }
+
+  async unlinkedLeads(connectionId: string, projectId: string, nameKey: string) {
+    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT r.id FROM lead r
+      WHERE r.project_id = ${projectId}
+        AND lower(btrim(r.name)) = ${nameKey}
+        AND NOT EXISTS (SELECT 1 FROM bitrix24_link k WHERE k.connection_id = ${connectionId} AND k.kind = 'LEAD' AND k.local_id = r.id)
+      ORDER BY r.created_at ASC, r.id ASC
+      LIMIT 20`;
+    const leads = await Promise.all(rows.map((row) => this.lead(row.id)));
+    return leads.filter((lead): lead is NonNullable<typeof lead> => lead !== null);
   }
 
   async lead(id: string) {

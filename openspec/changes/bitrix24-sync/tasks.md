@@ -54,3 +54,12 @@
 - [x] 9.2 Limit refused webhook events per network address
 - [x] 9.3 Drop a Bitrix24 website that is not an http or https address
 - [x] 9.4 Test the pinned lookup, the port refusal, the refusal limit and the website check
+
+## 10. Matching
+
+- [x] 10.1 Add the key functions `phoneKey`, `emailKey`, `nameKey` and `hostKey` and the contact, company and lead match rules to the domain, with unit tests for the formats in the spec scenarios
+- [x] 10.2 Add store lookups for unlinked candidates in the same client or project, oldest first and never linked, and add a `linked` counter to `Bitrix24Run` with one migration
+- [x] 10.3 Look for a match before creating in `pullRecord` and `ensureRecord`, and link instead of creating; count a link as `linked` in the download run
+- [x] 10.4 Add the portal lookups with `crm.duplicate.findbycomm`, `crm.company.list` and `crm.lead.list`, and look before `crm.<entity>.add` in `pushRecord`; count a link as `linked` in the upload run
+- [x] 10.5 Test each rule both ways against the fake portal: phone and email formats, company by name and by host, a lead with and without a matching contact, several matches, a record taken elsewhere, a live event, the download and the upload, and that linking sends no contents
+- [x] 10.6 Show the three counts in the run line, remove the duplicate warning from the upload and download confirmations in `ru.ts` and `en.ts`, and update the web tests

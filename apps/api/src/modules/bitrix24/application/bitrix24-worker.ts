@@ -66,6 +66,7 @@ export function createBitrix24Worker(d: {
 
   const upload = async (ctx: SyncContext, runId: string) => {
     let created = 0;
+    let linked = 0;
     let failed = 0;
     let found = false;
     for (const [kind] of RUN_KINDS) {
@@ -73,8 +74,8 @@ export function createBitrix24Worker(d: {
       for (const change of changes) {
         found = true;
         try {
-          await d.engine.push(ctx, kind, change.id);
-          created += 1;
+          if ((await d.engine.push(ctx, kind, change.id)) === "linked") linked += 1;
+          else created += 1;
         } catch (error) {
           if (!itemFailure(error)) throw error;
           await d.store.fail(ctx.connection.id, kind, change.id, `REFUSED: ${error.message}`, change.watermark);
@@ -82,7 +83,7 @@ export function createBitrix24Worker(d: {
         }
       }
     }
-    await d.store.advanceRun(runId, found ? { created, failed } : { state: "DONE" });
+    await d.store.advanceRun(runId, found ? { created, linked, failed } : { state: "DONE" });
   };
 
   const download = async (ctx: SyncContext, runId: string, cursor: Record<string, unknown>) => {
@@ -97,17 +98,20 @@ export function createBitrix24Worker(d: {
     const page = await ctx.api.list<{ ID?: unknown }>(`crm.${entity}.list`, { select: ["ID"], order: { ID: "ASC" }, start });
     const all = { ...ctx, ignoreAge: true };
     let created = 0;
+    let linked = 0;
     let failed = 0;
     for (const item of page.items) {
       try {
-        if ((await d.engine.pull(all, kind, String(item.ID))) === "created") created += 1;
+        const outcome = await d.engine.pull(all, kind, String(item.ID));
+        if (outcome === "created") created += 1;
+        else if (outcome === "linked") linked += 1;
       } catch (error) {
         if (!itemFailure(error)) throw error;
         failed += 1;
       }
     }
     const next = page.next === null ? { kind: index + 1, start: 0 } : { kind: index, start: page.next };
-    await d.store.advanceRun(runId, { created, failed, cursor: next });
+    await d.store.advanceRun(runId, { created, linked, failed, cursor: next });
   };
 
   const runStep = async (ctx: SyncContext) => {

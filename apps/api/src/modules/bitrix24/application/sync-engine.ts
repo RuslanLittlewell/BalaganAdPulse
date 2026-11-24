@@ -1,4 +1,5 @@
 import { Bitrix24Error } from "../domain/bitrix24-error.js";
+import { companiesMatch, contactsMatch, emailKey, leadNamesMatch, nameKey, phoneKey } from "../domain/matching.js";
 import {
   REMOTE_AUTHOR_PREFIX,
   companyToRemote,
@@ -28,7 +29,8 @@ import type {
 
 type Raw = Record<string, unknown>;
 
-export type PullOutcome = "created" | "updated" | "skipped";
+export type PullOutcome = "created" | "updated" | "linked" | "skipped";
+export type PushOutcome = "sent" | "linked";
 
 export interface SyncContext {
   readonly connection: StoredConnection;
@@ -61,7 +63,12 @@ interface RecordKind<L extends { id: string; updatedAt: Date; clientId: string }
   toRemote(ctx: SyncContext, local: L): Promise<Raw>;
   apply(ctx: SyncContext, local: L, remote: R): Promise<Date>;
   create(ctx: SyncContext, remote: R, clientId: string | null): Promise<{ id: string; updatedAt: Date } | null>;
+  findLocal(ctx: SyncContext, remote: R, clientId: string | null): Promise<{ id: string; updatedAt: Date } | null>;
+  findRemote(ctx: SyncContext, local: L): Promise<R | null>;
 }
+
+const CANDIDATE_LIMIT = 10;
+const byRemoteId = <R extends { id: string }>(items: readonly R[]) => [...items].sort((a, b) => Number(a.id) - Number(b.id));
 
 export function createSyncEngine(d: { store: SyncStore; announce: CrmAnnouncer }) {
   const { store } = d;
@@ -114,6 +121,21 @@ export function createSyncEngine(d: { store: SyncStore; announce: CrmAnnouncer }
     return projectId && clientId ? { projectId, clientId } : null;
   };
 
+  const unclaimed = async (ctx: SyncContext, kind: SyncKind, remoteId: string) =>
+    (await store.linkByRemote(ctx.connection.id, kind, remoteId)) === null;
+
+  const listFrom = async <R>(ctx: SyncContext, method: string, params: Raw, parse: (raw: Raw) => R): Promise<R[]> => {
+    const page = await ctx.api.list<Raw>(method, params);
+    return page.items.slice(0, CANDIDATE_LIMIT).map(parse);
+  };
+
+  const sameContact = async (ctx: SyncContext, remoteContactId: string, localPersonId: string): Promise<boolean> => {
+    const link = await store.linkByRemote(ctx.connection.id, "PERSON", remoteContactId);
+    if (link) return !link.dropped && link.localId === localPersonId;
+    const [raw, person] = await Promise.all([fetchRaw(ctx, "crm.contact.get", { id: remoteContactId }), store.person(localPersonId)]);
+    return raw !== null && person !== null && contactsMatch(person, parseRemoteContact(raw));
+  };
+
   const tooOld = (ctx: SyncContext, remote: Modified) =>
     !ctx.ignoreAge && remote.createdAt !== null && remote.createdAt.getTime() < ctx.connection.connectedAt.getTime();
 
@@ -148,37 +170,45 @@ export function createSyncEngine(d: { store: SyncStore; announce: CrmAnnouncer }
 
   async function pushRecord<L extends { id: string; updatedAt: Date; clientId: string }, R extends Modified>(
     ctx: SyncContext, k: RecordKind<L, R>, id: string,
-  ): Promise<void> {
+  ): Promise<PushOutcome> {
     const local = await k.load(id);
-    if (!local) return;
+    if (!local) return "sent";
     const link = await store.link(ctx.connection.id, k.kind, id);
-    if (link?.dropped) return;
+    if (link?.dropped) return "sent";
     const fields = await k.toRemote(ctx, local);
     let remoteId: string;
+    let outcome: PushOutcome = "sent";
     if (!link) {
-      remoteId = String(await ctx.api.call(`crm.${k.entity}.add`, { fields }));
+      const matched = await k.findRemote(ctx, local);
+      if (matched) {
+        remoteId = matched.id;
+        outcome = "linked";
+      } else {
+        remoteId = String(await ctx.api.call(`crm.${k.entity}.add`, { fields }));
+      }
     } else {
       const remote = await getRecord(ctx, k, link.remoteId);
       if (!remote) {
         await store.dropLink(link.id);
-        return;
+        return "sent";
       }
       if (isNewer(remote.modifiedAt, link.remoteModifiedAt) && isNewer(remote.modifiedAt, local.updatedAt)) {
         await applyRecord(ctx, k, remote, link);
-        return;
+        return "sent";
       }
       try {
         await ctx.api.call(`crm.${k.entity}.update`, { id: link.remoteId, fields });
       } catch (error) {
         if (!missing(error)) throw error;
         await store.dropLink(link.id);
-        return;
+        return "sent";
       }
       remoteId = link.remoteId;
     }
     const after = await getRecord(ctx, k, remoteId);
     await saveRecordLink(ctx, k.kind, local.id, remoteId, after?.modifiedAt ?? null, local.updatedAt);
     await store.clear(ctx.connection.id, k.kind, local.id);
+    return outcome;
   }
 
   async function pullRecord<L extends { id: string; updatedAt: Date; clientId: string }, R extends Modified>(
@@ -193,6 +223,12 @@ export function createSyncEngine(d: { store: SyncStore; announce: CrmAnnouncer }
     }
     if (link) return (await applyRecord(ctx, k, remote, link)) ? "updated" : "skipped";
     if (tooOld(ctx, remote)) return "skipped";
+    const matched = await k.findLocal(ctx, remote, null);
+    if (matched) {
+      await saveRecordLink(ctx, k.kind, matched.id, remote.id, remote.modifiedAt, matched.updatedAt);
+      await store.clear(ctx.connection.id, k.kind, remoteKey(remote.id));
+      return "linked";
+    }
     const created = await k.create(ctx, remote, null);
     if (!created) return "skipped";
     await saveRecordLink(ctx, k.kind, created.id, remote.id, remote.modifiedAt, created.updatedAt);
@@ -213,6 +249,11 @@ export function createSyncEngine(d: { store: SyncStore; announce: CrmAnnouncer }
     }
     const remote = await getRecord(ctx, k, remoteId);
     if (!remote) return null;
+    const matched = await k.findLocal(ctx, remote, clientId);
+    if (matched) {
+      await saveRecordLink(ctx, k.kind, matched.id, remote.id, remote.modifiedAt, matched.updatedAt);
+      return matched.id;
+    }
     const created = await k.create(ctx, remote, clientId);
     if (!created) return null;
     await saveRecordLink(ctx, k.kind, created.id, remote.id, remote.modifiedAt, created.updatedAt);
@@ -236,6 +277,23 @@ export function createSyncEngine(d: { store: SyncStore; announce: CrmAnnouncer }
       if (!target) return skip(ctx, "COMPANY", remote.id);
       return store.createCompany(ctx.connection.orgId, target, { name: remote.title, phone: remote.phone, website: remote.website });
     },
+    findLocal: async (ctx, remote, clientId) => {
+      const target = clientId ?? (await inboundClient(ctx))?.clientId ?? null;
+      if (!target) return null;
+      const candidates = await store.unlinkedCompanies(ctx.connection.id, target);
+      return candidates.find((company) => companiesMatch(company, { name: remote.title, website: remote.website })) ?? null;
+    },
+    findRemote: async (ctx, company) => {
+      const title = company.name.trim();
+      if (!title) return null;
+      const found = await listFrom(ctx, "crm.company.list", {
+        filter: { "=TITLE": title }, select: ["ID", "TITLE", "WEB", "PHONE", "DATE_CREATE", "DATE_MODIFY"], order: { ID: "ASC" },
+      }, parseRemoteCompany);
+      for (const remote of byRemoteId(found)) {
+        if (companiesMatch(company, { name: remote.title, website: remote.website }) && await unclaimed(ctx, "COMPANY", remote.id)) return remote;
+      }
+      return null;
+    },
   };
 
   kinds.PERSON = {
@@ -255,6 +313,27 @@ export function createSyncEngine(d: { store: SyncStore; announce: CrmAnnouncer }
       if (!target) return skip(ctx, "PERSON", remote.id);
       const companyId = remote.companyId ? await ensureRecord(ctx, kinds.COMPANY, remote.companyId, target) : null;
       return store.createPerson(ctx.connection.orgId, target, { name: remote.name, phone: remote.phone, email: remote.email, companyId });
+    },
+    findLocal: async (ctx, remote, clientId) => {
+      const target = clientId ?? (await inboundClient(ctx))?.clientId ?? null;
+      if (!target) return null;
+      const candidates = await store.unlinkedPeople(ctx.connection.id, target, { phone: phoneKey(remote.phone), email: emailKey(remote.email) });
+      return candidates.find((person) => contactsMatch(person, remote)) ?? null;
+    },
+    findRemote: async (ctx, person) => {
+      const ids = new Set<string>();
+      for (const [type, value] of [["PHONE", person.phone], ["EMAIL", person.email]] as const) {
+        if (!(type === "PHONE" ? phoneKey(value) : emailKey(value))) continue;
+        const found = await ctx.api.call<unknown>("crm.duplicate.findbycomm", { type, values: [value], entity_type: "CONTACT" });
+        const contacts = found && typeof found === "object" && !Array.isArray(found) ? (found as Raw).CONTACT : null;
+        for (const id of Array.isArray(contacts) ? contacts : []) ids.add(String(id));
+      }
+      for (const id of [...ids].sort((a, b) => Number(a) - Number(b)).slice(0, CANDIDATE_LIMIT)) {
+        if (!(await unclaimed(ctx, "PERSON", id))) continue;
+        const remote = await getRecord(ctx, kinds.PERSON, id);
+        if (remote && contactsMatch(person, remote)) return remote;
+      }
+      return null;
     },
   };
 
@@ -297,6 +376,28 @@ export function createSyncEngine(d: { store: SyncStore; announce: CrmAnnouncer }
       });
       d.announce.leadsChanged(ctx.connection.orgId, target.projectId);
       return created;
+    },
+    findLocal: async (ctx, remote) => {
+      const target = await inboundClient(ctx);
+      const key = nameKey(remote.title);
+      if (!target || !key || !remote.contactId) return null;
+      for (const lead of await store.unlinkedLeads(ctx.connection.id, target.projectId, key)) {
+        if (lead.personId && await sameContact(ctx, remote.contactId, lead.personId)) return lead;
+      }
+      return null;
+    },
+    findRemote: async (ctx, lead) => {
+      const title = lead.name.trim();
+      if (!title || !lead.personId) return null;
+      const found = await listFrom(ctx, "crm.lead.list", {
+        filter: { "=TITLE": title }, select: ["ID", "TITLE", "STATUS_ID", "CONTACT_ID", "COMPANY_ID", "DATE_CREATE", "DATE_MODIFY"], order: { ID: "ASC" },
+      }, parseRemoteLead);
+      for (const remote of byRemoteId(found)) {
+        if (!leadNamesMatch(lead.name, remote.title) || !remote.contactId) continue;
+        if (!(await unclaimed(ctx, "LEAD", remote.id))) continue;
+        if (await sameContact(ctx, remote.contactId, lead.personId)) return remote;
+      }
+      return null;
     },
   };
 
@@ -532,14 +633,14 @@ export function createSyncEngine(d: { store: SyncStore; announce: CrmAnnouncer }
   }
 
   return {
-    push(ctx: SyncContext, kind: SyncKind, id: string): Promise<void> {
+    async push(ctx: SyncContext, kind: SyncKind, id: string): Promise<PushOutcome> {
       switch (kind) {
         case "LEAD": return pushRecord(ctx, kinds.LEAD, id);
         case "PERSON": return pushRecord(ctx, kinds.PERSON, id);
         case "COMPANY": return pushRecord(ctx, kinds.COMPANY, id);
-        case "NOTE": return pushNote(ctx, id);
-        case "TASK": return pushTask(ctx, id);
-        case "COMMENT": return pushComment(ctx, id);
+        case "NOTE": await pushNote(ctx, id); return "sent";
+        case "TASK": await pushTask(ctx, id); return "sent";
+        case "COMMENT": await pushComment(ctx, id); return "sent";
       }
     },
     pull(ctx: SyncContext, kind: SyncKind, remoteId: string): Promise<PullOutcome> {

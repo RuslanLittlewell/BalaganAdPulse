@@ -98,8 +98,14 @@ export class FakePortal implements Bitrix24Api {
     const entity = /^crm\.(lead|contact|company)\.list$/.exec(method)?.[1] as "lead" | "contact" | "company" | undefined;
     if (!entity) throw new Error(`Unexpected list ${method}`);
     const start = Number(params.start ?? 0);
-    const all = [...this.entities[entity].values()].sort((a, b) => Number(a.ID) - Number(b.ID));
-    const page = all.slice(start, start + 50).map((row) => ({ ID: row.ID }));
+    const filter = (params.filter ?? {}) as Raw;
+    const select = Array.isArray(params.select) ? params.select.map(String) : ["ID"];
+    const matches = (row: Raw) => Object.entries(filter).every(([key, value]) =>
+      key.startsWith("=")
+        ? String(row[key.slice(1)] ?? "").toLowerCase() === String(value).toLowerCase()
+        : String(row[key]) === String(value));
+    const all = [...this.entities[entity].values()].filter(matches).sort((a, b) => Number(a.ID) - Number(b.ID));
+    const page = all.slice(start, start + 50).map((row) => Object.fromEntries(select.filter((field) => field in row).map((field) => [field, row[field]])));
     return { items: page as T[], next: start + 50 < all.length ? start + 50 : null };
   }
 
@@ -121,6 +127,15 @@ export class FakePortal implements Bitrix24Api {
       return true;
     }
     switch (method) {
+      case "crm.duplicate.findbycomm": {
+        const type = String(params.type);
+        const keyOf = (value: unknown) => type === "PHONE" ? String(value ?? "").replace(/\D/g, "") : String(value ?? "").trim().toLowerCase();
+        const wanted = new Set((Array.isArray(params.values) ? params.values : []).map(keyOf));
+        const ids = [...this.entities.contact.values()]
+          .filter((row) => (Array.isArray(row[type]) ? row[type] as Raw[] : []).some((item) => wanted.has(keyOf(item.VALUE))))
+          .map((row) => Number(row.ID));
+        return ids.length === 0 ? [] : { CONTACT: ids };
+      }
       case "profile":
         return { ID: "1", ADMIN: true };
       case "crm.status.list":

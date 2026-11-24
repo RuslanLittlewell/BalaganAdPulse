@@ -37,6 +37,7 @@ export function toRun(row: Bitrix24Run): RunRecord {
     direction: row.direction as RunDirection,
     state: row.state as RunRecord["state"],
     created: row.created,
+    linked: row.linked,
     failed: row.failed,
     cursor: row.cursor && typeof row.cursor === "object" && !Array.isArray(row.cursor) ? row.cursor as Record<string, unknown> : {},
     startedAt: row.startedAt,

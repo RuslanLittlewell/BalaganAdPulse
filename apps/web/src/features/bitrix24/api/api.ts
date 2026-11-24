@@ -38,6 +38,7 @@ export interface Bitrix24Run {
   direction: "UPLOAD" | "DOWNLOAD";
   state: "RUNNING" | "DONE" | "FAILED";
   created: number;
+  linked: number;
   failed: number;
   startedAt: string;
   finishedAt: string | null;

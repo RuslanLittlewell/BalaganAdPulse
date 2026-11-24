@@ -49,17 +49,17 @@ export function ContactBook({ open, onClose, initialDirectory }: ContactBookProp
           <DialogTitle>{t("contacts.title")}</DialogTitle>
         </DialogHeader>
 
-        <Tabs
-          items={[
-            { id: "CLIENT", label: isAgency ? t("contacts.directory.clients") : t("contacts.directory.employees") },
-            ...(isAgency
-              ? [{ id: "EMPLOYEE", label: t("contacts.directory.employees") }]
-              : []),
-          ]}
-          activeId={directory}
-          onSelect={(id) => setDirectory(id as Directory)}
-          ariaLabel={t("contacts.directory.label")}
-        />
+        {isAgency ? (
+          <Tabs
+            items={[
+              { id: "CLIENT", label: t("contacts.directory.clients") },
+              { id: "EMPLOYEE", label: t("contacts.directory.employees") },
+            ]}
+            activeId={directory}
+            onSelect={(id) => setDirectory(id as Directory)}
+            ariaLabel={t("contacts.directory.label")}
+          />
+        ) : null}
 
         {!isAgency && ownCompanyId != null && (
           <CompanyTeam clientId={ownCompanyId} />

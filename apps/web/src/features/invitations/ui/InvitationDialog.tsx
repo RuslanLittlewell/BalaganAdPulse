@@ -34,23 +34,26 @@ import {
 import { registrationLink } from "../lib/link.js";
 import { tariffRefusal } from "@/entities/tariff/index.js";
 
+export type JoiningAudience = "STAFF" | "PARTNER";
+
 export interface InvitationDialogProps {
   registrationType: RegistrationType;
   clientId?: string;
+  audience?: JoiningAudience;
   open: boolean;
   onClose: () => void;
 }
 
-type Joining = "STAFF" | "PARTNER";
+type Joining = JoiningAudience;
 
-export function InvitationDialog({ registrationType, clientId, open, onClose }: InvitationDialogProps) {
+export function InvitationDialog({ registrationType, clientId, audience, open, onClose }: InvitationDialogProps) {
   const projects = useProjects();
   const create = useCreateInvitation();
   const [role, setRole] = useState<EmployeeRole>("MANAGER");
   const [projectIds, setProjectIds] = useState<string[]>([]);
   const [failure, setFailure] = useState<string | null>(null);
   const [created, setCreated] = useState<Invitation | null>(null);
-  const [joining, setJoining] = useState<Joining>("STAFF");
+  const [joining, setJoining] = useState<Joining>(audience ?? "STAFF");
   const [partnerProjectId, setPartnerProjectId] = useState("");
   const [campaignId, setCampaignId] = useState("");
   const invitesPartners = useCan("create", "partner");
@@ -60,7 +63,7 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
   const needsProjects = isEmployee && role === "GUEST";
   const isJoining = registrationType === "CLIENT_STAFF";
   const offersPartner = isJoining && invitesPartners;
-  const isPartner = offersPartner && joining === "PARTNER";
+  const isPartner = offersPartner && (audience ?? joining) === "PARTNER";
   const clientProjects = (projects.data ?? []).filter((project) => project.clientId === clientId);
   const chosenProject = partnerProjectId || (clientProjects.length === 1 ? clientProjects[0]!.id : "");
   const title = isEmployee
@@ -80,7 +83,7 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
     setProjectIds([]);
     setFailure(null);
     setCreated(null);
-    setJoining("STAFF");
+    setJoining(audience ?? "STAFF");
     setPartnerProjectId("");
     setCampaignId("");
     onClose();
@@ -163,7 +166,7 @@ export function InvitationDialog({ registrationType, clientId, open, onClose }: 
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-                {offersPartner ? (
+                {offersPartner && audience === undefined ? (
                   <Tabs
                     items={[
                       { id: "STAFF", label: t("invites.joining.staff") },

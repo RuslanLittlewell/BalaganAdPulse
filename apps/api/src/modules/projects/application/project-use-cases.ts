@@ -1,6 +1,7 @@
 import { can } from "@adpulse/access-policy";
 import { AppError } from "#shared/domain/index.js";
 import type { ActorContext } from "#shared/application/index.js";
+import { removedWithChanges } from "#modules/audit/index.js";
 import type { NewProject, ProjectChange, ProjectRecord } from "../domain/project.js";
 import type { ProjectDependencies } from "./ports.js";
 
@@ -103,8 +104,12 @@ export function createProjectUseCases(dependencies: ProjectDependencies) {
       const project = await reach(actor, id);
       assertCan(actor, "delete");
       await dependencies.unitOfWork.run(async (context) => {
+        const dependents = await dependencies.projects.dependents(context, id);
         await dependencies.projects.delete(context, id);
-        await dependencies.audit.append(context, audit("DELETE", project), actor);
+        await dependencies.audit.append(context, {
+          ...audit("DELETE", project),
+          ...removedWithChanges(dependents),
+        }, actor);
       });
     },
 

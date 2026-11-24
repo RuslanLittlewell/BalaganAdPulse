@@ -175,9 +175,20 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
         throw new AppError("not-found", "Invite not found");
       }
       if (invite.usedAt) throw new AppError("conflict", "This invite has already been used");
-      await dependencies.unitOfWork.run((context) =>
-        dependencies.invites.revoke(context, id, dependencies.clock.now()),
-      );
+      await dependencies.unitOfWork.run(async (context) => {
+        await dependencies.invites.revoke(context, id, dependencies.clock.now());
+        if (invite.revokedAt) return;
+        await dependencies.audit.append(context, {
+          action: "DELETE",
+          entityType: "invite",
+          entityId: id,
+          clientId: invite.clientId,
+          summary: invite.email ? `Revoked the invitation for ${invite.email}` : "Revoked an invitation",
+          changes: {
+            before: { email: invite.email, role: invite.role, registrationType: invite.registrationType },
+          },
+        }, actor);
+      });
     },
 
     redeem: async (

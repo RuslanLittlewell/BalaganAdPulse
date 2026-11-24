@@ -17,3 +17,5 @@ export type {
 } from "./application/ports.js";
 export type { AuditScope, StoredAuditEvent } from "./domain/audit-event.js";
 export { createAuditRouter } from "./presentation/http/audit-http.js";
+export type { DependentCounts } from "./domain/removed-with.js";
+export { removedWith, removedWithChanges } from "./domain/removed-with.js";

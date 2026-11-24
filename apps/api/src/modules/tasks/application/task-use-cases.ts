@@ -1,5 +1,6 @@
 import { can, isCustomer } from "@adpulse/access-policy";
 import { AppError } from "#shared/domain/index.js";
+import { removedWithChanges, type JsonValue } from "#modules/audit/index.js";
 import type { ActorContext } from "#shared/application/index.js";
 import {
   DEFAULT_TASK_COLUMN,
@@ -90,6 +91,25 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
 
   const record = (task: Pick<TaskRecord, "personal">, ...entry: Parameters<typeof dependencies.audit.append>) =>
     task.personal ? Promise.resolve() : dependencies.audit.append(...entry);
+
+  const attachedChanges = (
+    before: Pick<TaskRecord, "imageIds" | "documents">,
+    after: Pick<TaskRecord, "imageIds" | "documents">,
+  ): { changes?: JsonValue } => {
+    const knownImages = new Set(before.imageIds);
+    const knownDocuments = new Set(before.documents.map((document) => document.id));
+    const imagesAdded = after.imageIds.filter((id) => !knownImages.has(id));
+    const documentsAdded = after.documents
+      .filter((document) => !knownDocuments.has(document.id))
+      .map(({ id, name }) => ({ id, name }));
+    if (imagesAdded.length === 0 && documentsAdded.length === 0) return {};
+    return {
+      changes: {
+        ...(documentsAdded.length > 0 ? { documentsAdded } : {}),
+        ...(imagesAdded.length > 0 ? { imagesAdded } : {}),
+      },
+    };
+  };
 
   const reach = async (actor: ActorContext, id: string): Promise<TaskRecord> => {
     assertCanRead(actor);
@@ -276,7 +296,9 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
         await record(task, transaction, {
           action: "CREATE", entityType: "task", entityId: task.id,
           clientId: context.clientId, projectId: task.projectId,
+          leadId: task.leadId,
           summary: `Created task “${task.title}”`,
+          ...attachedChanges({ imageIds: [], documents: [] }, { imageIds, documents }),
         }, actor);
         return { ...task, imageIds, documents };
       });
@@ -336,7 +358,9 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
         await record(task, transaction, {
           action: "UPDATE", entityType: "task", entityId: id,
           clientId: context.clientId, projectId: withChecklist.projectId,
+          leadId: withChecklist.leadId,
           summary: `Updated task “${withChecklist.title}”`,
+          ...attachedChanges(task, { imageIds, documents }),
         }, actor);
         return { ...withChecklist, imageIds, documents };
       });
@@ -356,6 +380,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
       const documents = await dependencies.documents.listForTask(id);
 
       await dependencies.unitOfWork.run(async (transaction) => {
+        const dependents = await dependencies.tasks.dependents(transaction, id);
         await dependencies.tasks.delete(transaction, id);
         const remaining = reorderAfterRemoval(
           await dependencies.tasks.columnIds(actor.orgId, task.column), id,
@@ -364,7 +389,9 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
         await record(task, transaction, {
           action: "DELETE", entityType: "task", entityId: id,
           clientId: context.clientId, projectId: task.projectId,
+          leadId: task.leadId,
           summary: `Deleted task “${task.title}”`,
+          ...removedWithChanges(dependents),
         }, actor);
       });
 
@@ -390,6 +417,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
         await record(task, transaction, {
           action: "UPDATE", entityType: "task", entityId: task.id,
           clientId: context.clientId, projectId: task.projectId,
+          leadId: task.leadId,
           summary: `Completed task “${task.title}” of ${task.dueDate}, due next on ${dueDate}`,
         }, actor);
         return moved;
@@ -420,6 +448,7 @@ export function createTaskUseCases(dependencies: TaskDependencies) {
         await record(task, transaction, {
           action: "UPDATE", entityType: "task", entityId: id,
           clientId: context.clientId, projectId: task.projectId,
+          leadId: task.leadId,
           summary: `Moved task “${task.title}” from ${task.column} to ${input.column}`,
         }, actor);
 

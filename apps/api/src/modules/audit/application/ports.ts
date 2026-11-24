@@ -1,5 +1,5 @@
 import type { ActorContext, TransactionContext } from "#shared/application/index.js";
-import type { AuditScope, StoredAuditEvent } from "../domain/audit-event.js";
+import type { AuditScope, AuditSection, StoredAuditEvent } from "../domain/audit-event.js";
 
 export interface AuditFilters {
   readonly clientId?: string;
@@ -9,6 +9,7 @@ export interface AuditFilters {
   readonly entityId?: string;
   readonly actorId?: string;
   readonly inProject?: boolean;
+  readonly section?: AuditSection;
   readonly from?: string;
   readonly to?: string;
 }

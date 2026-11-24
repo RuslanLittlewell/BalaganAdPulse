@@ -4,7 +4,7 @@ import type {
   TransactionContext,
   UnitOfWork,
 } from "#shared/application/index.js";
-import type { AuditWriter } from "#modules/audit/index.js";
+import type { AuditWriter, DependentCounts } from "#modules/audit/index.js";
 import type { TaskEventPublisher } from "./task-events.js";
 import type { TaskColumn, TaskPriority } from "../domain/board.js";
 import type { TaskRepeat } from "../domain/schedule.js";
@@ -116,6 +116,7 @@ export interface TaskRepository {
   findReachable(actor: ActorContext, id: string): Promise<TaskRecord | null>;
   listReachable(actor: ActorContext, filter?: TaskFilter): Promise<TaskRecord[]>;
   update(context: TransactionContext, id: string, input: TaskChange): Promise<TaskRecord>;
+  dependents(context: TransactionContext, id: string): Promise<DependentCounts>;
   delete(context: TransactionContext, id: string): Promise<void>;
   countInColumn(orgId: string, column: TaskColumn): Promise<number>;
   columnIds(orgId: string, column: TaskColumn): Promise<string[]>;
@@ -258,14 +259,21 @@ export interface NewTaskComment {
 export interface TaskCommentRepository {
   list(taskId: string): Promise<TaskCommentRecord[]>;
   find(taskId: string, id: string): Promise<TaskCommentRecord | null>;
-  create(input: NewTaskComment): Promise<TaskCommentRecord>;
-  edit(id: string, changes: { body: string; mentionIds: readonly string[]; editedAt: Date }): Promise<TaskCommentRecord>;
-  delete(id: string): Promise<void>;
+  create(context: TransactionContext, input: NewTaskComment): Promise<TaskCommentRecord>;
+  edit(
+    context: TransactionContext,
+    id: string,
+    changes: { body: string; mentionIds: readonly string[]; editedAt: Date },
+  ): Promise<TaskCommentRecord>;
+  delete(context: TransactionContext, id: string): Promise<void>;
 }
 
 export interface TaskCommentDependencies {
   readonly tasks: Pick<TaskRepository, "findReachable">;
   readonly comments: TaskCommentRepository;
+  readonly projects: ProjectReach;
+  readonly audit: AuditWriter;
+  readonly unitOfWork: UnitOfWork;
   readonly members: MemberReach;
   readonly notices: Pick<TaskNotices, "mentioned">;
   readonly ids: IdGenerator;

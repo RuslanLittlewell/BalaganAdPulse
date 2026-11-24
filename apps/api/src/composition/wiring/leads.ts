@@ -47,7 +47,7 @@ export function wireLeads(
     unitOfWork,
     publish,
   });
-  const notes = createLeadNoteUseCases({ leads: leadRepository, notes: new PrismaLeadNoteRepository(prisma), ids, clock, publish });
+  const notes = createLeadNoteUseCases({ leads: leadRepository, notes: new PrismaLeadNoteRepository(prisma, unitOfWork), audit, unitOfWork, ids, clock, publish });
   const leadIntake = createLeadIntake({
     intake: new PrismaLeadIntakeRepository(unitOfWork),
     ids,

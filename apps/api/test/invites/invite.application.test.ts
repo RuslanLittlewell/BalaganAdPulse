@@ -69,6 +69,7 @@ function fixture(seed: readonly Partial<Invite>[] = []) {
     clock: new FixedClock(NOW),
     ids: new DeterministicIdGenerator(["id-1", "id-2", "id-3", "code-1", "code-2", "code-3"]),
     codes: new DeterministicIdGenerator(["code-1", "code-2", "code-3"]),
+    audit: { append: async () => undefined },
     unitOfWork: { run: (work) => work(context) },
     tariffs: unlimitedTariffs,
   });

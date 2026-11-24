@@ -5,7 +5,7 @@ import type {
   TransactionContext,
   UnitOfWork,
 } from "#shared/application/index.js";
-import type { AuditWriter } from "#modules/audit/index.js";
+import type { AuditWriter, DependentCounts } from "#modules/audit/index.js";
 import type { NewProject, ProjectChange, ProjectRecord } from "../domain/project.js";
 
 export interface ProjectRepository {
@@ -17,6 +17,7 @@ export interface ProjectRepository {
   listReachable(actor: ActorContext, clientId?: string): Promise<ProjectRecord[]>;
   findReachable(actor: ActorContext, id: string): Promise<ProjectRecord | null>;
   update(context: TransactionContext, id: string, input: ProjectChange): Promise<ProjectRecord>;
+  dependents(context: TransactionContext, id: string): Promise<DependentCounts>;
   delete(context: TransactionContext, id: string): Promise<void>;
 }
 

@@ -144,6 +144,7 @@ function fixture(options: {
     clock: new FixedClock(NOW),
     ids: { generate: () => `invite-${++id}` },
     unitOfWork,
+    audit: { append: async () => undefined },
     tariffs: unlimitedTariffs,
   };
 

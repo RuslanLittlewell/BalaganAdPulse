@@ -1,6 +1,6 @@
 import { getIntlLocale } from "@/shared/config/locale.js";
 import { useMemo, useState } from "react";
-import { useAuditActors, type AuditEventFilters } from "@/entities/audit-event/index.js";
+import { useAuditActors, type AuditEventFilters, type AuditSection } from "@/entities/audit-event/index.js";
 import { useProjects } from "@/entities/project/index.js";
 import { t } from "@/shared/config/index.js";
 import {
@@ -18,12 +18,17 @@ export interface ActivityLogModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type Section = "projects" | "people";
+type TypeSection = AuditSection;
+type Section = TypeSection | "people";
+
+const allProjects = (): Record<TypeSection, string> => ({ projects: ALL, tasks: ALL, crm: ALL });
 
 const ALL = "all";
 
 const SECTIONS = [
   { id: "projects", label: t("activity.tab.projects") },
+  { id: "tasks", label: t("activity.tab.tasks") },
+  { id: "crm", label: t("activity.tab.crm") },
   { id: "people", label: t("activity.tab.people") },
 ];
 
@@ -57,7 +62,7 @@ const byName = (left: Option, right: Option) => left.name.localeCompare(right.na
 
 function ActivitySections() {
   const [section, setSection] = useState<Section>("projects");
-  const [projectId, setProjectId] = useState(ALL);
+  const [projectIds, setProjectIds] = useState(allProjects);
   const [actorId, setActorId] = useState(ALL);
   const projects = useProjects();
   const actors = useAuditActors();
@@ -67,9 +72,10 @@ function ActivitySections() {
     () => new Map((projects.data ?? []).map((project) => [project.id, project.name])),
     [projects.data],
   );
-  const filters: AuditEventFilters = section === "projects"
-    ? (projectId === ALL ? { inProject: true } : { projectId })
-    : (actorId === ALL ? {} : { actorId });
+  const projectId = section === "people" ? ALL : projectIds[section];
+  const filters: AuditEventFilters = section === "people"
+    ? (actorId === ALL ? {} : { actorId })
+    : (projectId === ALL ? { section } : { section, projectId });
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
@@ -80,21 +86,21 @@ function ActivitySections() {
           onSelect={(id) => setSection(id as Section)}
           ariaLabel={t("activity.tabs")}
         />
-        {section === "projects" ? (
-          <FilterSelect
-            label={t("activity.filter.project")}
-            allLabel={t("activity.allProjects")}
-            options={projectOptions}
-            value={projectId}
-            onChange={setProjectId}
-          />
-        ) : (
+        {section === "people" ? (
           <FilterSelect
             label={t("activity.filter.person")}
             allLabel={t("activity.allPeople")}
             options={actors.data ?? []}
             value={actorId}
             onChange={setActorId}
+          />
+        ) : (
+          <FilterSelect
+            label={t("activity.filter.project")}
+            allLabel={t("activity.allProjects")}
+            options={projectOptions}
+            value={projectId}
+            onChange={(id) => setProjectIds((current) => ({ ...current, [section]: id }))}
           />
         )}
       </div>

@@ -5,6 +5,8 @@ export type AuditAction = "CREATE" | "UPDATE" | "DELETE" | "ONLINE" | "OFFLINE";
 
 export const PRESENCE_ACTIONS: readonly AuditAction[] = ["ONLINE", "OFFLINE"];
 
+export type AuditSection = "projects" | "tasks" | "crm";
+
 export interface AuditChange {
   field: string;
   before?: unknown;
@@ -24,6 +26,7 @@ export interface AuditEvent {
   clientId: string | null;
   projectId: string | null;
   campaignId: string | null;
+  leadId: string | null;
   summary: string;
   changes: AuditChange[] | null;
   requestId: string | null;
@@ -40,6 +43,7 @@ export interface AuditEventFilters {
   entityId?: string;
   actorId?: string;
   inProject?: boolean;
+  section?: AuditSection;
   from?: string;
   to?: string;
   limit?: number;

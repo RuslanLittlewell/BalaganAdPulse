@@ -40,6 +40,7 @@ function fixture(seed: ClientRecord[] = []) {
         clients.set(id, updated);
         return updated;
       },
+      dependents: async () => ({}),
       delete: async (_tx, id) => { clients.delete(id); },
       reachableIds: async () => [...clients.keys()],
     },

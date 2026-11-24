@@ -52,6 +52,7 @@ function fixture(seed: MemberRecord[] = [], grantable: Record<string, string[]> 
       },
       listFor: async (membershipId) => grants.filter((grant) => grant.membershipId === membershipId),
     },
+    audit: { append: async () => undefined },
     unitOfWork: { run: (work) => work(context) },
   });
   return { useCases, members, grantsOf: () => grants };

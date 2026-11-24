@@ -1,4 +1,6 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
+import type { TransactionContext } from '#shared/application/index.js';
+import type { PrismaUnitOfWork } from '#shared/infrastructure/prisma-unit-of-work.js';
 import type { LeadNoteRepository } from '../application/ports.js';
 import type { LeadNoteRecord } from '../domain/lead-note.js';
 
@@ -11,7 +13,11 @@ const toRecord = ({ author, orgId: _orgId, authorId: _authorId, ...note }: NoteR
 });
 
 export class PrismaLeadNoteRepository implements LeadNoteRepository {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: PrismaClient, private readonly uow: PrismaUnitOfWork<Prisma.TransactionClient>) {}
+
+  private client(context: TransactionContext) {
+    return this.uow.clientFor<Prisma.TransactionClient>(context);
+  }
 
   async list(leadId: string) {
     const rows = await this.prisma.leadNote.findMany({ where: { leadId }, include, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] });
@@ -23,15 +29,15 @@ export class PrismaLeadNoteRepository implements LeadNoteRepository {
     return row && toRecord(row);
   }
 
-  async create(input: Parameters<LeadNoteRepository['create']>[0]) {
-    return toRecord(await this.prisma.leadNote.create({ data: input, include }));
+  async create(context: TransactionContext, input: Parameters<LeadNoteRepository['create']>[1]) {
+    return toRecord(await this.client(context).leadNote.create({ data: input, include }));
   }
 
-  async edit(id: string, changes: { body: string; editedAt: Date }) {
-    return toRecord(await this.prisma.leadNote.update({ where: { id }, data: changes, include }));
+  async edit(context: TransactionContext, id: string, changes: { body: string; editedAt: Date }) {
+    return toRecord(await this.client(context).leadNote.update({ where: { id }, data: changes, include }));
   }
 
-  async delete(id: string) {
-    await this.prisma.leadNote.delete({ where: { id } });
+  async delete(context: TransactionContext, id: string) {
+    await this.client(context).leadNote.delete({ where: { id } });
   }
 }

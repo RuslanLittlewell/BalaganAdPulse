@@ -5,6 +5,7 @@ import type {
   UnitOfWork,
 } from "#shared/application/index.js";
 import type { MemberChange, MemberRecord } from "../domain/member.js";
+import type { AuditWriter } from "#modules/audit/index.js";
 
 export type OrganizationStatus = "ACTIVE" | "SUSPENDED";
 
@@ -102,6 +103,7 @@ export interface MemberManagementDependencies {
   readonly directory: MemberDirectory;
   readonly access: AccessRepository;
   readonly avatars: MemberAvatarStorage;
+  readonly audit: AuditWriter;
   readonly unitOfWork: UnitOfWork;
 }
 

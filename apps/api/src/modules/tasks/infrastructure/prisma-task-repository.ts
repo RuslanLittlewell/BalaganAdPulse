@@ -215,6 +215,17 @@ export class PrismaTaskRepository implements TaskRepository {
     return toDomain(row, this.defaultTimeZone);
   }
 
+  async dependents(context: TransactionContext, id: string) {
+    const client = this.client(context);
+    const where = { taskId: id };
+    const [comments, images, documents] = await Promise.all([
+      client.taskComment.count({ where }),
+      client.taskImage.count({ where }),
+      client.taskDocument.count({ where }),
+    ]);
+    return { comments, files: images + documents };
+  }
+
   async delete(context: TransactionContext, id: string): Promise<void> {
     await this.client(context).task.delete({ where: { id } });
   }

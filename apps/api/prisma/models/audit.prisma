@@ -21,6 +21,7 @@ model AuditEvent {
   clientId   String?      @map("client_id")
   projectId  String?      @map("project_id")
   campaignId String?      @map("campaign_id")
+  leadId     String?      @map("lead_id")
   summary    String
   changes    Json?
   requestId  String?      @map("request_id")

@@ -5,6 +5,7 @@ import { getLocale } from "@/shared/config/locale.js";
 import {
   PRESENCE_ACTIONS,
   describeAuditEvent,
+  describeRemovedWith,
   useAuditEvents,
   type AuditAction,
   type AuditEvent,
@@ -91,6 +92,7 @@ function ChangeItem({ event, projectName }: { event: AuditEvent; projectName: st
   const name = described?.name ?? (event.entityType === "project" ? projectName : null);
   const context = projectName && name !== projectName ? projectName : null;
   const changes = Array.isArray(event.changes) ? event.changes : [];
+  const removedWith = describeRemovedWith(event);
 
   return (
     <li data-action={event.action} className="relative py-2 pl-4">
@@ -114,6 +116,7 @@ function ChangeItem({ event, projectName }: { event: AuditEvent; projectName: st
         <span>{event.actorName}</span>
         {context && <span>· {context}</span>}
       </div>
+      {removedWith && <p className="mt-1 text-xs text-muted-foreground">{removedWith}</p>}
       {changes.length > 0 && (
         <ul className="mt-2 space-y-1 rounded-md bg-muted/50 px-2 py-2 text-xs text-muted-foreground">
           {changes.map((change, index) => (

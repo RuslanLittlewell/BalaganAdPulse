@@ -56,6 +56,19 @@ export class PrismaProjectRepository implements ProjectRepository {
     return toDomain(await this.client(context).project.update({ where: { id }, data: input }));
   }
 
+  async dependents(context: TransactionContext, id: string) {
+    const client = this.client(context);
+    const where = { projectId: id };
+    const [campaigns, leads, tasks, reports, documents] = await Promise.all([
+      client.campaign.count({ where }),
+      client.lead.count({ where }),
+      client.task.count({ where }),
+      client.monthlyReport.count({ where }),
+      client.projectDocument.count({ where }),
+    ]);
+    return { campaigns, leads, tasks, reports, documents };
+  }
+
   async delete(context: TransactionContext, id: string): Promise<void> {
     await this.client(context).project.delete({ where: { id } });
   }

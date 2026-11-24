@@ -13,7 +13,7 @@ const task = (partial: Partial<TaskRecord> = {}): TaskRecord => ({
   id: "t1", projectId: "p1", leadId: null, lead: null, orgId: "org1", title: "Write the brief", description: null,
   column: "IDEA", priority: "MEDIUM", createdById: "m1",
   participantIds: [], visibleToClient: false, position: 0,
-  dueDate: null, dueTime: null, endTime: null, repeatEvery: "NONE", isCall: false, checklist: [], imageIds: [],
+  dueDate: null, dueTime: null, endTime: null, repeatEvery: "NONE", isCall: false, checklist: [], imageIds: [], documents: [],
   archivedAt: null, createdAt: new Date("2026-09-01T00:00:00.000Z"), updatedAt: new Date("2026-09-01T00:00:00.000Z"),
   ...partial,
 });
@@ -64,6 +64,7 @@ function fixture(options: {
         tasks.set(id, updated);
         return updated;
       },
+      dependents: async () => ({}),
       delete: async (_tx, id) => { tasks.delete(id); },
       untickChecklist: async () => undefined,
       doneSince: async () => [],
@@ -85,7 +86,7 @@ function fixture(options: {
       create: async (_tx, input) => ({ ...input, createdAt: new Date("2026-09-01T00:00:00.000Z") }),
       findById: async () => null,
       listForTask: async () => [],
-      claim: async (_tx, taskId, _uploaderId, imageIds) => { claimed.push({ taskId, imageIds: [...imageIds] }); },
+      claim: async (_tx, taskId, _uploaderId, imageIds) => { claimed.push({ taskId, imageIds: [...imageIds] }); return [...imageIds]; },
       deleteMany: async () => undefined,
     },
     documents: {

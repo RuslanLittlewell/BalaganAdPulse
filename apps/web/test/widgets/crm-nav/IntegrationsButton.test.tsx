@@ -68,7 +68,7 @@ function serve({ role = "ADMIN", boards = [BOARD], connection = null }: { role?:
     mock.post("/api/bitrix24/runs", async ({ request }) => {
       const body = await request.json();
       sent.push({ method: "POST", path: "runs", body });
-      return HttpResponse.json({ id: "run-1", direction: "UPLOAD", state: "RUNNING", created: 0, failed: 0, startedAt: "2026-11-20T10:00:00.000Z", finishedAt: null }, { status: 202 });
+      return HttpResponse.json({ id: "run-1", direction: "UPLOAD", state: "RUNNING", created: 0, linked: 0, failed: 0, startedAt: "2026-11-20T10:00:00.000Z", finishedAt: null }, { status: 202 });
     }),
   );
   return sent;
@@ -166,9 +166,8 @@ describe("the Bitrix24 tab", () => {
     renderWithProviders(<IntegrationsButton />);
     const dialog = await openBitrix();
 
-    const target = await within(dialog).findByLabelText("Целевой");
-    await waitFor(() => expect(within(target).getByRole("option", { name: "В работе" })).toBeInTheDocument());
-    await userEvent.selectOptions(target, "IN_PROCESS");
+    await userEvent.click(await within(dialog).findByRole("combobox", { name: "Целевой" }));
+    await userEvent.click(await screen.findByRole("option", { name: "В работе" }));
     await userEvent.click(within(dialog).getByRole("button", { name: "Сохранить сопоставление" }));
 
     await waitFor(() => expect(sent).toContainEqual({
@@ -184,7 +183,8 @@ describe("the Bitrix24 tab", () => {
     renderWithProviders(<IntegrationsButton />);
     const dialog = await openBitrix();
 
-    await userEvent.selectOptions(await within(dialog).findByLabelText("Проект для лидов из Битрикс24"), "project-1");
+    await userEvent.click(await within(dialog).findByRole("combobox", { name: "Проект для лидов из Битрикс24" }));
+    await userEvent.click(await screen.findByRole("option", { name: "Сайт · Ромашка" }));
 
     await waitFor(() => expect(sent).toContainEqual({ method: "PATCH", path: "connection", body: { inboundProjectId: "project-1" } }));
   });
@@ -205,18 +205,19 @@ describe("the Bitrix24 tab", () => {
     expect(sent).toContainEqual({ method: "DELETE", path: "connection" });
   });
 
-  it("warns about duplicates before moving existing records", async () => {
+  it("says matching records are linked, not duplicated, before moving existing records", async () => {
     const sent = serve({ connection: CONNECTED });
     renderWithProviders(<IntegrationsButton />);
     const dialog = await openBitrix();
 
     await userEvent.click(await within(dialog).findByRole("button", { name: "Выгрузить в Битрикс24" }));
     const confirmation = within(dialog).getByRole("group", { name: "Выгрузить в Битрикс24" });
-    expect(confirmation).toHaveTextContent("Дубликаты не ищутся");
+    expect(confirmation).toHaveTextContent("связывается по телефону, email или названию");
+    expect(confirmation).not.toHaveTextContent("Дубликаты не ищутся");
     await userEvent.click(within(confirmation).getByRole("button", { name: "Перенести" }));
 
     await waitFor(() => expect(sent).toContainEqual({ method: "POST", path: "runs", body: { direction: "UPLOAD" } }));
-    expect(await within(dialog).findByText("Перенос идёт. Создано: 0, ошибок: 0")).toBeInTheDocument();
+    expect(await within(dialog).findByText("Перенос идёт. Создано: 0, связано: 0, ошибок: 0")).toBeInTheDocument();
   });
 
   it("says the webhook was rejected when the connection needs a new address", async () => {

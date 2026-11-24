@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { t } from "@/shared/config/index.js";
 import { ApiError, formatDateTime } from "@/shared/lib/index.js";
-import { Button, CopyButton, Label, Loader, TextField } from "@/shared/ui/index.js";
+import { Button, CopyButton, Label, Loader, SearchableSelect, TextField } from "@/shared/ui/index.js";
 import { useLeadBoards } from "@/entities/lead/index.js";
 import {
   useBitrix24Changes,
@@ -14,7 +14,7 @@ import {
 
 type Asking = "off" | "replace" | "remove" | "UPLOAD" | "DOWNLOAD";
 
-const SELECT_CLASS = "h-8 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const NONE = "none";
 const PROBLEM_KINDS = ["LEAD", "PERSON", "COMPANY", "NOTE", "TASK", "COMMENT", "STATUS"] as const;
 const NO_AUTOFILL = {
   autoComplete: "off",
@@ -105,7 +105,7 @@ function problemText(problem: Bitrix24Problem): string {
 
 function runText(run: Bitrix24Run): string {
   const head = run.state === "RUNNING" ? t("bitrix.runs.running") : t("bitrix.runs.done");
-  return `${head} ${run.created}, ${t("bitrix.runs.failedCount")} ${run.failed}`;
+  return `${head} ${run.created}, ${t("bitrix.runs.linkedCount")} ${run.linked}, ${t("bitrix.runs.failedCount")} ${run.failed}`;
 }
 
 function StageMapping({ connected }: { connected: boolean }) {
@@ -137,16 +137,16 @@ function StageMapping({ connected }: { connected: boolean }) {
         return (
           <div key={stage.key} className="flex items-center gap-3">
             <Label htmlFor={id} className="w-2/5 min-w-0 truncate text-sm font-normal">{label}</Label>
-            <select
+            <SearchableSelect
               id={id}
-              className={SELECT_CLASS}
-              value={chosen[stage.key] ?? ""}
-              data-unmapped={(chosen[stage.key] ?? "") === "" ? "true" : undefined}
-              onChange={(event) => setChosen((current) => ({ ...current, [stage.key]: event.target.value }))}
-            >
-              <option value="">{t("bitrix.stages.none")}</option>
-              {(statuses.data ?? []).map((status) => <option key={status.id} value={status.id}>{status.name}</option>)}
-            </select>
+              className="min-w-0 flex-1"
+              value={chosen[stage.key] || NONE}
+              pinned={[{ value: NONE, label: t("bitrix.stages.none") }]}
+              options={(statuses.data ?? []).map((status) => ({ value: status.id, label: status.name }))}
+              searchLabel={t("select.search")}
+              emptyLabel={t("select.search.empty")}
+              onValueChange={(next) => setChosen((current) => ({ ...current, [stage.key]: next === NONE ? "" : next }))}
+            />
           </div>
         );
       })}
@@ -220,16 +220,16 @@ function Connected({ connection }: { connection: Bitrix24Connection }) {
       </Section>
 
       <Section title={t("bitrix.inbound")} hint={t("bitrix.inbound.hint")}>
-        <select
-          aria-label={t("bitrix.inbound")}
-          className={SELECT_CLASS}
-          value={connection.inboundProjectId ?? ""}
+        <SearchableSelect
+          ariaLabel={t("bitrix.inbound")}
+          value={connection.inboundProjectId ?? NONE}
           disabled={pending}
-          onChange={(event) => void act(() => changes.change.mutateAsync({ inboundProjectId: event.target.value || null }))}
-        >
-          <option value="">{t("bitrix.inbound.none")}</option>
-          {(boards ?? []).map((board) => <option key={board.key} value={board.key}>{`${board.label} · ${board.clientName}`}</option>)}
-        </select>
+          pinned={[{ value: NONE, label: t("bitrix.inbound.none") }]}
+          options={(boards ?? []).map((board) => ({ value: board.key, label: `${board.label} · ${board.clientName}` }))}
+          searchLabel={t("select.search")}
+          emptyLabel={t("select.search.empty")}
+          onValueChange={(next) => void act(() => changes.change.mutateAsync({ inboundProjectId: next === NONE ? null : next }))}
+        />
       </Section>
 
       <Section title={t("bitrix.problems")}>

@@ -178,15 +178,58 @@ Deleting a lead, contact, company, note or task on one side SHALL NOT delete its
 
 ### Requirement: Existing records move on request
 
-Connecting SHALL NOT move existing records. The administrator SHALL be able to run, once each and after a confirmation, an upload of every unlinked AdPulse lead, contact and company to Bitrix24 and a download of every unlinked Bitrix24 lead, contact and company into AdPulse. Each run SHALL show its progress and its count of created and failed records, and SHALL be refused while another run is going. A run SHALL NOT match records by their contents, so a record present on both sides is created a second time.
+Connecting SHALL NOT move existing records. The administrator SHALL be able to run, once each and after a confirmation, an upload of every unlinked AdPulse lead, contact and company to Bitrix24 and a download of every unlinked Bitrix24 lead, contact and company into AdPulse. Each run SHALL show its progress and its counts of created, linked and failed records, and SHALL be refused while another run is going. A run SHALL link a record that matches one on the other side under the matching requirement below, and create only the records that match nothing.
 
 #### Scenario: Uploading
 - **WHEN** an admin confirms the upload
 - **THEN** every unlinked lead, contact and company is created in Bitrix24 and linked, and the screen shows the counts
 
+#### Scenario: A record present on both sides
+- **WHEN** an admin confirms the download and a Bitrix24 contact has the phone of an unlinked AdPulse person of the same client
+- **THEN** the two are linked, no second person is created, and the screen counts the contact as linked
+
 #### Scenario: Two runs at once
 - **WHEN** an admin starts a download while an upload is running
 - **THEN** the request is refused and the running one continues
+
+### Requirement: A record that exists on both sides is linked, not created again
+
+Before the sync creates a record on either side, it SHALL look for an unlinked record on the other side that stands for the same thing, and SHALL link that record instead of creating one. This SHALL apply when an event or a download creates a record in AdPulse, when an upload or a live change creates a record in Bitrix24, and when a lead needs the contact or company it points to. Records SHALL match as follows, always inside one client, and for leads inside one project:
+
+- A contact matches a person when their phone numbers are equal after every character that is not a digit is removed, or when their email addresses are equal ignoring case.
+- A company matches when the names are equal ignoring case and surrounding spaces, or when the websites have the same host.
+- A lead matches when the names are equal ignoring case and surrounding spaces and the leads point to contacts that match under the contact rule. A name alone SHALL NOT match a lead.
+- Notes, tasks and comments SHALL NOT be matched.
+
+A record already linked to another record SHALL NOT be taken. When several records match, the sync SHALL link the oldest and leave the others alone. A match SHALL NOT change either record's contents at the moment of linking; the usual last-change-wins rule decides afterwards.
+
+#### Scenario: A person already in AdPulse
+- **WHEN** Bitrix24 reports a new contact whose phone, written as «+375 (29) 111-22-33», equals the phone «375291112233» of an unlinked person of the inbound project's client
+- **THEN** the person is linked to the contact and no second person is created
+
+#### Scenario: An email with different case
+- **WHEN** an unlinked AdPulse person has the email «Anna@Example.com» and Bitrix24 reports a contact with «anna@example.com»
+- **THEN** the two are linked
+
+#### Scenario: A company by name
+- **WHEN** the upload meets an unlinked company named «Лода » and the portal already has a company named «лода»
+- **THEN** the company is linked to the portal's company and nothing is created in Bitrix24
+
+#### Scenario: A lead needs the same contact
+- **WHEN** an unlinked lead «Анна» of the project has the same name as a Bitrix24 lead, and their contacts match by phone
+- **THEN** the two leads are linked
+
+#### Scenario: A name alone
+- **WHEN** a Bitrix24 lead has the same name as an unlinked lead of the project but no matching contact
+- **THEN** a second lead is created
+
+#### Scenario: Several matches
+- **WHEN** two unlinked people of the client have the phone of a Bitrix24 contact
+- **THEN** the older person is linked and the other is left unlinked
+
+#### Scenario: A record taken elsewhere
+- **WHEN** the only matching person is already linked to another Bitrix24 contact
+- **THEN** that person is not taken and a new person is created
 
 ### Requirement: An expired trial pauses syncing
 

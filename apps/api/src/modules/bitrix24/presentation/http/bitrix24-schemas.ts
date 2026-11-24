@@ -52,6 +52,7 @@ export const runViewSchema = z.object({
   direction: z.enum(["UPLOAD", "DOWNLOAD"]),
   state: z.enum(["RUNNING", "DONE", "FAILED"]),
   created: z.number().int(),
+  linked: z.number().int(),
   failed: z.number().int(),
   startedAt: z.string(),
   finishedAt: z.string().nullable(),

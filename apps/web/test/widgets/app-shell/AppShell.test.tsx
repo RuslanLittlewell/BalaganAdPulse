@@ -30,7 +30,7 @@ describe("AppShell", () => {
     expect(screen.getByRole("main")).toHaveTextContent("Main");
   });
 
-  it("lays the animated backdrop behind the app, out of the accessibility tree", () => {
+  it("lays the drawn backdrop behind the app, out of the accessibility tree", () => {
     const { container } = render(
       <NavCollapseProvider>
         <AppShell sidebar={<nav>Nav</nav>} header={<header>Header</header>} moduleKey="dashboard">Main</AppShell>
@@ -40,6 +40,7 @@ describe("AppShell", () => {
     const backdrop = container.querySelector("[data-testid='app-backdrop']");
     expect(backdrop).not.toBeNull();
     expect(backdrop).toHaveAttribute("aria-hidden", "true");
+    expect(backdrop!.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
   });
 });
 

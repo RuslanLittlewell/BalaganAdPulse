@@ -56,6 +56,7 @@ export type { MoveStep, TileMove } from "./MoveHandle/MoveHandle.js";
 export { ProviderLogo } from "./ProviderLogo/ProviderLogo.js";
 export type { IntegrationProvider } from "./ProviderLogo/ProviderLogo.js";
 export { Stepper, Step } from "./Stepper/index.js";
+export { AppBackdrop } from "./AppBackdrop/index.js";
 export { LightRays } from "./LightRays/index.js";
 export type { RaysOrigin } from "./LightRays/index.js";
 export { GradientWaves } from "./GradientWaves/index.js";

@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { useNavCollapse } from "@/features/nav-collapse/index.js";
 import { t } from "@/shared/config/index.js";
+import { AppBackdrop } from "@/shared/ui/index.js";
 
 const GLASS =
   "overflow-hidden rounded-3xl border border-border/60 shadow-sm backdrop-blur-3xl backdrop-saturate-150 dark:border-white/10 dark:shadow-none";
@@ -30,7 +31,9 @@ export function AppShell({
         aria-hidden="true"
         data-testid="app-backdrop"
         className="pointer-events-none absolute inset-0"
-      />
+      >
+        <AppBackdrop />
+      </div>
       {preview ? null : (
       <div className="relative z-20 order-last flex shrink-0 md:order-none md:min-h-0">
         <div

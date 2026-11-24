@@ -98,6 +98,8 @@
   --chart-4: oklch(0.491 0.27 292.581);
   --chart-5: oklch(0.432 0.232 292.759);
   --radius: 0.875rem;
+  --backdrop-glow: 0.14;
+  --backdrop-line: 0.1;
   --sidebar: #FFFFFF;
   --sidebar-foreground: #18332F;
   --sidebar-primary: #0F766E;
@@ -189,6 +191,8 @@
   --chart-3: #c9c1b1;
   --chart-4: #a35139;
   --chart-5: #4e6b87;
+  --backdrop-glow: 0.16;
+  --backdrop-line: 0.08;
   --sidebar: #1a2438;
   --sidebar-foreground: #eee9df;
   --sidebar-primary: #c4a074;

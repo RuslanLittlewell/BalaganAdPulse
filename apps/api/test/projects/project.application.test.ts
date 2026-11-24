@@ -45,6 +45,7 @@ function fixture(seed: ProjectRecord[] = [], reachableClients = ["c1"]) {
         projects.set(id, updated);
         return updated;
       },
+      dependents: async () => ({}),
       delete: async (_tx, id) => { projects.delete(id); },
     },
     clients: { isReachable: async (_actor, clientId) => reachableClients.includes(clientId) },

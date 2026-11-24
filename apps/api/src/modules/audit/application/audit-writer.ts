@@ -11,6 +11,7 @@ export interface AuditEventInput {
   readonly clientId?: string | null;
   readonly projectId?: string | null;
   readonly campaignId?: string | null;
+  readonly leadId?: string | null;
   readonly summary: string;
   readonly changes?: JsonValue;
   readonly occurredAt?: Date;

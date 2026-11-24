@@ -5,6 +5,7 @@ import { removeImage } from "../domain/description.js";
 import { assertUploadableImage } from "../domain/image.js";
 import { mayChange } from "./task-authority.js";
 import { taskUpdated } from "./task-events.js";
+import { recordTaskFileRemoval } from "./task-file-audit.js";
 import type { TaskDependencies, TaskImageRecord } from "./ports.js";
 
 const NOT_FOUND = "Image not found";
@@ -74,6 +75,11 @@ export function createTaskImageUseCases(dependencies: TaskDependencies) {
       const updated = await dependencies.unitOfWork.run(async (transaction) => {
         await dependencies.images.deleteMany(transaction, [id]);
         if (!task) return null;
+        await recordTaskFileRemoval(dependencies, transaction, actor, task, {
+          entityType: "task-image",
+          entityId: id,
+          summary: `Removed an image from task “${task.title}”`,
+        });
         const description = removeImage(task.description, id);
         if (description === task.description) return null;
         const changed = await dependencies.tasks.update(transaction, task.id, { description });

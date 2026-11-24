@@ -2,6 +2,7 @@ import { Router, type NextFunction, type Request, type Response } from "express"
 import { z } from "zod";
 import { AppError } from "#shared/domain/index.js";
 import type { AuditReader } from "#modules/audit/application/audit-use-cases.js";
+import { AUDIT_SECTIONS } from "#modules/audit/domain/audit-event.js";
 
 const optionalUuid = z.uuid().optional();
 
@@ -13,6 +14,7 @@ export const auditQuerySchema = z.object({
   entityId: z.string().min(1).optional(),
   actorId: optionalUuid,
   inProject: z.enum(["true", "false"]).transform((value) => value === "true").optional(),
+  section: z.enum(AUDIT_SECTIONS).optional(),
   from: z.iso.datetime({ offset: true }).optional(),
   to: z.iso.datetime({ offset: true }).optional(),
   cursor: optionalUuid,

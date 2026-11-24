@@ -125,6 +125,7 @@ describe("files on a lead", () => {
       { fileAdded: { id: added.body.id, name: "Договор.pdf" } },
       { fileRemoved: { id: added.body.id, name: "Договор.pdf" } },
     ]);
-    expect(events[1]).toMatchObject({ action: "UPDATE", clientId, projectId, actorId: admin.membership!.id });
+    expect(events[1]).toMatchObject({ action: "UPDATE", clientId, projectId, leadId, actorId: admin.membership!.id });
+    expect(events.map((event) => event.leadId)).toEqual([leadId, leadId, leadId]);
   });
 });

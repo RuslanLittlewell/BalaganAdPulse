@@ -1,6 +1,6 @@
 import { can, isCustomer } from "@adpulse/access-policy";
 import { AppError } from "#shared/domain/index.js";
-import type { ActorContext } from "#shared/application/index.js";
+import type { ActorContext, TransactionContext } from "#shared/application/index.js";
 import { MAX_COMMENT_LENGTH, uniqueIds } from "../domain/comment.js";
 import type { TaskCommentDependencies, TaskCommentRecord, TaskRecord } from "./ports.js";
 
@@ -23,6 +23,24 @@ export function createTaskCommentUseCases(dependencies: TaskCommentDependencies)
     const task = await dependencies.tasks.findReachable(actor, taskId);
     if (!task) throw new AppError("not-found", "Task not found");
     return task;
+  };
+
+  const record = async (
+    actor: ActorContext,
+    transaction: TransactionContext,
+    task: TaskRecord,
+    comment: { id: string },
+    action: "CREATE" | "UPDATE" | "DELETE",
+    summary: string,
+  ) => {
+    if (task.personal) return;
+    const context = task.projectId === null ? null : await dependencies.projects.contextFor(actor, task.projectId);
+    await dependencies.audit.append(transaction, {
+      action, entityType: "task-comment", entityId: comment.id,
+      clientId: context?.clientId ?? null, projectId: task.projectId, leadId: task.leadId,
+      summary: `${summary} “${task.title}”`,
+      changes: { taskId: task.id },
+    }, actor);
   };
 
   const textOf = (input: AddTaskCommentInput) => {
@@ -76,8 +94,12 @@ export function createTaskCommentUseCases(dependencies: TaskCommentDependencies)
       const mentionIds = uniqueIds(input.mentionIds ?? []);
       await assertMentionable(actor, task, mentionIds);
 
-      const comment = await dependencies.comments.create({
-        id: dependencies.ids.generate(), taskId, authorId: actor.membershipId, body, mentionIds,
+      const comment = await dependencies.unitOfWork.run(async (transaction) => {
+        const created = await dependencies.comments.create(transaction, {
+          id: dependencies.ids.generate(), taskId, authorId: actor.membershipId, body, mentionIds,
+        });
+        await record(actor, transaction, task, created, "CREATE", "Added a comment to task");
+        return created;
       });
       dependencies.notices.mentioned(task, mentionIds, actor);
       return comment;
@@ -94,20 +116,29 @@ export function createTaskCommentUseCases(dependencies: TaskCommentDependencies)
       const mentionIds = uniqueIds(input.mentionIds ?? []);
       await assertMentionable(actor, task, mentionIds);
 
-      const edited = await dependencies.comments.edit(commentId, { body, mentionIds, editedAt: dependencies.clock.now() });
+      const edited = await dependencies.unitOfWork.run(async (transaction) => {
+        const result = await dependencies.comments.edit(
+          transaction, commentId, { body, mentionIds, editedAt: dependencies.clock.now() },
+        );
+        await record(actor, transaction, task, result, "UPDATE", "Edited a comment on task");
+        return result;
+      });
       const tagged = new Set(comment.mentionIds);
       dependencies.notices.mentioned(task, mentionIds.filter((id) => !tagged.has(id)), actor);
       return edited;
     },
 
     remove: async (actor: ActorContext, taskId: string, commentId: string): Promise<void> => {
-      await reach(actor, taskId);
+      const task = await reach(actor, taskId);
       const comment = await dependencies.comments.find(taskId, commentId);
       if (!comment) throw new AppError("not-found", "Comment not found");
       if (comment.authorId !== actor.membershipId && actor.role !== "ADMIN") {
         throw new AppError("forbidden", "Only the author or an admin deletes a comment");
       }
-      await dependencies.comments.delete(commentId);
+      await dependencies.unitOfWork.run(async (transaction) => {
+        await dependencies.comments.delete(transaction, commentId);
+        await record(actor, transaction, task, comment, "DELETE", "Deleted a comment on task");
+      });
     },
   };
 }

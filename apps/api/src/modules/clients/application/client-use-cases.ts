@@ -1,6 +1,7 @@
 import { can } from "@adpulse/access-policy";
 import { AppError } from "#shared/domain/index.js";
 import type { ActorContext } from "#shared/application/index.js";
+import { removedWithChanges } from "#modules/audit/index.js";
 import type { ClientContact, ClientRecord, NewClient } from "../domain/client.js";
 import type { ClientDependencies } from "./ports.js";
 
@@ -75,10 +76,12 @@ export function createClientUseCases(dependencies: ClientDependencies) {
       const client = await reach(actor, id);
       assertCan(actor, "delete");
       await dependencies.unitOfWork.run(async (context) => {
+        const dependents = await dependencies.clients.dependents(context, id);
         await dependencies.clients.delete(context, id);
         await dependencies.audit.append(context, {
           action: "DELETE", entityType: "client", entityId: id, clientId: id,
           summary: entitySummary("DELETE", client.name),
+          ...removedWithChanges(dependents),
         }, actor);
       });
     },

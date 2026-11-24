@@ -13,12 +13,14 @@ let manager: SignedIn;
 let colleague: SignedIn;
 let customer: SignedIn;
 let projectId: string;
+let clientId: string;
 
 beforeEach(async () => {
   await resetDb();
   admin = await signInAs("Admin", { role: "ADMIN" });
   const seeded = await seedProject(admin.user.id, "Acme");
   projectId = seeded.projectId;
+  clientId = seeded.clientId;
   manager = await signInAs("Manager", { role: "MANAGER" });
   colleague = await signInAs("Colleague", { role: "MANAGER" });
   customer = await signInAs("Customer", { role: "CLIENT" });
@@ -349,5 +351,80 @@ describe("the people named on a task", () => {
     const taskId = await create();
 
     expect((await participants(customer, taskId)).status).toBe(404);
+  });
+});
+
+describe("the history of comments", () => {
+  const eventsOf = () => prisma.auditEvent.findMany({ where: { entityType: "task-comment" }, orderBy: { createdAt: "asc" } });
+  const history = (section: string) =>
+    request(app).get("/api/audit").query({ section }).set(admin.auth).then((res) => res.body.items as { entityType: string }[]);
+
+  it("holds one event for writing, one for editing and one for deleting, without the text", async () => {
+    const taskId = await create({ title: "Макет" });
+    const written = await comment(manager, taskId, { body: "Секретный текст" });
+    await request(app).patch(`/api/tasks/${taskId}/comments/${written.body.id}`).set(manager.auth).send({ body: "Другой секретный текст" });
+    await request(app).delete(`/api/tasks/${taskId}/comments/${written.body.id}`).set(manager.auth);
+
+    const events = await eventsOf();
+    expect(events.map((event) => [event.action, event.summary])).toEqual([
+      ["CREATE", "Added a comment to task “Макет”"],
+      ["UPDATE", "Edited a comment on task “Макет”"],
+      ["DELETE", "Deleted a comment on task “Макет”"],
+    ]);
+    expect(events.every((event) => event.entityId === written.body.id)).toBe(true);
+    expect(events.every((event) => event.projectId === projectId && event.leadId === null)).toBe(true);
+    expect(events.every((event) => event.actorId === idOf(manager))).toBe(true);
+    expect(events.every((event) => event.clientId === clientId)).toBe(true);
+    expect(JSON.stringify(events).toLowerCase()).not.toContain("секретный");
+    expect(events.map((event) => event.changes)).toEqual([{ taskId }, { taskId }, { taskId }]);
+  });
+
+  it("names the admin who deletes a manager's comment as the actor", async () => {
+    const taskId = await create();
+    const written = await comment(manager, taskId, { body: "Привет" });
+    await request(app).delete(`/api/tasks/${taskId}/comments/${written.body.id}`).set(admin.auth).expect(204);
+
+    const events = await eventsOf();
+    const created = events.find((event) => event.action === "CREATE")!;
+    const deleted = events.find((event) => event.action === "DELETE")!;
+    expect(created.actorId).toBe(idOf(manager));
+    expect(deleted.actorId).toBe(idOf(admin));
+  });
+
+  it("gets nothing from a refused edit or deletion", async () => {
+    const taskId = await create();
+    const written = await comment(manager, taskId, { body: "Привет" });
+
+    await request(app).patch(`/api/tasks/${taskId}/comments/${written.body.id}`).set(colleague.auth).send({ body: "Чужое" }).expect(403);
+    await request(app).delete(`/api/tasks/${taskId}/comments/${written.body.id}`).set(colleague.auth).expect(403);
+    await request(app).patch(`/api/tasks/${taskId}/comments/${written.body.id}`).set(manager.auth).send({ body: " " }).expect(400);
+
+    expect(await eventsOf()).toHaveLength(1);
+  });
+
+  it("is empty for a personal task", async () => {
+    const own = await request(app).post("/api/tasks").set(customer.auth)
+      .send({ title: "Личное", priority: "MEDIUM", dueDate: "2026-10-30" });
+    expect(own.body.personal).toBe(true);
+    const written = await comment(customer, own.body.id, { body: "Заметка" });
+    expect(written.status).toBe(201);
+    await request(app).patch(`/api/tasks/${own.body.id}/comments/${written.body.id}`).set(customer.auth).send({ body: "Иначе" }).expect(200);
+    await request(app).delete(`/api/tasks/${own.body.id}/comments/${written.body.id}`).set(customer.auth).expect(204);
+
+    expect(await eventsOf()).toEqual([]);
+  });
+
+  it("lands in Задачи for a plain task and in CRM for the task of a lead", async () => {
+    const plain = await create();
+    await comment(manager, plain, { body: "Первый" });
+    const leadId = (await request(app).post(`/api/crm/boards/${projectId}/leads`).set(admin.auth).send({ name: "Анна" })).body.id;
+    const ofLead = (await request(app).post("/api/tasks").set(admin.auth)
+      .send({ leadId, title: "Звонок", priority: "MEDIUM", dueDate: "2026-10-20", participantIds: [idOf(manager)] })).body.id as string;
+    await comment(manager, ofLead, { body: "Второй" });
+
+    const events = await eventsOf();
+    expect(events.map((event) => event.leadId)).toEqual([null, leadId]);
+    expect((await history("tasks")).filter((item) => item.entityType === "task-comment")).toHaveLength(1);
+    expect((await history("crm")).filter((item) => item.entityType === "task-comment")).toHaveLength(1);
   });
 });

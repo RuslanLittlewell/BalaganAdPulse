@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import type { AuditEvent, PrismaClient } from "@prisma/client";
 import type { ActorContext, TransactionContext } from "#shared/application/index.js";
 import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-work.js";
-import type { AuditScope, StoredAuditEvent } from "../domain/audit-event.js";
+import type { AuditScope, AuditSection, StoredAuditEvent } from "../domain/audit-event.js";
 import type {
   ActorSnapshots,
   AuditActor,
@@ -13,6 +13,17 @@ import type {
 
 const CLIENT_CRM_ENTITY_TYPES = ['crm-company', 'crm-person'];
 const BOARD_CRM_ENTITY_TYPES = ['lead', 'lead-column', 'lead-field'];
+
+const TASK_ENTITY_TYPES = ['task', 'task-comment', 'task-image', 'task-document'];
+const CRM_ENTITY_TYPES = ['lead', 'lead-column', 'lead-field', 'lead-note', 'crm-company', 'crm-person'];
+const PEOPLE_ENTITY_TYPES = ['member', 'invite'];
+
+function sectionToWhere(section: AuditSection | undefined): Prisma.AuditEventWhereInput {
+  if (section === 'tasks') return { entityType: { in: TASK_ENTITY_TYPES }, leadId: null };
+  if (section === 'crm') return { OR: [{ entityType: { in: CRM_ENTITY_TYPES } }, { leadId: { not: null }, entityType: { notIn: PEOPLE_ENTITY_TYPES } }] };
+  if (section === 'projects') return { entityType: { notIn: [...TASK_ENTITY_TYPES, ...CRM_ENTITY_TYPES, ...PEOPLE_ENTITY_TYPES] }, leadId: null };
+  return {};
+}
 
 function scopeToWhere(scope: AuditScope): Prisma.AuditEventWhereInput {
   if (scope.everything) return { orgId: scope.orgId };
@@ -59,7 +70,7 @@ export class PrismaAuditRepository implements AuditRepository<AuditEvent> {
       } : undefined,
     };
     const rows = await this.prisma.auditEvent.findMany({
-      where: { AND: [scopeToWhere(query.scope), filters] },
+      where: { AND: [scopeToWhere(query.scope), sectionToWhere(query.filters.section), filters] },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: query.limit + 1,
       ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),

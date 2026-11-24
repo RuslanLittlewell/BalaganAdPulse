@@ -56,7 +56,10 @@ export function wireTasks(
     doneArchiveWorker: createDoneArchiveWorker({ archive: () => taskUseCases.archiveDone(clock.now()) }),
     taskRouter: createTaskRouter(taskUseCases, createTaskCommentUseCases({
       tasks: dependencies.tasks,
-      comments: new PrismaTaskCommentRepository(prisma),
+      comments: new PrismaTaskCommentRepository(prisma, unitOfWork),
+      projects,
+      audit,
+      unitOfWork,
       members: dependencies.members,
       notices: taskNotices,
       ids,

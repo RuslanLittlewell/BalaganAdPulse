@@ -1,4 +1,5 @@
 import type { ActorContext, TransactionContext } from '#shared/application/index.js';
+import type { DependentCounts } from '#modules/audit/index.js';
 import type { StoredLeadFile, LeadFileRecord } from '../domain/lead-file.js';
 import type { LeadNoteRecord } from '../domain/lead-note.js';
 import type { LeadHistoryEvent } from '../domain/lead-activity.js';
@@ -16,8 +17,9 @@ export interface LeadRepository {
   assigneeReachesBoard(actor: ActorContext, membershipId: string, board: string): Promise<boolean>;
   create(context: TransactionContext, input: LeadFields & {id: string; orgId: string; projectId: string; stage: string; position: number}): Promise<LeadRecord>;
   update(context: TransactionContext, id: string, input: Partial<LeadFields> & {stage?: string; position?: number}): Promise<LeadRecord>;
+  dependents(context: TransactionContext, id: string): Promise<DependentCounts>;
   delete(context: TransactionContext, id: string): Promise<string[]>;
-  leadOnBoard(actor: ActorContext, board: string, id: string): Promise<{id: string; projectId: string; clientId: string} | null>;
+  leadOnBoard(actor: ActorContext, board: string, id: string): Promise<{id: string; name: string; projectId: string; clientId: string} | null>;
   history(orgId: string, leadId: string): Promise<{events: LeadHistoryEvent[]; importedAt: Date | null}>;
   campaignNames(ids: readonly string[]): Promise<Map<string, string>>;
   columns(actor: ActorContext, board: string, context?: TransactionContext): Promise<LeadColumnRecord[]>;
@@ -66,9 +68,9 @@ export interface LeadFileStorage {
 export interface LeadNoteRepository {
   list(leadId: string): Promise<LeadNoteRecord[]>;
   find(leadId: string, id: string): Promise<LeadNoteRecord | null>;
-  create(input: {id: string; orgId: string; leadId: string; authorId: string; body: string}): Promise<LeadNoteRecord>;
-  edit(id: string, changes: {body: string; editedAt: Date}): Promise<LeadNoteRecord>;
-  delete(id: string): Promise<void>;
+  create(context: TransactionContext, input: {id: string; orgId: string; leadId: string; authorId: string; body: string}): Promise<LeadNoteRecord>;
+  edit(context: TransactionContext, id: string, changes: {body: string; editedAt: Date}): Promise<LeadNoteRecord>;
+  delete(context: TransactionContext, id: string): Promise<void>;
 }
 export type LeadEventResource = 'leads' | 'notes' | 'columns' | 'fields' | 'activity' | 'files' | 'records' | 'counts';
 export interface LeadEvent { kind: 'crm.changed'; orgId: string; board: string; resources?: readonly LeadEventResource[]; leadId?: string }

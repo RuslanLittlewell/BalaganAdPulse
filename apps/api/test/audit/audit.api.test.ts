@@ -23,6 +23,7 @@ async function event(input: {
   clientId?: string;
   projectId?: string;
   campaignId?: string;
+  leadId?: string;
   actorId?: string;
   createdAt: string;
 }) {
@@ -43,6 +44,7 @@ async function event(input: {
       clientId: input.clientId,
       projectId: input.projectId,
       campaignId: input.campaignId,
+      leadId: input.leadId,
       summary: `${input.action ?? "UPDATE"} ${input.entityType}`,
       createdAt: new Date(input.createdAt),
     },
@@ -100,6 +102,39 @@ describe("GET /api/audit", () => {
     const response = await request(app).get("/api/audit").query({ [key]: value() }).set(admin.auth);
     expect(response.status).toBe(200);
     expect(response.body.items).toHaveLength(count);
+  });
+
+  it("splits events into projects, tasks and CRM, keeping client deletions with projects", async () => {
+    const lead = "00000000-0000-4000-8000-000000000001";
+    await event({ entityType: "task", entityId: "t1", clientId: clientA.id, projectId: projectA.id, action: "DELETE", createdAt: "2026-08-06T10:00:00Z" });
+    await event({ entityType: "lead", entityId: lead, leadId: lead, clientId: clientA.id, projectId: projectA.id, action: "DELETE", createdAt: "2026-08-07T10:00:00Z" });
+    await event({ entityType: "crm-company", entityId: "k1", clientId: clientA.id, action: "DELETE", createdAt: "2026-08-08T10:00:00Z" });
+    await event({ entityType: "member", entityId: "m1", createdAt: "2026-08-09T10:00:00Z" });
+    await event({ entityType: "task", entityId: "t2", leadId: lead, clientId: clientA.id, projectId: projectA.id, createdAt: "2026-08-10T10:00:00Z" });
+    await event({ entityType: "lead-note", entityId: "n1", leadId: lead, clientId: clientA.id, projectId: projectA.id, createdAt: "2026-08-11T10:00:00Z" });
+    await event({ entityType: "task-comment", entityId: "c1", leadId: lead, clientId: clientA.id, projectId: projectA.id, createdAt: "2026-08-12T10:00:00Z" });
+    await event({ entityType: "task-comment", entityId: "c2", clientId: clientA.id, projectId: projectA.id, createdAt: "2026-08-13T10:00:00Z" });
+    await event({ entityType: "task-document", entityId: "d1", clientId: clientA.id, projectId: projectA.id, createdAt: "2026-08-14T10:00:00Z" });
+    await event({ entityType: "invite", entityId: "i1", action: "DELETE", createdAt: "2026-08-15T10:00:00Z" });
+    await event({ entityType: "member", entityId: "m2", action: "ONLINE", createdAt: "2026-08-16T10:00:00Z" });
+    await event({ entityType: "campaign", entityId: "cl1", leadId: lead, clientId: clientA.id, projectId: projectA.id, campaignId: campaignA.id, createdAt: "2026-08-17T10:00:00Z" });
+    await event({ entityType: "invite", entityId: "i2", leadId: lead, createdAt: "2026-08-18T10:00:00Z" });
+    const entities = async (section?: string) => (await request(app).get("/api/audit").query(section ? { section } : {}).set(admin.auth))
+      .body.items.map((item: { entityId: string }) => item.entityId);
+
+    expect(await entities("tasks")).toEqual(["d1", "c2", "t1"]);
+    expect(await entities("crm")).toEqual(["cl1", "c1", "n1", "t2", "k1", lead]);
+    expect(await entities("projects")).toEqual(
+      [campaignB.id, projectB.id, campaignA.id, projectA.id, clientA.id],
+    );
+    const everything = await entities();
+    expect(everything).toEqual(expect.arrayContaining(["m1", "m2", "i1", "i2"]));
+  });
+
+  it("answers 400 to a section it does not know", async () => {
+    const response = await request(app).get("/api/audit").query({ section: "people" }).set(admin.auth);
+
+    expect(response.status).toBe(400);
   });
 
   it("filters by an inclusive date range", async () => {

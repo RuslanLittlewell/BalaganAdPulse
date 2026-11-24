@@ -34,6 +34,22 @@ describe("a task of a lead", () => {
     });
   });
 
+  it("records its events against the lead, so the history lists them under CRM", async () => {
+    const created = await create({ leadId });
+    await request(app).patch(`/api/tasks/${created.body.id}`).set(admin.auth).send({ title: "Позвонить снова" }).expect(200);
+    await request(app).delete(`/api/tasks/${created.body.id}`).set(admin.auth).expect(204);
+    const plain = await create({ projectId });
+
+    const events = await prisma.auditEvent.findMany({ where: { entityType: "task" } });
+    expect(events.filter((event) => event.entityId === created.body.id).map((event) => event.leadId)).toEqual([leadId, leadId, leadId]);
+    expect(events.find((event) => event.entityId === plain.body.id)?.leadId).toBeNull();
+    const crm = await request(app).get("/api/audit").query({ section: "crm", entityType: "task" }).set(admin.auth);
+    const tasks = await request(app).get("/api/audit").query({ section: "tasks" }).set(admin.auth);
+    expect(crm.body.items).toHaveLength(3);
+    expect(crm.body.items.every((item: { leadId: string }) => item.leadId === leadId)).toBe(true);
+    expect(tasks.body.items.map((item: { entityId: string }) => item.entityId)).toEqual([plain.body.id]);
+  });
+
   it("refuses a project other than the lead's", async () => {
     const other = await seedProject(admin.user.id, "Другой");
     const res = await create({ leadId, projectId: other.projectId });

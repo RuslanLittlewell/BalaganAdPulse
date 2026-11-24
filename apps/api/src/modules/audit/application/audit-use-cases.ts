@@ -26,6 +26,7 @@ export function createAuditWriter(dependencies: AuditDependencies): AuditWriter 
         clientId: event.clientId ?? null,
         projectId: event.projectId ?? null,
         campaignId: event.campaignId ?? null,
+        leadId: event.leadId ?? null,
         summary: event.summary,
         changes: event.changes ?? null,
         requestId: request?.requestId ?? null,

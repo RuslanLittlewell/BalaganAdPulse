@@ -85,4 +85,67 @@ describe("notes on a lead", () => {
     await request(app).delete(`/api/crm/boards/${projectId}/leads/${leadId}`).set(admin.auth);
     expect(await prisma.leadNote.count()).toBe(0);
   });
+
+  describe("in the history", () => {
+    const noteEvents = () => prisma.auditEvent.findMany({ where: { entityType: "lead-note" }, orderBy: { createdAt: "asc" } });
+
+    it("writes one event for writing, editing and deleting, without the text", async () => {
+      const note = await write("Секретный текст");
+      await request(app).patch(`${notes()}/${note.body.id}`).set(admin.auth).send({ body: "Другой секретный текст" });
+      await request(app).delete(`${notes()}/${note.body.id}`).set(admin.auth);
+
+      const events = await noteEvents();
+      expect(events.map((event) => [event.action, event.summary])).toEqual([
+        ["CREATE", "Added a note to lead “Леонид”"],
+        ["UPDATE", "Edited a note on lead “Леонид”"],
+        ["DELETE", "Deleted a note on lead “Леонид”"],
+      ]);
+      for (const event of events) {
+        expect(event).toMatchObject({ entityId: note.body.id, leadId, projectId, clientId, changes: null });
+        expect(JSON.stringify(event)).not.toContain("секретный");
+      }
+    });
+
+    it("names an admin who deletes a manager's note as the actor", async () => {
+      const note = await write("Моя", manager.auth);
+      await request(app).delete(`${notes()}/${note.body.id}`).set(admin.auth);
+
+      const deleted = (await noteEvents()).find((event) => event.action === "DELETE");
+      expect(deleted!.actorId).toBe(admin.membership!.id);
+    });
+
+    it("lists the events under CRM and never under projects or tasks", async () => {
+      await write("Заметка");
+
+      const section = async (name: string) =>
+        (await request(app).get("/api/audit").query({ section: name, entityType: "lead-note" }).set(admin.auth)).body.items;
+      expect(await section("crm")).toHaveLength(1);
+      expect(await section("projects")).toHaveLength(0);
+      expect(await section("tasks")).toHaveLength(0);
+    });
+
+    it("writes none for a refused edit, deletion or write", async () => {
+      const note = await write("Чужая", admin.auth);
+      const before = await noteEvents();
+
+      await request(app).patch(`${notes()}/${note.body.id}`).set(manager.auth).send({ body: "Взлом" });
+      await request(app).delete(`${notes()}/${note.body.id}`).set(manager.auth);
+      await write("   ");
+      const guest = await signInAs("Guest", { role: "GUEST" });
+      await grantAccess(guest.membership!.id, clientId);
+      await write("Гость", guest.auth);
+
+      expect(await noteEvents()).toHaveLength(before.length);
+    });
+
+    it("stays out of the lead panel's own history", async () => {
+      await write("Заметка");
+
+      const res = await request(app).get(`/api/crm/boards/${projectId}/leads/${leadId}/activity`).set(admin.auth);
+
+      expect(res.status).toBe(200);
+      expect(JSON.stringify(res.body)).not.toContain("note");
+      expect(res.body.map((entry: { kind: string }) => entry.kind)).toEqual(["created"]);
+    });
+  });
 });

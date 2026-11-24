@@ -133,9 +133,16 @@ export function createMemberUseCases(
         throw new AppError("not-found", "Member not found");
       }
       await assertNotTheLastAdmin(member, { status: "SUSPENDED" });
-      await dependencies.unitOfWork.run((context) =>
-        dependencies.directory.remove(context, id),
-      );
+      await dependencies.unitOfWork.run(async (context) => {
+        await dependencies.directory.remove(context, id);
+        await dependencies.audit.append(context, {
+          action: "DELETE",
+          entityType: "member",
+          entityId: id,
+          summary: `Removed ${member.name} from the organization`,
+          changes: { before: { name: member.name, role: member.role } },
+        }, actor);
+      });
     },
 
     accessOf: async (actor: ActorContext, id: string) => {

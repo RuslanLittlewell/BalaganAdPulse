@@ -80,6 +80,12 @@ export class PrismaLeadRepository implements LeadRepository {
   async update(context: TransactionContext, id: string, {stage, ...input}: Parameters<LeadRepository['update']>[2]) {
     return toLeadRecord(await this.uow.clientFor<Prisma.TransactionClient>(context).lead.update({where:{id},data:{...input,...(stage === undefined ? {} : placementOf(stage))},include:leadInclude}));
   }
+  async dependents(context: TransactionContext, id: string) {
+    const tx = this.uow.clientFor<Prisma.TransactionClient>(context);
+    const where = {leadId:id};
+    const [tasks, notes, files] = await Promise.all([tx.task.count({where}), tx.leadNote.count({where}), tx.leadFile.count({where})]);
+    return {tasks, notes, files};
+  }
   async delete(context: TransactionContext, id: string) {
     const tx = this.uow.clientFor<Prisma.TransactionClient>(context);
     const files = await tx.leadFile.findMany({where:{leadId:id}, select:{storageKey:true}});
@@ -105,8 +111,8 @@ export class PrismaLeadRepository implements LeadRepository {
     return new Map(campaigns.map(campaign => [campaign.id, campaign.name]));
   }
   async leadOnBoard(actor: ActorContext, board: string, id: string) {
-    const lead = await this.prisma.lead.findFirst({where:{id, ...visibleLeads(actor), projectId:board}, select:{id:true, projectId:true, project:{select:{clientId:true}}}});
-    return lead && {id:lead.id, projectId:lead.projectId, clientId:lead.project.clientId};
+    const lead = await this.prisma.lead.findFirst({where:{id, ...visibleLeads(actor), projectId:board}, select:{id:true, name:true, projectId:true, project:{select:{clientId:true}}}});
+    return lead && {id:lead.id, name:lead.name, projectId:lead.projectId, clientId:lead.project.clientId};
   }
   async columns(actor: ActorContext, board: string, context?: TransactionContext) {
     const rows = await (context ? this.uow.clientFor<Prisma.TransactionClient>(context) : this.prisma).leadColumn.findMany({where:{orgId:actor.orgId, projectId:board},include:columnInclude,orderBy:[{afterStage:{sort:'asc',nulls:'first'}},{position:'asc'},{id:'asc'}]});

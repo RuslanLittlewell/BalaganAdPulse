@@ -53,7 +53,7 @@ export function createLeadFileUseCases(d: {
             id, orgId: actor.orgId, leadId, name, contentType, bytes: upload.bytes.length, storageKey, uploaderId: actor.membershipId,
           });
           await d.audit.append(context, {
-            action: 'UPDATE', entityType: 'lead', entityId: leadId, clientId: lead.clientId, projectId: lead.projectId,
+            action: 'UPDATE', entityType: 'lead', entityId: leadId, clientId: lead.clientId, projectId: lead.projectId, leadId,
             summary: 'UPDATE lead', changes: { fileAdded: { id, name } },
           }, actor);
           return created;
@@ -80,7 +80,7 @@ export function createLeadFileUseCases(d: {
       await d.unitOfWork.run(async (context) => {
         await d.files.delete(context, fileId);
         await d.audit.append(context, {
-          action: 'UPDATE', entityType: 'lead', entityId: leadId, clientId: lead.clientId, projectId: lead.projectId,
+          action: 'UPDATE', entityType: 'lead', entityId: leadId, clientId: lead.clientId, projectId: lead.projectId, leadId,
           summary: 'UPDATE lead', changes: { fileRemoved: { id: file.id, name: file.name } },
         }, actor);
       });

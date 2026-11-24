@@ -4,6 +4,10 @@ export const AUDIT_ACTIONS = ["CREATE", "UPDATE", "DELETE", "ONLINE", "OFFLINE"]
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
+export const AUDIT_SECTIONS = ["projects", "tasks", "crm"] as const;
+
+export type AuditSection = (typeof AUDIT_SECTIONS)[number];
+
 export type JsonValue =
   | string
   | number
@@ -24,6 +28,7 @@ export interface StoredAuditEvent {
   readonly clientId: string | null;
   readonly projectId: string | null;
   readonly campaignId: string | null;
+  readonly leadId: string | null;
   readonly summary: string;
   readonly changes: JsonValue | null;
   readonly requestId: string | null;

@@ -1,7 +1,7 @@
 import { can } from '@adpulse/access-policy';
 import { AppError } from '#shared/domain/index.js';
 import type { ActorContext, IdGenerator, UnitOfWork, TransactionContext } from '#shared/application/index.js';
-import type { AuditWriter } from '#modules/audit/index.js';
+import { removedWith, type AuditWriter } from '#modules/audit/index.js';
 import { arrivalWindow, boardColumns, customColumnOf, CUSTOM_COLUMN_LIMIT, DEFAULT_COLUMN_COLOR, isLeadStage, LEAD_STAGE_NAMES, LEAD_STAGES, type BoardColumn, type LeadColumnRecord, type LeadFields, type LeadRecord, type LeadStage } from '../domain/lead.js';
 import { buildActivity, campaignIdsIn } from '../domain/lead-activity.js';
 import { applyCustomValues, type OptionColor } from '../domain/lead-field.js';
@@ -119,7 +119,7 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
   async function audit(context:TransactionContext,actor:ActorContext,row:LeadRecord,action:'CREATE'|'UPDATE'|'DELETE',changes:unknown) {
     const withoutSource=(value:unknown)=>value&&typeof value==='object'&&'metaSource' in value?{...value,metaSource:undefined,webSource:undefined,ad:undefined}:value;
     const trimmed=Object.fromEntries(Object.entries(changes as Record<string,unknown>).map(([key,value])=>[key,withoutSource(value)]));
-    await d.audit.append(context,{action,entityType:'lead',entityId:row.id,clientId:row.project.clientId,projectId:row.projectId,summary:`${action} lead`,changes:JSON.parse(JSON.stringify(trimmed))},actor);
+    await d.audit.append(context,{action,entityType:'lead',entityId:row.id,clientId:row.project.clientId,projectId:row.projectId,leadId:row.id,summary:`${action} lead`,changes:JSON.parse(JSON.stringify(trimmed))},actor);
   }
   async function auditColumn(context:TransactionContext,actor:ActorContext,column:LeadColumnRecord,action:'CREATE'|'UPDATE'|'DELETE',changes:unknown) {
     await d.audit.append(context,{action,entityType:'lead-column',entityId:column.id,clientId:column.clientId,projectId:column.projectId,summary:`${action} lead column`,changes:JSON.parse(JSON.stringify(changes))},actor);
@@ -187,7 +187,7 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
       return updated;
     },
     async delete(actor:ActorContext,board:string,id:string) {
-      const storageKeys=await mutation(actor,board,'delete',async(context,rows)=>{const row=find(rows,id); const keys=await d.leads.delete(context,id); await ordered(context,rows.filter(l=>l.stage===row.stage&&l.id!==id)); await audit(context,actor,row,'DELETE',{before:row}); return keys;});
+      const storageKeys=await mutation(actor,board,'delete',async(context,rows)=>{const row=find(rows,id); const dependents=await d.leads.dependents(context,id); const keys=await d.leads.delete(context,id); await ordered(context,rows.filter(l=>l.stage===row.stage&&l.id!==id)); await audit(context,actor,row,'DELETE',{before:row,...removedWith(dependents)}); return keys;});
       if (storageKeys.length>0) await d.storage.remove(storageKeys);
     },
     move(actor:ActorContext,board:string,id:string,input:{stage:string;position:number}) {

@@ -4,6 +4,7 @@ import type { ActorContext } from "#shared/application/index.js";
 import { assertUploadableDocument, safeDocumentName, TASK_DOCUMENT_TYPE } from "../domain/document.js";
 import { mayChange } from "./task-authority.js";
 import { taskUpdated } from "./task-events.js";
+import { recordTaskFileRemoval } from "./task-file-audit.js";
 import type { TaskDependencies, TaskDocumentRecord } from "./ports.js";
 
 const NOT_FOUND = "Document not found";
@@ -70,7 +71,16 @@ export function createTaskDocumentUseCases(dependencies: TaskDependencies) {
       if (document.taskId !== null && !task) throw new AppError("not-found", NOT_FOUND);
       if (task && !mayChange(actor, task, "update")) throw new AppError("not-found", NOT_FOUND);
 
-      await dependencies.unitOfWork.run((transaction) => dependencies.documents.deleteMany(transaction, [id]));
+      await dependencies.unitOfWork.run(async (transaction) => {
+        await dependencies.documents.deleteMany(transaction, [id]);
+        if (!task) return;
+        await recordTaskFileRemoval(dependencies, transaction, actor, task, {
+          entityType: "task-document",
+          entityId: id,
+          summary: `Removed document “${document.name}” from task “${task.title}”`,
+          name: document.name,
+        });
+      });
       await dependencies.imageStorage.remove([document.storageKey]);
       if (task) {
         const documents = (await dependencies.documents.listForTask(task.id))

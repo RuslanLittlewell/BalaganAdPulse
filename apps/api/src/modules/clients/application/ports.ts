@@ -5,7 +5,7 @@ import type {
   TransactionContext,
   UnitOfWork,
 } from "#shared/application/index.js";
-import type { AuditWriter } from "#modules/audit/index.js";
+import type { AuditWriter, DependentCounts } from "#modules/audit/index.js";
 import type { ClientContact, ClientRecord, NewClient } from "../domain/client.js";
 
 export interface ClientRepository {
@@ -17,6 +17,7 @@ export interface ClientRepository {
   listReachable(actor: ActorContext): Promise<ClientRecord[]>;
   findReachable(actor: ActorContext, id: string): Promise<ClientRecord | null>;
   update(context: TransactionContext, id: string, input: ClientContact): Promise<ClientRecord>;
+  dependents(context: TransactionContext, id: string): Promise<DependentCounts>;
   delete(context: TransactionContext, id: string): Promise<void>;
   reachableIds(actor: ActorContext): Promise<string[]>;
 }

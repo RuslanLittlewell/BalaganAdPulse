@@ -64,6 +64,7 @@ export function wireMembersAndPresence(
     directory: memberDirectory,
     access: new PrismaAccessRepository(prisma, unitOfWork),
     avatars: new S3MemberAvatarStorage(),
+    audit,
     unitOfWork,
   });
   const presence = createPresenceRegistry();

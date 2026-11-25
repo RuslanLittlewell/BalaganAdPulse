@@ -101,7 +101,7 @@ export interface LeadBoard {
   capabilities: BoardCapabilities;
 }
 
-export type LeadOrigin = "MANUAL" | "META" | "WEBSITE";
+export type LeadOrigin = "MANUAL" | "META" | "WEBSITE" | "IMPORT";
 
 export interface LeadAnswer {
   question: string;

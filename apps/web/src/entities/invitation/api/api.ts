@@ -37,7 +37,7 @@ export type CreateInvitationInput =
       projectIds: string[];
     } & CommonInvitationInput)
   | ({ registrationType: "CLIENT_STAFF"; clientId: string } & CommonInvitationInput)
-  | ({ registrationType: "PARTNER"; campaignId: string } & CommonInvitationInput);
+  | ({ registrationType: "PARTNER"; campaignIds: string[] } & CommonInvitationInput);
 
 export const invitationsApi = {
   list: (registrationType?: RegistrationType) =>

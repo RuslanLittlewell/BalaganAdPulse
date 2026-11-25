@@ -16,7 +16,7 @@ const member = z.object({
   role: z.enum(ROLES),
   status: z.enum(["ACTIVE", "SUSPENDED"]),
   createdAt: z.iso.datetime(),
-  campaign: z.object({ id: z.uuid(), name: z.string(), projectId: z.uuid() }).nullable(),
+  campaigns: z.array(z.object({ id: z.uuid(), name: z.string(), projectId: z.uuid() })).describe("A partner's campaigns; empty for every other role"),
 });
 
 const accessGrant = z.object({
@@ -42,7 +42,7 @@ const session = z.object({
   }).nullable(),
   role: z.enum(ROLES).nullable(),
   membershipId: z.uuid().nullable(),
-  partner: z.object({ campaignId: z.uuid(), projectId: z.uuid() }).nullable(),
+  partner: z.object({ campaignIds: z.array(z.uuid()), projectId: z.uuid() }).nullable(),
   clientIds: z.array(z.uuid()),
   modules: z.array(z.enum(MODULES)),
   tariff: z.object({

@@ -99,7 +99,7 @@ function PanelBody({ boardKey, lead, capabilities, tab, onTab, onClose, onPrevie
             onPreview={lead.ad && onPreviewCreative ? () => onPreviewCreative(lead.ad!) : undefined}
           />
         ) : lead.webSource ? (
-          <WebsiteSourceSection source={lead.webSource} />
+          <WebsiteSourceSection source={lead.webSource} imported={lead.origin === "IMPORT"} />
         ) : null}
       </div>
     </SidePanel>

@@ -3,7 +3,8 @@ import { t } from "@/shared/config/index.js";
 import { formatDateTime } from "@/shared/lib/index.js";
 import { formatMetaFieldLabel } from "./LeadSourceSection.js";
 
-export function WebsiteSourceSection({ source }: { source: LeadWebSource }) {
+export function WebsiteSourceSection({ source, imported = false }: { source: LeadWebSource; imported?: boolean }) {
+  const title = imported ? t("crm.import.title") : t("crm.web.title");
   const facts = [
     { key: "utmSource", label: t("crm.web.utmSource"), value: source.utmSource },
     { key: "utmMedium", label: t("crm.web.utmMedium"), value: source.utmMedium },
@@ -16,8 +17,8 @@ export function WebsiteSourceSection({ source }: { source: LeadWebSource }) {
   ].filter((fact): fact is { key: string; label: string; value: string } => Boolean(fact.value));
 
   return (
-    <section aria-label={t("crm.web.title")} className="shrink-0 rounded-lg border border-border bg-muted/30 p-3">
-      <h3 className="text-sm font-semibold">{t("crm.web.title")}</h3>
+    <section aria-label={title} className="shrink-0 rounded-lg border border-border bg-muted/30 p-3">
+      <h3 className="text-sm font-semibold">{title}</h3>
       <dl className="mt-2 grid gap-x-5 gap-y-2 text-xs sm:grid-cols-2">
         {facts.map((fact) => (
           <div key={fact.key} className="min-w-0">

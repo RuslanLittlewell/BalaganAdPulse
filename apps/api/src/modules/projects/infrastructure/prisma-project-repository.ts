@@ -70,6 +70,9 @@ export class PrismaProjectRepository implements ProjectRepository {
   }
 
   async delete(context: TransactionContext, id: string): Promise<void> {
-    await this.client(context).project.delete({ where: { id } });
+    const client = this.client(context);
+    await client.membership.deleteMany({ where: { role: "PARTNER", partnerCampaigns: { some: { campaign: { projectId: id } } } } });
+    await client.invite.deleteMany({ where: { registrationType: "PARTNER", campaigns: { some: { campaign: { projectId: id } } } } });
+    await client.project.delete({ where: { id } });
   }
 }

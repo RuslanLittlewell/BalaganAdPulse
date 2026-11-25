@@ -43,6 +43,7 @@ import { notificationDoc } from "#modules/notifications/index.js";
 import { telegramDoc } from "#modules/telegram-bot/index.js";
 import { seoAuditDoc, seoConnectionDoc, seoReadDoc } from "#modules/seo/index.js";
 import { websiteIntakeDoc, websiteKeyDoc } from "#modules/leads/presentation/http/website-intake-openapi.js";
+import { leadImportDoc } from "#modules/leads/presentation/http/lead-import-openapi.js";
 import { shareLinkDoc } from "#modules/share-links/index.js";
 import { createHash } from "node:crypto";
 import { config } from "#shared/infrastructure/config.js";
@@ -124,6 +125,7 @@ export function apiDocument(): OpenApiDocument {
     { mount: mountPath("ad-creatives"), ...adCreativeDoc },
     { mount: mountPath("summary"), ...summaryDoc },
     { mount: mountPath("tasks"), ...taskDoc },
+    { mount: mountPath("lead-imports"), ...leadImportDoc },
     { mount: mountPath("leads"), ...leadDoc },
     { mount: mountPath("task-images"), ...taskImageDoc },
     { mount: mountPath("task-documents"), ...taskDocumentDoc },

@@ -94,6 +94,7 @@ const campaignReference = z.object({
   name: z.string(),
   channel: z.enum(CHANNELS),
   status: z.enum(DELIVERY_STATUSES),
+  accountId: z.string().nullable().describe("The advertising account the campaign was imported from; null for a campaign added by hand"),
 });
 
 const currencyPerformance = z.object({ currency: z.string().nullable(), performance });

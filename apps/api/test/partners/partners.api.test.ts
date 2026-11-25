@@ -32,7 +32,7 @@ async function principal(client: string = clientId) {
 }
 
 const invite = (as: SignedIn, body: object = {}) =>
-  request(app).post("/api/invites").set(as.auth).send({ registrationType: "PARTNER", campaignId, ...body });
+  request(app).post("/api/invites").set(as.auth).send({ registrationType: "PARTNER", campaignIds: [campaignId], ...body });
 const codeOf = (body: { registrationUrl: string }) => body.registrationUrl.split("/").pop()!;
 const register = (code: string, email: string, extra: object = {}) =>
   request(app).post("/api/auth/register").send({ name: "Дилер", email, password: "hunter2hunter2", inviteCode: code, ...extra });
@@ -44,15 +44,36 @@ const join = async (email: string, as: SignedIn = boss) => {
 describe("partner invitations", () => {
   it("bind the person who registers to one campaign with the partner role", async () => {
     const invited = await invite(boss, { email: "dealer@north.by" }).expect(201);
-    expect(invited.body).toMatchObject({ registrationType: "PARTNER", campaignId, clientId, role: null, email: "dealer@north.by" });
+    expect(invited.body).toMatchObject({ registrationType: "PARTNER", campaignIds: [campaignId], clientId, role: null, email: "dealer@north.by" });
 
     const resolved = await request(app).get(`/api/registration/${codeOf(invited.body)}`).expect(200);
     expect(resolved.body).toMatchObject({ registrationType: "PARTNER" });
 
     await register(codeOf(invited.body), "dealer@north.by").expect(201);
     const membership = await prisma.membership.findFirstOrThrow({ where: { user: { email: "dealer@north.by" } } });
-    expect(membership).toMatchObject({ role: "PARTNER", campaignId });
+    expect(membership).toMatchObject({ role: "PARTNER" });
+    expect(await prisma.partnerCampaign.findMany({ where: { membershipId: membership.id }, select: { campaignId: true } })).toEqual([{ campaignId }]);
     expect(await prisma.clientAccess.count({ where: { membershipId: membership.id } })).toBe(0);
+  });
+
+  it("bind the person who registers to every campaign the invitation names", async () => {
+    const south = (await seedCampaign(projectId, "Юг — двери", "GOOGLE")).id;
+    const invited = await invite(boss, { campaignIds: [campaignId, south, campaignId] }).expect(201);
+    expect([...invited.body.campaignIds].sort()).toEqual([campaignId, south].sort());
+
+    await register(codeOf(invited.body), "dealer@north.by").expect(201);
+
+    const membership = await prisma.membership.findFirstOrThrow({ where: { user: { email: "dealer@north.by" } }, include: { partnerCampaigns: true } });
+    expect(membership.partnerCampaigns.map((link) => link.campaignId).sort()).toEqual([campaignId, south].sort());
+  });
+
+  it("refuse campaigns of two projects and store nothing", async () => {
+    const other = await prisma.project.create({ data: { clientId, name: "Gealan Юг", position: 1 } });
+    const elsewhere = (await seedCampaign(other.id, "Юг — двери", "META")).id;
+
+    await invite(boss, { campaignIds: [campaignId, elsewhere] }).expect(400);
+
+    expect(await prisma.invite.count()).toBe(0);
   });
 
   it("are issued by an admin and the client's principal and refused to managers, guests and the client's people", async () => {
@@ -69,11 +90,12 @@ describe("partner invitations", () => {
   it("answer not found for a campaign of another client and refuse a role, projects, a client or no campaign", async () => {
     const otherClient = await prisma.client.create({ data: { name: "Другой клиент", orgId: (await currentOrg()).id } });
     await invite(await principal(otherClient.id)).expect(404);
-    await invite(boss, { campaignId: undefined }).expect(400);
+    await invite(boss, { campaignIds: undefined }).expect(400);
+    await invite(boss, { campaignIds: [] }).expect(400);
     await invite(boss, { role: "MANAGER" }).expect(400);
     await invite(boss, { projectIds: [projectId] }).expect(400);
     await invite(boss, { clientId }).expect(400);
-    await request(app).post("/api/invites").set(boss.auth).send({ registrationType: "CLIENT_STAFF", clientId, campaignId }).expect(400);
+    await request(app).post("/api/invites").set(boss.auth).send({ registrationType: "CLIENT_STAFF", clientId, campaignIds: [campaignId] }).expect(400);
     expect(await prisma.invite.count()).toBe(0);
   });
 
@@ -103,10 +125,15 @@ describe("partner invitations", () => {
 });
 
 describe("partner people", () => {
-  it("are listed among the client's people with their campaign, narrowed by project", async () => {
+  it("are listed among the client's people with their campaigns, narrowed by project", async () => {
     const dealer = await join("dealer@north.by");
-    const people = (await request(app).get(`/api/members?clientId=${clientId}`).set(boss.auth).expect(200)).body as Array<{ id: string; campaign: unknown }>;
-    expect(people.find((person) => person.id === dealer.id)?.campaign).toEqual({ id: campaignId, name: "Север — окна ПВХ", projectId });
+    const south = (await seedCampaign(projectId, "Юг — двери", "META")).id;
+    await prisma.partnerCampaign.create({ data: { membershipId: dealer.id, campaignId: south } });
+    const people = (await request(app).get(`/api/members?clientId=${clientId}`).set(boss.auth).expect(200)).body as Array<{ id: string; campaigns: unknown }>;
+    expect(people.find((person) => person.id === dealer.id)?.campaigns).toEqual([
+      { id: campaignId, name: "Север — окна ПВХ", projectId },
+      { id: south, name: "Юг — двери", projectId },
+    ]);
 
     const other = await prisma.project.create({ data: { clientId, name: "Другой", position: 1 } });
     const narrowed = (await request(app).get(`/api/members?clientId=${clientId}&projectId=${other.id}`).set(admin.auth).expect(200)).body as Array<{ id: string }>;
@@ -123,15 +150,37 @@ describe("partner people", () => {
     expect(await prisma.membership.count({ where: { role: "PARTNER" } })).toBe(0);
   });
 
-  it("lose their membership and pending invitations when the campaign is deleted, while leads stay", async () => {
+  it("lose their access and pending invitations when their only campaign is deleted, while leads stay", async () => {
     const lead = await prisma.lead.create({ data: { orgId: (await currentOrg()).id, projectId, name: "Анна", stage: "NEW", position: 0 } });
-    await join("dealer@north.by");
+    const dealer = await join("dealer@north.by");
     const pending = codeOf((await invite(boss).expect(201)).body);
 
     await prisma.campaign.delete({ where: { id: campaignId } });
 
-    expect(await prisma.membership.count({ where: { role: "PARTNER" } })).toBe(0);
+    const people = (await request(app).get("/api/members").set(admin.auth).expect(200)).body as Array<{ id: string }>;
+    expect(people.map((person) => person.id)).not.toContain(dealer.id);
     await request(app).get(`/api/registration/${pending}`).expect(404);
+    await register(pending, "late@north.by").expect(403);
     expect(await prisma.lead.findUnique({ where: { id: lead.id } })).not.toBeNull();
+  });
+
+  it("keep their other campaigns when one is deleted", async () => {
+    const dealer = await join("dealer@north.by");
+    const south = (await seedCampaign(projectId, "Юг — двери", "META")).id;
+    await prisma.partnerCampaign.create({ data: { membershipId: dealer.id, campaignId: south } });
+
+    await prisma.campaign.delete({ where: { id: campaignId } });
+
+    expect(await prisma.partnerCampaign.findMany({ where: { membershipId: dealer.id }, select: { campaignId: true } })).toEqual([{ campaignId: south }]);
+  });
+
+  it("are removed with their pending invitations when the project is deleted", async () => {
+    await join("dealer@north.by");
+    await invite(boss).expect(201);
+
+    await request(app).delete(`/api/projects/${projectId}`).set(admin.auth).expect(204);
+
+    expect(await prisma.membership.count({ where: { role: "PARTNER" } })).toBe(0);
+    expect(await prisma.invite.count({ where: { registrationType: "PARTNER" } })).toBe(0);
   });
 });

@@ -76,12 +76,11 @@ model Membership {
   dashboardTiles     SummaryTile[]    @default([CONVERSIONS]) @map("dashboard_tiles")
   welcomedAt         DateTime?        @map("welcomed_at")
   onboardingHiddenAt DateTime?        @map("onboarding_hidden_at")
-  campaignId         String?          @map("campaign_id")
-  campaign           Campaign?        @relation("PartnerCampaign", fields: [campaignId], references: [id], onDelete: Cascade)
   user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   org                Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
   invites            Invite[]         @relation("InviteCreator")
   access             ClientAccess[]
+  partnerCampaigns   PartnerCampaign[]
   clientAccount      ClientAccount?
   auditEvents        AuditEvent[]
 
@@ -111,8 +110,18 @@ model Membership {
 
   @@unique([userId, orgId])
   @@index([orgId, role])
-  @@index([campaignId])
   @@map("membership")
+}
+
+model PartnerCampaign {
+  membershipId String     @map("membership_id")
+  membership   Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  campaignId   String     @map("campaign_id")
+  campaign     Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@id([membershipId, campaignId])
+  @@index([campaignId])
+  @@map("partner_campaign")
 }
 
 model ClientAccess {

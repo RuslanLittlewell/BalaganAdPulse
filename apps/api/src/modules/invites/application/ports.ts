@@ -12,7 +12,7 @@ export interface NewInvite {
   readonly role: Role | null;
   readonly projectIds?: readonly string[];
   readonly clientId?: string | null;
-  readonly campaignId?: string | null;
+  readonly campaignIds?: readonly string[];
   readonly email: string | null;
   readonly expiresAt: Date | null;
   readonly createdById: string | null;
@@ -42,12 +42,12 @@ export class InvitationCodeConflictError extends Error {
 export interface MembershipEnrolment {
   enrol(
     context: TransactionContext,
-    value: { userId: string; orgId: string; role: Role; campaignId?: string },
+    value: { userId: string; orgId: string; role: Role; campaignIds?: readonly string[] },
   ): Promise<string>;
 }
 
 export interface InvitationCampaignReach {
-  reachable(actor: ActorContext, campaignId: string): Promise<{ clientId: string } | null>;
+  reachable(actor: ActorContext, campaignId: string): Promise<{ clientId: string; projectId: string } | null>;
 }
 
 export interface InvitationClientReach {

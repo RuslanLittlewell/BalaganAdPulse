@@ -75,7 +75,7 @@ export function boardColumns(custom: readonly LeadColumnRecord[]): BoardColumn[]
     ]),
   ];
 }
-export const LEAD_ORIGINS = ['MANUAL', 'META', 'WEBSITE'] as const;
+export const LEAD_ORIGINS = ['MANUAL', 'META', 'WEBSITE', 'IMPORT'] as const;
 export type LeadOrigin = typeof LEAD_ORIGINS[number];
 export const TAG_LIMIT = 10;
 export const TAG_LENGTH_LIMIT = 30;

@@ -20,7 +20,7 @@ function Reachable({ value }: { value: string | null }) {
 }
 
 function roleOf(person: Membership) {
-  return person.campaign ? `${t(`role.${person.role}`)} · ${person.campaign.name}` : t(`role.${person.role}`);
+  return person.campaigns.length > 0 ? `${t(`role.${person.role}`)} · ${person.campaigns.map((campaign) => campaign.name).join(", ")}` : t(`role.${person.role}`);
 }
 
 function PeopleList({ people, empty, removesPartners, onRemove }: {

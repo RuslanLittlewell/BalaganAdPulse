@@ -32,7 +32,7 @@ beforeEach(async () => {
   foreignAd = (await prisma.ad.create({data:{adSetId:foreignAdSet,name:'HIDDEN AD',position:0,externalId:'hidden-ad'}})).id;
   foreignCreative = (await prisma.adCreative.create({data:{adId:foreignAd,externalId:'hidden-creative',position:0,kind:'IMAGE',fileKey:'hidden-file',contentType:'image/png'}})).id;
   dealer = await signInAs('Dealer', { role: 'PARTNER' });
-  await prisma.membership.update({ where: { id: dealer.membership!.id }, data: { campaignId: ownCampaign } });
+  await prisma.partnerCampaign.create({ data: { membershipId: dealer.membership!.id, campaignId: ownCampaign } });
   ownCompany = (await prisma.company.create({ data: { orgId, clientId, name: 'North company' } })).id;
   foreignCompany = (await prisma.company.create({ data: { orgId, clientId, name: 'HIDDEN COMPANY' } })).id;
   ownPerson = (await prisma.person.create({ data: { orgId, clientId, name: 'North contact', companyId: ownCompany } })).id;
@@ -46,15 +46,15 @@ describe('partner reach', () => {
   it('resolves the actor with its campaign and refuses an unbound partner membership', async () => {
     const directory = new PrismaMembershipDirectory(prisma);
     const membership = await directory.findActiveByUserId(dealer.user.id);
-    expect(membership?.actor.partner).toEqual({ campaignId: ownCampaign, projectId });
-    await prisma.membership.update({ where: { id: dealer.membership!.id }, data: { campaignId: null } });
+    expect(membership?.actor.partner).toEqual({ campaignIds: [ownCampaign], projectId });
+    await prisma.partnerCampaign.deleteMany({ where: { membershipId: dealer.membership!.id } });
     expect(await directory.findActiveByUserId(dealer.user.id)).toBeNull();
     expect((await read('/api/projects')).status).toBe(403);
   });
 
   it('describes only projects and CRM in the session, without tariff usage', async () => {
     const session = await read('/api/auth/me').expect(200);
-    expect(session.body).toMatchObject({ role: 'PARTNER', partner: { campaignId: ownCampaign, projectId }, modules: ['PROJECTS', 'CRM'], tariff: null });
+    expect(session.body).toMatchObject({ role: 'PARTNER', partner: { campaignIds: [ownCampaign], projectId }, modules: ['PROJECTS', 'CRM'], tariff: null });
     await prisma.organization.update({ where: { id: orgId }, data: { tariff: 'SOLO' } });
     expect((await read('/api/auth/me')).body.modules).toEqual(['PROJECTS']);
     await read(`${board()}/leads`).expect(404);
@@ -180,4 +180,48 @@ it('does not widen partner reach through an ordinary client grant', async () => 
   await read(`/api/clients/${clientId}`).expect(404);
   await read(`/api/projects/${otherProject}`).expect(404);
   expect((await read('/api/projects')).body.map((p:{id:string})=>p.id)).toEqual([projectId]);
+});
+
+describe('a partner of two campaigns', () => {
+  let southCampaign: string, southLead: string;
+
+  beforeEach(async () => {
+    southCampaign = (await seedCampaign(projectId, 'South', 'META')).id;
+    await prisma.campaignDailyMetric.create({ data: { campaignId: southCampaign, date: new Date('2026-11-05'), spend: '500', impressions: 50, clicks: 5 } });
+    await prisma.partnerCampaign.create({ data: { membershipId: dealer.membership!.id, campaignId: southCampaign } });
+    southLead = (await prisma.lead.create({ data: { orgId, projectId, name: 'South lead', campaignId: southCampaign, stage: 'NEW', position: 2 } })).id;
+  });
+
+  it('reaches both campaigns, their figures and their leads, and nothing else', async () => {
+    const session = await read('/api/auth/me').expect(200);
+    expect([...session.body.partner.campaignIds].sort()).toEqual([ownCampaign, southCampaign].sort());
+    expect((await read(`/api/projects/${projectId}/campaigns?${range}`)).body.map((c: {id:string}) => c.id).sort()).toEqual([ownCampaign, southCampaign].sort());
+    expect((await read(`/api/projects/${projectId}/summary?${range}`)).body.spend).toBe(1500);
+    expect((await read(`${board()}/leads`)).body.map((l: {id:string}) => l.id).sort()).toEqual([ownLead, southLead].sort());
+    await read(`/api/campaigns/${southCampaign}?${range}`).expect(200);
+    await read(`/api/campaigns/${foreignCampaign}?${range}`).expect(404);
+  });
+
+  it('asks for a campaign, moves a lead between its campaigns only, and assigns partners who share one', async () => {
+    const create = (body: object) => request(app).post(`${board()}/leads`).set(dealer.auth).send({ name: 'Phone lead', ...body });
+    await create({}).expect(400);
+    expect((await create({ campaignId: southCampaign }).expect(201)).body.campaignId).toBe(southCampaign);
+    expect((await request(app).patch(`${board()}/leads/${ownLead}`).set(dealer.auth).send({ campaignId: southCampaign }).expect(200)).body.campaignId).toBe(southCampaign);
+    await request(app).patch(`${board()}/leads/${ownLead}`).set(dealer.auth).send({ campaignId: foreignCampaign }).expect(403);
+
+    const colleague = await signInAs('Colleague', { role: 'PARTNER' });
+    await prisma.partnerCampaign.create({ data: { membershipId: colleague.membership!.id, campaignId: southCampaign } });
+    const stranger = await signInAs('Stranger', { role: 'PARTNER' });
+    await prisma.partnerCampaign.create({ data: { membershipId: stranger.membership!.id, campaignId: foreignCampaign } });
+
+    expect((await read(`${board()}/assignees`)).body.map((m: {id:string}) => m.id).sort()).toEqual([dealer.membership!.id, colleague.membership!.id].sort());
+    await request(app).patch(`${board()}/leads/${southLead}`).set(dealer.auth).send({ assigneeId: colleague.membership!.id }).expect(200);
+    await request(app).patch(`${board()}/leads/${southLead}`).set(dealer.auth).send({ assigneeId: stranger.membership!.id }).expect(400);
+  });
+
+  it('keeps reaching the other campaign when one is deleted', async () => {
+    await prisma.campaign.delete({ where: { id: ownCampaign } });
+
+    expect((await read(`${board()}/leads`).expect(200)).body.map((l: {id:string}) => l.id)).toEqual([southLead]);
+  });
 });

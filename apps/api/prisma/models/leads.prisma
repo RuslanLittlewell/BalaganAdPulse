@@ -23,6 +23,7 @@ enum LeadOrigin {
   MANUAL
   META
   WEBSITE
+  IMPORT
 
   @@map("lead_origin")
 }

@@ -214,7 +214,7 @@ export function createMemberUseCases(
         session: {
           user, platformAdmin, organization, role: actor.role, membershipId: actor.membershipId, clientIds,
           modules: enabledModules(tariffModules(tariff)).filter(module => actor.role !== "PARTNER" || module === "PROJECTS" || module === "CRM"),
-          partner: actor.partner ? { campaignId: actor.partner.campaignId, projectId: actor.partner.projectId } : null,
+          partner: actor.partner ? { campaignIds: [...actor.partner.campaignIds], projectId: actor.partner.projectId } : null,
           tariff: actor.role === "PARTNER" ? null : await dependencies.tariffs.describe(actor.orgId),
         },
         actor,

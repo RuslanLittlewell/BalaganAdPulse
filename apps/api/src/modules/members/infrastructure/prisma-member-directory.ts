@@ -13,7 +13,7 @@ const SELECT = {
   status: true,
   createdAt: true,
   user: { select: { name: true, email: true, image: true, phone: true, telegram: true } },
-  campaign: { select: { id: true, name: true, projectId: true } },
+  partnerCampaigns: { select: { campaign: { select: { id: true, name: true, projectId: true } } }, orderBy: { campaign: { name: "asc" } } },
 } as const;
 
 type Row = {
@@ -23,7 +23,7 @@ type Row = {
     name: string; email: string | null; image: string | null;
     phone: string | null; telegram: string | null;
   };
-  campaign: { id: string; name: string; projectId: string } | null;
+  partnerCampaigns: Array<{ campaign: { id: string; name: string; projectId: string } }>;
 };
 
 function toDomain(row: Row): MemberRecord {
@@ -39,7 +39,7 @@ function toDomain(row: Row): MemberRecord {
     role: row.role,
     status: row.status,
     createdAt: row.createdAt,
-    campaign: row.campaign,
+    campaigns: row.partnerCampaigns.map((link) => link.campaign),
   };
 }
 
@@ -57,7 +57,7 @@ export class PrismaMemberDirectory implements MemberDirectory {
 
   async listByOrg(orgId: string, kind?: MemberKind): Promise<MemberRecord[]> {
     const rows = await this.prisma.membership.findMany({
-      where: { orgId, ...(kind === "staff" ? { role: { notIn: CUSTOMER_ROLES } } : {}) },
+      where: { orgId, NOT: { role: "PARTNER", partnerCampaigns: { none: {} } }, ...(kind === "staff" ? { role: { notIn: CUSTOMER_ROLES } } : {}) },
       select: SELECT,
       orderBy: { createdAt: "asc" },
     });
@@ -70,7 +70,7 @@ export class PrismaMemberDirectory implements MemberDirectory {
       : [{ clientId, projectId: null }, { projectId, project: { clientId } }];
     const partnerCampaign = projectId === undefined ? { project: { clientId } } : { projectId, project: { clientId } };
     const rows = await this.prisma.membership.findMany({
-      where: { orgId, OR: [{ access: { some: { OR: reaching } } }, { role: "PARTNER", campaign: partnerCampaign }] },
+      where: { orgId, OR: [{ access: { some: { OR: reaching } } }, { role: "PARTNER", partnerCampaigns: { some: { campaign: partnerCampaign } } }] },
       select: SELECT,
       orderBy: { createdAt: "asc" },
     });

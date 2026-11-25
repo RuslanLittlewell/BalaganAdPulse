@@ -55,6 +55,7 @@ const expectedMounts = [
   "/api/ads",
   "/api/summary",
   "/api/tasks",
+  "/api/crm/boards/:boardKey/imports",
   "/api/crm",
   "/api/task-images",
   "/api/task-documents",

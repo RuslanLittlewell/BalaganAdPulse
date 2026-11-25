@@ -1,0 +1,1 @@
+ALTER TYPE "lead_origin" ADD VALUE 'IMPORT';

@@ -120,7 +120,7 @@ describe("partner landing", () => {
   it.each(["/", "/tasks", "/reports", "/archive", "/projects"])("opens the partner project from %s", async path => {
     writeTokens({accessToken:makeAccessToken(),refreshToken:"r"});
     server.use(
-      mock.get("/api/auth/me",()=>HttpResponse.json(aSession({role:"PARTNER",partner:{campaignId:"c1",projectId:"p1"},modules:["PROJECTS","CRM"],tariff:null}))),
+      mock.get("/api/auth/me",()=>HttpResponse.json(aSession({role:"PARTNER",partner:{campaignIds:["c1"],projectId:"p1"},modules:["PROJECTS","CRM"],tariff:null}))),
       mock.get("/api/projects",()=>HttpResponse.json([aProject({id:"p1",name:"Gealan"})])),
     );
     renderAppAt(path);

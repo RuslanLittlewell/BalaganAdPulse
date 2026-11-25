@@ -5,6 +5,7 @@ import express from "express";
 import { errorHandler } from "#shared/presentation/error-handler.js";
 import { createProtectiveHeaders } from "#shared/presentation/protective-headers.js";
 import { projectDocumentBody } from "#modules/project-documents/index.js";
+import { leadImportBody } from "#modules/leads/presentation/http/lead-import-http.js";
 import { createContainer, type ApiContainer } from "./create-container.js";
 import { createRoutes, mountPath } from "./create-routes.js";
 import type { SharedReadLimits } from "./shared-routes.js";
@@ -33,6 +34,7 @@ export function createApp(options: AppOptions = {}) {
   app.disable("x-powered-by");
   app.use(createProtectiveHeaders(config.appUrl));
   app.use(mountPath("project-documents"), projectDocumentBody);
+  app.use(mountPath("lead-imports"), leadImportBody);
   app.use(express.json());
 
   app.get("/healthz", (_req, res) => {

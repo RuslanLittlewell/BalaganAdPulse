@@ -153,6 +153,22 @@ describe("the panel's layout", () => {
     expect(within(source).queryByText("Откуда пришёл")).toBeNull();
   });
 
+  it("names the source of an imported lead as the import", async () => {
+    catalogue(theLead({
+      origin: "IMPORT",
+      webSource: {
+        utmSource: "fb", utmMedium: null, utmCampaign: null, utmContent: null, utmTerm: null,
+        pageUrl: null, referrer: null, submittedAt: "2026-09-22T03:38:09.000Z",
+        answers: [{ question: "What stage are you at?", values: ["I want to know the price"] }],
+      },
+    }));
+    setup();
+
+    await userEvent.click(await screen.findByRole("radio", { name: "Информация" }));
+    const source = await screen.findByRole("region", { name: "Источник: импорт" });
+    expect(within(source).getByText("I want to know the price")).toBeInTheDocument();
+  });
+
   it("offers no Информация for a hand-made lead", async () => {
     catalogue();
     setup();

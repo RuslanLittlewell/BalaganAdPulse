@@ -114,6 +114,7 @@ export interface CampaignReference {
   name: string;
   channel: Channel;
   status: DeliveryStatus;
+  accountId: string | null;
 }
 
 

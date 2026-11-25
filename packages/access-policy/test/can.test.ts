@@ -247,7 +247,7 @@ describe("the customer's principal", () => {
 
   it("reads everything an ordinary customer reads", () => {
     for (const resource of RESOURCES) {
-      if (resource === "invite" || resource === "member" || resource === "partner") continue;
+      if (resource === "invite" || resource === "member" || resource === "partner" || resource === "lead-import") continue;
       expect(
         can(actor("CLIENT_ADMIN"), "read", resource),
         `CLIENT_ADMIN read ${resource}`,
@@ -349,5 +349,12 @@ describe("the board's columns and fields", () => {
 describe("partners of a project", () => {
   it("are managed by an admin or the client's principal alone", () => {
     for (const action of ACTIONS) expectRow(action, "partner", ["ADMIN", "CLIENT_ADMIN"]);
+  });
+});
+
+describe("importing leads", () => {
+  it("is left to an admin or the client's principal", () => {
+    for (const action of ["read", "create"] as const) expectRow(action, "lead-import", ["ADMIN", "CLIENT_ADMIN"]);
+    for (const action of ["update", "delete"] as const) expectRow(action, "lead-import", []);
   });
 });

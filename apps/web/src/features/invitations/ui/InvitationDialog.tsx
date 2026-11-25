@@ -55,7 +55,7 @@ export function InvitationDialog({ registrationType, clientId, audience, open, o
   const [created, setCreated] = useState<Invitation | null>(null);
   const [joining, setJoining] = useState<Joining>(audience ?? "STAFF");
   const [partnerProjectId, setPartnerProjectId] = useState("");
-  const [campaignId, setCampaignId] = useState("");
+  const [campaignIds, setCampaignIds] = useState<string[]>([]);
   const invitesPartners = useCan("create", "partner");
 
   const isEmployee = registrationType === "EMPLOYEE";
@@ -85,13 +85,13 @@ export function InvitationDialog({ registrationType, clientId, audience, open, o
     setCreated(null);
     setJoining(audience ?? "STAFF");
     setPartnerProjectId("");
-    setCampaignId("");
+    setCampaignIds([]);
     onClose();
   }
 
   function chooseProject(id: string) {
     setPartnerProjectId(id);
-    setCampaignId("");
+    setCampaignIds([]);
   }
 
   async function submit() {
@@ -99,7 +99,7 @@ export function InvitationDialog({ registrationType, clientId, audience, open, o
       setFailure(t("invites.projects.required"));
       return;
     }
-    if (isPartner && !campaignId) {
+    if (isPartner && campaignIds.length === 0) {
       setFailure(t("invites.partner.campaignRequired"));
       return;
     }
@@ -109,7 +109,7 @@ export function InvitationDialog({ registrationType, clientId, audience, open, o
         isEmployee
           ? { registrationType: "EMPLOYEE", role, projectIds: offersProjects ? projectIds : [] }
           : isPartner
-            ? { registrationType: "PARTNER", campaignId }
+            ? { registrationType: "PARTNER", campaignIds }
             : isJoining
               ? { registrationType: "CLIENT_STAFF", clientId: clientId as string }
               : { registrationType: "CLIENT" },
@@ -184,9 +184,9 @@ export function InvitationDialog({ registrationType, clientId, audience, open, o
                   <PartnerTarget
                     projects={clientProjects}
                     projectId={chosenProject}
-                    campaignId={campaignId}
+                    campaignIds={campaignIds}
                     onProjectChange={chooseProject}
-                    onCampaignChange={setCampaignId}
+                    onCampaignsChange={setCampaignIds}
                   />
                 ) : (
                   <p className="text-sm text-muted-foreground">{t("invites.clientHint")}</p>

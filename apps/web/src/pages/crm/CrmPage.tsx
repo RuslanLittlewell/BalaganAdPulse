@@ -19,6 +19,7 @@ import { useAuth } from "@/features/auth/index.js";
 import { isRunning, useCampaignReferences } from "@/entities/campaign/index.js";
 import { useCampaignCrm } from "@/features/profile-settings/index.js";
 import { LeadFieldsDialog } from "@/features/lead-field-management/index.js";
+import { LeadImportButton } from "@/features/lead-import/index.js";
 import {
   CrmViewChips,
   CrmViewControls,
@@ -202,6 +203,8 @@ export function CrmPage() {
             onBoardFields={() => setManagingFields(true)}
           />
         ) : null}
+
+        {board ? <LeadImportButton boardKey={board.key} /> : null}
 
         {board && capabilities?.create ? <Button type="button" className="h-8" onClick={() => { closeLead(); setCreatingRecord(null); setCreatingIn('NEW'); }}><Plus aria-hidden className="size-3" />{t("crm.create")}</Button> : null}
       </header>

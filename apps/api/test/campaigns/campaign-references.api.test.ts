@@ -18,17 +18,17 @@ beforeEach(async () => {
 afterAll(() => prisma.$disconnect());
 
 describe("GET /api/projects/:projectId/campaigns/names", () => {
-  it("lists a project's campaigns with their status, without figures or a range", async () => {
+  it("lists a project's campaigns with their status and advertising account, without figures or a range", async () => {
     const first = await seedCampaign(projectId, "Поиск / Москва", "YANDEX");
     const second = await seedCampaign(projectId, "Лента", "META");
-    await prisma.campaign.update({ where: { id: second.id }, data: { status: "PAUSED" } });
+    await prisma.campaign.update({ where: { id: second.id }, data: { status: "PAUSED", sourceAccountId: "1218006392621422" } });
 
     const res = await request(app).get(`/api/projects/${projectId}/campaigns/names`).set(admin);
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual([
-      { id: first.id, name: "Поиск / Москва", channel: "YANDEX", status: "ACTIVE" },
-      { id: second.id, name: "Лента", channel: "META", status: "PAUSED" },
+      { id: first.id, name: "Поиск / Москва", channel: "YANDEX", status: "ACTIVE", accountId: null },
+      { id: second.id, name: "Лента", channel: "META", status: "PAUSED", accountId: "1218006392621422" },
     ]);
   });
 
@@ -43,7 +43,7 @@ describe("GET /api/projects/:projectId/campaigns/names", () => {
 
     const res = await request(app).get(`/api/projects/${projectId}/campaigns/names`).set(admin);
 
-    expect(Object.keys(res.body[0]).sort()).toEqual(["channel", "id", "name", "status"]);
+    expect(Object.keys(res.body[0]).sort()).toEqual(["accountId", "channel", "id", "name", "status"]);
   });
 
   it("answers an empty list for a project with no campaigns", async () => {

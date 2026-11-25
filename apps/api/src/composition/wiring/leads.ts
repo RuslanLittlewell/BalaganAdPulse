@@ -15,6 +15,10 @@ import { PrismaLeadFieldRepository } from "#modules/leads/infrastructure/prisma-
 import { PrismaCrmRecordRepository } from "#modules/leads/infrastructure/prisma-crm-record-repository.js";
 import { PrismaLeadIntakeRepository } from "#modules/leads/infrastructure/prisma-lead-intake-repository.js";
 import { PrismaWebsiteKeyRepository } from "#modules/leads/infrastructure/prisma-website-key-repository.js";
+import { PrismaLeadImportRepository } from "#modules/leads/infrastructure/prisma-lead-import-repository.js";
+import { GoogleSheetReader } from "#modules/leads/infrastructure/google-sheet-reader.js";
+import { createLeadImportUseCases } from "#modules/leads/application/lead-import-use-cases.js";
+import { createLeadImportRouter } from "#modules/leads/presentation/http/lead-import-http.js";
 import { RandomWebsiteKeys, createWebsiteIntakeUseCases } from "#modules/leads/application/website-intake-use-cases.js";
 import { createWebsiteIntakeRouter, createWebsiteKeyRouter } from "#modules/leads/presentation/http/website-intake-http.js";
 import type { ClientsAndProjects } from "./clients-projects.js";
@@ -64,11 +68,22 @@ export function wireLeads(
     unitOfWork,
     clock,
   });
+  const imports = createLeadImportUseCases({
+    leads: leadRepository,
+    imports: new PrismaLeadImportRepository(prisma, unitOfWork),
+    sheets: new GoogleSheetReader(),
+    audit,
+    ids,
+    unitOfWork,
+    clock,
+    publish,
+  });
   return {
     leadIntake,
     websiteIntakeRouter: createWebsiteIntakeRouter(website),
     websiteKeyRouter: createWebsiteKeyRouter(website),
     leadRouter: createLeadRouter(leads, files, fields, records, notes),
+    leadImportRouter: createLeadImportRouter(imports),
   };
 }
 

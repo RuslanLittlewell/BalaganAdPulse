@@ -63,9 +63,13 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
   }
   async function attribution(actor:ActorContext, board:string, before:Pick<LeadRecord,'campaignId'|'origin'>, input:Pick<LeadFields,'campaignId'>) {
     if (actor.role==='PARTNER') {
+      const own = actor.partner?.campaignIds ?? [];
       const requested = input.campaignId === undefined ? before.campaignId : input.campaignId;
-      if (requested && requested!==actor.partner?.campaignId) throw new AppError('forbidden','A partner lead stays on the partner\'s campaign');
-      if (!requested) input = {campaignId:actor.partner?.campaignId ?? null};
+      if (requested && !own.includes(requested)) throw new AppError('forbidden','A partner lead stays on the partner\'s campaigns');
+      if (!requested) {
+        if (own.length !== 1) throw new AppError('validation','Choose one of your campaigns for the lead');
+        input = {campaignId:own[0]!};
+      }
     }
     if (before.origin==='META') {
       if (input.campaignId!==undefined&&input.campaignId!==before.campaignId) throw new AppError('validation','An imported lead keeps the campaign it came from');

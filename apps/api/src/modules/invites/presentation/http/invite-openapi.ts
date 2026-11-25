@@ -13,7 +13,7 @@ const invite = z.object({
   role: z.enum(ROLES).nullable(),
   projectIds: z.array(z.uuid()),
   clientId: z.uuid().nullable(),
-  campaignId: z.uuid().nullable(),
+  campaignIds: z.array(z.uuid()).describe("The campaigns a partner invitation binds; empty for every other type"),
   email: z.email().nullable(),
   expiresAt: z.iso.datetime().nullable(),
   revokedAt: z.iso.datetime().nullable(),

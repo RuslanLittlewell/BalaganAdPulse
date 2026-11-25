@@ -58,14 +58,14 @@ export class PrismaLeadRepository implements LeadRepository {
   }
   async assignees(actor: ActorContext, board: string) {
     const rows = await this.prisma.membership.findMany({
-      where: { orgId: actor.orgId, status: 'ACTIVE', role: 'PARTNER', campaignId: actor.partner?.campaignId ?? '', campaign: { projectId: board } },
+      where: { orgId: actor.orgId, status: 'ACTIVE', role: 'PARTNER', partnerCampaigns: { some: { campaignId: { in: [...(actor.partner?.campaignIds ?? [])] }, campaign: { projectId: board } } } },
       select: { id: true, user: { select: { name: true, image: true } } }, orderBy: { createdAt: 'asc' },
     });
     return rows.map(({id, user}) => ({id, ...user, status:'ACTIVE' as const}));
   }
   async assigneeReachesBoard(actor: ActorContext, membershipId: string, board: string) {
     const access = {OR:[{projectId:board},{projectId:null, client:{projects:{some:{id:board}}}}]};
-    return (await this.prisma.membership.count({where:{id:membershipId,orgId:actor.orgId,status:'ACTIVE',...(actor.role==='PARTNER' ? {role:'PARTNER',campaignId:actor.partner?.campaignId ?? ''} : {OR:[{access:{some:access}},{role:'PARTNER',campaign:{projectId:board}}]})}})) > 0;
+    return (await this.prisma.membership.count({where:{id:membershipId,orgId:actor.orgId,status:'ACTIVE',...(actor.role==='PARTNER' ? {role:'PARTNER',partnerCampaigns:{some:{campaignId:{in:[...(actor.partner?.campaignIds ?? [])]}}}} : {OR:[{access:{some:access}},{role:'PARTNER',partnerCampaigns:{some:{campaign:{projectId:board}}}}]})}})) > 0;
   }
   async list(actor: ActorContext, board: string, context?: TransactionContext) {
     const rows = await (context ? this.uow.clientFor<Prisma.TransactionClient>(context) : this.prisma).lead.findMany({where:{...visibleLeads(actor), projectId:board},include:leadInclude,orderBy:[{stage:{sort:'asc',nulls:'last'}},{column:{position:'asc'}},{position:'asc'},{id:'asc'}]});

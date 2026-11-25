@@ -6,5 +6,5 @@ export interface ActorContext {
   readonly orgId: string;
   readonly role: Role;
   readonly sharedProjectId?: string;
-  readonly partner?: { readonly campaignId: string; readonly projectId: string };
+  readonly partner?: { readonly campaignIds: readonly string[]; readonly projectId: string };
 }

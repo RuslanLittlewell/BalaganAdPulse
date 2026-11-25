@@ -60,6 +60,7 @@ export interface CampaignReference {
   readonly name: string;
   readonly channel: Channel;
   readonly status: DeliveryStatus;
+  readonly accountId: string | null;
 }
 
 export type CampaignView = Campaign & { readonly performance: TypedPerformance; readonly resultTypes: ResultType[] };
@@ -200,7 +201,7 @@ export function createCampaignUseCases(dependencies: CampaignDependencies) {
         throw new AppError("not-found", "Project not found");
       }
       const campaigns = await dependencies.campaigns.listReachableByProject(actor, projectId);
-      return campaigns.map(({ id, name, channel, status }) => ({ id, name, channel, status }));
+      return campaigns.map(({ id, name, channel, status, sourceAccountId }) => ({ id, name, channel, status, accountId: sourceAccountId }));
     },
 
     listAdSets: async (

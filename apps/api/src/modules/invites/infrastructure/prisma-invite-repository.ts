@@ -4,9 +4,9 @@ import type { PrismaUnitOfWork } from "#shared/infrastructure/prisma-unit-of-wor
 import type { Invite, RegistrationType } from "../domain/invite.js";
 import { InvitationCodeConflictError, type InviteRepository, type NewInvite } from "../application/ports.js";
 
-type InviteRow = Prisma.InviteGetPayload<{ include: { projects: true } }>;
+type InviteRow = Prisma.InviteGetPayload<{ include: { projects: true; campaigns: true } }>;
 
-const withProjects = { projects: true } as const;
+const withProjects = { projects: true, campaigns: { orderBy: { campaignId: "asc" } } } as const;
 
 function toDomain(row: InviteRow): Invite {
   return {
@@ -16,7 +16,7 @@ function toDomain(row: InviteRow): Invite {
     registrationType: row.registrationType,
     role: row.role,
     clientId: row.clientId,
-    campaignId: row.campaignId,
+    campaignIds: row.campaigns.map(({ campaignId }) => campaignId),
     projectIds: row.projects.map(({ projectId }) => projectId),
     email: row.email,
     expiresAt: row.expiresAt,
@@ -39,13 +39,14 @@ export class PrismaInviteRepository implements InviteRepository {
   }
 
   async create(context: TransactionContext, input: NewInvite): Promise<Invite> {
-    const { projectIds = [], registrationType = "EMPLOYEE", ...data } = input;
+    const { projectIds = [], campaignIds = [], registrationType = "EMPLOYEE", ...data } = input;
     try {
       return toDomain(await this.client(context).invite.create({
         data: {
           ...data,
           registrationType,
           projects: { create: projectIds.map((projectId) => ({ projectId })) },
+          campaigns: { create: campaignIds.map((campaignId) => ({ campaignId })) },
         },
         include: withProjects,
       }));

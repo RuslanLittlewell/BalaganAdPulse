@@ -25,7 +25,7 @@ export interface CreateInviteInput {
   readonly role?: Role | null;
   readonly projectIds?: readonly string[];
   readonly clientId?: string;
-  readonly campaignId?: string;
+  readonly campaignIds?: readonly string[];
   readonly email?: string | null;
   readonly expiresInDays?: number;
 }
@@ -70,11 +70,15 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
         if (input.role !== undefined && input.role !== null || projectIds.length > 0 || input.clientId) {
           throw new AppError("validation", "A partner invitation carries no role, projects or client");
         }
-        if (!input.campaignId) throw new AppError("validation", "A partner invitation must name a campaign");
-        const campaign = await dependencies.campaigns.reachable(actor, input.campaignId);
-        if (!campaign) throw new AppError("not-found", "Campaign not found");
-        clientId = campaign.clientId;
-      } else if (input.campaignId) {
+        const campaignIds = [...new Set(input.campaignIds ?? [])];
+        if (campaignIds.length === 0) throw new AppError("validation", "A partner invitation must name a campaign");
+        const campaigns = await Promise.all(campaignIds.map((campaignId) => dependencies.campaigns.reachable(actor, campaignId)));
+        if (campaigns.some((campaign) => campaign === null)) throw new AppError("not-found", "Campaign not found");
+        if (new Set(campaigns.map((campaign) => campaign!.projectId)).size > 1) {
+          throw new AppError("validation", "A partner invitation names campaigns of one project");
+        }
+        clientId = campaigns[0]!.clientId;
+      } else if (input.campaignIds?.length) {
         throw new AppError("validation", "Only a partner invitation names a campaign");
       } else if (input.registrationType === "CLIENT_STAFF") {
         if (input.role !== undefined && input.role !== null || projectIds.length > 0) {
@@ -130,7 +134,7 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
               role: input.registrationType === "EMPLOYEE" ? input.role! : null,
               projectIds: input.registrationType === "EMPLOYEE" ? projectIds : [],
               clientId,
-              campaignId: input.registrationType === "PARTNER" ? input.campaignId! : null,
+              campaignIds: input.registrationType === "PARTNER" ? [...new Set(input.campaignIds)] : [],
               email: input.email ?? null,
               expiresAt: input.expiresInDays
                 ? new Date(now.getTime() + input.expiresInDays * MS_PER_DAY)
@@ -160,6 +164,9 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
       dependencies.unitOfWork.run(async (context) => {
         const invite = await dependencies.invites.findByCode(context, code);
         if (!invite || inviteStatus(invite, dependencies.clock.now()) !== "PENDING") {
+          throw new AppError("not-found", INVALID_INVITE);
+        }
+        if (invite.registrationType === "PARTNER" && invite.campaignIds.length === 0) {
           throw new AppError("not-found", INVALID_INVITE);
         }
         if (!(await dependencies.organizations.isActive(invite.orgId))) {
@@ -225,9 +232,9 @@ export function createInviteUseCases(dependencies: InviteDependencies) {
         if (details) {
           throw new AppError("validation", "Joining as a partner carries no contact or project of its own");
         }
-        if (!invite.campaignId) throw new AppError("forbidden", INVALID_INVITE);
+        if (invite.campaignIds.length === 0) throw new AppError("forbidden", INVALID_INVITE);
         await dependencies.memberships.enrol(context, {
-          userId, orgId: invite.orgId, role: "PARTNER", campaignId: invite.campaignId,
+          userId, orgId: invite.orgId, role: "PARTNER", campaignIds: invite.campaignIds,
         });
         const spent = await dependencies.invites.claim(context, invite.id, userId, now);
         if (!spent) throw new AppError("forbidden", INVALID_INVITE);

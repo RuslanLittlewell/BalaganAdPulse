@@ -24,6 +24,7 @@ export const RESOURCES = [
   "bitrix24-connection",
   "lead-intake-key",
   "lead-board",
+  "lead-import",
   "partner",
 ] as const;
 export type Resource = (typeof RESOURCES)[number];
@@ -56,6 +57,7 @@ type ResourcePolicy = Readonly<Record<Action, readonly Role[]>>;
 const MATRIX: Readonly<Record<Resource, ResourcePolicy>> = {
   lead: { read: EVERYONE, create: WORKING_LEADS, update: WORKING_LEADS, delete: STAFF_AND_CUSTOMERS },
   "lead-board": { read: EVERYONE, create: STAFF_AND_CUSTOMERS, update: STAFF_AND_CUSTOMERS, delete: STAFF_AND_CUSTOMERS },
+  "lead-import": { read: ADMINS_AND_PRINCIPAL, create: ADMINS_AND_PRINCIPAL, update: NOBODY, delete: NOBODY },
   partner: { read: ADMINS_AND_PRINCIPAL, create: ADMINS_AND_PRINCIPAL, update: ADMINS_AND_PRINCIPAL, delete: ADMINS_AND_PRINCIPAL },
   organization: { read: EVERYONE, create: NOBODY, update: ADMINS, delete: NOBODY },
   member: { read: ADMINS_AND_PRINCIPAL, create: ADMINS, update: ADMINS, delete: ADMINS_AND_PRINCIPAL },

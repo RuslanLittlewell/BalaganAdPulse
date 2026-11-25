@@ -11,7 +11,7 @@ import { CreateLeadPanel } from '@/widgets/lead-side-panel/index.js';
 import { t } from '@/shared/config/index.js';
 
 function partnerSession() {
-  server.use(mock.get('/api/auth/me', () => HttpResponse.json(aSession({role:'PARTNER',modules:['PROJECTS','CRM'],tariff:null,partner:{campaignId:'c1',projectId:'p1'}}))));
+  server.use(mock.get('/api/auth/me', () => HttpResponse.json(aSession({role:'PARTNER',modules:['PROJECTS','CRM'],tariff:null,partner:{campaignIds:['c1'],projectId:'p1'}}))));
 }
 beforeEach(() => {
   server.use(

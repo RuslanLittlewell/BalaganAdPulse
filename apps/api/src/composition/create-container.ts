@@ -65,6 +65,7 @@ export interface ApiContainer {
   readonly reportRouter: Router;
   readonly reportIndexRouter: Router;
   readonly leadRouter: Router;
+  readonly leadImportRouter: Router;
   readonly documentationRouter: Router;
   readonly authRouter: Router;
   readonly authentication: RequestHandler;
@@ -230,6 +231,7 @@ export function createContainer(): ApiContainer {
     telegramPoller: telegram.telegramPoller,
 
     leadRouter: leads.leadRouter,
+    leadImportRouter: leads.leadImportRouter,
 
     reportRouter: reporting.reportRouter,
     reportIndexRouter: reporting.reportIndexRouter,

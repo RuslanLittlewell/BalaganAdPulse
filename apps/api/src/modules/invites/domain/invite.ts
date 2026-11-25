@@ -10,7 +10,7 @@ export interface Invite {
   readonly role: Role | null;
   readonly projectIds: readonly string[];
   readonly clientId: string | null;
-  readonly campaignId: string | null;
+  readonly campaignIds: readonly string[];
   readonly email: string | null;
   readonly expiresAt: Date | null;
   readonly revokedAt: Date | null;

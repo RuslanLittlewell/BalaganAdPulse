@@ -32,7 +32,7 @@ const setup = (route = "/crm") => renderWithProviders(
 );
 
 describe("the integrations button in the application header", () => {
-  it("opens the web integration of the board's project for a manager, without tabs", async () => {
+  it("opens the web integration of the board's project for a manager, with Marquiz beside it and no Bitrix24", async () => {
     serve("MANAGER");
     setup();
 
@@ -40,9 +40,10 @@ describe("the integrations button in the application header", () => {
 
     const dialog = await screen.findByRole("dialog", { name: "Интеграции" });
     expect(await within(dialog).findByRole("button", { name: "Создать ключ" })).toBeInTheDocument();
-    expect(within(dialog).queryByRole("radiogroup", { name: "Интеграции" })).not.toBeInTheDocument();
+    const tabs = within(dialog).getByRole("radiogroup", { name: "Интеграции" });
+    expect(within(tabs).getAllByRole("radio").map((tab) => tab.textContent)).toEqual(["Web интеграция", "Marquiz"]);
+    expect(within(dialog).getByRole("radio", { name: "Web интеграция" })).toHaveAttribute("aria-checked", "true");
     expect(within(dialog).queryByText("Битрикс24")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Web интеграция" })).not.toBeInTheDocument();
   });
 
   it("is offered only in the CRM", async () => {

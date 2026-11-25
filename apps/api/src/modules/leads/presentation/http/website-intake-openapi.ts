@@ -4,6 +4,18 @@ import { allowSitesSchema, websiteKeySchema, websiteLeadSchema } from './website
 
 const accepted = z.object({ ok: z.literal(true) });
 
+const marquizSubmission = z.object({
+  contacts: z.object({ name: z.string(), phone: z.string(), email: z.string() }).partial(),
+  answers: z.array(z.object({ q: z.string(), a: z.union([z.string(), z.array(z.string())]) })),
+  quiz: z.object({ id: z.string(), name: z.string() }).partial(),
+  created: z.string(),
+  extra: z.object({
+    href: z.string(),
+    referrer: z.string(),
+    utm: z.object({ source: z.string(), medium: z.string(), campaign: z.string(), content: z.string(), term: z.string() }).partial(),
+  }).partial(),
+}).partial();
+
 export const websiteIntakeDoc: RouteDoc = {
   tag: 'Website lead intake',
   tagDescription:
@@ -24,6 +36,16 @@ export const websiteIntakeDoc: RouteDoc = {
       open: true,
       body: websiteLeadSchema,
       success: { status: 202, description: 'The lead was accepted', schema: accepted },
+      errors: [400, 403, 429],
+    },
+    {
+      method: 'post',
+      path: '/marquiz/:key',
+      summary: 'Receive a Marquiz quiz submission by webhook',
+      description: "The address carries the project's website key, since Marquiz cannot send headers. The request is server-to-server, so the key's list of allowed sites does not apply. Unknown fields are ignored, and the same submission delivered again answers success without creating a second lead.",
+      open: true,
+      body: marquizSubmission,
+      success: { status: 200, description: 'The submission was accepted', schema: accepted },
       errors: [400, 403, 429],
     },
   ],

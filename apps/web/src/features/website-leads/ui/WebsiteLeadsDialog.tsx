@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { t } from "@/shared/config/index.js";
 import {
-  Button, CopyButton, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Label, Loader,
+  Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Label, Loader,
 } from "@/shared/ui/index.js";
 import { useWebsiteKey, useWebsiteKeyChange } from "../api/api.js";
+import { Snippet } from "./Snippet.js";
 
 type Asking = "replace" | "remove";
 
@@ -14,8 +15,6 @@ const MANUAL_EXAMPLE = `balagan.lead({
   fields: { "Комментарий": "Нужен замер" },
 }).then((sent) => console.log(sent));`;
 
-const UTM_TAGS = "utm_source=facebook&utm_medium=cpc&utm_campaign={{campaign.id}}&utm_content={{ad.id}}&utm_term={{adset.name}}";
-
 export interface WebsiteLeadsDialogProps {
   projectId: string;
   open: boolean;
@@ -25,15 +24,6 @@ export interface WebsiteLeadsDialogProps {
 export interface WebsiteLeadsPanelProps {
   projectId: string;
   active?: boolean;
-}
-
-function Snippet({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="flex items-start gap-2 rounded-md border border-border bg-muted/40 p-2">
-      <code className="min-w-0 flex-1 break-all text-xs">{value}</code>
-      <CopyButton value={value} label={label} />
-    </div>
-  );
 }
 
 export function WebsiteLeadsDialog({ projectId, open, onClose }: WebsiteLeadsDialogProps) {
@@ -129,12 +119,6 @@ export function WebsiteLeadsPanel({ projectId, active = true }: WebsiteLeadsPane
             <div className="flex justify-end">
               <Button type="button" variant="outline" disabled={pending} onClick={() => void saveSites()}>{t("website.sites.save")}</Button>
             </div>
-          </section>
-
-          <section className="flex flex-col gap-2">
-            <h3 className="text-sm font-semibold">{t("website.utm")}</h3>
-            <Snippet value={UTM_TAGS} label={t("website.utm.copy")} />
-            <p className="text-xs text-muted-foreground">{t("website.utm.hint")}</p>
           </section>
 
           {asking ? (

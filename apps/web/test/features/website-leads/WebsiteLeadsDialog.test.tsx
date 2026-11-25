@@ -85,7 +85,7 @@ describe("the website leads dialog", () => {
     const confirmation = screen.getByRole("group", { name: "Заменить ключ" });
     await user.click(within(confirmation).getByRole("button", { name: "Заменить" }));
 
-    expect(await screen.findByText(new RegExp(KEY_B))).toBeInTheDocument();
+    expect(await screen.findByText(`<script async src="${window.location.origin}/api/intake/script.js" data-key="${KEY_B}"></script>`)).toBeInTheDocument();
     expect(sent).toEqual([{ method: "POST", path: "rotate" }]);
   });
 

@@ -6,6 +6,7 @@ import { WEBSITE_KEY_REFUSED, type WebsiteIntakeUseCases } from '#modules/leads/
 import { WEBSITE_KEY } from '#modules/leads/domain/website-intake.js';
 import { WEBSITE_INTAKE_SCRIPT } from './website-intake-script.js';
 import { allowSitesSchema, websiteLeadOf, websiteLeadSchema } from './website-intake-schemas.js';
+import { marquizLeadOf, marquizWebhookSchema } from './marquiz-webhook-schemas.js';
 
 const keyOf = new WeakMap<Request, string>();
 
@@ -79,6 +80,21 @@ export function createWebsiteIntakeRouter(intake: WebsiteIntakeUseCases): Router
     await intake.receive({ key, origin, lead }, bearerOf(req) !== undefined);
     allow(res, origin);
     res.status(202).json({ ok: true });
+  }));
+
+  router.post('/marquiz/:key', (req: Request<{ key: string }>, _res, next) => {
+    if (!WEBSITE_KEY.test(req.params.key)) {
+      next(new AppError('forbidden', WEBSITE_KEY_REFUSED));
+      return;
+    }
+    keyOf.set(req, req.params.key);
+    next();
+  }, byKey, express.text({ type: () => true, limit: '64kb' }), handle(async (req: Request<{ key: string }>, res) => {
+    const parsed = marquizWebhookSchema.safeParse(bodyOf(req) ?? {});
+    const lead = parsed.success ? marquizLeadOf(parsed.data) : null;
+    if (!lead) throw new AppError('validation', 'The body is not a Marquiz submission');
+    await intake.receive({ key: req.params.key, origin: undefined, lead }, true);
+    res.status(200).json({ ok: true });
   }));
 
   return router;

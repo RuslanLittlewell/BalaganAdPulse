@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { PlugIcon } from "lucide-react";
 import { useCan } from "@/features/permissions/index.js";
-import { WebsiteLeadsPanel } from "@/features/website-leads/index.js";
+import { MarquizPanel, WebsiteLeadsPanel } from "@/features/website-leads/index.js";
 import { Bitrix24Panel } from "@/features/bitrix24/index.js";
 import { t } from "@/shared/config/index.js";
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, Tabs } from "@/shared/ui/index.js";
 import { useSelectedBoard } from "./CrmNav.js";
 
-type Tab = "website" | "bitrix";
+type Tab = "website" | "marquiz" | "bitrix";
 
 export function IntegrationsButton() {
   const managesWebsite = useCan("update", "lead-intake-key");
@@ -19,6 +19,7 @@ export function IntegrationsButton() {
 
   const tabs: Array<{ id: Tab; label: string }> = [
     ...(managesWebsite ? [{ id: "website" as const, label: t("crmIntegrations.tab.website") }] : []),
+    ...(managesWebsite ? [{ id: "marquiz" as const, label: t("crmIntegrations.tab.marquiz") }] : []),
     ...(managesBitrix ? [{ id: "bitrix" as const, label: t("crmIntegrations.tab.bitrix") }] : []),
   ];
   const shown = tabs.some((entry) => entry.id === tab) ? tab : tabs[0]!.id;
@@ -41,6 +42,11 @@ export function IntegrationsButton() {
             board
               ? <WebsiteLeadsPanel key={board.key} projectId={board.key} />
               : <p className="text-sm text-muted-foreground">{t("crmIntegrations.website.noBoard")}</p>
+          ) : null}
+          {open && shown === "marquiz" ? (
+            board
+              ? <MarquizPanel key={board.key} projectId={board.key} />
+              : <p className="text-sm text-muted-foreground">{t("crmIntegrations.marquiz.noBoard")}</p>
           ) : null}
           {open && shown === "bitrix" ? <Bitrix24Panel /> : null}
         </DialogContent>

@@ -6,6 +6,8 @@ import { IntegrationsButton } from "@/widgets/crm-nav/index.js";
 
 const capabilities = { create: true, update: true, delete: true };
 const BOARD = { key: "project-1", label: "Сайт", clientId: "client-1", clientName: "Ромашка", capabilities };
+const WEBSITE_KEY = `bk_${"k".repeat(32)}`;
+const MARQUIZ_ADDRESS = `${window.location.origin}/api/intake/marquiz/${WEBSITE_KEY}`;
 const CONNECTED = {
   portalHost: "acme.bitrix24.ru",
   status: "ACTIVE",
@@ -17,9 +19,11 @@ const CONNECTED = {
   webhookUrl: "https://app.balagan.pro/api/integrations/bitrix24/KEY123",
 };
 
-function serve({ role = "ADMIN", boards = [BOARD], connection = null }: { role?: string; boards?: JsonBodyType[]; connection?: Record<string, JsonBodyType> | null } = {}) {
+function serve({ role = "ADMIN", boards = [BOARD], connection = null, websiteKey = null }: { role?: string; boards?: JsonBodyType[]; connection?: Record<string, JsonBodyType> | null; websiteKey?: string | null } = {}) {
   let stored: Record<string, JsonBodyType> | null = connection;
+  let key: string | null = websiteKey;
   const sent: Array<{ method: string; path: string; body?: unknown }> = [];
+  const keyBody = () => (key ? { key, allowedSites: [], createdAt: "2026-11-24T10:00:00.000Z", rotatedAt: null } : null);
   server.use(
     mock.get("/api/auth/me", () => HttpResponse.json({
       user: { id: "user-1", name: "Buyer", email: "buyer@acme.com", image: null },
@@ -28,7 +32,12 @@ function serve({ role = "ADMIN", boards = [BOARD], connection = null }: { role?:
       clientIds: [],
     })),
     mock.get("/api/crm/boards", () => HttpResponse.json(boards)),
-    mock.get("/api/projects/project-1/website-key", () => HttpResponse.json(null)),
+    mock.get("/api/projects/project-1/website-key", () => HttpResponse.json(keyBody())),
+    mock.put("/api/projects/project-1/website-key", () => {
+      sent.push({ method: "PUT", path: "website-key" });
+      key = key ?? WEBSITE_KEY;
+      return HttpResponse.json(keyBody(), { status: 201 });
+    }),
     mock.get("/api/bitrix24/connection", () => HttpResponse.json(stored)),
     mock.post("/api/bitrix24/connection", async ({ request }) => {
       const body = await request.json() as Record<string, string>;
@@ -113,6 +122,54 @@ describe("the integrations dialog", () => {
     renderWithProviders(<IntegrationsButton />);
 
     await waitFor(() => expect(screen.queryByRole("button", { name: "Интеграции +" })).not.toBeInTheDocument());
+  });
+});
+
+describe("the Marquiz tab", () => {
+  const openMarquiz = async () => {
+    const dialog = await open();
+    await userEvent.click(within(dialog).getByRole("radio", { name: "Marquiz" }));
+    return dialog;
+  };
+
+  it("sits between the web integration and Bitrix24", async () => {
+    serve();
+    renderWithProviders(<IntegrationsButton />);
+
+    const dialog = await open();
+
+    expect(within(dialog).getAllByRole("radio").map((tab) => tab.textContent)).toEqual(["Web интеграция", "Marquiz", "Битрикс24"]);
+  });
+
+  it("gives the webhook address with the project key, a button to copy it and where to paste it", async () => {
+    serve({ websiteKey: WEBSITE_KEY });
+    renderWithProviders(<IntegrationsButton />);
+    const dialog = await openMarquiz();
+
+    expect(await within(dialog).findByText(MARQUIZ_ADDRESS)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Скопировать адрес" })).toBeInTheDocument();
+    expect(within(dialog).getByText(/«Интеграции» → «Вебхуки»/)).toBeInTheDocument();
+    expect(within(dialog).queryByText(/<script/)).not.toBeInTheDocument();
+  });
+
+  it("creates the project key when there is none and then gives the address", async () => {
+    const sent = serve();
+    renderWithProviders(<IntegrationsButton />);
+    const dialog = await openMarquiz();
+
+    expect(await within(dialog).findByText(/Для адреса нужен ключ проекта/)).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Создать ключ" }));
+
+    expect(await within(dialog).findByText(MARQUIZ_ADDRESS)).toBeInTheDocument();
+    expect(sent).toContainEqual({ method: "PUT", path: "website-key" });
+  });
+
+  it("asks to choose a project while there is no board", async () => {
+    serve({ boards: [] });
+    renderWithProviders(<IntegrationsButton />);
+    const dialog = await openMarquiz();
+
+    expect(within(dialog).getByText("Выберите проект в CRM, чтобы подключить к нему квиз Marquiz.")).toBeInTheDocument();
   });
 });
 

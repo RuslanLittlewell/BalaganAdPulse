@@ -1,15 +1,17 @@
+import { useMemo } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Building2, Target, Users } from 'lucide-react';
-import { isRunning, useCampaignReferences } from '@/entities/campaign/index.js';
+import { isRunning, RunningDot, useCampaignReferences } from '@/entities/campaign/index.js';
 import { useCompanies, usePeople } from '@/entities/crm-record/index.js';
 import { useLeadBoards, useLeads } from '@/entities/lead/index.js';
 import { useAuth } from '@/features/auth/index.js';
+import { inCampaigns } from '@/features/lead-view-options/index.js';
 import { useCampaignCrm } from '@/features/profile-settings/index.js';
 import { t } from '@/shared/config/index.js';
 import { useModuleMemory } from '@/shared/lib/index.js';
-import { Label, SearchableSelect } from '@/shared/ui/index.js';
+import { Label, MultiSelect, SearchableSelect } from '@/shared/ui/index.js';
 
-const ALL_CAMPAIGNS = 'all';
+const CAMPAIGN_PARAM = 'campaign';
 
 export function useSelectedBoard() {
   const { data: boards } = useLeadBoards();
@@ -20,6 +22,23 @@ export function useSelectedBoard() {
   return { boards, board };
 }
 
+export function useCampaignScope(boardKey: string | undefined) {
+  const { user } = useAuth();
+  const [params] = useSearchParams();
+  const byCampaign = useCampaignCrm(user?.id);
+  const { data: references } = useCampaignReferences(byCampaign ? boardKey : undefined);
+  const campaigns = useMemo(
+    () => [...(references ?? [])].sort((a, b) => Number(isRunning(b.status)) - Number(isRunning(a.status))),
+    [references],
+  );
+  const campaignIds = useMemo(() => {
+    if (!byCampaign) return [];
+    const known = new Set(campaigns.map((campaign) => campaign.id));
+    return [...new Set(params.getAll(CAMPAIGN_PARAM))].filter((id) => known.has(id));
+  }, [byCampaign, campaigns, params]);
+  return { byCampaign, campaigns, campaignIds };
+}
+
 export function CrmNav() {
   const { user } = useAuth();
   const rememberBoard = useModuleMemory((state) => state.rememberBoard);
@@ -27,27 +46,30 @@ export function CrmNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const { boards, board } = useSelectedBoard();
-  const byCampaign = useCampaignCrm(user?.id);
-  const { data: references } = useCampaignReferences(byCampaign ? board?.key : undefined);
-  const campaigns = references?.filter((entry) => isRunning(entry.status));
-  const campaignId = byCampaign && campaigns?.some((entry) => entry.id === params.get('campaign')) ? params.get('campaign') : null;
+  const { byCampaign, campaigns, campaignIds } = useCampaignScope(board?.key);
   const { data: leads } = useLeads(board?.key);
-  const leadCount = campaignId ? leads?.filter((lead) => lead.campaignId === campaignId).length : leads?.length;
+  const leadCount = leads ? inCampaigns(leads, campaignIds).length : undefined;
   const { data: companies } = useCompanies(board?.clientId);
   const { data: people } = usePeople(board?.clientId);
-  const suffix = board ? `?board=${encodeURIComponent(board.key)}` : '';
   const sections = [
     { path: '/crm', label: t('crm.nav.leads'), count: leadCount, icon: Target },
     { path: '/crm/companies', label: t('crm.nav.companies'), count: companies?.length, icon: Building2 },
     { path: '/crm/people', label: t('crm.nav.people'), count: people?.length, icon: Users },
   ];
 
-  function chooseCampaign(value: string) {
+  function chooseCampaigns(ids: readonly string[]) {
     const next = new URLSearchParams(params);
-    if (value === ALL_CAMPAIGNS) next.delete('campaign');
-    else next.set('campaign', value);
+    next.delete(CAMPAIGN_PARAM);
+    for (const id of ids) next.append(CAMPAIGN_PARAM, id);
     next.delete('lead');
     navigate(`${location.pathname}?${next.toString()}`);
+  }
+
+  function sectionLink(path: string) {
+    const query = new URLSearchParams(board ? { board: board.key } : {});
+    if (path === '/crm') for (const id of campaignIds) query.append(CAMPAIGN_PARAM, id);
+    const search = query.toString();
+    return search ? `${path}?${search}` : path;
   }
 
   function choose(key: string) {
@@ -71,19 +93,19 @@ export function CrmNav() {
         emptyLabel={t('select.search.empty')}
       />
     </div> : board ? <span className="truncate px-2 text-sm font-semibold">{board.label}</span> : null}
-    {byCampaign && board ? <div><Label htmlFor="crm-campaign" className="sr-only">{t('crm.campaign')}</Label>
-      <SearchableSelect
-        id="crm-campaign"
-        className="h-8"
-        value={campaignId ?? ALL_CAMPAIGNS}
-        onValueChange={chooseCampaign}
-        options={[{ value: ALL_CAMPAIGNS, label: t('crm.campaign.all') }, ...(campaigns ?? []).map((campaign) => ({ value: campaign.id, label: campaign.name }))]}
-        searchLabel={t('crm.campaign.search')}
-        emptyLabel={t('select.search.empty')}
-      />
-    </div> : null}
+    {byCampaign && board ? <MultiSelect
+      className="h-8 w-full"
+      items={campaigns.map((campaign) => ({ value: campaign.id, label: campaign.name, icon: <RunningDot running={isRunning(campaign.status)} /> }))}
+      chosen={campaignIds}
+      onChange={chooseCampaigns}
+      placeholder={t('crm.campaign.all')}
+      allLabel={t('crm.campaign.all')}
+      ariaLabel={t('crm.campaign')}
+      emptyMeansAll
+      searchable
+    /> : null}
     <div className="flex gap-1 md:flex-col">
-      {sections.map((section) => <Link key={section.path} to={`${section.path}${suffix}${section.path === '/crm' && campaignId ? `&campaign=${encodeURIComponent(campaignId)}` : ''}`} aria-current={location.pathname === section.path ? 'page' : undefined}
+      {sections.map((section) => <Link key={section.path} to={sectionLink(section.path)} aria-current={location.pathname === section.path ? 'page' : undefined}
         className="flex min-w-0 flex-1 items-center justify-between gap-1 rounded-md px-2 py-1.5 text-sm hover:bg-muted aria-[current=page]:bg-muted aria-[current=page]:font-semibold md:flex-none">
         <span className="flex min-w-0 items-center gap-2"><section.icon aria-hidden className="size-4 shrink-0 text-muted-foreground" /><span className="truncate">{section.label}</span></span><span className="text-xs tabular-nums text-muted-foreground">{section.count ?? '–'}</span>
       </Link>)}

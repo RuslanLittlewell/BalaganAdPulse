@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { t } from "@/shared/config/index.js";
-import { DateRangeFields, toIso } from "@/shared/ui/index.js";
+import { Button, DateRangeFields, toIso } from "@/shared/ui/index.js";
 import type { Filter, ViewState } from "../model/viewState.js";
 
 export interface PeriodControlProps {
@@ -49,6 +49,11 @@ export function PeriodControl({ view, onChange }: PeriodControlProps) {
     onChange(current ? view.filters.map((filter) => (filter === current ? period : filter)) : [...others, period]);
   }
 
+  function showAll() {
+    setDraft({ from: "", to: "" });
+    if (current) apply({ from: "", to: "" });
+  }
+
   function change(side: "from" | "to", value: string) {
     const next = { ...draft, [side]: value };
     setDraft(next);
@@ -57,6 +62,15 @@ export function PeriodControl({ view, onChange }: PeriodControlProps) {
 
   return (
     <div role="group" aria-label={t("crm.view.period")} className="flex flex-wrap items-center gap-2">
+      <Button
+        type="button"
+        size="sm"
+        variant={current ? "ghost" : "secondary"}
+        aria-pressed={!current}
+        onClick={showAll}
+      >
+        {t("crm.view.periodAll")}
+      </Button>
       <DateRangeFields
         idPrefix="crm-period"
         inline

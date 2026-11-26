@@ -42,7 +42,7 @@ export interface ViewState {
   compact: boolean;
 }
 
-export type ScopedView = ViewState & { campaignId?: string | null };
+export type ScopedView = ViewState & { campaignIds?: readonly string[] };
 
 export const DEFAULT_CARD_FIELDS: readonly FieldRef[] = ["amount", "assignee", "company", "phone", "arrival", "tags"];
 

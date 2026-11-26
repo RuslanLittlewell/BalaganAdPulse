@@ -239,6 +239,44 @@ describe("filtering by a period of dates", () => {
     expect(screen.queryByText("Ноябрьский")).toBeNull();
   });
 
+  const allPeriods = () => within(screen.getByRole("group", { name: "Период поступления" })).getByRole("button", { name: "Все" });
+
+  it("shows leads of every arrival date on Все and releases it once a date is picked", async () => {
+    server.use(mock.get("/api/crm/boards/:board/leads", () => HttpResponse.json(OCTOBER)));
+    setup();
+    await screen.findByText("Сентябрьский");
+    expect(allPeriods()).toHaveAttribute("aria-pressed", "false");
+
+    await userEvent.click(allPeriods());
+
+    await waitFor(() => expect(shownNames()).toHaveLength(4));
+    expect(screen.getByLabelText("Лидов: 4")).toBeInTheDocument();
+    expect(screen.getByLabelText("От:")).toHaveValue("");
+    expect(screen.getByLabelText("До:")).toHaveValue("");
+    expect(allPeriods()).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.change(screen.getByLabelText("От:"), { target: { value: "2026-10-01" } });
+    expect(allPeriods()).toHaveAttribute("aria-pressed", "false");
+    fireEvent.change(screen.getByLabelText("До:"), { target: { value: "2026-10-31" } });
+
+    await waitFor(() => expect(shownNames()).toEqual(["Первый октябрьский", "Последний октябрьский"]));
+  });
+
+  it("remembers Все for the board", async () => {
+    server.use(mock.get("/api/crm/boards/:board/leads", () => HttpResponse.json(OCTOBER)));
+    const first = setup();
+    await screen.findByText("Сентябрьский");
+    await userEvent.click(allPeriods());
+    await waitFor(() => expect(shownNames()).toHaveLength(4));
+    first.unmount();
+
+    setup();
+
+    await screen.findByText("Ноябрьский");
+    expect(shownNames()).toHaveLength(4);
+    expect(allPeriods()).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("tells a reversed period and does not filter by it", async () => {
     server.use(mock.get("/api/crm/boards/:board/leads", () => HttpResponse.json(OCTOBER)));
     setup();

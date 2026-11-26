@@ -61,16 +61,18 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
   async function announce(actor:ActorContext,clientId:string,board:string) {
     for (const other of await d.records.projectsOf(clientId)) if (other!==board) d.publish({kind:'crm.changed',orgId:actor.orgId,board:other,resources:['leads','records']});
   }
-  async function attribution(actor:ActorContext, board:string, before:Pick<LeadRecord,'campaignId'|'origin'>, input:Pick<LeadFields,'campaignId'>) {
-    if (actor.role==='PARTNER') {
-      const own = actor.partner?.campaignIds ?? [];
-      const requested = input.campaignId === undefined ? before.campaignId : input.campaignId;
-      if (requested && !own.includes(requested)) throw new AppError('forbidden','A partner lead stays on the partner\'s campaigns');
-      if (!requested) {
-        if (own.length !== 1) throw new AppError('validation','Choose one of your campaigns for the lead');
-        input = {campaignId:own[0]!};
-      }
-    }
+  function partnerAttribution(actor:ActorContext, existing:Pick<LeadRecord,'campaignId'>|null, input:Pick<LeadFields,'campaignId'>) {
+    const own = actor.partner?.campaignIds ?? [];
+    const requested = input.campaignId === undefined ? existing?.campaignId ?? null : input.campaignId;
+    if (requested && !own.includes(requested)) throw new AppError('forbidden','A partner lead stays on the partner\'s campaigns');
+    if (requested) return input;
+    if (existing && existing.campaignId === null) return {campaignId:null};
+    if (own.length !== 1) throw new AppError('validation','Choose one of your campaigns for the lead');
+    return {campaignId:own[0]!};
+  }
+  async function attribution(actor:ActorContext, board:string, existing:Pick<LeadRecord,'campaignId'|'origin'>|null, requested:Pick<LeadFields,'campaignId'>) {
+    const input = actor.role==='PARTNER' ? partnerAttribution(actor,existing,requested) : requested;
+    const before = existing ?? {campaignId:null,origin:'MANUAL'};
     if (before.origin==='META') {
       if (input.campaignId!==undefined&&input.campaignId!==before.campaignId) throw new AppError('validation','An imported lead keeps the campaign it came from');
       return {campaignId:before.campaignId};
@@ -151,7 +153,7 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
         clientId=await d.leads.clientOf(board);
         const stage=input.stage ?? 'NEW';
         await placement(context,actor,board,stage);
-        const named=await attribution(actor,board,{campaignId:null,origin:'MANUAL'},input);
+        const named=await attribution(actor,board,null,input);
         const assigned=await assignment(actor,board,{assigneeId:null},input);
         const customValues=applyCustomValues(await d.fields.list(actor.orgId,board,context),{},input.customValues);
         const links=await linked(context,actor,clientId,{name:input.name,personId:null,companyId:null},input);

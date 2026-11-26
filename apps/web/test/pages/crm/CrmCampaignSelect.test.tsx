@@ -32,6 +32,8 @@ const serve = () => server.use(
   mock.get("/api/crm/boards/project-1/leads", () => HttpResponse.json([
     aLead({ id: "lead-1", name: "Лид весны", campaignId: "campaign-1" }),
     aLead({ id: "lead-2", name: "Лид лета", campaignId: "campaign-2" }),
+    aLead({ id: "lead-3", name: "Лид старой", campaignId: "campaign-3" }),
+    aLead({ id: "lead-4", name: "Лид без кампании", campaignId: null }),
   ])),
 );
 
@@ -40,26 +42,58 @@ const setup = (route = "/crm") => renderWithProviders(<Routes><Route path="/crm"
 describe("the CRM campaign select", () => {
   afterEach(() => localStorage.clear());
 
-  it("limits the leads to the chosen campaign and restores them on all campaigns", async () => {
+  const select = () => screen.getByLabelText("Кампания", { selector: "button" });
+  const leadsSection = () => screen.getByRole("link", { name: /Лиды/ });
+
+  it("limits the leads to the checked campaigns and restores them on all campaigns", async () => {
     saveCampaignCrm("user-1", true);
     serve();
     setup();
 
     expect(await screen.findByText("Лид весны")).toBeInTheDocument();
-    expect(screen.getByText("Лид лета")).toBeInTheDocument();
+    expect(screen.getByText("Лид без кампании")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Кампания", { selector: "button" })).toHaveTextContent("Все кампании");
 
-    await userEvent.click(await screen.findByLabelText("Кампания", { selector: "button" }));
-    expect(await screen.findByRole("option", { name: "Летняя" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "Старая" })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("option", { name: "Летняя" }));
+    await userEvent.click(select());
+    expect(await screen.findByRole("menuitemcheckbox", { name: "Все кампании" })).toHaveAttribute("aria-checked", "true");
+    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "Летняя" }));
 
     expect(await screen.findByText("Лид лета")).toBeInTheDocument();
     expect(screen.queryByText("Лид весны")).not.toBeInTheDocument();
+    expect(screen.queryByText("Лид без кампании")).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByLabelText("Кампания", { selector: "button" }));
-    await userEvent.click(await screen.findByRole("option", { name: "Все кампании" }));
+    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "Весенняя" }));
 
     expect(await screen.findByText("Лид весны")).toBeInTheDocument();
+    expect(screen.getByText("Лид лета")).toBeInTheDocument();
+    expect(screen.queryByText("Лид старой")).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitemcheckbox", { name: "Летняя" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("menuitemcheckbox", { name: "Весенняя" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("menuitemcheckbox", { name: "Все кампании" })).toHaveAttribute("aria-checked", "false");
+
+    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "Все кампании" }));
+
+    expect(await screen.findByText("Лид без кампании")).toBeInTheDocument();
+    expect(screen.getByText("Лид старой")).toBeInTheDocument();
+  });
+
+  it("lists stopped campaigns after the running ones and scopes to them", async () => {
+    saveCampaignCrm("user-1", true);
+    serve();
+    setup();
+
+    await screen.findByText("Лид весны");
+    await userEvent.click(await screen.findByLabelText("Кампания", { selector: "button" }));
+
+    const names = (await screen.findAllByRole("menuitemcheckbox")).map((option) => option.textContent);
+    expect(names).toEqual(["Все кампании", "Весенняя", "Летняя", "Старая"]);
+    const stopped = screen.getByRole("menuitemcheckbox", { name: "Старая" });
+    expect(stopped.querySelector("[data-running]")).toHaveAttribute("data-running", "false");
+
+    await userEvent.click(stopped);
+
+    expect(await screen.findByText("Лид старой")).toBeInTheDocument();
+    expect(screen.queryByText("Лид весны")).not.toBeInTheDocument();
   });
 
   it("reads the campaign from the address", async () => {
@@ -71,12 +105,27 @@ describe("the CRM campaign select", () => {
     expect(screen.queryByText("Лид лета")).not.toBeInTheDocument();
   });
 
+  it("reads several campaigns from the address and keeps them in the leads link", async () => {
+    saveCampaignCrm("user-1", true);
+    serve();
+    setup("/crm?board=project-1&campaign=campaign-1&campaign=campaign-3");
+
+    expect(await screen.findByText("Лид весны")).toBeInTheDocument();
+    expect(screen.getByText("Лид старой")).toBeInTheDocument();
+    expect(screen.queryByText("Лид лета")).not.toBeInTheDocument();
+    expect(select()).toHaveTextContent("Весенняя");
+    expect(select()).toHaveTextContent("+1");
+    expect(leadsSection()).toHaveAttribute("href", "/crm?board=project-1&campaign=campaign-1&campaign=campaign-3");
+    expect(leadsSection()).toHaveTextContent("2");
+  });
+
   it("shows no campaign select and no scope while the preference is off", async () => {
     serve();
     setup("/crm?board=project-1&campaign=campaign-1");
 
     expect(await screen.findByText("Лид лета")).toBeInTheDocument();
     expect(screen.getByText("Лид весны")).toBeInTheDocument();
+    expect(screen.getByText("Лид старой")).toBeInTheDocument();
     expect(screen.queryByLabelText("Кампания", { selector: "button" })).not.toBeInTheDocument();
   });
 });

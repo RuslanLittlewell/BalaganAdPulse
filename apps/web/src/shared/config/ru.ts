@@ -1727,6 +1727,7 @@ export const ru = {
   "crm.view.op.lte": "не больше",
   "crm.view.op.between": "в период",
   "crm.view.period": "Период поступления",
+  "crm.view.periodAll": "Все",
   "crm.view.periodFrom": "От:",
   "crm.view.periodTo": "До:",
   "crm.view.from": "От",

@@ -149,14 +149,14 @@ describe('importing leads', () => {
     expect(await imported()).toEqual([]);
   });
 
-  it('lets the partner of the campaign see the imported leads of that campaign only', async () => {
+  it('lets the partner of the campaign see the imported leads of that campaign and none of another campaign', async () => {
     const dealer = await signInAs('Dealer', { role: 'PARTNER' });
     await prisma.partnerCampaign.create({ data: { membershipId: dealer.membership!.id, campaignId: ct } });
     await run();
 
     const seen = (await request(app).get(`/api/crm/boards/${projectId}/leads`).set(dealer.auth)).body as Array<{ name: string }>;
 
-    expect(seen.map((lead) => lead.name).sort()).toEqual(['Gabriela', 'Michelle']);
+    expect(seen.map((lead) => lead.name).sort()).toEqual(['Akex', 'Gabriela', 'Michelle']);
   });
 
   it('counts a lead on the day of its row', async () => {

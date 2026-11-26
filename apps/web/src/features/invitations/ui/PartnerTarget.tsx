@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { isRunning, useCampaignReferences, type CampaignReference } from "@/entities/campaign/index.js";
+import { isRunning, RunningDot, useCampaignReferences, type CampaignReference } from "@/entities/campaign/index.js";
 import type { Project } from "@/entities/project/index.js";
 import { t } from "@/shared/config/index.js";
-import { cn } from "@/shared/lib/index.js";
 import {
   Label,
   MultiSelect,
@@ -41,19 +40,11 @@ export function PartnerTarget({ projects, projectId, campaignIds, onProjectChang
   const chosenAccounts = accounts.map((account) => account.value).filter((account) => !unchosenAccounts.includes(account));
   const inAccounts = all.filter((campaign) => chosenAccounts.includes(accountOf(campaign)));
   const shown = activeOnly ? inAccounts.filter((campaign) => isRunning(campaign.status)) : inAccounts;
-  const items = shown.map((campaign) => {
-    const running = isRunning(campaign.status);
-    return {
-      value: campaign.id,
-      label: campaign.name,
-      icon: (
-        <span
-          data-running={running}
-          className={cn("block size-2 rounded-full", running ? "bg-emerald-500" : "bg-destructive")}
-        />
-      ),
-    };
-  });
+  const items = shown.map((campaign) => ({
+    value: campaign.id,
+    label: campaign.name,
+    icon: <RunningDot running={isRunning(campaign.status)} />,
+  }));
 
   function keep(allowed: readonly CampaignReference[]) {
     const ids = new Set(allowed.map((campaign) => campaign.id));

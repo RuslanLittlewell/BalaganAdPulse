@@ -16,7 +16,7 @@ import { CrmLayout, CrmPage, CrmRecordsPage } from "@/pages/crm/index.js";
 import { OrganizationsPage } from "@/pages/organizations/index.js";
 import { SuspendedPage } from "@/pages/suspended/index.js";
 import { SharePage } from "@/pages/share/index.js";
-import { AuthProvider, RequireAuth, SessionHeartbeat, useAuth } from "@/features/auth/index.js";
+import { AuthProvider, partnerHome, partnerSeesProjects, RequireAuth, SessionHeartbeat, useAuth } from "@/features/auth/index.js";
 import { NavCollapseProvider } from "@/features/nav-collapse/index.js";
 import { ProjectsSync } from "@/entities/project/index.js";
 import { StaffSync } from "@/entities/membership/index.js";
@@ -37,7 +37,7 @@ const queryClient = createQueryClient();
 function OrganizationArea() {
   const location = useLocation();
   const { modules, role, partner } = useAuth();
-  const home = role === "PARTNER" && partner ? `${ROUTES.projects}/${partner.projectId}` : ROUTES.dashboard;
+  const home = role === "PARTNER" && partner ? partnerHome(modules, partner) : ROUTES.dashboard;
   const { previewing } = usePreviewMode();
   const entitled = (module: ModuleKey, page: ReactNode) =>
     modules.includes(module) ? page : <Navigate to={home} replace />;
@@ -50,7 +50,7 @@ function OrganizationArea() {
       <AppShell sidebar={<MainNav />} header={<AppHeader />} moduleKey={moduleKeyFromPathname(location.pathname)} preview={previewing && previewedProjectId(location.pathname) !== null}>
         <Routes location={location}>
           <Route path={ROUTES.dashboard} element={entitled("DASHBOARD", <DashboardPage />)} />
-          <Route path={`${ROUTES.projects}/*`} element={<ProjectsPage />} />
+          <Route path={`${ROUTES.projects}/*`} element={role === "PARTNER" && !partnerSeesProjects(modules) ? <Navigate to={home} replace /> : <ProjectsPage />} />
           <Route path={ROUTES.tasks} element={entitled("TASKS", <TasksPage />)} />
           <Route path={ROUTES.crm} element={entitled("CRM", <CrmLayout />)}>
             <Route index element={<CrmPage />} />

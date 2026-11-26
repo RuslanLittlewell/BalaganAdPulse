@@ -28,11 +28,18 @@ describe('the partner view', () => {
     expect(screen.queryByRole('switch',{name:t('project.kpiTracked')})).not.toBeInTheDocument();
   });
 
-  it('offers the project and CRM in its menu', async () => {
+  it('offers only the CRM in its menu', async () => {
     partnerSession();renderWithProviders(<MainNav />);
-    await waitFor(()=>expect(within(screen.getByRole('navigation',{name:t('nav.sections')})).getAllByRole('link')).toHaveLength(2));
-    expect(screen.getByRole('link',{name:t('nav.projects')})).toHaveAttribute('href','/projects/p1');
-    expect(screen.getByRole('link',{name:t('nav.crm')})).toBeInTheDocument();
+    await waitFor(()=>expect(screen.getByRole('link',{name:t('nav.crm')})).toBeInTheDocument());
+    expect(within(screen.getByRole('navigation',{name:t('nav.sections')})).getAllByRole('link')).toHaveLength(1);
+    expect(screen.queryByRole('link',{name:t('nav.projects')})).not.toBeInTheDocument();
+  });
+
+  it('offers its project in the menu while the organization has no CRM', async () => {
+    server.use(mock.get('/api/auth/me', () => HttpResponse.json(aSession({role:'PARTNER',modules:['PROJECTS'],tariff:null,partner:{campaignIds:['c1'],projectId:'p1'}}))));
+    renderWithProviders(<MainNav />);
+    await waitFor(()=>expect(screen.getByRole('link',{name:t('nav.projects')})).toHaveAttribute('href','/projects/p1'));
+    expect(within(screen.getByRole('navigation',{name:t('nav.sections')})).getAllByRole('link')).toHaveLength(1);
   });
 
   it('preselects the only campaign when creating a partner lead', async () => {

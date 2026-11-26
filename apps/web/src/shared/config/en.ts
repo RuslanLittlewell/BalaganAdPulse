@@ -1613,6 +1613,7 @@ export const en = {
   "crm.view.op.lte": "at most",
   "crm.view.op.between": "between",
   "crm.view.period": "Arrival period",
+  "crm.view.periodAll": "All",
   "crm.view.periodFrom": "From:",
   "crm.view.periodTo": "To:",
   "crm.view.from": "From",

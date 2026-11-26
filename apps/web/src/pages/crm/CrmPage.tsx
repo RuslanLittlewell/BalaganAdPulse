@@ -16,14 +16,12 @@ import {
 } from "@/entities/lead/index.js";
 import { useCan } from "@/features/permissions/index.js";
 import { useAuth } from "@/features/auth/index.js";
-import { isRunning, useCampaignReferences } from "@/entities/campaign/index.js";
-import { useCampaignCrm } from "@/features/profile-settings/index.js";
 import { LeadFieldsDialog } from "@/features/lead-field-management/index.js";
 import { LeadImportButton } from "@/features/lead-import/index.js";
 import {
   CrmViewChips,
   CrmViewControls,
-  inCampaign,
+  inCampaigns,
   PeriodControl,
   pruneState,
   useViewState,
@@ -41,6 +39,7 @@ import {
   useAlerts,
 } from "@/shared/ui/index.js";
 import { CrmBoard } from "@/widgets/crm-board/index.js";
+import { useCampaignScope } from "@/widgets/crm-nav/index.js";
 import { CrmTasks } from "@/widgets/crm-tasks/index.js";
 import { CreativePreviewDialog } from "@/widgets/creative-preview/index.js";
 import { CreateLeadPanel, LeadSidePanel } from "@/widgets/lead-side-panel/index.js";
@@ -94,10 +93,7 @@ export function CrmPage() {
     ? boards?.find((candidate) => candidate.key === chosen)
     : restorable ?? (user ? boards?.[0] : undefined);
   const openLeadId = params.get("lead");
-  const byCampaign = useCampaignCrm(user?.id);
-  const { data: references } = useCampaignReferences(byCampaign ? board?.key : undefined);
-  const requested = params.get("campaign");
-  const campaignId = byCampaign && references?.some((entry) => entry.id === requested && isRunning(entry.status)) ? requested : null;
+  const { campaignIds } = useCampaignScope(board?.key);
 
   useCrmEvents(board?.key, {}, board?.clientId);
   const updateLead = useUpdateLead(board?.key ?? '');
@@ -111,8 +107,8 @@ export function CrmPage() {
     () => (fields && columns ? pruneState(storedView, fields, columns) : storedView),
     [storedView, fields, columns],
   );
-  const view = useMemo(() => ({ ...prunedView, campaignId }), [prunedView, campaignId]);
-  const scopedLeads = useMemo(() => inCampaign(leads ?? [], campaignId), [leads, campaignId]);
+  const view = useMemo(() => ({ ...prunedView, campaignIds }), [prunedView, campaignIds]);
+  const scopedLeads = useMemo(() => inCampaigns(leads ?? [], campaignIds), [leads, campaignIds]);
   const choices = useBoardChoices(scopedLeads);
   const shownCount = useMemo(() => visibleLeads(leads ?? [], view, fields ?? []).length, [leads, view, fields]);
   const context: FilterContext = useMemo(

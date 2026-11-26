@@ -25,6 +25,7 @@ export interface MultiSelectProps {
   ariaLabel: string;
   allLabel?: string;
   searchable?: boolean;
+  emptyMeansAll?: boolean;
   className?: string;
 }
 
@@ -36,6 +37,7 @@ export function MultiSelect({
   ariaLabel,
   allLabel,
   searchable = false,
+  emptyMeansAll = false,
   className,
 }: MultiSelectProps) {
   const [query, setQuery] = useState("");
@@ -44,9 +46,12 @@ export function MultiSelect({
   const picked = items.filter((item) => chosen.includes(item.value));
   const [first, ...rest] = picked;
 
-  const allChosen = items.length > 0 && items.every((item) => chosen.includes(item.value));
+  const allChosen = emptyMeansAll
+    ? chosen.length === 0
+    : items.length > 0 && items.every((item) => chosen.includes(item.value));
+  const showsAll = emptyMeansAll && allChosen && allLabel !== undefined;
 
-  const toggleAll = () => onChange(allChosen ? [] : items.map((item) => item.value));
+  const toggleAll = () => onChange(emptyMeansAll || allChosen ? [] : items.map((item) => item.value));
 
   const toggle = (value: string) =>
     onChange(
@@ -62,12 +67,12 @@ export function MultiSelect({
           type="button"
           aria-label={ariaLabel}
           data-size="default"
-          data-placeholder={first ? undefined : ""}
+          data-placeholder={first || showsAll ? undefined : ""}
           className={cn(selectTriggerClassName, "min-w-0", className)}
         >
           <span className="flex min-w-0 items-center gap-1">
             {first?.icon ? <span aria-hidden className="shrink-0">{first.icon}</span> : null}
-            <span className="truncate">{first?.label ?? placeholder}</span>
+            <span className="truncate">{first?.label ?? (showsAll ? allLabel : placeholder)}</span>
             {rest.length > 0 ? (
               <span className="shrink-0 text-muted-foreground">{`+${rest.length}`}</span>
             ) : null}

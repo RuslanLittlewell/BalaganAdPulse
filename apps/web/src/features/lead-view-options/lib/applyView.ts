@@ -11,12 +11,13 @@ export function matchesSearch(lead: Lead, search: string): boolean {
   return visibleRecords([lead], { search, filters: [] }, leadSchema([])).length > 0;
 }
 
-export function inCampaign(leads: readonly Lead[], campaignId: string | null | undefined): readonly Lead[] {
-  return campaignId ? leads.filter((lead) => lead.campaignId === campaignId) : leads;
+export function inCampaigns(leads: readonly Lead[], campaignIds: readonly string[] | undefined): readonly Lead[] {
+  if (!campaignIds?.length) return leads;
+  return leads.filter((lead) => lead.campaignId !== null && campaignIds.includes(lead.campaignId));
 }
 
-export function visibleLeads(leads: readonly Lead[], view: Pick<ScopedView, 'search' | 'filters' | 'campaignId'>, fields: readonly LeadField[]): Lead[] {
-  return visibleRecords(inCampaign(leads, view.campaignId), view, leadSchema(fields));
+export function visibleLeads(leads: readonly Lead[], view: Pick<ScopedView, 'search' | 'filters' | 'campaignIds'>, fields: readonly LeadField[]): Lead[] {
+  return visibleRecords(inCampaigns(leads, view.campaignIds), view, leadSchema(fields));
 }
 
 export function compareBy(sort: Sort, fields: readonly LeadField[]): ((a: Lead, b: Lead) => number) | null {

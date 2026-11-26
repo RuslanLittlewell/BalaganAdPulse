@@ -198,6 +198,68 @@ describe("the all entry of a multi-select", () => {
   });
 });
 
+describe("a multi-select where an empty choice means all", () => {
+  function EmptyIsAll({ onChange = (_next: string[]) => {}, initial = [] as string[] }) {
+    const [chosen, setChosen] = useState(initial);
+    return (
+      <MultiSelect
+        items={items}
+        chosen={chosen}
+        onChange={(next) => { onChange(next); setChosen(next); }}
+        allLabel="Все"
+        placeholder="Ответственный"
+        ariaLabel="Фильтр по ответственным"
+        emptyMeansAll
+      />
+    );
+  }
+
+  it("names the all entry on its face while nothing is chosen", () => {
+    render(<EmptyIsAll />);
+    expect(trigger()).toHaveTextContent("Все");
+    expect(trigger()).not.toHaveAttribute("data-placeholder");
+  });
+
+  it("marks the all entry while nothing is chosen and unmarks it once an option is chosen", async () => {
+    const user = userEvent.setup();
+    render(<EmptyIsAll />);
+    await open(user);
+
+    const all = await screen.findByRole("menuitemcheckbox", { name: "Все" });
+    expect(all).toHaveAttribute("aria-checked", "true");
+
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "Анна" }));
+
+    expect(all).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("menuitemcheckbox", { name: "Анна" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("menuitemcheckbox", { name: "Пётр" })).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("clears the choice when the all entry is picked", async () => {
+    const user = userEvent.setup();
+    const seen: string[][] = [];
+    render(<EmptyIsAll initial={["m1", "m2"]} onChange={(next) => seen.push(next)} />);
+    await open(user);
+
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Все" }));
+
+    expect(seen).toEqual([[]]);
+    await user.keyboard("{Escape}");
+    expect(trigger()).toHaveTextContent("Все");
+  });
+
+  it("does not choose every option when the all entry is picked again", async () => {
+    const user = userEvent.setup();
+    const seen: string[][] = [];
+    render(<EmptyIsAll onChange={(next) => seen.push(next)} />);
+    await open(user);
+
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Все" }));
+
+    expect(seen).toEqual([[]]);
+  });
+});
+
 describe("a multiple select with a search", () => {
   const searchable = () => render(
     <MultiSelect items={items} chosen={[]} onChange={() => {}} allLabel="Все" searchable placeholder="Ответственный" ariaLabel="Фильтр по ответственным" />,

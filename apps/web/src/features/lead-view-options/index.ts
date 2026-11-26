@@ -16,7 +16,7 @@ export {
 export type { BuiltInField, FieldRef, Filter, FilterValue, Operator, ScopedView, Sort, SortDirection, ViewState } from "./model/viewState.js";
 export { catalogueField, fieldCatalogue, needsValue, operatorsFor, valueOf } from "./lib/catalogue.js";
 export type { CatalogueField, FieldKind, FieldValue } from "./lib/catalogue.js";
-export { compareBy, inCampaign, matches, matchesSearch, pruneState, visibleLeads } from "./lib/applyView.js";
+export { compareBy, inCampaigns, matches, matchesSearch, pruneState, visibleLeads } from "./lib/applyView.js";
 export { leadSchema, companySchema, personSchema } from "./lib/recordSchema.js";
 export type { RecordSchema, SchemaField } from "./lib/recordSchema.js";
 export { compareRecords, matchesRecord, pruneRecordState, schemaField, visibleRecords } from "./lib/applyRecords.js";

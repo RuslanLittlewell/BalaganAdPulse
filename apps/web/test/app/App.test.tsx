@@ -4,6 +4,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { clearTokens, writeTokens } from "@/shared/lib/index.js";
 import { aClient, aProject, aSession, makeAccessToken, server } from "@test/shared/index.js";
+import type { ModuleKey } from "@adpulse/access-policy";
 import { App } from "@/app/App.js";
 
 function renderAppAt(path: string) {
@@ -117,12 +118,26 @@ describe("App", () => {
 
 
 describe("partner landing", () => {
-  it.each(["/", "/tasks", "/reports", "/archive", "/projects"])("opens the partner project from %s", async path => {
+  const partnerWith = (modules: ModuleKey[]) => {
     writeTokens({accessToken:makeAccessToken(),refreshToken:"r"});
     server.use(
-      mock.get("/api/auth/me",()=>HttpResponse.json(aSession({role:"PARTNER",partner:{campaignIds:["c1"],projectId:"p1"},modules:["PROJECTS","CRM"],tariff:null}))),
+      mock.get("/api/auth/me",()=>HttpResponse.json(aSession({role:"PARTNER",partner:{campaignIds:["c1"],projectId:"p1"},modules,tariff:null}))),
       mock.get("/api/projects",()=>HttpResponse.json([aProject({id:"p1",name:"Gealan"})])),
+      mock.get("/api/crm/boards",()=>HttpResponse.json([{key:"p1",label:"Gealan",clientId:"client-1",clientName:"Gealan",capabilities:{create:true,update:true,delete:false}}])),
+      mock.get("/api/crm/boards/p1/leads",()=>HttpResponse.json([])),
     );
+  };
+
+  it.each(["/", "/tasks", "/reports", "/archive", "/projects", "/projects/p1", "/projects/p1/campaigns/c1"])("opens the CRM instead of the project from %s", async path => {
+    partnerWith(["PROJECTS","CRM"]);
+    renderAppAt(path);
+    await waitFor(()=>expect(window.location.pathname).toBe("/crm"));
+    expect(await screen.findByRole("heading",{name:"Лиды"})).toBeInTheDocument();
+    expect(screen.queryByRole("heading",{name:"Gealan"})).not.toBeInTheDocument();
+  });
+
+  it.each(["/", "/projects"])("opens the partner project from %s while the organization has no CRM", async path => {
+    partnerWith(["PROJECTS"]);
     renderAppAt(path);
     await waitFor(()=>expect(window.location.pathname).toBe("/projects/p1"));
     expect(await screen.findByRole("heading",{name:"Gealan"})).toBeInTheDocument();

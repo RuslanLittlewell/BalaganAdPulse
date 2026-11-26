@@ -219,9 +219,51 @@ describe('a partner of two campaigns', () => {
     await request(app).patch(`${board()}/leads/${southLead}`).set(dealer.auth).send({ assigneeId: stranger.membership!.id }).expect(400);
   });
 
-  it('keeps reaching the other campaign when one is deleted', async () => {
+  it('keeps reaching the other campaign when one is deleted, and the deleted campaign\'s leads as leads without a campaign', async () => {
     await prisma.campaign.delete({ where: { id: ownCampaign } });
 
-    expect((await read(`${board()}/leads`).expect(200)).body.map((l: {id:string}) => l.id)).toEqual([southLead]);
+    expect((await read(`${board()}/leads`).expect(200)).body.map((l: {id:string}) => l.id)).toEqual([ownLead, southLead]);
+    await read(`/api/campaigns/${ownCampaign}?${range}`).expect(404);
+  });
+});
+
+describe('leads without a campaign', () => {
+  let quizLead: string, quizPerson: string, hiddenQuizLead: string;
+  const ids = (body: {id:string}[]) => body.map((row) => row.id);
+
+  beforeEach(async () => {
+    quizPerson = (await prisma.person.create({ data: { orgId, clientId, name: 'Quiz contact' } })).id;
+    quizLead = (await prisma.lead.create({ data: { orgId, projectId, name: 'Quiz lead', campaignId: null, personId: quizPerson, stage: 'NEW', position: 2 } })).id;
+    hiddenQuizLead = (await prisma.lead.create({ data: { orgId, projectId: otherProject, name: 'HIDDEN QUIZ LEAD', campaignId: null, stage: 'NEW', position: 0 } })).id;
+  });
+
+  it('shows the project\'s leads without a campaign on the board, in stage counts and with their contacts', async () => {
+    expect(ids((await read(`${board()}/leads`)).body)).toEqual([ownLead, quizLead]);
+    await read(`${board()}/leads/${quizLead}`).expect(200);
+    await read(`/api/crm/boards/${otherProject}/leads/${hiddenQuizLead}`).expect(404);
+    expect((await read(`/api/crm/project-stage-counts?${range}`)).body).toEqual([{ projectId, NEW: 2, QUALIFIED: 0, TARGET: 0, PROPOSAL: 0 }]);
+    expect(ids((await read(`/api/crm/clients/${clientId}/people`)).body)).toEqual([ownPerson, quizPerson]);
+    expect(ids((await read(`/api/crm/clients/${clientId}/people/${quizPerson}`)).body.leads)).toEqual([quizLead]);
+    const notification = await prisma.notification.create({ data: { recipientId: dealer.membership!.id, kind: 'LEAD_MENTIONED', projectId, leadId: quizLead } });
+    expect((await read('/api/notifications')).body.notifications.map((n: {id:string}) => n.id)).toEqual([notification.id]);
+  });
+
+  it('keeps such a lead without a campaign while partners work it, and lets a partner take it', async () => {
+    const pair = await signInAs('Pair', { role: 'PARTNER' });
+    for (const campaignId of [ownCampaign, foreignCampaign]) await prisma.partnerCampaign.create({ data: { membershipId: pair.membership!.id, campaignId } });
+    const rival = await signInAs('Rival', { role: 'PARTNER' });
+    await prisma.partnerCampaign.create({ data: { membershipId: rival.membership!.id, campaignId: foreignCampaign } });
+    const patch = (body: object, as = dealer) => request(app).patch(`${board()}/leads/${quizLead}`).set(as.auth).send(body);
+
+    expect((await patch({ name: 'Quiz lead, called' }).expect(200)).body.campaignId).toBeNull();
+    expect((await patch({ name: 'Quiz lead, called twice', campaignId: null }, pair).expect(200)).body.campaignId).toBeNull();
+    await request(app).patch(`${board()}/leads/${quizLead}/move`).set(pair.auth).send({ stage: 'QUALIFIED', position: 0 }).expect(200);
+    await request(app).post(`${board()}/leads/${quizLead}/notes`).set(dealer.auth).send({ body: 'Called' }).expect(201);
+    expect(await prisma.lead.findUniqueOrThrow({ where: { id: quizLead } })).toMatchObject({ campaignId: null, stage: 'QUALIFIED' });
+    await read(`${board()}/leads/${quizLead}`, rival).expect(200);
+
+    await patch({ campaignId: foreignCampaign }).expect(403);
+    expect((await patch({ campaignId: ownCampaign }).expect(200)).body.campaignId).toBe(ownCampaign);
+    await read(`${board()}/leads/${quizLead}`, rival).expect(404);
   });
 });

@@ -9,7 +9,8 @@ export function reachableCampaigns(actor: ActorContext): Prisma.CampaignWhereInp
 }
 
 export function visibleLeads(actor: ActorContext): Prisma.LeadWhereInput {
-  return { orgId: actor.orgId, project: reachableProjects(actor), ...(actor.role === 'PARTNER' ? { campaignId: partnerCampaigns(actor) } : {}) };
+  const partnerLeads: Prisma.LeadWhereInput = { OR: [{ campaignId: partnerCampaigns(actor) }, { campaignId: null }] };
+  return { orgId: actor.orgId, project: reachableProjects(actor), ...(actor.role === 'PARTNER' ? partnerLeads : {}) };
 }
 
 export function visibleRecords(actor: ActorContext): Prisma.PersonWhereInput & Prisma.CompanyWhereInput {

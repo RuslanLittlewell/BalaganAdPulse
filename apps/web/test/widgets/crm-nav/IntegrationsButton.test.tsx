@@ -150,6 +150,7 @@ describe("the Marquiz tab", () => {
     expect(within(dialog).getByRole("button", { name: "Скопировать адрес" })).toBeInTheDocument();
     expect(within(dialog).getByText(/«Интеграции» → «Вебхуки»/)).toBeInTheDocument();
     expect(within(dialog).queryByText(/<script/)).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("combobox", { name: "Кампания" })).not.toBeInTheDocument();
   });
 
   it("creates the project key when there is none and then gives the address", async () => {
@@ -170,6 +171,67 @@ describe("the Marquiz tab", () => {
     const dialog = await openMarquiz();
 
     expect(within(dialog).getByText("Выберите проект в CRM, чтобы подключить к нему квиз Marquiz.")).toBeInTheDocument();
+  });
+});
+
+describe("the Marquiz tab of a project worked by campaign", () => {
+  const CAMPAIGNS = [
+    { id: "campaign-3", name: "Старая", channel: "META", status: "PAUSED", accountId: null },
+    { id: "campaign-1", name: "Весенняя", channel: "META", status: "ACTIVE", accountId: null },
+    { id: "campaign-2", name: "Летняя", channel: "META", status: "LEARNING", accountId: null },
+  ];
+  const serveCampaigns = (campaigns: JsonBodyType[] = CAMPAIGNS) => {
+    serve({ websiteKey: WEBSITE_KEY, boards: [{ ...BOARD, campaignCrm: true }] });
+    server.use(mock.get("/api/projects/project-1/campaigns/names", () => HttpResponse.json(campaigns)));
+  };
+  const openMarquiz = async () => {
+    const dialog = await open();
+    await userEvent.click(within(dialog).getByRole("radio", { name: "Marquiz" }));
+    return dialog;
+  };
+
+  it("asks for a campaign, lists the running ones first and gives the chosen campaign's address", async () => {
+    serveCampaigns();
+    renderWithProviders(<IntegrationsButton />);
+    const dialog = await openMarquiz();
+
+    expect(await within(dialog).findByText(/У каждой кампании свой адрес вебхука/)).toBeInTheDocument();
+    expect(within(dialog).queryByText(MARQUIZ_ADDRESS)).not.toBeInTheDocument();
+
+    await userEvent.click(within(dialog).getByRole("combobox", { name: "Кампания" }));
+    expect((await screen.findAllByRole("option")).map((option) => option.textContent)).toEqual(["Весенняя", "Летняя", "Старая"]);
+    await userEvent.click(screen.getByRole("option", { name: "Летняя" }));
+
+    expect(await within(dialog).findByText(`${MARQUIZ_ADDRESS}/campaign-2`)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Скопировать адрес" })).toBeInTheDocument();
+    expect(within(dialog).getByText(/Вставьте его только в квиз этой кампании/)).toBeInTheDocument();
+  });
+
+  it("opens on the campaign chosen in the CRM menu", async () => {
+    serveCampaigns();
+    renderWithProviders(<IntegrationsButton />, { route: "/crm?board=project-1&campaign=campaign-3" });
+    const dialog = await openMarquiz();
+
+    expect(await within(dialog).findByText(`${MARQUIZ_ADDRESS}/campaign-3`)).toBeInTheDocument();
+    expect(within(dialog).getByRole("combobox", { name: "Кампания" })).toHaveTextContent("Старая");
+  });
+
+  it("asks for a campaign when several are chosen in the CRM menu", async () => {
+    serveCampaigns();
+    renderWithProviders(<IntegrationsButton />, { route: "/crm?board=project-1&campaign=campaign-1&campaign=campaign-2" });
+    const dialog = await openMarquiz();
+
+    expect(await within(dialog).findByText(/У каждой кампании свой адрес вебхука/)).toBeInTheDocument();
+    expect(within(dialog).queryByText(new RegExp(`${MARQUIZ_ADDRESS}`))).not.toBeInTheDocument();
+  });
+
+  it("says so when the project has no campaigns", async () => {
+    serveCampaigns([]);
+    renderWithProviders(<IntegrationsButton />);
+    const dialog = await openMarquiz();
+
+    expect(await within(dialog).findByText("В проекте пока нет кампаний. Адрес вебхука выдаётся для каждой кампании отдельно.")).toBeInTheDocument();
+    expect(within(dialog).queryByText(MARQUIZ_ADDRESS)).not.toBeInTheDocument();
   });
 });
 

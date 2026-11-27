@@ -10,6 +10,14 @@ export const CUSTOM_COLUMN_LIMIT = 20;
 export function isLeadStage(value: string): value is LeadStage {
   return (LEAD_STAGES as readonly string[]).includes(value);
 }
+export const RENAMABLE_STAGES: readonly LeadStage[] = ['QUALIFIED', 'TARGET', 'PROPOSAL'];
+export type StageNames = Partial<Record<LeadStage, string>>;
+export function stageNamesOf(rows: ReadonlyArray<{ stage: LeadStage; name: string }>): StageNames {
+  return Object.fromEntries(rows.map(row => [row.stage, row.name]));
+}
+export function stageNameOf(stage: LeadStage, names: StageNames): string {
+  return names[stage] ?? LEAD_STAGE_NAMES[stage];
+}
 export function placementOf(stage: string): { stage: LeadStage; columnId: null } | { stage: null; columnId: string } {
   return isLeadStage(stage) ? { stage, columnId: null } : { stage: null, columnId: stage };
 }
@@ -59,18 +67,18 @@ export interface LeadColumnRecord {
   updatedAt: Date;
 }
 export type BoardColumn =
-  | { id: LeadStage; kind: 'FIXED'; name: string; position: number; color: OptionColor }
+  | { id: LeadStage; kind: 'FIXED'; name: string; renamed: boolean; position: number; color: OptionColor }
   | { id: string; kind: 'CUSTOM'; name: string; position: number; color: OptionColor };
 export function customColumnOf({ id, name, position, color }: LeadColumnRecord): BoardColumn {
   return { id, kind: 'CUSTOM', name, position, color };
 }
-export function boardColumns(custom: readonly LeadColumnRecord[]): BoardColumn[] {
+export function boardColumns(custom: readonly LeadColumnRecord[], names: StageNames = {}): BoardColumn[] {
   const after = (stage: LeadStage | null) =>
     custom.filter(column => column.afterStage === stage).sort((a, b) => a.position - b.position).map(customColumnOf);
   return [
     ...after(null),
     ...LEAD_STAGES.flatMap((stage, position) => [
-      { id: stage, kind: 'FIXED' as const, name: LEAD_STAGE_NAMES[stage], position, color: FIXED_STAGE_COLORS[stage] },
+      { id: stage, kind: 'FIXED' as const, name: stageNameOf(stage, names), renamed: names[stage] !== undefined, position, color: FIXED_STAGE_COLORS[stage] },
       ...after(stage),
     ]),
   ];
@@ -143,4 +151,4 @@ export interface LeadRecord extends LeadFields {
   createdAt: Date;
   updatedAt: Date;
 }
-export interface LeadBoard { key: string; label: string; clientId: string; clientName: string }
+export interface LeadBoard { key: string; label: string; clientId: string; clientName: string; campaignCrm: boolean }

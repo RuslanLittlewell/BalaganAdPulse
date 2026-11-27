@@ -34,6 +34,7 @@ export const createLeadSchema=fields.extend({stage:stage.optional()});
 export const updateLeadSchema=fields.partial();
 export const moveLeadSchema=z.object({stage,position}).strict();
 export const createColumnSchema=z.object({name:columnName,color:z.enum(OPTION_COLORS).optional()}).strict();
+export const updateBoardSchema=z.object({campaignCrm:z.boolean()}).strict();
 export const updateColumnSchema=z.object({name:columnName.optional(),position:position.optional(),color:z.enum(OPTION_COLORS).optional()}).strict().refine(input=>input.name!==undefined||input.position!==undefined||input.color!==undefined,{message:'Provide a name, a position or a color'});
 const fieldName=z.string().trim().min(1).max(FIELD_NAME_LIMIT);
 const fieldOptions=z.array(z.object({id:z.string().min(1).max(100).optional(),name:z.string().trim().min(1).max(OPTION_NAME_LIMIT),color:z.enum(OPTION_COLORS)}).strict()).max(OPTION_LIMIT);

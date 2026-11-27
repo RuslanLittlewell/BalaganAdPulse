@@ -2,13 +2,13 @@ import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { openRealtimeChannel, REALTIME_BASE_DELAY_MS, REALTIME_MAX_DELAY_MS } from "@/shared/lib/realtime.js";
 import { crmRecordsKey } from "@/entities/crm-record/index.js";
-import { leadActivityKey, leadColumnsKey, leadFieldsKey, leadFilesKey, leadNotesKey, leadsKey } from "./queries.js";
+import { BOARDS_KEY, leadActivityKey, leadColumnsKey, leadFieldsKey, leadFilesKey, leadNotesKey, leadsKey } from "./queries.js";
 
 export const CRM_EVENTS_BASE_DELAY_MS = REALTIME_BASE_DELAY_MS;
 export const CRM_EVENTS_MAX_DELAY_MS = REALTIME_MAX_DELAY_MS;
 export const CRM_REFRESH_WINDOW_MS = 150;
 
-const ALL_RESOURCES = ["leads", "columns", "fields", "activity", "files", "notes", "records", "counts"] as const;
+const ALL_RESOURCES = ["boards", "leads", "columns", "fields", "activity", "files", "notes", "records", "counts"] as const;
 type CrmResource = typeof ALL_RESOURCES[number];
 
 export interface CrmEvent {
@@ -46,7 +46,8 @@ export function useCrmEvents(boardKey: string | undefined, options: CrmEventsOpt
 
     const refresh = (resources: readonly CrmResource[], leadId?: string) => {
       for (const resource of resources) {
-        const selected = resource === "leads" ? [leadsKey(boardKey)]
+        const selected = resource === "boards" ? [BOARDS_KEY]
+          : resource === "leads" ? [leadsKey(boardKey)]
           : resource === "columns" ? [leadColumnsKey(boardKey)]
           : resource === "fields" ? [leadFieldsKey(boardKey)]
           : resource === "activity" ? [leadActivityKey(boardKey, leadId)]

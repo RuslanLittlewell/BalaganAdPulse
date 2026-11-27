@@ -5,7 +5,7 @@ import { MarquizPanel, WebsiteLeadsPanel } from "@/features/website-leads/index.
 import { Bitrix24Panel } from "@/features/bitrix24/index.js";
 import { t } from "@/shared/config/index.js";
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, Tabs } from "@/shared/ui/index.js";
-import { useSelectedBoard } from "./CrmNav.js";
+import { useCampaignScope, useSelectedBoard } from "./CrmNav.js";
 
 type Tab = "website" | "marquiz" | "bitrix";
 
@@ -13,6 +13,7 @@ export function IntegrationsButton() {
   const managesWebsite = useCan("update", "lead-intake-key");
   const managesBitrix = useCan("update", "bitrix24-connection");
   const { board } = useSelectedBoard();
+  const { byCampaign, campaignIds } = useCampaignScope(board);
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("website");
   if (!managesWebsite && !managesBitrix) return null;
@@ -45,7 +46,7 @@ export function IntegrationsButton() {
           ) : null}
           {open && shown === "marquiz" ? (
             board
-              ? <MarquizPanel key={board.key} projectId={board.key} />
+              ? <MarquizPanel key={board.key} projectId={board.key} byCampaign={byCampaign} campaignId={campaignIds.length === 1 ? campaignIds[0] : undefined} />
               : <p className="text-sm text-muted-foreground">{t("crmIntegrations.marquiz.noBoard")}</p>
           ) : null}
           {open && shown === "bitrix" ? <Bitrix24Panel /> : null}

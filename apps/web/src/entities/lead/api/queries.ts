@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { applyLeadMove } from "../lib/ordering.js";
-import { leadsApi, type CountingPeriod, type Lead, type LeadColumn, type LeadColumnInput, type LeadField, type LeadFieldInput, type LeadInput, type LeadMove } from "./api.js";
+import { leadsApi, type CountingPeriod, type Lead, type LeadBoard, type LeadColumn, type LeadColumnInput, type LeadField, type LeadFieldInput, type LeadInput, type LeadMove } from "./api.js";
 
 export const leadActivityKey = (boardKey: string, leadId?: string) =>
   (leadId ? ["crm", "lead-activity", boardKey, leadId] : ["crm", "lead-activity", boardKey]) as readonly string[];
@@ -21,6 +21,23 @@ export const leadFieldsKey = (boardKey: string) => ["crm", "fields", boardKey] a
 
 export function useLeadBoards() {
   return useQuery({ queryKey: BOARDS_KEY, queryFn: ({ signal }) => leadsApi.boards(signal) });
+}
+
+export function useCampaignCrmChange(boardKey: string) {
+  const qc = useQueryClient();
+  const apply = (campaignCrm: boolean) =>
+    qc.setQueryData<LeadBoard[]>(BOARDS_KEY, (boards) => boards?.map((entry) => entry.key === boardKey ? { ...entry, campaignCrm } : entry));
+  return useMutation({
+    mutationFn: (campaignCrm: boolean) => leadsApi.setCampaignCrm(boardKey, campaignCrm),
+    onMutate: async (campaignCrm) => {
+      await qc.cancelQueries({ queryKey: BOARDS_KEY });
+      const before = qc.getQueryData<LeadBoard[]>(BOARDS_KEY)?.find((entry) => entry.key === boardKey)?.campaignCrm ?? false;
+      apply(campaignCrm);
+      return { before };
+    },
+    onError: (_error, _campaignCrm, context) => { if (context) apply(context.before); },
+    onSettled: () => qc.invalidateQueries({ queryKey: BOARDS_KEY }),
+  });
 }
 
 export function useLeads(boardKey: string | undefined) {

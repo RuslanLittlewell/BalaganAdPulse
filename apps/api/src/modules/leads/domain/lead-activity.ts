@@ -75,7 +75,7 @@ function valueOf(snapshot: Snapshot, field: TrackedField, names: ActivityNames):
 
 function stageName(stage: unknown, names: ActivityNames): string | null {
   if (typeof stage !== 'string') return null;
-  return isLeadStage(stage) ? LEAD_STAGE_NAMES[stage] : names.columns.get(stage) ?? null;
+  return names.columns.get(stage) ?? (isLeadStage(stage) ? LEAD_STAGE_NAMES[stage] : null);
 }
 
 function customValueOf(field: ActivityField, value: CustomValue | undefined): CustomChangeValue {

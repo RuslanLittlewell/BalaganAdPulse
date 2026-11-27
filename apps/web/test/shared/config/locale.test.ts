@@ -2,7 +2,6 @@ import { en } from "@/shared/config/en.js";
 import { ru, t } from "@/shared/config/ru.js";
 import { getIntlLocale, getLocale, initializeLocale, saveLocale } from "@/shared/config/locale.js";
 import { formatCompactCount, formatDay, formatNumber } from "@/shared/lib/index.js";
-import { readCampaignCrm, saveCampaignCrm } from "@/features/profile-settings/model/preferences.js";
 
 afterEach(() => {
   localStorage.removeItem("adpulse.language");
@@ -54,15 +53,5 @@ describe("interface language", () => {
   it("uses defaults when browser storage cannot be read", () => {
     vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("Storage unavailable"); });
     expect(getLocale()).toBe("ru");
-    expect(readCampaignCrm("locale-test")).toBe(false);
-  });
-
-  it("keeps campaign CRM preferences separate for each member and supports switching off", () => {
-    expect(readCampaignCrm("locale-test")).toBe(false);
-    saveCampaignCrm("locale-test", true);
-    expect(readCampaignCrm("locale-test")).toBe(true);
-    expect(readCampaignCrm("another-member")).toBe(false);
-    saveCampaignCrm("locale-test", false);
-    expect(readCampaignCrm("locale-test")).toBe(false);
   });
 });

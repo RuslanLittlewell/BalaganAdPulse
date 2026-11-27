@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import {
   ColumnPill,
   compactSum,
+  isRenamable,
   leadColumnLabel,
   type BoardCapabilities,
   type Lead,
@@ -48,7 +49,9 @@ export function CrmColumn({
   const title = leadColumnLabel(column);
   const sum = amountSum(leads);
   const managesBoard = useCan("update", "lead-board");
-  const manages = managesBoard && Boolean(boardKey && capabilities && column.kind === "CUSTOM" && (capabilities.update || capabilities.delete));
+  const manages = managesBoard && Boolean(boardKey && capabilities && (
+    column.kind === "CUSTOM" ? capabilities.update || capabilities.delete : isRenamable(column) && capabilities.update
+  ));
 
   return (
     <section

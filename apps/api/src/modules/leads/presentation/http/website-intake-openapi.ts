@@ -48,6 +48,16 @@ export const websiteIntakeDoc: RouteDoc = {
       success: { status: 200, description: 'The submission was accepted', schema: accepted },
       errors: [400, 403, 429],
     },
+    {
+      method: 'post',
+      path: '/marquiz/:key/:campaignId',
+      summary: 'Receive a Marquiz quiz submission for one campaign',
+      description: "Works as the project address and links the lead to the campaign the address names, whatever its utm_campaign says. When the key's project holds no such campaign, the lead is still created and linked by utm_campaign.",
+      open: true,
+      body: marquizSubmission,
+      success: { status: 200, description: 'The submission was accepted', schema: accepted },
+      errors: [400, 403, 429],
+    },
   ],
 };
 

@@ -79,6 +79,10 @@ export class PrismaLeadIntakeRepository implements LeadIntakeRepository {
     const matches = named.filter((campaign) => sameCampaignName(campaign.name, tag));
     return matches.length === 1 ? matches[0].id : null;
   }
+  async campaignInProject(context: TransactionContext, projectId: string, campaignId: string) {
+    const campaign = await this.tx(context).campaign.findFirst({ where: { id: campaignId, projectId }, select: { id: true } });
+    return campaign?.id ?? null;
+  }
   async createWebsite(context: TransactionContext, input: WebsiteLeadInput) {
     const tx = this.tx(context);
     const { lead } = input;

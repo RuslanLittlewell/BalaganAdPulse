@@ -1,10 +1,10 @@
 import { http as mock, HttpResponse } from "msw";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
 import { freezeDate, renderWithProviders, server } from "@test/shared/index.js";
 import { CrmLayout, CrmPage } from "@/pages/crm/index.js";
-import { saveCampaignCrm } from "@/features/profile-settings/model/preferences.js";
+import { CampaignCrmSwitch } from "@/widgets/crm-nav/index.js";
 freezeDate("2026-09-15T12:00:00");
 
 const capabilities = { create: true, update: true, delete: true };
@@ -16,14 +16,14 @@ const aLead = (fields: Record<string, unknown>) => ({
   updatedAt: "2026-09-05T00:00:00.000Z", ...fields,
 });
 
-const serve = () => server.use(
+const serve = ({ campaignCrm = true, role = "ADMIN" }: { campaignCrm?: boolean; role?: string } = {}) => server.use(
   mock.get("/api/auth/me", () => HttpResponse.json({
     user: { id: "user-1", name: "Buyer", email: "buyer@acme.com", image: null },
     organization: { id: "org-1", name: "AdPulse", slug: "adpulse" },
-    role: "ADMIN",
+    role,
     clientIds: [],
   })),
-  mock.get("/api/crm/boards", () => HttpResponse.json([{ key: "project-1", label: "Сайт", clientId: "client-1", clientName: "Ромашка", capabilities }])),
+  mock.get("/api/crm/boards", () => HttpResponse.json([{ key: "project-1", label: "Сайт", clientId: "client-1", clientName: "Ромашка", campaignCrm, capabilities }])),
   mock.get("/api/projects/project-1/campaigns/names", () => HttpResponse.json([
     { id: "campaign-1", name: "Весенняя", channel: "META", status: "ACTIVE" },
     { id: "campaign-2", name: "Летняя", channel: "META", status: "ACTIVE" },
@@ -38,6 +38,7 @@ const serve = () => server.use(
 );
 
 const setup = (route = "/crm") => renderWithProviders(<Routes><Route path="/crm" element={<CrmLayout />}><Route index element={<CrmPage />} /></Route></Routes>, { route });
+const setupWithSwitch = () => renderWithProviders(<><CampaignCrmSwitch /><Routes><Route path="/crm" element={<CrmLayout />}><Route index element={<CrmPage />} /></Route></Routes></>, { route: "/crm" });
 
 describe("the CRM campaign select", () => {
   afterEach(() => localStorage.clear());
@@ -46,7 +47,6 @@ describe("the CRM campaign select", () => {
   const leadsSection = () => screen.getByRole("link", { name: /Лиды/ });
 
   it("limits the leads to the checked campaigns and restores them on all campaigns", async () => {
-    saveCampaignCrm("user-1", true);
     serve();
     setup();
 
@@ -78,7 +78,6 @@ describe("the CRM campaign select", () => {
   });
 
   it("lists stopped campaigns after the running ones and scopes to them", async () => {
-    saveCampaignCrm("user-1", true);
     serve();
     setup();
 
@@ -97,7 +96,6 @@ describe("the CRM campaign select", () => {
   });
 
   it("reads the campaign from the address", async () => {
-    saveCampaignCrm("user-1", true);
     serve();
     setup("/crm?board=project-1&campaign=campaign-1");
 
@@ -106,7 +104,6 @@ describe("the CRM campaign select", () => {
   });
 
   it("reads several campaigns from the address and keeps them in the leads link", async () => {
-    saveCampaignCrm("user-1", true);
     serve();
     setup("/crm?board=project-1&campaign=campaign-1&campaign=campaign-3");
 
@@ -119,13 +116,67 @@ describe("the CRM campaign select", () => {
     expect(leadsSection()).toHaveTextContent("2");
   });
 
-  it("shows no campaign select and no scope while the preference is off", async () => {
-    serve();
+  it("shows no campaign select and no scope while the project's setting is off", async () => {
+    serve({ campaignCrm: false });
     setup("/crm?board=project-1&campaign=campaign-1");
 
     expect(await screen.findByText("Лид лета")).toBeInTheDocument();
     expect(screen.getByText("Лид весны")).toBeInTheDocument();
     expect(screen.getByText("Лид старой")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Кампания", { selector: "button" })).not.toBeInTheDocument();
+  });
+});
+
+describe("the CRM по кампаниям switch", () => {
+  const toggle = () => screen.findByRole("switch", { name: "CRM по кампаниям" });
+
+  it("turns the project's setting on and off and shows the campaign select accordingly", async () => {
+    serve({ campaignCrm: false });
+    const sent: unknown[] = [];
+    let stored = false;
+    server.use(
+      mock.get("/api/crm/boards", () => HttpResponse.json([{ key: "project-1", label: "Сайт", clientId: "client-1", clientName: "Ромашка", campaignCrm: stored, capabilities }])),
+      mock.patch("/api/crm/boards/project-1", async ({ request }) => {
+        const body = await request.json() as { campaignCrm: boolean };
+        sent.push(body);
+        stored = body.campaignCrm;
+        return HttpResponse.json({ key: "project-1", label: "Сайт", clientId: "client-1", clientName: "Ромашка", campaignCrm: stored, capabilities });
+      }),
+    );
+    setupWithSwitch();
+
+    expect(await toggle()).not.toBeChecked();
+    expect(screen.queryByLabelText("Кампания", { selector: "button" })).not.toBeInTheDocument();
+
+    await userEvent.click(await toggle());
+
+    expect(await screen.findByLabelText("Кампания", { selector: "button" })).toBeInTheDocument();
+    expect(await toggle()).toBeChecked();
+    await waitFor(() => expect(sent).toEqual([{ campaignCrm: true }]));
+
+    await userEvent.click(await toggle());
+
+    await waitFor(() => expect(screen.queryByLabelText("Кампания", { selector: "button" })).not.toBeInTheDocument());
+    expect(sent).toEqual([{ campaignCrm: true }, { campaignCrm: false }]);
+  });
+
+  it("is hidden from a guest, who still gets the campaign select of a project worked by campaign", async () => {
+    serve({ role: "GUEST" });
+    setupWithSwitch();
+
+    expect(await screen.findByLabelText("Кампания", { selector: "button" })).toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "CRM по кампаниям" })).not.toBeInTheDocument();
+  });
+
+  it("returns to the stored setting and says so when saving fails", async () => {
+    serve({ campaignCrm: false });
+    server.use(mock.patch("/api/crm/boards/project-1", () => HttpResponse.json({ error: { message: "Action not permitted" } }, { status: 403 })));
+    setupWithSwitch();
+
+    await userEvent.click(await toggle());
+
+    expect(await screen.findByText("Не удалось переключить CRM по кампаниям.")).toBeInTheDocument();
+    await waitFor(async () => expect(await toggle()).not.toBeChecked());
     expect(screen.queryByLabelText("Кампания", { selector: "button" })).not.toBeInTheDocument();
   });
 });

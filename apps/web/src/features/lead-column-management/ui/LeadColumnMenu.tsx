@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { MoreHorizontal } from "lucide-react";
 import {
+  leadColumnLabel,
   OPTION_COLORS,
   OptionSwatch,
   useDeleteLeadColumn,
@@ -42,6 +43,7 @@ export function LeadColumnMenu({ boardKey, column, columns, leadCount, capabilit
   const [confirming, setConfirming] = useState(false);
 
   const index = columns.findIndex((candidate) => candidate.id === column.id);
+  const custom = column.kind === "CUSTOM";
 
   function shift(by: number) {
     update.mutate(
@@ -81,17 +83,19 @@ export function LeadColumnMenu({ boardKey, column, columns, leadCount, capabilit
             variant="ghost"
             size="icon"
             className="size-6 shrink-0"
-            aria-label={`${t("crm.columns.actions")}: ${column.name}`}
+            aria-label={`${t("crm.columns.actions")}: ${leadColumnLabel(column)}`}
           >
             <MoreHorizontal aria-hidden className="size-3" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {capabilities.update ? (
+            <DropdownMenuItem onSelect={() => setRenaming(true)}>
+              {t("crm.columns.rename")}
+            </DropdownMenuItem>
+          ) : null}
+          {custom && capabilities.update ? (
             <>
-              <DropdownMenuItem onSelect={() => setRenaming(true)}>
-                {t("crm.columns.rename")}
-              </DropdownMenuItem>
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>{t("crm.columns.color")}</DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
@@ -113,7 +117,7 @@ export function LeadColumnMenu({ boardKey, column, columns, leadCount, capabilit
               </DropdownMenuItem>
             </>
           ) : null}
-          {capabilities.delete ? (
+          {custom && capabilities.delete ? (
             <DropdownMenuItem variant="destructive" onSelect={() => setConfirming(true)}>
               {t("crm.columns.delete")}
             </DropdownMenuItem>

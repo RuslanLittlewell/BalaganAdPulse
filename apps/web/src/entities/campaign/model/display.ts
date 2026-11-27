@@ -19,6 +19,10 @@ export function isRunning(status: DeliveryStatus): boolean {
   return RUNNING_STATUSES.includes(status);
 }
 
+export function runningFirst<T extends { status: DeliveryStatus }>(campaigns: readonly T[]): T[] {
+  return [...campaigns].sort((a, b) => Number(isRunning(b.status)) - Number(isRunning(a.status)));
+}
+
 export function statusTone(status: DeliveryStatus): "positive" | "warning" | "danger" | "muted" {
   if (status === "ACTIVE") return "positive";
   if (status === "LEARNING") return "warning";

@@ -2,7 +2,7 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 import type { ActorContext, TransactionContext } from '#shared/application/index.js';
 import type { PrismaUnitOfWork } from '#shared/infrastructure/prisma-unit-of-work.js';
 import type { LeadRepository } from '../application/ports.js';
-import { emptyStageCounts, foldBoardStageCounts, placementOf, type ArrivalWindow, type LeadAnswer, type LeadColumnRecord, type LeadRecord, type ProjectStageCounts } from '../domain/lead.js';
+import { emptyStageCounts, foldBoardStageCounts, placementOf, stageNamesOf, type ArrivalWindow, type LeadAnswer, type LeadColumnRecord, type LeadRecord, type LeadStage, type ProjectStageCounts } from '../domain/lead.js';
 import { customValuesOf, isOptionColor } from '../domain/lead-field.js';
 import { visibleLeads } from '#shared/infrastructure/partner-reach.js';
 import { reachableProjects } from '#shared/infrastructure/project-reach.js';
@@ -42,10 +42,10 @@ export class PrismaLeadRepository implements LeadRepository {
   async boards(actor: ActorContext) {
     const projects = await this.prisma.project.findMany({
       where:reachableProjects(actor),
-      select:{id:true, name:true, clientId:true, client:{select:{name:true}}},
+      select:{id:true, name:true, clientId:true, campaignCrm:true, client:{select:{name:true}}},
       orderBy:[{client:{name:'asc'}}, {clientId:'asc'}, {position:'asc'}, {id:'asc'}],
     });
-    return projects.map(project => ({key:project.id, label:project.name, clientId:project.clientId, clientName:project.client.name}));
+    return projects.map(project => ({key:project.id, label:project.name, clientId:project.clientId, clientName:project.client.name, campaignCrm:project.campaignCrm}));
   }
   async reaches(actor: ActorContext, board: string) {
     return (await this.prisma.project.count({where:{AND:[{id:board}, reachableProjects(actor)]}})) > 0;
@@ -126,6 +126,21 @@ export class PrismaLeadRepository implements LeadRepository {
   }
   async deleteColumn(context: TransactionContext, id: string) {
     await this.uow.clientFor<Prisma.TransactionClient>(context).leadColumn.delete({where:{id}});
+  }
+  async stageNaming(board: string, context?: TransactionContext) {
+    const project = await (context ? this.uow.clientFor<Prisma.TransactionClient>(context) : this.prisma).project.findUniqueOrThrow({where:{id:board}, select:{clientId:true, stageNames:{select:{stage:true, name:true}}}});
+    return {clientId:project.clientId, names:stageNamesOf(project.stageNames)};
+  }
+  async setCampaignCrm(context: TransactionContext, board: string, enabled: boolean) {
+    const projects = this.uow.clientFor<Prisma.TransactionClient>(context).project;
+    const before = await projects.findUniqueOrThrow({where:{id:board}, select:{clientId:true, campaignCrm:true}});
+    await projects.update({where:{id:board}, data:{campaignCrm:enabled}});
+    return before;
+  }
+  async nameStage(context: TransactionContext, board: string, stage: LeadStage, name: string | null) {
+    const names = this.uow.clientFor<Prisma.TransactionClient>(context).leadStageName;
+    if (name === null) await names.deleteMany({where:{projectId:board, stage}});
+    else await names.upsert({where:{projectId_stage:{projectId:board, stage}}, create:{projectId:board, stage, name}, update:{name}});
   }
   async projectStageCounts(actor: ActorContext, window: ArrivalWindow) {
     const groups = await this.prisma.lead.groupBy({

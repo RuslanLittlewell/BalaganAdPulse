@@ -128,3 +128,86 @@ describe("a Marquiz webhook", () => {
     expect(statuses.slice(300)).toEqual([429, 429]);
   });
 });
+
+describe("a Marquiz webhook for one campaign", () => {
+  const deliverFor = (key: string, campaignId: string, body: unknown) =>
+    request(app).post(`/api/intake/marquiz/${key}/${campaignId}`).set("Content-Type", "application/json").send(JSON.stringify(body));
+  const untagged = { ...submission, extra: { href: "https://windowhub.pro/" } };
+
+  it("links the lead to the campaign in the address, keeping the utm_campaign it carries", async () => {
+    const key = await issue();
+    await seedCampaign(projectId, "Spring", "META");
+    const autumn = await seedCampaign(projectId, "Autumn", "META");
+
+    const res = await deliverFor(key, autumn.id, submission);
+
+    expect(res.status).toBe(200);
+    const lead = await prisma.lead.findFirstOrThrow({ include: { webSource: true } });
+    expect(lead.campaignId).toBe(autumn.id);
+    expect(lead.webSource?.utmCampaign).toBe("spring");
+  });
+
+  it("links a submission without tags to the campaign in the address", async () => {
+    const key = await issue();
+    const autumn = await seedCampaign(projectId, "Autumn", "META");
+
+    await deliverFor(key, autumn.id, untagged);
+
+    expect((await prisma.lead.findFirstOrThrow()).campaignId).toBe(autumn.id);
+  });
+
+  it("creates the lead and links it by utm_campaign when the campaign was removed", async () => {
+    const key = await issue();
+    const spring = await seedCampaign(projectId, "Spring", "META");
+    const removed = await seedCampaign(projectId, "Autumn", "META");
+    await prisma.campaign.delete({ where: { id: removed.id } });
+
+    const res = await deliverFor(key, removed.id, submission);
+
+    expect(res.status).toBe(200);
+    expect((await prisma.lead.findFirstOrThrow()).campaignId).toBe(spring.id);
+  });
+
+  it("keeps the lead in the key's project and never links a campaign of another project", async () => {
+    const key = await issue();
+    const spring = await seedCampaign(projectId, "Spring", "META");
+    const other = await seedProject("", "Other client");
+    const foreign = await seedCampaign(other.projectId, "Spring", "META");
+
+    const res = await deliverFor(key, foreign.id, submission);
+
+    expect(res.status).toBe(200);
+    const lead = await prisma.lead.findFirstOrThrow();
+    expect(lead.projectId).toBe(projectId);
+    expect(lead.campaignId).toBe(spring.id);
+  });
+
+  it("leaves the lead without a campaign when the campaign is unknown and no tag matches", async () => {
+    const key = await issue();
+
+    await deliverFor(key, "not-a-campaign", untagged);
+
+    expect((await prisma.lead.findFirstOrThrow()).campaignId).toBeNull();
+  });
+
+  it("creates one lead when the same submission reaches the project and the campaign address", async () => {
+    const key = await issue();
+    const autumn = await seedCampaign(projectId, "Autumn", "META");
+
+    expect((await deliverFor(key, autumn.id, submission)).status).toBe(200);
+    expect((await deliver(key, submission)).status).toBe(200);
+
+    expect(await prisma.lead.count()).toBe(1);
+  });
+
+  it("is refused at the campaign address of a rotated key", async () => {
+    const old = await issue();
+    const autumn = await seedCampaign(projectId, "Autumn", "META");
+    await request(app).post(`${keyPath()}/rotate`).set(admin);
+
+    const res = await deliverFor(old, autumn.id, submission);
+
+    expect(res.status).toBe(403);
+    expect(await prisma.lead.count()).toBe(0);
+  });
+});

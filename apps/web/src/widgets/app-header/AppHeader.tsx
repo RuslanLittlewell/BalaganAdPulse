@@ -10,7 +10,7 @@ import { TariffDialog, TrialBanner } from "@/features/tariff-status/index.js";
 import { Can } from "@/features/permissions/index.js";
 import { ContactBook, type ContactDirectory } from "@/widgets/contact-book/index.js";
 import { CONTACTS_PARAM, PROFILE_PARAM } from "@/features/onboarding/index.js";
-import { IntegrationsButton } from "@/widgets/crm-nav/index.js";
+import { CampaignCrmSwitch, IntegrationsButton } from "@/widgets/crm-nav/index.js";
 import { OnlineUsers } from "@/widgets/online-users/index.js";
 import { ActivityLogModal } from "@/widgets/activity-log-modal/index.js";
 import { NotificationCenter } from "@/widgets/notification-center/index.js";
@@ -82,7 +82,7 @@ export function AppHeader() {
   return (
     <>
       <header className="flex min-h-13 w-full items-center justify-end gap-2 border-b border-border px-4">
-        <div className="mr-auto">{inCrm ? <IntegrationsButton /> : null}</div>
+        <div className="mr-auto flex items-center gap-4">{inCrm ? <><IntegrationsButton /><CampaignCrmSwitch /></> : null}</div>
         <TrialBanner />
         <TooltipProvider delayDuration={200}>
           <div className="flex items-center gap-2">

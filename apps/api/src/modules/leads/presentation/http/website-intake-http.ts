@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import express, { Router, type NextFunction, type Request, type Response } from 'express';
+import express, { Router, type NextFunction, type Request, type RequestHandler, type Response } from 'express';
 import { AppError } from '#shared/domain/index.js';
 import { createRateLimit } from '#shared/presentation/rate-limit.js';
 import { WEBSITE_KEY_REFUSED, type WebsiteIntakeUseCases } from '#modules/leads/application/website-intake-use-cases.js';
@@ -26,6 +26,11 @@ function bodyOf(req: Request): unknown {
 function bearerOf(req: Request): string | undefined {
   const match = /^Bearer (\S+)$/.exec(req.header('authorization') ?? '');
   return match?.[1];
+}
+
+function textParam(req: Request, name: string): string | undefined {
+  const value = req.params[name];
+  return typeof value === 'string' ? value : undefined;
 }
 
 function allow(res: Response, origin: string | undefined): void {
@@ -82,20 +87,23 @@ export function createWebsiteIntakeRouter(intake: WebsiteIntakeUseCases): Router
     res.status(202).json({ ok: true });
   }));
 
-  router.post('/marquiz/:key', (req: Request<{ key: string }>, _res, next) => {
-    if (!WEBSITE_KEY.test(req.params.key)) {
+  const marquiz: RequestHandler[] = [(req, _res, next) => {
+    const key = textParam(req, 'key');
+    if (!key || !WEBSITE_KEY.test(key)) {
       next(new AppError('forbidden', WEBSITE_KEY_REFUSED));
       return;
     }
-    keyOf.set(req, req.params.key);
+    keyOf.set(req, key);
     next();
-  }, byKey, express.text({ type: () => true, limit: '64kb' }), handle(async (req: Request<{ key: string }>, res) => {
+  }, byKey, express.text({ type: () => true, limit: '64kb' }), handle(async (req, res) => {
     const parsed = marquizWebhookSchema.safeParse(bodyOf(req) ?? {});
     const lead = parsed.success ? marquizLeadOf(parsed.data) : null;
     if (!lead) throw new AppError('validation', 'The body is not a Marquiz submission');
-    await intake.receive({ key: req.params.key, origin: undefined, lead }, true);
+    await intake.receive({ key: keyOf.get(req)!, origin: undefined, lead, campaignId: textParam(req, 'campaignId') }, true);
     res.status(200).json({ ok: true });
-  }));
+  })];
+  router.post('/marquiz/:key', ...marquiz);
+  router.post('/marquiz/:key/:campaignId', ...marquiz);
 
   return router;
 }

@@ -2,7 +2,7 @@ import { can } from '@adpulse/access-policy';
 import { AppError } from '#shared/domain/index.js';
 import type { ActorContext, IdGenerator, UnitOfWork, TransactionContext } from '#shared/application/index.js';
 import { removedWith, type AuditWriter } from '#modules/audit/index.js';
-import { arrivalWindow, boardColumns, customColumnOf, CUSTOM_COLUMN_LIMIT, DEFAULT_COLUMN_COLOR, isLeadStage, LEAD_STAGE_NAMES, LEAD_STAGES, type BoardColumn, type LeadColumnRecord, type LeadFields, type LeadRecord, type LeadStage } from '../domain/lead.js';
+import { arrivalWindow, boardColumns, customColumnOf, CUSTOM_COLUMN_LIMIT, DEFAULT_COLUMN_COLOR, isLeadStage, LEAD_STAGE_NAMES, LEAD_STAGES, RENAMABLE_STAGES, stageNameOf, type BoardColumn, type LeadBoard, type LeadColumnRecord, type LeadFields, type LeadRecord, type LeadStage, type StageNames } from '../domain/lead.js';
 import { buildActivity, campaignIdsIn } from '../domain/lead-activity.js';
 import { applyCustomValues, type OptionColor } from '../domain/lead-field.js';
 import type { CrmRecordRepository, LeadFieldRepository, LeadFileStorage, LeadRepository, LeadEvent } from './ports.js';
@@ -14,6 +14,8 @@ export type LeadInput = Omit<LeadFields,'customValues'> & {customValues?: Readon
 export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFieldRepository,'list'>; records:LeadRecordLinks; storage:Pick<LeadFileStorage,'remove'>; audit:AuditWriter; ids:IdGenerator; unitOfWork:UnitOfWork; publish:(event:LeadEvent)=>void}) {
   const {authorize,mutation}=createBoardMutation(d);
   const columnMutation=createBoardMutation(d,['columns','leads','activity','counts'],'lead-board').mutation;
+  const boardMutation=createBoardMutation(d,['boards'],'lead-board').mutation;
+  const withCapabilities=(actor:ActorContext,board:LeadBoard)=>({...board,capabilities:{create:can(actor,'create','lead'),update:can(actor,'update','lead'),delete:can(actor,'delete','lead')}});
   async function recordAudit(context:TransactionContext,actor:ActorContext,kind:'crm-person'|'crm-company',record:{id:string;clientId:string},action:'CREATE'|'UPDATE',changes:unknown) {
     await d.audit.append(context,{action,entityType:kind,entityId:record.id,clientId:record.clientId,projectId:null,summary:`${action} ${kind==='crm-person'?'person':'company'}`,changes:JSON.parse(JSON.stringify(changes))},actor);
   }
@@ -105,9 +107,20 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
     if (isLeadStage(id)) throw new AppError('validation','Fixed stages cannot be changed');
     const column=columns.find(candidate=>candidate.id===id); if (!column) throw new AppError('not-found','Column not found'); return column;
   }
-  function assertNameFree(columns:LeadColumnRecord[], name:string, except?:string) {
-    const taken=[...Object.values(LEAD_STAGE_NAMES),...columns.filter(column=>column.id!==except).map(column=>column.name)];
+  function assertNameFree(columns:LeadColumnRecord[], names:StageNames, name:string, except?:string) {
+    const taken=[...LEAD_STAGES.filter(stage=>stage!==except).map(stage=>stageNameOf(stage,names)),...columns.filter(column=>column.id!==except).map(column=>column.name)];
     if (taken.some(existing=>existing.toLowerCase()===name.toLowerCase())) throw new AppError('validation','A column with that name already exists on this board');
+  }
+  async function renameStage(context:TransactionContext,actor:ActorContext,board:string,stage:LeadStage,input:{name?:string;position?:number;color?:OptionColor},{clientId,names}:{clientId:string;names:StageNames}) {
+    if (input.position!==undefined||input.color!==undefined||input.name===undefined) throw new AppError('validation','Fixed stages cannot be changed');
+    if (!RENAMABLE_STAGES.includes(stage)) throw new AppError('validation',`The ${stage} stage cannot be renamed`);
+    const columns=await d.leads.columns(actor,board,context);
+    assertNameFree(columns,names,input.name,stage);
+    const original=input.name===LEAD_STAGE_NAMES[stage];
+    await d.leads.nameStage(context,board,stage,original?null:input.name);
+    const {[stage]:_previous,...others}=names;
+    await d.audit.append(context,{action:'UPDATE',entityType:'lead-column',entityId:stage,clientId,projectId:board,summary:'UPDATE lead column',changes:{before:{name:stageNameOf(stage,names)},after:{name:input.name}}},actor);
+    return boardColumns(columns,original?others:{...others,[stage]:input.name});
   }
   async function orderedColumns(context:TransactionContext, columns:LeadColumnRecord[]) {
     for (const [position,column] of columns.entries()) if(column.position!==position) await d.leads.updateColumn(context,column.id,{position});
@@ -136,14 +149,22 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
       if (actor.role!=='PARTNER') throw new AppError('forbidden','This list is for partner assignees');
       return d.leads.assignees(actor,board);
     },
-    async boards(actor:ActorContext) { return (await d.leads.boards(actor)).map(b=>({...b,capabilities:{create:can(actor,'create','lead'),update:can(actor,'update','lead'),delete:can(actor,'delete','lead')}})); },
+    async boards(actor:ActorContext) { return (await d.leads.boards(actor)).map(board=>withCapabilities(actor,board)); },
+    async setCampaignCrm(actor:ActorContext,board:string,enabled:boolean) {
+      await boardMutation(actor,board,'update',async context=>{
+        const before=await d.leads.setCampaignCrm(context,board,enabled);
+        if (before.campaignCrm===enabled) return;
+        await d.audit.append(context,{action:'UPDATE',entityType:'project',entityId:board,clientId:before.clientId,projectId:board,summary:`Turned CRM by campaign ${enabled?'on':'off'}`,changes:{campaignCrm:{before:before.campaignCrm,after:enabled}}},actor);
+      });
+      return withCapabilities(actor,(await d.leads.boards(actor)).find(entry=>entry.key===board)!);
+    },
     async list(actor:ActorContext,board:string) { await authorize(actor,board,'read'); return d.leads.list(actor,board); },
     async activity(actor:ActorContext,board:string,id:string) {
       await authorize(actor,board,'read');
       if (!await d.leads.leadOnBoard(actor,board,id)) throw new AppError('not-found','Lead not found');
       const {events,importedAt}=await d.leads.history(actor.orgId,id);
-      const [columns,campaigns,fields]=await Promise.all([d.leads.columns(actor,board),d.leads.campaignNames(campaignIdsIn(events)),d.fields.list(actor.orgId,board)]);
-      return buildActivity(id,events,{columns:new Map(columns.map(column=>[column.id,column.name])),campaigns,fields},importedAt);
+      const [columns,{names},campaigns,fields]=await Promise.all([d.leads.columns(actor,board),d.leads.stageNaming(board),d.leads.campaignNames(campaignIdsIn(events)),d.fields.list(actor.orgId,board)]);
+      return buildActivity(id,events,{columns:new Map(boardColumns(columns,names).map(column=>[column.id,column.name])),campaigns,fields},importedAt);
     },
     async read(actor:ActorContext,board:string,id:string) { await authorize(actor,board,'read'); return find(await d.leads.list(actor,board),id); },
     async create(actor:ActorContext,board:string,input:LeadInput & {stage?:string}) {
@@ -220,12 +241,16 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
       await authorize(actor,board,'read');
       return d.leads.boardStageCounts(actor,board,arrivalWindow(range.from,range.to));
     },
-    async columns(actor:ActorContext,board:string) { await authorize(actor,board,'read'); return boardColumns(await d.leads.columns(actor,board)); },
+    async columns(actor:ActorContext,board:string) {
+      await authorize(actor,board,'read');
+      const [columns,{names}]=await Promise.all([d.leads.columns(actor,board),d.leads.stageNaming(board)]);
+      return boardColumns(columns,names);
+    },
     createColumn(actor:ActorContext,board:string,input:{name:string;color?:OptionColor}) {
       return columnMutation(actor,board,'create',async context=>{
         const columns=await d.leads.columns(actor,board,context);
         if (columns.length>=CUSTOM_COLUMN_LIMIT) throw new AppError('validation',`A board holds at most ${CUSTOM_COLUMN_LIMIT} columns`);
-        assertNameFree(columns,input.name);
+        assertNameFree(columns,(await d.leads.stageNaming(board,context)).names,input.name);
         const afterStage=LEAD_STAGES[LEAD_STAGES.length-1];
         const position=columns.filter(column=>column.afterStage===afterStage).length;
         const column=await d.leads.createColumn(context,{id:d.ids.generate(),orgId:actor.orgId,projectId:board,name:input.name,afterStage,position,color:input.color??DEFAULT_COLUMN_COLOR});
@@ -235,9 +260,11 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
     },
     updateColumn(actor:ActorContext,board:string,id:string,input:{name?:string;position?:number;color?:OptionColor}) {
       return columnMutation(actor,board,'update',async context=>{
+        const naming=await d.leads.stageNaming(board,context);
+        if (isLeadStage(id)) return renameStage(context,actor,board,id,input,naming);
         const columns=await d.leads.columns(actor,board,context);
         const before=customColumn(columns,id);
-        if (input.name!==undefined) { assertNameFree(columns,input.name,id); await d.leads.updateColumn(context,id,{name:input.name}); }
+        if (input.name!==undefined) { assertNameFree(columns,naming.names,input.name,id); await d.leads.updateColumn(context,id,{name:input.name}); }
         if (input.color!==undefined) await d.leads.updateColumn(context,id,{color:input.color});
         if (input.position!==undefined) {
           const full=boardColumns(columns);
@@ -249,7 +276,7 @@ export function createLeadUseCases(d: {leads:LeadRepository; fields:Pick<LeadFie
         }
         const result=await d.leads.columns(actor,board,context);
         await auditColumn(context,actor,before,'UPDATE',{before,after:customColumn(result,id)});
-        return boardColumns(result);
+        return boardColumns(result,naming.names);
       });
     },
     deleteColumn(actor:ActorContext,board:string,id:string) {

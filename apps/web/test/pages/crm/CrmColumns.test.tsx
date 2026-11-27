@@ -99,7 +99,7 @@ describe("the columns of a CRM board", () => {
     expect(posted).toBe(false);
   });
 
-  it("renames a custom column and offers no menu on fixed stages", async () => {
+  it("renames a custom column and offers no menu on Новый", async () => {
     board({ columns: [custom("col-1", "Встреча", 0)] });
     let patched: unknown;
     server.use(mock.patch("/api/crm/boards/project-1/columns/col-1", async ({ request }) => {
@@ -121,6 +121,59 @@ describe("the columns of a CRM board", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Сохранить" }));
 
     await waitFor(() => expect(patched).toEqual({ name: "Встреча назначена" }));
+  });
+
+  it("renames Целевой from a menu that offers nothing else", async () => {
+    board();
+    let patched: unknown;
+    server.use(mock.patch("/api/crm/boards/project-1/columns/TARGET", async ({ request }) => {
+      patched = await request.json();
+      return HttpResponse.json(FIXED.map((column) => column.id === "TARGET" ? { ...column, name: "Горячий", renamed: true } : column));
+    }));
+    setup();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Действия столбца: Целевой" }));
+    expect((await screen.findAllByRole("menuitem")).map((item) => item.textContent)).toEqual(["Переименовать"]);
+    await userEvent.click(screen.getByRole("menuitem", { name: "Переименовать" }));
+
+    const dialog = await screen.findByRole("dialog");
+    const field = within(dialog).getByLabelText("Название столбца");
+    expect(field).toHaveValue("Целевой");
+    await userEvent.clear(field);
+    await userEvent.type(field, "Горячий");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Сохранить" }));
+
+    await waitFor(() => expect(patched).toEqual({ name: "Горячий" }));
+    expect(await screen.findByRole("region", { name: "Горячий" })).toBeInTheDocument();
+  });
+
+  it("refuses a stage name the board already uses", async () => {
+    board({ columns: [custom("col-1", "Встреча", 0)] });
+    setup();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Действия столбца: КП" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Переименовать" }));
+    const dialog = await screen.findByRole("dialog");
+    const field = within(dialog).getByLabelText("Название столбца");
+    await userEvent.clear(field);
+    await userEvent.type(field, "целевой");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Сохранить" }));
+
+    expect(await within(dialog).findByText(/уже есть/i)).toBeInTheDocument();
+  });
+
+  it("shows a renamed stage under the board's name and an unrenamed one in the interface language", async () => {
+    board();
+    server.use(mock.get("/api/crm/boards/project-1/columns", () => HttpResponse.json([
+      { ...FIXED[0], name: "New" },
+      { ...FIXED[1], name: "Квал", renamed: true },
+      FIXED[2],
+      FIXED[3],
+    ])));
+    setup();
+
+    await screen.findByRole("region", { name: "Квал" });
+    expect(columnNames()).toEqual(["Новый", "Квал", "Целевой", "КП"]);
   });
 
   it("disables a move only at the very start or end of the whole board", async () => {

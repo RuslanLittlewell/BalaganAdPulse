@@ -4,7 +4,7 @@ import type { PrismaUnitOfWork } from '#shared/infrastructure/prisma-unit-of-wor
 import { visibleLeads, visibleRecords } from '#shared/infrastructure/partner-reach.js';
 import { reachableProjects } from '#shared/infrastructure/project-reach.js';
 import type { CrmRecordRepository } from '../application/ports.js';
-import { FIXED_STAGE_COLORS, LEAD_STAGE_NAMES } from '../domain/lead.js';
+import { FIXED_STAGE_COLORS, stageNameOf, stageNamesOf } from '../domain/lead.js';
 import { type CompanyFields, type CompanyRecord, type PersonFields, type PersonRecord, type RelatedLead } from '../domain/crm-record.js';
 
 const reachableLeads = (actor: ActorContext): Prisma.LeadWhereInput => visibleLeads(actor);
@@ -129,7 +129,7 @@ export class PrismaCrmRecordRepository implements CrmRecordRepository {
   async relatedLeads(actor: ActorContext, link: { personId: string } | { companyId: string }): Promise<RelatedLead[]> {
     const rows = await this.prisma.lead.findMany({
       where: { orgId: actor.orgId, ...link, ...reachableLeads(actor) },
-      select: { id: true, name: true, stage: true, project: { select: { id: true, name: true } }, column: { select: { id: true, name: true, color: true } } },
+      select: { id: true, name: true, stage: true, project: { select: { id: true, name: true, stageNames: { select: { stage: true, name: true } } } }, column: { select: { id: true, name: true, color: true } } },
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
     });
     return rows.map((row) => ({
@@ -137,7 +137,7 @@ export class PrismaCrmRecordRepository implements CrmRecordRepository {
       name: row.name,
       board: { key: row.project.id, label: row.project.name },
       stage: row.stage
-        ? { id: row.stage, name: LEAD_STAGE_NAMES[row.stage], color: FIXED_STAGE_COLORS[row.stage] }
+        ? { id: row.stage, name: stageNameOf(row.stage, stageNamesOf(row.project.stageNames)), color: FIXED_STAGE_COLORS[row.stage] }
         : { id: row.column?.id ?? '', name: row.column?.name ?? '', color: row.column?.color ?? 'gray' },
     }));
   }

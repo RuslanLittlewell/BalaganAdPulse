@@ -42,10 +42,10 @@ const listLeads = async (board: string = projectId) =>
   (await request(app).get(leads(board)).set(auth).expect(200)).body as Array<{ id: string; name: string; stage: string; position: number }>;
 
 const FIXED = [
-  { id: "NEW", kind: "FIXED", name: "Новый", position: 0, color: "blue" },
-  { id: "QUALIFIED", kind: "FIXED", name: "Квалифицированный", position: 1, color: "purple" },
-  { id: "TARGET", kind: "FIXED", name: "Целевой", position: 2, color: "orange" },
-  { id: "PROPOSAL", kind: "FIXED", name: "КП", position: 3, color: "green" },
+  { id: "NEW", kind: "FIXED", name: "Новый", renamed: false, position: 0, color: "blue" },
+  { id: "QUALIFIED", kind: "FIXED", name: "Квалифицированный", renamed: false, position: 1, color: "purple" },
+  { id: "TARGET", kind: "FIXED", name: "Целевой", renamed: false, position: 2, color: "orange" },
+  { id: "PROPOSAL", kind: "FIXED", name: "КП", renamed: false, position: 3, color: "green" },
 ];
 
 describe("board columns", () => {
@@ -148,8 +148,9 @@ describe("board columns", () => {
     ]);
   });
 
-  it("refuses renaming, moving or deleting a fixed stage", async () => {
-    expect((await request(app).patch(`${columns()}/TARGET`).set(auth).send({ name: "Горячий" })).status).toBe(400);
+  it("refuses renaming Новый and moving, recoloring or deleting a fixed stage", async () => {
+    expect((await request(app).patch(`${columns()}/NEW`).set(auth).send({ name: "Входящие" })).status).toBe(400);
+    expect((await request(app).patch(`${columns()}/TARGET`).set(auth).send({ name: "Горячий", color: "red" })).status).toBe(400);
     expect((await request(app).patch(`${columns()}/TARGET`).set(auth).send({ position: 0 })).status).toBe(400);
     expect((await request(app).patch(`${columns()}/TARGET`).set(auth).send({ color: "red" })).status).toBe(400);
     expect((await request(app).delete(`${columns()}/TARGET`).set(auth)).status).toBe(400);
@@ -231,6 +232,82 @@ describe("leads in custom columns", () => {
     expect((await request(app).patch(`${leads()}/${lead.id}/move`).set(auth).send({ stage: foreign.id, position: 0 })).status).toBe(400);
     expect((await request(app).patch(`${leads()}/${lead.id}/move`).set(auth).send({ stage: "WON", position: 0 })).status).toBe(400);
     expect(await listLeads()).toEqual([expect.objectContaining({ id: lead.id, stage: "NEW", position: 0 })]);
+  });
+});
+
+describe("fixed stage names", () => {
+  const rename = (stage: string, name: string, board: string = projectId) =>
+    request(app).patch(`${columns(board)}/${stage}`).set(auth).send({ name });
+
+  it("renames Квалифицированный, Целевой and КП in place, keeping their leads", async () => {
+    const lead = (await addLead("Анна", "TARGET").expect(201)).body;
+
+    const res = await rename("TARGET", "  Горячий  ");
+    await rename("QUALIFIED", "Квал").expect(200);
+    await rename("PROPOSAL", "Договор").expect(200);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toContainEqual({ id: "TARGET", kind: "FIXED", name: "Горячий", renamed: true, position: 2, color: "orange" });
+    expect((await listColumns()).map((column) => [column.id, column.name])).toEqual([
+      ["NEW", "Новый"], ["QUALIFIED", "Квал"], ["TARGET", "Горячий"], ["PROPOSAL", "Договор"],
+    ]);
+    expect((await listLeads()).find((entry) => entry.id === lead.id)?.stage).toBe("TARGET");
+  });
+
+  it("keeps the names of another board", async () => {
+    await rename("PROPOSAL", "Договор").expect(200);
+
+    expect(await listColumns(otherProjectId)).toEqual(FIXED);
+  });
+
+  it("returns a stage to its original name and language", async () => {
+    await rename("TARGET", "Горячий").expect(200);
+
+    await rename("TARGET", "Целевой").expect(200);
+
+    expect(await listColumns()).toEqual(FIXED);
+    expect(await prisma.leadStageName.count()).toBe(0);
+  });
+
+  it("checks names against the board's stage names in both directions", async () => {
+    await addColumn("Встреча").expect(201);
+    await rename("TARGET", "Горячий").expect(200);
+
+    expect((await rename("QUALIFIED", "горячий")).status).toBe(400);
+    expect((await rename("QUALIFIED", "Встреча")).status).toBe(400);
+    expect((await rename("QUALIFIED", "Новый")).status).toBe(400);
+    expect((await addColumn("ГОРЯЧИЙ")).status).toBe(400);
+    expect((await addColumn("Целевой")).status).toBe(201);
+    expect((await rename("PROPOSAL", "")).status).toBe(400);
+    expect((await rename("PROPOSAL", "К".repeat(51))).status).toBe(400);
+  });
+
+  it("records the rename with its board", async () => {
+    await rename("TARGET", "Горячий").expect(200);
+
+    const event = await prisma.auditEvent.findFirstOrThrow({ where: { entityType: "lead-column" } });
+    expect([event.action, event.entityId, event.clientId, event.projectId]).toEqual(["UPDATE", "TARGET", clientId, projectId]);
+    expect(event.changes).toMatchObject({ before: { name: "Целевой" }, after: { name: "Горячий" } });
+  });
+
+  it("names the stage by the board's name in the lead history and on the lead's contact", async () => {
+    const lead = (await request(app).post(leads()).set(auth).send({ name: "Анна", contact: { phone: "+375290000000" } }).expect(201)).body;
+    await request(app).patch(`${leads()}/${lead.id}/move`).set(auth).send({ stage: "TARGET", position: 0 }).expect(200);
+
+    await rename("TARGET", "Горячий").expect(200);
+
+    const [moved] = (await request(app).get(`${leads()}/${lead.id}/activity`).set(auth).expect(200)).body;
+    expect(moved.stage).toEqual({ from: "Новый", to: "Горячий" });
+    const person = (await request(app).get(`/api/crm/clients/${clientId}/people/${lead.personId}`).set(auth).expect(200)).body;
+    expect(person.leads[0].stage).toEqual({ id: "TARGET", name: "Горячий", color: "orange" });
+  });
+
+  it("is refused to a guest", async () => {
+    const guest = await signInAs("Guest", { role: "GUEST" });
+    await grantAccess(guest.membership!.id, clientId);
+
+    expect((await request(app).patch(`${columns()}/TARGET`).set(guest.auth).send({ name: "Горячий" })).status).toBe(403);
+    expect(await listColumns()).toEqual(FIXED);
   });
 });
 

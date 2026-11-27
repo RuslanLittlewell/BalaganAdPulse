@@ -14,6 +14,7 @@ export interface LeadColumn {
   id: string;
   kind: "FIXED" | "CUSTOM";
   name: string;
+  renamed?: boolean;
   position: number;
   color: OptionColor;
 }
@@ -98,6 +99,7 @@ export interface LeadBoard {
   label: string;
   clientId: string;
   clientName: string;
+  campaignCrm?: boolean;
   capabilities: BoardCapabilities;
 }
 
@@ -260,6 +262,7 @@ const board = (boardKey: string) => `/crm/boards/${encodeURIComponent(boardKey)}
 
 export const leadsApi = {
   boards: (signal?: AbortSignal) => http.get<LeadBoard[]>("/crm/boards", { signal }),
+  setCampaignCrm: (boardKey: string, campaignCrm: boolean) => http.patch<LeadBoard>(board(boardKey), { campaignCrm }),
   list: (boardKey: string, signal?: AbortSignal) => http.get<Lead[]>(`${board(boardKey)}/leads`, { signal }),
   read: (boardKey: string, id: string, signal?: AbortSignal) => http.get<Lead>(`${board(boardKey)}/leads/${id}`, { signal }),
   create: (boardKey: string, body: LeadInput) => http.post<Lead>(`${board(boardKey)}/leads`, body),

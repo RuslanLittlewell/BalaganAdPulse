@@ -15,7 +15,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Switch,
   Tabs,
   TextField,
   useAlerts,
@@ -29,7 +28,6 @@ import {
 } from "@/features/avatar-editor/index.js";
 import { AvatarEditorDialog } from "@/features/avatar-editor/index.js";
 import { TelegramBotSection } from "@/features/telegram-bot/index.js";
-import { readCampaignCrm, saveCampaignCrm } from "../model/preferences.js";
 import { TwoFactorSettings } from "@/features/two-factor/index.js";
 
 interface Props {
@@ -66,7 +64,6 @@ export function ProfileSettingsDialog({ open, onClose, onAvatarSaved }: Props) {
   const [tab, setTab] = useState("account");
   const [locale, setLocale] = useState<Locale>(getLocale);
   const [theme, setSelectedTheme] = useState<Theme>(getPreferredTheme);
-  const [campaignCrm, setCampaignCrm] = useState(false);
   const { raise } = useAlerts();
 
   useEffect(() => {
@@ -74,7 +71,6 @@ export function ProfileSettingsDialog({ open, onClose, onAvatarSaved }: Props) {
     setTab("account");
     setLocale(getLocale());
     setSelectedTheme(getPreferredTheme());
-    setCampaignCrm(user ? readCampaignCrm(user.id) : false);
   }, [open, user?.id]);
 
   useEffect(() => {
@@ -121,7 +117,6 @@ export function ProfileSettingsDialog({ open, onClose, onAvatarSaved }: Props) {
   function savePreferences() {
     if (!user) return;
     try {
-      saveCampaignCrm(user.id, campaignCrm);
       setTheme(theme);
       const changed = saveLocale(locale);
       onClose();
@@ -190,15 +185,6 @@ export function ProfileSettingsDialog({ open, onClose, onAvatarSaved }: Props) {
                   </Select>
                 </div>
                 <TelegramBotSection />
-                <div className="flex items-center justify-between gap-3">
-                  <span id="profile-campaign-crm-label" className="text-sm font-normal text-foreground">{t("profile.campaignCrm")}</span>
-                  <Switch
-                    id="profile-campaign-crm"
-                    aria-labelledby="profile-campaign-crm-label"
-                    checked={campaignCrm}
-                    onCheckedChange={setCampaignCrm}
-                  />
-                </div>
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={onClose}>

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { useCreateLeadColumn, useUpdateLeadColumn, type LeadColumn } from "@/entities/lead/index.js";
+import { leadColumnLabel, useCreateLeadColumn, useUpdateLeadColumn, type LeadColumn } from "@/entities/lead/index.js";
 import { t } from "@/shared/config/index.js";
 import {
   Button,
@@ -24,7 +24,8 @@ export function ColumnNameDialog({ boardKey, columns, column, onClose }: ColumnN
   const create = useCreateLeadColumn(boardKey);
   const update = useUpdateLeadColumn(boardKey);
   const { raise } = useAlerts();
-  const [name, setName] = useState(column?.name ?? "");
+  const shown = column ? leadColumnLabel(column) : "";
+  const [name, setName] = useState(shown);
   const [error, setError] = useState<string | null>(null);
   const pending = create.isPending || update.isPending;
 
@@ -36,7 +37,7 @@ export function ColumnNameDialog({ boardKey, columns, column, onClose }: ColumnN
     const trimmed = name.trim();
     try {
       if (column) {
-        if (trimmed !== column.name) await update.mutateAsync({ id: column.id, body: { name: trimmed } });
+        if (trimmed !== shown) await update.mutateAsync({ id: column.id, body: { name: trimmed } });
       } else {
         await create.mutateAsync(trimmed);
       }

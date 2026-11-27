@@ -35,6 +35,7 @@ export interface ReceivedWebsiteLead {
   key: string;
   origin: string | undefined;
   lead: WebsiteLead;
+  campaignId?: string;
 }
 
 export function createWebsiteIntakeUseCases(d: {
@@ -110,13 +111,13 @@ export function createWebsiteIntakeUseCases(d: {
       return live !== null && siteAllowed(live.allowedSites, origin);
     },
 
-    async receive({ key, origin, lead }: ReceivedWebsiteLead, serverToServer: boolean): Promise<void> {
+    async receive({ key, origin, lead, campaignId }: ReceivedWebsiteLead, serverToServer: boolean): Promise<void> {
       const live = await d.keys.findLive(key);
       if (!live || (origin !== undefined ? !siteAllowed(live.allowedSites, origin) : !serverToServer)) {
         throw new AppError('forbidden', WEBSITE_KEY_REFUSED);
       }
       const target = { orgId: live.orgId, projectId: live.projectId };
-      const { created } = await d.unitOfWork.run((context) => d.intake.deliverWebsite(context, { ...target, lead, submittedAt: d.clock.now() }));
+      const { created } = await d.unitOfWork.run((context) => d.intake.deliverWebsite(context, { ...target, lead, campaignId, submittedAt: d.clock.now() }));
       if (created) d.intake.announce(target);
     },
   };

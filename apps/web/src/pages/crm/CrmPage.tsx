@@ -93,7 +93,7 @@ export function CrmPage() {
     ? boards?.find((candidate) => candidate.key === chosen)
     : restorable ?? (user ? boards?.[0] : undefined);
   const openLeadId = params.get("lead");
-  const { campaignIds } = useCampaignScope(board?.key);
+  const { campaignIds } = useCampaignScope(board);
 
   useCrmEvents(board?.key, {}, board?.clientId);
   const updateLead = useUpdateLead(board?.key ?? '');

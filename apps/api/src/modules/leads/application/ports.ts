@@ -5,7 +5,7 @@ import type { LeadNoteRecord } from '../domain/lead-note.js';
 import type { LeadHistoryEvent } from '../domain/lead-activity.js';
 import type { LeadFieldRecord, LeadFieldType, FieldOption, OptionColor } from '../domain/lead-field.js';
 import type { CompanyFields, CompanyRecord, PersonFields, PersonRecord, RelatedLead } from '../domain/crm-record.js';
-import type { ArrivalWindow, BoardStageCounts, LeadBoard, LeadColumnRecord, LeadFields, LeadRecord, LeadStage, ProjectStageCounts } from '../domain/lead.js';
+import type { ArrivalWindow, BoardStageCounts, LeadBoard, LeadColumnRecord, LeadFields, LeadRecord, LeadStage, ProjectStageCounts, StageNames } from '../domain/lead.js';
 export interface LeadRepository {
   boards(actor: ActorContext): Promise<LeadBoard[]>;
   reaches(actor: ActorContext, board: string): Promise<boolean>;
@@ -26,6 +26,9 @@ export interface LeadRepository {
   createColumn(context: TransactionContext, input: {id: string; orgId: string; projectId: string; name: string; afterStage: LeadStage | null; position: number; color: OptionColor}): Promise<LeadColumnRecord>;
   updateColumn(context: TransactionContext, id: string, input: {name?: string; afterStage?: LeadStage | null; position?: number; color?: OptionColor}): Promise<LeadColumnRecord>;
   deleteColumn(context: TransactionContext, id: string): Promise<void>;
+  stageNaming(board: string, context?: TransactionContext): Promise<{clientId: string; names: StageNames}>;
+  nameStage(context: TransactionContext, board: string, stage: LeadStage, name: string | null): Promise<void>;
+  setCampaignCrm(context: TransactionContext, board: string, enabled: boolean): Promise<{clientId: string; campaignCrm: boolean}>;
   projectStageCounts(actor: ActorContext, window: ArrivalWindow): Promise<ProjectStageCounts[]>;
   boardStageCounts(actor: ActorContext, board: string, window: ArrivalWindow): Promise<BoardStageCounts>;
 }
@@ -72,5 +75,5 @@ export interface LeadNoteRepository {
   edit(context: TransactionContext, id: string, changes: {body: string; editedAt: Date}): Promise<LeadNoteRecord>;
   delete(context: TransactionContext, id: string): Promise<void>;
 }
-export type LeadEventResource = 'leads' | 'notes' | 'columns' | 'fields' | 'activity' | 'files' | 'records' | 'counts';
+export type LeadEventResource = 'boards' | 'leads' | 'notes' | 'columns' | 'fields' | 'activity' | 'files' | 'records' | 'counts';
 export interface LeadEvent { kind: 'crm.changed'; orgId: string; board: string; resources?: readonly LeadEventResource[]; leadId?: string }

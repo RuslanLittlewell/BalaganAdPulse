@@ -16,6 +16,7 @@ import {
   updateLeadSchema,
   moveLeadSchema,
   createColumnSchema,
+  updateBoardSchema,
   updateColumnSchema,
   createFieldSchema,
   updateFieldSchema,
@@ -62,6 +63,12 @@ export function createLeadRouter(leads: LeadUseCases, files: LeadFileUseCases, f
   router.get(
     "/boards",
     handle(async (req, res) => res.json(await leads.boards(actor(req)))),
+  );
+  router.patch(
+    "/boards/:boardKey",
+    handle(async (req, res) =>
+      res.json(await leads.setCampaignCrm(actor(req), req.params.boardKey, updateBoardSchema.parse(req.body).campaignCrm)),
+    ),
   );
   router.get(
     "/boards/:boardKey/stage-counts",

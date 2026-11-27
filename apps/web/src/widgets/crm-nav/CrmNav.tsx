@@ -1,12 +1,11 @@
 import { useMemo } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Building2, Target, Users } from 'lucide-react';
-import { isRunning, RunningDot, useCampaignReferences } from '@/entities/campaign/index.js';
+import { isRunning, RunningDot, runningFirst, useCampaignReferences } from '@/entities/campaign/index.js';
 import { useCompanies, usePeople } from '@/entities/crm-record/index.js';
-import { useLeadBoards, useLeads } from '@/entities/lead/index.js';
+import { useLeadBoards, useLeads, type LeadBoard } from '@/entities/lead/index.js';
 import { useAuth } from '@/features/auth/index.js';
 import { inCampaigns } from '@/features/lead-view-options/index.js';
-import { useCampaignCrm } from '@/features/profile-settings/index.js';
 import { t } from '@/shared/config/index.js';
 import { useModuleMemory } from '@/shared/lib/index.js';
 import { Label, MultiSelect, SearchableSelect } from '@/shared/ui/index.js';
@@ -22,15 +21,11 @@ export function useSelectedBoard() {
   return { boards, board };
 }
 
-export function useCampaignScope(boardKey: string | undefined) {
-  const { user } = useAuth();
+export function useCampaignScope(board: LeadBoard | undefined) {
   const [params] = useSearchParams();
-  const byCampaign = useCampaignCrm(user?.id);
-  const { data: references } = useCampaignReferences(byCampaign ? boardKey : undefined);
-  const campaigns = useMemo(
-    () => [...(references ?? [])].sort((a, b) => Number(isRunning(b.status)) - Number(isRunning(a.status))),
-    [references],
-  );
+  const byCampaign = board?.campaignCrm ?? false;
+  const { data: references } = useCampaignReferences(byCampaign ? board?.key : undefined);
+  const campaigns = useMemo(() => runningFirst(references ?? []), [references]);
   const campaignIds = useMemo(() => {
     if (!byCampaign) return [];
     const known = new Set(campaigns.map((campaign) => campaign.id));
@@ -46,7 +41,7 @@ export function CrmNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const { boards, board } = useSelectedBoard();
-  const { byCampaign, campaigns, campaignIds } = useCampaignScope(board?.key);
+  const { byCampaign, campaigns, campaignIds } = useCampaignScope(board);
   const { data: leads } = useLeads(board?.key);
   const leadCount = leads ? inCampaigns(leads, campaignIds).length : undefined;
   const { data: companies } = useCompanies(board?.clientId);

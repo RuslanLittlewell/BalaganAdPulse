@@ -5,7 +5,6 @@ import userEvent from "@testing-library/user-event";
 import { makeAccessToken, renderWithProviders, server } from "@test/shared/index.js";
 import { ProfileSettingsDialog } from "@/features/profile-settings/index.js";
 import { getLocale, reloadForLocale, saveLocale } from "@/shared/config/locale.js";
-import { readCampaignCrm, saveCampaignCrm } from "@/features/profile-settings/model/preferences.js";
 
 vi.mock("@/shared/config/locale.js", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/shared/config/locale.js")>(),
@@ -63,31 +62,22 @@ describe("profile preferences", () => {
     expect(screen.getByRole("textbox", { name: "Имя" })).toHaveValue("New name");
   });
 
-  it("saves the campaign CRM preference without submitting invalid account fields", async () => {
+  it("saves General without submitting invalid account fields and holds no CRM by campaign switch", async () => {
     let patched = false;
     server.use(http.patch("/api/user/profile", () => {
       patched = true;
       return HttpResponse.json({ accessToken: makeAccessToken() });
     }));
-    const view = setup();
+    setup();
     await openAccount();
     await waitFor(() => expect(screen.getByLabelText("Имя")).toHaveValue("Buyer"));
     await userEvent.clear(screen.getByLabelText("Имя"));
     await userEvent.click(screen.getByRole("radio", { name: "Общее" }));
-    const toggle = screen.getByRole("switch", { name: "CRM по кампаниям" });
-    expect(toggle).not.toBeChecked();
-    await userEvent.click(toggle);
-    expect(readCampaignCrm("user-1")).toBe(false);
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Сохранить" }));
     expect(await screen.findByText("Настройки сохранены")).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(readCampaignCrm("user-1")).toBe(true);
-    expect(readCampaignCrm("user-2")).toBe(false);
     expect(patched).toBe(false);
-    view.unmount();
-    setup();
-    await openGeneral();
-    await waitFor(() => expect(screen.getByRole("switch", { name: "CRM по кампаниям" })).toBeChecked());
   });
 
   it("saves English only on Save and reloads to translate labels created at startup", async () => {
@@ -107,13 +97,11 @@ describe("profile preferences", () => {
 
   it("opens the English profile with saved preferences", async () => {
     saveLocale("en");
-    saveCampaignCrm("user-1", true);
     setup();
     expect(screen.getByRole("dialog", { name: "Profile settings" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Account" })).toBeChecked();
     await userEvent.click(screen.getByRole("radio", { name: "General" }));
     expect(screen.getByRole("combobox", { name: "Interface language" })).toHaveTextContent("English");
-    await waitFor(() => expect(screen.getByRole("switch", { name: "CRM by campaign" })).toBeChecked());
     await userEvent.click(screen.getByRole("radio", { name: "Account" }));
     expect(screen.getByLabelText("Current password")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edit avatar" })).toBeInTheDocument();
@@ -139,12 +127,13 @@ describe("profile preferences", () => {
     renderWithProviders(<ReopenableDialog />);
     await openGeneral();
     await waitFor(() => expect(screen.getByRole("button", { name: "Сохранить" })).toBeEnabled());
-    await userEvent.click(screen.getByRole("switch", { name: "CRM по кампаниям" }));
+    await userEvent.click(screen.getByRole("combobox", { name: "Язык интерфейса" }));
+    await userEvent.click(screen.getByRole("option", { name: "English" }));
     await userEvent.click(screen.getByRole("button", { name: "Отмена" }));
     await userEvent.click(screen.getByRole("button", { name: "Открыть" }));
     expect(screen.getByRole("radio", { name: "Аккаунт" })).toBeChecked();
     await openGeneral();
-    expect(screen.getByRole("switch", { name: "CRM по кампаниям" })).not.toBeChecked();
+    expect(screen.getByRole("combobox", { name: "Язык интерфейса" })).toHaveTextContent("Русский");
   });
 
   it("reports a storage failure instead of announcing a saved preference", async () => {

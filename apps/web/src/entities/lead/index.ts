@@ -72,6 +72,7 @@ export {
   useDeleteLead,
   useDeleteLeadColumn,
   useLeadBoards,
+  useCampaignCrmChange,
   useLeadActivity,
   useLeadColumns,
   useLeadFiles,
@@ -82,7 +83,7 @@ export {
   useMoveLead,
   useUpdateLead,
 } from "./api/queries.js";
-export { FIXED_LEAD_COLUMNS, FIXED_STAGE_COLORS, leadColumnLabel } from "./lib/columns.js";
+export { FIXED_LEAD_COLUMNS, FIXED_STAGE_COLORS, isRenamable, leadColumnLabel, RENAMABLE_STAGES } from "./lib/columns.js";
 export { arrivalDay, arrivalIso } from "./lib/arrival.js";
 export { calendarDay, compactSum, readableNumber } from "./lib/format.js";
 export { ColumnPill, OPTION_CHIP_CLASS, OptionChip, OptionSwatch } from "./ui/OptionChip.js";
